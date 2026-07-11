@@ -28,7 +28,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
     optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
     selectedImage, setSelectedImage, displayMedia,
     selectedVariantId,
-    handleAddToCart, handleBuyNow, isAuthenticated, addToCartPending,
+    handleAddToCart, handleBuyNow, isAuthenticated, signInMandatory, addToCartPending,
     storePath, warrantyDays, returnDays, isReturnable, specs,
     warrantyType, returnPolicy, returnConditions, refundPolicy,
     crossSellProducts, upsellProducts,
@@ -356,6 +356,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
         canQuote={canQuote}
         onRequestQuote={() => setShowQuote(true)}
         isAuthenticated={isAuthenticated}
+        signInMandatory={signInMandatory}
         storePath={storePath}
         className="mx-auto mb-12 max-w-sm space-y-4"
       />

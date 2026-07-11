@@ -1,4 +1,4 @@
-import { AxiosError } from 'axios'
+import { AxiosError, isAxiosError } from 'axios'
 import { toast } from 'sonner'
 
 interface ApiErrorDetail {
@@ -15,6 +15,12 @@ interface ApiErrorDetail {
  * and HTTP status-based messages.
  */
 export function extractApiError(error: unknown, context: string): string {
+  // Plain Error (e.g. "Cart item not found") — not an Axios/network failure.
+  if (error instanceof Error && !isAxiosError(error)) {
+    const msg = error.message?.trim()
+    if (msg) return `${context}: ${msg}`
+  }
+
   const ax = error as AxiosError<{
     detail?: string | ApiErrorDetail[]
     message?: string
@@ -27,6 +33,9 @@ export function extractApiError(error: unknown, context: string): string {
     }
     if (ax?.code === 'ERR_NETWORK' || ax?.message?.includes('Network Error')) {
       return `${context}: Unable to reach the server — ensure the backend API is running (port 8000) and the storefront dev server is proxying /api (npm run dev in storefront-web, or nginx /api in production)`
+    }
+    if (ax?.code === 'ERR_CANCELED') {
+      return `${context}: Request was cancelled`
     }
     return `${context}: No response from server — please check your connection and that the API is reachable`
   }

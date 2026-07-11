@@ -23,10 +23,11 @@ import { trackView } from '@/lib/recentlyViewed'
 import { assertCanAddToCart, getMaxAddQuantity, getMinAddQuantity, getOnHandQuantity } from '@/lib/stockValidation'
 import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
 import { setPendingBuyNow } from '@/lib/pendingBuyNow'
+import { isSignInMandatory } from '@/lib/deliveryConditions'
 import { toast } from 'sonner'
 
 export default function ProductDetail() {
-  const { storePath, vendorSlug, displayFields } = useVendor()
+  const { storePath, vendorSlug, displayFields, vendor } = useVendor()
   const sf = displayFields.product
   const { product_detail_template } = useTheme()
   const { slug } = useParams<{ slug: string }>()
@@ -36,6 +37,9 @@ export default function ProductDetail() {
   const { isAuthenticated, customer } = useAuthStore()
   const requestQuote = useRequestQuote()
   const createSubscription = useCreateSubscription()
+  const signInMandatory = isSignInMandatory(
+    (vendor?.settings ?? {}) as Record<string, unknown>,
+  )
   const [qty, setQty] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
@@ -283,7 +287,7 @@ export default function ProductDetail() {
       image_url: img,
     }
 
-    if (!isAuthenticated) {
+    if (!isAuthenticated && signInMandatory) {
       setPendingBuyNow({ vendorSlug, productId: product.id, item: cartItem })
       toast.info('Please sign in to continue to checkout')
       navigate(storePath('/login'), { state: { from: storePath('/checkout') } })
@@ -347,6 +351,7 @@ export default function ProductDetail() {
     handleAddToCart, handleBuyNow, handleSubscribe,
     subscribePending: createSubscription.isPending,
     isAuthenticated,
+    signInMandatory,
     addToCartPending: addToCart.isPending,
     storePath, warrantyDays, warrantyType, returnDays,
     returnPolicy, returnConditions, refundPolicy, isReturnable, specs,

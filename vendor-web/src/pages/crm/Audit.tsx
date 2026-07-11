@@ -11,11 +11,12 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 export default function AuditPage() {
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
   const [entity, setEntity] = useState('')
   const [action, setAction] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const { data, isLoading } = useAuditLog({
-    page, size: 25,
+    page, size: pageSize,
     entity: entity || undefined,
     action: action || undefined,
   })
@@ -99,7 +100,7 @@ export default function AuditPage() {
               })}
             </tbody>
         </table>
-        <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} />
+        <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} itemLabel="events" />
       </div>
     </div>
   )

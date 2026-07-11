@@ -44,6 +44,10 @@ export type ThemeSelectProps = {
   triggerClassName?: string
   /** Stacking order for the portaled menu (default above modals). */
   menuZIndex?: number
+  /** Minimum menu width in px. Omit to auto-size from options (compact for short labels). */
+  menuMinWidth?: number
+  /** Menu open direction. `auto` flips when space is tight; `top` / `bottom` force a side. */
+  menuPlacement?: 'auto' | 'top' | 'bottom'
   'aria-label'?: string
 }
 
@@ -73,16 +77,33 @@ export function ThemeSelect({
   wrapperClassName,
   triggerClassName,
   menuZIndex = 9999,
+  menuMinWidth,
+  menuPlacement = 'auto',
   'aria-label': ariaLabel,
 }: ThemeSelectProps) {
   const [open, setOpen] = useState(false)
-  const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number } | null>(null)
+  const [menuRect, setMenuRect] = useState<{
+    top?: number
+    bottom?: number
+    left: number
+    width: number
+    minWidth: number
+    maxHeight: number
+    openUp: boolean
+  } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const listId = useId()
   const selected = options.find((o) => o.value === value)
   const displayLabel = selected?.label ?? placeholder
+
+  const autoMenuMinWidth = useMemo(() => {
+    if (menuMinWidth != null) return menuMinWidth
+    const longest = options.reduce((max, o) => Math.max(max, (o.label || '').length, (o.hint || '').length), 0)
+    // Short numeric options (e.g. page size) stay compact; form fields keep room for labels.
+    return longest <= 4 ? 0 : 280
+  }, [menuMinWidth, options])
 
   const menuSections = useMemo(() => {
     const ungrouped: ThemeSelectOption[] = []
@@ -130,10 +151,37 @@ export function ThemeSelect({
       const trigger = triggerRef.current
       if (!trigger) return
       const rect = trigger.getBoundingClientRect()
+      const gap = 4
+      const edge = 8
+      const spaceBelow = window.innerHeight - rect.bottom - gap
+      const spaceAbove = rect.top - gap
+      // Prefer opening down; flip up when the footer/viewport would clip the menu.
+      const estimatedMenuH = Math.min(240, Math.max(120, options.length * 40 + 8))
+      const openUp =
+        menuPlacement === 'top'
+          ? true
+          : menuPlacement === 'bottom'
+            ? false
+            : spaceBelow < estimatedMenuH && spaceAbove > spaceBelow
+      const maxHeight = Math.min(240, Math.max(120, openUp ? spaceAbove : spaceBelow))
+      const minWidth = Math.max(rect.width, autoMenuMinWidth)
+      const maxAllowedWidth = Math.max(rect.width, window.innerWidth - edge * 2)
+      const width = Math.min(Math.max(rect.width, minWidth), maxAllowedWidth)
+      let left = rect.left
+      if (left + width > window.innerWidth - edge) {
+        left = Math.max(edge, window.innerWidth - width - edge)
+      }
+      left = Math.max(edge, Math.min(left, window.innerWidth - width - edge))
+      // Use `bottom` when opening up so CSS zoom animations can't wipe `translateY(-100%)`.
       setMenuRect({
-        top: rect.bottom + 4,
-        left: rect.left,
+        ...(openUp
+          ? { bottom: window.innerHeight - rect.top + gap }
+          : { top: rect.bottom + gap }),
+        left,
         width: rect.width,
+        minWidth: width,
+        maxHeight,
+        openUp,
       })
     }
     updateMenuRect()
@@ -143,7 +191,7 @@ export function ThemeSelect({
       window.removeEventListener('scroll', updateMenuRect, true)
       window.removeEventListener('resize', updateMenuRect)
     }
-  }, [open])
+  }, [open, options.length, autoMenuMinWidth, menuPlacement])
 
   useEffect(() => {
     if (!open) return
@@ -194,12 +242,14 @@ export function ThemeSelect({
           style={{
             position: 'fixed',
             top: menuRect.top,
+            bottom: menuRect.bottom,
             left: menuRect.left,
             width: menuRect.width,
-            minWidth: Math.max(menuRect.width, 280),
+            minWidth: menuRect.minWidth,
+            maxHeight: menuRect.maxHeight,
             zIndex: menuZIndex,
           }}
-          className={themeSelectUi.menu}
+          className={cn(themeSelectUi.menu, menuRect.openUp && 'origin-bottom')}
         >
           {menuSections.ungrouped.map(renderOption)}
           {menuSections.groups.map(([group, items]) => (

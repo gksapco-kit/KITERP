@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { PackageSearch, Save, Loader2, Info, IndianRupee } from 'lucide-react'
+import { PackageSearch, Save, Loader2, Info, IndianRupee, LogIn } from 'lucide-react'
 import { useUpdateVendor } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,7 @@ export default function DeliveryConditionsPage() {
     free_delivery_threshold: null,
     minimum_delivery_charge: null,
     calculate_gst: true,
+    sign_in_mandatory: false,
   })
 
   useEffect(() => {
@@ -187,6 +188,39 @@ export default function DeliveryConditionsPage() {
                 </p>
               </div>
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+                <LogIn className="h-5 w-5" strokeWidth={2} />
+              </div>
+              <div>
+                <CardTitle className="text-base">Checkout sign-in</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Control whether customers must sign in before checkout or Buy Now.
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+              <div>
+                <Label htmlFor="sign-in-mandatory" className="text-sm font-medium">
+                  Sign in mandatory
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  When on, guests are asked to sign in before checkout and Buy Now. When off, guest checkout is allowed.
+                </p>
+              </div>
+              <Switch
+                id="sign-in-mandatory"
+                checked={form.sign_in_mandatory}
+                onCheckedChange={sign_in_mandatory => setForm(prev => ({ ...prev, sign_in_mandatory }))}
+              />
+            </div>
           </CardContent>
         </Card>
 

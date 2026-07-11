@@ -470,10 +470,11 @@ function CampaignForm({
 export default function CampaignsPage() {
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [showCreate, setShowCreate] = useState(false)
   const [edit, setEdit] = useState<Campaign | null>(null)
   const [fromTemplate, setFromTemplate] = useState<EmailTemplate | null>(null)
-  const { data, isLoading } = useCampaigns({ page, size: 20 })
+  const { data, isLoading } = useCampaigns({ page, size: pageSize })
 
   const start = async (id: string) => {
     try {
@@ -596,7 +597,7 @@ export default function CampaignsPage() {
               ))}
             </tbody>
           </table>
-          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} />
+          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} itemLabel="campaigns" />
         </CardContent>
       </Card>
 

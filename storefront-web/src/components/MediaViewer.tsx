@@ -7,6 +7,7 @@ import {
   type LightboxMediaItem,
 } from '@/components/common/CatalogMediaLightbox'
 import { ImageHoverZoom } from '@/components/products/ImageHoverZoom'
+import { ProductImagePlaceholder } from '@/components/products/ProductThumb'
 import { Play, Pause, Volume2, VolumeX, Maximize, Box, Camera, RotateCcw, RotateCw, X } from 'lucide-react'
 
 type MediaType = 'image' | 'video' | 'model3d'
@@ -255,7 +256,12 @@ export default function MediaViewer({
   )
   const lightbox = useCatalogMediaLightbox(lightboxItems.length)
   const [isDragging360, setIsDragging360] = useState(false)
+  const [mainImageFailed, setMainImageFailed] = useState(false)
   const spinDragRef = useRef<{ startX: number; anchorIndex: number; moved: boolean } | null>(null)
+
+  useEffect(() => {
+    setMainImageFailed(false)
+  }, [selected?.url, selectedIndex])
 
   const imageItems = useMemo(
     () => items.filter((i) => (i.media_type || 'image') === 'image'),
@@ -341,9 +347,9 @@ export default function MediaViewer({
       {useLeftThumbs ? thumbnailRail : null}
       <div className={cn('min-w-0', useLeftThumbs ? 'flex-1' : 'w-full')}>
       <div className={cn('bg-gray-50 rounded-xl overflow-hidden border relative group/stage', stage.stage)}>
-        {!selected ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Box className="w-16 h-16 text-gray-200" />
+        {!selected || (mt === 'image' && mainImageFailed) ? (
+          <div className="absolute inset-0">
+            <ProductImagePlaceholder size="lg" />
           </div>
         ) : mt === 'video' ? (
           <div className="absolute inset-0">
@@ -391,6 +397,7 @@ export default function MediaViewer({
               imgClassName={stage.image}
               disabled={isDragging360}
               onClick={can360 ? undefined : openLightbox}
+              onError={() => setMainImageFailed(true)}
             />
             {can360 && !isDragging360 && (
               <span className="pointer-events-none absolute bottom-3 left-3 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 transition-opacity group-hover/stage:opacity-100">

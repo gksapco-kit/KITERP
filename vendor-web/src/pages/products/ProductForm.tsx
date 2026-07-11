@@ -4,6 +4,7 @@ import { FormColumnLabel } from '@/components/common/FieldLabel'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { ProductModifiers } from './ProductModifiers'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { TablePagination } from '@/components/table/TablePagination'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
@@ -4150,71 +4151,20 @@ export default function ProductForm() {
                   </FormTintPanel>
                   )
                 })}
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2">
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                    <span>
-                      {pageStart + 1}–{Math.min(pageStart + variantsPageSize, variantFields.length)} of{' '}
-                      {variantFields.length.toLocaleString('en-IN')}
-                    </span>
-                    <span className="hidden sm:inline">·</span>
-                    <label className="flex items-center gap-1.5">
-                      <span className="hidden sm:inline">Rows</span>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={200}
-                        list="product-form-variant-page-sizes"
-                        value={variantsPageSize}
-                        onChange={e => {
-                          const raw = e.target.value
-                          if (raw === '') return
-                          const n = Number(raw)
-                          if (!Number.isFinite(n)) return
-                          setVariantsPageSize(Math.min(200, Math.max(1, Math.floor(n))))
-                          setVariantsPage(1)
-                        }}
-                        onBlur={e => {
-                          const n = Number(e.target.value)
-                          if (!Number.isFinite(n) || n < 1) setVariantsPageSize(10)
-                        }}
-                        aria-label="Variants per page"
-                        className="h-7 w-20 min-w-[5rem] px-2 text-center text-xs tabular-nums"
-                      />
-                      <datalist id="product-form-variant-page-sizes">
-                        {[5, 10, 25, 50].map(n => (
-                          <option key={n} value={n} />
-                        ))}
-                      </datalist>
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      disabled={safePage <= 1}
-                      onClick={() => setVariantsPage(safePage - 1)}
-                      aria-label="Previous page"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                    </Button>
-                    <span className="min-w-[3.5rem] text-center text-[11px] text-muted-foreground">
-                      {safePage} / {totalPages}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      disabled={safePage >= totalPages}
-                      onClick={() => setVariantsPage(safePage + 1)}
-                      aria-label="Next page"
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
+                {variantFields.length > 0 && (
+                <TablePagination
+                  page={safePage}
+                  pages={totalPages}
+                  total={variantFields.length}
+                  pageSize={variantsPageSize}
+                  onPageChange={setVariantsPage}
+                  onPageSizeChange={setVariantsPageSize}
+                  itemLabel="variants"
+                  rowsPerPageLabel="Variants per page"
+                  pageSizeOptions={[5, 10, 25, 50, 100]}
+                  className="rounded-lg border bg-muted/20 px-3 py-2"
+                />
+                )}
                     </>
                   )
                 })()}

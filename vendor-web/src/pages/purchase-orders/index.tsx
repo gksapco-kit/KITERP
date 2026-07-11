@@ -19,6 +19,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import type { Product, Service, PurchaseOrder } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { TablePagination } from '@/components/table/TablePagination'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -27,7 +28,7 @@ import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
 import { toast } from 'sonner'
 import {
-  Loader2, Plus, ChevronLeft, ChevronRight, X, ClipboardList, Trash2, Palette,
+  Loader2, Plus, X, ClipboardList, Trash2, Palette,
   ScanLine, Package, AlertCircle, UserPlus, Building2, ExternalLink,
 } from 'lucide-react'
 
@@ -56,6 +57,7 @@ interface BarcodePrefill {
 export default function PurchaseOrdersPage() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [sortKey, setSortKey] = useState('order_date')
@@ -81,7 +83,7 @@ export default function PurchaseOrdersPage() {
     } catch { /* ignore */ }
   }, [])
 
-  const params: Record<string, unknown> = { page, size: 20 }
+  const params: Record<string, unknown> = { page, size: pageSize }
   if (statusFilter) params.status = statusFilter
 
   const { data, isLoading } = usePurchaseOrders(params)
@@ -100,9 +102,6 @@ export default function PurchaseOrdersPage() {
     { value: 'closed', label: 'Closed' },
     { value: 'cancelled', label: 'Cancelled' },
   ]
-
-  const total = data?.total || 0
-  const pages = data?.pages || 0
 
   const displayOrders = useMemo(() => {
     if (!data?.items?.length) return []
@@ -316,18 +315,17 @@ export default function PurchaseOrdersPage() {
               </ResizableTable>
             </CardContent>
           </Card>
-          {pages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">Page {page} of {pages} ({total} records)</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  <ChevronLeft className="w-4 h-4" /> Prev
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>
-                  Next <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+          {data && (
+            <TablePagination
+              page={page}
+              pages={data.pages || 1}
+              total={data.total || 0}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="records"
+              className="rounded-lg border bg-white"
+            />
           )}
         </>
       )}

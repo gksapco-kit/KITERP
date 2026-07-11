@@ -258,11 +258,12 @@ function TicketForm({ onClose }: { onClose: () => void }) {
 export default function TicketsPage() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [status, setStatus] = useState('open')
   const [showCreate, setShowCreate] = useState(false)
-  const { data, isLoading } = useTickets({ page, size: 20, q: search || undefined, status: status || undefined })
+  const { data, isLoading } = useTickets({ page, size: pageSize, q: search || undefined, status: status || undefined })
 
   return (
     <div className="space-y-6">
@@ -335,7 +336,7 @@ export default function TicketsPage() {
               ))}
             </tbody>
           </table>
-          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} />
+          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} itemLabel="tickets" />
         </CardContent>
       </Card>
 

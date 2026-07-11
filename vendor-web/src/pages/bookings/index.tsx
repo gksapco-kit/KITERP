@@ -17,6 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { TablePagination } from '@/components/table/TablePagination'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useUpdateBookingStatus } from '@/hooks/useVendor'
@@ -27,7 +28,7 @@ import { DragHandle } from '@/components/common/DragHandle'
 import { QuickCreateCustomerModal } from '@/components/customers/QuickCreateCustomerModal'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import {
-  Loader2, CalendarDays, ChevronLeft, ChevronRight,
+  Loader2, CalendarDays,
   Plus, X, Search, User, Check, Play, Ban, UserX, CheckCircle,
   Clock, Zap, CalendarCheck2, Users, AlertTriangle, Hourglass,
   ExternalLink, CalendarClock, RotateCcw, Grid3X3, Building2,
@@ -329,6 +330,7 @@ export default function BookingsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [statusFilter, setStatusFilter] = useState('')
   const [listStoreFilter, setListStoreFilter] = useState('')
   const [listBranchFilter, setListBranchFilter] = useState('')
@@ -398,7 +400,7 @@ export default function BookingsPage() {
     }
   }
 
-  const params: Record<string, unknown> = { page, size: 20 }
+  const params: Record<string, unknown> = { page, size: pageSize }
   if (statusFilter) params.status = statusFilter
   if (listBranchFilter || listStoreFilter) params.store_id = listBranchFilter || listStoreFilter
   if (listSalesAreaFilter) params.sales_area_id = listSalesAreaFilter
@@ -698,9 +700,6 @@ export default function BookingsPage() {
       setCreating(false)
     }
   }
-
-  const total = data?.total || 0
-  const pages = data?.pages || 0
 
   type BRow = Record<string, unknown>
   const displayBookings = useMemo(() => {
@@ -1628,18 +1627,17 @@ export default function BookingsPage() {
               </ResizableTable>
             </CardContent>
           </Card>
-          {pages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">Page {page} of {pages} ({total} records)</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  <ChevronLeft className="w-4 h-4" /> Prev
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>
-                  Next <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+          {data && (
+            <TablePagination
+              page={page}
+              pages={data.pages || 1}
+              total={data.total || 0}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="records"
+              className="rounded-lg border bg-white"
+            />
           )}
         </>
       )}

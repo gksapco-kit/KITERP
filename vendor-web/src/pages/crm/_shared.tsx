@@ -16,7 +16,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Loader2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { TablePagination } from '@/components/table/TablePagination'
+import { Loader2, X, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function CrmModal({
@@ -97,20 +98,30 @@ export function SearchBar({
 
 export function Pager({
   page, pages, total, onPage,
-}: { page: number; pages: number; total: number; onPage: (p: number) => void }) {
-  if (pages <= 1) return null
+  pageSize = 20,
+  onPageSizeChange,
+  itemLabel = 'items',
+}: {
+  page: number
+  pages: number
+  total: number
+  onPage: (p: number) => void
+  pageSize?: number
+  onPageSizeChange?: (size: number) => void
+  itemLabel?: string
+}) {
+  if (total <= 0 && pages <= 1) return null
   return (
-    <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-muted/30">
-      <span className="text-xs text-muted-foreground">Page {page} of {pages} ({total} total)</span>
-      <div className="flex gap-1">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-      </div>
-    </div>
+    <TablePagination
+      page={page}
+      pages={pages || 1}
+      total={total}
+      pageSize={pageSize}
+      onPageChange={onPage}
+      onPageSizeChange={onPageSizeChange ?? (() => {})}
+      itemLabel={itemLabel}
+      className="border-border bg-muted/30 px-6"
+    />
   )
 }
 

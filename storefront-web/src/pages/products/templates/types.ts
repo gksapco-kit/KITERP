@@ -45,6 +45,7 @@ export interface ProductDetailTemplateProps {
   }) => void
   subscribePending?: boolean
   isAuthenticated: boolean
+  signInMandatory?: boolean
   addToCartPending: boolean
   storePath: (p: string) => string
   warrantyDays?: number

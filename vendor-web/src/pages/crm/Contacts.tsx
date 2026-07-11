@@ -472,6 +472,7 @@ export default function ContactsPage() {
   const initialType = (searchParams.get('type') === 'company' ? 'company' : searchParams.get('type') === 'person' ? 'person' : '') as RecordFilter
 
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [typeFilter, setTypeFilter] = useState<RecordFilter>(initialType)
@@ -481,7 +482,7 @@ export default function ContactsPage() {
   const [editing, setEditing] = useState<Contact | null>(null)
 
   const { data, isLoading } = useContacts({
-    page, size: 20, q: search || undefined,
+    page, size: pageSize, q: search || undefined,
     record_type: typeFilter || undefined,
   })
   const { data: companiesData } = useContacts({ record_type: 'company', size: 200 })
@@ -588,7 +589,7 @@ export default function ContactsPage() {
               </tbody>
             </table>
           </div>
-          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} />
+          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} itemLabel="contacts" />
         </CardContent>
       </Card>
 

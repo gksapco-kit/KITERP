@@ -41,6 +41,11 @@ function fmt(n: number | string) {
 
 const today = () => new Date().toISOString().slice(0, 10)
 
+/** Mandatory field marker — always red so it stands out on gray labels. */
+function ReqRequiredMark() {
+  return <span className="text-red-500" aria-hidden>*</span>
+}
+
 // ─── Account Combobox ─────────────────────────────────────────────────────────
 function AccountCombobox({
   value, onChange, companyId, placeholder = 'Search account…',
@@ -472,7 +477,7 @@ function JEDrawer({
                     {/* Business unit */}
                     <div className="md:col-span-1">
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        <Building2 className="inline w-3 h-3 mr-0.5" /> Business unit *
+                        <Building2 className="inline w-3 h-3 mr-0.5" /> Business unit <ReqRequiredMark />
                       </label>
                       <select
                         value={companyId}
@@ -516,7 +521,7 @@ function JEDrawer({
                     {/* Posting Date */}
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        Posting Date *
+                        Posting Date <ReqRequiredMark />
                       </label>
                       <input
                         type="date"
@@ -530,7 +535,7 @@ function JEDrawer({
                     {!fieldHidden('header.document_date') && (
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        Document Date{fieldMandatory('header.document_date') ? ' *' : ''}
+                        Document Date{fieldMandatory('header.document_date') ? <> <ReqRequiredMark /></> : null}
                       </label>
                       <input
                         type="date"
@@ -577,7 +582,7 @@ function JEDrawer({
                     {!fieldHidden('header.reference') && (
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        Reference{fieldMandatory('header.reference') ? ' *' : ''}
+                        Reference{fieldMandatory('header.reference') ? <> <ReqRequiredMark /></> : null}
                       </label>
                       <input
                         value={reference}
@@ -592,7 +597,7 @@ function JEDrawer({
                     {!fieldHidden('header.narration') && (
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        Narration / Description{fieldMandatory('header.narration') ? ' *' : ''}
+                        Narration / Description{fieldMandatory('header.narration') ? <> <ReqRequiredMark /></> : null}
                       </label>
                       <input
                         value={narration}
@@ -607,7 +612,7 @@ function JEDrawer({
                     {!fieldHidden('header.header_text') && (
                     <div className="md:col-span-3">
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
-                        Header Note (internal){fieldMandatory('header.header_text') ? ' *' : ''}
+                        Header Note (internal){fieldMandatory('header.header_text') ? <> <ReqRequiredMark /></> : null}
                       </label>
                       <textarea
                         value={headerText}

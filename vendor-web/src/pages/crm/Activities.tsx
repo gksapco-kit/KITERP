@@ -282,11 +282,12 @@ function ActivityForm({ onClose }: { onClose: () => void }) {
 
 export default function ActivitiesPage() {
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [type, setType] = useState('')
   const [status, setStatus] = useState('open')
   const [showCreate, setShowCreate] = useState(false)
   const complete = useCompleteActivity()
-  const { data, isLoading } = useActivities({ page, size: 20, type: type || undefined, status: status || undefined })
+  const { data, isLoading } = useActivities({ page, size: pageSize, type: type || undefined, status: status || undefined })
 
   return (
     <div className="space-y-6">
@@ -370,7 +371,7 @@ export default function ActivitiesPage() {
               ))}
             </tbody>
           </table>
-          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} />
+          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} itemLabel="activities" />
         </CardContent>
       </Card>
 

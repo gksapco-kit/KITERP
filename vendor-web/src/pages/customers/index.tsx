@@ -10,6 +10,7 @@ import { useCustomers, useCreateCustomer, useUpdateCustomer } from '@/hooks/useV
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { TablePagination } from '@/components/table/TablePagination'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -18,7 +19,7 @@ import type { Customer } from '@/types'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import {
   Search, Eye, Loader2, Plus, X, UserPlus, Phone, Mail, Lock,
-  ChevronLeft, ChevronRight, Building2, MapPin, CheckCircle2, AlertCircle,
+  Building2, MapPin, CheckCircle2, AlertCircle,
   IndianRupee,
 } from 'lucide-react'
 import { AddPartyModal } from '@/components/parties/AddPartyModal'
@@ -314,16 +315,16 @@ function CreateCustomerModal({ onClose }: { onClose: () => void }) {
 export default function Customers() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [sortKey, setSortKey] = useState('full_name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
-  const { data, isLoading } = useCustomers({ page, size: 10, search: search || undefined })
+  const { data, isLoading } = useCustomers({ page, size: pageSize, search: search || undefined })
   const updateCustomer = useUpdateCustomer()
   const { isSaving, patchField } = useInlineFieldPatch(updateCustomer)
-  const pages = data?.pages || 0
 
   const displayCustomers = useMemo(() => {
     if (!data?.items?.length) return []
@@ -526,20 +527,16 @@ export default function Customers() {
             </tbody>
           </ResizableTable>
 
-          {pages > 1 && (
-            <div className="flex items-center justify-between px-6 py-3 border-t bg-gray-50">
-              <span className="text-xs text-gray-500">
-                Page {page} of {pages} ({data?.total} customers)
-              </span>
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+          {data && (
+            <TablePagination
+              page={page}
+              pages={data.pages || 1}
+              total={data.total}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="customers"
+            />
           )}
         </CardContent>
       </Card>

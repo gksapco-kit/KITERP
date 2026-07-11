@@ -15,6 +15,7 @@ import { CartDetailLineItem } from '@/pages/cart/CartDetailLineItem'
 import type { ProductVariant } from '@/types'
 import { variantDisplayLabel } from '@/lib/variantOptions'
 import { maxCartLineQty, validateCartLineQtyChange } from '@/lib/cartLineStock'
+import { isSignInMandatory } from '@/lib/deliveryConditions'
 import { toast } from 'sonner'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
@@ -58,7 +59,14 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
   const updateItem = useUpdateCartItem()
   const removeItem = useRemoveCartItem()
   const changeVariant = useChangeCartVariant()
-  const { storePath, vendorSlug } = useVendor()
+  const { storePath, vendorSlug, vendor } = useVendor()
+  const requireSignIn = isSignInMandatory(
+    (vendor?.settings ?? {}) as Record<string, unknown>,
+  )
+  const checkoutHref =
+    requireSignIn && !isAuthenticated
+      ? `${storePath('/login')}?from=${encodeURIComponent(storePath('/checkout'))}`
+      : storePath('/checkout')
 
   const rawItems = (cart?.items ?? []) as Array<Record<string, unknown>>
   const { data: productMap = {} } = useCartProducts(
@@ -262,11 +270,11 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
                   </span>
                 </div>
                 <a
-                  href={storePath('/checkout')}
+                  href={checkoutHref}
                   className="block w-full py-3 text-sm font-bold rounded-xl text-white text-center"
                   style={{ backgroundColor: style.primary_color }}
                 >
-                  Checkout
+                  {requireSignIn && !isAuthenticated ? 'Sign in to checkout' : 'Checkout'}
                 </a>
                 <a
                   href={storePath('/cart')}

@@ -515,20 +515,14 @@ export function useRemoveCartItem() {
     mutationFn: async (input: RemoveCartItemInput) => {
       const isAuth = useAuthStore.getState().isAuthenticated
       if (!isAuth) {
-        const items = useGuestCartStore.getState().getItems(vendorSlug)
-        const index = resolveCartLineIndex(items, input)
-        if (index < 0) throw new Error('Cart item not found')
-        useGuestCartStore.getState().removeItem(vendorSlug, index)
+        // Guest line is removed in onMutate; confirm current cart for onSuccess.
         return buildGuestCart(useGuestCartStore.getState().getItems(vendorSlug))
       }
 
-      const cart = qc.getQueryData<Cart>(storeKeys.cart) ?? useCartStore.getState().cart
-      let index = resolveCartLineIndex(cart?.items as CartLineRef[] | undefined, input)
-      if (index < 0) {
-        const fresh = await storeApi.getCart()
-        applyCartMutation(qc, fresh)
-        index = resolveCartLineIndex(fresh.items as CartLineRef[] | undefined, input)
-      }
+      // Do not trust the React Query cache here: onMutate already dropped the line
+      // for optimistic UI. Resolve against the server cart.
+      const fresh = await storeApi.getCart()
+      const index = resolveCartLineIndex(fresh.items as CartLineRef[] | undefined, input)
       if (index < 0) throw new Error('Cart item not found')
       return storeApi.removeCartItem(index)
     },
@@ -539,7 +533,7 @@ export function useRemoveCartItem() {
         const store = useGuestCartStore.getState()
         const before = store.getItems(vendorSlug)
         const index = resolveCartLineIndex(before, input)
-        if (index < 0) return {}
+        if (index < 0) throw new Error('Cart item not found')
         const snap = before.map((i) => ({ ...i }))
         store.removeItem(vendorSlug, index)
         applyCartMutation(qc, buildGuestCart(store.getItems(vendorSlug)))

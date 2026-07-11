@@ -17,7 +17,7 @@ import { ResizableTable } from '@/components/table/ResizableTable'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import {
-  Plus, Search, Loader2, FileText, ChevronLeft, ChevronRight,
+  Plus, Search, Loader2, FileText,
   X, Eye, IndianRupee, ArrowRight, Download, Trash2, Share2,
   MessageCircle, Mail, Smartphone, Copy, Send, Settings2, CalendarDays, Printer, UserPlus,
 } from 'lucide-react'
@@ -29,6 +29,7 @@ import { QuotationExtraFieldsEditor } from '@/components/quotations/QuotationExt
 import { serializeQuotationExtraFields, type QuotationExtraField } from '@/types/quotation'
 import apiClient from '@/api/client'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { TablePagination } from '@/components/table/TablePagination'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -157,6 +158,7 @@ export default function InvoicesPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(15)
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [storeFilter, setStoreFilter] = useState('')
@@ -179,10 +181,10 @@ export default function InvoicesPage() {
   }, [searchInput])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['invoices', page, typeFilter, statusFilter, storeFilter, branchFilter, salesAreaFilter, search],
+    queryKey: ['invoices', page, pageSize, typeFilter, statusFilter, storeFilter, branchFilter, salesAreaFilter, search],
     queryFn: () => vendorApi.listInvoices({
       page,
-      size: 15,
+      size: pageSize,
       invoice_type: typeFilter || undefined,
       exclude_invoice_type: typeFilter ? undefined : 'estimate',
       status: statusFilter || undefined,
@@ -221,9 +223,6 @@ export default function InvoicesPage() {
       },
     )
   }, [data?.items, sortKey, sortDir])
-
-  const total = data?.total ?? 0
-  const pages = data?.pages ?? 1
 
   const moreOptionsActiveCount = useMemo(() => {
     let count = 0
@@ -479,23 +478,18 @@ export default function InvoicesPage() {
             </tbody>
           </ResizableTable>
 
-          {!isLoading && total > 0 && (
-            <div className="flex items-center justify-between border-t border-border bg-muted/25 px-4 py-3 flex-wrap gap-3">
-              <p className="text-sm text-muted-foreground">
-                Page {page} of {pages} · {total} invoice{total === 1 ? '' : 's'}
-                {search ? ` matching "${search}"` : ''}
-              </p>
-              {pages > 1 && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                    <ChevronLeft className="w-4 h-4 mr-1" />Prev
-                  </Button>
-                  <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>
-                    Next<ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </div>
-              )}
-            </div>
+          {data && (
+            <TablePagination
+              page={page}
+              pages={data.pages || 1}
+              total={data.total ?? 0}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="invoices"
+              pageSizeOptions={[10, 15, 25, 50, 100]}
+              countSuffix={search ? ` matching "${search}"` : undefined}
+            />
           )}
         </CardContent>
       </Card>

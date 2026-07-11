@@ -99,7 +99,19 @@ async def guest_checkout(
 ):
     """Place an order without a logged-in account (guest checkout)."""
     from app.repositories.customer_repo import CustomerRepository
+    from app.repositories.vendor_repo import VendorRepository
     from app.core.security import create_access_token, create_refresh_token
+    from app.services.checkout_service import is_sign_in_mandatory
+
+    vendor_repo = VendorRepository(db)
+    vendor = await vendor_repo.get_by_id(vendor_id)
+    if not vendor:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Store not found")
+    if is_sign_in_mandatory(vendor):
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Sign in is required to place an order at this store",
+        )
 
     service = OrderService(db)
     order = await service.guest_checkout(vendor_id, data)

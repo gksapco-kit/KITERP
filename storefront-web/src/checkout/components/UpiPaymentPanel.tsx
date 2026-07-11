@@ -93,7 +93,7 @@ export function UpiPaymentPanel({ manualUpi, total }: Props) {
       )}
 
       <p className="ck-text-muted text-xs">
-        After paying, place your order and upload your payment screenshot with the UTR / transaction ID.
+        After paying, enter your UTR / transaction ID and upload your payment screenshot below.
       </p>
     </div>
   );

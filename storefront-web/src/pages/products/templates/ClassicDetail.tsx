@@ -149,7 +149,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
     optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
     selectedImage, setSelectedImage, displayMedia,
     selectedVariantId,
-    handleAddToCart, handleBuyNow, handleSubscribe, subscribePending, isAuthenticated, addToCartPending,
+    handleAddToCart, handleBuyNow, handleSubscribe, subscribePending, isAuthenticated, signInMandatory, addToCartPending,
     storePath, warrantyDays, warrantyType, returnDays, returnPolicy,
     returnConditions, refundPolicy, isReturnable, specs,
     crossSellProducts, upsellProducts,
@@ -521,6 +521,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
               canQuote={canQuote}
               onRequestQuote={() => setShowQuote(true)}
               isAuthenticated={isAuthenticated}
+              signInMandatory={signInMandatory}
               storePath={storePath}
             />
 

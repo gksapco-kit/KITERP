@@ -263,7 +263,7 @@ function FooterSimple({ vendor, storePath, theme }: { vendor: any; storePath: (p
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
         <div className="flex items-center gap-3">
           {vendor?.logo_url ? (
-            <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-7 rounded-lg object-cover" />
+            <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-10 rounded-lg object-cover" />
           ) : (
             <Store className={cn('w-5 h-5', surface.iconClass)} />
           )}
@@ -290,7 +290,7 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
           <div>
             <div className="flex items-center gap-2 mb-3">
               {vendor?.logo_url ? (
-                <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-8 rounded-lg object-cover" />
+                <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-11 rounded-lg object-cover" />
               ) : (
                 <Store className={cn('w-6 h-6', surface.iconClass)} />
               )}
@@ -596,7 +596,7 @@ function StoreContent() {
   const kitLinks = headerNavLinks
 
   const logoNode = vendor.logo_url ? (
-    <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-9 max-w-[160px] rounded-lg object-cover" />
+    <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-11 max-w-[200px] rounded-lg object-cover" />
   ) : (
     <span className="font-bold text-lg shrink-0">{vendor.display_name}</span>
   )

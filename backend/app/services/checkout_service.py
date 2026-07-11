@@ -173,6 +173,15 @@ def should_calculate_gst(vendor: Vendor) -> bool:
     return bool(vendor.is_gst_registered)
 
 
+def is_sign_in_mandatory(vendor: Vendor) -> bool:
+    """When true, guest checkout is disabled for this storefront."""
+    settings = vendor.settings if isinstance(vendor.settings, dict) else {}
+    conditions = settings.get("delivery_conditions")
+    if not isinstance(conditions, dict):
+        return False
+    return conditions.get("sign_in_mandatory") is True
+
+
 def resolve_shipping_amount(
     vendor: Vendor,
     subtotal: float,

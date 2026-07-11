@@ -18,13 +18,14 @@ import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPat
 import { useVendorStore } from '@/stores/vendorStore'
 import { formatCurrency, mediaUrl } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { TablePagination } from '@/components/table/TablePagination'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { processRows, type SortDir } from '@/lib/tableList'
 import type { Service } from '@/types'
 import {
   Plus, Search, Pencil, Trash2, Loader2, X, Eye,
-  ChevronLeft, ChevronRight, Filter, MoreVertical,
+  Filter, MoreVertical,
   Copy, Share2, Mail, MessageCircle, Clock, MapPin,
   Wrench, Image as ImageIcon, Layers,
 } from 'lucide-react'
@@ -157,6 +158,7 @@ export default function Services() {
   const navigate = useNavigate()
   const selectedStore = useVendorStore(s => s.selectedStore)
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -177,7 +179,7 @@ export default function Services() {
   const serviceCategories = categoryData?.categories || []
 
   const { data, isLoading } = useServices({
-    page, size: 10,
+    page, size: pageSize,
     search: search || undefined,
     status: status || undefined,
     category: category || undefined,
@@ -653,20 +655,16 @@ export default function Services() {
             </ResizableTable>
           </div>
 
-          {data && data.pages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50/50">
-              <span className="text-[13px] text-gray-500">
-                Page {data.page} of {data.pages} <span className="text-gray-400">({data.total} services)</span>
-              </span>
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= data.pages} onClick={() => setPage(page + 1)}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+          {data && (
+            <TablePagination
+              page={page}
+              pages={data.pages || 1}
+              total={data.total}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="services"
+            />
           )}
         </CardContent>
       </Card>

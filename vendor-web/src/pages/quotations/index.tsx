@@ -13,6 +13,7 @@ import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { TablePagination } from '@/components/table/TablePagination'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { CreateInvoiceModal } from '@/pages/invoices/index'
@@ -22,7 +23,7 @@ import type { Order } from '@/types'
 import { toast } from 'sonner'
 import {
   Plus, Loader2, MessageSquare, FileText, Eye, Check, Settings2,
-  ChevronLeft, ChevronRight, ArrowRight, Printer, Send, Inbox,
+  ArrowRight, Printer, Send, Inbox,
   ScrollText, Clock, CheckCircle2, Ban,
 } from 'lucide-react'
 
@@ -177,6 +178,7 @@ export default function QuotationsPage() {
   const [branchFilter, setBranchFilter] = useState('')
   const [salesAreaFilter, setSalesAreaFilter] = useState('')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showCreate, setShowCreate] = useState(false)
@@ -201,10 +203,10 @@ export default function QuotationsPage() {
   })
 
   const { data: estimatesData, isLoading: estimatesLoading } = useQuery({
-    queryKey: ['quotations', 'estimates', statusFilter, page, storeFilter, branchFilter, salesAreaFilter, search],
+    queryKey: ['quotations', 'estimates', statusFilter, page, pageSize, storeFilter, branchFilter, salesAreaFilter, search],
     queryFn: () => vendorApi.listInvoices({
       page,
-      size: 20,
+      size: pageSize,
       invoice_type: 'estimate',
       status: statusFilter || undefined,
       store_id: branchFilter || storeFilter || undefined,
@@ -717,18 +719,16 @@ export default function QuotationsPage() {
           </ResizableTable>
           </div>
 
-          {tab === 'estimates' && estimatesData && estimatesData.pages > 1 && (
-            <div className="flex items-center justify-between border-t border-border bg-muted/25 px-4 py-2.5 flex-wrap gap-2">
-              <p className="text-sm text-muted-foreground">Page {page} of {estimatesData.pages}</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= estimatesData.pages} onClick={() => setPage(page + 1)}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+          {tab === 'estimates' && estimatesData && (
+            <TablePagination
+              page={page}
+              pages={estimatesData.pages || 1}
+              total={estimatesData.total ?? 0}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="estimates"
+            />
           )}
         </CardContent>
       </Card>

@@ -40,17 +40,17 @@ export const NAV_LOGO_FIT_OPTIONS: { value: NavLogoFit; label: string }[] = [
 ]
 
 const LOGO_HEIGHT_PX: Record<NavLogoSize, { normal: number; compact: number }> = {
-  sm: { normal: 24, compact: 20 },
-  md: { normal: 32, compact: 24 },
-  lg: { normal: 40, compact: 32 },
-  xl: { normal: 48, compact: 40 },
+  sm: { normal: 32, compact: 28 },
+  md: { normal: 44, compact: 36 },
+  lg: { normal: 52, compact: 44 },
+  xl: { normal: 64, compact: 52 },
 }
 
 const LOGO_MAX_WIDTH_PX: Record<NavLogoSize, { normal: number; compact: number }> = {
-  sm: { normal: 80, compact: 64 },
-  md: { normal: 120, compact: 100 },
-  lg: { normal: 160, compact: 120 },
-  xl: { normal: 200, compact: 160 },
+  sm: { normal: 100, compact: 80 },
+  md: { normal: 160, compact: 128 },
+  lg: { normal: 200, compact: 160 },
+  xl: { normal: 240, compact: 200 },
 }
 
 const BRAND_TEXT_CLASS: Record<NavBrandNameSize, { normal: string; compact: string }> = {
@@ -69,7 +69,7 @@ export function readNavBrandLayout(props: Record<string, unknown>): NavBrandLayo
 }
 
 export function readNavLogoSize(props: Record<string, unknown>): NavLogoSize {
-  return readEnum(props.logo_size, ['sm', 'md', 'lg', 'xl'] as const, 'md')
+  return readEnum(props.logo_size, ['sm', 'md', 'lg', 'xl'] as const, 'lg')
 }
 
 export function readNavBrandNameSize(props: Record<string, unknown>): NavBrandNameSize {

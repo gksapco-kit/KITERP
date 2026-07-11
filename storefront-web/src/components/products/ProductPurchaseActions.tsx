@@ -23,6 +23,8 @@ type Props = {
   canQuote?: boolean
   onRequestQuote?: () => void
   isAuthenticated?: boolean
+  /** When true and guest, show “Sign in required for Buy Now”. */
+  signInMandatory?: boolean
   storePath: (path: string) => string
   className?: string
 }
@@ -45,6 +47,7 @@ export function ProductPurchaseActions({
   canQuote = false,
   onRequestQuote,
   isAuthenticated = false,
+  signInMandatory = false,
   storePath,
   className,
 }: Props) {
@@ -161,7 +164,7 @@ export function ProductPurchaseActions({
           >
             Buy Now
           </Button>
-          {!isAuthenticated && (
+          {signInMandatory && !isAuthenticated && (
             <p className="text-center text-xs text-muted-foreground leading-relaxed">
               <Link to={storePath('/login')} className="font-medium text-primary hover:underline">
                 Sign in

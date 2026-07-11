@@ -479,7 +479,7 @@ export function useStoreBridgeCheckout() {
             }
           }
         } else if (isManualProofPayment(payment)) {
-          await resetCartAfterOrder(qc, vendorSlug)
+          // Keep cart until the customer submits UPI payment proof
           leavingForConfirmation = true
           navigate(storePath(`/order/${orderId}/payment`))
           return { ok: true, orderId }

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ShoppingBag, ChevronRight, ArrowLeft, Package } from 'lucide-react'
 import { OrderSummary } from '@/checkout/components/OrderSummary'
 import { CheckoutConfigProvider } from '@/checkout/config'
@@ -16,6 +16,7 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
 import {
   computeCartTaxAmount,
+  isSignInMandatory,
   resolveDeliveryCharge,
 } from '@/lib/deliveryConditions'
 import { TableSkeleton } from '@/kit/states/StateScreens'
@@ -28,6 +29,7 @@ import { toast } from 'sonner'
 export default function CartPage() {
   const { storePath } = useBranch()
   const { vendorSlug, vendor } = useVendor()
+  const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
   const { data: storeInfo } = useStoreInfo()
   const { data: cart, isLoading } = useCart()
@@ -35,6 +37,17 @@ export default function CartPage() {
   const removeItem = useRemoveCartItem()
   const changeVariant = useChangeCartVariant()
   const checkoutTheme = useBuilderSiteCheckoutTheme()
+  const vendorSettings = (vendor?.settings ?? {}) as Record<string, unknown>
+  const requireSignIn = isSignInMandatory(vendorSettings)
+
+  const handleProceedToCheckout = () => {
+    if (requireSignIn && !isAuthenticated) {
+      toast.info('Please sign in to continue to checkout')
+      navigate(storePath('/login'), { state: { from: storePath('/checkout') } })
+      return
+    }
+    navigate(storePath('/checkout'))
+  }
 
   const rawItems = (cart?.items ?? []) as Array<Record<string, unknown>>
   const { data: productMap = {} } = useCartProducts(
@@ -70,7 +83,6 @@ export default function CartPage() {
     ((cart?.items ?? []) as any[]).reduce((s: number, i: any) => s + i.price * i.qty, 0) * 100
   )
   const subtotalRupees = subtotalAmount / 100
-  const vendorSettings = (vendor?.settings ?? {}) as Record<string, unknown>
   const { shippingAmount: shippingRupees } = resolveDeliveryCharge(vendorSettings, subtotalRupees)
   const shippingAmount = Math.round(shippingRupees * 100)
   const { taxAmount: taxRupees, taxLabel } = computeCartTaxAmount(
@@ -212,12 +224,21 @@ export default function CartPage() {
                   showItems={false}
                   showCouponInput={false}
                 />
-                <Link
-                  to={storePath('/checkout')}
-                  className="ck-btn-primary mt-3 flex items-center justify-center gap-2 no-underline"
+                <button
+                  type="button"
+                  onClick={handleProceedToCheckout}
+                  className="ck-btn-primary mt-3 flex w-full items-center justify-center gap-2"
                 >
                   Proceed to checkout <ChevronRight size={16} />
-                </Link>
+                </button>
+                {requireSignIn && !isAuthenticated && (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    <Link to={storePath('/login')} state={{ from: storePath('/checkout') }} className="font-medium text-primary hover:underline">
+                      Sign in
+                    </Link>
+                    {' '}required to checkout
+                  </p>
+                )}
               </aside>
             </div>
           )}

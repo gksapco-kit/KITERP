@@ -300,16 +300,19 @@ class OrderService:
             vendor = await vendor_svc.get_by_id(vendor_id)
             if vendor:
                 notif_svc = NotificationService(self.db)
-                await notif_svc.notify_order_received(
-                    vendor_id=vendor_id,
-                    vendor_phone=vendor.primary_phone,
-                    vendor_name=vendor.display_name or vendor.business_name,
-                    order_number=order.order_number,
-                    total=float(order.total or 0),
-                    order_id=order.id,
-                )
-                # Online card/UPI: defer email/SMS/WhatsApp until payment is confirmed
+                # Manual UPI: defer admin "New Order" + customer confirmations until payment proof is submitted
+                if not is_manual_proof:
+                    await notif_svc.notify_order_received(
+                        vendor_id=vendor_id,
+                        vendor_phone=vendor.primary_phone,
+                        vendor_name=vendor.display_name or vendor.business_name,
+                        order_number=order.order_number,
+                        total=float(order.total or 0),
+                        order_id=order.id,
+                    )
+                # Online card/UPI gateway: defer email/SMS/WhatsApp until payment is confirmed
                 # (see PaymentGatewayService._finalize_paid_order).
+                # Manual UPI: deferred to submit_payment_proof.
                 if data.payment_method.value in ("cod", "pay_later"):
                     customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, customer_id)
                     await send_order_placed_notifications(
@@ -323,22 +326,21 @@ class OrderService:
         except Exception as exc:
             log.warning("Order placement notifications failed for order %s: %s", order.id, exc, exc_info=True)
 
-        # Fan-out the `order.placed` webhook to every published wb_site for
-        # this vendor so external listeners (Slack / Zapier / fulfillment)
-        # get notified immediately. Best-effort — never blocks checkout.
-        try:
-            from app.services.website_webhooks import (
-                dispatch_event_for_vendor,
-                order_payload,
-            )
-            await dispatch_event_for_vendor(
-                self.db,
-                vendor_id=vendor_id,
-                event="order.placed",
-                payload=order_payload(order),
-            )
-        except Exception as exc:
-            log.warning("order.placed webhook dispatch failed for order %s: %s", order.id, exc)
+        # Fan-out the `order.placed` webhook — defer for manual UPI until proof is submitted.
+        if not is_manual_proof:
+            try:
+                from app.services.website_webhooks import (
+                    dispatch_event_for_vendor,
+                    order_payload,
+                )
+                await dispatch_event_for_vendor(
+                    self.db,
+                    vendor_id=vendor_id,
+                    event="order.placed",
+                    payload=order_payload(order),
+                )
+            except Exception as exc:
+                log.warning("order.placed webhook dispatch failed for order %s: %s", order.id, exc)
 
         return order
 
@@ -677,18 +679,50 @@ class OrderService:
         await self.db.commit()
         await self.db.refresh(order)
 
+        # Clear server cart now that the customer completed payment proof
+        try:
+            cart = await self.cart_repo.get_by_customer(vendor_id, customer_id)
+            if cart:
+                await self.cart_repo.clear_cart(cart)
+                await self.db.commit()
+        except Exception as exc:
+            log.warning("Cart clear after payment proof failed for %s: %s", order.id, exc)
+
         try:
             from app.services.vendor_service import VendorService
             vendor_svc = VendorService(self.db)
             vendor = await vendor_svc.get_by_id(vendor_id)
             if vendor:
                 customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, customer_id)
+                notif_svc = NotificationService(self.db)
+                await notif_svc.notify_order_received(
+                    vendor_id=vendor_id,
+                    vendor_phone=vendor.primary_phone,
+                    vendor_name=vendor.display_name or vendor.business_name,
+                    order_number=order.order_number,
+                    total=float(order.total or 0),
+                    order_id=order.id,
+                )
                 await send_order_placed_notifications(
                     self.db, vendor=vendor, order=order, customer=customer,
                 )
                 await self.db.commit()
         except Exception as exc:
             log.warning("Notifications after payment proof failed for %s: %s", order.id, exc)
+
+        try:
+            from app.services.website_webhooks import (
+                dispatch_event_for_vendor,
+                order_payload,
+            )
+            await dispatch_event_for_vendor(
+                self.db,
+                vendor_id=vendor_id,
+                event="order.placed",
+                payload=order_payload(order),
+            )
+        except Exception as exc:
+            log.warning("order.placed webhook after payment proof failed for %s: %s", order.id, exc)
 
         return order
 
@@ -751,19 +785,7 @@ class OrderService:
         await self.db.commit()
         await self.db.refresh(order)
 
-        try:
-            from app.services.vendor_service import VendorService
-            vendor_svc = VendorService(self.db)
-            vendor = await vendor_svc.get_by_id(vendor_id)
-            if vendor:
-                customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, order.customer_id)
-                await send_order_placed_notifications(
-                    self.db, vendor=vendor, order=order, customer=customer,
-                )
-                await self.db.commit()
-        except Exception as exc:
-            log.warning("Notifications after manual UPI approval failed for %s: %s", order.id, exc)
-
+        # Order-placed email/SMS/WhatsApp already sent when the customer submitted proof.
         return order
 
     async def reject_manual_payment(

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardPaste, Columns3, Copy, DollarSign,
+  ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, ChevronRight, ClipboardPaste, Columns3, Copy, DollarSign,
   Download, FileSpreadsheet, Loader2, MoreVertical, Power, PowerOff, SlidersHorizontal, Sparkles,
   Trash2, Undo2, Upload, X, ImageOff, AlertTriangle,
 } from 'lucide-react'
@@ -17,6 +17,7 @@ import { Select } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { VariantDetailsDrawer } from '@/components/products/VariantDetailsDrawer'
+import { TablePagination } from '@/components/table/TablePagination'
 
 type ColKey = 'sku' | 'price' | 'compare_at_price' | 'cost_price' | 'quantity' | 'tax_rate' | 'is_active'
 
@@ -28,7 +29,6 @@ interface ColumnDef {
 }
 
 const COLUMN_ORDER: ColKey[] = ['sku', 'price', 'compare_at_price', 'cost_price', 'quantity', 'tax_rate', 'is_active']
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const
 const DEFAULT_PAGE_SIZE = 25
 const COLUMN_DEFS: Record<ColKey, ColumnDef> = {
   sku: { key: 'sku', label: 'SKU', type: 'text', width: '130px' },
@@ -1352,70 +1352,16 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
         </div>
 
         {displayRows.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/20 px-3 py-2">
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-              <span>
-                {pageStart + 1}–{Math.min(pageStart + pageSize, displayRows.length)} of{' '}
-                {displayRows.length.toLocaleString('en-IN')}
-              </span>
-              <span className="hidden sm:inline">·</span>
-              <label className="flex items-center gap-1.5">
-                <span className="hidden sm:inline">Rows</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={500}
-                  list="variant-fast-edit-page-sizes"
-                  value={pageSize}
-                  onChange={e => {
-                    const raw = e.target.value
-                    if (raw === '') return
-                    const n = Number(raw)
-                    if (!Number.isFinite(n)) return
-                    setPageSize(Math.min(500, Math.max(1, Math.floor(n))))
-                  }}
-                  onBlur={e => {
-                    const n = Number(e.target.value)
-                    if (!Number.isFinite(n) || n < 1) setPageSize(DEFAULT_PAGE_SIZE)
-                  }}
-                  aria-label="Rows per page"
-                  className="h-7 w-20 min-w-[5rem] px-2 text-center text-xs tabular-nums"
-                />
-                <datalist id="variant-fast-edit-page-sizes">
-                  {PAGE_SIZE_OPTIONS.map(n => (
-                    <option key={n} value={n} />
-                  ))}
-                </datalist>
-              </label>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 w-7 p-0"
-                disabled={safePage <= 1}
-                onClick={() => goToPage(safePage - 1)}
-                aria-label="Previous page"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
-              <span className="min-w-[3.5rem] text-center text-[11px] text-muted-foreground">
-                {safePage} / {totalPages}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 w-7 p-0"
-                disabled={safePage >= totalPages}
-                onClick={() => goToPage(safePage + 1)}
-                aria-label="Next page"
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
+          <TablePagination
+            page={safePage}
+            pages={totalPages}
+            total={displayRows.length}
+            pageSize={pageSize}
+            onPageChange={goToPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="variants"
+            className="border-t bg-muted/20 px-3 py-2"
+          />
         )}
       </div>
 

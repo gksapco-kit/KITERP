@@ -67,130 +67,140 @@ export default function Register() {
   const location = [vendor?.city, vendor?.state].filter(Boolean).join(', ')
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-10" style={{ backgroundColor: background, fontFamily }}>
-      <div className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-200 flex flex-col md:flex-row">
+    <div
+      className="h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] flex items-center justify-center px-3 py-3 sm:px-4 sm:py-4 overflow-hidden"
+      style={{ backgroundColor: background, fontFamily }}
+    >
+      <div className="w-full max-w-4xl max-h-full rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-200 flex flex-col md:flex-row md:max-h-[min(640px,100%)]">
 
         {/* ── Left brand panel ── */}
         <div
-          className="relative flex flex-col items-center justify-center p-10 md:w-[40%] shrink-0 overflow-hidden"
+          className="relative hidden md:flex flex-col items-center justify-center px-6 py-6 md:w-[38%] shrink-0 overflow-hidden"
           style={{ background: panelGradient }}
         >
-          <div className="absolute -top-16 -left-16 w-64 h-64 rounded-full bg-white/10" />
-          <div className="absolute -bottom-20 -right-12 w-72 h-72 rounded-full bg-white/8" />
+          <div className="absolute -top-16 -left-16 w-56 h-56 rounded-full bg-white/10" />
+          <div className="absolute -bottom-20 -right-12 w-64 h-64 rounded-full bg-white/8" />
 
-          <div className="relative z-10 flex flex-col items-center text-center gap-5">
-            {/* Logo */}
-            <div className="w-24 h-24 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl ring-4 ring-white/25">
+          <div className="relative z-10 flex flex-col items-center text-center gap-3">
+            <div className="w-16 h-16 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-xl ring-2 ring-white/25">
               {vendor?.logo_url ? (
-                <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="w-20 h-20 rounded-xl object-cover" />
+                <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="w-14 h-14 rounded-lg object-cover" />
               ) : (
-                <Store className="w-11 h-11 text-white" />
+                <Store className="w-8 h-8 text-white" />
               )}
             </div>
 
             <div>
-              <h1 className="text-2xl font-extrabold text-white tracking-tight">
+              <h1 className="text-xl font-extrabold text-white tracking-tight">
                 {vendor?.display_name || 'Our Store'}
               </h1>
               {vendor?.description && (
-                <p className="mt-2 text-sm text-white/70 leading-relaxed line-clamp-3 max-w-[220px]">
+                <p className="mt-1 text-xs text-white/70 leading-relaxed line-clamp-2 max-w-[200px]">
                   {vendor.description}
                 </p>
               )}
             </div>
 
             {location && (
-              <span className="inline-flex items-center gap-1.5 text-white/75 text-xs bg-white/15 px-3 py-1.5 rounded-full">
-                <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <span className="inline-flex items-center gap-1.5 text-white/75 text-[11px] bg-white/15 px-2.5 py-1 rounded-full">
+                <MapPin className="w-3 h-3 shrink-0" />
                 {location}
               </span>
             )}
 
-            {/* Perks */}
-            <div className="flex flex-col gap-2 mt-2 w-full">
+            <div className="flex flex-col gap-1.5 mt-1 w-full">
               {['Fast checkout', 'Order & booking tracking', 'Exclusive deals & offers', 'Secure & private'].map((b) => (
-                <div key={b} className="flex items-center gap-2 text-white/70 text-xs">
-                  <Check className="w-3.5 h-3.5 shrink-0 text-white/90" />
+                <div key={b} className="flex items-center gap-2 text-white/70 text-[11px]">
+                  <Check className="w-3 h-3 shrink-0 text-white/90" />
                   <span>{b}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <p className="absolute bottom-4 text-white/60 text-xs">Powered by KITERP</p>
+          <p className="absolute bottom-3 text-white/50 text-[11px]">Powered by KITERP</p>
         </div>
 
         {/* ── Right form panel ── */}
-        <div className="flex-1 bg-white px-4 py-8 sm:px-8 sm:py-10 overflow-y-auto">
+        <div className="flex-1 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-col justify-center min-h-0">
           <div className="w-full max-w-sm mx-auto">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Create account</h2>
-              <p className="text-sm text-gray-500 mt-1">
+            <div className="mb-3">
+              <h2 className="text-xl font-bold text-gray-900">Create account</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
                 Join{' '}
                 <span className="font-semibold text-gray-700">{vendor?.display_name || 'us'}</span>
                 {' '}today
               </p>
             </div>
 
-            {/* Error banner */}
             {(registerMut.isError || loginMut.isError) && (
-              <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-800">
+              <div className="mb-2.5 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
                 {(registerMut.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
                   || 'Registration failed. Please try again.'}
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-2.5">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1.5 block">Full Name</label>
-                <Input {...register('full_name')} placeholder="John Doe" className="h-11 border-gray-300" />
-                {errors.full_name && <p className="text-xs text-red-500 mt-1">{errors.full_name.message}</p>}
+                <label className="text-xs font-medium text-gray-700 mb-1 block">Full Name</label>
+                <Input {...register('full_name')} placeholder="John Doe" className="h-9 border-gray-300" />
+                {errors.full_name && <p className="text-[11px] text-red-500 mt-0.5">{errors.full_name.message}</p>}
               </div>
 
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                  Email Address <span className="text-gray-400 font-normal text-xs">(optional)</span>
-                </label>
-                <Input {...register('email')} type="email" placeholder="you@example.com" className="h-11 border-gray-300" />
-                {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                  Phone Number <span className="text-gray-400 font-normal text-xs">(optional)</span>
-                </label>
-                <Controller name="phone" control={control} render={({ field }) => (
-                  <PhoneInput value={field.value ?? ''} onChange={field.onChange} defaultCountryIso="IN" />
-                )} />
-                {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>}
-                <p className="text-xs text-gray-400 mt-1">Either email or phone is required</p>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1.5 block">Password</label>
-                <div className="relative">
-                  <Input {...register('password')} type={showPw ? 'text' : 'password'} placeholder="Min. 8 characters" className="h-11 pr-10 border-gray-300" />
-                  <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
-                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+              <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-2.5 space-y-2.5">
+                <p className="text-[11px] text-gray-500">
+                  Provide <span className="font-medium text-gray-700">email or phone</span> (at least one)
+                </p>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">
+                    Email <span className="text-gray-400 font-normal">optional</span>
+                  </label>
+                  <Input {...register('email')} type="email" placeholder="you@example.com" className="h-9 border-gray-300 bg-white" />
+                  {errors.email && <p className="text-[11px] text-red-500 mt-0.5">{errors.email.message}</p>}
                 </div>
-                {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">
+                    Phone <span className="text-gray-400 font-normal">optional</span>
+                  </label>
+                  <Controller name="phone" control={control} render={({ field }) => (
+                    <PhoneInput
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      defaultCountryIso="IN"
+                      size="sm"
+                      showStatusHints={false}
+                    />
+                  )} />
+                  {errors.phone && <p className="text-[11px] text-red-500 mt-0.5">{errors.phone.message}</p>}
+                </div>
               </div>
 
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1.5 block">Confirm Password</label>
-                <div className="relative">
-                  <Input {...register('confirm_password')} type={showConfirm ? 'text' : 'password'} placeholder="Re-enter password" className="h-11 pr-10 border-gray-300" />
-                  <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
-                    {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Password</label>
+                  <div className="relative">
+                    <Input {...register('password')} type={showPw ? 'text' : 'password'} placeholder="Min. 8 characters" className="h-9 pr-9 border-gray-300" />
+                    <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
+                      {showPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  {errors.password && <p className="text-[11px] text-red-500 mt-0.5">{errors.password.message}</p>}
                 </div>
-                {errors.confirm_password && <p className="text-xs text-red-500 mt-1">{errors.confirm_password.message}</p>}
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">Confirm</label>
+                  <div className="relative">
+                    <Input {...register('confirm_password')} type={showConfirm ? 'text' : 'password'} placeholder="Re-enter password" className="h-9 pr-9 border-gray-300" />
+                    <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
+                      {showConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  {errors.confirm_password && <p className="text-[11px] text-red-500 mt-0.5">{errors.confirm_password.message}</p>}
+                </div>
               </div>
 
               <Button
                 type="submit"
-                className="w-full h-11 font-bold hover:opacity-90 transition-opacity mt-2"
+                className="w-full h-9 font-bold hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: primary, color: btnText }}
                 disabled={isLoading}
               >
@@ -199,20 +209,20 @@ export default function Register() {
               </Button>
             </form>
 
-            <div className="flex items-center gap-3 my-5">
+            <div className="flex items-center gap-2 my-3">
               <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-xs text-gray-400 font-medium">Already have an account?</span>
+              <span className="text-[11px] text-gray-400 font-medium">Already have an account?</span>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
 
             <Link to={storePath('/login')}>
-              <Button variant="outline" className="w-full h-11 font-medium border-2 hover:bg-gray-50" style={{ borderColor: linkColor, color: linkColor }}>
+              <Button variant="outline" className="w-full h-9 font-medium border-2 hover:bg-gray-50" style={{ borderColor: linkColor, color: linkColor }}>
                 Sign In
               </Button>
             </Link>
 
-            <div className="flex items-center justify-center gap-1.5 mt-5 text-xs text-gray-400">
-              <ShieldCheck className="w-3.5 h-3.5" />
+            <div className="flex items-center justify-center gap-1.5 mt-3 text-[11px] text-gray-400">
+              <ShieldCheck className="w-3 h-3" />
               <span>Secured by KITERP</span>
             </div>
           </div>

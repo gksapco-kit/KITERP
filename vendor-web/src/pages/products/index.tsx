@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
+import { TablePagination } from '@/components/table/TablePagination'
 import { useProducts, useDeleteProduct, useUpdateProduct, useCategoryTree } from '@/hooks/useVendor'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -23,7 +23,7 @@ import type { Product } from '@/types'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import {
-  Plus, Search, Pencil, Trash2, Loader2, X, ChevronLeft, ChevronRight,
+  Plus, Search, Pencil, Trash2, Loader2, X,
   Filter, Copy, Share2, Mail, MessageCircle, MoreVertical, Package, Eye,
   Image as ImageIcon, ChevronUp, ChevronDown, ChevronsUpDown, ScanLine,
   Layers,
@@ -1263,41 +1263,20 @@ export default function Products() {
           </div>
 
           {data && (
-            <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50/50 flex-wrap gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-[13px] text-gray-500">
-                  {(() => {
-                    const from = (page - 1) * pageSize + 1
-                    const to = Math.min(page * pageSize, data.total)
-                    const base = data.total > 0 ? `${from}–${to} of ${data.total} products` : '0 products'
-                    return viewMode === 'variant' && variantRows.length > 0
-                      ? `${base} · ${variantRows.length} variant row${variantRows.length === 1 ? '' : 's'}`
-                      : base
-                  })()}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[12px] text-gray-400">Rows per page</span>
-                  <Select
-                    value={String(pageSize)}
-                    onChange={(v) => { setPageSize(Number(v)); setPage(1) }}
-                    options={[10, 25, 50, 100].map(n => ({ value: String(n), label: String(n) }))}
-                    aria-label="Rows per page"
-                    className="h-7 min-w-[4rem] text-xs"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <span className="text-[12px] text-gray-500 px-2">
-                  {data.page} / {data.pages || 1}
-                </span>
-                <Button variant="outline" size="sm" disabled={page >= (data.pages || 1)} onClick={() => setPage(page + 1)}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+            <TablePagination
+              page={page}
+              pages={data.pages || 1}
+              total={data.total}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="products"
+              countSuffix={
+                viewMode === 'variant' && variantRows.length > 0
+                  ? ` · ${variantRows.length} variant row${variantRows.length === 1 ? '' : 's'}`
+                  : undefined
+              }
+            />
           )}
         </CardContent>
       </Card>

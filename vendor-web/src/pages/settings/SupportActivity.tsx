@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, HelpCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TablePagination } from '@/components/table/TablePagination'
 import { fetchVendorPlatformAudit } from '@/api/platformAudit'
 
 const ACTION_LABELS: Record<string, string> = {
@@ -32,10 +33,10 @@ function formatDetail(detail: Record<string, unknown> | null | undefined): strin
 
 export default function SupportActivityPage() {
   const [page, setPage] = useState(0)
-  const pageSize = 25
+  const [pageSize, setPageSize] = useState(25)
 
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['vendor-platform-audit', page],
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['vendor-platform-audit', page, pageSize],
     queryFn: () => fetchVendorPlatformAudit(page * pageSize, pageSize),
   })
 
@@ -117,30 +118,18 @@ export default function SupportActivityPage() {
                 </table>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-                <span>
-                  Showing {total === 0 ? 0 : page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)} of{' '}
-                  {total}
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 0 || isFetching}
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages - 1 || isFetching}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
+              {total > 0 && (
+                <TablePagination
+                  page={page + 1}
+                  pages={totalPages}
+                  total={total}
+                  pageSize={pageSize}
+                  onPageChange={(p) => setPage(Math.max(0, p - 1))}
+                  onPageSizeChange={(s) => { setPageSize(s); setPage(0) }}
+                  itemLabel="events"
+                  className="border-0 bg-transparent px-0"
+                />
+              )}
             </>
           )}
         </CardContent>

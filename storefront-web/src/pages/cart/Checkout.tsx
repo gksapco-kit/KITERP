@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Navigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { CheckoutConfigProvider, type CheckoutLayout, type PaymentMode, useCheckoutConfig } from '@/checkout/config'
 import { TwoColumnLayout } from '@/checkout/layouts/TwoColumnLayout'
@@ -9,13 +9,19 @@ import { CheckoutProcessingOverlay } from '@/checkout/components/CheckoutProcess
 import { useStoreBridgeCheckout } from '@/hooks/useStoreBridgeCheckout'
 import { useCart, useStoreInfo } from '@/hooks/useStore'
 import { useBranch } from '@/contexts/BranchContext'
+import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
 import { useCompletePendingBuyNow } from '@/hooks/useCompletePendingBuyNow'
+import { useAuthStore } from '@/stores/authStore'
+import { isSignInMandatory } from '@/lib/deliveryConditions'
 import type { StyleConfig } from '@/blocks/registry'
 
 export default function Checkout() {
   const { storePath } = useBranch()
+  const { vendor } = useVendor()
+  const location = useLocation()
+  const { isAuthenticated } = useAuthStore()
   const { completing: completingBuyNow } = useCompletePendingBuyNow()
   const { data: cart, isLoading: cartLoading } = useCart()
   const { data: storeInfo } = useStoreInfo()
@@ -24,6 +30,10 @@ export default function Checkout() {
 
   const hasCartItems = (cart?.items?.length ?? 0) > 0
   const waitingForCart = cartLoading && !hasCartItems
+  const requireSignIn = isSignInMandatory(
+    (vendor?.settings ?? {}) as Record<string, unknown>,
+  )
+  const allowGuest = !requireSignIn
 
   // Precedence: URL param (QA/demo) > wb_site style_config (website builder)
   //             > vendor theme_config > theme.css default
@@ -34,6 +44,16 @@ export default function Checkout() {
   const storeName = (storeInfo as any)?.display_name ?? (storeInfo as any)?.business_name ?? 'Store'
 
   const checkoutTheme = useBuilderSiteCheckoutTheme()
+
+  if (requireSignIn && !isAuthenticated) {
+    return (
+      <Navigate
+        to={storePath('/login')}
+        replace
+        state={{ from: location.pathname + location.search }}
+      />
+    )
+  }
 
   if (waitingForCart || (completingBuyNow && !hasCartItems)) {
     return (
@@ -64,7 +84,7 @@ export default function Checkout() {
         showTrustBadges: true,
         showTaxBreakdown: true,
         showShippingMethods: true,
-        allowGuest: true,
+        allowGuest,
         paymentMode: 'providers',
         ...(layout && { layout }),
         ...(paymentMode && { paymentMode }),

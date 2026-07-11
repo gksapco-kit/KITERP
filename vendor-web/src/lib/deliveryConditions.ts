@@ -3,6 +3,8 @@ export type DeliveryConditionsSettings = {
   free_delivery_threshold: number | null
   minimum_delivery_charge: number | null
   calculate_gst: boolean
+  /** When true, guests must sign in before checkout / Buy Now. */
+  sign_in_mandatory: boolean
 }
 
 const DEFAULTS: DeliveryConditionsSettings = {
@@ -10,6 +12,7 @@ const DEFAULTS: DeliveryConditionsSettings = {
   free_delivery_threshold: null,
   minimum_delivery_charge: null,
   calculate_gst: true,
+  sign_in_mandatory: false,
 }
 
 function parseOptionalNumber(value: unknown, allowZero = false): number | null {
@@ -37,6 +40,7 @@ export function readDeliveryConditions(
       true,
     ),
     calculate_gst: obj.calculate_gst !== false,
+    sign_in_mandatory: obj.sign_in_mandatory === true,
   }
 }
 
@@ -51,6 +55,7 @@ export function writeDeliveryConditions(
       free_delivery_threshold: next.free_delivery_threshold,
       minimum_delivery_charge: next.minimum_delivery_charge,
       calculate_gst: next.calculate_gst,
+      sign_in_mandatory: next.sign_in_mandatory,
     },
   }
 }

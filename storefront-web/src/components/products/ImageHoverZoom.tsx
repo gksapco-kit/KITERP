@@ -11,6 +11,7 @@ type ImageHoverZoomProps = {
   /** Disable lens zoom (e.g. while dragging 360°). */
   disabled?: boolean
   onClick?: () => void
+  onError?: () => void
   children?: ReactNode
 }
 
@@ -23,6 +24,7 @@ export function ImageHoverZoom({
   zoomScale = 2.25,
   disabled = false,
   onClick,
+  onError,
   children,
 }: ImageHoverZoomProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -70,6 +72,7 @@ export function ImageHoverZoom({
         src={imgUrl(src)}
         alt={alt}
         draggable={false}
+        onError={onError}
         className={cn(
           'pointer-events-none absolute inset-0 h-full w-full transition-transform duration-150 ease-out',
           imgClassName,

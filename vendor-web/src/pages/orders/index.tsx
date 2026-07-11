@@ -12,13 +12,14 @@ import { MRPReportModal } from '@/components/mrp/MRPReportModal'
 import type { MRPItem } from '@/components/mrp/MRPReportModal'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { TablePagination } from '@/components/table/TablePagination'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import type { Order } from '@/types'
-import { Search, ChevronLeft, ChevronRight, Eye, Loader2, Globe, Monitor, CalendarDays, Download, X, MessageSquare, BarChart3, Lock, Plus } from 'lucide-react'
+import { Search, Eye, Loader2, Globe, Monitor, CalendarDays, Download, X, MessageSquare, BarChart3, Lock, Plus } from 'lucide-react'
 import { CreateBookingModal } from '@/pages/bookings/CreateBookingModal'
 const statusFilters = [
   { label: 'All', value: '' },
@@ -87,6 +88,7 @@ export default function Orders() {
   const navigate = useNavigate()
   const { selectedStore } = useVendorStore()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [statusFilter, setStatusFilter] = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
   const [storeFilter, setStoreFilter] = useState(selectedStore?.id ?? '')
@@ -111,7 +113,7 @@ export default function Orders() {
 
   const { data, isLoading } = useOrders({
     page,
-    size: 10,
+    size: pageSize,
     status: statusFilter || undefined,
     source: sourceFilter || undefined,
     search: search || undefined,
@@ -453,14 +455,16 @@ export default function Orders() {
             </tbody>
           </ResizableTable>
 
-          {data && data.pages > 1 && (
-            <div className="flex items-center justify-between border-t border-border bg-muted/25 px-6 py-4">
-              <p className="text-sm text-muted-foreground">Page {data.page} of {data.pages}</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft className="w-4 h-4 mr-1" />Prev</Button>
-                <Button variant="outline" size="sm" disabled={page >= data.pages} onClick={() => setPage(p => p + 1)}>Next<ChevronRight className="w-4 h-4 ml-1" /></Button>
-              </div>
-            </div>
+          {data && (
+            <TablePagination
+              page={page}
+              pages={data.pages || 1}
+              total={data.total}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="orders"
+            />
           )}
         </CardContent>
       </Card>

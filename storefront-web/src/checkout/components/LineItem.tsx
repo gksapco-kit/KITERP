@@ -1,6 +1,7 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { CartItem } from "../types";
 import { formatMoney, useCheckoutConfig } from "../config";
+import { ProductThumb } from "@/components/products/ProductThumb";
 
 type Props = {
   item: CartItem;
@@ -19,28 +20,17 @@ export function LineItem({ item, editable, onUpdateQuantity, onRemove, compact }
       <div
         className="ck-radius-sm relative flex shrink-0 items-center justify-center"
         style={{
-          width: compact ? 56 : 72,
-          height: compact ? 56 : 72,
+          width: compact ? 80 : 96,
+          height: compact ? 80 : 96,
           background: "hsl(var(--surface-muted))",
           overflow: "hidden",
         }}
       >
-        {item.imageUrl ? (
-          <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
-        ) : (
-          <span className="ck-text-subtle text-xs">No image</span>
-        )}
-        {!editable && (
-          <span
-            className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs"
-            style={{
-              background: "hsl(var(--brand-primary))",
-              color: "hsl(var(--brand-primary-foreground))",
-            }}
-          >
-            {item.quantity}
-          </span>
-        )}
+        <ProductThumb
+          src={item.imageUrl}
+          alt={item.name}
+          size={compact ? "sm" : "md"}
+        />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">

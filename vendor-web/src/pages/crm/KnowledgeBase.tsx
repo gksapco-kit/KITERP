@@ -87,11 +87,12 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
 
 export default function KnowledgeBasePage() {
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [edit, setEdit] = useState<KbArticle | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const { data, isLoading } = useKbArticles({ page, size: 20, q: search || undefined })
+  const { data, isLoading } = useKbArticles({ page, size: pageSize, q: search || undefined })
 
   return (
     <div className="space-y-6">
@@ -154,7 +155,7 @@ export default function KnowledgeBasePage() {
               ))}
             </tbody>
           </table>
-          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} />
+          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} itemLabel="articles" />
         </CardContent>
       </Card>
 

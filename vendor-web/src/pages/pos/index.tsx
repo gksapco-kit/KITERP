@@ -14,6 +14,7 @@ import { vendorApi } from '@/api/vendor'
 import { formatCurrency } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { TablePagination } from '@/components/table/TablePagination'
 import { toast } from 'sonner'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -347,7 +348,7 @@ export default function POS() {
 
   // History
   const [histPage, setHistPage] = useState(1)
-  const histPageSize = 20
+  const [histPageSize, setHistPageSize] = useState(20)
   const [histSearch, setHistSearch] = useState('')
   const [histSortKey, setHistSortKey] = useState('created_at')
   const [histSortDir, setHistSortDir] = useState<SortDir>('desc')
@@ -893,7 +894,9 @@ export default function POS() {
       page={histPage}
       totalPages={totalHistPages}
       total={posTotalOrders}
+      pageSize={histPageSize}
       onPageChange={setHistPage}
+      onPageSizeChange={setHistPageSize}
       search={histSearch}
       onSearchChange={setHistSearch}
       sortKey={histSortKey}
@@ -2800,13 +2803,15 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
 // ── Transaction History ──────────────────────────────────────────
 
 function POSTransactionHistory({
-  orders, loading, page, totalPages, total, onPageChange,
+  orders, loading, page, totalPages, total, pageSize, onPageChange, onPageSizeChange,
   search, onSearchChange, sortKey, sortDir, onSortKeyChange, onSortDirChange,
   typeFilter, onTypeFilterChange, selectedTxn, onSelectTxn, onBack,
   invSettings, vendor, posSettings,
 }: {
   orders: any[]; loading: boolean; page: number; totalPages: number; total: number
+  pageSize: number
   onPageChange: (p: number) => void
+  onPageSizeChange: (s: number) => void
   search: string; onSearchChange: (v: string) => void
   sortKey: string; sortDir: SortDir; onSortKeyChange: (k: string) => void; onSortDirChange: (d: SortDir) => void
   typeFilter: string; onTypeFilterChange: (v: string) => void
@@ -2913,14 +2918,16 @@ function POSTransactionHistory({
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t">
-              <p className="text-xs text-gray-500">Page {page} of {totalPages}</p>
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="h-8 w-8 p-0"><ChevronLeft className="w-4 h-4" /></Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className="h-8 w-8 p-0"><ChevronRight className="w-4 h-4" /></Button>
-              </div>
-            </div>
+          {total > 0 && (
+            <TablePagination
+              page={page}
+              pages={totalPages}
+              total={total}
+              pageSize={pageSize}
+              onPageChange={onPageChange}
+              onPageSizeChange={onPageSizeChange}
+              itemLabel="transactions"
+            />
           )}
         </CardContent>
       </Card>

@@ -3,6 +3,7 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useVendorStore } from '@/stores/vendorStore'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { TablePagination } from '@/components/table/TablePagination'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
@@ -28,7 +29,7 @@ import { formatDate } from '@/lib/utils'
 import { StorageLocationSelect } from '@/components/inventory/StorageLocationSelect'
 import {
   Loader2, Package, ArrowDownCircle, ArrowUpCircle, RefreshCw,
-  AlertTriangle, X, ChevronLeft, ChevronRight, History, BarChart3,
+  AlertTriangle, X, History, BarChart3,
   Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Store, ScanLine,
   ChevronDown, ChevronRight as ChevronRightIcon,
 } from 'lucide-react'
@@ -68,6 +69,7 @@ export default function Inventory() {
   const [tab, setTab] = useState<Tab>('summary')
   const [modal, setModal] = useState<ModalState>({ type: null })
   const [historyPage, setHistoryPage] = useState(1)
+  const [historyPageSize, setHistoryPageSize] = useState(15)
   const [historyProductFilter, setHistoryProductFilter] = useState('')
   const [showBulkUpload, setShowBulkUpload] = useState(false)
   const [selectedStoreId, setSelectedStoreId] = useState<string>(selectedStore?.id ?? 'all')
@@ -92,7 +94,7 @@ export default function Inventory() {
   const { data: summary, isLoading: summaryLoading } = useInventorySummary(summaryStoreParam)
   const { data: history, isLoading: historyLoading } = useInventoryHistory({
     page: historyPage,
-    size: 15,
+    size: historyPageSize,
     ...(historyProductFilter ? { product_id: historyProductFilter } : {}),
     ...(selectedStoreId !== 'all' ? { store_id: selectedStoreId } : {}),
   })
@@ -275,6 +277,8 @@ export default function Inventory() {
           loading={historyLoading}
           page={historyPage}
           setPage={setHistoryPage}
+          pageSize={historyPageSize}
+          setPageSize={setHistoryPageSize}
           productFilter={historyProductFilter}
           onClearFilter={() => setHistoryProductFilter('')}
         />
@@ -438,6 +442,8 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
   const [q, setQ] = useState('')
   const [sk, setSk] = useState('product_name')
   const [sd, setSd] = useState<SortDir>('asc')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   const toggleExpanded = useCallback((pid: string) => {
@@ -465,6 +471,21 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
       },
     )
   }, [data?.items, q, sk, sd])
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const pageRows = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return rows.slice(start, start + pageSize)
+  }, [rows, safePage, pageSize])
+
+  useEffect(() => {
+    setPage(1)
+  }, [q, sk, sd, pageSize])
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [page, totalPages])
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
   if (!data?.items?.length) return (
@@ -516,9 +537,9 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
             </tr>
           </thead>
           <tbody className="divide-y">
-            {rows.length === 0 ? (
+            {pageRows.length === 0 ? (
               <tr><td colSpan={7 + stores.length} className="px-6 py-8 text-center text-sm text-gray-500">No rows match your filter.</td></tr>
-            ) : rows.map((item) => {
+            ) : pageRows.map((item) => {
               const hasVariants = (item.variants?.length ?? 0) > 0
               const isExpanded = expandedRows.has(item.product_id)
               const fullProduct = getProduct(item.product_id)
@@ -764,6 +785,17 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
           </tbody>
         </ResizableTable>
         </div>
+        {rows.length > 0 && (
+          <TablePagination
+            page={safePage}
+            pages={totalPages}
+            total={rows.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="products"
+          />
+        )}
       </CardContent>
     </Card>
   )
@@ -771,11 +803,13 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
 
 type HistRow = { id: string; product_id: string; movement_type: string; quantity: number; quantity_before: number; quantity_after: number; reason?: string; created_at: string }
 
-function HistoryTab({ data, loading, page, setPage, productFilter, onClearFilter }: {
+function HistoryTab({ data, loading, page, setPage, pageSize, setPageSize, productFilter, onClearFilter }: {
   data: { items: HistRow[]; total: number; pages: number } | undefined
   loading: boolean
   page: number
   setPage: (p: number) => void
+  pageSize: number
+  setPageSize: (s: number) => void
   productFilter: string
   onClearFilter: () => void
 }) {
@@ -884,18 +918,18 @@ function HistoryTab({ data, loading, page, setPage, productFilter, onClearFilter
           </ResizableTable>
         </CardContent>
       </Card>
-      {!productFilter && data.pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">Page {page} of {data.pages} ({data.total} records)</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-              <ChevronLeft className="w-4 h-4" />Prev
-            </Button>
-            <Button variant="outline" size="sm" disabled={page >= data.pages} onClick={() => setPage(page + 1)}>
-              Next<ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+      {!productFilter && data && data.total > 0 && (
+        <TablePagination
+          page={page}
+          pages={data.pages || 1}
+          total={data.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="records"
+          pageSizeOptions={[10, 15, 25, 50, 100]}
+          className="rounded-lg border bg-white"
+        />
       )}
     </>
   )
@@ -948,6 +982,8 @@ function LowStockTab({ data, loading, selectedStoreId, onAction, onViewHistory }
   const [q, setQ] = useState('')
   const [sk, setSk] = useState('shortage')
   const [sd, setSd] = useState<SortDir>('desc')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const rows = useMemo(() => {
     if (!data?.items?.length) return []
@@ -970,6 +1006,21 @@ function LowStockTab({ data, loading, selectedStoreId, onAction, onViewHistory }
       },
     )
   }, [data?.items, q, sk, sd])
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const pageRows = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return rows.slice(start, start + pageSize)
+  }, [rows, safePage, pageSize])
+
+  useEffect(() => {
+    setPage(1)
+  }, [q, sk, sd, pageSize])
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [page, totalPages])
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
   if (!data?.items?.length) return (
@@ -1016,9 +1067,9 @@ function LowStockTab({ data, loading, selectedStoreId, onAction, onViewHistory }
             </tr>
           </thead>
           <tbody className="divide-y">
-            {rows.length === 0 ? (
+            {pageRows.length === 0 ? (
               <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">No rows match your filter.</td></tr>
-            ) : rows.map((item) => (
+            ) : pageRows.map((item) => (
               <tr key={item.product_id} className="hover:bg-amber-50/30">
                 <td className="px-6 py-4 text-sm font-medium">
                   <InlineEditCell
@@ -1090,6 +1141,17 @@ function LowStockTab({ data, loading, selectedStoreId, onAction, onViewHistory }
             ))}
           </tbody>
         </ResizableTable>
+        {rows.length > 0 && (
+          <TablePagination
+            page={safePage}
+            pages={totalPages}
+            total={rows.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="products"
+          />
+        )}
       </CardContent>
     </Card>
   )

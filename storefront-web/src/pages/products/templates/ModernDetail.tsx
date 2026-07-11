@@ -32,7 +32,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
     optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
     selectedImage, setSelectedImage, displayMedia,
     selectedVariantId,
-    handleAddToCart, handleBuyNow, isAuthenticated, addToCartPending,
+    handleAddToCart, handleBuyNow, isAuthenticated, signInMandatory, addToCartPending,
     storePath, warrantyDays, warrantyType, returnDays, returnPolicy,
     returnConditions, refundPolicy, isReturnable, specs,
     crossSellProducts, upsellProducts,
@@ -507,6 +507,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
               canQuote={canQuote}
               onRequestQuote={() => setShowQuote(true)}
               isAuthenticated={isAuthenticated}
+              signInMandatory={signInMandatory}
               storePath={storePath}
               className="space-y-4 border-t pt-4"
             />

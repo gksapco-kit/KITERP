@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
-import { Star, ShoppingCart } from "lucide-react";
+import { Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ProductWishlistButton } from "@/components/products/ProductWishlistButton";
+import { ProductThumb } from "@/components/products/ProductThumb";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn, imgUrl } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { collectProductGalleryImages } from "@/lib/productImageUtils";
 import type { ProductVariant as ApiVariant } from "@/types";
 import ProductOptionPicker from "@/components/products/ProductOptionPicker";
@@ -203,20 +204,14 @@ export function ProductCard({
     <Card className={cn("overflow-hidden group flex flex-col", horizontal && "flex-row")}>
       <div className={cn("relative", horizontal ? "w-44 shrink-0" : "")}>
         <Link to={productHref} className="block" onClick={onNavigateClick}>
-          <div className={cn("relative w-full overflow-hidden bg-muted", horizontal ? "h-full" : "aspect-[4/3]")}>
-            {displayImage ? (
-              <img
-                key={displayImage}
-                src={imgUrl(displayImage)}
-                alt={product.name}
-                loading="lazy"
-                className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                <ShoppingCart className="h-8 w-8 opacity-25" />
-              </div>
-            )}
+          <div className={cn("relative w-full overflow-hidden bg-muted", horizontal ? "h-full min-h-[7rem]" : "aspect-[4/3]")}>
+            <ProductThumb
+              src={displayImage}
+              alt={product.name}
+              size="md"
+              className="absolute inset-0"
+              imgClassName="transition-transform group-hover:scale-105"
+            />
           </div>
         </Link>
         {showTags && product.tags?.[0] && (

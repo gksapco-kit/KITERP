@@ -3,8 +3,9 @@ import { Minus, Plus, Trash2 } from 'lucide-react'
 import { formatMoney, useCheckoutConfig } from '@/checkout/config'
 import type { CartItem as CheckoutCartItem } from '@/checkout/types'
 import type { Product, ProductVariant } from '@/types'
-import { formatCurrency, imgUrl } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import ProductOptionPicker from '@/components/products/ProductOptionPicker'
+import { ProductThumb } from '@/components/products/ProductThumb'
 import {
   buildProductCardOptionRows,
   resolveCardDefaultSelections,
@@ -194,16 +195,7 @@ export function CartDetailLineItem({
           overflow: 'hidden',
         }}
       >
-        {displayImage ? (
-          <img
-            key={displayImage}
-            src={imgUrl(displayImage)}
-            alt={productName}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <span className="ck-text-subtle text-xs">No image</span>
-        )}
+        <ProductThumb src={displayImage} alt={productName} />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-3">

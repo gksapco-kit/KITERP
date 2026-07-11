@@ -154,13 +154,14 @@ function ConvertModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
 export default function LeadsPage() {
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [status, setStatus] = useState<string>('')
   const [showCreate, setShowCreate] = useState(false)
   const [convertLead, setConvertLead] = useState<Lead | null>(null)
 
-  const { data, isLoading } = useLeads({ page, size: 20, q: search || undefined, status: status || undefined })
+  const { data, isLoading } = useLeads({ page, size: pageSize, q: search || undefined, status: status || undefined })
 
   const score = async (id: string) => {
     await crmApi.scoreLead(id)
@@ -250,7 +251,7 @@ export default function LeadsPage() {
               ))}
             </tbody>
           </table>
-          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} />
+          <Pager page={page} pages={data?.pages || 0} total={data?.total || 0} onPage={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} itemLabel="leads" />
         </CardContent>
       </Card>
 

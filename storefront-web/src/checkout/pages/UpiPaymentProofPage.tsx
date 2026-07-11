@@ -51,10 +51,6 @@ export default function UpiPaymentProofPage() {
     enabled: !!orderId,
   });
 
-  useEffect(() => {
-    void resetCartAfterOrder(qc, vendorSlug);
-  }, [qc, vendorSlug]);
-
   const manualUpi = manualUpiFromStoreInfo(storeInfo);
   const customerEmail = customer?.email ?? "";
 
@@ -63,6 +59,17 @@ export default function UpiPaymentProofPage() {
       navigate(storePath(`/order/${orderId}/confirmation`), { replace: true });
     }
   }, [order?.payment_method, orderId, navigate, storePath]);
+
+  // If proof was already submitted (e.g. refresh), ensure local cart is cleared
+  useEffect(() => {
+    if (
+      order?.payment_proof?.status === "submitted"
+      || order?.payment_status === "paid"
+      || order?.payment_status === "pending_verification"
+    ) {
+      void resetCartAfterOrder(qc, vendorSlug);
+    }
+  }, [order?.payment_proof?.status, order?.payment_status, qc, vendorSlug]);
 
   const totalMoney = order
     ? { amount: Math.round(Number(order.total) * 100), currency: "INR" }
@@ -94,6 +101,7 @@ export default function UpiPaymentProofPage() {
         utr: utr.trim(),
         screenshot_url: screenshotUrl,
       });
+      await resetCartAfterOrder(qc, vendorSlug);
       await qc.invalidateQueries({ queryKey: storeKeys.order(orderId) });
       setDone(true);
     } catch {

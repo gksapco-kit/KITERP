@@ -159,8 +159,12 @@ export interface PhoneInputProps {
   className?: string
   /** When false, error still styles the field but no message is rendered (parent may show it). */
   showErrorMessage?: boolean
+  /** Hide “valid / over limit” helper lines under the field (useful on compact forms). */
+  showStatusHints?: boolean
   /** Defaults to IN. */
   defaultCountryIso?: string
+  /** `sm` = h-9 (compact forms); default `md` = h-11. */
+  size?: 'sm' | 'md'
   disabled?: boolean
   id?: string
   name?: string
@@ -174,12 +178,16 @@ export function PhoneInput({
   error,
   className,
   showErrorMessage = true,
+  showStatusHints = true,
   defaultCountryIso = 'IN',
+  size = 'md',
   disabled = false,
   id,
   name = 'username',
   autoComplete = 'username',
 }: PhoneInputProps) {
+  const fieldH = size === 'sm' ? 'h-9' : 'h-11'
+  const isSm = size === 'sm'
   const defaultCountry =
     COUNTRIES.find(c => c.iso === defaultCountryIso) ??
     COUNTRIES.find(c => c.iso === 'IN')!
@@ -261,28 +269,33 @@ export function PhoneInput({
   const isFull = localNumber.length === maxDigits && maxDigits <= 12
 
   return (
-    <div className={cn('space-y-1', className)}>
+    <div className={cn(showStatusHints || showErrorMessage ? 'space-y-1' : undefined, className)}>
       <div ref={wrapRef} className="relative flex items-stretch">
         {/* Country trigger */}
         <button
           type="button"
           disabled={disabled}
           onClick={() => setDropOpen(v => !v)}
+          aria-label={`Country code ${country.dialCode}`}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-0 rounded-l-lg border border-r-0 bg-gray-50 hover:bg-gray-100 transition-colors shrink-0 text-sm h-11',
+            'flex items-center rounded-l-lg border border-r-0 bg-gray-50 hover:bg-gray-100 transition-colors shrink-0 text-sm',
+            isSm ? 'gap-1 px-2' : 'gap-1.5 px-3',
+            fieldH,
             focusRingClassName,
             dropOpen ? 'border-blue-500 ring-1 ring-blue-400 z-10' : 'border-gray-300',
             error && 'border-red-400',
             disabled && 'opacity-50 cursor-not-allowed',
           )}
         >
-          <span className="text-lg leading-none">{country.flag}</span>
-          <span className="font-mono text-xs text-gray-700 min-w-[32px]">{country.dialCode}</span>
-          <ChevronDown className={cn('w-3.5 h-3.5 text-gray-400 transition-transform', dropOpen && 'rotate-180')} />
+          <span className={cn('leading-none', isSm ? 'text-base' : 'text-lg')}>{country.flag}</span>
+          <span className={cn('font-mono text-gray-700', isSm ? 'text-[11px]' : 'text-xs min-w-[32px]')}>
+            {country.dialCode}
+          </span>
+          <ChevronDown className={cn('text-gray-400 transition-transform', isSm ? 'w-3 h-3' : 'w-3.5 h-3.5', dropOpen && 'rotate-180')} />
         </button>
 
         {/* Number input */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
           <input
             id={id}
             name={name}
@@ -296,7 +309,9 @@ export function PhoneInput({
             onBlur={handleBlur}
             placeholder={placeholder ?? (country.iso === 'IN' ? '98765 43210' : 'Phone number')}
             className={cn(
-              'w-full h-11 rounded-r-lg border px-3 text-sm outline-none transition-all',
+              'w-full rounded-r-lg border text-sm outline-none transition-all',
+              isSm ? 'px-2.5 pr-10' : 'px-3',
+              fieldH,
               'focus:ring-2 focus:border-blue-500',
               error
                 ? 'border-red-400 bg-red-50/30 focus:ring-red-300'
@@ -311,7 +326,8 @@ export function PhoneInput({
           {/* Digit counter */}
           {localNumber.length > 0 && maxDigits <= 12 && (
             <span className={cn(
-              'absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none select-none',
+              'absolute right-2 top-1/2 -translate-y-1/2 font-mono pointer-events-none select-none',
+              isSm ? 'text-[10px]' : 'text-xs right-2.5',
               isOverLimit || localNumber.length >= maxDigits - 1
                 ? 'text-amber-500'
                 : 'text-gray-300',
@@ -334,12 +350,12 @@ export function PhoneInput({
       {/* Error / hint */}
       {showErrorMessage && error ? (
         <p className="text-xs text-red-500">{error}</p>
-      ) : isOverLimit ? (
+      ) : showStatusHints && isOverLimit ? (
         <p className="text-xs text-amber-600">
           Will save last {maxDigits} digits:{' '}
           <span className="font-mono font-semibold">{localNumber.slice(-maxDigits)}</span>
         </p>
-      ) : isFull ? (
+      ) : showStatusHints && isFull ? (
         <p className="text-xs text-green-600">✓ Valid {maxDigits}-digit number</p>
       ) : null}
     </div>
