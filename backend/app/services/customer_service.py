@@ -24,22 +24,66 @@ class CustomerService:
         self.db = db
         self.repo = CustomerRepository(db)
 
+    @staticmethod
+    def _has_login_password(customer: Customer | None) -> bool:
+        return bool(customer and (customer.password_hash or "").strip())
+
     async def register(self, vendor_id: UUID, data: CustomerCreate) -> Customer:
-        if data.email:
-            existing = await self.repo.get_by_vendor_and_email(vendor_id, data.email)
-            if existing:
+        """Create a storefront account, or upgrade a guest checkout row (empty password)."""
+        existing_email = (
+            await self.repo.get_by_vendor_and_email(vendor_id, data.email)
+            if data.email
+            else None
+        )
+        existing_phone = (
+            await self.repo.get_by_vendor_and_phone(vendor_id, data.phone)
+            if data.phone
+            else None
+        )
+
+        if self._has_login_password(existing_email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered for this store. Sign in, or use Forgot Password.",
+            )
+        if self._has_login_password(existing_phone):
+            # Same guest row matched by both email and phone — ok to claim below.
+            if not existing_email or existing_phone.id != existing_email.id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Email already registered for this store",
+                    detail="Phone number already registered for this store. Sign in, or use Forgot Password.",
                 )
 
-        if data.phone:
-            existing_phone = await self.repo.get_by_vendor_and_phone(vendor_id, data.phone)
-            if existing_phone:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Phone number already registered for this store",
-                )
+        # Guest checkout creates customer rows with password_hash="" — claim that row
+        # instead of blocking with "already registered" while Reset Password says "not registered".
+        claim = None
+        if existing_email and not self._has_login_password(existing_email):
+            claim = existing_email
+        elif existing_phone and not self._has_login_password(existing_phone):
+            claim = existing_phone
+
+        if claim is not None:
+            if (
+                data.phone
+                and existing_phone
+                and existing_phone.id != claim.id
+                and not self._has_login_password(existing_phone)
+            ):
+                # Free the phone on the other guest so this account can use it.
+                existing_phone.phone = None
+                self.db.add(existing_phone)
+
+            claim.full_name = data.full_name
+            if data.email:
+                claim.email = data.email
+            if data.phone:
+                claim.phone = data.phone
+            claim.password_hash = get_password_hash(data.password)
+            claim.is_active = True
+            self.db.add(claim)
+            await self.db.commit()
+            await self.db.refresh(claim)
+            return claim
 
         customer = Customer(
             vendor_id=vendor_id,
@@ -239,10 +283,18 @@ class CustomerService:
             )
 
         customer = await self.repo.get_by_vendor_and_email(vendor_id, email_norm)
-        if not customer or not (customer.password_hash or "").strip():
+        if not customer:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="This email is not registered for this store. Check the address or create an account first.",
+            )
+        if not (customer.password_hash or "").strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "This email was used for guest checkout but has no password yet. "
+                    "Create an account with this email (Create Account), then you can sign in."
+                ),
             )
 
         expires = datetime.now(timezone.utc) + timedelta(seconds=600)
@@ -307,10 +359,18 @@ class CustomerService:
             )
 
         customer = await self.repo.get_by_vendor_and_phone(vendor_id, phone_norm)
-        if not customer or not (customer.password_hash or "").strip():
+        if not customer:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="This phone number is not registered for this store. Check the number or create an account first.",
+            )
+        if not (customer.password_hash or "").strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "This phone was used for guest checkout but has no password yet. "
+                    "Create an account with this phone (Create Account), then you can sign in."
+                ),
             )
 
         expires = datetime.now(timezone.utc) + timedelta(seconds=600)

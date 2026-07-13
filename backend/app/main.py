@@ -196,14 +196,14 @@ async def multiple_results_found_handler(request: Request, exc: MultipleResultsF
             "detail": {
                 "code": "ambiguous_vendor_resolution",
                 "message": (
-                    "More than one vendor-team row matched your account for this business "
-                    "(duplicate membership). Remove the extra row in vendor_user for this user and vendor, "
-                    "or contact support. Platform support should open the store via admin handoff so "
-                    "X-Vendor-Id matches the correct business."
+                    "More than one matching record was found for this account on this business "
+                    "(often duplicate customer or team membership rows). "
+                    "Try signing in with an existing account, or ask support to clean up duplicate "
+                    "customer / vendor_user rows for this vendor."
                 ),
                 "technical": str(exc),
             },
-            "message": "Ambiguous vendor context — duplicate database rows for this user on this vendor.",
+            "message": "Ambiguous store context — duplicate database rows for this account on this vendor.",
         },
         headers=_cors_headers(origin),
     )

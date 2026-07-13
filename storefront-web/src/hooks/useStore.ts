@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useGuestCartStore, type GuestCartItem } from '@/stores/guestCartStore'
 import { useVendor } from '@/contexts/VendorContext'
-import { apiError, extractApiError } from '@/lib/errorMessages'
+import { apiError, extractApiError, formatCustomerAuthError } from '@/lib/errorMessages'
 import { clearPendingBuyNow, peekPendingBuyNow } from '@/lib/pendingBuyNow'
 import { getCartQtyForVariant } from '@/lib/stockValidation'
 import type { Cart, Product } from '@/types'
@@ -726,7 +726,12 @@ export function useCustomerRegister() {
   return useMutation({
     mutationFn: (data: { full_name: string; email?: string; password: string; phone?: string }) => storeApi.register(data),
     onSuccess: () => { toast.success('Account created!') },
-    onError: apiError('Registration failed — this email or phone may already be registered'),
+    onError: (error: unknown) => {
+      toast.error(formatCustomerAuthError(
+        error,
+        'Registration failed — this email or phone may already be registered.',
+      ))
+    },
   })
 }
 

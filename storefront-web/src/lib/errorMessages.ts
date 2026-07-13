@@ -42,6 +42,16 @@ export function extractApiError(error: unknown, context: string): string {
 
   const { status, data } = ax.response
 
+  if (data?.detail && typeof data.detail === 'object' && !Array.isArray(data.detail)) {
+    const rec = data.detail as Record<string, unknown>
+    if (typeof rec.message === 'string' && rec.message.trim()) {
+      return `${context}: ${rec.message}`
+    }
+    if (typeof rec.technical === 'string' && rec.technical.trim()) {
+      return `${context}: Account data conflict — please contact the store or try a different email/phone`
+    }
+  }
+
   if (data?.detail && Array.isArray(data.detail)) {
     const fieldErrors = (data.detail as ApiErrorDetail[])
       .map(e => {
@@ -108,11 +118,26 @@ export function formatCustomerAuthError(
   error: unknown,
   fallback = 'Could not sign in. Check your email or phone and password.',
 ): string {
-  const ax = error as AxiosError<{ detail?: string | ApiErrorDetail[] }>
+  const ax = error as AxiosError<{
+    detail?: string | ApiErrorDetail[] | Record<string, unknown>
+    message?: string
+  }>
   const detail = ax?.response?.data?.detail
+  const topMessage = ax?.response?.data?.message
+
+  if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+    const rec = detail as Record<string, unknown>
+    if (rec.code === 'ambiguous_vendor_resolution' || typeof rec.message === 'string') {
+      const msg = typeof rec.message === 'string' ? rec.message : ''
+      if (/duplicate|ambiguous|multiple/i.test(msg) || rec.code === 'ambiguous_vendor_resolution') {
+        return 'This email or phone is already linked to an account for this store. Try signing in, or use a different contact.'
+      }
+      if (msg && msg.length <= 200) return msg
+    }
+  }
 
   if (typeof detail === 'string') {
-    if (/UndefinedColumn|asyncpg|sqlalchemy|does not exist|traceback/i.test(detail)) {
+    if (/UndefinedColumn|asyncpg|sqlalchemy|does not exist|traceback|MultipleResultsFound/i.test(detail)) {
       return 'Sign-in is temporarily unavailable. Please try again in a moment.'
     }
     if (detail.length <= 120 && !/class\s+['"]/.test(detail)) {
@@ -120,8 +145,19 @@ export function formatCustomerAuthError(
     }
   }
 
+  if (typeof topMessage === 'string' && topMessage.trim()) {
+    if (/ambiguous vendor|duplicate database/i.test(topMessage)) {
+      return 'This email or phone is already linked to an account for this store. Try signing in, or use a different contact.'
+    }
+    if (topMessage.length <= 160) return topMessage
+  }
+
   if (ax?.response?.status === 401) {
     return 'Invalid email, phone, or password.'
+  }
+
+  if (ax?.response?.status === 409) {
+    return 'This email or phone is already linked to an account for this store. Try signing in, or use a different contact.'
   }
 
   if (!ax?.response) {

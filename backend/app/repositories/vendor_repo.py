@@ -46,11 +46,11 @@ class VendorRepository(BaseRepository[Vendor]):
         return result.scalar_one() > 0
     
     async def find_by_slug(self, slug: str) -> Optional[Vendor]:
-        """Find vendor by slug."""
+        """Find vendor by slug (limit 1 — duplicate slugs must not raise MultipleResultsFound)."""
         result = await self.db.execute(
-            select(Vendor).where(Vendor.slug == slug)
+            select(Vendor).where(Vendor.slug == slug).order_by(Vendor.created_at.asc()).limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def find_by_slug_ci(self, slug: str) -> Optional[Vendor]:
         """Find vendor by slug (case-insensitive)."""
@@ -58,9 +58,12 @@ class VendorRepository(BaseRepository[Vendor]):
             return None
         norm = str(slug).strip().lower()
         result = await self.db.execute(
-            select(Vendor).where(func.lower(Vendor.slug) == norm)
+            select(Vendor)
+            .where(func.lower(Vendor.slug) == norm)
+            .order_by(Vendor.created_at.asc())
+            .limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def list_vendor_summaries_for_user_ids(self, user_ids: List[UUID]) -> List[Dict[str, Any]]:
         """Distinct businesses (slug + name) where these users have an active vendor_user row."""

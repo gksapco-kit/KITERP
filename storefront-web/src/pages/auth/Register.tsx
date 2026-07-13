@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useCustomerRegister, useCustomerLogin } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
+import { formatCustomerAuthError } from '@/lib/errorMessages'
 import { imgUrl } from '@/lib/utils'
 import { Loader2, Store, ShieldCheck, Check, Eye, EyeOff, MapPin } from 'lucide-react'
 import { useAuthStoreTheme } from './authStoreTheme'
@@ -135,8 +136,10 @@ export default function Register() {
 
             {(registerMut.isError || loginMut.isError) && (
               <div className="mb-2.5 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
-                {(registerMut.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-                  || 'Registration failed. Please try again.'}
+                {formatCustomerAuthError(
+                  registerMut.error ?? loginMut.error,
+                  'Registration failed. Please try again.',
+                )}
               </div>
             )}
 

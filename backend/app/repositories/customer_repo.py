@@ -15,38 +15,59 @@ class CustomerRepository(BaseRepository[Customer]):
     async def get_by_vendor_and_email(
         self, vendor_id: UUID, email: str
     ) -> Optional[Customer]:
+        """Return one customer; prefer rows with a login password over guest checkout stubs."""
         email_norm = (email or "").strip().lower()
         result = await self.db.execute(
-            select(Customer).where(
+            select(Customer)
+            .where(
                 Customer.vendor_id == vendor_id,
                 func.lower(Customer.email) == email_norm,
             )
+            .order_by(
+                # Non-empty password first so register/login see real accounts over guests.
+                (Customer.password_hash == "").asc(),
+                Customer.created_at.desc(),
+            )
+            .limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def get_by_vendor_and_phone(
         self, vendor_id: UUID, phone: str
     ) -> Optional[Customer]:
+        """Return one customer; prefer passworded accounts; never raise on duplicates."""
         from app.services.sms_service import normalize_e164
 
         normalized = normalize_e164(phone)
         result = await self.db.execute(
-            select(Customer).where(
+            select(Customer)
+            .where(
                 Customer.vendor_id == vendor_id,
                 Customer.phone == normalized,
             )
+            .order_by(
+                (Customer.password_hash == "").asc(),
+                Customer.created_at.desc(),
+            )
+            .limit(1)
         )
-        found = result.scalar_one_or_none()
+        found = result.scalars().first()
         if found or normalized == phone:
             return found
         # Fallback for legacy rows stored without E.164 prefix
         result = await self.db.execute(
-            select(Customer).where(
+            select(Customer)
+            .where(
                 Customer.vendor_id == vendor_id,
                 Customer.phone == phone,
             )
+            .order_by(
+                (Customer.password_hash == "").asc(),
+                Customer.created_at.desc(),
+            )
+            .limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def get_by_vendor_and_id(
         self, vendor_id: UUID, customer_id: UUID
