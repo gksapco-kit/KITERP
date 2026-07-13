@@ -267,7 +267,7 @@ export default function BusinessFrontHubPage() {
       title: 'SEO Management',
       shortTitle: 'SEO',
       description: 'Google titles, meta descriptions, and social share previews.',
-      to: publishedSite ? `/websites/seo?siteId=${publishedSite.id}` : '/websites/seo',
+      to: '/websites/seo',
       icon: Search,
     },
   ]

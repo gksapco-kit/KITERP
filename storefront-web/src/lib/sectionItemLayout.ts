@@ -32,20 +32,37 @@ export function iconBoxFromItemSize(itemSize: number): number {
 }
 
 const NAMED_FEATURE_ICONS: Record<string, string> = {
-  Zap: '⚡',
-  Shield: '🛡️',
-  Star: '⭐',
-  Clock: '⏱️',
-  Heart: '❤️',
-  Truck: '🚚',
-  Wrench: '🛠️',
+  zap: '⚡',
+  shield: '🛡️',
+  shieldcheck: '🛡️',
+  'shield-check': '🛡️',
+  star: '⭐',
+  clock: '⏱️',
+  heart: '❤️',
+  truck: '🚚',
+  wrench: '🛠️',
+  sparkles: '✨',
+  award: '🏆',
+  gift: '🎁',
+  package: '📦',
+  check: '✅',
+  'check-circle': '✅',
+  checkcircle: '✅',
+  checkcircle2: '✅',
+}
+
+/** True when icon was corrupted to ASCII `?` placeholders (encoding loss). */
+function isBrokenIconPlaceholder(icon: string): boolean {
+  return /^\?+$/.test(icon)
 }
 
 /** Render emoji from panel (emoji or legacy Lucide-style name). */
 export function renderFeatureIcon(icon?: string, fallback = '✨'): string {
   if (!icon) return fallback
   const trimmed = icon.trim()
-  if (NAMED_FEATURE_ICONS[trimmed]) return NAMED_FEATURE_ICONS[trimmed]
+  if (!trimmed || isBrokenIconPlaceholder(trimmed)) return fallback
+  const named = NAMED_FEATURE_ICONS[trimmed.toLowerCase().replace(/\s+/g, '')]
+  if (named) return named
   // Already an emoji / short glyph from the emoji picker
   if (trimmed.length <= 8) return trimmed
   return fallback

@@ -148,6 +148,21 @@ export const BLOCK_REQUIRED_DATA_SOURCE = new Set<string>([
   'vertical.eventListing',
 ])
 
+/** Website builder sections that show the Products sync banner in the sidebar. */
+export const PRODUCT_SYNC_BLOCK_TYPES = new Set<string>([
+  'product_grid',
+  'product.grid',
+  'product.carousel',
+  'product.crossSell',
+  'product.recentlyViewed',
+  'product.search',
+  'product.wishlist',
+  'menu_grid',
+  'related_products',
+  'recently_viewed',
+  'live_stock',
+])
+
 /** Website builder sections that show the Categories sync banner in the sidebar. */
 export const CATEGORY_SYNC_BLOCK_TYPES = new Set<string>([
   'category_cards',
@@ -207,6 +222,10 @@ export const WIZARD_SYNC_BLOCK_TYPES = new Set<string>([
 export const RESOURCE_SYNC_BLOCK_TYPES = new Set<string>([
   'booking.resource',
 ])
+
+export function isProductSyncedBlock(blockType: string): boolean {
+  return PRODUCT_SYNC_BLOCK_TYPES.has(blockType)
+}
 
 export function isCategorySyncedBlock(blockType: string): boolean {
   return CATEGORY_SYNC_BLOCK_TYPES.has(blockType)

@@ -69,10 +69,10 @@ function hydrateProducts(liveItems: LiveItem[]) {
 }
 
 function hydrateCategories(liveItems: LiveItem[]) {
-  if (!liveItems.length) {
-    replaceArray(mockCategories, [])
-    return
-  }
+  // Match hydrateProducts: never wipe shared mockCategories while live data is
+  // still loading (empty array). Clearing here caused intermittent blank/wrong
+  // names across Strict Mode remounts and multiple category sections.
+  if (!liveItems.length) return
   replaceArray(
     mockCategories,
     liveItems.map((item, idx) => ({

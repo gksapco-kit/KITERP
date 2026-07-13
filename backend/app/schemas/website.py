@@ -74,9 +74,16 @@ class PageCreate(BaseModel):
     title: str
     slug: str
     page_type: str = "custom"
-    seo_title: Optional[str] = None
-    seo_description: Optional[str] = None
+    seo_title: Optional[str] = Field(default=None, max_length=60)
+    seo_description: Optional[str] = Field(default=None, max_length=160)
     og_image_url: Optional[str] = None
+    focus_keyword: Optional[str] = Field(default=None, max_length=80)
+    seo_keywords: Optional[str] = Field(default=None, max_length=500)
+    noindex: bool = False
+    og_title: Optional[str] = Field(default=None, max_length=60)
+    og_description: Optional[str] = Field(default=None, max_length=160)
+    canonical_url: Optional[str] = Field(default=None, max_length=500)
+    schema_type: str = "auto"
     layout: str = "full"
     sort_order: int = 0
     is_published: bool = True
@@ -88,9 +95,16 @@ class PageUpdate(BaseModel):
     title: Optional[str] = None
     slug: Optional[str] = None
     page_type: Optional[str] = None
-    seo_title: Optional[str] = None
-    seo_description: Optional[str] = None
+    seo_title: Optional[str] = Field(default=None, max_length=60)
+    seo_description: Optional[str] = Field(default=None, max_length=160)
     og_image_url: Optional[str] = None
+    focus_keyword: Optional[str] = Field(default=None, max_length=80)
+    seo_keywords: Optional[str] = Field(default=None, max_length=500)
+    noindex: Optional[bool] = None
+    og_title: Optional[str] = Field(default=None, max_length=60)
+    og_description: Optional[str] = Field(default=None, max_length=160)
+    canonical_url: Optional[str] = Field(default=None, max_length=500)
+    schema_type: Optional[str] = None
     layout: Optional[str] = None
     sort_order: Optional[int] = None
     is_published: Optional[bool] = None
@@ -107,6 +121,13 @@ class PageOut(BaseModel):
     seo_title: Optional[str]
     seo_description: Optional[str]
     og_image_url: Optional[str]
+    focus_keyword: Optional[str] = None
+    seo_keywords: Optional[str] = None
+    noindex: bool = False
+    og_title: Optional[str] = None
+    og_description: Optional[str] = None
+    canonical_url: Optional[str] = None
+    schema_type: str = "auto"
     layout: str
     sort_order: int
     is_published: bool
@@ -155,10 +176,11 @@ class SiteCreate(BaseModel):
     favicon_url: Optional[str] = None
     logo_url: Optional[str] = None
     style_config: Dict[str, Any] = Field(default_factory=dict)
-    seo_title: Optional[str] = None
-    seo_description: Optional[str] = None
+    seo_title: Optional[str] = Field(default=None, max_length=60)
+    seo_description: Optional[str] = Field(default=None, max_length=160)
     seo_keywords: Optional[str] = None
     og_image_url: Optional[str] = None
+    schema_org_type: str = "auto"
     google_analytics_id: Optional[str] = None
     meta_pixel_id: Optional[str] = None
     custom_head_code: Optional[str] = None
@@ -181,10 +203,11 @@ class SiteUpdate(BaseModel):
     favicon_url: Optional[str] = None
     logo_url: Optional[str] = None
     style_config: Optional[Dict[str, Any]] = None
-    seo_title: Optional[str] = None
-    seo_description: Optional[str] = None
+    seo_title: Optional[str] = Field(default=None, max_length=60)
+    seo_description: Optional[str] = Field(default=None, max_length=160)
     seo_keywords: Optional[str] = None
     og_image_url: Optional[str] = None
+    schema_org_type: Optional[str] = None
     is_published: Optional[bool] = None
     status: Optional[str] = None
     google_analytics_id: Optional[str] = None
@@ -216,6 +239,7 @@ class SiteOut(BaseModel):
     seo_description: Optional[str]
     seo_keywords: Optional[str]
     og_image_url: Optional[str]
+    schema_org_type: str = "auto"
     is_published: bool
     published_at: Optional[datetime]
     status: str

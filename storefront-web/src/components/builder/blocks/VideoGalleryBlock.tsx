@@ -1,8 +1,7 @@
-import { useState } from 'react'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { Play, Video, X } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
-import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
@@ -18,7 +17,13 @@ import {
   sectionItemSize,
 } from '@/lib/sectionItemLayout'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
-import { getVideoEmbedUrl, getVideoThumbnailUrl, isDirectVideoFile } from '@/lib/videoEmbed'
+import {
+  getVideoEmbedUrl,
+  getVideoThumbnailUrl,
+  isDirectVideoFile,
+  isInstagramEmbedUrl,
+  usesClickToPlayPoster,
+} from '@/lib/videoEmbed'
 import {
   isBlockFieldHidden,
   isNestedBlockFieldHidden,
@@ -41,10 +46,92 @@ interface Props {
   blockId?: string
 }
 
+/** Poster + play button — same click-to-open flow as YouTube, including Instagram. */
+function ClickToPlayPoster({
+  thumbUrl,
+  isInstagram,
+  alt,
+  className,
+  shellClass,
+  frameStyle,
+  tileImg,
+  interactive,
+  onPlay,
+}: {
+  thumbUrl: string | null
+  isInstagram: boolean
+  alt: string
+  className?: string
+  shellClass: string
+  frameStyle?: CSSProperties
+  tileImg: string
+  interactive: boolean
+  onPlay?: () => void
+}) {
+  const [imgFailed, setImgFailed] = useState(false)
+  const showImg = Boolean(thumbUrl) && !imgFailed
+
+  return (
+    <div
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      className={cn(shellClass, className, interactive && 'cursor-pointer group')}
+      style={frameStyle}
+      onClick={interactive ? onPlay : undefined}
+      onKeyDown={interactive ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onPlay?.()
+        }
+      } : undefined}
+    >
+      {showImg ? (
+        <img
+          src={thumbUrl!}
+          alt={alt}
+          className={cn('absolute inset-0 h-full w-full object-cover', tileImg)}
+          loading="lazy"
+          onError={() => setImgFailed(true)}
+        />
+      ) : isInstagram ? (
+        <div
+          className={cn('absolute inset-0 flex flex-col items-center justify-center gap-2 text-white', tileImg)}
+          style={{
+            background: 'linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)',
+          }}
+        >
+          <span className="text-xs font-semibold tracking-wide uppercase opacity-90">Instagram</span>
+        </div>
+      ) : (
+        <div className={cn('absolute inset-0 bg-neutral-800', tileImg)} />
+      )}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/20">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white opacity-90 shadow-lg transition group-hover:scale-105">
+          <Play className="ml-0.5 h-6 w-6 fill-current" />
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function VideoGalleryBlock({ style, props, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const [lightbox, setLightbox] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!lightbox) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightbox(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [lightbox])
 
   const title = resolveBlockTextField(props, 'title')
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
@@ -76,8 +163,8 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
       <BlockEmptyPlaceholder
         style={style}
         title={title ?? undefined}
-        message="Upload videos from your device or add YouTube / Vimeo links in the builder sidebar."
-        hint="Each video can have its own title and caption."
+        message="Upload videos from your device or add YouTube, Vimeo, or Instagram links in the builder sidebar."
+        hint="Each video can have its own title and caption. Instagram posts and reels are supported."
         icon={<Video className="w-10 h-10" style={{ color: style.primary_color }} />}
       />
     )
@@ -99,6 +186,8 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
     const directSrc = isDirect ? imgUrl(videoUrl) : ''
     const embedUrl = videoUrl && !isDirect ? getVideoEmbedUrl(videoUrl) : null
     const thumb = videoUrl && !isDirect ? getVideoThumbnailUrl(videoUrl) : null
+    const clickToPlay = videoUrl ? usesClickToPlayPoster(videoUrl) : false
+    const isInstagram = Boolean(embedUrl && isInstagramEmbedUrl(embedUrl))
     const itemTitle = String(item.title ?? '').trim()
     const itemCaption = String(item.caption ?? '').trim()
     const showItemTitle =
@@ -110,7 +199,7 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
       'relative w-full overflow-hidden bg-black/5',
       tileWrap,
       imageShape === 'circle' && 'aspect-square max-w-[min(100%,280px)] mx-auto',
-      !useFixedHeight && imageShape !== 'circle' && 'aspect-video',
+      !useFixedHeight && imageShape !== 'circle' && (isInstagram ? 'aspect-[4/5]' : 'aspect-video'),
     )
     const frameStyle = useFixedHeight ? { height: heightPx } : undefined
 
@@ -136,7 +225,7 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
       </div>
     ) : null
 
-    const player = directPlayer ? directPlayer : embedUrl ? (
+    const posterPlayer = embedUrl && clickToPlay ? (
       isEditorCanvas ? (
         <div className={cn(shellClass, className)} style={frameStyle}>
           {thumb ? (
@@ -151,14 +240,12 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
               alt={itemTitle || 'Video'}
               className={cn('absolute inset-0 h-full w-full', tileImg)}
             />
-          ) : (
-            <>
-              <iframe
-                src={embedUrl}
-                className="absolute inset-0 h-full w-full pointer-events-none"
-                allowFullScreen
-                title={itemTitle || 'Video'}
-              />
+          ) : isInstagram ? (
+            <div
+              className={cn('absolute inset-0 flex flex-col items-center justify-center gap-2 text-white', tileImg)}
+              style={{ background: 'linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%)' }}
+            >
+              <span className="text-xs font-semibold tracking-wide uppercase opacity-90">Instagram</span>
               <BuilderSectionImage
                 blockId={blockId}
                 field="video_url"
@@ -171,7 +258,20 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
                 alt={itemTitle || 'Video'}
                 className="absolute inset-0 h-full w-full opacity-0"
               />
-            </>
+            </div>
+          ) : (
+            <BuilderSectionImage
+              blockId={blockId}
+              field="video_url"
+              arrayKey="videos"
+              index={index}
+              itemField="video_url"
+              blockProps={props}
+              src=""
+              empty
+              alt={itemTitle || 'Video'}
+              className={cn('absolute inset-0 h-full w-full', tileImg)}
+            />
           )}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white shadow-lg">
@@ -180,52 +280,86 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
           </div>
         </div>
       ) : (
-        <div
-          className={cn(shellClass, className, thumb && 'cursor-pointer group')}
-          style={frameStyle}
-          onClick={thumb ? () => setLightbox(embedUrl) : undefined}
-        >
-          {thumb ? (
-            <>
-              <img
-                src={thumb}
-                alt={itemTitle || 'Video'}
-                className={cn('absolute inset-0 h-full w-full object-cover', tileImg)}
-                loading="lazy"
-              />
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/20">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white opacity-90 shadow-lg transition group-hover:scale-105">
-                  <Play className="ml-0.5 h-6 w-6 fill-current" />
-                </span>
-              </div>
-            </>
-          ) : (
-            <iframe
-              src={embedUrl}
-              className={cn('absolute inset-0 h-full w-full', tileImg)}
-              allowFullScreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              title={itemTitle || 'Video'}
-            />
-          )}
-        </div>
-      )
-    ) : isEditorCanvas ? (
-      <div className={cn(shellClass, className)} style={frameStyle}>
-        <BuilderSectionImage
-          blockId={blockId}
-          field="video_url"
-          arrayKey="videos"
-          index={index}
-          itemField="video_url"
-          blockProps={props}
-          src=""
-          empty
+        <ClickToPlayPoster
+          thumbUrl={thumb}
+          isInstagram={isInstagram}
           alt={itemTitle || 'Video'}
-          className={cn('absolute inset-0 h-full w-full', tileImg)}
+          className={className}
+          shellClass={shellClass}
+          frameStyle={frameStyle}
+          tileImg={tileImg}
+          interactive
+          onPlay={() => setLightbox(embedUrl)}
         />
-      </div>
+      )
     ) : null
+
+    const player = directPlayer
+      ? directPlayer
+      : posterPlayer
+        ? posterPlayer
+        : embedUrl
+          ? (
+            // Vimeo / other embeds without a stable poster — inline iframe
+            isEditorCanvas ? (
+              <div className={cn(shellClass, className)} style={frameStyle}>
+                <iframe
+                  src={embedUrl}
+                  className="absolute inset-0 h-full w-full pointer-events-none"
+                  allowFullScreen
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  title={itemTitle || 'Video'}
+                />
+                <BuilderSectionImage
+                  blockId={blockId}
+                  field="video_url"
+                  arrayKey="videos"
+                  index={index}
+                  itemField="video_url"
+                  blockProps={props}
+                  src=""
+                  empty
+                  alt={itemTitle || 'Video'}
+                  className="absolute inset-0 h-full w-full opacity-0"
+                />
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white shadow-lg">
+                    <Play className="ml-0.5 h-5 w-5 fill-current" />
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className={cn(shellClass, className)} style={frameStyle}>
+                <iframe
+                  src={embedUrl}
+                  className={cn('absolute inset-0 h-full w-full', tileImg)}
+                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  title={itemTitle || 'Video'}
+                />
+              </div>
+            )
+          )
+          : isEditorCanvas
+            ? (
+              <div className={cn(shellClass, className)} style={frameStyle}>
+                <BuilderSectionImage
+                  blockId={blockId}
+                  field="video_url"
+                  arrayKey="videos"
+                  index={index}
+                  itemField="video_url"
+                  blockProps={props}
+                  src=""
+                  empty
+                  alt={itemTitle || 'Video'}
+                  className={cn('absolute inset-0 h-full w-full', tileImg)}
+                />
+              </div>
+            )
+            : null
 
     return (
       <div className="space-y-2">
@@ -317,34 +451,87 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
       )}
       {lightbox && (
         <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/85 backdrop-blur-sm p-3 sm:p-6"
           onClick={() => setLightbox(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Video player"
         >
-          <button type="button" className="absolute top-4 right-4 text-white" onClick={() => setLightbox(null)}>
-            <X className="w-8 h-8" />
-          </button>
-          <div
-            className="relative w-full max-w-5xl aspect-video rounded-xl overflow-hidden"
-            onClick={e => e.stopPropagation()}
+          <button
+            type="button"
+            className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition hover:bg-white/20 sm:right-5 sm:top-5"
+            onClick={() => setLightbox(null)}
+            aria-label="Close video"
           >
-            {isDirectVideoFile(lightbox) ? (
+            <X className="h-5 w-5" />
+          </button>
+
+          {isDirectVideoFile(lightbox) ? (
+            <div
+              className="relative w-full max-w-5xl aspect-video overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/10"
+              onClick={e => e.stopPropagation()}
+            >
               <video
                 src={lightbox}
-                className="absolute inset-0 h-full w-full bg-black object-contain"
+                className="absolute inset-0 h-full w-full object-contain"
                 controls
                 autoPlay
                 playsInline
               />
-            ) : (
+            </div>
+          ) : isInstagramEmbedUrl(lightbox) ? (
+            /* Phone-style frame: crop Instagram chrome/comments so the lightbox isn't a tall scroll. */
+            <div
+              className="relative flex max-h-[min(92vh,760px)] w-[min(100%,380px)] flex-col overflow-hidden rounded-[1.75rem] bg-black shadow-[0_25px_80px_rgba(0,0,0,0.65)] ring-1 ring-white/15"
+              style={{ aspectRatio: '9 / 16' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-center pt-2.5">
+                <span className="h-1 w-20 rounded-full bg-white/25" aria-hidden />
+              </div>
+              <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
+                <iframe
+                  src={`${lightbox}${lightbox.includes('?') ? '&' : '?'}utm_source=ig_embed`}
+                  className="absolute inset-x-0 top-0 w-full border-0"
+                  style={{
+                    // Embed page is taller than the video; oversize + clip hides comments/footer.
+                    height: '128%',
+                    maxWidth: '100%',
+                    overflow: 'hidden',
+                  }}
+                  scrolling="no"
+                  allowFullScreen
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  title="Instagram video"
+                />
+                {/* Soft mask so clipped chrome doesn't look abruptly cut off */}
+                <div
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black to-transparent"
+                  aria-hidden
+                />
+              </div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-4 pb-4 pt-10">
+                <p className="text-center text-[11px] font-medium tracking-wide text-white/80">
+                  Instagram
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div
+              className="relative w-full max-w-5xl aspect-video overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/10"
+              onClick={e => e.stopPropagation()}
+            >
               <iframe
                 src={lightbox}
-                className="absolute inset-0 h-full w-full"
+                className="absolute inset-0 h-full w-full border-0"
                 allowFullScreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
                 title="Video"
               />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </section>

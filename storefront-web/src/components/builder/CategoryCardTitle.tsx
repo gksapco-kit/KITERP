@@ -25,7 +25,12 @@ export function CategoryCardTitle({
   /** When true, render synced catalog text (no canvas edit). */
   readOnly?: boolean
 }) {
-  const value = categoryItemTitle(blockProps, index, title)
+  // Synced / read-only cards must show the live normalized title — never a stale
+  // props.categories[i].title left over from templates or index misalignment.
+  const value = readOnly
+    ? title
+    : categoryItemTitle(blockProps, index, title)
+
   const Tag = as
 
   if (!blockId || readOnly) {

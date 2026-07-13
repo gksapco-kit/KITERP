@@ -32,6 +32,7 @@ import {
   Store,
   Palette,
   Paintbrush,
+  Download,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -89,6 +90,7 @@ import { isTemplateSandboxSite } from '@/lib/websiteSandbox'
 import { RecentlyDeletedTemplatesModal } from '@/components/websites/RecentlyDeletedTemplatesModal'
 import { countSitesWithName, resolveUniqueSiteName, suggestSiteCopyName } from '@/lib/websiteSiteNames'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
+import { downloadSiteExportJson, siteExportFilename, type SiteExportMode } from '@/lib/downloadSiteExport'
 import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
 import { WebsiteScopeBadge } from '@/components/websites/WebsiteScopeBadge'
 import { SiteInputParametersModal } from '@/components/websites/SiteInputParametersModal'
@@ -1660,6 +1662,7 @@ function SiteCard({
   const [showDomainPanel, setShowDomainPanel] = useState(false)
   const [saveAsOpen, setSaveAsOpen] = useState(false)
   const [copyingSite, setCopyingSite] = useState(false)
+  const [downloadingExport, setDownloadingExport] = useState<SiteExportMode | null>(null)
   const [renameOpen, setRenameOpen] = useState(false)
   const [renamingSite, setRenamingSite] = useState(false)
   const [previewing, setPreviewing] = useState(false)
@@ -1882,7 +1885,7 @@ function SiteCard({
     try {
       const existingNames = (queryClient.getQueryData<SiteListItem[]>(websitesListKey) ?? []).map(s => s.name)
       const finalName = resolveUniqueSiteName(name, existingNames)
-      const payload = await websiteApi.exportSite(site.id)
+      const payload = await websiteApi.exportSite(site.id, 'dynamic')
       await websiteApi.importSite({
         ...payload,
         site: { ...payload.site, name: finalName },
@@ -1898,6 +1901,25 @@ function SiteCard({
       toast.error('Could not save template copy')
     } finally {
       setCopyingSite(false)
+    }
+  }
+
+  const handleDownloadExport = async (mode: SiteExportMode) => {
+    if (downloadingExport) return
+    setDownloadingExport(mode)
+    setMenuOpen(false)
+    try {
+      const payload = await websiteApi.exportSite(site.id, mode)
+      downloadSiteExportJson(payload, siteExportFilename(site.name, mode))
+      toast.success(
+        mode === 'static'
+          ? 'Static site export downloaded'
+          : 'Dynamic configuration export downloaded',
+      )
+    } catch {
+      toast.error('Could not download website export')
+    } finally {
+      setDownloadingExport(null)
     }
   }
 
@@ -2055,7 +2077,32 @@ function SiteCard({
                   </SiteCardMenuGroup>
                 )}
 
+                <SiteCardMenuGroup label="Download">
+                  <SiteCardMenuItem
+                    icon={downloadingExport === 'static' ? Loader2 : Download}
+                    label="Static data (full backup)"
+                    iconSpin={downloadingExport === 'static'}
+                    disabled={!!downloadingExport}
+                    onClick={() => { void handleDownloadExport('static') }}
+                  />
+                  <SiteCardMenuItem
+                    icon={downloadingExport === 'dynamic' ? Loader2 : Download}
+                    label="Dynamic config (live sync)"
+                    iconSpin={downloadingExport === 'dynamic'}
+                    disabled={!!downloadingExport}
+                    onClick={() => { void handleDownloadExport('dynamic') }}
+                  />
+                </SiteCardMenuGroup>
+
                 <SiteCardMenuGroup label="Manage">
+                  <SiteCardMenuItem
+                    icon={Search}
+                    label="SEO settings"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      navigate(`/websites/seo?siteId=${site.id}`)
+                    }}
+                  />
                   <SiteCardMenuItem
                     icon={Globe2}
                     label="Custom domain"

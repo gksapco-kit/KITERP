@@ -37,9 +37,12 @@ export const websiteApi = {
     apiClient.post<WebsiteSite>(`${base}/${siteId}/ensure-blank`).then(r => r.data),
   importSite: (payload: { export_version: number; exported_at: string; site: Record<string, unknown> }) =>
     apiClient.post<WebsiteSite>(`${base}/import`, payload).then(r => r.data),
-  exportSite: (siteId: string) =>
+  exportSite: (siteId: string, mode: 'static' | 'dynamic' = 'dynamic') =>
     apiClient
-      .get<{ export_version: number; exported_at: string; site: Record<string, unknown> }>(`${base}/${siteId}/export`)
+      .get<{ export_version: number; export_mode?: 'static' | 'dynamic'; exported_at: string; site: Record<string, unknown> }>(
+        `${base}/${siteId}/export`,
+        { params: { mode } },
+      )
       .then(r => r.data),
 
   // Pages

@@ -3,6 +3,7 @@ Website Builder API — multi-site, multi-page, block-based with full AI feature
 """
 from __future__ import annotations
 import copy
+import re
 import secrets
 import uuid, json, random
 from datetime import datetime, timedelta
@@ -221,13 +222,20 @@ async def _normalize_site_homepage(db: AsyncSession, site_id: str) -> None:
         await db.flush()
 
 
+def _normalize_page_slug(raw: str) -> str:
+    slug = (raw or "page").strip().lower().strip("/")
+    slug = re.sub(r"[^a-z0-9-]+", "-", slug)
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    return (slug[:200] or "page")
+
+
 async def _unique_active_slug(
     db: AsyncSession,
     site_id: str,
     base_slug: str,
     exclude_page_id: Optional[UUID] = None,
 ) -> str:
-    slug = (base_slug or "page").strip().lower()[:200] or "page"
+    slug = _normalize_page_slug(base_slug)
     candidate = slug
     n = 2
     while True:
@@ -364,6 +372,13 @@ async def _snapshot_page(
         "seo_title": page.seo_title,
         "seo_description": page.seo_description,
         "og_image_url": page.og_image_url,
+        "focus_keyword": page.focus_keyword,
+        "seo_keywords": page.seo_keywords,
+        "noindex": bool(page.noindex),
+        "og_title": page.og_title,
+        "og_description": page.og_description,
+        "canonical_url": page.canonical_url,
+        "schema_type": page.schema_type or "auto",
         "layout": page.layout,
         "is_homepage": page.is_homepage,
         "show_in_nav": page.show_in_nav,
@@ -845,6 +860,7 @@ async def update_page(
         db, page_id, site_id, note="page edited", author_user_id=user.id,
     )
     data = body.dict(exclude_none=True)
+    slug_change_requested = "slug" in data
     if data.get("is_homepage") is True:
         await db.execute(
             update(WebsitePage)
@@ -855,10 +871,23 @@ async def update_page(
             )
             .values(is_homepage=False, updated_at=datetime.utcnow())
         )
+    if "slug" in data:
+        if page.is_homepage:
+            data.pop("slug")
+        else:
+            data["slug"] = await _unique_active_slug(
+                db, site_id, data["slug"], exclude_page_id=page.id,
+            )
     for k, v in data.items():
         setattr(page, k, v)
     page.updated_at = datetime.utcnow()
     await db.commit()
+    if slug_change_requested and not page.is_homepage:
+        try:
+            from app.api.v1.public_sites import invalidate_site_cache
+            await invalidate_site_cache(vendor.subdomain, site_id, vendor_slug=vendor.slug)
+        except Exception:
+            pass
     return await _get_page(db, page_id, site_id)
 
 
@@ -3927,7 +3956,7 @@ async def get_sitemap(
 
     urls = []
     for page in site.pages:
-        if not page.is_published:
+        if not page.is_published or page.deleted_at or page.noindex:
             continue
         slug = "" if page.is_homepage else f"/{page.slug}"
         urls.append(
@@ -3969,27 +3998,17 @@ def _norm_item(**kw) -> Dict[str, Any]:
     }
 
 
-@router.get("/{site_id}/live/{resource}")
-async def get_live_resource(
+async def _fetch_live_resource_items(
+    db: AsyncSession,
+    vendor,
+    site,
     site_id: str,
     resource: str,
-    limit: int = 12,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_active_user),
-):
-    """
-    Read-only unified feed for website builder blocks.
-
-    Supported resources:
-      - products, services, testimonials, team, customers, orders,
-        bookings, categories, media, pages, profile, kpis, blog
-    """
-    vendor = await _get_vendor(db, user)
-    site = await _get_site(db, site_id, vendor.id)
+    limit: int,
+) -> List[Dict[str, Any]]:
+    """Shared live-feed fetcher for builder blocks and static exports."""
     limit = max(1, min(limit, 200))
-
     items: List[Dict[str, Any]] = []
-    meta: Dict[str, Any] = {}
 
     if resource == "products":
         from app.models.vendor_product import Product, ProductImage
@@ -4372,6 +4391,27 @@ async def get_live_resource(
     else:
         raise HTTPException(status_code=400, detail=f"Unknown live resource: {resource}")
 
+    return items
+
+
+@router.get("/{site_id}/live/{resource}")
+async def get_live_resource(
+    site_id: str,
+    resource: str,
+    limit: int = 12,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    """
+    Read-only unified feed for website builder blocks.
+
+    Supported resources:
+      - products, services, testimonials, team, customers, orders,
+        bookings, categories, media, pages, profile, kpis, blog
+    """
+    vendor = await _get_vendor(db, user)
+    site = await _get_site(db, site_id, vendor.id)
+    items = await _fetch_live_resource_items(db, vendor, site, site_id, resource, limit)
     return {
         "resource": resource,
         "items": items,
@@ -4676,7 +4716,11 @@ async def restore_page_revision(
     if not page:
         raise HTTPException(404, "Page not found")
 
-    for field in ["title", "slug", "seo_title", "seo_description", "og_image_url", "layout"]:
+    for field in [
+        "title", "slug", "seo_title", "seo_description", "og_image_url",
+        "focus_keyword", "seo_keywords", "noindex", "og_title", "og_description",
+        "canonical_url", "schema_type", "layout",
+    ]:
         if field in snapshot:
             setattr(page, field, snapshot[field])
     page.updated_at = datetime.utcnow()
@@ -4842,11 +4886,23 @@ async def list_builder_previews(
 @router.get("/{site_id}/export")
 async def export_site(
     site_id: str,
+    mode: str = Query("dynamic", pattern="^(static|dynamic)$"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_active_user),
 ):
-    """Export a site as JSON — can be re-imported via /import."""
+    """
+    Export a site as JSON.
+
+    mode=static   — self-contained file; sync blocks include static_snapshot data (no API needed).
+    mode=dynamic  — design + static content + data_source wiring only for sync blocks.
+    """
     from sqlalchemy.orm import selectinload
+    from fastapi.responses import JSONResponse
+    from app.services.website_export import (
+        fetch_block_static_snapshot,
+        props_for_dynamic_export,
+    )
+
     vendor = await _get_vendor(db, user)
     result = await db.execute(
         select(WebsiteSite)
@@ -4857,8 +4913,64 @@ async def export_site(
     if not site:
         raise HTTPException(404, "Site not found")
 
+    live_cache: Dict[tuple, List[Dict[str, Any]]] = {}
+    pages_out: List[Dict[str, Any]] = []
+
+    for p in sorted(site.pages or [], key=lambda x: x.sort_order or 0):
+        blocks_out: List[Dict[str, Any]] = []
+        for b in sorted(p.blocks or [], key=lambda x: x.sort_order or 0):
+            raw_props = b.props if isinstance(b.props, dict) else {}
+            block_out: Dict[str, Any] = {
+                "block_type": b.block_type,
+                "label": b.label,
+                "style_overrides": b.style_overrides,
+                "visible": b.visible,
+                "sort_order": b.sort_order,
+            }
+            if mode == "static":
+                block_out["props"] = raw_props
+                snapshot = await fetch_block_static_snapshot(
+                    db,
+                    vendor,
+                    site,
+                    site_id,
+                    b.block_type,
+                    raw_props,
+                    live_cache,
+                    _fetch_live_resource_items,
+                )
+                if snapshot:
+                    block_out["static_snapshot"] = snapshot
+            else:
+                block_out["props"] = props_for_dynamic_export(b.block_type, raw_props)
+
+            blocks_out.append(block_out)
+
+        pages_out.append({
+            "title": p.title,
+            "slug": p.slug,
+            "page_type": p.page_type,
+            "is_homepage": p.is_homepage,
+            "show_in_nav": p.show_in_nav,
+            "seo_title": p.seo_title,
+            "seo_description": p.seo_description,
+            "focus_keyword": p.focus_keyword,
+            "seo_keywords": p.seo_keywords,
+            "noindex": bool(p.noindex),
+            "og_title": p.og_title,
+            "og_description": p.og_description,
+            "og_image_url": p.og_image_url,
+            "canonical_url": p.canonical_url,
+            "schema_type": p.schema_type or "auto",
+            "sort_order": p.sort_order,
+            "blocks": blocks_out,
+        })
+
+    slug_part = (site.subdomain or site.name or site_id or "site").strip().lower()
+    slug_part = "".join(c if c.isalnum() or c in "-_" else "-" for c in slug_part).strip("-") or "site"
     export = {
-        "export_version": 1,
+        "export_version": 2,
+        "export_mode": mode,
         "exported_at": datetime.utcnow().isoformat(),
         "site": {
             "name": site.name,
@@ -4871,36 +4983,16 @@ async def export_site(
             "seo_description": site.seo_description,
             "language": site.language,
             "currency": site.currency,
-            "pages": [
-                {
-                    "title": p.title,
-                    "slug": p.slug,
-                    "page_type": p.page_type,
-                    "is_homepage": p.is_homepage,
-                    "show_in_nav": p.show_in_nav,
-                    "seo_title": p.seo_title,
-                    "seo_description": p.seo_description,
-                    "sort_order": p.sort_order,
-                    "blocks": [
-                        {
-                            "block_type": b.block_type,
-                            "label": b.label,
-                            "props": b.props,
-                            "style_overrides": b.style_overrides,
-                            "visible": b.visible,
-                            "sort_order": b.sort_order,
-                        }
-                        for b in sorted(p.blocks or [], key=lambda x: x.sort_order or 0)
-                    ],
-                }
-                for p in sorted(site.pages or [], key=lambda x: x.sort_order or 0)
-            ],
+            "pages": pages_out,
         },
     }
-    from fastapi.responses import JSONResponse
     return JSONResponse(
         content=export,
-        headers={"Content-Disposition": f'attachment; filename="site-{site.subdomain or site_id}.json"'},
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{slug_part}-{mode}.kit-site.json"'
+            ),
+        },
     )
 
 
@@ -5090,7 +5182,7 @@ async def import_site(
 ):
     """Import a site from an export JSON payload."""
     vendor = await _get_vendor(db, user)
-    if body.get("export_version") != 1:
+    if body.get("export_version") not in (1, 2):
         raise HTTPException(400, "Unsupported export version")
 
     s = body.get("site", {})
@@ -5123,6 +5215,14 @@ async def import_site(
             show_in_nav=page_data.get("show_in_nav", True),
             seo_title=page_data.get("seo_title"),
             seo_description=page_data.get("seo_description"),
+            focus_keyword=page_data.get("focus_keyword"),
+            seo_keywords=page_data.get("seo_keywords"),
+            noindex=bool(page_data.get("noindex")),
+            og_title=page_data.get("og_title"),
+            og_description=page_data.get("og_description"),
+            og_image_url=page_data.get("og_image_url"),
+            canonical_url=page_data.get("canonical_url"),
+            schema_type=page_data.get("schema_type") or "auto",
             sort_order=page_data.get("sort_order", 0),
         )
         db.add(page)

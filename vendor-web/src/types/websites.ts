@@ -210,6 +210,13 @@ export interface WebsitePage {
   seo_title: string | null
   seo_description: string | null
   og_image_url: string | null
+  focus_keyword?: string | null
+  seo_keywords?: string | null
+  noindex?: boolean
+  og_title?: string | null
+  og_description?: string | null
+  canonical_url?: string | null
+  schema_type?: string
   layout: 'full' | 'boxed' | 'sidebar-left' | 'sidebar-right'
   sort_order: number
   is_published: boolean
@@ -299,6 +306,7 @@ export interface WebsiteSite {
   seo_description: string | null
   seo_keywords: string | null
   og_image_url: string | null
+  schema_org_type?: string
   is_published: boolean
   published_at: string | null
   status: 'draft' | 'published' | 'archived'

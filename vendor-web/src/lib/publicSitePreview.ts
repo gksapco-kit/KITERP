@@ -14,6 +14,14 @@ export type PublicPreviewPage = {
   slug: string
   title?: string
   is_homepage?: boolean
+  seo_title?: string | null
+  seo_description?: string | null
+  seo_keywords?: string | null
+  og_title?: string | null
+  og_description?: string | null
+  og_image_url?: string | null
+  noindex?: boolean
+  canonical_url?: string | null
   blocks?: PublicPreviewBlock[]
 }
 
@@ -23,6 +31,13 @@ export type PublicPreviewSite = {
   /** Catalog slug for /store/:slug (Vendor.slug), not necessarily wb_sites.subdomain. */
   vendor_slug?: string | null
   subdomain?: string | null
+  custom_domain?: string | null
+  description?: string | null
+  logo_url?: string | null
+  seo_title?: string | null
+  seo_description?: string | null
+  seo_keywords?: string | null
+  og_image_url?: string | null
   style_config?: Record<string, unknown>
   pages?: PublicPreviewPage[]
 }

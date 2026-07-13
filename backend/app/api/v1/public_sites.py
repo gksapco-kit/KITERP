@@ -11,11 +11,13 @@ All data is soft-cached in Redis (60 s TTL) to avoid hammering the DB.
 from __future__ import annotations
 
 import json
+import re
 import uuid as _uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,6 +72,13 @@ def _page_out(p: WebsitePage, include_blocks: bool = True) -> Dict[str, Any]:
         "seo_title": p.seo_title,
         "seo_description": p.seo_description,
         "og_image_url": p.og_image_url,
+        "focus_keyword": p.focus_keyword,
+        "seo_keywords": p.seo_keywords,
+        "noindex": bool(p.noindex),
+        "og_title": p.og_title,
+        "og_description": p.og_description,
+        "canonical_url": p.canonical_url,
+        "schema_type": p.schema_type or "auto",
         "layout": p.layout,
         "sort_order": p.sort_order or 0,
         "is_published": p.is_published,
@@ -97,6 +106,7 @@ def _site_out(site: WebsiteSite, pages: Optional[List[WebsitePage]] = None) -> D
         "seo_description": site.seo_description,
         "seo_keywords": site.seo_keywords,
         "og_image_url": site.og_image_url,
+        "schema_org_type": getattr(site, "schema_org_type", None) or "auto",
         "is_published": site.is_published,
         "status": site.status,
         "google_analytics_id": site.google_analytics_id,
@@ -354,6 +364,83 @@ async def _load_site_full(site_id: str, db: AsyncSession) -> Optional[WebsiteSit
     return result.scalar_one_or_none()
 
 
+async def _load_site_for_preview_seo(site_id: str, db: AsyncSession) -> Optional[WebsiteSite]:
+    """Load site + pages for SEO overlay (draft sites may be unpublished)."""
+    result = await db.execute(
+        select(WebsiteSite)
+        .options(selectinload(WebsiteSite.pages))
+        .where(WebsiteSite.id == UUID(site_id), WebsiteSite.deleted_at.is_(None))
+    )
+    return result.scalar_one_or_none()
+
+
+_PAGE_SEO_KEYS = (
+    "seo_title",
+    "seo_description",
+    "seo_keywords",
+    "focus_keyword",
+    "og_title",
+    "og_description",
+    "og_image_url",
+    "canonical_url",
+    "noindex",
+    "schema_type",
+)
+
+_SITE_SEO_KEYS = (
+    "seo_title",
+    "seo_description",
+    "seo_keywords",
+    "og_image_url",
+    "schema_org_type",
+    "name",
+    "description",
+    "logo_url",
+    "subdomain",
+    "custom_domain",
+)
+
+
+def _overlay_live_seo_on_preview_payload(payload: Dict[str, Any], site: WebsiteSite) -> Dict[str, Any]:
+    """
+    Draft preview tokens freeze page blocks, but SEO is edited separately (SEO Management).
+    Overlay the latest saved SEO so refreshing an old preview token still shows current meta.
+    """
+    out = dict(payload or {})
+    for key in _SITE_SEO_KEYS:
+        if key == "schema_org_type":
+            out[key] = getattr(site, "schema_org_type", None) or "auto"
+        else:
+            out[key] = getattr(site, key, None)
+
+    live_pages = {
+        str(p.id): p
+        for p in (site.pages or [])
+        if not getattr(p, "deleted_at", None)
+    }
+    pages_out: List[Dict[str, Any]] = []
+    for page_data in list(out.get("pages") or []):
+        if not isinstance(page_data, dict):
+            continue
+        merged = dict(page_data)
+        live = live_pages.get(str(page_data.get("id") or ""))
+        if live is not None:
+            for key in _PAGE_SEO_KEYS:
+                if key == "noindex":
+                    merged[key] = bool(getattr(live, key, False))
+                elif key == "schema_type":
+                    merged[key] = getattr(live, key, None) or "auto"
+                else:
+                    merged[key] = getattr(live, key, None)
+            # Keep title/slug in sync for document head fallbacks.
+            merged["title"] = live.title
+            merged["slug"] = live.slug
+            merged["is_homepage"] = bool(live.is_homepage)
+        pages_out.append(merged)
+    out["pages"] = pages_out
+    return out
+
+
 def _norm_item(**kw) -> Dict[str, Any]:
     return {
         "id": kw.get("id"),
@@ -480,6 +567,76 @@ def _public_site_dict_from_template(tpl: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+_IG_SHORTCODE_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+_VIDEO_POSTER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+)
+
+
+def _instagram_shortcode_from_url(url: str) -> Optional[str]:
+    """Extract a public Instagram post/reel shortcode; None if URL is not allowed."""
+    try:
+        parsed = urlparse(url.strip())
+        host = (parsed.hostname or "").lower()
+        if host not in {"instagram.com", "www.instagram.com", "instagr.am", "www.instagr.am"}:
+            return None
+        parts = [p for p in (parsed.path or "").split("/") if p]
+        if len(parts) < 2:
+            return None
+        kind = parts[0].lower()
+        if kind not in {"p", "reel", "reels", "tv"}:
+            return None
+        code = parts[1]
+        if not _IG_SHORTCODE_RE.match(code):
+            return None
+        return code
+    except Exception:
+        return None
+
+
+@router.get("/video-poster")
+async def get_video_poster(url: str = Query(..., min_length=8, max_length=2048)):
+    """
+    Proxy cover images for storefront click-to-play tiles.
+
+    Instagram's CDN blocks browser hotlinking of /p/{code}/media posters, so the
+    storefront requests this endpoint and we fetch the JPEG server-side.
+    """
+    import httpx
+
+    code = _instagram_shortcode_from_url(url)
+    if not code:
+        raise HTTPException(status_code=400, detail="Unsupported video URL")
+
+    media_url = f"https://www.instagram.com/p/{code}/media/?size=l"
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=15.0,
+            headers={
+                "User-Agent": _VIDEO_POSTER_UA,
+                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            },
+        ) as client:
+            resp = await client.get(media_url)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="Failed to fetch poster") from exc
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=404, detail="Poster not found")
+
+    content_type = (resp.headers.get("content-type") or "image/jpeg").split(";")[0].strip()
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=404, detail="Poster not found")
+
+    return Response(
+        content=resp.content,
+        media_type=content_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 @router.get("/website-template/{template_id}/preview")
 async def get_website_template_preview(template_id: str):
     """
@@ -502,6 +659,9 @@ async def get_builder_preview_by_token(
     """
     Unauthenticated: return a frozen JSON snapshot of a site saved from the vendor
     builder (same shape as the published public site payload). Opaque token only.
+
+    SEO fields are overlaid from the live site/pages so SEO Management edits show
+    up on refresh without requiring a brand-new preview token.
     """
     if not token or len(token) > 128:
         raise HTTPException(status_code=400, detail="Invalid preview token")
@@ -512,7 +672,12 @@ async def get_builder_preview_by_token(
     row = result.scalar_one_or_none()
     if not row:
         raise HTTPException(status_code=404, detail="Preview not found")
-    return row.payload
+
+    payload = row.payload if isinstance(row.payload, dict) else {}
+    site = await _load_site_for_preview_seo(str(row.site_id), db)
+    if site:
+        return _overlay_live_seo_on_preview_payload(payload, site)
+    return payload
 
 
 @router.get("/by-subdomain/{subdomain}")
@@ -1151,7 +1316,7 @@ async def get_sitemap_xml(
 
     urls = []
     for page in (site.pages or []):
-        if not page.is_published or page.deleted_at:
+        if not page.is_published or page.deleted_at or page.noindex:
             continue
         slug = "/" if page.is_homepage else f"/{page.slug}"
         loc = f"{base_url}{slug}"

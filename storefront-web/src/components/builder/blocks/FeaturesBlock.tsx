@@ -184,7 +184,7 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
                       !stackBelowLg && 'lg:mx-0',
                       isCompact ? 'w-20 h-20' : 'w-24 h-24 sm:w-28 sm:h-28',
                     )}>
-                      {feature.icon || altIcons[i % altIcons.length]}
+                      {renderFeatureIcon(feature.icon, altIcons[i % altIcons.length])}
                     </div>
                   ) : (
                     <div className={cn('relative mx-auto max-w-md', !stackBelowLg && 'lg:max-w-none')}>

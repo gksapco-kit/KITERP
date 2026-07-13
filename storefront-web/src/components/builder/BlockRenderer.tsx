@@ -220,6 +220,7 @@ function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
       setData(sitePagesToLiveItems(site, effectiveLimit))
       return
     }
+    let cancelled = false
     const params = dataSource?.selected_ids?.length
       ? { ids: dataSource.selected_ids.join(',') }
       : undefined
@@ -229,16 +230,26 @@ function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
         ? items.filter(item => item.id && selectedIds.includes(item.id))
         : items
 
+    const apply = (items: LiveItem[]) => {
+      if (!cancelled) setData(applySelection(items))
+    }
+    const applyEmpty = () => {
+      // Only clear if this request is still current — a late failure must not
+      // wipe a successful response from a newer effect run.
+      if (!cancelled) setData([])
+    }
+
     if (customFetch) {
       customFetch(site.id, resource, effectiveLimit, params)
-        .then(items => setData(applySelection(items)))
-        .catch(() => setData([]))
-      return
+        .then(apply)
+        .catch(applyEmpty)
+      return () => { cancelled = true }
     }
 
     publicSitesApi.getLiveResource(site.id, resource, effectiveLimit, params)
-      .then(r => setData(applySelection(r.items)))
-      .catch(() => setData([]))
+      .then(r => apply(r.items))
+      .catch(applyEmpty)
+    return () => { cancelled = true }
   }, [customFetch, site.id, resource, effectiveLimit, embeddedPagesKey, dataSource?.selected_ids?.join(',')])
 
   return data

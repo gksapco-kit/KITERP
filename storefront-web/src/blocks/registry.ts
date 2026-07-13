@@ -59,10 +59,10 @@ export const BLOCK_CATALOG: BlockDef[] = [
   { type: 'contact_form', label: 'Contact Form', desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get In Touch', email: 'hello@yoursite.com', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your Name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your Email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'Your Message' }] }, liveResource: 'profile' },
   { type: 'portfolio_grid', label: 'Portfolio Grid', desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true }, liveResource: 'media' },
   { type: 'gallery_masonry', label: 'Gallery Masonry', desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery' }, liveResource: 'media' },
-  { type: 'video_gallery', label: 'Video multiple', desc: 'YouTube / Vimeo video grid', category: 'media', defaultProps: { title: 'Video Gallery', layout: 'grid', columns: 3, videos: [] } },
+  { type: 'video_gallery', label: 'Video multiple', desc: 'YouTube / Vimeo / Instagram video grid', category: 'media', defaultProps: { title: 'Video Gallery', layout: 'grid', columns: 3, videos: [] } },
   { type: 'blog_grid', label: 'Blog Grid', desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3, show_count: 12, image_height_pct: 56 }, liveResource: 'blog' },
   { type: 'newsletter', label: 'Newsletter', desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
-  { type: 'video_embed', label: 'Video single', desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch Our Demo', video_url: '', aspect_ratio: '16:9' } },
+  { type: 'video_embed', label: 'Video single', desc: 'YouTube / Vimeo / Instagram video player', category: 'media', defaultProps: { title: 'Watch Our Demo', video_url: '', aspect_ratio: '16:9' } },
   { type: 'map_embed', label: 'Map', desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Find Us', address: '' }, liveResource: 'profile' },
   { type: 'trust_logos', label: 'Trust Logos', desc: 'Partner/client logo strip', category: 'social', defaultProps: { title: 'Trusted by Industry Leaders' }, liveResource: 'customers' },
   { type: 'timeline', label: 'Timeline', desc: 'Company history or process steps', category: 'about', defaultProps: { title: 'Our Journey', items: [] } },
@@ -187,6 +187,13 @@ export interface PublicPage {
   seo_title?: string | null
   seo_description?: string | null
   og_image_url?: string | null
+  focus_keyword?: string | null
+  seo_keywords?: string | null
+  noindex?: boolean
+  og_title?: string | null
+  og_description?: string | null
+  canonical_url?: string | null
+  schema_type?: string
   layout: string
   sort_order: number
   is_published: boolean
@@ -211,6 +218,7 @@ export interface PublicSite {
   seo_description?: string | null
   seo_keywords?: string | null
   og_image_url?: string | null
+  schema_org_type?: string
   is_published: boolean
   status: string
   google_analytics_id?: string | null

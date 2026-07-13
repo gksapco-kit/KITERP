@@ -301,6 +301,7 @@ import {
   applyDataSourceToBlockProps,
   STORE_CONTENT_GROUPS,
   BLOCK_REQUIRED_DATA_SOURCE,
+  isProductSyncedBlock,
   isCategorySyncedBlock,
   isPlansSyncedBlock,
   isPropertiesSyncedBlock,
@@ -528,10 +529,10 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get in touch', layout: 'split', full_page: false, email: '', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'How can we help?' }] } },
   { type: 'portfolio_grid', label: 'Portfolio Grid', icon: Camera, desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true } },
   { type: 'gallery_masonry', label: 'Gallery Masonry', icon: ImageIcon, desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery', layout: 'masonry', columns: 3, images: [] } },
-  { type: 'video_gallery', label: 'Video multiple', icon: Video, desc: 'YouTube / Vimeo video grid with layouts', category: 'media', defaultProps: { title: 'Video gallery', layout: 'grid', columns: 3, videos: [{ video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }] } },
+  { type: 'video_gallery', label: 'Video multiple', icon: Video, desc: 'YouTube / Vimeo / Instagram video grid with layouts', category: 'media', defaultProps: { title: 'Video gallery', layout: 'grid', columns: 3, videos: [{ video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }] } },
   { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3, show_count: 12, image_height_pct: 56 } },
   { type: 'newsletter', label: 'Newsletter', icon: Mail, desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
-  { type: 'video_embed', label: 'Video single', icon: Video, desc: 'YouTube / Vimeo video player', category: 'media', defaultProps: { title: 'Watch our story', video_url: '', aspect_ratio: '16:9' } },
+  { type: 'video_embed', label: 'Video single', icon: Video, desc: 'YouTube / Vimeo / Instagram video player', category: 'media', defaultProps: { title: 'Watch our story', video_url: '', aspect_ratio: '16:9' } },
   { type: 'map_embed', label: 'Map', icon: MapIcon, desc: 'Embedded map with location', category: 'contact', defaultProps: { title: 'Visit us', address: '', lat: null, lng: null } },
   { type: 'trust_logos', label: 'Trust Logos', icon: Award, desc: 'Partner/client logo strip', category: 'social', defaultProps: { title: 'Trusted by our partners' } },
   { type: 'timeline', label: 'Timeline', icon: Clock, desc: 'Company history or process steps', category: 'about', defaultProps: { title: 'Our story', items: [{ year: '2020', title: 'We opened our doors', desc: 'Started as a small local shop with a big vision.' }, { year: '2022', title: 'Growing together', desc: 'Expanded our range and welcomed thousands of customers.' }, { year: '2024', title: 'Online store launch', desc: 'Now you can shop with us anytime, anywhere.' }] } },
@@ -4453,7 +4454,7 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
   },
   features: {
     arrayKey: 'features', itemLabel: 'Feature',
-    defaultItem: { title: 'New Feature', desc: 'Description', icon: '?', image_url: '' },
+    defaultItem: { title: 'New Feature', desc: 'Description', icon: '✨', image_url: '' },
     fields: [
       { key: 'image_url', label: 'Image',       type: 'image' },
       { key: 'icon',      label: 'Icon Emoji',  type: 'emoji' },
@@ -4463,7 +4464,7 @@ const ITEM_SCHEMAS: Record<string, ItemSchema> = {
   },
   services_cards: {
     arrayKey: 'features', itemLabel: 'Service',
-    defaultItem: { title: 'New Service', desc: 'Description', icon: '???', image_url: '' },
+    defaultItem: { title: 'New Service', desc: 'Description', icon: '🛠️', image_url: '' },
     fields: [
       { key: 'image_url', label: 'Image',       type: 'image' },
       { key: 'icon',      label: 'Icon Emoji',  type: 'emoji' },
@@ -5422,6 +5423,67 @@ function InlineMediaPicker({
   )
 }
 
+/** Always-visible URL + upload controls for Video single (`video_embed`). */
+function VideoEmbedSourceEditor({
+  blockId,
+  siteId,
+  videoUrl,
+  onPreview,
+  onCommit,
+}: {
+  blockId: string
+  siteId: string
+  videoUrl: string
+  onPreview: (url: string) => void
+  onCommit: (url: string) => void
+}) {
+  const [localVal, setLocalVal] = useState(videoUrl)
+  const isEditingRef = useRef(false)
+
+  useEffect(() => {
+    if (isEditingRef.current) return
+    setLocalVal(videoUrl)
+  }, [blockId, videoUrl])
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-2.5 space-y-2">
+      <p className="text-[11px] font-semibold text-foreground">Video</p>
+      <p className="text-[10px] text-muted-foreground leading-snug">
+        Paste a YouTube, Vimeo, or Instagram post/reel link, or upload a file below.
+      </p>
+      <div className="space-y-1">
+        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Video URL</label>
+        <input
+          type="text"
+          value={localVal}
+          onChange={e => {
+            isEditingRef.current = true
+            setLocalVal(e.target.value)
+            onPreview(e.target.value)
+          }}
+          onFocus={() => { isEditingRef.current = true }}
+          onBlur={() => {
+            isEditingRef.current = false
+            onCommit(localVal)
+          }}
+          placeholder="YouTube / Vimeo / Instagram link"
+          className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
+      <InlineVideoPicker
+        siteId={siteId}
+        value={videoUrl}
+        onChange={url => {
+          setLocalVal(url)
+          isEditingRef.current = false
+          onPreview(url)
+          onCommit(url)
+        }}
+      />
+    </div>
+  )
+}
+
 /** Upload / pick a video file from the device or media library (for the Video Embed block). */
 function InlineVideoPicker({
   siteId, value, onChange,
@@ -5521,7 +5583,7 @@ function InlineVideoPicker({
       )}
 
       <p className="text-[10px] text-muted-foreground leading-snug">
-        Upload an MP4, WebM or MOV (max 50 MB), or paste a YouTube / Vimeo link above.
+        Upload an MP4, WebM or MOV (max 50 MB), or paste a YouTube, Vimeo, or Instagram link above.
       </p>
     </div>
   )
@@ -5867,7 +5929,7 @@ function SubItemEditor({
                           value={item[field.key] || ''}
                           readOnly={readOnly}
                           onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.value })}
-                          placeholder="YouTube / Vimeo link"
+                          placeholder="YouTube / Vimeo / Instagram link"
                           className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                         {!readOnly && (
@@ -5929,7 +5991,7 @@ function SubItemEditor({
                       <div key={field.key} className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
                         <div className="flex gap-1.5 flex-wrap">
-                          {['?','?','??','??','??','???','??','??','??','??','??','??','??','??','??'].map(e => (
+                          {['✨','⚡','🚀','🎯','💡','🛡️','🔥','💎','🌟','🎨','🔧','📱','🌍','❤️','🏆'].map(e => (
                             <button key={e}
                               disabled={readOnly}
                               onClick={() => !readOnly && updateItem(idx, { [field.key]: e })}
@@ -6937,6 +6999,7 @@ function PropsEditor({
 
   const isTeamBlock = block.block_type === 'team_grid' || block.block_type === 'team_list'
   const isBlogBlock = block.block_type === 'blog_grid' || block.block_type === 'blog_featured' || block.block_type === 'blog_list'
+  const isProductBlock = isProductSyncedBlock(block.block_type)
   const isCategoryBlock = isCategorySyncedBlock(block.block_type)
   const isPlansBlock = isPlansSyncedBlock(block.block_type)
   const isPropertiesBlock = isPropertiesSyncedBlock(block.block_type)
@@ -6953,6 +7016,7 @@ function PropsEditor({
   const isWizardBlock = isWizardSyncedBlock(block.block_type)
   const isResourceBlock = isResourceSyncedBlock(block.block_type)
   const [blogLiveItems, setBlogLiveItems] = useState<LiveItem[]>([])
+  const [productLiveItems, setProductLiveItems] = useState<LiveItem[]>([])
   const [categoryLiveItems, setCategoryLiveItems] = useState<LiveItem[]>([])
   const [plansLiveItems, setPlansLiveItems] = useState<LiveItem[]>([])
   const [propertiesLiveItems, setPropertiesLiveItems] = useState<LiveItem[]>([])
@@ -6973,6 +7037,15 @@ function PropsEditor({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy blog blocks once per selection
   }, [block.id, block.block_type, isBlogBlock])
+
+  useEffect(() => {
+    if (!isProductBlock) return
+    const dsType = (p as Record<string, unknown>).data_source as { type?: string } | undefined
+    if (!dsType || dsType.type !== 'products') {
+      onUpdate({ data_source: { type: 'products', auto: true } } as Partial<BlockProps>)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- migrate legacy product blocks once per selection
+  }, [block.id, block.block_type, isProductBlock])
 
   useEffect(() => {
     if (!isCategoryBlock) return
@@ -7111,6 +7184,16 @@ function PropsEditor({
   }, [isBlogBlock, siteId, block.id])
 
   useEffect(() => {
+    if (!isProductBlock || !siteId) {
+      setProductLiveItems([])
+      return
+    }
+    void websiteApi.getLive(siteId, 'products', { limit: 50 })
+      .then(r => setProductLiveItems(r.items ?? []))
+      .catch(() => setProductLiveItems([]))
+  }, [isProductBlock, siteId, block.id])
+
+  useEffect(() => {
     if (!isCategoryBlock || !siteId) {
       setCategoryLiveItems([])
       return
@@ -7246,6 +7329,7 @@ function PropsEditor({
 
   const publishedBlogCount = blogLiveItems.filter(item => item.meta?.is_published !== false).length
   const draftBlogCount = blogLiveItems.filter(item => item.meta?.is_published === false).length
+  const activeProductCount = productLiveItems.filter(item => item.meta?.is_active !== false).length
   const activeCategoryCount = categoryLiveItems.length
   const activePlansCount = plansLiveItems.filter(item => item.meta?.is_active !== false).length
   const activePropertiesCount = propertiesLiveItems.filter(item => item.meta?.is_active !== false).length
@@ -7281,6 +7365,27 @@ function PropsEditor({
       >
         Open Blog Manager →
       </a>
+    </div>
+  ) : undefined
+
+  const productManagerBanner = isProductBlock ? (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+      <p>
+        <span className="font-semibold">Synced with Products.</span>{' '}
+        Products you manage in Inventory → Products appear here automatically.
+      </p>
+      <p className="text-emerald-800">
+        {productLiveItems.length === 0
+          ? 'No products yet — add your first product in Products.'
+          : `${activeProductCount} active product${activeProductCount === 1 ? '' : 's'} available${productLiveItems.length > activeProductCount ? ` · ${productLiveItems.length - activeProductCount} hidden` : ''}`}
+      </p>
+      <button
+        type="button"
+        onClick={() => navigate('/products')}
+        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+      >
+        Open Products →
+      </button>
     </div>
   ) : undefined
 
@@ -7703,19 +7808,21 @@ function PropsEditor({
       {p.headline_line2 !== undefined && inputRow({ label: 'Headline line 2', fieldKey: 'headline_line2', placeholder: 'Second headline line' })}
       {p.subtitle    !== undefined && inputRow({ label: 'Subtitle',      fieldKey: 'subtitle',      multiline: true, placeholder: 'Expand your headline here?' })}
       {p.title       !== undefined && !TITLE_DESC_HANDLED_ELSEWHERE.has(block.block_type) && inputRow({ label: 'Title',         fieldKey: 'title',         placeholder: 'Section title?' })}
-      {(p.video_url !== undefined || block.block_type === 'video_embed') && inputRow({
-        label: 'Video URL',
-        fieldKey: 'video_url',
-        placeholder: 'YouTube or Vimeo link (e.g. https://youtube.com/watch?v=...)',
-        linkable: false,
-      })}
       {block.block_type === 'video_embed' && siteId && (
-        <InlineVideoPicker
+        <VideoEmbedSourceEditor
+          blockId={block.id}
           siteId={siteId}
-          value={String((p as any).video_url ?? '')}
-          onChange={url => onUpdate({ video_url: url })}
+          videoUrl={String((p as any).video_url ?? '')}
+          onPreview={url => onPreview({ video_url: url } as Partial<BlockProps>)}
+          onCommit={url => onUpdate({ video_url: url } as Partial<BlockProps>)}
         />
       )}
+      {p.video_url !== undefined && block.block_type !== 'video_embed' && inputRow({
+        label: 'Video URL',
+        fieldKey: 'video_url',
+        placeholder: 'YouTube, Vimeo, or Instagram link',
+        linkable: false,
+      })}
       {(p.message !== undefined || block.block_type === 'cookie_consent') && inputRow({
         label: 'Message',
         fieldKey: 'message',
@@ -7869,7 +7976,7 @@ function PropsEditor({
 
   const sectionLayoutCount = getSectionLayoutOptions(block.block_type).length
   const hasImageShape = IMAGE_SHAPE_BLOCK_TYPES.has(block.block_type)
-  const hasMediaPanel = isHeroBlock || p.bg_style === 'image' || p.image_url !== undefined || block.block_type === 'nav'
+  const hasMediaPanel = isHeroBlock || p.bg_style === 'image' || p.image_url !== undefined || block.block_type === 'nav' || block.block_type === 'video_embed'
 
   useEffect(() => {
     setLayoutAccordionOpen(sectionLayoutCount > 0 ? 'style' : 'spacing')
@@ -8123,6 +8230,7 @@ function PropsEditor({
         {editorTab === 'content' && (
           <>
       {blogManagerBanner}
+      {productManagerBanner}
       {categoryManagerBanner}
       {plansManagerBanner}
       {propertiesManagerBanner}
@@ -9678,6 +9786,15 @@ function PropsEditor({
 
         {editorTab === 'media' && (
           <>
+      {block.block_type === 'video_embed' && siteId && (
+        <VideoEmbedSourceEditor
+          blockId={block.id}
+          siteId={siteId}
+          videoUrl={String((p as any).video_url ?? '')}
+          onPreview={url => onPreview({ video_url: url } as Partial<BlockProps>)}
+          onCommit={url => onUpdate({ video_url: url } as Partial<BlockProps>)}
+        />
+      )}
       {heroImageField}
       {isHeroBlock && usesBgImage && (
         <PropsCollapsible

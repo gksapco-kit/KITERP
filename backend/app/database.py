@@ -224,10 +224,19 @@ async def ensure_variant_pricing_columns() -> None:
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS return_policy TEXT;",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS return_conditions TEXT;",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS color VARCHAR(50);",
+        # Variant generator / config-engine columns (cfg002) — required by ORM on every insert
+        "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS config_selection JSONB;",
+        "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS variant_hash VARCHAR(64);",
+        "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS search_keywords TEXT;",
     ]
     async with engine.begin() as conn:
         for s in stmts:
             await conn.execute(text(s))
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_variant_hash_unique "
+            "ON product_variant (product_id, variant_hash) "
+            "WHERE variant_hash IS NOT NULL;"
+        ))
         await conn.execute(text(
             "ALTER TABLE product ADD COLUMN IF NOT EXISTS shipping_cost_type VARCHAR(30) DEFAULT 'fixed';"
         ))
@@ -1463,6 +1472,15 @@ async def ensure_website_tables() -> None:
         "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS scheduled_publish_at TIMESTAMP",
         "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP",
         "CREATE INDEX IF NOT EXISTS ix_wb_pages_deleted_at ON wb_pages(deleted_at)",
+        # ── web007: extended per-page SEO ─────────────────────────────────────
+        "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS focus_keyword VARCHAR(100)",
+        "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS seo_keywords VARCHAR(500)",
+        "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS noindex BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS og_title VARCHAR(200)",
+        "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS og_description TEXT",
+        "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS canonical_url VARCHAR(500)",
+        "ALTER TABLE wb_sites ADD COLUMN IF NOT EXISTS schema_org_type VARCHAR(30) NOT NULL DEFAULT 'auto'",
+        "ALTER TABLE wb_pages ADD COLUMN IF NOT EXISTS schema_type VARCHAR(30) NOT NULL DEFAULT 'auto'",
         "ALTER TABLE wb_sites ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP",
         "CREATE INDEX IF NOT EXISTS ix_wb_sites_deleted_at ON wb_sites(deleted_at)",
         """

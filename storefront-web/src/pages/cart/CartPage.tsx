@@ -291,18 +291,18 @@ function EmptyState({ storePath }: { storePath: (path: string) => string }) {
       <p className="ck-text-muted mt-1 max-w-md text-sm">
         Looks like you haven't added anything yet. Browse our products and services.
       </p>
-      <div className="mt-6 flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center">
+      <div className="mt-6 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
         <Link
           to={storePath('/products')}
-          className="ck-btn-primary no-underline w-full text-center sm:w-auto"
-          style={{ padding: '12px 24px' }}
+          className="ck-btn-primary no-underline inline-flex items-center justify-center text-center"
+          style={{ width: 'auto', minWidth: '11rem', padding: '12px 24px' }}
         >
           Browse products
         </Link>
         <Link
           to={storePath('/services')}
-          className="ck-btn-secondary no-underline w-full text-center sm:w-auto"
-          style={{ padding: '12px 24px' }}
+          className="ck-btn-secondary no-underline inline-flex items-center justify-center text-center"
+          style={{ width: 'auto', minWidth: '11rem', padding: '12px 24px' }}
         >
           View services
         </Link>

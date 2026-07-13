@@ -230,24 +230,42 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
     const pagePath = page.is_homepage
       ? '/'
       : `/${(page.slug || '').replace(/^\/+/, '')}`
-    const canonical = baseUrl ? `${baseUrl}${pagePath}` : undefined
+    const canonical = (page.canonical_url?.trim() || (baseUrl ? `${baseUrl}${pagePath}` : undefined))
 
-    // Title & description
-    const titleParts = [page.seo_title || page.title, builderSite.seo_title || builderSite.name].filter(Boolean) as string[]
-    const docTitle = page.is_homepage
-      ? builderSite.seo_title || builderSite.name
-      : titleParts.length > 1 && titleParts[0] !== titleParts[1]
-        ? `${titleParts[0]} | ${titleParts[1]}`
-        : titleParts[0] || builderSite.name
+    // Title & description — page SEO wins; site defaults are fallback.
+    const pageSeoTitle = page.seo_title?.trim() || ''
+    const siteSeoTitle = builderSite.seo_title?.trim() || ''
+    const siteName = builderSite.name?.trim() || 'Site'
+    let docTitle: string
+    if (pageSeoTitle) {
+      // Prefer the page's SEO title (including homepage).
+      docTitle = page.is_homepage || !siteSeoTitle || pageSeoTitle === siteSeoTitle
+        ? pageSeoTitle
+        : `${pageSeoTitle} | ${siteSeoTitle}`
+    } else if (page.is_homepage) {
+      docTitle = siteSeoTitle || siteName
+    } else {
+      const pageLabel = page.title?.trim() || siteName
+      docTitle = siteSeoTitle && siteSeoTitle !== pageLabel
+        ? `${pageLabel} | ${siteSeoTitle}`
+        : pageLabel
+    }
     document.title = docTitle
 
     const description = page.seo_description || builderSite.seo_description || builderSite.description || null
     setMetaTag('name', 'description', description)
 
-    if (builderSite.seo_keywords) {
-      setMetaTag('name', 'keywords', builderSite.seo_keywords)
+    const keywords = page.seo_keywords || builderSite.seo_keywords || null
+    if (keywords) {
+      setMetaTag('name', 'keywords', keywords)
     } else {
       setMetaTag('name', 'keywords', null)
+    }
+
+    if (page.noindex) {
+      setMetaTag('name', 'robots', 'noindex, nofollow')
+    } else {
+      setMetaTag('name', 'robots', null)
     }
 
     // Canonical
@@ -255,18 +273,20 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
 
     // Open Graph
     const ogImage = page.og_image_url || builderSite.og_image_url || builderSite.logo_url || null
+    const ogTitle = page.og_title || page.seo_title || page.title || builderSite.name
+    const ogDescription = page.og_description || description
     setMetaTag('property', 'og:type', page.is_homepage ? 'website' : 'article')
     setMetaTag('property', 'og:site_name', builderSite.name)
-    setMetaTag('property', 'og:title', page.seo_title || page.title || builderSite.name)
-    setMetaTag('property', 'og:description', description)
+    setMetaTag('property', 'og:title', ogTitle)
+    setMetaTag('property', 'og:description', ogDescription)
     setMetaTag('property', 'og:url', canonical || null)
     setMetaTag('property', 'og:image', ogImage)
     setMetaTag('property', 'og:locale', (builderSite.language || 'en').replace('-', '_'))
 
     // Twitter Card
     setMetaTag('name', 'twitter:card', ogImage ? 'summary_large_image' : 'summary')
-    setMetaTag('name', 'twitter:title', page.seo_title || page.title || builderSite.name)
-    setMetaTag('name', 'twitter:description', description)
+    setMetaTag('name', 'twitter:title', ogTitle)
+    setMetaTag('name', 'twitter:description', ogDescription)
     setMetaTag('name', 'twitter:image', ogImage)
 
     // Favicon (use the site's favicon if set; otherwise leave the host shell's icon).
@@ -289,7 +309,34 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
     }
 
     setHtmlLang(builderSite.language)
-  }, [page?.id, builderSite?.id, builderSite?.updated_at])
+  }, [
+    page?.id,
+    page?.title,
+    page?.slug,
+    page?.is_homepage,
+    page?.seo_title,
+    page?.seo_description,
+    page?.seo_keywords,
+    page?.og_title,
+    page?.og_description,
+    page?.og_image_url,
+    page?.canonical_url,
+    page?.noindex,
+    builderSite?.id,
+    builderSite?.updated_at,
+    builderSite?.name,
+    builderSite?.seo_title,
+    builderSite?.seo_description,
+    builderSite?.seo_keywords,
+    builderSite?.og_image_url,
+    builderSite?.logo_url,
+    builderSite?.favicon_url,
+    builderSite?.description,
+    builderSite?.language,
+    builderSite?.languages_enabled,
+    builderSite?.subdomain,
+    builderSite?.custom_domain,
+  ])
 
   // Inject JSON-LD whenever the live-data map changes (so we don't ship the
   // schema before live items load).

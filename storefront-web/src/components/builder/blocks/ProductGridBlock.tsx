@@ -149,8 +149,11 @@ function resolveCategoryCardPropData(
   return { cats, propImageByTitle }
 }
 
-function categoryItemsReadOnly(isEditorCanvas: boolean, liveItems: LiveItem[]): boolean {
-  return isEditorCanvas && liveItems.length > 0
+function categoryItemsReadOnly(_isEditorCanvas: boolean, liveItems: LiveItem[]): boolean {
+  // Whenever live catalog rows are present, show those names (not stale props.categories
+  // titles). Editing is disabled for synced tiles in the builder; on the storefront
+  // readOnly just forces the live label path.
+  return liveItems.length > 0
 }
 
 function readCategorySectionLayout(props: Record<string, unknown>) {

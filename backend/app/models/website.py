@@ -44,6 +44,7 @@ class WebsiteSite(Base):
     seo_description = Column(Text, nullable=True)
     seo_keywords = Column(String(500), nullable=True)
     og_image_url = Column(String(500), nullable=True)
+    schema_org_type = Column(String(30), nullable=False, default="auto")
 
     # Status
     is_published = Column(Boolean, default=False)
@@ -105,6 +106,13 @@ class WebsitePage(Base):
     seo_title = Column(String(200), nullable=True)
     seo_description = Column(Text, nullable=True)
     og_image_url = Column(String(500), nullable=True)
+    focus_keyword = Column(String(100), nullable=True)
+    seo_keywords = Column(String(500), nullable=True)
+    noindex = Column(Boolean, default=False, nullable=False)
+    og_title = Column(String(200), nullable=True)
+    og_description = Column(Text, nullable=True)
+    canonical_url = Column(String(500), nullable=True)
+    schema_type = Column(String(30), nullable=False, default="auto")
 
     # Layout
     layout = Column(String(50), default="full")  # full|boxed|sidebar-left|sidebar-right

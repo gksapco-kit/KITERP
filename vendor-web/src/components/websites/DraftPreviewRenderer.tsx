@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import BlockRenderer from '@storefront/components/builder/BlockRenderer'
 import type { PublicSite } from '@storefront/blocks/registry'
 import { siteShellBlocks, siteCookieConsentShellBlock, withSharedShellBlocks } from '@storefront/lib/storefrontLayoutChrome'
@@ -8,6 +8,7 @@ import { DraftCatalogPreview } from '@/components/websites/DraftCatalogPreview'
 import { PreviewVendorProvider } from '@/components/websites/PreviewVendorProvider'
 import type { PublicPreviewSite } from '@/lib/publicSitePreview'
 import { findPublicPreviewPage } from '@/lib/publicSitePreview'
+import { applyPreviewDocumentSeo } from '@/lib/applyPreviewDocumentSeo'
 import { websiteApi } from '@/api/websites'
 import { useVendorStore } from '@/stores/vendorStore'
 import type { LiveResource } from '@/types/websites'
@@ -29,6 +30,27 @@ export function DraftPreviewRenderer({
 }) {
   const vendor = useVendorStore(s => s.vendor)
   const page = useMemo(() => findPublicPreviewPage(site, pageSlug), [site, pageSlug])
+
+  useEffect(() => {
+    applyPreviewDocumentSeo(site, page)
+  }, [
+    site,
+    page,
+    page?.id,
+    page?.seo_title,
+    page?.seo_description,
+    page?.seo_keywords,
+    page?.og_title,
+    page?.og_description,
+    page?.og_image_url,
+    page?.noindex,
+    page?.canonical_url,
+    site.seo_title,
+    site.seo_description,
+    site.seo_keywords,
+    site.og_image_url,
+    site.name,
+  ])
 
   const sitePageSlugs = useMemo(
     () =>

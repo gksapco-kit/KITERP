@@ -145,6 +145,99 @@ function organizationSchema(site: PublicSite, profileItem?: LiveItem): JsonLdObj
   }
 }
 
+function pageUrl(site: PublicSite, page: PublicPage): string | undefined {
+  if (page.is_homepage) return siteBaseUrl(site) || '/'
+  const slug = (page.slug || '').replace(/^\/+|\/+$/g, '')
+  return absoluteUrl(site, `/${slug}`)
+}
+
+function pageMetaImage(site: PublicSite, page: PublicPage): string | undefined {
+  return page.og_image_url || site.og_image_url || site.logo_url || undefined
+}
+
+function webPageSchema(site: PublicSite, page: PublicPage): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: page.seo_title || page.title,
+    description: page.seo_description || site.seo_description || site.description,
+    url: page.canonical_url || pageUrl(site, page),
+    image: pageMetaImage(site, page),
+  }
+}
+
+function articleSchema(site: PublicSite, page: PublicPage): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: page.seo_title || page.title,
+    description: page.seo_description || site.seo_description,
+    image: pageMetaImage(site, page),
+    url: page.canonical_url || pageUrl(site, page),
+    publisher: {
+      '@type': 'Organization',
+      name: site.name,
+      logo: site.logo_url || undefined,
+    },
+  }
+}
+
+function productPageSchema(site: PublicSite, page: PublicPage): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: page.seo_title || page.title,
+    description: page.seo_description || site.seo_description,
+    image: pageMetaImage(site, page),
+    url: page.canonical_url || pageUrl(site, page),
+    brand: { '@type': 'Brand', name: site.name },
+  }
+}
+
+function servicePageSchema(site: PublicSite, page: PublicPage): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: page.seo_title || page.title,
+    description: page.seo_description || site.seo_description,
+    url: page.canonical_url || pageUrl(site, page),
+    provider: { '@type': 'Organization', name: site.name },
+  }
+}
+
+function pageSchemaFromType(
+  schemaType: string,
+  site: PublicSite,
+  page: PublicPage,
+  profileItem?: LiveItem,
+): JsonLdObject | null {
+  switch (schemaType) {
+    case 'webpage':
+      return webPageSchema(site, page)
+    case 'organization':
+      return organizationSchema(site, profileItem)
+    case 'local_business':
+      return localBusinessSchema(site, profileItem)
+    case 'product':
+      return productPageSchema(site, page)
+    case 'service':
+      return servicePageSchema(site, page)
+    case 'article':
+      return articleSchema(site, page)
+    case 'faq_page': {
+      for (const block of page.blocks || []) {
+        if (block.block_type === 'faq') {
+          const faqs = (block.props as Record<string, unknown>).faqs as Array<{ question: string; answer: string }> | undefined
+          if (faqs?.length) return faqSchema(faqs)
+        }
+      }
+      return webPageSchema(site, page)
+    }
+    default:
+      return null
+  }
+}
+
 function websiteSchema(site: PublicSite): JsonLdObject {
   const baseUrl = siteBaseUrl(site)
   return {
@@ -219,6 +312,8 @@ export function buildPageJsonLd(
   page?: PublicPage,
 ): JsonLdObject[] {
   const schemas: JsonLdObject[] = []
+  const siteOrgType = (site as { schema_org_type?: string }).schema_org_type || 'auto'
+  const pageSchemaType = page?.schema_type || 'auto'
 
   schemas.push(websiteSchema(site))
 
@@ -229,10 +324,42 @@ export function buildPageJsonLd(
 
   let hasLocalBusiness = false
   let hasOrganization = false
+  let profileItem: LiveItem | undefined
+
+  for (const block of blocks) {
+    const items = liveDataMap[block.id] || []
+    if (!profileItem && items[0] && ['contact_form', 'map_embed', 'about_split', 'footer', 'nav'].includes(block.block_type)) {
+      profileItem = items[0]
+    }
+  }
+
+  if (siteOrgType === 'organization') {
+    schemas.push(organizationSchema(site, profileItem))
+    hasOrganization = true
+  } else if (siteOrgType === 'local_business') {
+    schemas.push(localBusinessSchema(site, profileItem))
+    hasLocalBusiness = true
+  }
+
+  if (page && pageSchemaType !== 'auto') {
+    const explicit = pageSchemaFromType(pageSchemaType, site, page, profileItem)
+    if (explicit) schemas.push(explicit)
+    if (['organization', 'local_business'].includes(pageSchemaType)) {
+      if (pageSchemaType === 'organization') hasOrganization = true
+      if (pageSchemaType === 'local_business') hasLocalBusiness = true
+    }
+  }
+
+  const useBlockSchemas = pageSchemaType === 'auto'
 
   for (const block of blocks) {
     const items = liveDataMap[block.id] || []
     const p = block.props as Record<string, unknown>
+
+    if (!useBlockSchemas) {
+      // faq_page is handled once in pageSchemaFromType — skip duplicate emit.
+      continue
+    }
 
     switch (block.block_type) {
       case 'product_grid':
