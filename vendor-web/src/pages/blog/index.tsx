@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { cn, mediaUrl } from '@/lib/utils'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
+import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import { vendorApi } from '@/api/vendor'
 import {
   useBlogPosts, useCreateBlogPost, useUpdateBlogPost,
@@ -175,12 +176,19 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
           {/* Excerpt */}
           <div>
             <label className={blogLabelClass}>Excerpt / Summary</label>
-            <textarea
+            <AiDescriptionTextarea
               value={excerpt}
-              onChange={e => setExcerpt(e.target.value)}
+              onChange={setExcerpt}
               placeholder="A short description shown in blog listings…"
               rows={2}
-              className={cn(blogInputClass, 'resize-none')}
+              maxLength={500}
+              className={cn(blogInputClass, 'resize-none pr-9')}
+              context={{
+                field_kind: 'blog_excerpt',
+                name: title,
+                category,
+                extra_context: { tags: tagsRaw },
+              }}
             />
           </div>
 

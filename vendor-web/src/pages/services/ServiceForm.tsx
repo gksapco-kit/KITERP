@@ -23,6 +23,7 @@ import {
   findFirstImageIndex,
 } from '@/components/common/ImageUpload'
 import { CategoryHierarchyPicker } from '@/components/common/CategoryHierarchyPicker'
+import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import { filterCategoryTree } from '@/lib/categoryHierarchy'
 import {
   ArrowLeft, Loader2,
@@ -773,6 +774,11 @@ export default function ServiceForm() {
   const watchedCurrency     = watch('currency')
   const watchedDiscountPct  = watch('discount_percentage')
   const watchedDiscountAmt  = watch('discount_amount')
+  const watchedName         = watch('name')
+  const watchedShortDescription = watch('short_description')
+  const watchedDescription  = watch('description')
+  const watchedMetaDescription = watch('meta_description')
+  const watchedPrerequisites = watch('prerequisites')
 
   const currencySymbol = CURRENCY_SYMBOL[watchedCurrency] || watchedCurrency
 
@@ -2036,10 +2042,35 @@ export default function ServiceForm() {
             </div>
             <div className={formEditLayout.fieldGrid3}>
               <FormField label="Short Description">
-                <textarea {...register('short_description')} rows={2} className={textareaCls} placeholder="Brief summary (max 500 chars)" maxLength={500} />
+                <AiDescriptionTextarea
+                  value={watchedShortDescription || ''}
+                  onChange={(v) => setValue('short_description', v, { shouldDirty: true })}
+                  rows={2}
+                  className={textareaCls}
+                  placeholder="Brief summary (max 500 chars)"
+                  maxLength={500}
+                  context={{
+                    field_kind: 'service_short',
+                    name: watchedName,
+                    category: [watchedCategory, watchedSubcategory].filter(Boolean).join(' › '),
+                  }}
+                />
               </FormField>
               <FormField label="Full Description" className="sm:col-span-2">
-                <textarea {...register('description')} rows={2} className={textareaCls} placeholder="Detailed service description..." />
+                <AiDescriptionTextarea
+                  value={watchedDescription || ''}
+                  onChange={(v) => setValue('description', v, { shouldDirty: true })}
+                  rows={2}
+                  className={textareaCls}
+                  placeholder="Detailed service description..."
+                  maxLength={2000}
+                  context={{
+                    field_kind: 'service_description',
+                    name: watchedName,
+                    category: [watchedCategory, watchedSubcategory].filter(Boolean).join(' › '),
+                    extra_context: { short_description: watchedShortDescription },
+                  }}
+                />
               </FormField>
             </div>
           </div>
@@ -2240,7 +2271,20 @@ export default function ServiceForm() {
               </FormField>
             </div>
             <FormField label="Meta Description">
-              <textarea {...register('meta_description')} rows={2} className={textareaCls} placeholder="SEO description..." />
+              <AiDescriptionTextarea
+                value={watchedMetaDescription || ''}
+                onChange={(v) => setValue('meta_description', v, { shouldDirty: true })}
+                rows={2}
+                className={textareaCls}
+                placeholder="SEO description..."
+                maxLength={160}
+                context={{
+                  field_kind: 'service_meta',
+                  name: watchedName,
+                  category: [watchedCategory, watchedSubcategory].filter(Boolean).join(' › '),
+                  extra_context: { short_description: watchedShortDescription },
+                }}
+              />
             </FormField>
           </div>
         </Section>
@@ -2250,7 +2294,22 @@ export default function ServiceForm() {
           <div className={formEditLayout.sectionBody}>
             <div className={formEditLayout.fieldGrid3}>
               <FormField label="Prerequisites">
-                <textarea {...register('prerequisites')} rows={2} className={textareaCls} placeholder="What the customer needs to prepare..." />
+                <AiDescriptionTextarea
+                  value={watchedPrerequisites || ''}
+                  onChange={(v) => setValue('prerequisites', v, { shouldDirty: true })}
+                  rows={2}
+                  className={textareaCls}
+                  placeholder="What the customer needs to prepare..."
+                  maxLength={1000}
+                  context={{
+                    field_kind: 'general',
+                    name: watchedName,
+                    category: [watchedCategory, watchedSubcategory].filter(Boolean).join(' › '),
+                    extra_context: {
+                      purpose: 'Write prerequisites / preparation notes for customers booking this service',
+                    },
+                  }}
+                />
               </FormField>
               <FormField label="What's Included (comma separated)">
                 <Input {...register('whats_included')} placeholder="Inspection, Labor, Parts" />

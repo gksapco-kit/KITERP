@@ -3,9 +3,9 @@ import { Plus, Pencil, Trash2, Loader2, Building2, ToggleLeft, ToggleRight, X } 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
@@ -101,7 +101,19 @@ function ResourceModal({
             </div>
             <div>
               <Label>Description</Label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Bright corner studio with 14ft ceilings…" />
+              <AiDescriptionTextarea
+                value={description}
+                onChange={setDescription}
+                rows={2}
+                placeholder="Bright corner studio with 14ft ceilings…"
+                maxLength={1000}
+                context={{
+                  field_kind: 'booking_resource_description',
+                  name,
+                  category: resourceType,
+                  extra_context: { capacity, features },
+                }}
+              />
             </div>
             <div>
               <Label>Features</Label>

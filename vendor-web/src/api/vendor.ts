@@ -717,6 +717,37 @@ export interface VariantMediaItem {
   position: number
 }
 
+export type AiCopyFieldKind =
+  | 'business_description'
+  | 'product_short'
+  | 'product_description'
+  | 'product_meta'
+  | 'service_short'
+  | 'service_description'
+  | 'service_meta'
+  | 'category_description'
+  | 'store_description'
+  | 'course_description'
+  | 'property_description'
+  | 'booking_resource_description'
+  | 'blog_excerpt'
+  | 'general'
+
+export interface AiCopyRequest {
+  field_kind: AiCopyFieldKind
+  name?: string
+  category?: string
+  company_type?: string
+  offering_type?: string
+  current_text?: string
+  tone?: string
+  max_chars?: number
+  extra_context?: Record<string, string | number | boolean | null | undefined>
+  /** Legacy aliases still accepted by /ai/business-description */
+  business_name?: string
+  current_description?: string
+}
+
 const SKIP_AUTO_REFRESH = { headers: { 'X-Skip-Auto-Refresh': 'true' } }
 
 export const vendorApi = {
@@ -727,6 +758,22 @@ export const vendorApi = {
 
   updateMyVendor: async (data: Partial<Vendor>): Promise<Vendor> => {
     const response = await apiClient.put('/vendors/me', data)
+    return response.data
+  },
+
+  generateBusinessDescription: async (data: {
+    business_name?: string
+    company_type?: string
+    offering_type?: string
+    current_description?: string
+    tone?: string
+  }): Promise<{ result: string; alternatives: string[] }> => {
+    const response = await apiClient.post('/vendors/me/ai/business-description', data)
+    return response.data
+  },
+
+  generateAiCopy: async (data: AiCopyRequest): Promise<{ result: string; alternatives: string[] }> => {
+    const response = await apiClient.post('/vendors/me/ai/copy', data)
     return response.data
   },
 

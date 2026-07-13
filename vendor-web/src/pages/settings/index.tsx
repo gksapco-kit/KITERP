@@ -47,6 +47,7 @@ import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog'
 import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
+import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import { DisabledOptionCard } from '@/components/common/DisabledOptionCard'
 import {
   galleryImageToFile,
@@ -893,10 +894,12 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
   const [bannerLightboxIndex, setBannerLightboxIndex] = useState<number | null>(null)
   const [profileSaving, setProfileSaving] = useState(false)
   const profileSavingRef = useRef(false)
+  /** Keep local form (e.g. AI-filled description) from being wiped by vendor/store re-hydrate. */
+  const preserveLocalProfileRef = useRef(false)
   const [profileHydrated, setProfileHydrated] = useState(false)
 
   useLayoutEffect(() => {
-    if (profileSavingRef.current) return
+    if (profileSavingRef.current || preserveLocalProfileRef.current) return
     if (unitProfileEditable && activeStore) {
       setForm(profileFormFromStore(activeStore, vendor))
       setProfileHydrated(true)
@@ -960,6 +963,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
           code: store.code,
           description: store.description,
         })
+        preserveLocalProfileRef.current = false
         toast.success('Business profile updated for this unit')
       } catch {
         toast.error('Could not save business profile for this unit')
@@ -969,13 +973,20 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
       }
       return
     }
-    onSave.mutate({
-      business_name: form.business_name.trim(),
-      display_name: form.business_name.trim(),
-      description: form.description.trim() || undefined,
-      business_type: form.company_type.trim() || undefined,
-      offering_type: form.offering_type as 'products' | 'services' | 'both',
-    })
+    onSave.mutate(
+      {
+        business_name: form.business_name.trim(),
+        display_name: form.business_name.trim(),
+        description: form.description.trim() || undefined,
+        business_type: form.company_type.trim() || undefined,
+        offering_type: form.offering_type as 'products' | 'services' | 'both',
+      },
+      {
+        onSuccess: () => {
+          preserveLocalProfileRef.current = false
+        },
+      },
+    )
   }
 
   const isDirty = useMemo(
@@ -1553,13 +1564,22 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
             <Label className="text-xs font-medium">Tell about your business</Label>
             <span className="text-xs tabular-nums text-muted-foreground">{form.description.length}/2000</span>
           </div>
-          <textarea
+          <AiDescriptionTextarea
             rows={3}
-            className="flex min-h-[4.5rem] w-full resize-y rounded-md border border-input bg-background px-2.5 py-1.5 text-sm leading-snug"
             value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            onChange={(description) => {
+              preserveLocalProfileRef.current = true
+              setForm((prev) => ({ ...prev, description }))
+            }}
             placeholder="Tell customers about your business..."
             maxLength={2000}
+            context={{
+              field_kind: 'business_description',
+              name: form.business_name,
+              company_type: form.company_type,
+              category: form.company_type,
+              offering_type: form.offering_type,
+            }}
           />
         </div>
 

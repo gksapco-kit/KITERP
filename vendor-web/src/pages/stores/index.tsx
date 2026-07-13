@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Card, CardContent } from '@/components/ui/card'
+import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import {
   Plus, Store,
   Edit2, Trash2, Star, StarOff, X, Loader2,
@@ -309,11 +310,19 @@ function StoreModal({
           ) : (
             <div>
               <Label className="text-xs">Description</Label>
-              <Input
+              <AiDescriptionTextarea
                 value={form.description}
-                onChange={set('description')}
+                onChange={(description) => setForm((f) => ({ ...f, description }))}
                 placeholder="Brief description…"
-                className="mt-0.5 h-9"
+                rows={2}
+                maxLength={500}
+                className="mt-0.5 min-h-[4rem] text-sm"
+                context={{
+                  field_kind: 'store_description',
+                  name: form.name,
+                  company_type: form.company_type,
+                  category: form.company_type,
+                }}
               />
             </div>
           )}
@@ -321,11 +330,20 @@ function StoreModal({
           {parentBu ? (
             <div className="col-span-2">
               <Label className="text-xs">Description</Label>
-              <Input
+              <AiDescriptionTextarea
                 value={form.description}
-                onChange={set('description')}
+                onChange={(description) => setForm((f) => ({ ...f, description }))}
                 placeholder="Brief description…"
-                className="mt-0.5 h-9"
+                rows={2}
+                maxLength={500}
+                className="mt-0.5 min-h-[4rem] text-sm"
+                context={{
+                  field_kind: 'store_description',
+                  name: form.name,
+                  company_type: form.company_type,
+                  category: form.company_type,
+                  extra_context: { parent_bu: parentBu?.name },
+                }}
               />
             </div>
           ) : null}

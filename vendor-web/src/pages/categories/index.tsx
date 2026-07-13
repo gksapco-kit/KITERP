@@ -3,9 +3,9 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
+import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import {
   useCategoryTree, useCreateCategory, useUpdateCategory, useDeleteCategory,
   useCategoryCatalogues,
@@ -951,12 +951,19 @@ function CategoryFormPanel({
 
               <div className="space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">Description</Label>
-                <Textarea
+                <AiDescriptionTextarea
                   value={description}
-                  onChange={e => onDescriptionChange(e.target.value)}
+                  onChange={onDescriptionChange}
                   placeholder="Optional short description"
                   rows={2}
+                  maxLength={500}
                   className="min-h-[4.5rem] resize-none text-sm"
+                  context={{
+                    field_kind: 'category_description',
+                    name,
+                    category: name,
+                    extra_context: { applies_to: appliesTo },
+                  }}
                 />
               </div>
 

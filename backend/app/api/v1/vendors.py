@@ -18,7 +18,9 @@ from app.models.user import User
 from app.models.vendor_plan import VendorPlan
 from app.schemas.vendor import (
     VendorCreate, VendorUpdate, VendorResponse,
-    SlugCheckRequest, SlugCheckResponse
+    SlugCheckRequest, SlugCheckResponse,
+    BusinessDescriptionAIRequest, BusinessDescriptionAIResponse,
+    AiCopyRequest, AiCopyResponse,
 )
 from app.schemas.vendor_document import DocumentType, DocumentResponse
 from app.schemas.bank_account import BankAccountCreate, BankAccountResponse
@@ -95,6 +97,215 @@ async def update_my_vendor(
             detail="No vendor found for this user"
         )
     return await service.update(vendor.id, data)
+
+
+@router.post("/me/ai/business-description", response_model=BusinessDescriptionAIResponse)
+async def ai_generate_business_description(
+    body: BusinessDescriptionAIRequest,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """Backward-compatible alias for business profile description generation."""
+    return await ai_generate_copy(
+        AiCopyRequest(
+            field_kind="business_description",
+            name=body.business_name,
+            business_name=body.business_name,
+            company_type=body.company_type,
+            offering_type=body.offering_type,
+            current_text=body.current_description,
+            current_description=body.current_description,
+            tone=body.tone,
+            max_chars=2000,
+        ),
+        current_user,
+        service,
+    )
+
+
+@router.post("/me/ai/copy", response_model=AiCopyResponse)
+async def ai_generate_copy(
+    body: AiCopyRequest,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """
+    Generate customer-facing copy for description / summary / SEO textareas.
+    Uses OpenAI when OPENAI_API_KEY is set; otherwise returns a template fallback.
+    """
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No vendor found for this user",
+        )
+
+    field_kind = (body.field_kind or "general").strip().lower()
+    name = (
+        body.name
+        or body.business_name
+        or (getattr(vendor, "business_name", None) if field_kind == "business_description" else None)
+        or ""
+    ).strip()
+    category = (body.category or body.company_type or "").strip()
+    if field_kind == "business_description" and not category:
+        category = (getattr(vendor, "business_type", None) or "").strip()
+    offering_type = (
+        body.offering_type
+        or (getattr(vendor, "offering_type", None) if field_kind == "business_description" else None)
+        or ""
+    ).strip()
+    draft = (body.current_text or body.current_description or "").strip()
+    tone = (body.tone or "friendly").strip()
+    max_chars = min(max(int(body.max_chars or 2000), 40), 4000)
+    extra = body.extra_context or {}
+
+    if not name and not category and not draft:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Enter a name/title or category before generating",
+        )
+
+    kind_guides = {
+        "business_description": (
+            "Write a customer-facing business / storefront about description.",
+            "80-250 words",
+        ),
+        "product_short": (
+            "Write a brief product summary for a catalog listing card.",
+            "1-2 short sentences",
+        ),
+        "product_description": (
+            "Write a detailed product description for a product detail page.",
+            "2-4 short paragraphs",
+        ),
+        "product_meta": (
+            "Write an SEO meta description for a product page.",
+            "about 140-160 characters",
+        ),
+        "service_short": (
+            "Write a brief service summary for a catalog listing card.",
+            "1-2 short sentences",
+        ),
+        "service_description": (
+            "Write a detailed service description for a service detail page.",
+            "2-4 short paragraphs",
+        ),
+        "service_meta": (
+            "Write an SEO meta description for a service page.",
+            "about 140-160 characters",
+        ),
+        "category_description": (
+            "Write a short category description for a storefront category page.",
+            "1-3 sentences",
+        ),
+        "store_description": (
+            "Write a brief description of this business unit / store location.",
+            "1-3 sentences",
+        ),
+        "course_description": (
+            "Write a customer-facing course description.",
+            "2-3 short paragraphs",
+        ),
+        "property_description": (
+            "Write a property listing description for buyers/renters.",
+            "2-3 short paragraphs",
+        ),
+        "booking_resource_description": (
+            "Write a short description of a bookable room/resource.",
+            "1-3 sentences",
+        ),
+        "blog_excerpt": (
+            "Write a short blog excerpt / summary for listings.",
+            "1-2 sentences",
+        ),
+        "general": (
+            "Write clear customer-facing marketing copy.",
+            "2-3 short paragraphs",
+        ),
+    }
+    purpose, length_hint = kind_guides.get(field_kind, kind_guides["general"])
+
+    offering_label = {
+        "products": "products",
+        "services": "services",
+        "both": "products and services",
+    }.get(offering_type, offering_type or "")
+
+    try:
+        import os
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if api_key:
+            import httpx
+
+            system = (
+                f"You are a professional copywriter for storefronts and marketplaces. {purpose} "
+                f"Tone: {tone}. Length: {length_hint}, hard max {max_chars} characters. "
+                "Return ONLY the text — no title, no markdown, no quotes, no preamble."
+            )
+            user_parts = [
+                f"Field type: {field_kind}",
+                f"Name/title: {name or 'not provided'}",
+                f"Category: {category or 'not provided'}",
+            ]
+            if offering_label:
+                user_parts.append(f"Offers: {offering_label}")
+            for k, v in extra.items():
+                if v is None or v == "":
+                    continue
+                user_parts.append(f"{k}: {v}")
+            if draft:
+                user_parts.append(f"Owner draft / notes (improve and keep facts):\n{draft}")
+            else:
+                user_parts.append("No draft provided — write from the context above.")
+            user_parts.append("Write the text now.")
+
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={
+                        "model": "gpt-4o-mini",
+                        "messages": [
+                            {"role": "system", "content": system},
+                            {"role": "user", "content": "\n".join(user_parts)},
+                        ],
+                        "n": 1,
+                        "max_tokens": min(800, max(120, max_chars // 2)),
+                        "temperature": 0.7,
+                    },
+                )
+                if resp.status_code >= 400:
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail="AI provider returned an error. Please try again.",
+                    )
+                data = resp.json()
+                choices = data.get("choices", [])
+                texts = [
+                    (c.get("message") or {}).get("content", "").strip()
+                    for c in choices
+                    if (c.get("message") or {}).get("content")
+                ]
+                if texts:
+                    return AiCopyResponse(result=texts[0][:max_chars], alternatives=[])
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
+    label = name or category or "this offering"
+    if draft:
+        fallback = f"{draft} {label} — quality you can trust."
+    elif field_kind.endswith("_meta") or field_kind == "blog_excerpt" or field_kind.endswith("_short"):
+        fallback = f"Discover {label}. Quality, value, and a smooth experience every time."
+    else:
+        fallback = (
+            f"Welcome to {label}. "
+            f"We focus on quality, clear value, and a smooth customer experience. "
+            f"Browse with confidence and find exactly what you need."
+        )
+    return AiCopyResponse(result=fallback[:max_chars], alternatives=[])
 
 
 @router.get("/me/platform-audit", response_model=VendorPlatformAuditListResponse)

@@ -331,3 +331,47 @@ class SlugCheckRequest(BaseModel):
 class SlugCheckResponse(BaseModel):
     available: bool
     suggestions: Optional[List[str]] = None
+
+
+class BusinessDescriptionAIRequest(BaseModel):
+    """Legacy business-profile payload; prefer AiCopyRequest / field_kind."""
+    business_name: Optional[str] = Field(None, max_length=255)
+    company_type: Optional[str] = Field(None, max_length=255, description="Business category")
+    offering_type: Optional[str] = Field(None, max_length=40)
+    current_description: Optional[str] = Field(None, max_length=2000)
+    tone: str = Field(default="friendly", max_length=40)
+
+
+class AiCopyRequest(BaseModel):
+    """Generate customer-facing copy for description / summary / SEO fields."""
+    field_kind: str = Field(
+        default="general",
+        max_length=60,
+        description=(
+            "business_description|product_short|product_description|product_meta|"
+            "service_short|service_description|service_meta|category_description|"
+            "store_description|course_description|property_description|"
+            "booking_resource_description|blog_excerpt|general"
+        ),
+    )
+    name: Optional[str] = Field(None, max_length=255)
+    category: Optional[str] = Field(None, max_length=255)
+    company_type: Optional[str] = Field(None, max_length=255)
+    offering_type: Optional[str] = Field(None, max_length=40)
+    current_text: Optional[str] = Field(None, max_length=4000)
+    tone: str = Field(default="friendly", max_length=40)
+    max_chars: int = Field(default=2000, ge=40, le=4000)
+    extra_context: Optional[dict] = None
+
+    # Back-compat aliases used by the first business-description client
+    business_name: Optional[str] = Field(None, max_length=255)
+    current_description: Optional[str] = Field(None, max_length=2000)
+
+
+class BusinessDescriptionAIResponse(BaseModel):
+    result: str
+    alternatives: List[str] = Field(default_factory=list)
+
+
+class AiCopyResponse(BusinessDescriptionAIResponse):
+    pass

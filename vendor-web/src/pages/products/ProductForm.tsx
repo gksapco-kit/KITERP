@@ -33,6 +33,7 @@ import {
   findFirstImageIndex,
   type VariantMediaItem,
 } from '@/components/common/ImageUpload'
+import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import {
   ArrowLeft, Loader2, Upload, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   Package, IndianRupee, Receipt, Boxes, RotateCcw,
@@ -2470,6 +2471,11 @@ export default function ProductForm() {
   const watchedCategory = watch('category')
   const watchedSubcategory = watch('subcategory')
   const watchedVariants = watch('variants')
+  const watchedName = watch('name')
+  const watchedBrand = watch('brand')
+  const watchedShortDescription = watch('short_description')
+  const watchedDescription = watch('description')
+  const watchedMetaDescription = watch('meta_description')
 
   const handleQuickCreateCategory = async () => {
     const name = newCategoryName.trim()
@@ -3465,10 +3471,40 @@ export default function ProductForm() {
             )}
             <div className={formEditLayout.fieldGrid3}>
               <FormField label="Short Description">
-                <textarea {...register('short_description')} rows={2} className={textareaCls} placeholder="Brief summary (max 500 chars)" maxLength={500} />
+                <AiDescriptionTextarea
+                  value={watchedShortDescription || ''}
+                  onChange={(v) => setValue('short_description', v, { shouldDirty: true })}
+                  rows={2}
+                  className={textareaCls}
+                  placeholder="Brief summary (max 500 chars)"
+                  maxLength={500}
+                  context={{
+                    field_kind: 'product_short',
+                    name: watchedName,
+                    category: [watchedCategory, watchedSubcategory].filter(Boolean).join(' › '),
+                    extra_context: { brand: watchedBrand, product_type: productType },
+                  }}
+                />
               </FormField>
               <FormField label="Description" className="sm:col-span-2">
-                <textarea {...register('description')} rows={2} className={textareaCls} placeholder="Detailed product description..." />
+                <AiDescriptionTextarea
+                  value={watchedDescription || ''}
+                  onChange={(v) => setValue('description', v, { shouldDirty: true })}
+                  rows={2}
+                  className={textareaCls}
+                  placeholder="Detailed product description..."
+                  maxLength={2000}
+                  context={{
+                    field_kind: 'product_description',
+                    name: watchedName,
+                    category: [watchedCategory, watchedSubcategory].filter(Boolean).join(' › '),
+                    extra_context: {
+                      brand: watchedBrand,
+                      product_type: productType,
+                      short_description: watchedShortDescription,
+                    },
+                  }}
+                />
               </FormField>
             </div>
             <div className={cn(formEditLayout.fieldGrid, 'items-start')}>
@@ -5203,7 +5239,22 @@ export default function ProductForm() {
               <FormField label="OG Image URL"><Input {...register('og_image_url')} placeholder="https://..." /></FormField>
               <FormField label="Canonical URL"><Input {...register('canonical_url')} placeholder="https://..." /></FormField>
             </div>
-            <FormField label="Meta Description"><textarea {...register('meta_description')} rows={2} className={textareaCls} placeholder="SEO description..." /></FormField>
+            <FormField label="Meta Description">
+              <AiDescriptionTextarea
+                value={watchedMetaDescription || ''}
+                onChange={(v) => setValue('meta_description', v, { shouldDirty: true })}
+                rows={2}
+                className={textareaCls}
+                placeholder="SEO description..."
+                maxLength={160}
+                context={{
+                  field_kind: 'product_meta',
+                  name: watchedName,
+                  category: [watchedCategory, watchedSubcategory].filter(Boolean).join(' › '),
+                  extra_context: { brand: watchedBrand, short_description: watchedShortDescription },
+                }}
+              />
+            </FormField>
           </div>
         </Section>
 

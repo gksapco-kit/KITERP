@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
@@ -297,12 +298,19 @@ function CourseModal({
           </div>
           <div>
             <Label>Description (optional)</Label>
-            <textarea
+            <AiDescriptionTextarea
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={setDescription}
               rows={3}
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
               placeholder="Wheel throwing, hand-building, and your first three glazed pieces."
+              maxLength={2000}
+              context={{
+                field_kind: 'course_description',
+                name: title,
+                category,
+                extra_context: { instructor, level, duration },
+              }}
             />
           </div>
           <div className="grid grid-cols-3 gap-3">
