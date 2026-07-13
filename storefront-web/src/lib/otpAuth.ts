@@ -1,6 +1,20 @@
-/** Shared helpers for vendor signup OTP on the storefront. */
+/** Shared helpers for storefront forgot-password OTP flows. */
+
+export const NOT_REGISTERED_EMAIL =
+  'This email is not registered for this store. Check the address or create an account first.'
+export const NOT_REGISTERED_PHONE =
+  'This phone number is not registered for this store. Check the number or create an account first.'
 
 export type OtpChannel = 'email' | 'phone'
+
+export function resetCodeWasIssued(
+  data: { dev_hint?: string | null; expires_at?: string | null; sent?: boolean } | null | undefined,
+): boolean {
+  if (!data) return false
+  if (data.dev_hint) return true
+  if (data.expires_at) return true
+  return Boolean(data.sent)
+}
 
 export function normalizeAuthApiDetail(
   detail: unknown,
@@ -9,12 +23,8 @@ export function normalizeAuthApiDetail(
 ): string {
   if (typeof detail === 'string' && detail.trim()) {
     if (detail === 'Not Found') {
-      if (channel === 'email') {
-        return 'Could not send verification email — check the address or try again later.'
-      }
-      if (channel === 'phone') {
-        return 'Could not send verification SMS — check the number or try again later.'
-      }
+      if (channel === 'email') return NOT_REGISTERED_EMAIL
+      if (channel === 'phone') return NOT_REGISTERED_PHONE
       return fallback
     }
     return detail

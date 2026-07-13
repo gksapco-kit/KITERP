@@ -3,7 +3,8 @@ import type { CSSProperties } from 'react'
 
 /** 14 modules evenly spaced on one ring. Labels fan out radially so they never overlap. */
 const ORBIT_MODULE_COUNT = LANDING_MODULES.length
-const ORBIT_RADIUS_PERCENT = 27
+/** Wider ring = more arc space between neighboring app circles. */
+const ORBIT_RADIUS_PERCENT = 38
 const ORBIT_VIEW_SIZE = 400
 const ORBIT_RING_RADIUS = (ORBIT_RADIUS_PERCENT / 100) * ORBIT_VIEW_SIZE
 

@@ -218,6 +218,217 @@ class CustomerService:
         customer.password_hash = get_password_hash(data.new_password)
         await self.db.commit()
 
+    async def request_password_reset_email(self, vendor_id: UUID, email: str) -> dict:
+        """Send a 6-digit password-reset code to the customer's email."""
+        import logging
+        from datetime import datetime, timedelta, timezone
+
+        from app.config import settings
+        from app.services.phone_otp_service import (
+            OtpService,
+            TWILIO_VERIFY_EMAIL_MARKER,
+            generate_otp_code,
+        )
+
+        logger = logging.getLogger(__name__)
+        email_norm = (email or "").strip().lower()
+        if not email_norm or "@" not in email_norm:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Enter a valid email address",
+            )
+
+        customer = await self.repo.get_by_vendor_and_email(vendor_id, email_norm)
+        if not customer or not (customer.password_hash or "").strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This email is not registered for this store. Check the address or create an account first.",
+            )
+
+        expires = datetime.now(timezone.utc) + timedelta(seconds=600)
+        otp_svc = OtpService()
+        dispatch = await otp_svc.send_and_store_code(
+            email_norm,
+            channel="email",
+            purpose="password reset",
+            db=self.db,
+            vendor_id=vendor_id,
+        )
+        if not dispatch.result.sent:
+            if settings.DEBUG:
+                code = generate_otp_code()
+                customer.verification_code = code
+                customer.verification_code_expires_at = expires
+                self.db.add(customer)
+                await self.db.commit()
+                logger.info("[store-forgot-password-email:dev] email=%s code=%s", email_norm, code)
+                return {"sent": True, "to": email_norm, "dev_hint": code}
+            if await otp_svc.is_email_configured_with_vendor(self.db, vendor_id):
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=dispatch.result.user_message(
+                        fallback="Could not send verification email. Check the address and try again.",
+                    ),
+                )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Email service is not configured. Contact the store for help.",
+            )
+
+        customer.verification_code = (
+            TWILIO_VERIFY_EMAIL_MARKER if dispatch.verify_marker else dispatch.stored_code
+        )
+        customer.verification_code_expires_at = expires
+        self.db.add(customer)
+        await self.db.commit()
+        return {"sent": True, "to": email_norm, "expires_at": expires.isoformat()}
+
+    async def request_password_reset_phone(self, vendor_id: UUID, phone: str) -> dict:
+        """Send a 6-digit password-reset code via SMS to the customer's phone."""
+        import logging
+        import re
+        from datetime import datetime, timedelta, timezone
+
+        from app.config import settings
+        from app.services.phone_otp_service import (
+            OtpService,
+            TWILIO_VERIFY_MARKER,
+            generate_otp_code,
+        )
+        from app.services.sms_service import normalize_e164
+
+        logger = logging.getLogger(__name__)
+        phone_norm = normalize_e164(phone or "")
+        digits = re.sub(r"\D", "", phone_norm)
+        if len(digits) < 10:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Enter a valid phone number with country code",
+            )
+
+        customer = await self.repo.get_by_vendor_and_phone(vendor_id, phone_norm)
+        if not customer or not (customer.password_hash or "").strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This phone number is not registered for this store. Check the number or create an account first.",
+            )
+
+        expires = datetime.now(timezone.utc) + timedelta(seconds=600)
+        otp_svc = OtpService()
+        dispatch = await otp_svc.send_and_store_code(
+            phone_norm,
+            channel="sms",
+            purpose="password reset",
+            db=self.db,
+            vendor_id=vendor_id,
+        )
+        masked = f"{'*' * max(0, len(digits) - 4)}{digits[-4:]}"
+        if not dispatch.result.sent:
+            if settings.DEBUG:
+                code = dispatch.stored_code or generate_otp_code()
+                customer.verification_code = code
+                customer.verification_code_expires_at = expires
+                self.db.add(customer)
+                await self.db.commit()
+                logger.info("[store-forgot-password-phone:dev] phone_suffix=%s code=%s", digits[-4:], code)
+                return {"sent": True, "to": masked, "dev_hint": code}
+            if await otp_svc.is_sms_configured_with_vendor(self.db, vendor_id):
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=dispatch.result.user_message(
+                        fallback="Could not send SMS to this number. Check the number and try again.",
+                    ),
+                )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="SMS service is not configured. Contact the store for help.",
+            )
+
+        customer.verification_code = (
+            TWILIO_VERIFY_MARKER if dispatch.verify_marker else dispatch.stored_code
+        )
+        customer.verification_code_expires_at = expires
+        self.db.add(customer)
+        await self.db.commit()
+        return {"sent": True, "to": masked, "expires_at": expires.isoformat()}
+
+    async def reset_password_with_code(
+        self,
+        vendor_id: UUID,
+        *,
+        email: str | None,
+        phone: str | None,
+        code: str,
+        new_password: str,
+    ) -> None:
+        """Validate reset OTP and set a new password for the store customer."""
+        from datetime import datetime, timezone
+
+        from app.services.phone_otp_service import (
+            OtpService,
+            is_twilio_email_verify_stored,
+            is_twilio_verify_stored,
+        )
+        from app.services.sms_service import normalize_e164
+
+        if not email and not phone:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Email or phone is required",
+            )
+        if len(code or "") != 6:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Enter the 6-digit code",
+            )
+        if len(new_password or "") < 8:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Password must be at least 8 characters",
+            )
+
+        customer: Customer | None = None
+        if email:
+            customer = await self.repo.get_by_vendor_and_email(vendor_id, email.strip().lower())
+        elif phone:
+            customer = await self.repo.get_by_vendor_and_phone(vendor_id, normalize_e164(phone))
+
+        if not customer or not customer.verification_code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset code",
+            )
+        if (
+            customer.verification_code_expires_at
+            and customer.verification_code_expires_at < datetime.now(timezone.utc)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Reset code has expired — please request a new one",
+            )
+
+        code_ok = False
+        if is_twilio_email_verify_stored(customer.verification_code) and customer.email:
+            check = await OtpService().verify_otp(customer.email, code, channel="email")
+            code_ok = check.approved
+        elif is_twilio_verify_stored(customer.verification_code) and customer.phone:
+            check = await OtpService().verify_otp(customer.phone, code, channel="sms")
+            code_ok = check.approved
+        elif customer.verification_code == code:
+            code_ok = True
+
+        if not code_ok:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset code",
+            )
+
+        customer.password_hash = get_password_hash(new_password)
+        customer.verification_code = None
+        customer.verification_code_expires_at = None
+        self.db.add(customer)
+        await self.db.commit()
+
     async def get_or_create_guest(
         self, vendor_id: UUID, full_name: str, email: str, phone: str | None = None,
     ) -> Customer:

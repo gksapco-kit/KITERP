@@ -190,11 +190,12 @@ function PaymentTabs({
 }) {
   const { manualUpi } = useCheckoutConfig();
   const upiEnabled = Boolean(manualUpi?.enabled);
-  const [tab, setTab] = useState<PaymentTabType>(upiEnabled ? "upi" : "bnpl");
+  // Default to Pay later so customers are not shown the UPI QR unless they choose UPI
+  const [tab, setTab] = useState<PaymentTabType>("bnpl");
 
   useEffect(() => {
-    onChange?.({ kind: "tab", tab: upiEnabled ? "upi" : "bnpl" });
-  }, [upiEnabled]);
+    onChange?.({ kind: "tab", tab: "bnpl" });
+  }, []);
 
   const selectTab = (next: PaymentTabType) => {
     setTab(next);
@@ -249,7 +250,8 @@ function PaymentTabs({
         )}
         {tab === "bnpl" && (
           <p className="ck-border ck-radius-md ck-text-muted p-3 text-sm">
-            Split your purchase into 4 interest-free payments. Eligibility checked at confirmation.
+            Place your order now and pay later. No payment is required at checkout.
+            The store will review and confirm your order before it is fulfilled.
           </p>
         )}
       </div>

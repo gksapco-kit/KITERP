@@ -224,3 +224,58 @@ async def change_password(
     service = CustomerService(db)
     await service.change_password(vendor_id, customer.id, data)
     return JSONResponse(content={"ok": True, "message": "Password updated"})
+
+
+class ForgotPasswordEmailRequest(BaseModel):
+    email: str
+
+
+class ForgotPasswordPhoneRequest(BaseModel):
+    phone: str
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str | None = None
+    phone: str | None = None
+    code: str
+    new_password: str
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    data: ForgotPasswordEmailRequest,
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a 6-digit password-reset code to the customer's email."""
+    service = CustomerService(db)
+    return await service.request_password_reset_email(vendor_id, data.email)
+
+
+@router.post("/forgot-password-phone")
+async def forgot_password_phone(
+    data: ForgotPasswordPhoneRequest,
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a 6-digit password-reset code via SMS to the customer's phone."""
+    service = CustomerService(db)
+    return await service.request_password_reset_phone(vendor_id, data.phone)
+
+
+@router.post("/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Validate reset code and set a new password for the store customer."""
+    service = CustomerService(db)
+    await service.reset_password_with_code(
+        vendor_id,
+        email=data.email,
+        phone=data.phone,
+        code=data.code,
+        new_password=data.new_password,
+    )
+    return {"ok": True, "message": "Password reset successfully"}

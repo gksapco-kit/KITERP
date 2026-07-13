@@ -207,6 +207,23 @@ export const storeApi = {
     const res = await apiClient.post('/store/auth/change-password', data)
     return res.data
   },
+  forgotPasswordEmail: async (email: string): Promise<{ sent: boolean; to: string; expires_at?: string; dev_hint?: string }> => {
+    const res = await apiClient.post('/store/auth/forgot-password', { email })
+    return res.data
+  },
+  forgotPasswordPhone: async (phone: string): Promise<{ sent: boolean; to: string; expires_at?: string; dev_hint?: string }> => {
+    const res = await apiClient.post('/store/auth/forgot-password-phone', { phone })
+    return res.data
+  },
+  resetPassword: async (data: {
+    email?: string
+    phone?: string
+    code: string
+    new_password: string
+  }) => {
+    const res = await apiClient.post('/store/auth/reset-password', data)
+    return res.data
+  },
   getNotificationPreferences: async () => {
     const res = await apiClient.get('/store/auth/notification-preferences'); return res.data
   },

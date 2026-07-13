@@ -119,6 +119,19 @@ async def ensure_user_contact_not_globally_unique() -> None:
     logger.info("ensure_user_contact_not_globally_unique: user.email / user.phone indexes refreshed (non-unique)")
 
 
+async def ensure_customer_verification_columns() -> None:
+    """Add customer password-reset OTP columns expected by the model."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        "ALTER TABLE customer ADD COLUMN IF NOT EXISTS verification_code VARCHAR(64)",
+        "ALTER TABLE customer ADD COLUMN IF NOT EXISTS verification_code_expires_at TIMESTAMPTZ",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+
+
 async def ensure_user_platform_staff_role_column() -> None:
     """Add user columns/indexes the SQLAlchemy model expects but older DBs may lack (avoids 500 on auth).
 

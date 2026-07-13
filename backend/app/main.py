@@ -36,6 +36,7 @@ from app.database import (
     ensure_purchase_requisition_schema,
     ensure_user_contact_not_globally_unique,
     ensure_user_platform_staff_role_column,
+    ensure_customer_verification_columns,
     ensure_txn_store_id_columns,
     ensure_store_hierarchy_columns,
     ensure_sales_area_tables,
@@ -87,6 +88,7 @@ async def lifespan(app: FastAPI):
     await ensure_purchase_requisition_schema()
     await ensure_user_contact_not_globally_unique()
     await ensure_user_platform_staff_role_column()
+    await ensure_customer_verification_columns()
     await ensure_txn_store_id_columns()
     await ensure_store_hierarchy_columns()
     await ensure_sales_area_tables()

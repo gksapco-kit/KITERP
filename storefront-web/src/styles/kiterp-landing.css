@@ -142,15 +142,19 @@
 .kiterp-module-apps-panel--themed {
   border-radius: var(--kiterp-apps-panel-radius);
   border: 1px solid color-mix(in srgb, var(--module-accent, #64c3a0) 32%, var(--kiterp-apps-panel-border));
-  background: linear-gradient(
-    165deg,
-    #ffffff 0%,
-    color-mix(in srgb, var(--module-panel-tint, rgba(100, 195, 160, 0.08)) 100%, white) 100%
-  );
+  /* Solid fill so orbit labels never show through when panels overlap or stack. */
+  background:
+    linear-gradient(
+      165deg,
+      #ffffff 0%,
+      color-mix(in srgb, var(--module-panel-tint, rgba(100, 195, 160, 0.08)) 55%, #ffffff) 100%
+    ),
+    #ffffff;
   box-shadow:
     0 4px 20px color-mix(in srgb, var(--module-glow, rgba(100, 195, 160, 0.2)) 45%, transparent),
     var(--kiterp-apps-panel-shadow);
   animation: kiterp-panel-in 0.28s ease-out;
+  isolation: isolate;
 }
 
 @keyframes kiterp-panel-in {
@@ -362,20 +366,41 @@
   }
 }
 
+/* Query this shell so zoom / narrow widths can restack the orbit + preview. */
+.kiterp-apps-shell {
+  container-type: inline-size;
+  container-name: kiterp-apps;
+}
+
+/*
+ * Default (mobile / zoom / tablet): orbit on top, detail panel below.
+ * Equal left/right columns on wide screens keep the orbit centered while
+ * the detail panel sits in the right column — orbit never shifts on click.
+ */
 .kiterp-apps-interactive {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   align-items: center;
   justify-items: center;
 }
 
-/* Orbit always centered — preview on the right never shifts it. */
 .kiterp-apps-orbit-stage {
+  grid-column: 1;
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
+  min-width: 0;
+}
+
+.kiterp-module-preview-dock {
+  grid-column: 1;
+  width: 100%;
+  max-width: 21.5rem;
+  z-index: 30;
+  justify-self: center;
 }
 
 /* Scroll-triggered zoom-in when the orbit enters the viewport. */
@@ -426,35 +451,61 @@
   }
 }
 
-.kiterp-module-preview-dock {
-  width: 100%;
-  max-width: 21.5rem;
-}
-
-@media (min-width: 1024px) {
+/*
+ * Wide layout: [spacer | orbit | spacer]
+ * Equal 1fr columns keep the circle dead-center whether the panel is open or not.
+ * Detail panel sits inside the right spacer — orbit never shifts on click.
+ */
+@container kiterp-apps (min-width: 68rem) {
   .kiterp-apps-interactive {
-    display: block;
-    min-height: min(480px, 90vw);
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 34rem) minmax(0, 1fr);
+    gap: 0.75rem 1rem;
+    align-items: center;
+    min-height: min(34rem, 68cqw);
   }
 
   .kiterp-apps-orbit-stage {
+    grid-column: 2;
+    grid-row: 1;
     width: 100%;
-    min-height: min(480px, 90vw);
   }
 
   .kiterp-module-preview-dock {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
-    width: min(21.5rem, 34vw);
-    max-width: 21.5rem;
-    z-index: 10;
-    pointer-events: none;
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: stretch;
+    align-self: center;
+    width: 100%;
+    max-width: min(21.5rem, 100%);
+    z-index: 40;
   }
+}
 
-  .kiterp-module-preview-dock:has(.kiterp-module-preview-panel) {
-    pointer-events: auto;
+/* Fallback when container queries are unavailable. */
+@supports not (container-type: inline-size) {
+  @media (min-width: 1200px) {
+    .kiterp-apps-interactive {
+      grid-template-columns: minmax(0, 1fr) minmax(18rem, 34rem) minmax(0, 1fr);
+      gap: 0.75rem 1rem;
+      align-items: center;
+      min-height: min(34rem, 68vw);
+    }
+
+    .kiterp-apps-orbit-stage {
+      grid-column: 2;
+      grid-row: 1;
+      width: 100%;
+    }
+
+    .kiterp-module-preview-dock {
+      grid-column: 3;
+      grid-row: 1;
+      justify-self: stretch;
+      align-self: center;
+      width: 100%;
+      max-width: min(21.5rem, 100%);
+      z-index: 40;
+    }
   }
 }
 
@@ -463,11 +514,20 @@
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(100, 195, 160, 0.35) transparent;
+  position: relative;
+  z-index: 1;
+  background-color: #ffffff;
 }
 
 .kiterp-module-apps-panel--themed {
   width: 100%;
   max-width: 21.5rem;
+}
+
+@container kiterp-apps (min-width: 68rem) {
+  .kiterp-module-apps-panel--themed {
+    max-width: min(21.5rem, 100%);
+  }
 }
 
 .kiterp-module-apps-grid {
@@ -477,23 +537,28 @@
   justify-content: start;
 }
 
-/* Orbital modules panel — left half */
+/* Orbital modules panel */
 .kiterp-modules-orbit-wrap {
   width: 100%;
+  max-width: min(100%, 36rem);
   min-width: 0;
   overflow: visible;
+  /* Room for outward labels around the wider ring. */
+  padding: clamp(2.25rem, 6.5cqw, 3.75rem);
+  box-sizing: border-box;
 }
 
 .kiterp-modules-orbit {
   position: relative;
-  width: min(100%, 480px);
-  height: min(100%, 480px);
+  width: 100%;
+  max-width: 540px;
   aspect-ratio: 1;
+  height: auto;
   margin-inline: auto;
   border-radius: var(--kiterp-apps-panel-radius, 1.25rem);
   overflow: visible;
-  /* label push distance — tuned per breakpoint so names stay inside the panel */
-  --orbit-label-dist: 2.75rem;
+  /* Push labels farther out so they clear the spaced icons. */
+  --orbit-label-dist: clamp(2.75rem, 10%, 3.75rem);
 }
 
 .kiterp-orbit-rings {
@@ -571,8 +636,8 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 4.75rem;
-  height: 4.75rem;
+  width: 4.25rem;
+  height: 4.25rem;
   transform: translate(-50%, -50%);
   border-radius: 50%;
 }
@@ -598,14 +663,14 @@
   color: #1e3d34;
 }
 
-/* Circular icon node — pastel fill, fixed size. */
+/* Circular icon node — pastel fill; sized to leave clear gaps on the ring. */
 .kiterp-orbit-node-btn {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.875rem;
-  height: 2.875rem;
+  width: 2.625rem;
+  height: 2.625rem;
   margin: 0 auto;
   border-radius: 50%;
   background: color-mix(in srgb, var(--orbit-accent, #64c3a0) 26%, #ffffff 74%);
@@ -620,8 +685,8 @@
 }
 
 .kiterp-orbit-node-icon {
-  width: 1.375rem;
-  height: 1.375rem;
+  width: 1.25rem;
+  height: 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -641,13 +706,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.125rem;
+  gap: 0.1rem;
   width: max-content;
-  max-width: min(4.75rem, 28vw);
+  max-width: min(4.5rem, 20cqw, 26vw);
   text-align: center;
   pointer-events: none;
   z-index: 6;
-  padding: 0.35rem 0.25rem;
+  padding: 0.25rem 0.2rem;
 }
 
 /* Side nodes: align text so it flows away from the icon rather than centering over it. */
@@ -663,7 +728,7 @@
 
 .kiterp-orbit-node-title {
   font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.6875rem;
+  font-size: clamp(0.5625rem, 1.7cqw, 0.75rem);
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.01em;
@@ -673,40 +738,71 @@
 
 .kiterp-orbit-node-count {
   font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.5625rem;
+  font-size: clamp(0.5rem, 1.4cqw, 0.625rem);
   font-weight: 500;
   line-height: 1;
   color: #6b7280;
   white-space: nowrap;
 }
 
-@media (min-width: 480px) {
-  .kiterp-modules-orbit {
-    width: 480px;
-    height: 480px;
-    --orbit-label-dist: 3.15rem;
-  }
-
-  .kiterp-orbit-node-label {
-    max-width: 5rem;
-  }
-
-  .kiterp-orbit-node-title {
-    font-size: 0.75rem;
+/*
+ * Narrow / zoomed: hide app counts and tighten labels so circle names stay clear
+ * and do not merge into each other. Detail panel is already stacked below.
+ */
+@container kiterp-apps (max-width: 67.99rem) {
+  .kiterp-modules-orbit-wrap {
+    padding: clamp(1.5rem, 5vw, 2.75rem);
   }
 
   .kiterp-orbit-node-count {
-    font-size: 0.625rem;
-  }
-}
-
-@media (min-width: 640px) {
-  .kiterp-modules-orbit {
-    --orbit-label-dist: 3.35rem;
+    display: none;
   }
 
   .kiterp-orbit-node-label {
-    max-width: 5.25rem;
+    max-width: min(3.75rem, 18vw);
+  }
+
+  .kiterp-orbit-node-title {
+    font-size: clamp(0.5625rem, 2.4vw, 0.6875rem);
+  }
+
+  .kiterp-module-preview-dock {
+    margin-top: 0.25rem;
+  }
+
+  .kiterp-module-apps-panel--themed {
+    margin-inline: auto;
+  }
+}
+
+/* Scale core + nodes with the orbit so zoomed / narrow layouts stay balanced. */
+@container kiterp-apps (max-width: 36rem) {
+  .kiterp-orbit-core {
+    width: 4.25rem;
+    height: 4.25rem;
+  }
+
+  .kiterp-orbit-core-label {
+    font-size: 0.75rem;
+  }
+
+  .kiterp-orbit-node-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .kiterp-orbit-node-icon {
+    width: 1.0625rem;
+    height: 1.0625rem;
+  }
+
+  .kiterp-orbit-node-hit::before {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .kiterp-modules-orbit {
+    --orbit-label-dist: clamp(2.25rem, 8%, 3rem);
   }
 }
 

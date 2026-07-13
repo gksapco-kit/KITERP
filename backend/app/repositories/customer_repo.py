@@ -15,10 +15,11 @@ class CustomerRepository(BaseRepository[Customer]):
     async def get_by_vendor_and_email(
         self, vendor_id: UUID, email: str
     ) -> Optional[Customer]:
+        email_norm = (email or "").strip().lower()
         result = await self.db.execute(
             select(Customer).where(
                 Customer.vendor_id == vendor_id,
-                Customer.email == email,
+                func.lower(Customer.email) == email_norm,
             )
         )
         return result.scalar_one_or_none()

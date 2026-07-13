@@ -23,6 +23,9 @@ class Customer(Base):
     phone = Column(String(20))
     linked_customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id"), nullable=True, index=True)
     password_hash = Column(String(255), nullable=False)
+    # Password-reset OTP (mirrors user.verification_code)
+    verification_code = Column(String(64), nullable=True)
+    verification_code_expires_at = Column(DateTime(timezone=True), nullable=True)
     avatar_url = Column(String(500))
 
     # Pricing group — drives which party price rules apply (retail, wholesale,

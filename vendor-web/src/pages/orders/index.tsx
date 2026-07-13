@@ -62,6 +62,14 @@ const SOURCE_BADGE: Record<string, string> = {
   quote: 'bg-primary/10 text-primary',
 }
 
+function paymentMethodLabel(method?: string | null) {
+  if (!method) return '—'
+  if (method === 'pay_later') return 'Pay later'
+  if (method === 'upi') return 'UPI'
+  if (method === 'cod') return 'COD'
+  return method.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 const statusLabel: Record<string, string> = {
   quote_requested: 'Quote Request',
   return_requested: 'Return Requested',
@@ -340,7 +348,7 @@ export default function Orders() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
           />
-          <ResizableTable tableId="orders-v2" defaultWidths={[48, 130, 150, 80, 90, 90, 100, 100, 80]}>
+          <ResizableTable tableId="orders-v3" defaultWidths={[48, 130, 150, 80, 90, 90, 100, 110, 100, 80]}>
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="w-12 px-3 py-3 text-center align-middle">
@@ -356,6 +364,7 @@ export default function Orders() {
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Items</TableColumnLabel></th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Total</TableColumnLabel></th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Source</TableColumnLabel></th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Payment</TableColumnLabel></th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Status</TableColumnLabel></th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Date</TableColumnLabel></th>
                 <th className="px-6 py-3 text-right text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Action</TableColumnLabel></th>
@@ -363,11 +372,12 @@ export default function Orders() {
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
-                <tr><td colSpan={9} className="px-6 py-12 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></td></tr>
+                <tr><td colSpan={10} className="px-6 py-12 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></td></tr>
               ) : !data?.items?.length ? (
-                <tr><td colSpan={9} className="px-6 py-12 text-center text-sm text-muted-foreground">No orders found</td></tr>
+                <tr><td colSpan={10} className="px-6 py-12 text-center text-sm text-muted-foreground">No orders found</td></tr>
               ) : displayOrders.map((order) => {
                 const src = order.source || 'online'
+                const payLabel = paymentMethodLabel(order.payment_method)
                 return (
                 <tr key={order.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={onClickableTableRow(() => {
                     if (order.source === 'booking') {
@@ -411,6 +421,17 @@ export default function Orders() {
                     <InlineEditCell readOnly readOnlyMessage="Order source is set when the order is created" value={src} onSave={() => {}}>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${SOURCE_BADGE[src] || 'bg-muted text-muted-foreground'}`}>{src}</span>
                     </InlineEditCell>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm text-foreground">{payLabel}</span>
+                      {order.payment_status === 'pending_verification' && (
+                        <span className="text-[11px] font-medium text-amber-700">Awaiting payment approval</span>
+                      )}
+                      {order.payment_method === 'pay_later' && order.status === 'pending' && (
+                        <span className="text-[11px] font-medium text-amber-700">Awaiting approval</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap items-center gap-1.5">

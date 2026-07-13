@@ -61,11 +61,24 @@ export default function OrderDetail() {
   const [showProofPreview, setShowProofPreview] = useState(false)
   const [showApproveConfirm, setShowApproveConfirm] = useState(false)
   const [approveConfirmText, setApproveConfirmText] = useState('')
+  const [showPayLaterApproveConfirm, setShowPayLaterApproveConfirm] = useState(false)
+  const [payLaterApproveText, setPayLaterApproveText] = useState('')
+  const [approvingPayLater, setApprovingPayLater] = useState(false)
 
   const pendingUpiProof =
     order?.payment_method === 'upi'
     && order?.payment_status === 'pending_verification'
     && order?.payment_proof?.status === 'submitted'
+
+  /** Kept after approve/reject — backend stores proof permanently; show for future reference. */
+  const upiPaymentHistory =
+    order?.payment_method === 'upi'
+    && !!order?.payment_proof
+    && !pendingUpiProof
+
+  const pendingPayLater =
+    order?.payment_method === 'pay_later'
+    && order?.status === 'pending'
 
   const reviewPayment = async (action: 'approve' | 'reject') => {
     if (!order) return
@@ -87,6 +100,21 @@ export default function OrderDetail() {
     } finally {
       setReviewingPayment(false)
     }
+  }
+
+  const approvePayLaterOrder = () => {
+    if (!order) return
+    setApprovingPayLater(true)
+    updateStatus.mutate(
+      { id: order.id, data: { status: 'confirmed', notes: 'Pay later order approved by vendor' } },
+      {
+        onSuccess: () => {
+          setShowPayLaterApproveConfirm(false)
+          setPayLaterApproveText('')
+        },
+        onSettled: () => setApprovingPayLater(false),
+      },
+    )
   }
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
@@ -141,7 +169,14 @@ export default function OrderDetail() {
         bookingDate={bookingDate}
         updateStatusPending={updateStatus.isPending}
         onBack={() => navigate('/orders')}
-        onConfirm={() => handleStatusUpdate('confirmed')}
+        onConfirm={() => {
+          if (pendingPayLater) {
+            setPayLaterApproveText('')
+            setShowPayLaterApproveConfirm(true)
+            return
+          }
+          handleStatusUpdate('confirmed')
+        }}
         onShip={() => setShowShipModal(true)}
         onDeliver={() => handleStatusUpdate('delivered')}
         onCancelClick={() => { setVendorCancelReason(''); setVendorCancelAttachments([]); setShowCancelConfirm(true) }}
@@ -149,6 +184,29 @@ export default function OrderDetail() {
         onViewBooking={(id) => navigate(`/bookings/${id}`)}
         onViewAuditHistory={() => navigate(`/orders/${order.id}/audit`)}
       />
+
+      {pendingPayLater && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-semibold text-amber-900">Pay later order awaiting your approval</p>
+              <p className="mt-1 text-amber-800">
+                The customer placed this order with Pay later (no payment at checkout).
+                Review the details below, then click <strong>Approve</strong>. The order is confirmed only after you approve.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="shrink-0 gap-1.5"
+              disabled={approvingPayLater || updateStatus.isPending}
+              onClick={() => { setPayLaterApproveText(''); setShowPayLaterApproveConfirm(true) }}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Approve
+            </Button>
+          </div>
+        </div>
+      )}
 
       {pendingUpiProof && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
@@ -200,6 +258,95 @@ export default function OrderDetail() {
                   Reject
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent UPI payment history — remains after approve/reject for future reference */}
+      {upiPaymentHistory && order.payment_proof && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm ${
+            order.payment_proof.status === 'approved'
+              ? 'border-green-300 bg-green-50'
+              : order.payment_proof.status === 'rejected'
+                ? 'border-red-200 bg-red-50'
+                : 'border-gray-200 bg-card'
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p
+              className={`font-semibold ${
+                order.payment_proof.status === 'approved'
+                  ? 'text-green-900'
+                  : order.payment_proof.status === 'rejected'
+                    ? 'text-red-900'
+                    : 'text-gray-900'
+              }`}
+            >
+              UPI payment details
+            </p>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                order.payment_proof.status === 'approved'
+                  ? 'bg-green-100 text-green-800'
+                  : order.payment_proof.status === 'rejected'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              {order.payment_proof.status || 'recorded'}
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[auto_1fr]">
+            {order.payment_proof.screenshot_url ? (
+              <button
+                type="button"
+                onClick={() => setShowProofPreview(true)}
+                className={`group relative h-28 w-28 shrink-0 overflow-hidden rounded-lg border bg-white shadow-sm focus:outline-none focus:ring-2 ${
+                  order.payment_proof.status === 'approved'
+                    ? 'border-green-300 focus:ring-green-400'
+                    : order.payment_proof.status === 'rejected'
+                      ? 'border-red-300 focus:ring-red-400'
+                      : 'border-gray-300 focus:ring-gray-400'
+                }`}
+                aria-label="View payment screenshot"
+              >
+                <img
+                  src={order.payment_proof.screenshot_url}
+                  alt="UPI payment screenshot"
+                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                />
+                <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/40">
+                  <ZoomIn className="h-6 w-6 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                </span>
+              </button>
+            ) : (
+              <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-center text-xs text-gray-500">
+                No screenshot
+              </div>
+            )}
+
+            <div className="flex min-w-0 flex-col gap-1">
+              <p className="text-gray-800">
+                UTR / Transaction ID:{' '}
+                <strong className="font-mono">{order.payment_proof.utr || order.payment_reference || '—'}</strong>
+              </p>
+              {order.payment_proof.submitted_at && (
+                <p className="text-xs text-gray-600">
+                  Submitted {new Date(order.payment_proof.submitted_at).toLocaleString()}
+                </p>
+              )}
+              {order.payment_proof.reviewed_at && (
+                <p className="text-xs text-gray-600">
+                  Reviewed {new Date(order.payment_proof.reviewed_at).toLocaleString()}
+                </p>
+              )}
+              {order.payment_proof.review_notes && (
+                <p className="mt-1 text-xs text-gray-700">
+                  Notes: {order.payment_proof.review_notes}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -463,6 +610,80 @@ export default function OrderDetail() {
                 >
                   {reviewingPayment && <Loader2 className="h-4 w-4 animate-spin" />}
                   OK, confirm order
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pay later approval confirmation — requires typing "approved" */}
+      {showPayLaterApproveConfirm && (
+        <div
+          data-kiterp-modal
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50"
+          onClick={() => {
+            if (!approvingPayLater) {
+              setShowPayLaterApproveConfirm(false)
+              setPayLaterApproveText('')
+            }
+          }}
+        >
+          <div
+            className="mx-4 w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card text-foreground shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <ShieldCheck className="h-5 w-5 text-green-600" /> Approve Pay later order
+              </h2>
+              <button
+                type="button"
+                aria-label="Close"
+                disabled={approvingPayLater}
+                onClick={() => { setShowPayLaterApproveConfirm(false); setPayLaterApproveText('') }}
+                className="rounded-lg p-1 hover:bg-gray-100 disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <p className="text-sm text-gray-600">
+                Approving will <strong>confirm order {order.order_number}</strong>. Payment is still due later.
+                This action cannot be undone. To continue, type <strong>approved</strong> below.
+              </p>
+              <input
+                autoFocus
+                value={payLaterApproveText}
+                onChange={(e) => setPayLaterApproveText(e.target.value)}
+                placeholder="Type approved"
+                className="w-full rounded border px-3 py-2 text-sm"
+                onKeyDown={(e) => {
+                  if (
+                    e.key === 'Enter'
+                    && payLaterApproveText.trim().toLowerCase() === 'approved'
+                    && !approvingPayLater
+                  ) {
+                    approvePayLaterOrder()
+                  }
+                }}
+              />
+              <div className="flex gap-3 pt-1">
+                <Button
+                  variant="cancel"
+                  className="flex-1"
+                  disabled={approvingPayLater}
+                  onClick={() => { setShowPayLaterApproveConfirm(false); setPayLaterApproveText('') }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 gap-2"
+                  disabled={approvingPayLater || payLaterApproveText.trim().toLowerCase() !== 'approved'}
+                  onClick={approvePayLaterOrder}
+                >
+                  {approvingPayLater && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Approve order
                 </Button>
               </div>
             </div>

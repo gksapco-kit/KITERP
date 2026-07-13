@@ -81,7 +81,11 @@ function Inner() {
             Your order{" "}
             <span className="font-medium">{order?.order_number ?? resolvedId}</span> has been placed.
           </p>
-          {customerEmail ? (
+          {order?.payment_method === "pay_later" ? (
+            <p className="ck-text-muted mt-1 text-sm">
+              You chose Pay later — the store will review and confirm your order shortly. No payment is due now.
+            </p>
+          ) : customerEmail ? (
             <p className="ck-text-muted mt-1 text-sm">A confirmation email is on its way to {customerEmail}.</p>
           ) : null}
         </div>
@@ -89,7 +93,15 @@ function Inner() {
         <div className="ck-surface ck-border ck-radius-md mb-4 p-4 md:p-6">
           <h2 className="mb-3 text-base font-semibold">What happens next</h2>
           <ul className="space-y-3">
-            <NextStep icon={<Mail size={16} />} title="Order confirmation" body="You'll receive a confirmation email shortly." />
+            {order?.payment_method === "pay_later" ? (
+              <NextStep
+                icon={<Mail size={16} />}
+                title="Store review"
+                body="The store will check your order and confirm it. You'll be notified once it's approved."
+              />
+            ) : (
+              <NextStep icon={<Mail size={16} />} title="Order confirmation" body="You'll receive a confirmation email shortly." />
+            )}
             <NextStep icon={<Package size={16} />} title="Packing & shipping" body="We'll notify you when your order ships." />
             <NextStep icon={<MapPin size={16} />} title="Delivery" body="Track your package any time from the order status page." />
           </ul>
@@ -103,7 +115,11 @@ function Inner() {
                 <Block label="Shipping to">
                   {formatAddress(shipping)}
                 </Block>
-                <Block label="Payment">{order.payment_method ?? order.payment_status ?? "—"}</Block>
+                <Block label="Payment">
+                  {order.payment_method === "pay_later"
+                    ? "Pay later"
+                    : (order.payment_method ?? order.payment_status ?? "—")}
+                </Block>
                 <Block label="Status">{order.status.replace(/_/g, " ")}</Block>
                 <Block label="Total">{formatMoney({ amount: Math.round(order.total * 100), currency: "INR" }, locale)}</Block>
               </div>

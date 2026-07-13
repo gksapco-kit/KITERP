@@ -221,19 +221,25 @@ class OrderService:
         )
         self.db.add(payment)
 
-        # COD: confirm immediately; online: stay pending until gateway verify
+        is_pay_later = data.payment_method.value == "pay_later"
+
+        # COD: confirm immediately; Pay later / online / manual UPI: stay pending until admin or gateway
         if data.payment_method.value == "cod":
             order.payment_status = "pending"
             order.status = "confirmed"
             order.confirmed_at = datetime.now(timezone.utc)
             payment.status = "pending"
             self._record_status(order.id, "pending", "confirmed", changed_by_role="system", notes="Auto-confirmed (COD)")
-        elif data.payment_method.value == "pay_later":
+        elif is_pay_later:
+            # Awaiting vendor approval — no QR/payment; confirm only when admin approves
             order.payment_status = "pending"
-            order.status = "confirmed"
-            order.confirmed_at = datetime.now(timezone.utc)
+            order.status = "pending"
             payment.status = "pending"
-            self._record_status(order.id, "pending", "confirmed", changed_by_role="system", notes="Auto-confirmed (Pay later)")
+            self._record_status(
+                order.id, "pending", "pending",
+                changed_by_role="system",
+                notes="Pay later — awaiting vendor approval",
+            )
         elif is_online:
             order.payment_status = "pending"
             order.status = "pending"
@@ -259,9 +265,14 @@ class OrderService:
             if ship_phone and not (customer.phone or "").strip():
                 customer.phone = ship_phone
 
-        # COD / Pay later: deduct stock and clear cart immediately; online/manual UPI: defer until payment verify
-        if data.payment_method.value in ("cod", "pay_later"):
+        # COD: deduct stock + clear cart now.
+        # Pay later: clear cart (order is placed) but defer stock until admin confirms.
+        # Online / manual UPI: defer stock until payment verify.
+        if data.payment_method.value == "cod":
             await self._deduct_inventory_for_order(vendor_id, order)
+            if clear_cart and cart is not None:
+                await self.cart_repo.clear_cart(cart)
+        elif is_pay_later:
             if clear_cart and cart is not None:
                 await self.cart_repo.clear_cart(cart)
 
@@ -300,7 +311,8 @@ class OrderService:
             vendor = await vendor_svc.get_by_id(vendor_id)
             if vendor:
                 notif_svc = NotificationService(self.db)
-                # Manual UPI: defer admin "New Order" + customer confirmations until payment proof is submitted
+                # Manual UPI: defer admin "New Order" + customer confirmations until payment proof is submitted.
+                # Pay later / COD: notify admin immediately so they can approve (pay later) or fulfill (COD).
                 if not is_manual_proof:
                     await notif_svc.notify_order_received(
                         vendor_id=vendor_id,
@@ -313,6 +325,7 @@ class OrderService:
                 # Online card/UPI gateway: defer email/SMS/WhatsApp until payment is confirmed
                 # (see PaymentGatewayService._finalize_paid_order).
                 # Manual UPI: deferred to submit_payment_proof.
+                # Pay later: customer gets placed notice; confirmation is after admin approve.
                 if data.payment_method.value in ("cod", "pay_later"):
                     customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, customer_id)
                     await send_order_placed_notifications(
@@ -396,6 +409,19 @@ class OrderService:
             except Exception as e:
                 log.warning("Inventory deduction failed for product %s: %s", product_id, e)
 
+    @staticmethod
+    def _order_had_inventory_deducted(order: Order, status_at_cancel: str) -> bool:
+        """True when stock was already taken for this order (safe to restore on cancel)."""
+        method = order.payment_method or ""
+        if method == "cod":
+            return True
+        if method == "pay_later":
+            return status_at_cancel != "pending"
+        if method == "upi":
+            return order.payment_status == "paid"
+        # Online gateways deduct on payment finalize when status becomes confirmed
+        return status_at_cancel not in ("pending",)
+
     async def _restore_inventory_for_order(self, vendor_id: UUID, order: Order):
         """Restore stock for each item when an order is cancelled."""
         for item in (order.items or []):
@@ -464,13 +490,30 @@ class OrderService:
             )
         now = datetime.now(timezone.utc)
         order.status = new_status
+        history_notes = data.notes
+        if (
+            new_status == "confirmed"
+            and previous_status == "pending"
+            and order.payment_method == "pay_later"
+            and not history_notes
+        ):
+            history_notes = "Pay later order approved by vendor"
         self._record_status(
             order.id, previous_status, new_status,
-            changed_by=user_id, changed_by_role="vendor", notes=data.notes,
+            changed_by=user_id, changed_by_role="vendor", notes=history_notes,
         )
 
         if data.status.value == "confirmed":
             order.confirmed_at = now
+            # Pay later: stock was deferred at checkout until vendor approval
+            if previous_status == "pending" and order.payment_method == "pay_later":
+                await self._deduct_inventory_for_order(vendor_id, order)
+                try:
+                    cart = await self.cart_repo.get_by_customer(vendor_id, order.customer_id)
+                    if cart:
+                        await self.cart_repo.clear_cart(cart)
+                except Exception as exc:
+                    log.warning("Cart clear after pay later confirm failed for %s: %s", order_id, exc)
             try:
                 await self.invoice_svc.create_from_order(order, auto_commit=False)
             except Exception as e:
@@ -494,7 +537,8 @@ class OrderService:
             except Exception as e:
                 log.warning("Invoice payment update failed for order %s: %s", order_id, e)
         elif new_status == "cancelled" and previous_status != "cancelled":
-            await self._restore_inventory_for_order(vendor_id, order)
+            if self._order_had_inventory_deducted(order, previous_status):
+                await self._restore_inventory_for_order(vendor_id, order)
             if data.cancel_reason:
                 order.cancel_reason = data.cancel_reason
             if data.cancel_attachments is not None:
@@ -563,8 +607,9 @@ class OrderService:
             order.cancel_attachments = []
         self._record_status(order.id, prev, "cancelled", changed_by=user_id, changed_by_role="customer", notes=data.reason)
 
-        # Restore inventory for cancelled order
-        await self._restore_inventory_for_order(vendor_id, order)
+        # Restore inventory only if it was deducted
+        if self._order_had_inventory_deducted(order, prev):
+            await self._restore_inventory_for_order(vendor_id, order)
 
         await self.db.commit()
         await self.db.refresh(order)
@@ -767,6 +812,10 @@ class OrderService:
             payment.status = "completed"
             if order.payment_reference:
                 payment.gateway_reference = order.payment_reference
+            payment.gateway_response = {
+                **(payment.gateway_response or {}),
+                "manual_upi_proof": proof,
+            }
 
         await self._deduct_inventory_for_order(vendor_id, order)
 
@@ -817,6 +866,10 @@ class OrderService:
         payment = result.scalars().first()
         if payment:
             payment.status = "failed"
+            payment.gateway_response = {
+                **(payment.gateway_response or {}),
+                "manual_upi_proof": proof,
+            }
 
         self._record_status(
             order.id, order.status, order.status,
