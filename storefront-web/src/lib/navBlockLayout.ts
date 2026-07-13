@@ -43,7 +43,6 @@ export function resolveNavBlockShell(
   const navBg = navStyle === 'transparent' || navStyle === 'transparent_cta'
     ? 'transparent'
     : String(props.nav_bg ?? '').trim()
-      || String(style.nav_bg ?? '').trim()
       || (navStyle === 'dark' || navStyle === 'dark_centered'
         ? '#0f172a'
         : navStyle === 'brand'
@@ -76,6 +75,36 @@ export function resolveNavBlockShell(
     navBorderBottom,
   }
 }
+
+const HEADER_BAR_SIZE_MIN = 32
+const HEADER_BAR_SIZE_MAX = 120
+
+/**
+ * Explicit nav header bar min-height (px).
+ * Returns null when unset so existing compact/default padding is left alone.
+ */
+export function readNavHeaderBarSize(props: Record<string, unknown>): number | null {
+  const raw = Number(props.header_bar_size ?? props.header_bar_height)
+  if (!Number.isFinite(raw)) return null
+  return Math.min(
+    HEADER_BAR_SIZE_MAX,
+    Math.max(HEADER_BAR_SIZE_MIN, Math.round(raw)),
+  )
+}
+
+/** Editor slider value — falls back to compact/standard presets without writing props. */
+export function resolveNavHeaderBarSizeForEditor(
+  props: Record<string, unknown>,
+  isCompact = false,
+): number {
+  return readNavHeaderBarSize(props) ?? (isCompact ? 44 : 56)
+}
+
+export const NAV_HEADER_BAR_SIZE_RANGE = {
+  min: HEADER_BAR_SIZE_MIN,
+  max: HEADER_BAR_SIZE_MAX,
+  step: 4,
+} as const
 
 export interface SectionSurfaceStyle {
   background: string

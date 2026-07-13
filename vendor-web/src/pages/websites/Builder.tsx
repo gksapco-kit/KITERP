@@ -268,6 +268,10 @@ import { BuilderSiteInputParametersModal } from '@/components/websites/BuilderSi
 import { BuilderStylePanel } from '@/components/websites/BuilderStylePanel'
 import { NavBrandDisplayControls } from '@/components/websites/NavBrandDisplayControls'
 import { navBrandDisplayPreview } from '@storefront/lib/navBrandStyle'
+import {
+  NAV_HEADER_BAR_SIZE_RANGE,
+  resolveNavHeaderBarSizeForEditor,
+} from '@storefront/lib/navBlockLayout'
 import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
 import {
   PanelBgStylePicker,
@@ -8001,9 +8005,19 @@ function PropsEditor({
     return active?.label || 'Default'
   })()
 
+  const navHeaderBarSize = block.block_type === 'nav'
+    ? resolveNavHeaderBarSizeForEditor(
+      p as Record<string, unknown>,
+      (p as any).nav_compact === true || String((p as any).nav_style ?? '') === 'compact',
+    )
+    : null
+  const hasExplicitHeaderBarSize = block.block_type === 'nav'
+    && Number.isFinite(Number((p as any).header_bar_size ?? (p as any).header_bar_height))
+
   const sectionSpacingPreview = [
     previewDevice !== 'desktop' ? `${previewDevice}` : null,
     sectionScale !== 1 ? `${Math.round(sectionScale * 100)}% size` : null,
+    hasExplicitHeaderBarSize && navHeaderBarSize != null ? `${navHeaderBarSize}px bar` : null,
     `${paddingTop}px top`,
     `${paddingBottom}px bottom`,
   ].filter(Boolean).join(' · ')
@@ -9626,6 +9640,21 @@ function PropsEditor({
                   pushSectionSpacing({ section_scale: n }, false)
                 }}
               />
+              {block.block_type === 'nav' && navHeaderBarSize != null ? (
+                <div className="space-y-2 border-t border-border/50 pt-2">
+                  <SectionSpacingField
+                    label="Header bar size"
+                    value={navHeaderBarSize}
+                    min={NAV_HEADER_BAR_SIZE_RANGE.min}
+                    max={NAV_HEADER_BAR_SIZE_RANGE.max}
+                    step={NAV_HEADER_BAR_SIZE_RANGE.step}
+                    unit="px"
+                    hint="Only changes nav bar height. Does not affect Section size."
+                    onPreview={n => onPreview({ header_bar_size: n })}
+                    onCommit={n => onUpdate({ header_bar_size: n })}
+                  />
+                </div>
+              ) : null}
               <div className="space-y-2 border-t border-border/50 pt-2">
                 <SectionSpacingField
                   label="Top padding"

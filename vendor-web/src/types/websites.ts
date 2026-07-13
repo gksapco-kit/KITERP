@@ -61,16 +61,12 @@ export interface BlockProps {
   logo_fit?: 'contain' | 'cover'
   brand_gap?: number
   brand_name_size?: 'sm' | 'md' | 'lg' | 'xl'
-  brand_layout?: 'horizontal' | 'vertical'
-  logo_size?: 'sm' | 'md' | 'lg' | 'xl'
-  logo_shape?: 'original' | 'rounded' | 'square' | 'circle' | 'squircle' | 'sharp'
-  logo_fit?: 'contain' | 'cover'
-  brand_gap?: number
-  brand_name_size?: 'sm' | 'md' | 'lg' | 'xl'
   show_nav_links?: boolean
   nav_links_source?: 'site_pages' | 'manual'
   links?: string[]
   nav_links?: { label: string; url: string; children?: { label: string; url: string }[] }[]
+  /** Explicit min-height of the nav header bar in px (independent of Section size) */
+  header_bar_size?: number
   transparent?: boolean
   show_cart?: boolean
   show_search?: boolean

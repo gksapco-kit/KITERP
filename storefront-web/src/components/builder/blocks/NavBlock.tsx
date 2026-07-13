@@ -16,7 +16,7 @@ import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
 import { resolveStorefrontLinkMode } from '@/lib/storefrontTemplateAssignment'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
-import { resolveNavBlockShell } from '@/lib/navBlockLayout'
+import { readNavHeaderBarSize, resolveNavBlockShell } from '@/lib/navBlockLayout'
 import {
   isNavLinkActive,
   resolveCurrentNavActiveKey,
@@ -148,6 +148,7 @@ export default function NavBlock({
   const announcement = (props.announcement as string | undefined) || null
 
   const shell = resolveNavBlockShell(props, style)
+  const headerBarSize = readNavHeaderBarSize(props)
   const navLinksSource = (props.nav_links_source as string) || 'site_pages'
   const rawLinks = (props.nav_links as Array<{ label: string; url: string }> | undefined) || []
 
@@ -161,7 +162,10 @@ export default function NavBlock({
         nav_links_source: navLinksSource,
         nav_links: rawLinks,
       },
-      liveItems.map(item => ({ title: item.title, url: item.url })),
+      liveItems.map((item): { title: string; url?: string } => ({
+        title: item.title,
+        url: item.url == null ? undefined : item.url,
+      })),
       {
         previewShell: previewShell === true,
         isEditorCanvas,
@@ -779,13 +783,17 @@ export default function NavBlock({
           className={cn(
             builderSectionContainerClass(
               'relative',
-              shell.isCompact ? 'py-1.5' : 'py-3',
+              // Keep original compact/default padding unless Header bar size is set.
+              headerBarSize == null
+                ? (shell.isCompact ? 'py-1.5' : 'py-3')
+                : undefined,
             ),
             shell.isCentered
               ? 'flex flex-col items-center text-center gap-2'
               : 'flex items-center justify-between gap-3',
             shell.isElevated && '!mx-3 sm:!mx-4 !max-w-none mt-2 rounded-xl shadow-lg border border-black/5',
           )}
+          style={headerBarSize != null ? { minHeight: headerBarSize } : undefined}
         >
           {shell.isCentered ? (
             <>
