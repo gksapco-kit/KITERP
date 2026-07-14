@@ -15,6 +15,7 @@ import { resolveApiBaseUrl } from './lib/apiBase'
 import { matchesDraftPreviewBrowserPath, initPreviewTabOpenerBridge } from './lib/storefrontPreviewUrl'
 import { ensureAppFavicon } from './lib/appFavicon'
 import { refreshAuthSessionDeduped } from './lib/authSession'
+import { getAccessToken } from './lib/authTokenStorage'
 import { isAxiosNetworkError } from './lib/errorMessages'
 import './styles/globals.css'
 
@@ -71,7 +72,7 @@ console.log('Open http://localhost:3001 — if it fails on Windows Docker, run s
 // Preflight: validate stored token in the background; refresh silently before logging out.
 async function preflight() {
   if (isDraftPreviewPath(window.location.pathname)) return
-  const token = localStorage.getItem('access_token')
+  const token = getAccessToken()
   if (!token) return
   const API = resolveApiBaseUrl()
   const ac = new AbortController()

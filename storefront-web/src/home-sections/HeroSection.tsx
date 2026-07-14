@@ -133,15 +133,23 @@ export function HeroSection({
     const line2 = lines.slice(1).join(' ') || 'quietly seasonal.'
     return (
       <section className="relative min-h-[min(38dvh,280px)] h-[min(58dvh,480px)] max-h-[min(90dvh,720px)] overflow-x-hidden bg-resto-bg sm:min-h-[360px] sm:h-[min(72dvh,620px)] sm:max-h-none md:h-[88vh] md:min-h-[520px] lg:min-h-[560px]">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+        <div className="absolute inset-0 overflow-hidden">
           {useCarousel ? (
-            <HeroBannerCarousel urls={heroBackgroundUrls} imageClassName="absolute inset-0 h-full w-full object-cover object-center opacity-70" />
+            <HeroBannerCarousel
+              urls={heroBackgroundUrls}
+              imageClassName="absolute inset-0 h-full w-full object-cover object-center opacity-70"
+              overlay={
+                <div className="h-full w-full bg-gradient-to-b from-resto-bg/40 via-transparent to-resto-bg" />
+              }
+            />
           ) : (
-            <img src={heroImg} alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-70" />
+            <img src={heroImg} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-70" aria-hidden />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-resto-bg/40 via-transparent to-resto-bg" />
+          {!useCarousel && (
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-resto-bg/40 via-transparent to-resto-bg" aria-hidden />
+          )}
         </div>
-        <div className="relative z-[1] h-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 flex flex-col justify-end py-10 sm:py-0 sm:pb-20 pb-14 min-h-0 min-w-0 w-full">
+        <div className="pointer-events-none relative z-[1] h-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 flex flex-col justify-end py-10 sm:py-0 sm:pb-20 pb-14 min-h-0 min-w-0 w-full [&>*]:pointer-events-auto">
           <p className="text-xs sm:text-xs uppercase tracking-[0.22em] sm:tracking-[0.3em] text-resto-accent mb-3 sm:mb-6" style={fieldTypographyStyle(props, 'editorial_kicker')}>{kicker}</p>
           <h1
             className="font-display font-light text-[clamp(1rem,2.2vw_+_0.28rem,1.7rem)] sm:text-[clamp(1.2rem,2.9vw_+_0.35rem,2.1rem)] md:text-[clamp(1.5rem,3.8vw_+_0.38rem,2.95rem)] lg:text-[clamp(1.85rem,4.8vw_+_0.4rem,4rem)] leading-[1.12] sm:leading-[1.06] md:leading-[0.98] lg:leading-[0.88] tracking-tight max-w-full text-resto-ink break-normal hyphens-none flex flex-col gap-1.5 sm:gap-1"
@@ -280,17 +288,22 @@ export function HeroSection({
                 urls={heroBackgroundUrls}
                 imageClassName="h-full w-full object-cover object-center"
                 onIndexChange={setBannerSlideIndex}
+                overlay={
+                  <div className="h-full w-full" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
+                }
               />
             ) : (
               <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
             )}
-            <div className="absolute inset-0" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
+            {!useCarousel && (
+              <div className="pointer-events-none absolute inset-0" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
+            )}
           </>
         ) : (
-          <div className="absolute inset-0" style={{ background: heroBrandGradient(c.primary, c.secondary) }} />
+          <div className="pointer-events-none absolute inset-0" style={{ background: heroBrandGradient(c.primary, c.secondary) }} />
         )}
-        <div className={`relative z-[1] w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${hh} text-center`}>
-          <div className="max-w-2xl w-full mx-auto flex flex-col items-center text-center">
+        <div className={`pointer-events-none relative z-[1] w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${hh} text-center`}>
+          <div className="pointer-events-auto max-w-2xl w-full mx-auto flex flex-col items-center text-center">
             <h1
               className="w-full text-center text-2xl sm:text-4xl font-bold leading-tight text-white drop-shadow-sm text-balance"
               style={{ fontFamily: theme.font, ...fieldTypographyStyle(props, 'headline') }}
@@ -357,16 +370,21 @@ export function HeroSection({
               urls={heroBackgroundUrls}
               imageClassName="h-full w-full object-cover object-center"
               onIndexChange={setBannerSlideIndex}
+              overlay={
+                <div className="h-full w-full" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />
+              }
             />
           ) : (
             <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
           )}
-          <div className="absolute inset-0" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />
+          {!useCarousel && (
+            <div className="pointer-events-none absolute inset-0" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />
+          )}
         </div>
       )}
-      <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='1.5' fill='rgba(255,255,255,0.5)'/%3E%3C/svg%3E\")" }} />
-      <div className={`relative max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${hh} text-center`}>
-        <div className="max-w-2xl w-full mx-auto flex flex-col items-center text-center">
+      <div className="pointer-events-none absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='1.5' fill='rgba(255,255,255,0.5)'/%3E%3C/svg%3E\")" }} />
+      <div className={`pointer-events-none relative max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${hh} text-center`}>
+        <div className="pointer-events-auto max-w-2xl w-full mx-auto flex flex-col items-center text-center">
           <h1 className="w-full text-center text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight text-balance" style={{ fontFamily: theme.font, ...fieldTypographyStyle(props, 'headline') }}>{title}</h1>
           <p className="w-full text-center mt-4 text-lg text-white/95 max-w-lg mx-auto text-pretty" style={fieldTypographyStyle(props, 'subtitle')}>{subtitle}</p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3 w-full">

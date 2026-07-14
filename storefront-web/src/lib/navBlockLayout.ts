@@ -76,8 +76,8 @@ export function resolveNavBlockShell(
   }
 }
 
-const HEADER_BAR_SIZE_MIN = 32
-const HEADER_BAR_SIZE_MAX = 120
+const HEADER_BAR_SIZE_MIN = 0
+const HEADER_BAR_SIZE_MAX = 150
 
 /**
  * Explicit nav header bar min-height (px).

@@ -34,9 +34,21 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
             <User size={14} /> Checking out as guest
           </span>
           {!isAuthenticated && (
-            <button type="button" className="ck-btn-ghost" onClick={handleSignIn}>
-              Have an account? Sign in
-            </button>
+            <span className="flex flex-wrap items-center gap-2">
+              <button type="button" className="ck-btn-ghost" onClick={handleSignIn}>
+                Have an account? Sign in
+              </button>
+              <button
+                type="button"
+                className="ck-btn-ghost"
+                onClick={() => {
+                  const registerPath = location.pathname.replace(/\/[^/]*$/, "/register")
+                  navigate(registerPath, { state: { from: location } })
+                }}
+              >
+                Create account
+              </button>
+            </span>
           )}
         </div>
       )}

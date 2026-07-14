@@ -18,9 +18,15 @@ export const authApi = {
   },
 
   // Customer auth
-  customerRegister: async (data: { full_name: string; email: string; password: string }): Promise<Customer> => {
+  customerRegister: async (data: {
+    full_name: string; email?: string; phone?: string; password: string; otp_code: string
+  }): Promise<Customer> => {
     const res = await apiClient.post('/store/auth/register', data)
     return res.data
+  },
+  customerSendSignupOtp: async (data: { email?: string; phone?: string }) => {
+    const res = await apiClient.post('/store/auth/send-signup-otp', data)
+    return res.data as { sent: boolean; channel: string; to: string; expires_at?: string; dev_hint?: string }
   },
   customerLogin: async (email: string, password: string): Promise<Token> => {
     const res = await apiClient.post('/store/auth/login', { email, password })

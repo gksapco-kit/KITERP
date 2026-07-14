@@ -19,7 +19,12 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       allowedHosts: true,
       warmup: {
-        clientFiles: ['./index.html', './src/main.tsx'],
+        clientFiles: [
+          './index.html',
+          './src/main.tsx',
+          './src/components/builder/BlockRenderer.tsx',
+          './src/components/builder/blocks/ProductGridBlock.tsx',
+        ],
       },
       ...(useWatchPolling ? { watch: { usePolling: true, interval: 1000 } } : {}),
       // Local dev: localhost. Docker Compose can set BACKEND_URL=http://backend:8000

@@ -10,7 +10,8 @@ import { useCart, useCustomerLogout, useCustomerMe } from '@/hooks/useStore'
 import { UnifiedNav, AnnouncementBar } from '@/kit/header/UnifiedNav'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore, selectCartItemCount } from '@/stores/cartStore'
-import { VendorProvider, useVendor, StorefrontDisplayFieldsBridge } from '@/contexts/VendorContext'
+import { VendorProvider, useVendor } from '@/contexts/VendorContext'
+import { StorefrontDisplayFieldsBridge } from '@/contexts/StorefrontDisplayFieldsBridge'
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import { BuilderSiteProvider, useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { useAssignedStorefrontTemplateId, useStoreSpecificAssignedTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
@@ -27,6 +28,7 @@ import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { notifyDraftPreviewParentRoute, notifyDraftPreviewHome, rememberDraftEmbedPreviewToken, recallDraftEmbedPreviewToken, storefrontPathToDraftEmbedRoute } from '@/lib/draftEmbedPreview'
 import { buildDraftCatalogEmbedStorePath, isDraftCatalogEmbedPath } from '@/lib/draftCatalogEmbed'
 import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
+import StorefrontBuAuthSync from '@/components/store/StorefrontBuAuthSync'
 import { SocialLinksIconRow } from '@/components/store/SocialLinksIconRow'
 import {
   buildFooterContactLinks,
@@ -263,7 +265,7 @@ function FooterSimple({ vendor, storePath, theme }: { vendor: any; storePath: (p
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
         <div className="flex items-center gap-3">
           {vendor?.logo_url ? (
-            <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-10 rounded-lg object-cover" />
+            <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-10 w-auto max-w-[160px] object-contain" />
           ) : (
             <Store className={cn('w-5 h-5', surface.iconClass)} />
           )}
@@ -272,6 +274,7 @@ function FooterSimple({ vendor, storePath, theme }: { vendor: any; storePath: (p
         <div className={cn('flex items-center gap-4 text-xs', surface.mutedClass)}>
           <Link to={storePath('/products')} className={surface.linkClass}>Products</Link>
           <Link to={storePath('/services')} className={surface.linkClass}>Services</Link>
+          <Link to={storePath('/contact')} className={surface.linkClass}>Contact</Link>
           <Link to={storePath('/policies')} className={surface.linkClass}>Policies</Link>
           <Link to={storePath('/account')} className={surface.linkClass}>Account</Link>
         </div>
@@ -290,7 +293,7 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
           <div>
             <div className="flex items-center gap-2 mb-3">
               {vendor?.logo_url ? (
-                <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-11 rounded-lg object-cover" />
+                <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-11 w-auto max-w-[180px] object-contain" />
               ) : (
                 <Store className={cn('w-6 h-6', surface.iconClass)} />
               )}
@@ -311,11 +314,14 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
             <div className="space-y-2.5 text-sm">
               <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>
               <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>
+              <Link to={storePath('/contact')} className={cn('block', surface.linkClass)}>Contact Us</Link>
               <Link to={storePath('/policies')} className={cn('block', surface.linkClass)}>Store Policies</Link>
             </div>
           </div>
           <div>
-            <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Contact</h4>
+            <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>
+              <Link to={storePath('/contact')} className={surface.linkClass}>Contact</Link>
+            </h4>
             <FooterContactLines vendor={vendor} surface={surface} />
           </div>
         </div>
@@ -344,6 +350,7 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
               <Link to={storePath('/')} className={cn('block', surface.linkClass)}>About {vendor?.display_name}</Link>
               <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>
               <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>
+              <Link to={storePath('/contact')} className={cn('block', surface.linkClass)}>Contact Us</Link>
               <Link to={storePath('/policies')} className={cn('block', surface.linkClass)}>Store Policies</Link>
             </div>
           </div>
@@ -357,7 +364,9 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
             </div>
           </div>
           <div>
-            <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Contact Us</h4>
+            <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>
+              <Link to={storePath('/contact')} className={surface.linkClass}>Contact Us</Link>
+            </h4>
             <FooterContactLines vendor={vendor} surface={surface} />
             {vendor?.gstin && <p className={cn('mt-2 text-xs', surface.mutedClass)}>GSTIN: {vendor.gstin}</p>}
           </div>
@@ -596,7 +605,11 @@ function StoreContent() {
   const kitLinks = headerNavLinks
 
   const logoNode = vendor.logo_url ? (
-    <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="h-11 max-w-[200px] rounded-lg object-cover" />
+    <img
+      src={imgUrl(vendor.logo_url)}
+      alt={vendor.display_name}
+      className="h-12 sm:h-14 w-auto max-w-[220px] sm:max-w-[280px] object-contain"
+    />
   ) : (
     <span className="font-bold text-lg shrink-0">{vendor.display_name}</span>
   )
@@ -721,6 +734,7 @@ export default function StoreLayout() {
         <BranchProvider>
           <StorefrontDisplayFieldsBridge>
             <ThemeProvider>
+              <StorefrontBuAuthSync />
               <StoreContent />
             </ThemeProvider>
           </StorefrontDisplayFieldsBridge>

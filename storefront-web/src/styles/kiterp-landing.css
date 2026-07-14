@@ -2210,3 +2210,328 @@
     display: none;
   }
 }
+
+/* -- Landing Contact page (/contact) --------------------------------------- */
+.kiterp-contact-page {
+  --kiterp-primary: #64c3a0;
+  --kiterp-primary-dark: #52b38f;
+  --kiterp-primary-deeper: #3d9a7a;
+  --kiterp-ink: #1e3d34;
+  --kiterp-highlight: #ffc954;
+  --kiterp-mint: #b8e8d6;
+  --kiterp-mint-bg: #eef9f4;
+  --kiterp-mint-soft: #d4f0e8;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  color: var(--kiterp-ink);
+  background:
+    radial-gradient(ellipse 90% 70% at 12% 18%, rgba(100, 195, 160, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 55% at 92% 78%, rgba(255, 201, 84, 0.16) 0%, transparent 50%),
+    linear-gradient(165deg, #f7fbf9 0%, #ffffff 42%, #eef9f4 100%);
+}
+
+.kiterp-contact-glow {
+  pointer-events: none;
+  position: absolute;
+  inset: auto -10% -20% auto;
+  width: min(46vw, 28rem);
+  height: min(46vw, 28rem);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(100, 195, 160, 0.18) 0%, transparent 70%);
+  filter: blur(8px);
+}
+
+.kiterp-contact-main {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.kiterp-contact-shell {
+  width: min(68rem, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
+  gap: clamp(1rem, 2.5vw, 2.25rem);
+  align-items: stretch;
+  min-height: 0;
+}
+
+.kiterp-contact-brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  padding: 0.25rem 0.25rem 0.25rem 0.15rem;
+}
+
+.kiterp-contact-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  margin-bottom: 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--kiterp-primary-deeper);
+  text-decoration: none;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.kiterp-contact-back:hover {
+  color: var(--kiterp-ink);
+  transform: translateX(-2px);
+}
+
+.kiterp-contact-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--kiterp-primary-deeper);
+}
+
+.kiterp-contact-title {
+  margin: 0;
+  font-size: clamp(2.35rem, 5vw, 3.4rem);
+  line-height: 1.05;
+  color: var(--kiterp-ink);
+}
+
+.kiterp-contact-lead {
+  margin: 0.85rem 0 0;
+  max-width: 26rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--kiterp-ink) 68%, transparent);
+}
+
+.kiterp-contact-channels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1.35rem;
+}
+
+.kiterp-contact-channel {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.15rem 0;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease;
+}
+
+.kiterp-contact-channel:hover {
+  transform: translateX(3px);
+}
+
+.kiterp-contact-channel--static {
+  cursor: default;
+}
+
+.kiterp-contact-channel--static:hover {
+  transform: none;
+}
+
+.kiterp-contact-channel-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  flex-shrink: 0;
+  color: var(--kiterp-primary-deeper);
+  background: linear-gradient(145deg, var(--kiterp-mint-soft), var(--kiterp-mint-bg));
+  border: 1px solid color-mix(in srgb, var(--kiterp-primary) 28%, transparent);
+}
+
+.kiterp-contact-channel-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--kiterp-ink) 48%, transparent);
+}
+
+.kiterp-contact-channel-value {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--kiterp-ink);
+  word-break: break-word;
+}
+
+.kiterp-contact-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--kiterp-ink) 55%, transparent);
+}
+
+.kiterp-contact-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  border-radius: 1.35rem;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.92) 0%, rgba(238, 249, 244, 0.88) 100%);
+  border: 1px solid color-mix(in srgb, var(--kiterp-primary) 26%, #e4ece9);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 18px 40px rgba(30, 61, 52, 0.06);
+  backdrop-filter: blur(8px);
+}
+
+.kiterp-contact-form-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--kiterp-ink);
+}
+
+.kiterp-contact-form-hint {
+  margin: 0.2rem 0 0.85rem;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--kiterp-ink) 52%, transparent);
+}
+
+.kiterp-contact-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem 0.75rem;
+  flex: 1;
+  min-height: 0;
+  align-content: start;
+}
+
+.kiterp-contact-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.kiterp-contact-field--full {
+  grid-column: 1 / -1;
+}
+
+.kiterp-contact-field--message {
+  flex: 1;
+  min-height: 0;
+}
+
+.kiterp-contact-field span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--kiterp-ink) 62%, transparent);
+}
+
+.kiterp-contact-field input,
+.kiterp-contact-field textarea {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--kiterp-primary) 18%, #d7e2de);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--kiterp-ink);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.kiterp-contact-field textarea {
+  min-height: 4.5rem;
+  max-height: 7.5rem;
+  resize: none;
+  flex: 1;
+}
+
+.kiterp-contact-field input:focus,
+.kiterp-contact-field textarea:focus {
+  border-color: var(--kiterp-primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--kiterp-primary) 18%, transparent);
+}
+
+.kiterp-contact-field input::placeholder,
+.kiterp-contact-field textarea::placeholder {
+  color: color-mix(in srgb, var(--kiterp-ink) 35%, transparent);
+}
+
+.kiterp-contact-submit {
+  margin-top: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+}
+
+.kiterp-contact-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+@media (max-width: 860px) {
+  .kiterp-contact-page {
+    height: auto;
+    max-height: none;
+    overflow: auto;
+    min-height: 100dvh;
+  }
+
+  .kiterp-contact-shell {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .kiterp-contact-brand {
+    justify-content: flex-start;
+  }
+
+  .kiterp-contact-title {
+    font-size: clamp(2rem, 8vw, 2.6rem);
+  }
+
+  .kiterp-contact-lead {
+    margin-top: 0.55rem;
+  }
+
+  .kiterp-contact-channels {
+    margin-top: 0.9rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+  }
+
+  .kiterp-contact-form {
+    margin-bottom: 0.5rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .kiterp-contact-fields {
+    grid-template-columns: 1fr;
+  }
+}

@@ -192,7 +192,7 @@ export default function ForgotPassword() {
           <div className="px-4 py-6 sm:px-8 sm:py-8 text-center" style={{ background: panelGradient }}>
             <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mx-auto mb-4 shadow-lg ring-4 ring-white/25">
               {vendor?.logo_url ? (
-                <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="w-12 h-12 rounded-xl object-cover" />
+                <img src={imgUrl(vendor.logo_url)} alt={vendor.display_name} className="w-12 h-12 rounded-xl object-contain" />
               ) : (
                 <Store className="w-8 h-8 text-white" />
               )}

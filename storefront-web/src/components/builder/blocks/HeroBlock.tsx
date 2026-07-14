@@ -441,6 +441,8 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
 
   const renderTextPanel = (opts?: { centered?: boolean; className?: string; style?: CSSProperties }) => {
     const centered = opts?.centered ?? false
+    const imageBgTextPassThrough =
+      heroUsesImageBg && !splitSideBySide && !isSplit && !isEditorCanvas
     return (
       <BuilderContentGroup
         blockId={blockId}
@@ -454,7 +456,10 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
               )
             : isSplit
               ? 'relative z-10 flex flex-1 max-w-xl flex-col gap-5'
-              : 'relative z-10 mx-auto flex max-w-3xl flex-col gap-5 text-center')
+              : cn(
+                  'relative z-10 mx-auto flex max-w-3xl flex-col gap-5 text-center',
+                  imageBgTextPassThrough && 'pointer-events-none [&>*]:pointer-events-auto',
+                ))
         }
         style={opts?.style ?? (splitSideBySide ? { ...splitTextPanelStyle(), zIndex: 1 } : { zIndex: 1 })}
       >
@@ -530,7 +535,9 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           )}
         </MediaClipFrame>
         ) : null}
-        {showSideImage && props.overlay !== false && <div className="absolute inset-0 bg-black/35 z-0" />}
+        {showSideImage && props.overlay !== false && (
+          <div className="pointer-events-none absolute inset-0 z-0 bg-black/35" />
+        )}
         <div className={cn('absolute bottom-6 z-10', builderSectionInsetClass('left-0 right-0'))}>
           <div className="rounded-xl bg-white shadow-lg p-6 md:p-8 text-gray-900">
             {renderTextPanel({
@@ -593,6 +600,16 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
               urls={heroBackgroundUrls}
               imageClassName={cn('h-full w-full object-center', bgImageFitClass)}
               onIndexChange={setBannerSlideIndex}
+              overlay={
+                bgStyle === 'gradient' ? (
+                  <div
+                    className="h-full w-full"
+                    style={{ background: heroGrad, opacity: props.overlay === false ? 0.55 : 0.82 }}
+                  />
+                ) : props.overlay !== false ? (
+                  <div className="h-full w-full bg-black/45" />
+                ) : undefined
+              }
             />
           ) : isEditorCanvas && blockId && heroImageRaw ? (
             <BuilderSectionImage
@@ -613,11 +630,14 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           )}
         </div>
       ) : null}
-      {heroUsesImageBg && bgStyle === 'gradient' && (
-        <div className="absolute inset-0 z-0" style={{ background: heroGrad, opacity: props.overlay === false ? 0.55 : 0.82 }} />
+      {!useBannerCarousel && heroUsesImageBg && bgStyle === 'gradient' && (
+        <div
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{ background: heroGrad, opacity: props.overlay === false ? 0.55 : 0.82 }}
+        />
       )}
-      {heroUsesImageBg && bgStyle === 'image' && props.overlay !== false && (
-        <div className="absolute inset-0 bg-black/45 z-0" />
+      {!useBannerCarousel && heroUsesImageBg && bgStyle === 'image' && props.overlay !== false && (
+        <div className="pointer-events-none absolute inset-0 z-0 bg-black/45" />
       )}
 
       {splitSideBySide && imageOnLeft ? (

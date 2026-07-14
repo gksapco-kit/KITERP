@@ -35,6 +35,7 @@ export function LandingFooter() {
             <p className="text-white text-sm font-semibold mb-3">Community</p>
             <ul className="space-y-2 text-sm">
               <li><a href="#community" className="hover:text-white transition-colors">Vendor community</a></li>
+              <li><a href="/contact" className="hover:text-white transition-colors">Contact us</a></li>
             </ul>
           </div>
         </div>

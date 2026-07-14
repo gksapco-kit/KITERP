@@ -132,6 +132,35 @@ async def ensure_customer_verification_columns() -> None:
             await conn.execute(text(s))
 
 
+async def ensure_customer_store_id_column() -> None:
+    """Scope storefront customer accounts to a business unit (store)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "ALTER TABLE customer ADD COLUMN IF NOT EXISTS store_id UUID"
+        ))
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'fk_customer_store_id'
+                ) THEN
+                    ALTER TABLE customer
+                    ADD CONSTRAINT fk_customer_store_id
+                    FOREIGN KEY (store_id) REFERENCES store(id) ON DELETE SET NULL;
+                END IF;
+            END $$;
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_customer_store_id ON customer (store_id)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_customer_vendor_store ON customer (vendor_id, store_id)"
+        ))
+    logger.info("ensure_customer_store_id_column: customer.store_id ready")
+
+
 async def ensure_user_platform_staff_role_column() -> None:
     """Add user columns/indexes the SQLAlchemy model expects but older DBs may lack (avoids 500 on auth).
 
@@ -2519,6 +2548,36 @@ async def ensure_user_contact_change_request_table() -> None:
         "CREATE INDEX IF NOT EXISTS ix_user_contact_change_request_user ON user_contact_change_request(user_id)",
         "CREATE INDEX IF NOT EXISTS ix_user_contact_change_request_vendor ON user_contact_change_request(vendor_id)",
         "CREATE INDEX IF NOT EXISTS ix_user_contact_change_request_status ON user_contact_change_request(status)",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+
+
+async def ensure_storefront_contact_query_table() -> None:
+    """Storefront Contact Us page queries (email / phone / issue message)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        """
+        CREATE TABLE IF NOT EXISTS storefront_contact_query (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255),
+            phone VARCHAR(40),
+            message TEXT NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'new',
+            ip_address VARCHAR(64),
+            user_agent TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_storefront_contact_query_vendor ON storefront_contact_query(vendor_id)",
+        "CREATE INDEX IF NOT EXISTS ix_storefront_contact_query_status ON storefront_contact_query(status)",
+        "CREATE INDEX IF NOT EXISTS ix_storefront_contact_query_created ON storefront_contact_query(created_at DESC)",
+        "ALTER TABLE storefront_contact_query ALTER COLUMN vendor_id DROP NOT NULL",
     ]
     async with engine.begin() as conn:
         for s in stmts:

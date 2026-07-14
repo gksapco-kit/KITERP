@@ -889,7 +889,7 @@ function buildGalleryColorOptions(
   )
 }
 
-/** Color swatches for product detail — variants, attributes, names, or product gallery images. */
+/** Color swatches for product detail — only when Color is a real option (or gallery-only products). */
 export function getProductPageColorOptions(
   variants: ProductVariant[],
   productImages?: { url: string; alt_text?: string }[],
@@ -900,7 +900,17 @@ export function getProductPageColorOptions(
   const options: ProductColorOption[] = []
   const seen = new Set<string>()
 
-  const colorDim = getVariantOptionDimensions(normalized).find(isColorDimension)
+  const dimensions = getVariantOptionDimensions(normalized)
+  const colorDim = dimensions.find(isColorDimension)
+  // Structured non-color options (Weight, Spice Level, Size, …) mean Color was not selected —
+  // do not invent a Color row from leftover variant.color or gallery images.
+  const hasOtherOptionDims = dimensions.some(
+    (d) => !isColorDimension(d) && d.toLowerCase() !== 'value',
+  )
+  if (!colorDim && hasOtherOptionDims) {
+    return []
+  }
+
   if (colorDim) {
     for (const value of getValuesForDimension(normalized, colorDim)) {
       const sample = findSampleVariantForDimensionValue(normalized, colorDim, value)
@@ -921,7 +931,7 @@ export function getProductPageColorOptions(
     }
   }
 
-  if (!options.length) {
+  if (!options.length && !hasOtherOptionDims) {
     for (const v of normalized) {
       const css = variantColorCss(v)
       if (!css) continue
@@ -942,7 +952,7 @@ export function getProductPageColorOptions(
     }
   }
 
-  if (!options.length) {
+  if (!options.length && !hasOtherOptionDims) {
     for (const v of normalized) {
       const name = v.name?.trim()
       if (!name || GENERIC_VARIANT_NAMES.test(name) || !isColorLikeToken(name)) continue
@@ -977,7 +987,8 @@ export function getProductPageColorOptions(
     )
   }
 
-  const shouldPreferGallery = imgs.length >= 2 && !colorDim && options.length < imgs.length
+  // Gallery-as-Color only for products with no structured option dimensions.
+  const shouldPreferGallery = imgs.length >= 2 && !colorDim && !hasOtherOptionDims && options.length < imgs.length
 
   if (shouldPreferGallery) {
     return buildGalleryColorOptions(normalized, imgs)
@@ -996,7 +1007,7 @@ export function getProductPageColorOptions(
     )
   }
 
-  if (imgs.length >= 1) {
+  if (imgs.length >= 1 && !colorDim && !hasOtherOptionDims) {
     return buildGalleryColorOptions(normalized, imgs)
   }
 

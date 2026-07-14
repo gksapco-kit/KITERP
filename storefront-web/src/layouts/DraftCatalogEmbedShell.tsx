@@ -4,10 +4,12 @@
  */
 import { useEffect } from 'react'
 import { Outlet, useLocation, useParams } from 'react-router-dom'
-import { VendorProvider, StorefrontDisplayFieldsBridge } from '@/contexts/VendorContext'
+import { VendorProvider } from '@/contexts/VendorContext'
+import { StorefrontDisplayFieldsBridge } from '@/contexts/StorefrontDisplayFieldsBridge'
 import { BuilderSitePreviewProvider } from '@/contexts/BuilderSiteContext'
 import { BranchProvider } from '@/contexts/BranchContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import StorefrontBuAuthSync from '@/components/store/StorefrontBuAuthSync'
 import {
   draftCatalogPathToEmbedRoute,
   rememberDraftCatalogPreviewTokenFromPath,
@@ -44,6 +46,7 @@ export default function DraftCatalogEmbedShell() {
         <BranchProvider>
           <StorefrontDisplayFieldsBridge>
             <ThemeProvider>
+              <StorefrontBuAuthSync />
               <DraftCatalogEmbedContent />
             </ThemeProvider>
           </StorefrontDisplayFieldsBridge>

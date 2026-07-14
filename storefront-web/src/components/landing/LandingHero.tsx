@@ -1,5 +1,5 @@
+import { Link } from 'react-router-dom'
 import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
-import { vendorAppUrl } from '@/lib/appUrls'
 
 export function LandingHero() {
   return (
@@ -43,12 +43,12 @@ export function LandingHero() {
               </div>
             </div>
           </div>
-          <a
-            href={`${vendorAppUrl}/login`}
+          <Link
+            to="/contact"
             className="kiterp-btn-secondary px-7 py-3 text-base sm:text-lg sm:mt-0"
           >
             Talk to us
-          </a>
+          </Link>
         </div>
       </div>
     </section>

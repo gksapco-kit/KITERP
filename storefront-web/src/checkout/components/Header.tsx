@@ -24,7 +24,7 @@ export function CheckoutHeader({ rightSlot }: { rightSlot?: React.ReactNode }) {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-3 py-3 sm:px-4 sm:py-4 md:px-6">
         <Link to={storePath("/")} className="flex min-w-0 items-center gap-2 no-underline" style={{ color: "hsl(var(--text))" }}>
           {logoUrl ? (
-            <img src={logoUrl} alt={storeName} className="max-h-[var(--logo-height)] w-auto max-w-[140px] object-contain sm:max-w-none" style={{ height: "var(--logo-height)" }} />
+            <img src={logoUrl} alt={storeName} className="max-h-[var(--logo-height)] w-auto max-w-[200px] object-contain sm:max-w-[280px]" style={{ height: "var(--logo-height)" }} />
           ) : (
             <>
               <ShoppingBag size={20} className="shrink-0" />

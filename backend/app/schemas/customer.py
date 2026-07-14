@@ -22,12 +22,22 @@ class CustomerCreate(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, min_length=10, max_length=20)
     password: str = Field(..., min_length=8, max_length=100)
+    # 6-digit code from POST /store/auth/send-signup-otp (required for new accounts).
+    otp_code: str = Field(..., min_length=6, max_length=6)
 
     @model_validator(mode="after")
     def require_email_or_phone(self):
         if not self.email and not self.phone:
             raise ValueError("Either email or phone is required")
         return self
+
+    @field_validator("otp_code")
+    @classmethod
+    def otp_digits(cls, v: str) -> str:
+        code = (v or "").strip()
+        if len(code) != 6 or not code.isdigit():
+            raise ValueError("Enter the 6-digit OTP sent to your email or phone")
+        return code
 
 
 class CustomerLogin(BaseModel):

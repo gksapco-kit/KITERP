@@ -397,7 +397,36 @@ async def get_current_store_hr_vendor_user(
     return vu
 
 
+async def get_storefront_store_id(
+    request: Request,
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[UUID]:
+    """
+    Resolve the active business unit for storefront customer auth.
+
+    Sources (first match wins):
+    1. X-Store-Id header (UUID)
+    2. X-Branch header (store code or UUID)
+    3. ?branch= / ?store_id= query params
+    """
+    from app.services.catalog_store_scope import resolve_store_id
+
+    header_store = (request.headers.get("x-store-id") or "").strip() or None
+    header_branch = (request.headers.get("x-branch") or "").strip() or None
+    query_store = (request.query_params.get("store_id") or "").strip() or None
+    query_branch = (request.query_params.get("branch") or "").strip() or None
+
+    return await resolve_store_id(
+        db,
+        vendor_id,
+        store_id=header_store or query_store,
+        branch=header_branch or query_branch,
+    )
+
+
 async def get_current_customer(
+    request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> Optional[Customer]:
@@ -416,8 +445,33 @@ async def get_current_customer(
     if not customer_id or not vendor_id:
         return None
 
+    # Reject tokens issued for a different vendor than the current storefront.
+    try:
+        ctx_vendor_id = await get_store_vendor_id(request, db)
+    except HTTPException:
+        return None
+    if UUID(str(vendor_id)) != ctx_vendor_id:
+        return None
+
     repo = CustomerRepository(db)
-    return await repo.get_by_vendor_and_id(UUID(vendor_id), UUID(customer_id))
+    customer = await repo.get_by_vendor_and_id(UUID(vendor_id), UUID(customer_id))
+    if not customer:
+        return None
+
+    # Reject when the token/customer belongs to a different business unit.
+    try:
+        ctx_store_id = await get_storefront_store_id(request, ctx_vendor_id, db)
+    except HTTPException:
+        return None
+    token_store = payload.get("store_id")
+    token_store_id = UUID(str(token_store)) if token_store else None
+    customer_store_id = customer.store_id
+    if ctx_store_id != customer_store_id:
+        return None
+    if token_store_id is not None and token_store_id != customer_store_id:
+        return None
+
+    return customer
 
 
 async def get_current_active_customer(

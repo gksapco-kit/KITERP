@@ -42,6 +42,80 @@ interface Props {
 
 type RawColumn = { title?: string; links?: Array<{ label: string; href: string } | string> }
 
+const DEFAULT_POWERED_BY_TEXT = 'Powered By @ KITERP.com'
+
+function resolvePoweredByText(props: Record<string, unknown>): string | null {
+  if (props.show_powered_by !== true) return null
+  const text = String(props.powered_by_text ?? '').trim()
+  return text || DEFAULT_POWERED_BY_TEXT
+}
+
+function isExternalHref(href: string): boolean {
+  return href.startsWith('http://')
+    || href.startsWith('https://')
+    || href.startsWith('mailto:')
+    || href.startsWith('tel:')
+    || href.startsWith('#')
+}
+
+function resolvePoweredByHref(
+  props: Record<string, unknown>,
+  storePath: (p: string) => string,
+): string | null {
+  const raw = String(props.powered_by_text_url ?? '').trim()
+  if (!raw) return null
+  if (isExternalHref(raw)) return raw
+  return storePath(raw.startsWith('/') ? raw : `/${raw}`)
+}
+
+function FooterBarPoweredBy({
+  text,
+  href,
+  openInNewTab,
+  className,
+  asLink = true,
+  InternalLink,
+}: {
+  text: string | null
+  href?: string | null
+  openInNewTab?: boolean
+  className?: string
+  /** When false (builder canvas), render plain text even if a URL is set. */
+  asLink?: boolean
+  InternalLink?: (props: { href: string; className?: string; children: ReactNode }) => ReactNode
+}) {
+  if (!text) return null
+  const linkHref = (asLink && href?.trim()) || ''
+  if (!linkHref) {
+    return <p className={cn('text-xs text-center', className)}>{text}</p>
+  }
+  const external = isExternalHref(linkHref)
+  // Never underline — same look in preview and after publish.
+  const linkClass = cn('text-xs text-center cursor-pointer no-underline hover:no-underline', className)
+  const linkStyle = { textDecoration: 'none' as const }
+  if (external || openInNewTab) {
+    return (
+      <a
+        href={linkHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={linkClass}
+        style={linkStyle}
+      >
+        {text}
+      </a>
+    )
+  }
+  if (InternalLink) {
+    return <InternalLink href={linkHref} className={linkClass}>{text}</InternalLink>
+  }
+  return (
+    <Link to={linkHref} className={linkClass} style={linkStyle}>
+      {text}
+    </Link>
+  )
+}
+
 function FooterPublishedSocialRow({
   socialLinks,
   socialIconStyle,
@@ -139,6 +213,7 @@ function EditableColumnFooter({
   description,
   columns,
   copyright,
+  poweredByText,
   footerBg,
   footerClass,
   primaryColor,
@@ -154,6 +229,7 @@ function EditableColumnFooter({
   description: string
   columns: RawColumn[]
   copyright: string
+  poweredByText: string | null
   footerBg: string
   footerClass: string
   primaryColor: string
@@ -269,16 +345,23 @@ function EditableColumnFooter({
           </div>
         </div>
 
-        {showCopyright && (
-        <div className="mt-10 border-t border-gray-200 pt-6">
-          <BuilderTextField
-            fieldKey="copyright"
-            blockId={blockId}
-            blockProps={blockProps}
-            value={copyright}
-            as="p"
-            className="text-xs text-gray-400"
-            placeholder="Copyright line"
+        {(showCopyright || poweredByText) && (
+        <div className="relative mt-10 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 border-t border-gray-200 pt-6 sm:flex-row sm:justify-between">
+          {showCopyright ? (
+            <BuilderTextField
+              fieldKey="copyright"
+              blockId={blockId}
+              blockProps={blockProps}
+              value={copyright}
+              as="p"
+              className="text-xs text-gray-400"
+              placeholder="Copyright line"
+            />
+          ) : <span />}
+          <FooterBarPoweredBy
+            text={poweredByText}
+            asLink={false}
+            className="text-gray-400 sm:absolute sm:left-1/2 sm:-translate-x-1/2"
           />
         </div>
         )}
@@ -327,6 +410,9 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   const brandName = effectiveVendor?.display_name?.trim() || vendor?.display_name?.trim() || 'Store'
   const logoUrl = effectiveVendor?.logo_url?.trim() || vendor?.logo_url?.trim() || null
   const copyright = (props.copyright as string) || `© ${new Date().getFullYear()} ${brandName}. All rights reserved.`
+  const poweredByText = resolvePoweredByText(props)
+  const poweredByHref = resolvePoweredByHref(props, storePath)
+  const poweredByNewTab = Boolean(props.powered_by_text_link_new_tab)
   const brand = brandName
   const description = (props.description as string) || site.description || ''
   const footerBg = (props.footer_bg as string) || style.surface_color || '#f9fafb'
@@ -341,6 +427,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
     : isBrand
       ? 'text-white border-white/20'
       : 'border-gray-100'
+  const poweredByClass = isDark || isBrand ? 'text-white/50' : 'text-gray-400'
 
   const profile = liveItems[0]
   const rawCols = props.footer_columns as RawColumn[] | undefined
@@ -367,6 +454,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
         description={description}
         columns={rawCols ?? []}
         copyright={copyright}
+        poweredByText={poweredByText}
         footerBg={footerBg}
         footerClass={footerClass}
         primaryColor={style.primary_color}
@@ -387,6 +475,9 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
         description={description || undefined}
         columns={footerColumns}
         copyright={copyright}
+        poweredByText={poweredByText}
+        poweredByHref={poweredByHref}
+        poweredByNewTab={poweredByNewTab}
         showSocial={showSocial}
         socialLinks={socialLinks}
         socialIconStyle={socialIconStyle}
@@ -438,8 +529,15 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
             blockProps={props}
             value={copyright}
             as="p"
-            className={cn('text-xs', isDark || isBrand ? 'text-white/50' : 'text-gray-400')}
+            className={cn('text-xs', poweredByClass)}
             placeholder="Copyright line"
+          />
+          <FooterBarPoweredBy
+            text={poweredByText}
+            href={poweredByHref}
+            openInNewTab={poweredByNewTab}
+            asLink={false}
+            className={cn('mt-2', poweredByClass)}
           />
         </div>
       </footer>
@@ -468,7 +566,14 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
               linkClassName={isDark || isBrand ? 'text-white/70 hover:text-white' : undefined}
             />
           )}
-          <p className={cn('text-xs', isDark || isBrand ? 'text-white/50' : 'text-gray-400')}>{copyright}</p>
+          <p className={cn('text-xs', poweredByClass)}>{copyright}</p>
+          <FooterBarPoweredBy
+            text={poweredByText}
+            href={poweredByHref}
+            openInNewTab={poweredByNewTab}
+            InternalLink={FooterLink}
+            className={cn('mt-2', poweredByClass)}
+          />
         </div>
       </footer>
     )
@@ -529,7 +634,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
               </div>
             )}
           </div>
-          <div className="border-t border-gray-200 pt-6">
+          <div className="relative border-t border-gray-200 pt-6 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 sm:flex-row sm:justify-between">
             <BuilderTextField
               fieldKey="copyright"
               blockId={blockId}
@@ -538,6 +643,13 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
               as="p"
               className="text-xs text-gray-400"
               placeholder="Copyright line"
+            />
+            <FooterBarPoweredBy
+              text={poweredByText}
+              href={poweredByHref}
+              openInNewTab={poweredByNewTab}
+              asLink={false}
+              className="text-gray-400 sm:absolute sm:left-1/2 sm:-translate-x-1/2"
             />
           </div>
         </div>
@@ -551,7 +663,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div className={cn('md:col-span-2', isCompact && 'md:col-span-1')}>
             {logoUrl ? (
-              <img src={imgUrl(logoUrl)} alt={brand} className="h-8 w-auto object-contain mb-3" />
+              <img src={imgUrl(logoUrl)} alt={brand} className="h-11 w-auto max-w-[200px] object-contain mb-3" />
             ) : (
               <p className="text-xl font-bold mb-3" style={{ color: style.primary_color }}>{brand}</p>
             )}
@@ -584,8 +696,15 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
             </ul>
           </div>
         </div>
-        <div className="border-t border-gray-200 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="relative border-t border-gray-200 pt-6 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 sm:flex-row sm:justify-between">
           <p className="text-xs text-gray-400">{copyright}</p>
+          <FooterBarPoweredBy
+            text={poweredByText}
+            href={poweredByHref}
+            openInNewTab={poweredByNewTab}
+            InternalLink={FooterLink}
+            className="text-gray-400 sm:absolute sm:left-1/2 sm:-translate-x-1/2"
+          />
         </div>
       </div>
     </footer>

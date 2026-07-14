@@ -56,7 +56,8 @@ export interface BlockProps {
   show_logo?: boolean
   show_brand_name?: boolean
   brand_layout?: 'horizontal' | 'vertical'
-  logo_size?: 'sm' | 'md' | 'lg' | 'xl'
+  /** Logo mark height in px (legacy: 'sm'|'md'|'lg'|'xl'). Independent of header_bar_size. */
+  logo_size?: number | 'sm' | 'md' | 'lg' | 'xl'
   logo_shape?: 'original' | 'rounded' | 'square' | 'circle' | 'squircle' | 'sharp'
   logo_fit?: 'contain' | 'cover'
   brand_gap?: number
@@ -137,6 +138,10 @@ export interface BlockProps {
   // Footer
   copyright?: string
   show_legal?: boolean
+  show_powered_by?: boolean
+  powered_by_text?: string
+  powered_by_text_url?: string
+  powered_by_text_link_new_tab?: boolean
   minimal?: boolean
   social_links?: Record<string, string>
 

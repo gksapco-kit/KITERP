@@ -59,6 +59,8 @@ export interface VendorCreate {
 export interface VendorUpdate {
   display_name?: string
   description?: string
+  primary_email?: string
+  primary_phone?: string
   support_email?: string
   support_phone?: string
   gstin?: string

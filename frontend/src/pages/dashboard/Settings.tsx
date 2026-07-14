@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
@@ -13,6 +14,19 @@ import { MapPin, Save, Eye, EyeOff, Key, Loader2, ExternalLink } from 'lucide-re
 
 const LocationPicker = lazy(() => import('@/components/common/LocationPicker'))
 
+function formatAddress(vendor: {
+  street_address?: string | null
+  city?: string | null
+  state?: string | null
+  postal_code?: string | null
+} | null | undefined) {
+  if (!vendor) return 'Not set'
+  const parts = [vendor.street_address, vendor.city, vendor.state, vendor.postal_code]
+    .map((p) => (p || '').trim())
+    .filter(Boolean)
+  return parts.length ? parts.join(', ') : 'Not set'
+}
+
 export default function Settings() {
   const { vendor, setVendor } = useVendorStore()
   const { user } = useAuthStore()
@@ -21,6 +35,23 @@ export default function Settings() {
   if (isPlatformStaff(user) && !isSuperuserAdmin(user)) {
     return <Navigate to="/dashboard" replace />
   }
+
+  const [editingContact, setEditingContact] = useState(false)
+  const [savingContact, setSavingContact] = useState(false)
+  const [platformContact, setPlatformContact] = useState({
+    email: '',
+    phone: '',
+    street: '',
+    city: '',
+    state: '',
+    postal: '',
+  })
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactStreet, setContactStreet] = useState('')
+  const [contactCity, setContactCity] = useState('')
+  const [contactState, setContactState] = useState('')
+  const [contactPostal, setContactPostal] = useState('')
 
   const [editingLocation, setEditingLocation] = useState(false)
   const [lat, setLat] = useState<number | undefined>(vendor?.latitude ?? undefined)
@@ -32,12 +63,160 @@ export default function Settings() {
   const [showKey, setShowKey] = useState(false)
   const [savingKey, setSavingKey] = useState(false)
 
+  /** Platform admins have no /vendors/me — use platform settings contact instead. */
+  const usePlatformContact = isAdmin && !vendor
+
+  const displayContact = usePlatformContact
+    ? {
+        email: platformContact.email,
+        phone: platformContact.phone,
+        street_address: platformContact.street,
+        city: platformContact.city,
+        state: platformContact.state,
+        postal_code: platformContact.postal,
+      }
+    : {
+        email: vendor?.primary_email || vendor?.support_email || '',
+        phone: vendor?.primary_phone || vendor?.support_phone || '',
+        street_address: vendor?.street_address,
+        city: vendor?.city,
+        state: vendor?.state,
+        postal_code: vendor?.postal_code,
+      }
+
   useEffect(() => {
     if (!isAdmin) return
-    adminApi.getPlatformSettings().then(s => {
-      setGstApiKey(s.gst_api_key || '')
-    }).catch(() => {/* silently ignore if endpoint not ready */})
+    adminApi
+      .getPlatformSettings()
+      .then((s) => {
+        setGstApiKey(s.gst_api_key || '')
+        setPlatformContact({
+          email: s.contact_email || '',
+          phone: s.contact_phone || '',
+          street: s.contact_street_address || '',
+          city: s.contact_city || '',
+          state: s.contact_state || '',
+          postal: s.contact_postal_code || '',
+        })
+      })
+      .catch(() => {
+        /* silently ignore if endpoint not ready */
+      })
   }, [isAdmin])
+
+  useEffect(() => {
+    if (editingContact) return
+    if (usePlatformContact) {
+      setContactEmail(platformContact.email)
+      setContactPhone(platformContact.phone)
+      setContactStreet(platformContact.street)
+      setContactCity(platformContact.city)
+      setContactState(platformContact.state)
+      setContactPostal(platformContact.postal)
+      return
+    }
+    setContactEmail(vendor?.primary_email || vendor?.support_email || '')
+    setContactPhone(vendor?.primary_phone || vendor?.support_phone || '')
+    setContactStreet(vendor?.street_address ?? '')
+    setContactCity(vendor?.city ?? '')
+    setContactState(vendor?.state ?? '')
+    setContactPostal(vendor?.postal_code ?? '')
+  }, [
+    usePlatformContact,
+    platformContact,
+    vendor?.primary_email,
+    vendor?.support_email,
+    vendor?.primary_phone,
+    vendor?.support_phone,
+    vendor?.street_address,
+    vendor?.city,
+    vendor?.state,
+    vendor?.postal_code,
+    editingContact,
+  ])
+
+  const resetContactForm = () => {
+    if (usePlatformContact) {
+      setContactEmail(platformContact.email)
+      setContactPhone(platformContact.phone)
+      setContactStreet(platformContact.street)
+      setContactCity(platformContact.city)
+      setContactState(platformContact.state)
+      setContactPostal(platformContact.postal)
+    } else {
+      setContactEmail(vendor?.primary_email || vendor?.support_email || '')
+      setContactPhone(vendor?.primary_phone || vendor?.support_phone || '')
+      setContactStreet(vendor?.street_address ?? '')
+      setContactCity(vendor?.city ?? '')
+      setContactState(vendor?.state ?? '')
+      setContactPostal(vendor?.postal_code ?? '')
+    }
+    setEditingContact(false)
+  }
+
+  const handleSaveContact = async () => {
+    const email = contactEmail.trim()
+    const phone = contactPhone.trim()
+    if (!email) {
+      toast.error('Email is required')
+      return
+    }
+    if (!phone || phone.replace(/\D/g, '').length < 10) {
+      toast.error('Phone number must have at least 10 digits')
+      return
+    }
+
+    const street = contactStreet.trim()
+    const city = contactCity.trim()
+    const state = contactState.trim()
+    const postal = contactPostal.trim()
+
+    if (usePlatformContact) {
+      setSavingContact(true)
+      try {
+        await adminApi.updatePlatformSettings({
+          contact_email: email,
+          contact_phone: phone,
+          contact_street_address: street || null,
+          contact_city: city || null,
+          contact_state: state || null,
+          contact_postal_code: postal || null,
+        })
+        setPlatformContact({ email, phone, street, city, state, postal })
+        setEditingContact(false)
+        toast.success('Contact information saved')
+      } catch {
+        toast.error('Failed to save contact information')
+      } finally {
+        setSavingContact(false)
+      }
+      return
+    }
+
+    if (!vendor) {
+      toast.error('No store profile is linked to this account')
+      return
+    }
+
+    try {
+      const payload: Parameters<typeof updateVendor.mutateAsync>[0] = {
+        primary_email: email,
+        primary_phone: phone,
+        support_email: email,
+        support_phone: phone,
+      }
+      if (street) payload.street_address = street
+      if (city) payload.city = city
+      if (state) payload.state = state
+      if (postal) payload.postal_code = postal
+
+      const updated = await updateVendor.mutateAsync(payload)
+      setVendor(updated)
+      setEditingContact(false)
+    } catch {
+      // useUpdateVendor already toasts the API error
+    }
+  }
 
   const handleSaveApiKey = async () => {
     setSavingKey(true)
@@ -196,20 +375,107 @@ export default function Settings() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>Contact Information</CardTitle>
+              {usePlatformContact && (
+                <p className="text-xs text-gray-500 mt-1 font-normal">
+                  Platform support contact (saved in admin settings). For a storefront site, also set
+                  contact under that business in Business Accounts or vendor Settings.
+                </p>
+              )}
+            </div>
+            {!editingContact && (
+              <Button variant="outline" size="sm" onClick={() => setEditingContact(true)}>
+                Edit
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <dt className="text-gray-500">Email</dt>
-              <dd className="font-medium">{vendor?.primary_email}</dd>
-              <dt className="text-gray-500">Phone</dt>
-              <dd className="font-medium">{vendor?.primary_phone}</dd>
-              <dt className="text-gray-500">Address</dt>
-              <dd className="font-medium">
-                {vendor?.street_address}, {vendor?.city}, {vendor?.state}
-              </dd>
-            </dl>
+            {!editingContact ? (
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <dt className="text-gray-500">Email</dt>
+                <dd className="font-medium">{displayContact.email || 'Not set'}</dd>
+                <dt className="text-gray-500">Phone</dt>
+                <dd className="font-medium">{displayContact.phone || 'Not set'}</dd>
+                <dt className="text-gray-500">Address</dt>
+                <dd className="font-medium">{formatAddress(displayContact)}</dd>
+              </dl>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact-email">Email</Label>
+                    <Input
+                      id="contact-email"
+                      type="email"
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      placeholder="business@example.com"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact-phone">Phone</Label>
+                    <Input
+                      id="contact-phone"
+                      type="tel"
+                      value={contactPhone}
+                      onChange={(e) => setContactPhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="contact-street">Street address</Label>
+                    <Input
+                      id="contact-street"
+                      value={contactStreet}
+                      onChange={(e) => setContactStreet(e.target.value)}
+                      placeholder="Street address"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact-city">City</Label>
+                    <Input
+                      id="contact-city"
+                      value={contactCity}
+                      onChange={(e) => setContactCity(e.target.value)}
+                      placeholder="City"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact-state">State</Label>
+                    <Input
+                      id="contact-state"
+                      value={contactState}
+                      onChange={(e) => setContactState(e.target.value)}
+                      placeholder="State"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact-postal">Postal code</Label>
+                    <Input
+                      id="contact-postal"
+                      value={contactPostal}
+                      onChange={(e) => setContactPostal(e.target.value)}
+                      placeholder="Postal code"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <Button variant="cancel" onClick={resetContactForm} disabled={savingContact}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveContact}
+                    disabled={savingContact || updateVendor.isPending}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Save className="h-4 w-4" />
+                    {savingContact || updateVendor.isPending ? 'Saving...' : 'Save Contact'}
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

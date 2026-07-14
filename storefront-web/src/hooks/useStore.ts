@@ -724,7 +724,9 @@ export function useCustomerLogin(options?: { silentError?: boolean }) {
 
 export function useCustomerRegister() {
   return useMutation({
-    mutationFn: (data: { full_name: string; email?: string; password: string; phone?: string }) => storeApi.register(data),
+    mutationFn: (data: {
+      full_name: string; email?: string; password: string; phone?: string; otp_code: string
+    }) => storeApi.register(data),
     onSuccess: () => { toast.success('Account created!') },
     onError: (error: unknown) => {
       toast.error(formatCustomerAuthError(

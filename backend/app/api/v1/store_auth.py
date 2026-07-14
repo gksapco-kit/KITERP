@@ -3,13 +3,22 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
 
 from app.database import get_db
-from app.api.deps import get_store_vendor_id, get_current_active_customer
+from app.api.deps import (
+    get_store_vendor_id,
+    get_storefront_store_id,
+    get_current_active_customer,
+)
 from app.models.customer import Customer
 from app.schemas.customer import CustomerCreate, CustomerLogin, CustomerUpdate, CustomerPasswordChange
 from app.services.customer_service import CustomerService
+from app.services.customer_signup_otp import (
+    send_customer_signup_otp,
+    verify_customer_signup_otp,
+)
 from app.core.security import decode_token, create_access_token, create_refresh_token
 
 router = APIRouter()
@@ -19,6 +28,7 @@ def customer_to_dict(c: Customer) -> dict:
     return {
         "id": str(c.id),
         "vendor_id": str(c.vendor_id),
+        "store_id": str(c.store_id) if c.store_id else None,
         "full_name": c.full_name,
         "email": c.email,
         "phone": c.phone,
@@ -34,15 +44,64 @@ def customer_to_dict(c: Customer) -> dict:
     }
 
 
+class SignupOtpSendRequest(BaseModel):
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, min_length=8, max_length=24)
+
+
+@router.post("/send-signup-otp")
+async def send_signup_otp(
+    data: SignupOtpSendRequest,
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    store_id: Optional[UUID] = Depends(get_storefront_store_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send OTP before create-account. Prefer email when both contacts are provided."""
+    service = CustomerService(db)
+    email = str(data.email).strip().lower() if data.email else None
+    phone = (data.phone or "").strip() or None
+
+    if email:
+        existing = await service.repo.get_by_vendor_and_email(vendor_id, email, store_id)
+        if service._has_login_password(existing):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered for this store. Sign in, or use Forgot Password.",
+            )
+    if phone and not email:
+        existing = await service.repo.get_by_vendor_and_phone(vendor_id, phone, store_id)
+        if service._has_login_password(existing):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already registered for this store. Sign in, or use Forgot Password.",
+            )
+
+    return await send_customer_signup_otp(
+        db,
+        vendor_id=vendor_id,
+        store_id=store_id,
+        email=email,
+        phone=phone,
+    )
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_customer(
     data: CustomerCreate,
     vendor_id: UUID = Depends(get_store_vendor_id),
+    store_id: Optional[UUID] = Depends(get_storefront_store_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new customer for a vendor store."""
+    """Register a new customer for a vendor store / business unit (OTP required)."""
+    await verify_customer_signup_otp(
+        vendor_id=vendor_id,
+        store_id=store_id,
+        email=str(data.email) if data.email else None,
+        phone=data.phone,
+        code=data.otp_code,
+    )
     service = CustomerService(db)
-    customer = await service.register(vendor_id, data)
+    customer = await service.register(vendor_id, data, store_id=store_id)
     return JSONResponse(content=customer_to_dict(customer), status_code=201)
 
 
@@ -50,11 +109,12 @@ async def register_customer(
 async def login_customer(
     data: CustomerLogin,
     vendor_id: UUID = Depends(get_store_vendor_id),
+    store_id: Optional[UUID] = Depends(get_storefront_store_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Customer login for a vendor store."""
+    """Customer login for a vendor store / business unit."""
     service = CustomerService(db)
-    tokens = await service.login(vendor_id, data.login, data.password)
+    tokens = await service.login(vendor_id, data.login, data.password, store_id=store_id)
     return {
         "access_token": tokens.access_token,
         "refresh_token": tokens.refresh_token,
@@ -129,6 +189,18 @@ async def refresh_customer_token(
                 detail="Invalid token payload: missing vendor ID. Please log in again.",
             )
 
+        # Token must match the storefront currently being browsed.
+        ctx_vendor_id = await get_store_vendor_id(request, db)
+        if UUID(str(vendor_id)) != ctx_vendor_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token does not match this store",
+            )
+
+        ctx_store_id = await get_storefront_store_id(request, ctx_vendor_id, db)
+        token_store = payload.get("store_id")
+        token_store_id = UUID(str(token_store)) if token_store else None
+
         from app.repositories.customer_repo import CustomerRepository
         repo = CustomerRepository(db)
         customer = await repo.get_by_vendor_and_id(UUID(vendor_id), UUID(customer_id))
@@ -137,6 +209,14 @@ async def refresh_customer_token(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Customer not found",
+            )
+
+        if customer.store_id != ctx_store_id or (
+            token_store_id is not None and token_store_id != customer.store_id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token does not match this business unit",
             )
         
         if not customer.is_active:
@@ -161,6 +241,8 @@ async def refresh_customer_token(
         "email": customer.email,
         "role": "customer",
     }
+    if customer.store_id:
+        token_data["store_id"] = str(customer.store_id)
     access_token = create_access_token(data=token_data)
     refresh_token = create_refresh_token(data=token_data)
 
@@ -245,28 +327,35 @@ class ResetPasswordRequest(BaseModel):
 async def forgot_password(
     data: ForgotPasswordEmailRequest,
     vendor_id: UUID = Depends(get_store_vendor_id),
+    store_id: Optional[UUID] = Depends(get_storefront_store_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Send a 6-digit password-reset code to the customer's email."""
     service = CustomerService(db)
-    return await service.request_password_reset_email(vendor_id, data.email)
+    return await service.request_password_reset_email(
+        vendor_id, data.email, store_id=store_id,
+    )
 
 
 @router.post("/forgot-password-phone")
 async def forgot_password_phone(
     data: ForgotPasswordPhoneRequest,
     vendor_id: UUID = Depends(get_store_vendor_id),
+    store_id: Optional[UUID] = Depends(get_storefront_store_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Send a 6-digit password-reset code via SMS to the customer's phone."""
     service = CustomerService(db)
-    return await service.request_password_reset_phone(vendor_id, data.phone)
+    return await service.request_password_reset_phone(
+        vendor_id, data.phone, store_id=store_id,
+    )
 
 
 @router.post("/reset-password")
 async def reset_password(
     data: ResetPasswordRequest,
     vendor_id: UUID = Depends(get_store_vendor_id),
+    store_id: Optional[UUID] = Depends(get_storefront_store_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Validate reset code and set a new password for the store customer."""
@@ -277,5 +366,6 @@ async def reset_password(
         phone=data.phone,
         code=data.code,
         new_password=data.new_password,
+        store_id=store_id,
     )
     return {"ok": True, "message": "Password reset successfully"}

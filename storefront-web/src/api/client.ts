@@ -1,13 +1,23 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosError } from 'axios'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 import { useAuthStore } from '@/stores/authStore'
+import {
+  authBagKey,
+  getActiveAuthScope,
+  readScopedCustomerTokens,
+  setAuthStorageScope,
+  writeScopedCustomerTokens,
+} from '@/lib/customerAuthStorage'
 
 const API_URL = getStorefrontApiBaseUrl()
 
-// ── In-memory vendor context (set by VendorContext on resolve) ──
+// ── In-memory vendor / BU context (set by VendorContext / StorefrontBuSync) ──
 let _vendorSlug: string | null = null
 let _vendorId: string | null = null
 let _branchQuery: string | null = null
+let _storeId: string | null = null
+
+export { readScopedCustomerTokens, writeScopedCustomerTokens } from '@/lib/customerAuthStorage'
 
 export function setVendorContext(slug: string, id: string) {
   _vendorSlug = slug
@@ -15,15 +25,73 @@ export function setVendorContext(slug: string, id: string) {
   // Also persist to localStorage as fallback
   localStorage.setItem('vendor_slug', slug)
   localStorage.setItem('vendor_id', id)
+  setAuthStorageScope(id, _storeId)
 }
 
 export function getVendorSlug(): string | null {
   return _vendorSlug || localStorage.getItem('vendor_slug')
 }
 
+export function getStorefrontStoreId(): string | null {
+  return _storeId
+}
+
 /** Active ?branch= filter for catalog API calls (products, services, stock). */
 export function setBranchQueryParam(branch: string | null) {
   _branchQuery = branch?.trim() || null
+}
+
+/**
+ * Active business unit for customer auth + catalog.
+ * When the BU changes, swap the in-memory/local customer session to the bag for that BU.
+ */
+export function setStorefrontBuContext(storeId: string | null, branch: string | null) {
+  const nextStore = storeId?.trim() || null
+  const nextBranch = branch?.trim() || null
+  const prevScope = getActiveAuthScope()
+  _storeId = nextStore
+  _branchQuery = nextBranch
+  setAuthStorageScope(_vendorId || localStorage.getItem('vendor_id'), _storeId)
+  const nextScope = getActiveAuthScope()
+
+  if (prevScope === nextScope) return
+
+  // Persist current global bag under the previous scope (if any), then load the next.
+  try {
+    const currentBag = localStorage.getItem('customer-auth-storage')
+    if (currentBag) localStorage.setItem(authBagKey(prevScope), currentBag)
+  } catch {
+    // ignore
+  }
+
+  const nextAccess = localStorage.getItem(`customer_access_token:${nextScope}`)
+  const nextRefresh = localStorage.getItem(`customer_refresh_token:${nextScope}`)
+  const nextBag = localStorage.getItem(authBagKey(nextScope))
+
+  if (nextAccess) localStorage.setItem('customer_access_token', nextAccess)
+  else localStorage.removeItem('customer_access_token')
+  if (nextRefresh) localStorage.setItem('customer_refresh_token', nextRefresh)
+  else localStorage.removeItem('customer_refresh_token')
+
+  if (nextBag) {
+    localStorage.setItem('customer-auth-storage', nextBag)
+    try {
+      const parsed = JSON.parse(nextBag)
+      const state = parsed?.state
+      useAuthStore.setState({
+        customer: state?.customer ?? null,
+        accessToken: state?.accessToken ?? nextAccess,
+        isAuthenticated: !!(state?.isAuthenticated || nextAccess),
+      })
+    } catch {
+      useAuthStore.getState().logout()
+      if (nextAccess) {
+        useAuthStore.setState({ accessToken: nextAccess, isAuthenticated: true })
+      }
+    }
+  } else {
+    useAuthStore.getState().logout()
+  }
 }
 
 export const apiClient = axios.create({ baseURL: API_URL, headers: { 'Content-Type': 'application/json' }, timeout: 30_000 })
@@ -36,7 +104,7 @@ apiClient.interceptors.request.use((config) => {
 })
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('customer_access_token')
+  const { access: token } = readScopedCustomerTokens()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -52,6 +120,13 @@ apiClient.interceptors.request.use((config) => {
   const vendorId = _vendorId || localStorage.getItem('vendor_id')
   if (vendorId) {
     config.headers['X-Vendor-Id'] = vendorId
+  }
+
+  if (_storeId) {
+    config.headers['X-Store-Id'] = _storeId
+  }
+  if (_branchQuery) {
+    config.headers['X-Branch'] = _branchQuery
   }
 
   if (_branchQuery && typeof config.url === 'string' && config.url.startsWith('/catalog/')) {
@@ -112,9 +187,10 @@ apiClient.interceptors.response.use(
       console.error('401 Unauthorized error:', {
         url: originalRequest?.url,
         method: originalRequest?.method,
-        hasToken: !!localStorage.getItem('customer_access_token'),
+        hasToken: !!readScopedCustomerTokens().access,
         vendorSlug: _vendorSlug || localStorage.getItem('vendor_slug'),
         vendorId: _vendorId || localStorage.getItem('vendor_id'),
+        storeId: _storeId,
         errorDetail: error.response?.data,
       })
     }
@@ -140,18 +216,20 @@ apiClient.interceptors.response.use(
     isRefreshing = true
 
     try {
-      const refreshToken = localStorage.getItem('customer_refresh_token')
+      const { refresh: refreshToken } = readScopedCustomerTokens()
       if (!refreshToken) {
         throw new Error('No refresh token')
       }
 
-      // Ensure vendor context is sent with refresh request
+      // Ensure vendor + BU context is sent with refresh request
       const vendorSlug = _vendorSlug || localStorage.getItem('vendor_slug')
       const vendorId = _vendorId || localStorage.getItem('vendor_id')
       
       const refreshHeaders: Record<string, string> = {}
       if (vendorSlug) refreshHeaders['X-Vendor-Slug'] = vendorSlug
       if (vendorId) refreshHeaders['X-Vendor-Id'] = vendorId
+      if (_storeId) refreshHeaders['X-Store-Id'] = _storeId
+      if (_branchQuery) refreshHeaders['X-Branch'] = _branchQuery
       
       const response = await axios.post(
         `${API_URL}/store/auth/refresh`,
@@ -159,8 +237,8 @@ apiClient.interceptors.response.use(
         { headers: refreshHeaders, timeout: 15_000 },
       )
 
-      const { access_token } = response.data
-      localStorage.setItem('customer_access_token', access_token)
+      const { access_token, refresh_token: newRefresh } = response.data
+      writeScopedCustomerTokens(access_token, newRefresh)
 
       // Update the Zustand persisted state with new token
       try {
@@ -171,11 +249,14 @@ apiClient.interceptors.response.use(
             parsed.state.accessToken = access_token
             parsed.state.isAuthenticated = true
             localStorage.setItem('customer-auth-storage', JSON.stringify(parsed))
+            localStorage.setItem(authBagKey(getActiveAuthScope()), JSON.stringify(parsed))
           }
         }
       } catch {
         // non-critical: ignore
       }
+
+      useAuthStore.setState({ accessToken: access_token, isAuthenticated: true })
 
       processQueue(null, access_token)
 

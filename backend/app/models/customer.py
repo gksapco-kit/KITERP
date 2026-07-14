@@ -15,6 +15,9 @@ class Customer(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
+    # Business unit this storefront account belongs to. NULL = legacy vendor-wide
+    # (shared/global site with no active BU). Each BU website has its own accounts.
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=True)
 
     # Profile
@@ -75,4 +78,5 @@ class Customer(Base):
         Index("ix_customer_email", "email"),
         Index("ix_customer_phone", "phone"),
         Index("ix_customer_linked", "linked_customer_id"),
+        Index("ix_customer_vendor_store", "vendor_id", "store_id"),
     )

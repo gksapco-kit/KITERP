@@ -365,12 +365,22 @@ class OrderService:
     async def guest_checkout(self, vendor_id: UUID, data: GuestCheckoutRequest) -> Order:
         await self._check_branch_open(vendor_id, getattr(data, "branch_code", None))
 
+        from app.services.catalog_store_scope import resolve_store_id as resolve_bu_store_id
+
+        guest_store_id = await resolve_bu_store_id(
+            self.db,
+            vendor_id,
+            store_id=getattr(data, "store_id", None),
+            branch=getattr(data, "branch_code", None),
+        )
+
         customer_svc = CustomerService(self.db)
         customer = await customer_svc.get_or_create_guest(
             vendor_id,
             full_name=data.customer.full_name,
             email=data.customer.email,
             phone=data.customer.phone,
+            store_id=guest_store_id,
         )
         items = [i.model_dump() for i in data.items]
         checkout_data = CheckoutRequest(

@@ -493,13 +493,15 @@ const DEFAULT_VEHICLE_HIGHLIGHT_ITEMS = [
 
 const BLOCK_CATALOG: BlockDef[] = [
   // Structure
-  { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, brand_layout: 'horizontal', logo_size: 'md', logo_shape: 'original', logo_fit: 'contain', brand_gap: 8, brand_name_size: 'md', show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Get started' } },
+  { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, brand_layout: 'horizontal', logo_size: 52, logo_shape: 'original', logo_fit: 'contain', brand_gap: 8, brand_name_size: 'md', show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Get started' } },
   { type: 'footer', label: 'Footer', icon: Layout, desc: 'Site footer with links and copyright', category: 'structure', defaultProps: {
     brand: '',
     description: '',
     copyright: '? 2026 My Store. All rights reserved.',
     show_legal: true,
     show_social: true,
+    show_powered_by: false,
+    powered_by_text: 'Powered By @ KITERP.com',
     social_links: {
       whatsapp: '',
       twitter: '',
@@ -8458,23 +8460,46 @@ function PropsEditor({
             (p as any).show_social !== false ? 'Social' : null,
             (p as any).show_legal !== false ? 'Legal' : null,
             (p as any).show_newsletter ? 'Newsletter' : null,
+            (p as any).show_powered_by ? 'Powered by' : null,
           ].filter(Boolean).join(' · ') || 'Minimal'}
         >
           {[
             { key: 'show_social', label: 'Show social icons' },
             { key: 'show_legal', label: 'Show legal links' },
             { key: 'show_newsletter', label: 'Show newsletter signup' },
+            { key: 'show_powered_by', label: 'Show “Powered By @ KITERP.com”' },
           ].map(({ key, label }) => (
             <label key={key} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={key === 'show_newsletter' ? (p as any)[key] === true : (p as any)[key] !== false}
-                onChange={e => onUpdate({ [key]: e.target.checked } as any)}
+                checked={key === 'show_newsletter' || key === 'show_powered_by' ? (p as any)[key] === true : (p as any)[key] !== false}
+                onChange={e => {
+                  if (key === 'show_powered_by' && e.target.checked) {
+                    onUpdate({
+                      show_powered_by: true,
+                      powered_by_text: String((p as any).powered_by_text || '').trim() || 'Powered By @ KITERP.com',
+                    } as any)
+                    return
+                  }
+                  onUpdate({ [key]: e.target.checked } as any)
+                }}
                 className="rounded accent-primary"
               />
               <span className="text-xs text-gray-600">{label}</span>
             </label>
           ))}
+          {(p as any).show_powered_by === true && (
+            <div className="mt-2">
+              {inputRow({
+                label: 'Powered by text',
+                fieldKey: 'powered_by_text',
+                placeholder: 'Powered By @ KITERP.com',
+              })}
+              <p className="text-[10px] text-muted-foreground leading-snug mt-1">
+                Shown centered in the footer bar on every page after you publish. Use <span className="font-semibold text-foreground">Link</span> to make it clickable; without a link it stays plain text. Turn off to hide it on this website only.
+              </p>
+            </div>
+          )}
           <p className="text-[10px] text-muted-foreground leading-snug mt-1">
             Layout styles (Dark, Mega, Brand, etc.) are under <span className="font-semibold text-foreground">Layout → Section style</span>.
           </p>
@@ -10709,12 +10734,13 @@ function StructureShellDesignBarTools({
       { key: 'show_social', label: 'Social' },
       { key: 'show_legal', label: 'Legal' },
       { key: 'show_newsletter', label: 'Newsletter' },
+      { key: 'show_powered_by', label: 'Powered by' },
     ] as const
     return (
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 px-1">
         <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-gray-400">Show</span>
         {toggles.map(({ key, label }) => {
-          const on = key === 'show_newsletter'
+          const on = key === 'show_newsletter' || key === 'show_powered_by'
             ? blockProps[key] === true
             : blockProps[key] !== false
           return (
@@ -10722,7 +10748,16 @@ function StructureShellDesignBarTools({
               key={key}
               type="button"
               title={`${on ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
-              onClick={() => onUpdate({ [key]: !on } as Partial<BlockProps>)}
+              onClick={() => {
+                if (key === 'show_powered_by' && !on) {
+                  onUpdate({
+                    show_powered_by: true,
+                    powered_by_text: String(blockProps.powered_by_text || '').trim() || 'Powered By @ KITERP.com',
+                  } as Partial<BlockProps>)
+                  return
+                }
+                onUpdate({ [key]: !on } as Partial<BlockProps>)
+              }}
               className={structureShellToggleClass(on)}
             >
               {label}

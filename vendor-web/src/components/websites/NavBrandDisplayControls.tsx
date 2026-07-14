@@ -2,15 +2,15 @@ import {
   NAV_BRAND_LAYOUT_OPTIONS,
   NAV_BRAND_NAME_SIZE_OPTIONS,
   NAV_LOGO_FIT_OPTIONS,
+  NAV_LOGO_HEIGHT_RANGE,
   NAV_LOGO_SHAPE_OPTIONS,
-  NAV_LOGO_SIZE_OPTIONS,
   navBrandDisplayPreview,
   readNavBrandGap,
   readNavBrandLayout,
   readNavBrandNameSize,
   readNavLogoFit,
+  readNavLogoHeightPx,
   readNavLogoShape,
-  readNavLogoSize,
 } from '@storefront/lib/navBrandStyle'
 import type { BlockProps } from '@/types/websites'
 import {
@@ -28,7 +28,7 @@ export function NavBrandDisplayControls({
   onUpdate: (props: Partial<BlockProps>) => void
 }) {
   const layout = readNavBrandLayout(p)
-  const logoSize = readNavLogoSize(p)
+  const logoHeight = readNavLogoHeightPx(p, false)
   const logoShape = readNavLogoShape(p)
   const logoFit = readNavLogoFit(p)
   const nameSize = readNavBrandNameSize(p)
@@ -56,20 +56,16 @@ export function NavBrandDisplayControls({
         </PanelChipWrap>
       </div>
 
-      <div className="space-y-1">
-        <PanelFieldLabel>Logo size</PanelFieldLabel>
-        <PanelChipWrap>
-          {NAV_LOGO_SIZE_OPTIONS.map(opt => (
-            <PanelChip
-              key={opt.value}
-              active={logoSize === opt.value}
-              onClick={() => onUpdate({ logo_size: opt.value })}
-            >
-              {opt.label}
-            </PanelChip>
-          ))}
-        </PanelChipWrap>
-      </div>
+      <PanelSliderRow
+        label="Logo size"
+        value={logoHeight}
+        min={NAV_LOGO_HEIGHT_RANGE.min}
+        max={NAV_LOGO_HEIGHT_RANGE.max}
+        step={NAV_LOGO_HEIGHT_RANGE.step}
+        unit="px"
+        hint="Scales the logo only. Header bar size is under Spacing."
+        onCommit={n => onUpdate({ logo_size: n })}
+      />
 
       <div className="space-y-1">
         <PanelFieldLabel>Logo shape</PanelFieldLabel>

@@ -34,6 +34,7 @@ import PlatformTeam from '@/pages/dashboard/PlatformTeam'
 import PlatformTeamMemberDetail from '@/pages/dashboard/PlatformTeamMemberDetail'
 import AccountActivity from '@/pages/dashboard/AccountActivity'
 import OrderDisputes from '@/pages/dashboard/OrderDisputes'
+import ContactQueries from '@/pages/dashboard/ContactQueries'
 import TableData from '@/pages/dashboard/TableData'
 
 // Business Front Pages
@@ -106,6 +107,7 @@ export const router = createBrowserRouter([
       { path: 'platform-team/:userId', element: <PlatformTeamMemberDetail /> },
       { path: 'account-activity', element: <AccountActivity /> },
       { path: 'disputes', element: <OrderDisputes /> },
+      { path: 'queries', element: <ContactQueries /> },
       { path: 'table-data', element: <TableData /> },
       { path: 'products', element: <Products /> },
       { path: 'services', element: <Services /> },

@@ -1,7 +1,8 @@
 export interface Token { access_token: string; refresh_token: string; token_type: string }
 
 export interface Customer {
-  id: string; vendor_id: string; full_name: string; email?: string; phone?: string
+  id: string; vendor_id: string; store_id?: string | null
+  full_name: string; email?: string; phone?: string
   avatar_url?: string | null
   shipping_addresses: Address[]; default_address_index: number
   total_orders: number; total_spent: number; created_at: string
@@ -17,7 +18,9 @@ export interface Address {
 export interface VendorInfo {
   id: string; business_name: string; display_name: string; slug: string
   description?: string; logo_url?: string; banner_url?: string
-  primary_email: string; primary_phone: string; support_email?: string
+  primary_email: string; primary_phone: string
+  support_email?: string; support_phone?: string
+  street_address?: string; city?: string; state?: string; postal_code?: string
 }
 
 export interface ProductVariant {

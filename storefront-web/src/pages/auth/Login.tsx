@@ -131,7 +131,7 @@ export default function Login() {
                 <img
                   src={imgUrl(vendor.logo_url)}
                   alt={vendor.display_name}
-                  className="h-20 w-20 rounded-xl object-cover"
+                  className="h-20 w-20 rounded-xl object-contain"
                 />
               ) : (
                 <Store className="h-10 w-10 text-white" />
@@ -319,6 +319,7 @@ export default function Login() {
               New customer?{' '}
               <Link
                 to={storePath('/register')}
+                state={routeLocation.state}
                 className="font-semibold underline-offset-2 hover:underline"
                 style={{ color: linkColor }}
               >

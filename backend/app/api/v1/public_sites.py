@@ -1181,7 +1181,18 @@ async def public_create_booking(
     if not email:
         raise HTTPException(400, "email is required for booking confirmation")
 
-    customer = await CustomerService(db).get_or_create_guest(site.vendor_id, name, email, phone)
+    site_sc = site.style_config or {}
+    guest_store_id = None
+    if str(site_sc.get("website_store_scope") or "").strip().lower() == "store":
+        raw_sid = str(site_sc.get("website_store_id") or "").strip()
+        if raw_sid:
+            try:
+                guest_store_id = UUID(raw_sid)
+            except ValueError:
+                guest_store_id = None
+    customer = await CustomerService(db).get_or_create_guest(
+        site.vendor_id, name, email, phone, store_id=guest_store_id,
+    )
     booking = await BookingService(db).create(
         vendor_id=site.vendor_id,
         customer_id=customer.id,

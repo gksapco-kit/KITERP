@@ -1905,6 +1905,92 @@ class DisputeUpdate(BaseModel):
     resolution_notes: Optional[str] = None
 
 
+@router.get("/contact-queries")
+async def list_storefront_contact_queries(
+    status: Optional[str] = Query(None),
+    vendor_id: Optional[UUID] = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Platform admin inbox for storefront Contact Us submissions."""
+    from app.models.storefront_contact_query import StorefrontContactQuery
+
+    filters = []
+    if status:
+        filters.append(StorefrontContactQuery.status == status)
+    if vendor_id:
+        filters.append(StorefrontContactQuery.vendor_id == vendor_id)
+
+    count_stmt = select(func.count(StorefrontContactQuery.id))
+    for f in filters:
+        count_stmt = count_stmt.where(f)
+    total = (await db.execute(count_stmt)).scalar() or 0
+
+    base = (
+        select(StorefrontContactQuery, Vendor.display_name, Vendor.business_name)
+        .outerjoin(Vendor, Vendor.id == StorefrontContactQuery.vendor_id)
+    )
+    for f in filters:
+        base = base.where(f)
+    rows = (
+        await db.execute(
+            base.order_by(StorefrontContactQuery.created_at.desc())
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+    ).all()
+
+    items = [
+        {
+            "id": str(q.id),
+            "vendor_id": str(q.vendor_id) if q.vendor_id else None,
+            "vendor_display_name": (display_name or business_name) or "KIT ERP Platform",
+            "name": q.name,
+            "email": q.email,
+            "phone": q.phone,
+            "message": q.message,
+            "status": q.status,
+            "created_at": q.created_at.isoformat() if q.created_at else None,
+        }
+        for q, display_name, business_name in rows
+    ]
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size) if total else 0,
+    }
+
+
+@router.patch("/contact-queries/{query_id}")
+async def update_storefront_contact_query(
+    query_id: UUID,
+    body: dict,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.storefront_contact_query import StorefrontContactQuery
+    from app.schemas.storefront_contact_query import StorefrontContactQueryStatusUpdate
+
+    try:
+        parsed = StorefrontContactQueryStatusUpdate.model_validate(body)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    result = await db.execute(
+        select(StorefrontContactQuery).where(StorefrontContactQuery.id == query_id)
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Query not found")
+    row.status = parsed.status
+    await db.commit()
+    return {"ok": True, "id": str(row.id), "status": row.status}
+
+
 @router.get("/disputes")
 async def list_order_disputes(
     status: Optional[str] = Query(None),

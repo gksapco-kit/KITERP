@@ -23,6 +23,11 @@ export interface ColumnFooterProps {
   description?: string;
   columns: FooterColumn[];
   copyright?: string;
+  /** When set, shown centered in the bottom footer bar. */
+  poweredByText?: string | null;
+  /** When set with poweredByText, makes the attribution clickable. */
+  poweredByHref?: string | null;
+  poweredByNewTab?: boolean;
   showSocial?: boolean;
   socialLinks?: Partial<Record<FooterSocialPlatform, string>>;
   /** Outline, filled, or brand-colored social icons. */
@@ -42,6 +47,9 @@ export function ColumnFooter({
   description,
   columns,
   copyright = `© ${new Date().getFullYear()} Acme ERP. All rights reserved.`,
+  poweredByText,
+  poweredByHref,
+  poweredByNewTab,
   showSocial = true,
   socialLinks,
   socialIconStyle = "brand",
@@ -66,6 +74,18 @@ export function ColumnFooter({
         : columns.length === 2
           ? "md:grid-cols-2"
           : "grid-cols-1";
+  const poweredByLink = poweredByHref?.trim() || "";
+  const poweredByExternal =
+    !!poweredByLink
+    && (
+      poweredByNewTab
+      || /^https?:\/\//i.test(poweredByLink)
+      || poweredByLink.startsWith("mailto:")
+      || poweredByLink.startsWith("tel:")
+      || poweredByLink.startsWith("#")
+    );
+  const poweredByClassName =
+    "text-xs text-muted-foreground text-center sm:absolute sm:left-1/2 sm:-translate-x-1/2";
 
   return (
     <footer className={cn("w-full min-w-0 border-t bg-muted/30", className)} style={style}>
@@ -156,8 +176,33 @@ export function ColumnFooter({
           </div>
         )}
 
-        <div className="mt-10 border-t pt-6">
+        <div className="relative mt-10 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 border-t pt-6 sm:flex-row sm:justify-between">
           <p className="text-xs text-muted-foreground">{copyright}</p>
+          {poweredByText ? (
+            poweredByLink ? (
+              poweredByExternal ? (
+                <a
+                  href={poweredByLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(poweredByClassName, "cursor-pointer no-underline hover:no-underline")}
+                  style={{ textDecoration: "none" }}
+                >
+                  {poweredByText}
+                </a>
+              ) : (
+                <Link
+                  to={poweredByLink}
+                  className={cn(poweredByClassName, "cursor-pointer no-underline hover:no-underline")}
+                  style={{ textDecoration: "none" }}
+                >
+                  {poweredByText}
+                </Link>
+              )
+            ) : (
+              <p className={poweredByClassName}>{poweredByText}</p>
+            )
+          ) : null}
         </div>
       </div>
     </footer>

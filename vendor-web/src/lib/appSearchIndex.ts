@@ -111,6 +111,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Pipeline':                             ['deal', 'funnel', 'sales pipeline', 'deal stages'],
   'Tickets':                              ['support', 'helpdesk', 'issue', 'support ticket'],
   'Inbox':                                ['messages', 'chat', 'communication', 'inbox messages'],
+  'Queries':                              ['contact us', 'contact query', 'customer message', 'support query', 'issue'],
   'Reviews':                              ['feedback', 'rating', 'testimonial', 'review'],
   'Sales Area':                           ['sales area', 'division', 'distribution channel', 'delivery channel', 'sales organization', 'sd'],
   'Employees':                            ['staff', 'worker', 'hr', 'people', 'employee list'],
@@ -186,6 +187,17 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     keywords: [
       'email', 'phone', 'contact', 'support email', 'support phone',
       'primary email', 'primary phone', 'contact details',
+    ],
+  },
+  {
+    kind: 'nav', id: 'queries',
+    label: 'Queries',
+    description: 'Storefront Contact Us messages',
+    section: 'My Kit', sectionId: 'my-kit',
+    to: '/queries',
+    keywords: [
+      'queries', 'contact us', 'customer message', 'support query', 'issue',
+      'contact form', 'customer email', 'customer phone',
     ],
   },
   {

@@ -7,6 +7,7 @@ import {
   refreshAuthSessionDeduped,
   shouldSkipTokenRefresh,
 } from '@/lib/authSession'
+import { getAccessToken } from '@/lib/authTokenStorage'
 
 const API_URL = resolveApiBaseUrl()
 
@@ -25,7 +26,7 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('access_token')
+    const token = getAccessToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -64,7 +65,7 @@ apiClient.interceptors.response.use(
       try {
         const refreshed = await refreshAuthSessionDeduped()
         if (refreshed) {
-          const token = localStorage.getItem('access_token')
+          const token = getAccessToken()
           if (token) {
             originalRequest.headers.Authorization = `Bearer ${token}`
           }

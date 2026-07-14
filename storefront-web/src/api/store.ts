@@ -47,7 +47,14 @@ export interface StoreLocation {
 
 export const storeApi = {
   // Auth
-  register: async (data: { full_name: string; email?: string; password: string; phone?: string }): Promise<Customer> => {
+  sendSignupOtp: async (data: { email?: string; phone?: string }): Promise<{
+    sent: boolean; channel: 'email' | 'phone'; to: string; expires_at?: string; dev_hint?: string
+  }> => {
+    const res = await apiClient.post('/store/auth/send-signup-otp', data); return res.data
+  },
+  register: async (data: {
+    full_name: string; email?: string; password: string; phone?: string; otp_code: string
+  }): Promise<Customer> => {
     const res = await apiClient.post('/store/auth/register', data); return res.data
   },
   login: async (login: string, password: string): Promise<Token> => {
@@ -431,5 +438,15 @@ export const storeApi = {
   },
   getBlogPost: async (slug: string): Promise<StoreBlogPost> => {
     const res = await apiClient.get(`/catalog/blog/${slug}`); return res.data
+  },
+
+  submitContactQuery: async (data: {
+    name: string
+    email?: string
+    phone?: string
+    message: string
+  }): Promise<{ ok: boolean; id: string; message: string }> => {
+    const res = await apiClient.post('/catalog/contact-queries', data)
+    return res.data
   },
 }

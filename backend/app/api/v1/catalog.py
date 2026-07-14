@@ -11,6 +11,8 @@ from app.middleware.tenant import get_current_vendor_id as get_tenant_vendor_id
 from app.schemas.vendor import VendorResponse
 from app.schemas.vendor_product import ProductResponse, ProductListResponse
 from app.schemas.vendor_service import ServiceResponse, ServiceListResponse
+from app.schemas.storefront_contact_query import StorefrontContactQueryCreate
+from app.models.storefront_contact_query import StorefrontContactQuery
 from app.services.vendor_service import VendorService
 from app.repositories.vendor_repo import VendorRepository
 from app.repositories.product_repo import ProductRepository
@@ -249,6 +251,140 @@ async def get_vendor_by_slug(
         "gstin": vendor.gstin,
         "is_gst_registered": vendor.is_gst_registered,
         "default_tax_rate": float(vendor.default_tax_rate) if vendor.default_tax_rate else None,
+    }
+
+
+@router.get("/platform-contact")
+async def get_platform_contact(db: AsyncSession = Depends(get_db)):
+    """Public contact details saved in Super Admin → Settings → Contact Information."""
+    from sqlalchemy import select
+    from app.models.platform_setting import PlatformSetting
+
+    result = await db.execute(select(PlatformSetting))
+    settings = {row.key: (row.value or "") for row in result.scalars().all()}
+    email = (settings.get("contact_email") or "").strip()
+    phone = (settings.get("contact_phone") or "").strip()
+    street = (settings.get("contact_street_address") or "").strip()
+    city = (settings.get("contact_city") or "").strip()
+    state = (settings.get("contact_state") or "").strip()
+    postal = (settings.get("contact_postal_code") or "").strip()
+    address_parts = [p for p in (street, city, state, postal) if p]
+    return {
+        "email": email or None,
+        "phone": phone or None,
+        "street_address": street or None,
+        "city": city or None,
+        "state": state or None,
+        "postal_code": postal or None,
+        "address": ", ".join(address_parts) if address_parts else None,
+    }
+
+
+@router.post("/platform-contact-queries", status_code=status.HTTP_201_CREATED)
+async def submit_platform_contact_query(
+    request: Request,
+    body: StorefrontContactQueryCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Landing-page Contact form → admin Queries inbox (no vendor)."""
+    fwd = request.headers.get("x-forwarded-for") or ""
+    ip = (fwd.split(",")[0].strip() if fwd else None) or (request.client.host if request.client else None)
+    ua = (request.headers.get("user-agent") or "")[:1000] or None
+
+    row = StorefrontContactQuery(
+        vendor_id=None,
+        name=body.name,
+        email=str(body.email) if body.email else None,
+        phone=body.phone,
+        message=body.message,
+        status="new",
+        ip_address=ip,
+        user_agent=ua,
+    )
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return {
+        "ok": True,
+        "id": str(row.id),
+        "message": "Thanks — we received your message and will get back to you soon.",
+    }
+
+
+@router.post("/vendor/{vendor_slug}/contact-queries", status_code=status.HTTP_201_CREATED)
+async def submit_storefront_contact_query(
+    vendor_slug: str,
+    request: Request,
+    body: StorefrontContactQueryCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public Contact Us form: store a customer query for the store / admin Queries inbox."""
+    repo = VendorRepository(db)
+    vendor = await repo.find_by_slug(vendor_slug)
+    if not vendor or not vendor_live_on_storefront(vendor.status):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vendor not found",
+        )
+
+    fwd = request.headers.get("x-forwarded-for") or ""
+    ip = (fwd.split(",")[0].strip() if fwd else None) or (request.client.host if request.client else None)
+    ua = (request.headers.get("user-agent") or "")[:1000] or None
+
+    row = StorefrontContactQuery(
+        vendor_id=vendor.id,
+        name=body.name,
+        email=str(body.email) if body.email else None,
+        phone=body.phone,
+        message=body.message,
+        status="new",
+        ip_address=ip,
+        user_agent=ua,
+    )
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return {
+        "ok": True,
+        "id": str(row.id),
+        "message": "Thanks — we received your message and will get back to you soon.",
+    }
+
+
+@router.post("/contact-queries", status_code=status.HTTP_201_CREATED)
+async def submit_storefront_contact_query_by_tenant(
+    request: Request,
+    body: StorefrontContactQueryCreate,
+    vendor_id: UUID = Depends(get_vendor_id_from_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Same as slug submit, for storefronts that resolve vendor via subdomain / headers."""
+    repo = VendorRepository(db)
+    vendor = await repo.get_by_id(vendor_id)
+    if not vendor or not vendor_live_on_storefront(vendor.status):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    fwd = request.headers.get("x-forwarded-for") or ""
+    ip = (fwd.split(",")[0].strip() if fwd else None) or (request.client.host if request.client else None)
+    ua = (request.headers.get("user-agent") or "")[:1000] or None
+
+    row = StorefrontContactQuery(
+        vendor_id=vendor.id,
+        name=body.name,
+        email=str(body.email) if body.email else None,
+        phone=body.phone,
+        message=body.message,
+        status="new",
+        ip_address=ip,
+        user_agent=ua,
+    )
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return {
+        "ok": True,
+        "id": str(row.id),
+        "message": "Thanks — we received your message and will get back to you soon.",
     }
 
 

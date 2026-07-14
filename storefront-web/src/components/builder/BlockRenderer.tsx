@@ -13,10 +13,9 @@
  *  - Blocks that need live ERP data fetch it lazily via publicSitesApi.
  *  - Unknown block types render a neutral placeholder in dev, nothing in prod.
  */
-import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType, type CSSProperties } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import type { PublicBlock, PublicSite, LiveItem, StyleConfig } from '@/blocks/registry'
-import { DEFAULT_STYLE } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
 import { useVendor } from '@/contexts/VendorContext'
 import { useLiveDataFetch } from '@/contexts/LiveDataFetchContext'
@@ -25,6 +24,7 @@ import { buildSiteThemeCss, sanitizeCustomCss } from '@/lib/siteThemeCss'
 import { normalizeSiteBorderRadius } from '@/lib/siteBorderRadius'
 import NavBlock from '@/components/builder/blocks/NavBlock'
 import FooterBlock from '@/components/builder/blocks/FooterBlock'
+import ProductGridBlock from '@/components/builder/blocks/ProductGridBlock'
 import SectionShapeDivider from './SectionShapeDivider'
 import { BlockOverlayLayers } from './BlockOverlayLayers'
 import { overlayMinContainerHeight, type BlockOverlayItem } from '@/lib/blockOverlays'
@@ -40,64 +40,75 @@ import {
   resolveBlockSectionSpacing,
   resolveBreakpointStyleOverrides,
 } from '@/lib/blockStyleOverrides'
+import {
+  mergePageStyle,
+  splitLeadingShellBlocks,
+  splitTrailingShellBlocks,
+} from '@/lib/blockRendererUtils'
 
-// Lazy-import heavy block families; nav/footer stay eager (every page, unreliable @fs lazy on Windows).
-const HeroBlock = lazy(() => import('@/components/builder/blocks/HeroBlock'))
-const FeaturesBlock = lazy(() => import('@/components/builder/blocks/FeaturesBlock'))
-const ProductGridBlock = lazy(() => import('@/components/builder/blocks/ProductGridBlock'))
-const ServicesCardsBlock = lazy(() => import('@/components/builder/blocks/ServicesCardsBlock'))
-const TestimonialsBlock = lazy(() => import('@/components/builder/blocks/TestimonialsBlock'))
-const TeamGridBlock = lazy(() => import('@/components/builder/blocks/TeamGridBlock'))
-const StatsBlock = lazy(() => import('@/components/builder/blocks/StatsBlock'))
-const CtaBlock = lazy(() => import('@/components/builder/blocks/CtaBlock'))
-const ContactFormBlock = lazy(() => import('@/components/builder/blocks/ContactFormBlock'))
-const MapEmbedBlock = lazy(() => import('@/components/builder/blocks/MapEmbedBlock'))
-const FaqBlock = lazy(() => import('@/components/builder/blocks/FaqBlock'))
-const PricingBlock = lazy(() => import('@/components/builder/blocks/PricingBlock'))
-const RichTextBlock = lazy(() => import('@/components/builder/blocks/RichTextBlock'))
-const ImageBlock = lazy(() => import('@/components/builder/blocks/ImageBlock'))
-const VideoEmbedBlock = lazy(() => import('@/components/builder/blocks/VideoEmbedBlock'))
-const GalleryMasonryBlock = lazy(() => import('@/components/builder/blocks/GalleryMasonryBlock'))
-const PortfolioGridBlock = lazy(() => import('@/components/builder/blocks/PortfolioGridBlock'))
-const VideoGalleryBlock = lazy(() => import('@/components/builder/blocks/VideoGalleryBlock'))
-const SocialLinksBlock = lazy(() => import('@/components/builder/blocks/SocialLinksBlock'))
-const CountdownBlock = lazy(() => import('@/components/builder/blocks/CountdownBlock'))
-const AnnouncementBarBlock = lazy(() => import('@/components/builder/blocks/AnnouncementBarBlock'))
-const MarqueeStripBlock = lazy(() => import('@/components/builder/blocks/MarqueeStripBlock'))
-const NewsletterBlock = lazy(() => import('@/components/builder/blocks/NewsletterBlock'))
-const TrustLogosBlock = lazy(() => import('@/components/builder/blocks/TrustLogosBlock'))
-const TimelineBlock = lazy(() => import('@/components/builder/blocks/TimelineBlock'))
-const AboutSplitBlock = lazy(() => import('@/components/builder/blocks/AboutSplitBlock'))
-const BookingWidgetBlock = lazy(() => import('@/components/builder/blocks/BookingWidgetBlock'))
-const BookingSlotPickerBlock = lazy(() => import('@/components/builder/blocks/BookingSlotPickerBlock'))
-const LiveStockBlock = lazy(() => import('@/components/builder/blocks/LiveStockBlock'))
-const OrderStatusBlock = lazy(() => import('@/components/builder/blocks/OrderStatusBlock'))
-const CouponBannerBlock = lazy(() => import('@/components/builder/blocks/CouponBannerBlock'))
-const PaymentMethodsStripBlock = lazy(() => import('@/components/builder/blocks/PaymentMethodsStripBlock'))
-const ProductReviewsBlock = lazy(() => import('@/components/builder/blocks/ProductReviewsBlock'))
-const SearchBarBlock = lazy(() => import('@/components/builder/blocks/SearchBarBlock'))
-const CookieConsentBlock = lazy(() => import('@/components/builder/blocks/CookieConsentBlock'))
-const ProductDetailBlock = lazy(() => import('@/components/builder/blocks/ProductDetailBlock'))
-const CheckoutFormBlock = lazy(() => import('@/components/builder/blocks/CheckoutFormBlock'))
-const RecentlyViewedBlock = lazy(() => import('@/components/builder/blocks/RecentlyViewedBlock'))
-const ProductFiltersBlock = lazy(() => import('@/components/builder/blocks/ProductFiltersBlock'))
-const BlogGridBlock = lazy(() => import('@/components/builder/blocks/BlogGridBlock'))
-const CartDrawerBlock = lazy(() => import('@/components/builder/blocks/CartDrawerBlock'))
-const LiveQuoteBlock = lazy(() => import('@/components/builder/blocks/LiveQuoteBlock'))
-const CommerceLibraryBlock = lazy(() => import('@/components/builder/blocks/CommerceLibraryBlock'))
-const HtmlEmbedBlock = lazy(() => import('@/components/builder/blocks/HtmlEmbedBlock'))
-
-// ── Context helpers ────────────────────────────────────────────────────────
-
-export function mergeStyle(site: Partial<StyleConfig>, overrides: Record<string, unknown> = {}): StyleConfig {
-  return { ...DEFAULT_STYLE, ...site, ...(overrides as Partial<StyleConfig>) }
+/** Retry once on Vite stale-chunk / Windows @fs failures before surfacing to the route error boundary. */
+function lazyBlock<T extends ComponentType<unknown>>(
+  importer: () => Promise<{ default: T }>,
+) {
+  return lazy(async () => {
+    try {
+      return await importer()
+    } catch (first) {
+      await new Promise(r => setTimeout(r, 250))
+      try {
+        return await importer()
+      } catch {
+        throw first
+      }
+    }
+  })
 }
 
-export function mergePageStyle(site: Partial<StyleConfig>, pageId?: string | null): StyleConfig {
-  const pageStyles = (site as { page_styles?: Record<string, Record<string, unknown>> }).page_styles
-  const pageOverrides = pageId && pageStyles ? pageStyles[pageId] : undefined
-  return mergeStyle(site, pageOverrides || {})
-}
+// Lazy-import heavy block families; nav/footer/product grid stay eager
+// (common shells + unreliable @fs / HMR lazy chunks on Windows).
+const HeroBlock = lazyBlock(() => import('@/components/builder/blocks/HeroBlock'))
+const FeaturesBlock = lazyBlock(() => import('@/components/builder/blocks/FeaturesBlock'))
+const ServicesCardsBlock = lazyBlock(() => import('@/components/builder/blocks/ServicesCardsBlock'))
+const TestimonialsBlock = lazyBlock(() => import('@/components/builder/blocks/TestimonialsBlock'))
+const TeamGridBlock = lazyBlock(() => import('@/components/builder/blocks/TeamGridBlock'))
+const StatsBlock = lazyBlock(() => import('@/components/builder/blocks/StatsBlock'))
+const CtaBlock = lazyBlock(() => import('@/components/builder/blocks/CtaBlock'))
+const ContactFormBlock = lazyBlock(() => import('@/components/builder/blocks/ContactFormBlock'))
+const MapEmbedBlock = lazyBlock(() => import('@/components/builder/blocks/MapEmbedBlock'))
+const FaqBlock = lazyBlock(() => import('@/components/builder/blocks/FaqBlock'))
+const PricingBlock = lazyBlock(() => import('@/components/builder/blocks/PricingBlock'))
+const RichTextBlock = lazyBlock(() => import('@/components/builder/blocks/RichTextBlock'))
+const ImageBlock = lazyBlock(() => import('@/components/builder/blocks/ImageBlock'))
+const VideoEmbedBlock = lazyBlock(() => import('@/components/builder/blocks/VideoEmbedBlock'))
+const GalleryMasonryBlock = lazyBlock(() => import('@/components/builder/blocks/GalleryMasonryBlock'))
+const PortfolioGridBlock = lazyBlock(() => import('@/components/builder/blocks/PortfolioGridBlock'))
+const VideoGalleryBlock = lazyBlock(() => import('@/components/builder/blocks/VideoGalleryBlock'))
+const SocialLinksBlock = lazyBlock(() => import('@/components/builder/blocks/SocialLinksBlock'))
+const CountdownBlock = lazyBlock(() => import('@/components/builder/blocks/CountdownBlock'))
+const AnnouncementBarBlock = lazyBlock(() => import('@/components/builder/blocks/AnnouncementBarBlock'))
+const MarqueeStripBlock = lazyBlock(() => import('@/components/builder/blocks/MarqueeStripBlock'))
+const NewsletterBlock = lazyBlock(() => import('@/components/builder/blocks/NewsletterBlock'))
+const TrustLogosBlock = lazyBlock(() => import('@/components/builder/blocks/TrustLogosBlock'))
+const TimelineBlock = lazyBlock(() => import('@/components/builder/blocks/TimelineBlock'))
+const AboutSplitBlock = lazyBlock(() => import('@/components/builder/blocks/AboutSplitBlock'))
+const BookingWidgetBlock = lazyBlock(() => import('@/components/builder/blocks/BookingWidgetBlock'))
+const BookingSlotPickerBlock = lazyBlock(() => import('@/components/builder/blocks/BookingSlotPickerBlock'))
+const LiveStockBlock = lazyBlock(() => import('@/components/builder/blocks/LiveStockBlock'))
+const OrderStatusBlock = lazyBlock(() => import('@/components/builder/blocks/OrderStatusBlock'))
+const CouponBannerBlock = lazyBlock(() => import('@/components/builder/blocks/CouponBannerBlock'))
+const PaymentMethodsStripBlock = lazyBlock(() => import('@/components/builder/blocks/PaymentMethodsStripBlock'))
+const ProductReviewsBlock = lazyBlock(() => import('@/components/builder/blocks/ProductReviewsBlock'))
+const SearchBarBlock = lazyBlock(() => import('@/components/builder/blocks/SearchBarBlock'))
+const CookieConsentBlock = lazyBlock(() => import('@/components/builder/blocks/CookieConsentBlock'))
+const ProductDetailBlock = lazyBlock(() => import('@/components/builder/blocks/ProductDetailBlock'))
+const CheckoutFormBlock = lazyBlock(() => import('@/components/builder/blocks/CheckoutFormBlock'))
+const RecentlyViewedBlock = lazyBlock(() => import('@/components/builder/blocks/RecentlyViewedBlock'))
+const ProductFiltersBlock = lazyBlock(() => import('@/components/builder/blocks/ProductFiltersBlock'))
+const BlogGridBlock = lazyBlock(() => import('@/components/builder/blocks/BlogGridBlock'))
+const CartDrawerBlock = lazyBlock(() => import('@/components/builder/blocks/CartDrawerBlock'))
+const LiveQuoteBlock = lazyBlock(() => import('@/components/builder/blocks/LiveQuoteBlock'))
+const CommerceLibraryBlock = lazyBlock(() => import('@/components/builder/blocks/CommerceLibraryBlock'))
+const HtmlEmbedBlock = lazyBlock(() => import('@/components/builder/blocks/HtmlEmbedBlock'))
 
 export interface BlockProps {
   block: PublicBlock
@@ -612,36 +623,6 @@ interface BlockRendererProps {
   branchCode?: string | null
   /** Builder canvas pins shell outside transform — skip inner sticky wrapper. */
   suppressShellSticky?: boolean
-}
-
-const SHELL_BLOCK_TYPES = new Set(['nav', 'announcement_bar'])
-
-/** Leading announcement/nav blocks stay outside overflow-x-clip so sticky headers work. */
-export function splitLeadingShellBlocks(blocks: PublicBlock[]) {
-  const shellBlocks: PublicBlock[] = []
-  let index = 0
-  while (index < blocks.length) {
-    const blockType = blocks[index]?.block_type
-    if (!blockType || !SHELL_BLOCK_TYPES.has(blockType)) break
-    shellBlocks.push(blocks[index])
-    index += 1
-  }
-  return { shellBlocks, contentBlocks: blocks.slice(index) }
-}
-
-const TRAILING_SHELL_BLOCK_TYPES = new Set(['footer'])
-
-/** Trailing footer blocks stay outside overflow-x-clip so mobile padding is not clipped. */
-export function splitTrailingShellBlocks(blocks: PublicBlock[]) {
-  const trailingShellBlocks: PublicBlock[] = []
-  let end = blocks.length
-  while (end > 0) {
-    const blockType = blocks[end - 1]?.block_type
-    if (!blockType || !TRAILING_SHELL_BLOCK_TYPES.has(blockType)) break
-    trailingShellBlocks.unshift(blocks[end - 1])
-    end -= 1
-  }
-  return { middleBlocks: blocks.slice(0, end), trailingShellBlocks }
 }
 
 export default function BlockRenderer({ blocks, site, pageId, branchCode, suppressShellSticky = false }: BlockRendererProps) {

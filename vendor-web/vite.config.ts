@@ -153,6 +153,7 @@ export default defineConfig({
         '../storefront-web/src/components/builder/BlockRenderer.tsx',
         '../storefront-web/src/components/builder/blocks/FooterBlock.tsx',
         '../storefront-web/src/components/builder/blocks/NavBlock.tsx',
+        '../storefront-web/src/components/builder/blocks/ProductGridBlock.tsx',
       ],
     },
     watch: {

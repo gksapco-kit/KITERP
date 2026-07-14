@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react'
+import { readNavHeaderBarSize } from '@/lib/navBlockLayout'
 
 export type NavBrandLayout = 'horizontal' | 'vertical'
+/** @deprecated Prefer numeric `logo_size` px. Kept for reading legacy sites. */
 export type NavLogoSize = 'sm' | 'md' | 'lg' | 'xl'
 export type NavBrandNameSize = 'sm' | 'md' | 'lg' | 'xl'
 export type NavLogoShape = 'original' | 'rounded' | 'square' | 'circle' | 'squircle' | 'sharp'
@@ -11,12 +13,24 @@ export const NAV_BRAND_LAYOUT_OPTIONS: { value: NavBrandLayout; label: string }[
   { value: 'vertical', label: 'Stacked' },
 ]
 
-export const NAV_LOGO_SIZE_OPTIONS: { value: NavLogoSize; label: string }[] = [
-  { value: 'sm', label: 'S' },
-  { value: 'md', label: 'M' },
-  { value: 'lg', label: 'L' },
-  { value: 'xl', label: 'XL' },
-]
+/** Logo height slider range (px). Independent of header bar height. */
+export const NAV_LOGO_HEIGHT_RANGE = {
+  min: 0,
+  max: 150,
+  step: 2,
+  default: 52,
+} as const
+
+/** Compact nav uses ~85% of the configured logo height. */
+const COMPACT_LOGO_SCALE = 0.85
+
+/** Legacy S–XL tokens → normal-tier height (px). */
+const LEGACY_LOGO_HEIGHT_PX: Record<NavLogoSize, number> = {
+  sm: 36,
+  md: 44,
+  lg: 52,
+  xl: 64,
+}
 
 export const NAV_BRAND_NAME_SIZE_OPTIONS: { value: NavBrandNameSize; label: string }[] = [
   { value: 'sm', label: 'S' },
@@ -40,25 +54,6 @@ export const NAV_LOGO_FIT_OPTIONS: { value: NavLogoFit; label: string }[] = [
 ]
 
 /**
- * Logo mark height in px. Tuned for common header bars (~48–72px total):
- * S ≈ 48px bar, M ≈ 56px, L ≈ 64px, XL ≈ 72px (with matching row padding).
- */
-const LOGO_HEIGHT_PX: Record<NavLogoSize, { normal: number; compact: number }> = {
-  sm: { normal: 28, compact: 24 },
-  md: { normal: 36, compact: 30 },
-  lg: { normal: 44, compact: 36 },
-  xl: { normal: 56, compact: 44 },
-}
-
-/** Max width for Auto (original) logos so wordmarks can scale with height. */
-const LOGO_MAX_WIDTH_PX: Record<NavLogoSize, { normal: number; compact: number }> = {
-  sm: { normal: 120, compact: 96 },
-  md: { normal: 168, compact: 132 },
-  lg: { normal: 220, compact: 176 },
-  xl: { normal: 300, compact: 240 },
-}
-
-/**
  * Brand wordmark type scale — sized to sit beside the logo mark without looking
  * undersized relative to nav links / CTA.
  */
@@ -69,42 +64,70 @@ const BRAND_TEXT_CLASS: Record<NavBrandNameSize, { normal: string; compact: stri
   xl: { normal: 'text-2xl', compact: 'text-xl' },
 }
 
-/** Brand link max-width tracks logo size so XL marks are not capped small. */
-const BRAND_MAX_WIDTH_CLASS: Record<NavLogoSize, string> = {
-  sm: 'max-w-[min(100%,160px)] sm:max-w-[min(100%,200px)]',
-  md: 'max-w-[min(100%,200px)] sm:max-w-[min(100%,260px)]',
-  lg: 'max-w-[min(100%,240px)] sm:max-w-[min(100%,320px)]',
-  xl: 'max-w-[min(100%,280px)] sm:max-w-[min(100%,380px)]',
-}
+/** Stable header bar chrome — not tied to logo size. */
+const NAV_ROW_PADDING_CLASS = {
+  normal: 'py-2.5',
+  compact: 'py-1.5',
+} as const
 
-/**
- * Vertical padding for the nav row. Keeps total bar height near standard
- * browser/app chrome while logo size remains the visual dominant.
- */
-const NAV_ROW_PADDING_CLASS: Record<NavLogoSize, { normal: string; compact: string }> = {
-  sm: { normal: 'py-2', compact: 'py-1.5' },
-  md: { normal: 'py-2', compact: 'py-1.5' },
-  lg: { normal: 'py-2.5', compact: 'py-1.5' },
-  xl: { normal: 'py-2.5', compact: 'py-2' },
-}
-
-const NAV_ROW_MIN_HEIGHT_PX: Record<NavLogoSize, { normal: number; compact: number }> = {
-  sm: { normal: 48, compact: 40 },
-  md: { normal: 56, compact: 48 },
-  lg: { normal: 64, compact: 52 },
-  xl: { normal: 72, compact: 60 },
-}
+const NAV_ROW_MIN_HEIGHT_DEFAULT_PX = {
+  normal: 64,
+  compact: 52,
+} as const
 
 function readEnum<T extends string>(raw: unknown, allowed: readonly T[], fallback: T): T {
   return allowed.includes(raw as T) ? (raw as T) : fallback
+}
+
+function clampLogoHeightPx(n: number): number {
+  return Math.min(
+    NAV_LOGO_HEIGHT_RANGE.max,
+    Math.max(NAV_LOGO_HEIGHT_RANGE.min, Math.round(n)),
+  )
 }
 
 export function readNavBrandLayout(props: Record<string, unknown>): NavBrandLayout {
   return readEnum(props.brand_layout, ['horizontal', 'vertical'] as const, 'horizontal')
 }
 
-export function readNavLogoSize(props: Record<string, unknown>): NavLogoSize {
-  return readEnum(props.logo_size, ['sm', 'md', 'lg', 'xl'] as const, 'md')
+/**
+ * Logo mark height in px.
+ * Accepts numeric `logo_size` (new) or legacy `'sm'|'md'|'lg'|'xl'`.
+ */
+export function readNavLogoHeightPx(
+  props: Record<string, unknown>,
+  isCompact = false,
+): number {
+  const raw = props.logo_size
+  let height = NAV_LOGO_HEIGHT_RANGE.default
+
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    height = clampLogoHeightPx(raw)
+  } else if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+      height = clampLogoHeightPx(Number(trimmed))
+    } else if (trimmed in LEGACY_LOGO_HEIGHT_PX) {
+      height = LEGACY_LOGO_HEIGHT_PX[trimmed as NavLogoSize]
+    }
+  }
+
+  if (isCompact) {
+    return clampLogoHeightPx(Math.round(height * COMPACT_LOGO_SCALE))
+  }
+  return height
+}
+
+/** Max width for Auto (original) logos — scales with mark height. */
+function logoMaxWidthForHeight(height: number): number {
+  return Math.round(Math.min(420, Math.max(120, height * 5)))
+}
+
+function brandMaxWidthClassForHeight(height: number): string {
+  if (height <= 36) return 'max-w-[min(100%,180px)] sm:max-w-[min(100%,220px)]'
+  if (height <= 48) return 'max-w-[min(100%,220px)] sm:max-w-[min(100%,300px)]'
+  if (height <= 64) return 'max-w-[min(100%,260px)] sm:max-w-[min(100%,360px)]'
+  return 'max-w-[min(100%,300px)] sm:max-w-[min(100%,420px)]'
 }
 
 export function readNavBrandNameSize(props: Record<string, unknown>): NavBrandNameSize {
@@ -145,8 +168,8 @@ export function resolveNavBrandLinkClass(
   layout: NavBrandLayout,
   alignCenter = false,
 ): string {
-  const size = readNavLogoSize(props)
-  return `${resolveNavBrandContainerClass(layout, alignCenter)} min-w-0 ${BRAND_MAX_WIDTH_CLASS[size]}`
+  const height = readNavLogoHeightPx(props, false)
+  return `${resolveNavBrandContainerClass(layout, alignCenter)} min-w-0 ${brandMaxWidthClassForHeight(height)}`
 }
 
 export function resolveNavBrandTextClass(
@@ -158,22 +181,25 @@ export function resolveNavBrandTextClass(
   return `font-bold truncate leading-none ${BRAND_TEXT_CLASS[size][tier]}`
 }
 
+/** Header row padding — fixed; does not follow logo size. */
 export function resolveNavBarRowClass(
-  props: Record<string, unknown>,
+  _props: Record<string, unknown>,
   isCompact: boolean,
 ): string {
-  const size = readNavLogoSize(props)
-  const tier = isCompact ? 'compact' : 'normal'
-  return NAV_ROW_PADDING_CLASS[size][tier]
+  return isCompact ? NAV_ROW_PADDING_CLASS.compact : NAV_ROW_PADDING_CLASS.normal
 }
 
+/**
+ * Header bar min-height. Uses explicit `header_bar_size` when set;
+ * otherwise a stable default. Never tracks logo size.
+ */
 export function resolveNavBarMinHeightPx(
   props: Record<string, unknown>,
   isCompact: boolean,
 ): number {
-  const size = readNavLogoSize(props)
-  const tier = isCompact ? 'compact' : 'normal'
-  return NAV_ROW_MIN_HEIGHT_PX[size][tier]
+  const explicit = readNavHeaderBarSize(props)
+  if (explicit != null) return explicit
+  return isCompact ? NAV_ROW_MIN_HEIGHT_DEFAULT_PX.compact : NAV_ROW_MIN_HEIGHT_DEFAULT_PX.normal
 }
 
 function shapeBorderRadius(shape: NavLogoShape): string | number | undefined {
@@ -190,7 +216,8 @@ function shapeBorderRadius(shape: NavLogoShape): string | number | undefined {
       return 8
     case 'original':
     default:
-      return 8
+      // Preserve uploaded artwork; many logos already include their own padding/corners.
+      return 0
   }
 }
 
@@ -212,12 +239,10 @@ export function resolveNavLogoPresentation(
   props: Record<string, unknown>,
   isCompact: boolean,
 ): NavLogoPresentation {
-  const size = readNavLogoSize(props)
   const shape = readNavLogoShape(props)
   const fit = readNavLogoFit(props)
-  const tier = isCompact ? 'compact' : 'normal'
-  const height = LOGO_HEIGHT_PX[size][tier]
-  const maxWidth = LOGO_MAX_WIDTH_PX[size][tier]
+  const height = readNavLogoHeightPx(props, isCompact)
+  const maxWidth = logoMaxWidthForHeight(height)
   const radius = shapeBorderRadius(shape)
 
   if (shape === 'original') {
@@ -266,12 +291,12 @@ export function resolveNavLogoPresentation(
 
 export function navBrandDisplayPreview(props: Record<string, unknown>): string {
   const layout = readNavBrandLayout(props)
-  const logoSize = readNavLogoSize(props)
+  const logoH = readNavLogoHeightPx(props, false)
   const shape = readNavLogoShape(props)
   const nameSize = readNavBrandNameSize(props)
   const parts = [
     layout === 'vertical' ? 'Stacked' : 'Row',
-    `logo ${logoSize.toUpperCase()}`,
+    `logo ${logoH}px`,
     shape !== 'original' ? shape : null,
     `name ${nameSize.toUpperCase()}`,
   ].filter(Boolean)

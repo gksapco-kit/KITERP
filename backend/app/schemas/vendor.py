@@ -101,6 +101,8 @@ class VendorUpdate(BaseModel):
     display_name: Optional[str] = Field(None, min_length=2, max_length=255)
     offering_type: Optional[OfferingType] = None
     description: Optional[str] = Field(None, max_length=2000)
+    primary_email: Optional[EmailStr] = None
+    primary_phone: Optional[str] = Field(None, min_length=10, max_length=20)
     support_email: Optional[EmailStr] = None
     support_phone: Optional[str] = None
     gstin: Optional[str] = Field(None, max_length=15, pattern=r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$|^$")
@@ -136,6 +138,16 @@ class VendorUpdate(BaseModel):
     external_domain_access_status: Optional[str] = Field(None, pattern=r'^(not_requested|pending|active|revoked)$')
     external_domain_recovery_contact: Optional[str] = Field(None, max_length=255)
     external_domain_notes: Optional[str] = None
+
+    @field_validator("primary_phone")
+    @classmethod
+    def validate_primary_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        digits = re.sub(r"\D", "", v)
+        if len(digits) < 10:
+            raise ValueError("Phone number must have at least 10 digits")
+        return v
 
 
 class VendorResponse(BaseModel):

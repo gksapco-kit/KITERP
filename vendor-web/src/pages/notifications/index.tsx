@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { countBadgeCircleClass, formatBadgeCount } from '@/lib/countBadge'
+import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,30 @@ function timeAgo(iso?: string) {
   return new Date(iso).toLocaleDateString()
 }
 
+/** Deep-link target for a notification's linked entity, if any. */
+function getNotificationHref(
+  n: Pick<Notification, 'type' | 'reference_type' | 'reference_id'>,
+): string | null {
+  const id = typeof n.reference_id === 'string' ? n.reference_id.trim() : String(n.reference_id ?? '').trim()
+  if (!id) return null
+  // Prefer explicit reference_type; fall back to notification type for older rows.
+  const kind = (n.reference_type || n.type || '').toLowerCase()
+  switch (kind) {
+    case 'order':
+      return `/orders/${id}`
+    case 'product':
+      return `/products/${id}`
+    case 'lead':
+      return '/crm/leads'
+    case 'care_reminder':
+      return '/crm/care-reminder'
+    case 'ticket':
+      return `/crm/tickets/${id}`
+    default:
+      return null
+  }
+}
+
 // ── Sort dropdown ─────────────────────────────────────────────────────────────
 
 function SortDropdown({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
@@ -121,6 +146,7 @@ function SortDropdown({ value, onChange }: { value: SortKey; onChange: (v: SortK
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [activeType, setActiveType] = useState<string | null>(null)
@@ -406,13 +432,34 @@ export default function NotificationsPage() {
           {notifications.map(n => {
             const meta = getTypeMeta(n.type)
             const Icon = meta.icon
+            const href = getNotificationHref(n)
             return (
-              <Card key={n.id} className={cn(
-                'transition-all duration-150',
-                !n.is_read
-                  ? 'border-primary/30 bg-primary/5 shadow-sm dark:bg-primary/10'
-                  : 'border-border bg-card',
-              )}
+              <Card
+                key={n.id}
+                role={href ? 'link' : undefined}
+                tabIndex={href ? 0 : undefined}
+                onClick={href
+                  ? onClickableTableRow(() => {
+                      if (!n.is_read) markRead.mutate(n.id)
+                      navigate(href)
+                    })
+                  : undefined}
+                onKeyDown={href
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        if (!n.is_read) markRead.mutate(n.id)
+                        navigate(href)
+                      }
+                    }
+                  : undefined}
+                className={cn(
+                  'transition-all duration-150',
+                  !n.is_read
+                    ? 'border-primary/30 bg-primary/5 shadow-sm dark:bg-primary/10'
+                    : 'border-border bg-card',
+                  href && 'cursor-pointer hover:border-primary/40 hover:shadow-sm',
+                )}
               >
                 <CardContent className="p-4 flex items-start gap-4">
                   <div className={cn('mt-0.5 shrink-0 rounded-full p-2', !n.is_read ? meta.color : 'bg-muted text-muted-foreground')}>
@@ -430,8 +477,17 @@ export default function NotificationsPage() {
                     </div>
                   </div>
                   {!n.is_read && (
-                    <Button variant="ghost" size="sm" className="shrink-0 text-xs text-primary"
-                      onClick={() => markRead.mutate(n.id)} disabled={markRead.isPending}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 text-xs text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        markRead.mutate(n.id)
+                      }}
+                      disabled={markRead.isPending}
+                    >
                       <Check className="mr-1 h-3.5 w-3.5" /> Mark read
                     </Button>
                   )}

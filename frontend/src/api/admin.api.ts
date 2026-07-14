@@ -372,6 +372,44 @@ export const adminApi = {
     const response = await apiClient.patch(`/admin/disputes/${disputeId}`, data)
     return response.data
   },
+
+  listContactQueries: async (params?: {
+    status?: string
+    vendor_id?: string
+    page?: number
+    size?: number
+  }): Promise<ContactQueryListResponse> => {
+    const response = await apiClient.get('/admin/contact-queries', { params })
+    return response.data
+  },
+
+  updateContactQuery: async (
+    queryId: string,
+    data: { status: string },
+  ): Promise<{ ok: boolean; id: string; status: string }> => {
+    const response = await apiClient.patch(`/admin/contact-queries/${queryId}`, data)
+    return response.data
+  },
+}
+
+export interface ContactQueryItem {
+  id: string
+  vendor_id: string
+  vendor_display_name?: string | null
+  name: string
+  email?: string | null
+  phone?: string | null
+  message: string
+  status: string
+  created_at: string | null
+}
+
+export interface ContactQueryListResponse {
+  items: ContactQueryItem[]
+  total: number
+  page: number
+  size: number
+  pages: number
 }
 
 export interface OrderDisputeItem {

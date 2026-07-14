@@ -15,8 +15,12 @@ export interface StorefrontVendor {
   theme_config: Record<string, string>
   primary_email?: string
   primary_phone?: string
+  support_email?: string
+  support_phone?: string
+  street_address?: string
   city?: string
   state?: string
+  postal_code?: string
   latitude?: number
   longitude?: number
   service_radius_km?: number
@@ -215,8 +219,23 @@ export const storefrontApi = {
     return response.data
   },
 
-  customerRegister: async (slug: string, data: { full_name: string; email: string; password: string; phone?: string }) => {
+  customerSendSignupOtp: async (slug: string, data: { email?: string; phone?: string }) => {
+    const response = await apiClient.post('/store/auth/send-signup-otp', data, vendorHeaders(slug))
+    return response.data
+  },
+  customerRegister: async (
+    slug: string,
+    data: { full_name: string; email?: string; password: string; phone?: string; otp_code: string },
+  ) => {
     const response = await apiClient.post('/store/auth/register', data, vendorHeaders(slug))
+    return response.data
+  },
+
+  submitContactQuery: async (
+    slug: string,
+    data: { name: string; email?: string; phone?: string; message: string },
+  ): Promise<{ ok: boolean; id: string; message: string }> => {
+    const response = await apiClient.post(`/catalog/vendor/${slug}/contact-queries`, data)
     return response.data
   },
 }

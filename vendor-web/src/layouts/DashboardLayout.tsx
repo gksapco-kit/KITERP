@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
-  Users, Settings, LogOut, Store, MessageSquare,
+  Users, Settings, LogOut, Store, MessageSquare, MessageSquareText,
   UsersRound, ShieldCheck, Receipt, FileText, Tag, BarChart3, CreditCard, LayoutTemplate,
   FolderTree, Truck, ClipboardList, Calendar, Bell, List, PackageSearch, FileCheck, ArrowRightLeft,
   ChevronDown, ChevronRight, Check, Menu, FilePlus, Factory, PieChart,
@@ -534,6 +534,7 @@ const allSections: NavSection[] = [
       { to: '/', icon: BarChart3, label: 'Dashboard', alwaysShow: true },
       { to: '/notifications', icon: Bell, label: 'Notifications', alwaysShow: true },
       { to: '/crm/inbox', icon: MessageSquare, label: 'Inbox', alwaysShow: true },
+      { to: '/queries', icon: MessageSquareText, label: 'Queries', alwaysShow: true },
       { to: '/relationship-manager', icon: UsersRound, label: 'Relationship Manager', alwaysShow: true },
       { to: '/settings', icon: Settings, label: BUSINESS_UNIT_STORE_SETTINGS_LINK, alwaysShow: true },
     ],
@@ -1198,6 +1199,7 @@ const pageTitles: Record<string, string> = {
   '/crm/pipeline': 'Sales Pipeline',
   '/crm/activities': 'Tasks',
   '/crm/inbox': 'Inbox',
+  '/queries': 'Queries',
   '/crm/tickets': 'Support Tickets',
   '/crm/kb': 'Knowledge Base',
   '/crm/segments': 'Segments',
@@ -2900,7 +2902,7 @@ export default function DashboardLayout() {
       ? createPortal(
           <>
             <div
-              className="fixed inset-0 z-[69] hidden lg:block"
+              className="fixed inset-x-0 bottom-0 top-14 z-[69] hidden lg:block"
               aria-hidden
               onClick={() => setRailFlyoutSectionId(null)}
             />
@@ -3843,7 +3845,8 @@ export default function DashboardLayout() {
         }
       >
         {/* Top bar — title left; toolbar packed at the right end */}
-        <header className="sticky top-0 z-30 overflow-visible border-b border-sidebar-border bg-card/80 backdrop-blur-md">
+        {/* z-[80]: keep header actions (bell, profile) above rail-flyout dismiss layer (z-[69]). */}
+        <header className="sticky top-0 z-[80] overflow-visible border-b border-sidebar-border bg-card/80 backdrop-blur-md">
           <div className="flex h-14 w-full min-w-0 items-center gap-3 px-4">
             {/* Title — fixed width on the left */}
             <div className="flex h-8 w-[13rem] shrink-0 items-center gap-2">
@@ -3950,17 +3953,27 @@ export default function DashboardLayout() {
                 {storePickerMenu}
               </div>
 
-              <Link
-                to="/notifications"
-                className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:border-primary/30"
+              <button
+                type="button"
+                title="Notifications"
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+                onClick={() => {
+                  setStorePickerOpen(false)
+                  setProfileOpen(false)
+                  setRailFlyoutSectionId(null)
+                  setHelpOpen(false)
+                  setMoreOpen(false)
+                  navigate('/notifications')
+                }}
+                className="relative z-[81] flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:border-primary/30"
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                  <span className={headerNotificationBadgeClass(unreadCount)}>
+                  <span className={cn(headerNotificationBadgeClass(unreadCount), 'pointer-events-none')}>
                     {formatBadgeCount(unreadCount)}
                   </span>
                 )}
-              </Link>
+              </button>
 
               <span
                 className="mx-0.5 shrink-0 select-none text-sm font-light leading-none text-muted-foreground/55"

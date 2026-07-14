@@ -232,7 +232,7 @@ export function UnifiedNav({
         {mobileSearchBarNode ?? (
           <Link
             to={logoHomeTo}
-            className="font-semibold tracking-tight text-base sm:text-lg min-w-0 flex-1 md:flex-initial truncate max-w-[min(100%,56vw)] md:max-w-none [&_img]:max-w-[min(140px,42vw)] sm:[&_img]:max-w-[160px]"
+            className="font-semibold tracking-tight text-base sm:text-lg min-w-0 flex-1 md:flex-initial truncate max-w-[min(100%,56vw)] md:max-w-none [&_img]:max-w-[min(200px,48vw)] sm:[&_img]:max-w-[280px]"
           >
             {logo ?? "Acme ERP"}
           </Link>

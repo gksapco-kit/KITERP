@@ -28,6 +28,7 @@ from app.models.coupon import Coupon, CouponUsage
 from app.models.lead import Lead, Quote
 from app.models.rental import RentalAsset, RentalBooking
 from app.models.order_dispute import OrderDispute
+from app.models.storefront_contact_query import StorefrontContactQuery
 from app.models.booking import Booking
 from app.models.project import Project, ProjectTask
 from app.models.notification import Notification

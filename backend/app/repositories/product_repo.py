@@ -176,8 +176,18 @@ class ProductRepository(BaseRepository[Product]):
             count_query = count_query.where(Product.status == status)
         
         if category:
-            query = query.where(Product.category == category)
-            count_query = count_query.where(Product.category == category)
+            # Parent = Product.category; child leaf may be Product.subcategory
+            # (or a path segment like "Child / Grandchild"). Match both.
+            cat = category.strip()
+            category_filter = or_(
+                Product.category == cat,
+                Product.subcategory == cat,
+                Product.subcategory.ilike(f"% / {cat}"),
+                Product.subcategory.ilike(f"{cat} / %"),
+                Product.subcategory.ilike(f"% / {cat} / %"),
+            )
+            query = query.where(category_filter)
+            count_query = count_query.where(category_filter)
         
         if search:
             term = search.strip()

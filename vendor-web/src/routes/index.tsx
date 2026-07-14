@@ -186,6 +186,7 @@ import CrmLeads from '@/pages/crm/Leads'
 import CrmPipeline from '@/pages/crm/Pipeline'
 import CrmActivities from '@/pages/crm/Activities'
 import CrmInbox from '@/pages/crm/Inbox'
+import ContactQueries from '@/pages/queries/ContactQueries'
 import CrmTickets from '@/pages/crm/Tickets'
 import CrmTicketDetail from '@/pages/crm/TicketDetail'
 import CrmKnowledgeBase from '@/pages/crm/KnowledgeBase'
@@ -416,6 +417,7 @@ export const router = createBrowserRouter([
       { path: 'projects', element: <ProjectsPage /> },
       { path: 'projects/:id', element: <ProjectDetail /> },
       { path: 'notifications', element: <NotificationsPage /> },
+      { path: 'queries', element: <ContactQueries /> },
       { path: 'notifications/settings', element: <NotificationSettingsPage /> },
       // HR routes
       { path: 'hr/employees', element: <HREmployeesPage /> },

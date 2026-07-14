@@ -45,6 +45,8 @@ import MyNotifications from '@/pages/account/MyNotifications'
 import BlogList from '@/pages/blog/BlogList'
 import BlogPost from '@/pages/blog/BlogPost'
 import Policies from '@/pages/Policies'
+import ContactPage from '@/pages/Contact'
+import LandingContact from '@/pages/LandingContact'
 import OrderConfirmationPage from '@/checkout/pages/OrderConfirmationPage'
 import OrderStatusPage from '@/checkout/pages/OrderStatusPage'
 import UpiPaymentProofPage from '@/checkout/pages/UpiPaymentProofPage'
@@ -130,6 +132,10 @@ export const router = createBrowserRouter([
     path: '/',
     element: <Landing />,
   },
+  {
+    path: '/contact',
+    element: <LandingContact />,
+  },
   // Vendor self-service signup (storefront-only; not under /vendor/* — see vendorSignupPaths.ts)
   {
     path: VENDOR_SIGNUP_PATH,
@@ -200,6 +206,7 @@ export const router = createBrowserRouter([
       { path: 'blog', element: <BlogList /> },
       { path: 'blog/:slug', element: <BlogPost /> },
       { path: 'policies', element: <Policies /> },
+      { path: 'contact', element: <ContactPage /> },
       { path: 'table/:qrToken', element: <TableOrderPage /> },
       { path: 'menu/:linkToken', element: <ZoneMenuPage /> },
       { path: 'reserve', element: <ReservationPage /> },

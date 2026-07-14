@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
 
@@ -10,6 +10,8 @@ type Props = {
   imageClassName?: string
   intervalMs?: number
   onIndexChange?: (index: number) => void
+  /** Dim / gradient layer painted above slides and below the arrow controls. */
+  overlay?: ReactNode
 }
 
 export function HeroBannerCarousel({
@@ -18,6 +20,7 @@ export function HeroBannerCarousel({
   imageClassName = 'h-full w-full object-contain object-center',
   intervalMs = DEFAULT_INTERVAL_MS,
   onIndexChange,
+  overlay,
 }: Props) {
   const slides = urls.map((u) => imgUrl(u)).filter(Boolean)
   const count = slides.length
@@ -25,9 +28,9 @@ export function HeroBannerCarousel({
   const [paused, setPaused] = useState(false)
 
   const go = useCallback(
-    (next: number) => {
+    (delta: number) => {
       if (count <= 1) return
-      setIndex(((next % count) + count) % count)
+      setIndex((prev) => ((prev + delta) % count + count) % count)
     },
     [count],
   )
@@ -53,7 +56,12 @@ export function HeroBannerCarousel({
   if (count === 1) {
     return (
       <div className={cn('absolute inset-0', className)}>
-        <img src={slides[0]} alt="" className={imageClassName} />
+        <img src={slides[0]} alt="" className={cn(imageClassName, 'pointer-events-none')} />
+        {overlay ? (
+          <div className="pointer-events-none absolute inset-0 z-[1]" aria-hidden>
+            {overlay}
+          </div>
+        ) : null}
       </div>
     )
   }
@@ -68,42 +76,56 @@ export function HeroBannerCarousel({
     >
       {slides.map((src, i) => (
         <img
-          key={src}
+          key={`${src}-${i}`}
           src={src}
           alt=""
           aria-hidden={i !== index}
           className={cn(
             imageClassName,
-            'absolute inset-0 h-full w-full transition-opacity duration-700 ease-in-out',
+            'pointer-events-none absolute inset-0 h-full w-full transition-opacity duration-700 ease-in-out',
             i === index ? 'opacity-100' : 'opacity-0',
           )}
         />
       ))}
 
+      {overlay ? (
+        <div className="pointer-events-none absolute inset-0 z-[1]" aria-hidden>
+          {overlay}
+        </div>
+      ) : null}
+
       <button
         type="button"
         aria-label="Previous banner"
-        onClick={() => go(index - 1)}
-        className="absolute left-3 top-1/2 z-[2] -translate-y-1/2 rounded-full bg-black/25 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/50 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/60 group-hover:opacity-100 sm:opacity-100"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          go(-1)
+        }}
+        className="pointer-events-auto absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/25 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/50 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/60 group-hover:opacity-100 sm:opacity-100"
       >
         <ChevronLeft className="h-5 w-5" />
       </button>
       <button
         type="button"
         aria-label="Next banner"
-        onClick={() => go(index + 1)}
-        className="absolute right-3 top-1/2 z-[2] -translate-y-1/2 rounded-full bg-black/35 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/50 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/60 sm:opacity-100 sm:bg-black/25"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          go(1)
+        }}
+        className="pointer-events-auto absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/35 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/50 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/60 sm:opacity-100 sm:bg-black/25"
       >
         <ChevronRight className="h-5 w-5" />
       </button>
 
       <div
-        className="pointer-events-none absolute bottom-3 left-1/2 z-[2] flex -translate-x-1/2 gap-1.5"
+        className="pointer-events-none absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 gap-1.5"
         aria-hidden
       >
         {slides.map((src, i) => (
           <span
-            key={src}
+            key={`${src}-dot-${i}`}
             className={cn(
               'h-1.5 w-1.5 rounded-full transition-all',
               i === index ? 'scale-125 bg-white' : 'bg-white/45',

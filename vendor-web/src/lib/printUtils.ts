@@ -12,6 +12,8 @@
  * data URL, and embed it directly in the generated HTML so the print window
  * needs zero network requests.
  */
+import { getAccessToken } from '@/lib/authTokenStorage'
+
 // ── Backend base URL ──────────────────────────────────────────────────────────
 
 function getBackendBase(): string {
@@ -49,7 +51,7 @@ export async function fetchAsDataUrl(url: string): Promise<string> {
   if (!resolved) return ''
 
   try {
-    const token = localStorage.getItem('access_token') || ''
+    const token = getAccessToken() || ''
     const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
     const res = await fetch(resolved, { headers })
     if (!res.ok) return ''

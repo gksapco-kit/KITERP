@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Menu,
   Table2,
+  MessageSquareText,
   X,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
@@ -39,6 +40,7 @@ const adminNavItemsSuperuser = [
   { to: '/dashboard/plans', icon: CreditCard, label: 'Plans' },
   { to: '/dashboard/platform-team', icon: Headphones, label: 'Support team' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
+  { to: '/dashboard/queries', icon: MessageSquareText, label: 'Queries' },
   { to: '/dashboard/disputes', icon: AlertTriangle, label: 'Disputes' },
   { to: '/dashboard/table-data', icon: Table2, label: 'Table Data' },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
@@ -48,6 +50,7 @@ const adminNavItemsSupport = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
+  { to: '/dashboard/queries', icon: MessageSquareText, label: 'Queries' },
 ]
 
 function ProfileAvatar({

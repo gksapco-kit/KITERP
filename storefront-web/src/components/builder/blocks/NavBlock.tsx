@@ -789,13 +789,21 @@ export default function NavBlock({
       >
         <div
           className={cn(
-            builderSectionContainerClass('relative', navRowPaddingClass),
+            builderSectionContainerClass('relative overflow-visible', navRowPaddingClass),
             shell.isCentered
               ? 'flex flex-col items-center text-center gap-2'
               : 'flex items-center justify-between gap-3',
             shell.isElevated && '!mx-3 sm:!mx-4 !max-w-none mt-2 rounded-xl shadow-lg border border-black/5',
           )}
-          style={!shell.isCentered ? { minHeight: navRowMinHeight } : undefined}
+          style={
+            !shell.isCentered
+              ? {
+                  // Fixed bar height — logo size can scale without growing the header.
+                  height: navRowMinHeight,
+                  minHeight: navRowMinHeight,
+                }
+              : undefined
+          }
         >
           {shell.isCentered ? (
             <>

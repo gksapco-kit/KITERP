@@ -2,6 +2,7 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
 import { resolveApiBaseUrl } from '@/lib/apiBase'
 import { isAxiosNetworkError } from '@/lib/errorMessages'
+import { getRefreshToken } from '@/lib/authTokenStorage'
 
 /** Endpoints where 401 means bad credentials — never attempt token refresh. */
 const SKIP_TOKEN_REFRESH_RE =
@@ -16,7 +17,7 @@ let refreshPromise: Promise<boolean> | null = null
 
 /** Refresh access (and rotated refresh) token; dedupes concurrent callers. */
 export async function refreshAuthSession(): Promise<boolean> {
-  const refreshToken = localStorage.getItem('refresh_token')
+  const refreshToken = getRefreshToken()
   if (!refreshToken) return false
 
   try {

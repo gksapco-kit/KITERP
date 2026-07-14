@@ -106,7 +106,7 @@ def _serialize(n) -> dict:
         "message": n.message,
         "type": n.type,
         "is_read": n.is_read,
-        "reference_id": n.reference_id,
+        "reference_id": str(n.reference_id) if n.reference_id else None,
         "reference_type": n.reference_type,
         "created_at": n.created_at.isoformat() if n.created_at else None,
     }

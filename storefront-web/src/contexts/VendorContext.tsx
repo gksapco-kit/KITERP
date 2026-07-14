@@ -12,7 +12,6 @@ import {
 import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
 import { resolveAssignedStorefrontTemplateId } from '@/lib/storefrontTemplateAssignment'
 import { resolveTemplateDisplayFieldsFromSettings } from '@/lib/storefrontDisplayFields'
-import { useBranch } from '@/contexts/BranchContext'
 
 const API_URL = getStorefrontApiBaseUrl().replace(/\/$/, '')
 
@@ -168,25 +167,6 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       {children}
     </VendorContext.Provider>
   )
-}
-
-/** Re-resolves display fields from the active BU + assigned website template (inside BranchProvider). */
-export function StorefrontDisplayFieldsBridge({ children }: { children: ReactNode }) {
-  const parent = useContext(VendorContext)
-  const { branches, branchCode } = useBranch()
-  const templateId = useMemo(
-    () => resolveAssignedStorefrontTemplateId(parent.vendor?.settings, branches, branchCode),
-    [parent.vendor?.settings, branches, branchCode],
-  )
-  const displayFields = useMemo(
-    () => resolveTemplateDisplayFieldsFromSettings(parent.vendor?.settings, templateId),
-    [parent.vendor?.settings, templateId],
-  )
-  const value = useMemo(
-    () => ({ ...parent, displayFields }),
-    [parent, displayFields],
-  )
-  return <VendorContext.Provider value={value}>{children}</VendorContext.Provider>
 }
 
 export function useVendor() {

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import BlockRenderer, { mergePageStyle, splitLeadingShellBlocks } from '@storefront/components/builder/BlockRenderer'
+import BlockRenderer from '@storefront/components/builder/BlockRenderer'
 import type { PublicBlock, PublicSite } from '@storefront/blocks/registry'
+import { mergePageStyle, splitLeadingShellBlocks } from '@storefront/lib/blockRendererUtils'
 import { withSharedShellBlocks } from '@storefront/lib/storefrontLayoutChrome'
 import { websiteBlockToPublicBlock } from '@/components/websites/SharedCanvasBlockPreview'
 import type { WebsiteBlock } from '@/types/websites'

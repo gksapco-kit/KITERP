@@ -61,7 +61,7 @@
   --shadow-lg: 0 16px 40px hsl(var(--brand-primary) / 0.12);
 
   /* Brand asset */
-  --logo-height: 32px;
+  --logo-height: 44px;
 
   /* Apply base look */
   font-family: var(--font-body);

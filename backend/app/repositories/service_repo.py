@@ -147,8 +147,18 @@ class ServiceRepository(BaseRepository[Service]):
             count_query = count_query.where(Service.status == status)
         
         if category:
-            query = query.where(Service.category == category)
-            count_query = count_query.where(Service.category == category)
+            # Parent = Service.category; child leaf may be Service.subcategory
+            # (or a path segment like "Child / Grandchild"). Match both.
+            cat = category.strip()
+            category_filter = or_(
+                Service.category == cat,
+                Service.subcategory == cat,
+                Service.subcategory.ilike(f"% / {cat}"),
+                Service.subcategory.ilike(f"{cat} / %"),
+                Service.subcategory.ilike(f"% / {cat} / %"),
+            )
+            query = query.where(category_filter)
+            count_query = count_query.where(category_filter)
         
         if search:
             search_filter = or_(

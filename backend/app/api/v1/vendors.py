@@ -99,6 +99,85 @@ async def update_my_vendor(
     return await service.update(vendor.id, data)
 
 
+@router.get("/me/contact-queries")
+async def list_my_storefront_contact_queries(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Vendor inbox for Contact Us page queries from the storefront."""
+    import math
+    from sqlalchemy import func
+    from app.models.storefront_contact_query import StorefrontContactQuery
+
+    filters = [StorefrontContactQuery.vendor_id == vendor_id]
+    if status_filter:
+        filters.append(StorefrontContactQuery.status == status_filter)
+
+    count_stmt = select(func.count(StorefrontContactQuery.id)).where(*filters)
+    total = (await db.execute(count_stmt)).scalar() or 0
+    rows = (
+        await db.execute(
+            select(StorefrontContactQuery)
+            .where(*filters)
+            .order_by(StorefrontContactQuery.created_at.desc())
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+    ).scalars().all()
+
+    return {
+        "items": [
+            {
+                "id": str(q.id),
+                "vendor_id": str(q.vendor_id),
+                "name": q.name,
+                "email": q.email,
+                "phone": q.phone,
+                "message": q.message,
+                "status": q.status,
+                "created_at": q.created_at.isoformat() if q.created_at else None,
+            }
+            for q in rows
+        ],
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size) if total else 0,
+    }
+
+
+@router.patch("/me/contact-queries/{query_id}")
+async def update_my_storefront_contact_query(
+    query_id: UUID,
+    body: dict = Body(...),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.storefront_contact_query import StorefrontContactQuery
+    from app.schemas.storefront_contact_query import StorefrontContactQueryStatusUpdate
+
+    try:
+        parsed = StorefrontContactQueryStatusUpdate.model_validate(body)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    result = await db.execute(
+        select(StorefrontContactQuery).where(
+            StorefrontContactQuery.id == query_id,
+            StorefrontContactQuery.vendor_id == vendor_id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Query not found")
+    row.status = parsed.status
+    await db.commit()
+    return {"ok": True, "id": str(row.id), "status": row.status}
+
+
 @router.post("/me/ai/business-description", response_model=BusinessDescriptionAIResponse)
 async def ai_generate_business_description(
     body: BusinessDescriptionAIRequest,

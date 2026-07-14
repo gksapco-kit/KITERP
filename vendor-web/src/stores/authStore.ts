@@ -1,7 +1,14 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import type { User, Token } from '@/types'
 import { useVendorStore } from '@/stores/vendorStore'
+import {
+  clearAuthTokens,
+  clearLegacyAuthLocalStorage,
+  setAuthTokens,
+} from '@/lib/authTokenStorage'
+
+clearLegacyAuthLocalStorage()
 
 interface AuthState {
   user: User | null
@@ -22,8 +29,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setTokens: (tokens) => {
-        localStorage.setItem('access_token', tokens.access_token)
-        localStorage.setItem('refresh_token', tokens.refresh_token)
+        setAuthTokens(tokens.access_token, tokens.refresh_token)
         set({
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
@@ -31,8 +37,7 @@ export const useAuthStore = create<AuthState>()(
         })
       },
       logout: () => {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
+        clearAuthTokens()
         try {
           useVendorStore.getState().clearVendor()
         } catch {
@@ -43,12 +48,18 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'vendor-auth-storage',
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.accessToken && state?.refreshToken) {
+          setAuthTokens(state.accessToken, state.refreshToken)
+        }
+      },
     }
   )
 )
