@@ -16,6 +16,7 @@ import {
   Menu,
   Table2,
   MessageSquareText,
+  LayoutTemplate,
   X,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
@@ -38,6 +39,7 @@ const adminNavItemsSuperuser = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts' },
   { to: '/dashboard/plans', icon: CreditCard, label: 'Plans' },
+  { to: '/dashboard/templates', icon: LayoutTemplate, label: 'All Templates' },
   { to: '/dashboard/platform-team', icon: Headphones, label: 'Support team' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: '/dashboard/queries', icon: MessageSquareText, label: 'Queries' },

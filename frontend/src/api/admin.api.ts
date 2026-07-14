@@ -390,6 +390,93 @@ export const adminApi = {
     const response = await apiClient.patch(`/admin/contact-queries/${queryId}`, data)
     return response.data
   },
+
+  listWebsiteTemplates: async (params?: {
+    view?: 'assigned' | 'draft' | 'all'
+    search?: string
+  }): Promise<AdminWebsiteTemplateListResponse> => {
+    const response = await apiClient.get('/admin/website-templates', { params })
+    return response.data
+  },
+
+  getWebsiteTemplate: async (siteId: string): Promise<AdminWebsiteTemplateDetail> => {
+    const response = await apiClient.get(`/admin/website-templates/${siteId}`)
+    return response.data
+  },
+
+  publishWebsiteTemplate: async (siteId: string): Promise<AdminWebsiteTemplateDetail> => {
+    const response = await apiClient.post(`/admin/website-templates/${siteId}/publish`)
+    return response.data
+  },
+
+  unpublishWebsiteTemplate: async (siteId: string): Promise<AdminWebsiteTemplateDetail> => {
+    const response = await apiClient.post(`/admin/website-templates/${siteId}/unpublish`)
+    return response.data
+  },
+
+  syncWebsiteTemplate: async (siteId: string): Promise<AdminWebsiteTemplateDetail> => {
+    const response = await apiClient.post(`/admin/website-templates/${siteId}/sync`)
+    return response.data
+  },
+
+  deleteWebsiteTemplate: async (
+    siteId: string,
+  ): Promise<{ ok: boolean; site_id: string; message: string }> => {
+    const response = await apiClient.delete(`/admin/website-templates/${siteId}`)
+    return response.data
+  },
+}
+
+export type AdminWebsiteTemplateBucket = 'assigned' | 'draft'
+
+export interface AdminWebsiteTemplateStats {
+  total: number
+  assigned: number
+  draft: number
+  published: number
+  needs_sync: number
+}
+
+export interface AdminWebsiteTemplateRow {
+  site_id: string
+  name: string
+  description?: string | null
+  thumbnail?: string | null
+  vendor_id: string
+  vendor_name: string
+  vendor_email?: string | null
+  site_status: string
+  is_published: boolean
+  storefront_assigned: boolean
+  list_bucket: AdminWebsiteTemplateBucket
+  page_count: number
+  business_type?: string | null
+  site_updated_at?: string | null
+  content_updated_at?: string | null
+  platform_template_id?: string | null
+  platform_slug?: string | null
+  catalog_status?: 'draft' | 'published' | null
+  catalog_published: boolean
+  needs_sync: boolean
+  last_synced_at?: string | null
+  catalog_published_at?: string | null
+}
+
+export interface AdminWebsiteTemplateListResponse {
+  items: AdminWebsiteTemplateRow[]
+  total: number
+  stats: AdminWebsiteTemplateStats
+}
+
+export interface AdminWebsiteTemplateDetail extends AdminWebsiteTemplateRow {
+  snapshot_preview?: {
+    id?: string
+    name?: string
+    page_count?: number
+    pages?: Array<{ title?: string; slug?: string; block_count?: number }>
+  } | null
+  page_titles: string[]
+  note: string
 }
 
 export interface ContactQueryItem {

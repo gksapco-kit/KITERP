@@ -132,7 +132,7 @@ from app.models.website import (
     WebsiteSite, WebsitePage, WebsiteBlock, WebsiteMedia, WebsiteRedirect,
     WebsiteFormSubmission, WebsitePageRevision, WebsiteBuilderPreview,
     WebsiteBlockTranslation, WebsiteSymbol, WebsiteABExposure,
-    WebsiteWebhook,
+    WebsiteWebhook, PlatformWebsiteTemplate,
 )
 
 from app.models.finance import (
@@ -314,7 +314,7 @@ __all__ = [
     "WebsiteSite", "WebsitePage", "WebsiteBlock", "WebsiteMedia", "WebsiteRedirect",
     "WebsiteFormSubmission", "WebsitePageRevision", "WebsiteBuilderPreview",
     "WebsiteBlockTranslation", "WebsiteSymbol", "WebsiteABExposure",
-    "WebsiteWebhook",
+    "WebsiteWebhook", "PlatformWebsiteTemplate",
     # Controlling (CO)
     "CoControllingArea",
     "CoActivityType", "CoOverheadPool", "CoOverheadRate",

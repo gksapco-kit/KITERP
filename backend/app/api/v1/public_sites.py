@@ -638,14 +638,26 @@ async def get_video_poster(url: str = Query(..., min_length=8, max_length=2048))
 
 
 @router.get("/website-template/{template_id}/preview")
-async def get_website_template_preview(template_id: str):
+async def get_website_template_preview(
+    template_id: str,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Unauthenticated: return a synthetic `PublicSite` JSON for a catalog template,
     for opening a full browser preview (business front BlockRenderer) before apply.
+    Includes admin-published platform templates as well as built-ins.
     """
     from app.api.v1.vendor_websites import WEBSITE_TEMPLATES
+    from app.services.platform_website_templates import (
+        catalog_template_dict,
+        get_published_platform_template_by_slug,
+    )
 
     tpl = WEBSITE_TEMPLATES.get(template_id)
+    if not tpl:
+        platform = await get_published_platform_template_by_slug(db, template_id)
+        if platform:
+            tpl = catalog_template_dict(platform)
     if not tpl:
         raise HTTPException(status_code=404, detail="Template not found")
     return _public_site_dict_from_template(dict(tpl))

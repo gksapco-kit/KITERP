@@ -15,6 +15,10 @@ export const adminKeys = {
   vendorStats: () => [...adminKeys.all, 'vendor-stats'] as const,
   vendor: (id: string) => [...adminKeys.vendors(), id] as const,
   relationshipManagerOptions: () => [...adminKeys.all, 'relationship-manager-options'] as const,
+  websiteTemplates: () => [...adminKeys.all, 'website-templates'] as const,
+  websiteTemplatesList: (params?: { view?: 'assigned' | 'draft' | 'all'; search?: string }) =>
+    [...adminKeys.websiteTemplates(), params] as const,
+  websiteTemplate: (siteId: string) => [...adminKeys.websiteTemplates(), siteId] as const,
 }
 
 export function useAdminVendorStats() {
@@ -207,6 +211,93 @@ export function usePatchVendorRmQueryStatus(vendorId: string | undefined) {
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Failed to update query'
       toast.error(typeof message === 'string' ? message : 'Failed to update query')
+    },
+  })
+}
+
+function adminApiErrorMessage(error: unknown, fallback: string) {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  return typeof detail === 'string' ? detail : fallback
+}
+
+export function useAdminWebsiteTemplates(
+  params?: {
+    view?: 'assigned' | 'draft' | 'all'
+    search?: string
+  },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: adminKeys.websiteTemplatesList(params),
+    queryFn: () => adminApi.listWebsiteTemplates(params),
+    staleTime: 15 * 1000,
+    enabled: options?.enabled ?? true,
+  })
+}
+
+export function useAdminWebsiteTemplate(siteId: string | null) {
+  return useQuery({
+    queryKey: siteId ? adminKeys.websiteTemplate(siteId) : ['admin', 'website-templates', 'noop'],
+    queryFn: () => adminApi.getWebsiteTemplate(siteId!),
+    enabled: Boolean(siteId),
+  })
+}
+
+export function usePublishWebsiteTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (siteId: string) => adminApi.publishWebsiteTemplate(siteId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.websiteTemplates() })
+      queryClient.setQueryData(adminKeys.websiteTemplate(data.site_id), data)
+      toast.success('Template published to Business Website Templates')
+    },
+    onError: (error: unknown) => {
+      toast.error(adminApiErrorMessage(error, 'Failed to publish template'))
+    },
+  })
+}
+
+export function useUnpublishWebsiteTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (siteId: string) => adminApi.unpublishWebsiteTemplate(siteId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.websiteTemplates() })
+      queryClient.setQueryData(adminKeys.websiteTemplate(data.site_id), data)
+      toast.success('Template unpublished from the vendor gallery')
+    },
+    onError: (error: unknown) => {
+      toast.error(adminApiErrorMessage(error, 'Failed to unpublish template'))
+    },
+  })
+}
+
+export function useSyncWebsiteTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (siteId: string) => adminApi.syncWebsiteTemplate(siteId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.websiteTemplates() })
+      queryClient.setQueryData(adminKeys.websiteTemplate(data.site_id), data)
+      toast.success('Synced latest changes into the catalog template')
+    },
+    onError: (error: unknown) => {
+      toast.error(adminApiErrorMessage(error, 'Failed to sync template'))
+    },
+  })
+}
+
+export function useDeleteWebsiteTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (siteId: string) => adminApi.deleteWebsiteTemplate(siteId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.websiteTemplates() })
+      toast.success(data.message || 'Catalog template removed')
+    },
+    onError: (error: unknown) => {
+      toast.error(adminApiErrorMessage(error, 'Failed to remove catalog template'))
     },
   })
 }

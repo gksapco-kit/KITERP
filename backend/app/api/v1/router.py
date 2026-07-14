@@ -10,7 +10,7 @@ from app.api.v1 import (
     vendor_bookings, vendor_projects, vendor_notifications, vendor_merchandising, vendor_loyalty,
     vendor_mrp, vendor_hr, vendor_hr_extra, vendor_stores, vendor_sales_area, vendor_message_config, vendor_production,
     vendor_production_ops, vendor_production_analytics,
-    catalog, admin, app_builds,
+    catalog, admin, admin_website_templates, app_builds,
     store_auth, store_hr, store_cart, store_checkout, store_orders, store_notifications, store_reviews, store_coupons,
     store_bookings, store_wishlist, store_marketplace, store_subscriptions, store_rentals,
     uploads,
@@ -54,6 +54,11 @@ api_router = APIRouter()
 # ── Platform Auth & Admin ────────────────────────────────────────
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+api_router.include_router(
+    admin_website_templates.router,
+    prefix="/admin",
+    tags=["Admin Website Templates"],
+)
 api_router.include_router(admin_schema_catalog.router, prefix="/admin/schema", tags=["Admin Schema"])
 
 # ── Vendor Management ────────────────────────────────────────────

@@ -295,6 +295,55 @@ class WebsiteWebhook(Base):
     site = relationship("WebsiteSite")
 
 
+class PlatformWebsiteTemplate(Base):
+    """
+    Platform-curated catalog templates sourced from vendor website-builder sites.
+    Admin publishes a site into this table; vendors then apply it like a built-in template.
+    Snapshot is independent of the source site so later deletes/edits do not break
+    sites that already applied the template (until admin explicitly Syncs).
+    """
+    __tablename__ = "wb_platform_templates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug = Column(String(120), nullable=False, unique=True, index=True)
+
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    thumbnail = Column(String(500), nullable=True)
+    category = Column(String(80), nullable=False, default="custom")
+    tags = Column(JSON, nullable=False, default=list)
+
+    source_site_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("wb_sites.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    source_vendor_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("vendor.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # draft = curated but hidden from vendor gallery; published = visible to all vendors
+    catalog_status = Column(String(20), nullable=False, default="draft", index=True)
+
+    # Full WEBSITE_TEMPLATES-shaped payload (pages/blocks/default_style)
+    snapshot = Column(JSON, nullable=False, default=dict)
+    # Source site/page clock when snapshot was last taken (for Sync detection)
+    snapshot_source_updated_at = Column(DateTime, nullable=True)
+
+    published_at = Column(DateTime, nullable=True)
+    published_by_user_id = Column(UUID(as_uuid=True), nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
+    last_synced_by_user_id = Column(UUID(as_uuid=True), nullable=True)
+
+    deleted_at = Column(DateTime, nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class WebsiteMedia(Base):
     """Media library scoped to a site for the AI Media Adjuster."""
     __tablename__ = "wb_media"

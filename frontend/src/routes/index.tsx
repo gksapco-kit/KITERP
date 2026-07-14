@@ -36,6 +36,7 @@ import AccountActivity from '@/pages/dashboard/AccountActivity'
 import OrderDisputes from '@/pages/dashboard/OrderDisputes'
 import ContactQueries from '@/pages/dashboard/ContactQueries'
 import TableData from '@/pages/dashboard/TableData'
+import AllTemplates from '@/pages/dashboard/AllTemplates'
 
 // Business Front Pages
 import StorefrontHome from '@/pages/storefront/Home'
@@ -103,6 +104,7 @@ export const router = createBrowserRouter([
       { path: 'vendors/:id/app-builds', element: <VendorAppBuilds /> },
       { path: 'vendors/:id', element: <VendorDetail /> },
       { path: 'plans', element: <Plans /> },
+      { path: 'templates', element: <AllTemplates /> },
       { path: 'platform-team', element: <PlatformTeam /> },
       { path: 'platform-team/:userId', element: <PlatformTeamMemberDetail /> },
       { path: 'account-activity', element: <AccountActivity /> },

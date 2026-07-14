@@ -178,6 +178,22 @@ async def _get_site_readable(
     return await _get_site(db, site_id, vendor_id, include_deleted=True)
 
 
+async def _touch_site_content(db: AsyncSession, site_id: str, page_id: Optional[str] = None) -> None:
+    """Bump site/page clocks so admin Sync detection sees builder saves."""
+    now = datetime.utcnow()
+    await db.execute(
+        update(WebsiteSite)
+        .where(WebsiteSite.id == UUID(site_id))
+        .values(updated_at=now)
+    )
+    if page_id:
+        await db.execute(
+            update(WebsitePage)
+            .where(WebsitePage.id == UUID(page_id), WebsitePage.site_id == UUID(site_id))
+            .values(updated_at=now)
+        )
+
+
 async def _get_page(
     db: AsyncSession,
     page_id: str,
@@ -1006,6 +1022,7 @@ async def create_block(
     )
     block = WebsiteBlock(id=uuid.uuid4(), page_id=UUID(page_id), **body.dict())
     db.add(block)
+    await _touch_site_content(db, site_id, page_id)
     await db.commit()
     await db.refresh(block)
     return block
@@ -1042,6 +1059,7 @@ async def update_block(
     for k, v in body_dict.items():
         setattr(block, k, v)
     block.updated_at = datetime.utcnow()
+    await _touch_site_content(db, site_id, page_id)
     await db.commit()
     await db.refresh(block)
     return block
@@ -1062,6 +1080,7 @@ async def delete_block(
         db, page_id, site_id, note="block deleted", author_user_id=user.id, force=True,
     )
     await db.delete(block)
+    await _touch_site_content(db, site_id, page_id)
     await db.commit()
 
 
@@ -1079,11 +1098,14 @@ async def reorder_blocks(
     await _snapshot_page(
         db, page_id, site_id, note="blocks reordered", author_user_id=user.id,
     )
+    now = datetime.utcnow()
     for item in body.items:
         result = await db.execute(select(WebsiteBlock).where(WebsiteBlock.id == item.id))
         block = result.scalar_one_or_none()
         if block:
             block.sort_order = item.sort_order
+            block.updated_at = now
+    await _touch_site_content(db, site_id, page_id)
     await db.commit()
     return {"ok": True}
 
@@ -2835,29 +2857,60 @@ def _resolved_applied_template(style_config: Optional[Any]) -> tuple[Optional[st
     return None, None
 
 
+def _enrich_template_dict(tpl: dict) -> dict:
+    t = dict(tpl)
+    pages = t.get("pages") or []
+    page_count = len(pages)
+    nav_count = len([p for p in pages if p.get("show_in_nav", True)])
+    t.setdefault("page_count", page_count)
+    t.setdefault("nav_page_count", nav_count)
+    if "tier" not in t:
+        t["tier"] = "full" if page_count >= 6 else "lite"
+    if "default_style" not in t and t.get("id") in TEMPLATE_STYLE_FALLBACKS:
+        t["default_style"] = TEMPLATE_STYLE_FALLBACKS[t["id"]]
+    if "preview_palette" not in t:
+        ds = t.get("default_style") or t.get("style_config") or TEMPLATE_STYLE_FALLBACKS.get(t.get("id"), {})
+        if isinstance(ds, dict):
+            pal = [
+                ds.get("primary_color"),
+                ds.get("secondary_color"),
+                ds.get("accent_color"),
+                ds.get("bg_color"),
+                ds.get("text_color"),
+            ]
+            pal = [p for p in pal if isinstance(p, str) and p.startswith("#")]
+            if pal:
+                t["preview_palette"] = pal[:5]
+    return t
+
+
+async def _resolve_catalog_template(db: AsyncSession, template_id: str) -> Optional[dict]:
+    """Built-in WEBSITE_TEMPLATES first, then admin-published platform templates."""
+    tpl = WEBSITE_TEMPLATES.get(template_id)
+    if tpl:
+        return dict(tpl)
+    from app.services.platform_website_templates import (
+        catalog_template_dict,
+        get_published_platform_template_by_slug,
+    )
+    platform = await get_published_platform_template_by_slug(db, template_id)
+    if platform:
+        return catalog_template_dict(platform)
+    return None
+
+
 @router.get("/templates/all")
-async def list_templates(user: User = Depends(get_current_active_user)):
-    enriched = []
-    for tpl in WEBSITE_TEMPLATES.values():
-        t = dict(tpl)
-        pages = t.get("pages") or []
-        page_count = len(pages)
-        nav_count = len([p for p in pages if p.get("show_in_nav", True)])
-        t.setdefault("page_count", page_count)
-        t.setdefault("nav_page_count", nav_count)
-        if "tier" not in t:
-            t["tier"] = "full" if page_count >= 6 else "lite"
-        if "default_style" not in t and t.get("id") in TEMPLATE_STYLE_FALLBACKS:
-            t["default_style"] = TEMPLATE_STYLE_FALLBACKS[t["id"]]
-        # Best-effort palette preview
-        if "preview_palette" not in t:
-            ds = t.get("default_style") or t.get("style_config") or TEMPLATE_STYLE_FALLBACKS.get(t.get("id"), {})
-            if isinstance(ds, dict):
-                pal = [ds.get("primary_color"), ds.get("secondary_color"), ds.get("accent_color"), ds.get("bg_color"), ds.get("text_color")]
-                pal = [p for p in pal if isinstance(p, str) and p.startswith("#")]
-                if pal:
-                    t["preview_palette"] = pal[:5]
-        enriched.append(t)
+async def list_templates(
+    user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    enriched = [_enrich_template_dict(tpl) for tpl in WEBSITE_TEMPLATES.values()]
+    from app.services.platform_website_templates import (
+        catalog_template_dict,
+        list_published_platform_templates,
+    )
+    for platform in await list_published_platform_templates(db):
+        enriched.append(_enrich_template_dict(catalog_template_dict(platform)))
     return enriched
 
 
@@ -2871,7 +2924,7 @@ async def apply_template(
 ):
     vendor = await _get_vendor(db, user)
     site = await _get_site(db, site_id, vendor.id)
-    tpl = WEBSITE_TEMPLATES.get(template_id)
+    tpl = await _resolve_catalog_template(db, template_id)
     if not tpl:
         raise HTTPException(404, "Template not found")
 
