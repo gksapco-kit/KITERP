@@ -2562,7 +2562,7 @@ async def ensure_storefront_contact_query_table() -> None:
         """
         CREATE TABLE IF NOT EXISTS storefront_contact_query (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            vendor_id UUID REFERENCES vendor(id) ON DELETE CASCADE,
             name VARCHAR(255) NOT NULL,
             email VARCHAR(255),
             phone VARCHAR(40),
@@ -2577,7 +2577,6 @@ async def ensure_storefront_contact_query_table() -> None:
         "CREATE INDEX IF NOT EXISTS ix_storefront_contact_query_vendor ON storefront_contact_query(vendor_id)",
         "CREATE INDEX IF NOT EXISTS ix_storefront_contact_query_status ON storefront_contact_query(status)",
         "CREATE INDEX IF NOT EXISTS ix_storefront_contact_query_created ON storefront_contact_query(created_at DESC)",
-        "ALTER TABLE storefront_contact_query ALTER COLUMN vendor_id DROP NOT NULL",
     ]
     async with engine.begin() as conn:
         for s in stmts:

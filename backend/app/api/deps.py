@@ -397,13 +397,16 @@ async def get_current_store_hr_vendor_user(
     return vu
 
 
-async def get_storefront_store_id(
+async def resolve_storefront_store_id(
     request: Request,
-    vendor_id: UUID = Depends(get_store_vendor_id),
-    db: AsyncSession = Depends(get_db),
+    vendor_id: UUID,
+    db: AsyncSession,
 ) -> Optional[UUID]:
     """
     Resolve the active business unit for storefront customer auth.
+
+    Call this directly from async code (no FastAPI Depends). For route
+    injection use get_storefront_store_id instead.
 
     Sources (first match wins):
     1. X-Store-Id header (UUID)
@@ -423,6 +426,15 @@ async def get_storefront_store_id(
         store_id=header_store or query_store,
         branch=header_branch or query_branch,
     )
+
+
+async def get_storefront_store_id(
+    request: Request,
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[UUID]:
+    """FastAPI dependency wrapper around resolve_storefront_store_id."""
+    return await resolve_storefront_store_id(request, vendor_id, db)
 
 
 async def get_current_customer(
@@ -460,7 +472,7 @@ async def get_current_customer(
 
     # Reject when the token/customer belongs to a different business unit.
     try:
-        ctx_store_id = await get_storefront_store_id(request, ctx_vendor_id, db)
+        ctx_store_id = await resolve_storefront_store_id(request, ctx_vendor_id, db)
     except HTTPException:
         return None
     token_store = payload.get("store_id")

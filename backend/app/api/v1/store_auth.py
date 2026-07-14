@@ -10,6 +10,7 @@ from app.database import get_db
 from app.api.deps import (
     get_store_vendor_id,
     get_storefront_store_id,
+    resolve_storefront_store_id,
     get_current_active_customer,
 )
 from app.models.customer import Customer
@@ -197,7 +198,7 @@ async def refresh_customer_token(
                 detail="Token does not match this store",
             )
 
-        ctx_store_id = await get_storefront_store_id(request, ctx_vendor_id, db)
+        ctx_store_id = await resolve_storefront_store_id(request, ctx_vendor_id, db)
         token_store = payload.get("store_id")
         token_store_id = UUID(str(token_store)) if token_store else None
 

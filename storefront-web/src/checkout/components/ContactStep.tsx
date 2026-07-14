@@ -43,7 +43,7 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
                 className="ck-btn-ghost"
                 onClick={() => {
                   const registerPath = location.pathname.replace(/\/[^/]*$/, "/register")
-                  navigate(registerPath, { state: { from: location } })
+                  navigate(registerPath, { state: { from: location.pathname + location.search } })
                 }}
               >
                 Create account

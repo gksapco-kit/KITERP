@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2, Mail, MapPin, Phone, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiClient } from '@/api/client'
 import { LandingHeader } from '@/components/landing/LandingHeader'
+import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import '@/styles/kiterp-landing.css'
 
 type PlatformContact = {
@@ -202,6 +203,7 @@ export default function LandingContact() {
           </form>
         </div>
       </main>
+      <LandingChatbot />
     </div>
   )
 }

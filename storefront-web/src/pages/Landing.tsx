@@ -8,6 +8,7 @@ import { ValuePropSection } from '@/components/landing/ValuePropSection'
 import { CommunityMosaicSection } from '@/components/landing/CommunityMosaicSection'
 import { GrowthCtaSection } from '@/components/landing/GrowthCtaSection'
 import { LandingFooter } from '@/components/landing/LandingFooter'
+import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import type { StorefrontVendor } from '@/components/landing/landingData'
 import '@/styles/kiterp-landing.css'
 
@@ -84,6 +85,7 @@ export default function Landing() {
         <GrowthCtaSection />
       </main>
       <LandingFooter />
+      <LandingChatbot />
     </div>
   )
 }
