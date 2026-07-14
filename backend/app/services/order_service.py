@@ -166,7 +166,19 @@ class OrderService:
             "card", "upi", "netbanking", "wallet", "razorpay",
             "stripe", "square", "paypal", "payu",
         }
-        manual_upi_cfg = get_manual_upi_config(vendor)
+        store_id = await resolve_txn_store_id(
+            self.db,
+            vendor_id,
+            store_id=getattr(data, "store_id", None),
+            branch=getattr(data, "branch_code", None),
+        )
+        store = None
+        if store_id:
+            store_row = await self.db.execute(
+                select(Store).where(Store.id == store_id, Store.vendor_id == vendor_id)
+            )
+            store = store_row.scalar_one_or_none()
+        manual_upi_cfg = get_manual_upi_config(vendor, store)
         is_manual_upi = (
             data.payment_method.value == "upi"
             and manual_upi_cfg.get("enabled")
@@ -176,13 +188,6 @@ class OrderService:
 
         # Generate order number
         order_number = await self.order_repo.get_next_order_number(vendor_id)
-
-        store_id = await resolve_txn_store_id(
-            self.db,
-            vendor_id,
-            store_id=getattr(data, "store_id", None),
-            branch=getattr(data, "branch_code", None),
-        )
 
         # Create order
         order = Order(

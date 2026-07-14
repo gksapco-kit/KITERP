@@ -9,13 +9,15 @@ type Props = {
   className?: string
   imageClassName?: string
   intervalMs?: number
+  onIndexChange?: (index: number) => void
 }
 
 export function HeroBannerCarousel({
   urls,
   className,
-  imageClassName = 'h-full w-full object-cover object-center',
+  imageClassName = 'h-full w-full object-contain object-center',
   intervalMs = DEFAULT_INTERVAL_MS,
+  onIndexChange,
 }: Props) {
   const slides = urls.map((u) => imgUrl(u)).filter(Boolean)
   const count = slides.length
@@ -33,6 +35,10 @@ export function HeroBannerCarousel({
   useEffect(() => {
     setIndex(0)
   }, [slides.join('|')])
+
+  useEffect(() => {
+    onIndexChange?.(index)
+  }, [index, onIndexChange])
 
   useEffect(() => {
     if (count <= 1 || paused) return

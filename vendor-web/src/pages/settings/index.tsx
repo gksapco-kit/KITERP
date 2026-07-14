@@ -72,7 +72,6 @@ import {
 import { APP_VERSION, APP_BUILD, LAST_UPDATED, CHANGELOG } from '@/constants/vendorAppMeta'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { APP_SAVE_REQUEST_EVENT } from '@/lib/appSave'
-import { UpiCheckoutSettings } from '@/components/settings/UpiCheckoutSettings'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import {
   SettingsDirtyProvider,
@@ -2779,8 +2778,6 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
             )}
           </>
         )}
-
-        <UpiCheckoutSettings vendor={vendor} />
 
         <div className="flex justify-end pt-2">
           <SaveButton loading={onSave.isPending} />

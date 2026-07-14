@@ -200,6 +200,7 @@ import VendorAdminRoute from './VendorAdminRoute'
 import SystemStorefrontDisplayPage from '@/pages/system/StorefrontDisplay'
 import SystemSocialLinksPage from '@/pages/system/SocialLinks'
 import CreateMessagesPage from '@/pages/system/CreateMessages'
+import SystemUpiCheckoutPage from '@/pages/system/UpiCheckout'
 import AssetsLayout from '@/pages/system/assets'
 import AssetImagesPage from '@/pages/system/assets/Images'
 import CrmCampaigns from '@/pages/crm/Campaigns'
@@ -398,6 +399,7 @@ export const router = createBrowserRouter([
       { path: 'system/storefront-display', element: <SystemStorefrontDisplayPage /> },
       { path: 'system/social-links', element: <SystemSocialLinksPage /> },
       { path: 'system/messages', element: <CreateMessagesPage /> },
+      { path: 'system/upi-checkout', element: <SystemUpiCheckoutPage /> },
       {
         path: 'system/assets',
         element: <AssetsLayout />,

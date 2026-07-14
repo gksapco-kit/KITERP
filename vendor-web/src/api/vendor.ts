@@ -748,6 +748,14 @@ export interface AiCopyRequest {
   current_description?: string
 }
 
+export type GalleryTrashItem = {
+  url: string
+  label?: string
+  filename?: string | null
+  deleted_at?: string
+  was_gallery_upload?: boolean
+}
+
 const SKIP_AUTO_REFRESH = { headers: { 'X-Skip-Auto-Refresh': 'true' } }
 
 export const vendorApi = {
@@ -1046,6 +1054,35 @@ export const vendorApi = {
     const response = await apiClient.post('/uploads/vendor/gallery-image', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
+    return response.data
+  },
+
+  trashGalleryImages: async (
+    items: Array<{ url: string; label?: string; filename?: string }>,
+  ): Promise<{
+    moved: number
+    gallery_uploads: Array<{ url: string; filename?: string; label?: string }>
+    gallery_trash: GalleryTrashItem[]
+  }> => {
+    const response = await apiClient.post('/uploads/vendor/gallery-image/trash', { items })
+    return response.data
+  },
+
+  restoreGalleryImages: async (
+    urls: string[],
+  ): Promise<{
+    restored: number
+    gallery_uploads: Array<{ url: string; filename?: string; label?: string }>
+    gallery_trash: GalleryTrashItem[]
+  }> => {
+    const response = await apiClient.post('/uploads/vendor/gallery-image/restore', { urls })
+    return response.data
+  },
+
+  permanentlyDeleteGalleryImages: async (
+    urls: string[],
+  ): Promise<{ deleted: number; gallery_trash: GalleryTrashItem[]; gallery_purged?: string[] }> => {
+    const response = await apiClient.delete('/uploads/vendor/gallery-image/trash', { data: { urls } })
     return response.data
   },
 

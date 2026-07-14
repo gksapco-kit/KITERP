@@ -47,7 +47,12 @@ async def guest_checkout_preview(
         customer_id=None,
         shipping_state=data.shipping_state,
     )
-    payment_info = await build_checkout_payment_info(db, vendor)
+    payment_info = await build_checkout_payment_info(
+        db,
+        vendor,
+        store_id=data.store_id,
+        branch=data.branch_code,
+    )
     preview.update(payment_info)
     return JSONResponse(content=preview)
 
@@ -78,7 +83,12 @@ async def checkout_preview(
         customer_id=customer.id,
         shipping_state=data.shipping_state,
     )
-    payment_info = await build_checkout_payment_info(db, vendor)
+    payment_info = await build_checkout_payment_info(
+        db,
+        vendor,
+        store_id=data.store_id,
+        branch=data.branch_code,
+    )
     preview.update(payment_info)
     return JSONResponse(content=preview)
 

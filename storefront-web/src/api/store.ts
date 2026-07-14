@@ -185,6 +185,8 @@ export const storeApi = {
     shipping_method_id?: string
     coupon_code?: string
     shipping_state?: string
+    store_id?: string
+    branch_code?: string
   }) => {
     const res = await apiClient.post('/store/checkout/guest-preview', data)
     return res.data
@@ -238,6 +240,8 @@ export const storeApi = {
     shipping_method_id?: string
     coupon_code?: string
     shipping_state?: string
+    store_id?: string
+    branch_code?: string
   }) => {
     const res = await apiClient.post('/store/checkout/preview', data)
     return res.data as {

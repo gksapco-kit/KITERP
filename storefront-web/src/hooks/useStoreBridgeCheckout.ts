@@ -132,10 +132,14 @@ export function useStoreBridgeCheckout() {
     setPreviewLoading(true)
     setPreviewError(undefined)
     try {
+      const checkoutBranch = selectedBranch ?? pickDefaultOpenBranch(branches)
+      const orderBranchCode = checkoutBranch ? branchCodeForStore(checkoutBranch) : branchCode ?? undefined
       const previewBody = {
         shipping_method_id: methodId,
         coupon_code: coupon ?? undefined,
         shipping_state: resolvedAddress?.region,
+        store_id: checkoutBranch?.id ?? undefined,
+        branch_code: orderBranchCode,
       }
       const data = isGuest
         ? await storeApi.guestCheckoutPreview({ ...previewBody, items: cartItemsPayload })
@@ -164,7 +168,7 @@ export function useStoreBridgeCheckout() {
     } finally {
       setPreviewLoading(false)
     }
-  }, [cartItemsPayload, shippingMethodId, couponCode, resolvedAddress?.region, isGuest])
+  }, [cartItemsPayload, shippingMethodId, couponCode, resolvedAddress?.region, isGuest, selectedBranch, branches, branchCode])
 
   useEffect(() => {
     void refreshPreview()
@@ -312,10 +316,14 @@ export function useStoreBridgeCheckout() {
 
     applyCoupon: async (code: string): Promise<{ ok: boolean; message?: string }> => {
       try {
+        const checkoutBranch = selectedBranch ?? pickDefaultOpenBranch(branches)
+        const orderBranchCode = checkoutBranch ? branchCodeForStore(checkoutBranch) : branchCode ?? undefined
         const previewBody = {
           shipping_method_id: shippingMethodId,
           coupon_code: code,
           shipping_state: resolvedAddress?.region,
+          store_id: checkoutBranch?.id ?? undefined,
+          branch_code: orderBranchCode,
         }
         const result = isGuest
           ? await storeApi.guestCheckoutPreview({ ...previewBody, items: cartItemsPayload })

@@ -8,6 +8,8 @@ class CheckoutPreviewRequest(BaseModel):
     shipping_method_id: str = "free"
     coupon_code: Optional[str] = Field(None, max_length=50)
     shipping_state: Optional[str] = Field(None, max_length=100)
+    store_id: Optional[str] = Field(None, max_length=36)
+    branch_code: Optional[str] = Field(None, max_length=64)
 
 
 class GuestCheckoutPreviewRequest(CheckoutPreviewRequest):

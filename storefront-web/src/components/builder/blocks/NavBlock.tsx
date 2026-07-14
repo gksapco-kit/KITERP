@@ -16,7 +16,7 @@ import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
 import { resolveStorefrontLinkMode } from '@/lib/storefrontTemplateAssignment'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
-import { readNavHeaderBarSize, resolveNavBlockShell } from '@/lib/navBlockLayout'
+import { resolveNavBlockShell } from '@/lib/navBlockLayout'
 import {
   isNavLinkActive,
   resolveCurrentNavActiveKey,
@@ -40,7 +40,9 @@ import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import {
   readNavBrandGap,
   readNavBrandLayout,
-  resolveNavBrandContainerClass,
+  resolveNavBarMinHeightPx,
+  resolveNavBarRowClass,
+  resolveNavBrandLinkClass,
   resolveNavBrandTextClass,
   resolveNavLogoPresentation,
 } from '@/lib/navBrandStyle'
@@ -148,7 +150,6 @@ export default function NavBlock({
   const announcement = (props.announcement as string | undefined) || null
 
   const shell = resolveNavBlockShell(props, style)
-  const headerBarSize = readNavHeaderBarSize(props)
   const navLinksSource = (props.nav_links_source as string) || 'site_pages'
   const rawLinks = (props.nav_links as Array<{ label: string; url: string }> | undefined) || []
 
@@ -291,6 +292,9 @@ export default function NavBlock({
   const brandLayout = readNavBrandLayout(props)
   const brandGap = readNavBrandGap(props)
   const logoPresentation = resolveNavLogoPresentation(props, shell.isCompact)
+  const brandLinkClass = resolveNavBrandLinkClass(props, brandLayout, shell.isCentered)
+  const navRowPaddingClass = resolveNavBarRowClass(props, shell.isCompact)
+  const navRowMinHeight = resolveNavBarMinHeightPx(props, shell.isCompact)
 
   const logoImageNode = showLogoImageResolved ? (
     isEditorCanvas && blockId ? (
@@ -301,16 +305,20 @@ export default function NavBlock({
         src={logoUrl ? imgUrl(logoUrl) : ''}
         alt={brand}
         empty={!logoUrl}
-        className={logoPresentation.className}
-        style={logoPresentation.style}
+        frameClassName={logoPresentation.frameClassName}
+        frameStyle={logoPresentation.frameStyle}
+        className={logoPresentation.imgClassName}
+        style={logoPresentation.imgStyle}
       />
     ) : logoUrl ? (
-      <img
-        src={imgUrl(logoUrl)}
-        alt={brand}
-        className={logoPresentation.className}
-        style={logoPresentation.style}
-      />
+      <span className={logoPresentation.frameClassName} style={logoPresentation.frameStyle}>
+        <img
+          src={imgUrl(logoUrl)}
+          alt={brand}
+          className={logoPresentation.imgClassName}
+          style={logoPresentation.imgStyle}
+        />
+      </span>
     ) : null
   ) : null
 
@@ -340,7 +348,7 @@ export default function NavBlock({
     <a
       href={homePath}
       onClick={(e) => previewNavClick(e, homePath)}
-      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'min-w-0 max-w-[min(100%,180px)] sm:max-w-[min(100%,260px)] md:max-w-[min(100%,260px)]')}
+      className={brandLinkClass}
       style={{ gap: brandGap }}
       aria-label={showHomeFallback ? 'Home' : brand}
     >
@@ -356,7 +364,7 @@ export default function NavBlock({
   ) : (
     <Link
       to={homePath}
-      className={cn(resolveNavBrandContainerClass(brandLayout, shell.isCentered), 'min-w-0 max-w-[min(100%,180px)] sm:max-w-[min(100%,260px)] md:max-w-[min(100%,260px)]')}
+      className={brandLinkClass}
       style={{ gap: brandGap }}
       aria-label={showHomeFallback ? 'Home' : brand}
     >
@@ -750,8 +758,8 @@ export default function NavBlock({
           label={ctaLabel}
           href={ctaUrl}
           className={cn(
-            'hidden md:inline-flex text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity',
-            shell.isCompact ? 'px-3 py-1.5' : 'px-4 py-2',
+            'hidden md:inline-flex text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity leading-none',
+            shell.isCompact ? 'px-3 py-1.5' : 'px-3.5 py-2',
             shell.isTransparentCta && 'ring-2 ring-white/30',
           )}
           style={{
@@ -781,19 +789,13 @@ export default function NavBlock({
       >
         <div
           className={cn(
-            builderSectionContainerClass(
-              'relative',
-              // Keep original compact/default padding unless Header bar size is set.
-              headerBarSize == null
-                ? (shell.isCompact ? 'py-1.5' : 'py-3')
-                : undefined,
-            ),
+            builderSectionContainerClass('relative', navRowPaddingClass),
             shell.isCentered
               ? 'flex flex-col items-center text-center gap-2'
               : 'flex items-center justify-between gap-3',
             shell.isElevated && '!mx-3 sm:!mx-4 !max-w-none mt-2 rounded-xl shadow-lg border border-black/5',
           )}
-          style={headerBarSize != null ? { minHeight: headerBarSize } : undefined}
+          style={!shell.isCentered ? { minHeight: navRowMinHeight } : undefined}
         >
           {shell.isCentered ? (
             <>

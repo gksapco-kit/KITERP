@@ -15,7 +15,7 @@ import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderContentGroup } from '@/components/builder/BuilderContentGroup'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
-import { readSectionImageLayer } from '@/lib/sectionImageStyle'
+import { readSectionImageFit, readSectionImageLayer } from '@/lib/sectionImageStyle'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { previewBelowMd } from '@/lib/previewBreakpoint'
 import { useEffect, useMemo, useState } from 'react'
@@ -33,6 +33,7 @@ import {
 } from '@/lib/builderSectionLayout'
 import { HeroBannerCarousel } from '@/home-sections/HeroBannerCarousel'
 import { heroUsesBannerCarousel, resolveHeroBackgroundUrls } from '@/home-sections/heroBanners'
+import { useBannerAspectRatio } from '@/home-sections/useBannerAspectRatio'
 
 interface Props {
   site: PublicSite
@@ -152,6 +153,15 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
     heroBackgroundUrls.length,
     props.banner_carousel as boolean | undefined,
   )
+  const [bannerSlideIndex, setBannerSlideIndex] = useState(0)
+  const bannerAspect = useBannerAspectRatio(
+    heroBackgroundUrls,
+    useBannerCarousel ? bannerSlideIndex : 0,
+  )
+  // Prefer covering the frame; authors can still choose Fit/Fill in section image controls.
+  const bgImageFit = readSectionImageFit('bg_image_url', props)
+  const bgImageFitClass =
+    bgImageFit === 'fill' ? 'object-fill' : bgImageFit === 'cover' ? 'object-cover' : 'object-contain'
 
   const hasSideImage = isSplit && !!sideImageUrl
   const hasBgImg = heroBackgroundUrls.length > 0
@@ -535,7 +545,12 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
 
   const centeredImageHeroClass =
     heroUsesImageBg && !splitSideBySide && !isSplit
-      ? cn(BUILDER_SECTION_INSET_X, 'relative py-24 min-h-[72vh] flex items-center justify-center overflow-hidden')
+      ? cn(
+          BUILDER_SECTION_INSET_X,
+          // Frame follows each banner's natural aspect ratio (see bannerAspect style below).
+          'relative w-full max-h-[min(70vh,640px)] overflow-hidden bg-muted/30 transition-[aspect-ratio] duration-500 ease-in-out',
+          !bannerAspect && 'aspect-[3/1]',
+        )
       : cn(BUILDER_SECTION_INSET_X, 'relative py-24')
 
   return (
@@ -561,29 +576,37 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           : {
               background: heroBg,
               backgroundImage: isEditorCanvas && heroUsesImageBg ? undefined : heroBgImage,
-              backgroundSize: isEditorCanvas && heroUsesImageBg ? undefined : 'cover',
+              backgroundSize: isEditorCanvas && heroUsesImageBg ? undefined : (bgImageFit === 'contain' ? 'contain' : bgImageFit === 'fill' ? '100% 100%' : 'cover'),
               backgroundPosition: isEditorCanvas && heroUsesImageBg ? undefined : 'center',
+              backgroundRepeat: isEditorCanvas && heroUsesImageBg ? undefined : 'no-repeat',
               color: heroText,
+              ...(heroUsesImageBg && !splitSideBySide && !isSplit && bannerAspect
+                ? { aspectRatio: String(bannerAspect) }
+                : {}),
             }
       }
     >
       {heroUsesImageBg && heroBackgroundUrls.length > 0 && !bgImageHidden ? (
         <div className="absolute inset-0 z-0">
           {useBannerCarousel ? (
-            <HeroBannerCarousel urls={heroBackgroundUrls} />
+            <HeroBannerCarousel
+              urls={heroBackgroundUrls}
+              imageClassName={cn('h-full w-full object-center', bgImageFitClass)}
+              onIndexChange={setBannerSlideIndex}
+            />
           ) : isEditorCanvas && blockId && heroImageRaw ? (
             <BuilderSectionImage
               blockId={blockId}
               field="bg_image_url"
               blockProps={props}
               src={heroPrimaryUrl!}
-              className="absolute inset-0 h-full w-full object-cover"
+              className={cn('absolute inset-0 h-full w-full', bgImageFitClass)}
             />
           ) : (
             <img
               src={heroPrimaryUrl}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              className={cn('absolute inset-0 h-full w-full object-center', bgImageFitClass)}
               loading="eager"
               decoding="async"
             />

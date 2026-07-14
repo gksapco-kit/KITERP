@@ -41,6 +41,9 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/blog': 'website-management',
   '/system/messages': 'system',
   '/crm/integrations': 'system',
+  '/team': 'system',
+  '/roles': 'system',
+  '/system/upi-checkout': 'system',
 }
 
 /** When pinning, insert after this sibling route when it exists in that section. */
@@ -52,6 +55,10 @@ const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/websites/seo': '/blog',
   '/system/messages': '/crm/integrations',
   '/crm/integrations': '/system/modules',
+  '/team': '/system/browse-table',
+  '/roles': '/team',
+  '/system/upi-checkout': '/roles',
+  '/system/assets/images': '/system/upi-checkout',
 }
 
 export type NavOrderScope = {
@@ -463,9 +470,10 @@ export function reconcileNavPlacements(
     '/system/models',
     '/system/table-data',
     '/system/browse-table',
-    '/system/assets/images',
     '/team',
     '/roles',
+    '/system/upi-checkout',
+    '/system/assets/images',
   ]
   const systemRoutes = [...validTos].filter((to) => home.get(to) === 'system')
   if (systemRoutes.length && out.system) {

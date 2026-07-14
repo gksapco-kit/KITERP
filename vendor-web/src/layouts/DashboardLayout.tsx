@@ -19,7 +19,7 @@ import {
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun, Image, Palette,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban, FileBarChart,
   GripVertical, SlidersHorizontal, Database, Table2, Search, ExternalLink,
-  PanelLeftClose, PanelLeft, Settings2, Hash,
+  PanelLeftClose, PanelLeft, Settings2, Hash, QrCode,
   ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin, Quote, X,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
@@ -803,9 +803,10 @@ const allSections: NavSection[] = [
       { to: '/system/models', icon: Database, label: 'Models', alwaysShow: true, groupLabel: 'Database', groupColor: 'indigo' },
       { to: '/system/table-data', icon: Table2, label: 'Table Data', requiresVendorAdmin: true },
       { to: '/system/browse-table', icon: List, label: 'Browse Table', requiresVendorAdmin: true },
-      { to: '/system/assets/images', icon: Image, label: 'Images', alwaysShow: true, groupLabel: 'Gallery', groupColor: 'violet' },
-      { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view' },
+      { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view', groupLabel: 'Access Control', groupColor: 'emerald' },
       { to: '/roles', icon: ShieldCheck, label: 'Roles', requiresPermission: 'roles.view' },
+      { to: '/system/upi-checkout', icon: QrCode, label: 'UPI Checkout', alwaysShow: true },
+      { to: '/system/assets/images', icon: Image, label: 'Images', alwaysShow: true, groupLabel: 'Gallery', groupColor: 'violet' },
     ],
   },
 ]
@@ -1175,6 +1176,7 @@ const pageTitles: Record<string, string> = {
   '/system/browse-table': 'Browse Table',
   '/system/storefront-display': 'Business Front Display',
   '/system/social-links': 'Social & Web Links',
+  '/system/upi-checkout': 'UPI Checkout',
   '/system/assets': 'Gallery',
   '/system/assets/images': 'Images',
 

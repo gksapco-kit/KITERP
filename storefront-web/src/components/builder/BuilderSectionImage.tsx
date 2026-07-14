@@ -26,6 +26,8 @@ export function BuilderSectionImage({
   alt = '',
   className,
   style,
+  frameClassName,
+  frameStyle,
   arrayKey,
   index,
   itemField,
@@ -38,6 +40,12 @@ export function BuilderSectionImage({
   alt?: string
   className?: string
   style?: CSSProperties
+  /**
+   * Optional outer-frame sizing (e.g. nav logos). When set, replaces the default
+   * `h-full w-full` fill so intrinsic width/height controls actually apply.
+   */
+  frameClassName?: string
+  frameStyle?: CSSProperties
   /** Array-item slot (categories[i].image_url, images[i].src, …). */
   arrayKey?: string
   index?: number
@@ -162,34 +170,49 @@ export function BuilderSectionImage({
   const styleField = isArraySlot && (itemField === 'src' || itemField === 'avatar_url')
     ? 'image_url'
     : field
+  // Nav/brand logos use dedicated logo_size / logo_fit / logo_shape controls — do not
+  // inherit hero-style image_fit / image_scale keys (those default to cover and can
+  // shrink or crop the mark).
+  const isLogoField = styleField === 'brand_logo' || styleField === 'logo_url'
   const styleProps = canvas?.blockPropsForImage ?? blockProps ?? {}
   const arrayItem = isArraySlot ? readArrayItemFromBlockProps(styleProps, arrayKey!, index!) : null
-  const objectStyle = isArraySlot
-    ? sectionImageObjectStyle(
-        'image_url',
-        readArrayItemImageStyleProps(arrayItem!, styleProps, styleField),
-      )
-    : sectionImageObjectStyle(styleField, styleProps)
+  const objectStyle = isLogoField
+    ? undefined
+    : isArraySlot
+      ? sectionImageObjectStyle(
+          'image_url',
+          readArrayItemImageStyleProps(arrayItem!, styleProps, styleField),
+        )
+      : sectionImageObjectStyle(styleField, styleProps)
 
   // Corners + opacity apply to per-card images too (read from the item). Shadow and the
   // gradient overlay stay whole-section only — per-card frames use `overflow-hidden`,
   // which clips drop shadows and gradient layers.
-  const decorStyle = isArraySlot
-    ? sectionImageDecorStyle('image_url', arrayItem!)
-    : sectionImageDecorStyle(styleField, styleProps)
-  const overlayCss = isArraySlot
+  const decorStyle = isLogoField
+    ? undefined
+    : isArraySlot
+      ? sectionImageDecorStyle('image_url', arrayItem!)
+      : sectionImageDecorStyle(styleField, styleProps)
+  const overlayCss = isLogoField || isArraySlot
     ? undefined
     : sectionImageOverlayCss(readSectionImageOverlay(styleField, styleProps))
+
+  const hasFrameSize = frameClassName != null || frameStyle != null
 
   return (
     <div
       ref={frameRef}
       className={cn(
-        'group/builder-section-img relative z-0 h-full w-full overflow-hidden',
+        'group/builder-section-img relative z-0 overflow-hidden',
+        hasFrameSize ? frameClassName : 'h-full w-full',
         isEditor && 'cursor-pointer pointer-events-auto',
         isEditor && isActive && 'z-[20]',
       )}
-      style={decorStyle}
+      style={
+        hasFrameSize
+          ? (decorStyle ? { ...frameStyle, ...decorStyle } : frameStyle)
+          : decorStyle
+      }
       data-builder-section-image={field}
       {...(isArraySlot ? {
         'data-builder-image-array-key': arrayKey,
@@ -204,7 +227,7 @@ export function BuilderSectionImage({
         src={src}
         alt={alt}
         className={cn('block min-h-0 min-w-0', className, empty && 'opacity-0')}
-        style={{ ...objectStyle, ...style }}
+        style={objectStyle ? { ...objectStyle, ...style } : style}
         loading="lazy"
         draggable={false}
       />

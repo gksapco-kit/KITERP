@@ -21,6 +21,8 @@ import {
 } from './heroContrast'
 import { HeroBannerCarousel } from './HeroBannerCarousel'
 import { heroUsesBannerCarousel, resolveHeroBackgroundUrls } from './heroBanners'
+import { useBannerAspectRatio } from './useBannerAspectRatio'
+import { useState } from 'react'
 
 export function HeroSection({
   props,
@@ -59,6 +61,14 @@ export function HeroSection({
     heroBackgroundUrls.length,
     props.banner_carousel as boolean | undefined,
   )
+  const [bannerSlideIndex, setBannerSlideIndex] = useState(0)
+  const bannerAspect = useBannerAspectRatio(
+    heroBackgroundUrls,
+    useCarousel ? bannerSlideIndex : 0,
+  )
+  const bannerFrameStyle = bannerAspect
+    ? { aspectRatio: String(bannerAspect) }
+    : undefined
 
   const kit = editorialKitHero(builderTemplateId, props)
 
@@ -82,7 +92,7 @@ export function HeroSection({
           <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:items-center xl:gap-x-6 2xl:gap-x-8">
             <div className="order-2 xl:order-1 xl:col-span-6 relative aspect-[4/3] max-h-[min(34dvh,200px)] w-full overflow-hidden rounded-2xl grain sm:aspect-[16/10] sm:max-h-[min(38dvh,260px)] md:max-h-[min(40dvh,300px)] sm:rounded-3xl xl:aspect-[4/3] xl:max-h-[min(48vh,420px)] xl:w-full">
               {useCarousel ? (
-                <HeroBannerCarousel urls={heroBackgroundUrls} />
+                <HeroBannerCarousel urls={heroBackgroundUrls} imageClassName="h-full w-full object-cover object-center" />
               ) : (
                 <img src={heroImg} alt="" className="h-full w-full object-cover object-center" />
               )}
@@ -196,7 +206,7 @@ export function HeroSection({
             </div>
             <div className="order-2 relative aspect-[4/3] max-h-[min(38dvh,220px)] w-full overflow-hidden rounded-2xl grain sm:aspect-[16/10] sm:max-h-[min(42dvh,280px)] md:max-h-[min(44dvh,320px)] sm:rounded-3xl xl:order-2 xl:col-span-6 xl:aspect-[4/3] xl:max-h-[min(52vh,480px)] xl:mx-auto xl:w-full">
               {useCarousel ? (
-                <HeroBannerCarousel urls={heroBackgroundUrls} />
+                <HeroBannerCarousel urls={heroBackgroundUrls} imageClassName="h-full w-full object-cover object-center" />
               ) : (
                 <img src={heroImg} alt="" className="h-full w-full object-cover object-center" />
               )}
@@ -247,21 +257,30 @@ export function HeroSection({
   }
 
   if (bgStyle === 'image') {
-    const minHeightClass =
-      theme.hero_height === 'compact'
-        ? 'min-h-[min(36dvh,200px)] sm:min-h-[240px] md:min-h-[280px]'
+    // Follow each banner's natural aspect ratio; fall back to 3:1 until measured.
+    const frameClass = bannerAspect
+      ? 'w-full max-h-[min(70vh,640px)]'
+      : theme.hero_height === 'compact'
+        ? 'aspect-[3/1] max-h-[min(42vh,360px)]'
         : theme.hero_height === 'tall'
-          ? 'min-h-[min(44dvh,280px)] sm:min-h-[400px] md:min-h-[520px] lg:min-h-[600px]'
-          : 'min-h-[min(40dvh,240px)] sm:min-h-[320px] md:min-h-[420px]'
+          ? 'aspect-[3/1] max-h-[min(70vh,640px)]'
+          : 'aspect-[3/1] max-h-[min(56vh,520px)]'
     const bgUrl = heroBackgroundUrls[0] ?? ''
     const primaryBtnBg = c.primary
     const primaryBtnFg = textOnSolid(primaryBtnBg)
     return (
-      <section className={`relative overflow-hidden ${minHeightClass} flex items-center`}>
+      <section
+        className={`relative w-full overflow-hidden ${frameClass} flex items-center bg-muted/30 transition-[aspect-ratio] duration-500 ease-in-out`}
+        style={bannerFrameStyle}
+      >
         {bgUrl ? (
           <>
             {useCarousel ? (
-              <HeroBannerCarousel urls={heroBackgroundUrls} />
+              <HeroBannerCarousel
+                urls={heroBackgroundUrls}
+                imageClassName="h-full w-full object-cover object-center"
+                onIndexChange={setBannerSlideIndex}
+              />
             ) : (
               <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
             )}
@@ -311,7 +330,7 @@ export function HeroSection({
                 className={`gap-2 h-12 px-8 bg-white/10 backdrop-blur-sm border-2 hover:bg-white/20 ${br}`}
                 style={{ borderColor: 'rgba(255,255,255,0.75)', color: '#ffffff', ...fieldTypographyStyle(props, 'cta_secondary') }}
               >
-                <Wrench className="w-5 h-5" /> {cta2}
+                <Wrench className="h-5 w-5" /> {cta2}
               </Button>
             </SectionNavLink>
           </div>
@@ -324,11 +343,21 @@ export function HeroSection({
   const bgUrl = heroBackgroundUrls[0] ?? ''
   const accentBtnFg = textOnSolid(c.accent)
   return (
-    <section className="relative overflow-hidden" style={{ background: heroBrandGradient(c.primary, c.secondary) }}>
+    <section
+      className="relative overflow-hidden transition-[aspect-ratio] duration-500 ease-in-out"
+      style={{
+        background: heroBrandGradient(c.primary, c.secondary),
+        ...(bgUrl && bannerAspect ? bannerFrameStyle : {}),
+      }}
+    >
       {bgUrl && (
         <div className="absolute inset-0">
           {useCarousel ? (
-            <HeroBannerCarousel urls={heroBackgroundUrls} />
+            <HeroBannerCarousel
+              urls={heroBackgroundUrls}
+              imageClassName="h-full w-full object-cover object-center"
+              onIndexChange={setBannerSlideIndex}
+            />
           ) : (
             <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
           )}

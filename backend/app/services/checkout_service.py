@@ -83,11 +83,34 @@ def get_payment_methods(vendor: Vendor) -> list[str]:
     return ["cod", "razorpay"]
 
 
-def get_manual_upi_config(vendor: Vendor) -> dict[str, Any]:
-    """Vendor-uploaded UPI QR for manual checkout payments."""
-    raw = _checkout_config(vendor).get("manual_upi")
+def get_manual_upi_config(vendor: Vendor, store: Any | None = None) -> dict[str, Any]:
+    """Resolve manual UPI QR config — shared vendor settings or per-BU override."""
+    settings = vendor.settings if isinstance(vendor.settings, dict) else {}
+    mode = settings.get("upi_checkout_mode")
+    if mode not in ("shared", "per_unit"):
+        # Mirror storefront link scope default when unset.
+        link_mode = settings.get("storefront_link_mode")
+        mode = "shared" if link_mode == "single" else "per_unit"
+
+    vendor_raw = _checkout_config(vendor).get("manual_upi")
+    vendor_cfg = _normalize_manual_upi(vendor_raw)
+
+    if mode == "per_unit" and store is not None:
+        store_settings = getattr(store, "settings", None)
+        if isinstance(store_settings, dict) and isinstance(store_settings.get("manual_upi"), dict):
+            return _normalize_manual_upi(store_settings.get("manual_upi"))
+
+    return vendor_cfg
+
+
+def _normalize_manual_upi(raw: Any) -> dict[str, Any]:
     if not isinstance(raw, dict):
-        return {}
+        return {
+            "enabled": False,
+            "upi_id": None,
+            "qr_code_url": None,
+            "label": "UPI",
+        }
     upi_id = str(raw.get("upi_id") or "").strip()
     qr_code_url = str(raw.get("qr_code_url") or "").strip()
     enabled = bool(raw.get("enabled")) and bool(upi_id or qr_code_url)
@@ -99,17 +122,28 @@ def get_manual_upi_config(vendor: Vendor) -> dict[str, Any]:
     }
 
 
-def build_manual_upi_public_info(vendor: Vendor) -> dict[str, Any] | None:
-    cfg = get_manual_upi_config(vendor)
+def build_manual_upi_public_info(vendor: Vendor, store: Any | None = None) -> dict[str, Any] | None:
+    cfg = get_manual_upi_config(vendor, store)
     if not cfg.get("enabled"):
         return None
+    business_name = vendor.display_name or vendor.business_name
+    logo_url = vendor.logo_url
+    if store is not None:
+        store_name = getattr(store, "name", None)
+        if store_name:
+            business_name = store_name
+        store_settings = getattr(store, "settings", None)
+        if isinstance(store_settings, dict):
+            unit_logo = store_settings.get("logo_url")
+            if isinstance(unit_logo, str) and unit_logo.strip():
+                logo_url = unit_logo.strip()
     return {
         "enabled": True,
         "upi_id": cfg.get("upi_id"),
         "qr_code_url": cfg.get("qr_code_url"),
         "label": cfg.get("label"),
-        "business_name": vendor.display_name or vendor.business_name,
-        "logo_url": vendor.logo_url,
+        "business_name": business_name,
+        "logo_url": logo_url,
     }
 
 

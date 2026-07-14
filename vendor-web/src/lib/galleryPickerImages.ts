@@ -48,6 +48,44 @@ export function isUserStoredImageUrl(url: unknown): url is string {
   )
 }
 
+export type GalleryTrashItem = {
+  url: string
+  label?: string
+  filename?: string | null
+  deleted_at?: string
+  was_gallery_upload?: boolean
+}
+
+export function galleryTrashEntries(
+  settings: Record<string, unknown> | undefined,
+): GalleryTrashItem[] {
+  const raw = settings?.gallery_trash
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((x): GalleryTrashItem | null => {
+      if (typeof x === 'string' && x.trim()) return { url: x.trim(), label: 'Upload' }
+      if (typeof x === 'object' && x !== null && typeof (x as { url?: unknown }).url === 'string') {
+        const item = x as GalleryTrashItem
+        const url = item.url.trim()
+        if (!url) return null
+        return { ...item, url }
+      }
+      return null
+    })
+    .filter((x): x is GalleryTrashItem => x != null)
+}
+
+function galleryTrashUrlSet(settings: Record<string, unknown> | undefined): Set<string> {
+  const urls = galleryTrashEntries(settings).map((t) => t.url.trim().toLowerCase())
+  const purged = settings?.gallery_purged
+  if (Array.isArray(purged)) {
+    for (const item of purged) {
+      if (typeof item === 'string' && item.trim()) urls.push(item.trim().toLowerCase())
+    }
+  }
+  return new Set(urls)
+}
+
 function pushStoredImage(
   seen: Set<string>,
   out: StoredGalleryImage[],
@@ -97,36 +135,43 @@ export function collectVendorStoredImages(input: {
 }): StoredGalleryImage[] {
   const seen = new Set<string>()
   const out: StoredGalleryImage[] = []
+  const trashed = galleryTrashUrlSet(input.vendor?.theme_config as Record<string, unknown> | undefined)
 
-  pushStoredImage(seen, out, input.vendor?.logo_url, 'Account logo')
-  pushStoredImage(seen, out, input.vendor?.banner_url, 'Account banner')
+  const push = (url: string | undefined | null, label: string) => {
+    if (!isUserStoredImageUrl(url)) return
+    if (trashed.has(url.trim().toLowerCase())) return
+    pushStoredImage(seen, out, url, label)
+  }
+
+  push(input.vendor?.logo_url, 'Account logo')
+  push(input.vendor?.banner_url, 'Account banner')
 
   const vendorExtras = extraBannerUrls(input.vendor?.theme_config as Record<string, unknown> | undefined)
-  vendorExtras.forEach((url, i) => pushStoredImage(seen, out, url, `Account banner ${i + 1}`))
+  vendorExtras.forEach((url, i) => push(url, `Account banner ${i + 1}`))
 
   for (const item of galleryUploadEntries(input.vendor?.theme_config as Record<string, unknown> | undefined)) {
     const label = item.label?.trim() || item.filename?.trim() || 'Gallery upload'
-    pushStoredImage(seen, out, item.url, label)
+    push(item.url, label)
   }
 
   for (const store of input.stores ?? []) {
     const settings = (store.settings ?? {}) as Record<string, unknown>
     const unitLabel = store.name?.trim() || 'Business unit'
-    pushStoredImage(seen, out, settingsStr(settings, 'logo_url'), `${unitLabel} logo`)
-    pushStoredImage(seen, out, settingsStr(settings, 'banner_url'), `${unitLabel} banner`)
+    push(settingsStr(settings, 'logo_url'), `${unitLabel} logo`)
+    push(settingsStr(settings, 'banner_url'), `${unitLabel} banner`)
     extraBannerUrls(settings).forEach((url, i) => {
-      pushStoredImage(seen, out, url, `${unitLabel} banner ${i + 1}`)
+      push(url, `${unitLabel} banner ${i + 1}`)
     })
   }
 
   for (const cat of flattenCategories(input.categories ?? [])) {
     if (!cat.image_url) continue
-    pushStoredImage(seen, out, cat.image_url, cat.name?.trim() || 'Category image')
+    push(cat.image_url, cat.name?.trim() || 'Category image')
   }
 
   for (const item of input.websiteMedia ?? []) {
     const label = item.label?.trim() || item.filename?.trim() || 'Site media'
-    pushStoredImage(seen, out, item.original_url, label)
+    push(item.original_url, label)
   }
 
   for (const product of input.products ?? []) {
@@ -134,20 +179,20 @@ export function collectVendorStoredImages(input: {
     for (const img of product.images ?? []) {
       if (img.media_type && img.media_type !== 'image') continue
       const label = img.alt_text?.trim() || `${productLabel} image`
-      pushStoredImage(seen, out, img.url, label)
+      push(img.url, label)
     }
   }
 
   for (const service of input.services ?? []) {
     const serviceLabel = service.name?.trim() || 'Service'
-    pushStoredImage(seen, out, service.image_url, `${serviceLabel} cover`)
+    push(service.image_url, `${serviceLabel} cover`)
     for (const url of service.gallery ?? []) {
-      pushStoredImage(seen, out, url, `${serviceLabel} gallery`)
+      push(url, `${serviceLabel} gallery`)
     }
     for (const item of service.media ?? []) {
       if (item.media_type && item.media_type !== 'image') continue
       const label = item.alt_text?.trim() || `${serviceLabel} media`
-      pushStoredImage(seen, out, item.url, label)
+      push(item.url, label)
     }
   }
 

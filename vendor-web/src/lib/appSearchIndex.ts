@@ -262,6 +262,17 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     ],
   },
   {
+    kind: 'nav', id: 'settings-upi-checkout',
+    label: 'UPI Checkout',
+    description: 'System Configuration → UPI Checkout — QR + payment proof',
+    section: 'System Configuration', sectionId: 'system',
+    to: '/system/upi-checkout',
+    keywords: [
+      'upi', 'upi checkout', 'upi qr', 'qr payment', 'payment proof', 'manual upi',
+      'gpay', 'phonepe', 'bhim', 'upi id', 'scan and pay', 'per business unit', 'per bu upi',
+    ],
+  },
+  {
     kind: 'nav', id: 'settings-display',
     label: 'Business Front Display',
     description: 'Website Management → Business Front display',

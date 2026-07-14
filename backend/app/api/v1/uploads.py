@@ -192,6 +192,220 @@ async def upload_vendor_gallery_image(
     return JSONResponse(content={"url": url, "filename": fname, "gallery_uploads": uploads})
 
 
+def _normalize_gallery_url(url: str) -> str:
+    return (url or "").strip()
+
+
+def _gallery_trash_list(cfg: dict) -> list:
+    raw = cfg.get("gallery_trash")
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw:
+        if isinstance(item, dict) and isinstance(item.get("url"), str) and item["url"].strip():
+            out.append(item)
+        elif isinstance(item, str) and item.strip():
+            out.append({"url": item.strip(), "label": "Upload"})
+    return out
+
+
+@router.post("/vendor/gallery-image/trash")
+async def trash_vendor_gallery_images(
+    body: dict = Body(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft-delete gallery images into theme_config['gallery_trash'] (recycle bin)."""
+    from datetime import datetime, timezone
+    from sqlalchemy.orm.attributes import flag_modified
+
+    urls_raw = body.get("items") or body.get("urls") or []
+    if not isinstance(urls_raw, list) or not urls_raw:
+        raise HTTPException(status_code=400, detail="items is required")
+
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    cfg = dict(vendor.theme_config or {})
+    uploads: list = list(cfg.get("gallery_uploads", []))
+    trash = _gallery_trash_list(cfg)
+    trash_urls = {(_normalize_gallery_url(t.get("url", ""))).lower() for t in trash}
+    now = datetime.now(timezone.utc).isoformat()
+
+    moved = 0
+    for entry in urls_raw:
+        if isinstance(entry, str):
+            url = _normalize_gallery_url(entry)
+            label = None
+            filename = None
+        elif isinstance(entry, dict):
+            url = _normalize_gallery_url(str(entry.get("url") or ""))
+            label = entry.get("label") if isinstance(entry.get("label"), str) else None
+            filename = entry.get("filename") if isinstance(entry.get("filename"), str) else None
+        else:
+            continue
+        if not url:
+            continue
+        key = url.lower()
+        if key in trash_urls:
+            continue
+
+        was_gallery_upload = False
+        kept_uploads = []
+        for u in uploads:
+            if isinstance(u, dict) and _normalize_gallery_url(str(u.get("url") or "")).lower() == key:
+                was_gallery_upload = True
+                if not label:
+                    label = u.get("label") if isinstance(u.get("label"), str) else None
+                if not filename:
+                    filename = u.get("filename") if isinstance(u.get("filename"), str) else None
+                continue
+            kept_uploads.append(u)
+        uploads = kept_uploads
+
+        trash.append({
+            "url": url,
+            "label": (label or filename or "Upload").strip() or "Upload",
+            "filename": (filename or "").strip() or None,
+            "deleted_at": now,
+            "was_gallery_upload": was_gallery_upload,
+        })
+        trash_urls.add(key)
+        moved += 1
+
+    cfg["gallery_uploads"] = uploads
+    cfg["gallery_trash"] = trash
+    vendor.theme_config = cfg
+    flag_modified(vendor, "theme_config")
+    await db.commit()
+    return JSONResponse(content={
+        "moved": moved,
+        "gallery_uploads": uploads,
+        "gallery_trash": trash,
+    })
+
+
+@router.post("/vendor/gallery-image/restore")
+async def restore_vendor_gallery_images(
+    body: dict = Body(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Restore soft-deleted gallery images from the recycle bin."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    urls_raw = body.get("urls") or []
+    if not isinstance(urls_raw, list) or not urls_raw:
+        raise HTTPException(status_code=400, detail="urls is required")
+
+    wanted = {_normalize_gallery_url(str(u)).lower() for u in urls_raw if u}
+    wanted.discard("")
+    if not wanted:
+        raise HTTPException(status_code=400, detail="urls is required")
+
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    cfg = dict(vendor.theme_config or {})
+    uploads: list = list(cfg.get("gallery_uploads", []))
+    upload_urls = {
+        _normalize_gallery_url(str(u.get("url") or "")).lower()
+        for u in uploads
+        if isinstance(u, dict)
+    }
+    trash = _gallery_trash_list(cfg)
+    kept_trash = []
+    restored = 0
+
+    for item in trash:
+        url = _normalize_gallery_url(str(item.get("url") or ""))
+        key = url.lower()
+        if key not in wanted:
+            kept_trash.append(item)
+            continue
+        restored += 1
+        # Re-add to gallery_uploads when it originated there, or always so it stays visible in My Uploads.
+        if key and key not in upload_urls:
+            uploads.append({
+                "url": url,
+                "filename": item.get("filename") or item.get("label") or "upload",
+                "label": item.get("label") or item.get("filename") or "Gallery upload",
+            })
+            upload_urls.add(key)
+
+    cfg["gallery_uploads"] = uploads
+    cfg["gallery_trash"] = kept_trash
+    vendor.theme_config = cfg
+    flag_modified(vendor, "theme_config")
+    await db.commit()
+    return JSONResponse(content={
+        "restored": restored,
+        "gallery_uploads": uploads,
+        "gallery_trash": kept_trash,
+    })
+
+
+@router.delete("/vendor/gallery-image/trash")
+async def permanently_delete_vendor_gallery_images(
+    body: dict = Body(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently remove images from the recycle bin (and delete gallery files when safe)."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    urls_raw = body.get("urls") or []
+    if not isinstance(urls_raw, list) or not urls_raw:
+        raise HTTPException(status_code=400, detail="urls is required")
+
+    wanted = {_normalize_gallery_url(str(u)).lower() for u in urls_raw if u}
+    wanted.discard("")
+    if not wanted:
+        raise HTTPException(status_code=400, detail="urls is required")
+
+    svc = VendorService(db)
+    vendor = await svc.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    cfg = dict(vendor.theme_config or {})
+    trash = _gallery_trash_list(cfg)
+    kept_trash = []
+    purged: list = list(cfg.get("gallery_purged") or [])
+    purged_set = {_normalize_gallery_url(str(u)).lower() for u in purged if isinstance(u, str)}
+    deleted = 0
+
+    for item in trash:
+        url = _normalize_gallery_url(str(item.get("url") or ""))
+        key = url.lower()
+        if key not in wanted:
+            kept_trash.append(item)
+            continue
+        deleted += 1
+        # Only unlink files that live in the dedicated gallery folder.
+        if "/vendor-gallery/" in url.replace("\\", "/"):
+            await delete_stored_file(url)
+        elif key and key not in purged_set:
+            # Keep non-gallery URLs hidden from My Uploads after permanent delete.
+            purged.append(url)
+            purged_set.add(key)
+
+    cfg["gallery_trash"] = kept_trash
+    cfg["gallery_purged"] = purged
+    vendor.theme_config = cfg
+    flag_modified(vendor, "theme_config")
+    await db.commit()
+    return JSONResponse(content={
+        "deleted": deleted,
+        "gallery_trash": kept_trash,
+        "gallery_purged": purged,
+    })
+
+
 @router.post("/vendor/extra-banner")
 async def upload_vendor_extra_banner(
     file: UploadFile = File(...),

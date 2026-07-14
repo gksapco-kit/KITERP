@@ -206,6 +206,9 @@ def _public_key_for_provider(provider: str, creds: dict[str, Any]) -> str | None
 async def build_checkout_payment_info(
     db: AsyncSession,
     vendor: Vendor,
+    *,
+    store_id: UUID | str | None = None,
+    branch: str | None = None,
 ) -> dict[str, Any]:
     """Public payment config for storefront checkout preview."""
     connected = await get_checkout_active_payment_providers(db, vendor.id)
@@ -242,13 +245,28 @@ async def build_checkout_payment_info(
         razorpay_key = get_razorpay_key_id(vendor, settings.RAZORPAY_KEY_ID) or None
 
     from app.services.checkout_service import build_manual_upi_public_info
+    from app.services.store_resolver import resolve_store_id
+    from app.models.store import Store
+
+    resolved_store_id = await resolve_store_id(
+        db,
+        vendor.id,
+        store_id=store_id,
+        branch=branch,
+    )
+    store = None
+    if resolved_store_id:
+        result = await db.execute(
+            select(Store).where(Store.id == resolved_store_id, Store.vendor_id == vendor.id)
+        )
+        store = result.scalar_one_or_none()
 
     return {
         "payment_methods": methods,
         "connected_payments": providers,
         "razorpay_key_id": razorpay_key,
         "razorpay_enabled": bool(razorpay_key or settings.DEBUG),
-        "manual_upi": build_manual_upi_public_info(vendor),
+        "manual_upi": build_manual_upi_public_info(vendor, store),
     }
 
 
