@@ -57,6 +57,7 @@ import { resolveUniqueSiteName, suggestSiteCopyName } from '@/lib/websiteSiteNam
 import { websiteApi } from '@/api/websites'
 import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
+import { useAuthStore } from '@/stores/authStore'
 import { useMyVendor, useStores, vendorKeys } from '@/hooks/useVendor'
 import { isBuilderSiteAssignedToAnyStore } from '@/lib/builderDraftTemplateSites'
 import { mergeWebsiteStyleConfig, readSiteStyleMetadata, resolveSiteWebsiteScope } from '@/lib/websiteCreateWizardPresets'
@@ -491,6 +492,14 @@ const DEFAULT_VEHICLE_HIGHLIGHT_ITEMS = [
   { text: 'Heated front seats' },
 ]
 
+/** Only this account can show/hide platform “Powered by” branding. */
+const POWERED_BY_ADMIN_EMAIL = 'admin@kiterp.com'
+const DEFAULT_POWERED_BY_TEXT = 'Powered By @ KITERP.com'
+const DEFAULT_POWERED_BY_URL = 'https://kiterp.com/'
+function canEditPoweredByOption(email?: string | null): boolean {
+  return (email || '').trim().toLowerCase() === POWERED_BY_ADMIN_EMAIL
+}
+
 const BLOCK_CATALOG: BlockDef[] = [
   // Structure
   { type: 'nav', label: 'Navigation', icon: Layout, desc: 'Top navigation with logo and links', category: 'structure', defaultProps: { brand: 'My Store', brand_logo: '', show_logo: true, show_brand_name: true, brand_layout: 'horizontal', logo_size: 52, logo_shape: 'original', logo_fit: 'contain', brand_gap: 8, brand_name_size: 'md', show_nav_links: true, nav_links_source: 'site_pages', nav_links: [{ label: 'Shop', url: '/products' }, { label: 'Contact', url: '/contact' }], show_search: true, show_cart: true, show_login: true, cta_label: 'Get started' } },
@@ -500,8 +509,10 @@ const BLOCK_CATALOG: BlockDef[] = [
     copyright: '? 2026 My Store. All rights reserved.',
     show_legal: true,
     show_social: true,
-    show_powered_by: false,
+    show_powered_by: true,
     powered_by_text: 'Powered By @ KITERP.com',
+    powered_by_text_url: 'https://kiterp.com/',
+    powered_by_text_link_new_tab: true,
     social_links: {
       whatsapp: '',
       twitter: '',
@@ -6945,6 +6956,7 @@ function PropsEditor({
 }) {
   const navigate = useNavigate()
   const vendor = useVendorStore(s => s.vendor)
+  const canEditPoweredBy = canEditPoweredByOption(useAuthStore(s => s.user?.email))
   const p = block.props
   const showTileColors = TILE_COLOR_BLOCK_TYPES.has(block.block_type)
   const mapDefaultCenter =
@@ -8460,25 +8472,43 @@ function PropsEditor({
             (p as any).show_social !== false ? 'Social' : null,
             (p as any).show_legal !== false ? 'Legal' : null,
             (p as any).show_newsletter ? 'Newsletter' : null,
-            (p as any).show_powered_by ? 'Powered by' : null,
+            canEditPoweredBy && (p as any).powered_by_admin_disabled !== true ? 'Powered by' : null,
           ].filter(Boolean).join(' · ') || 'Minimal'}
         >
           {[
             { key: 'show_social', label: 'Show social icons' },
             { key: 'show_legal', label: 'Show legal links' },
             { key: 'show_newsletter', label: 'Show newsletter signup' },
-            { key: 'show_powered_by', label: 'Show “Powered By @ KITERP.com”' },
+            ...(canEditPoweredBy
+              ? [{ key: 'show_powered_by', label: 'Show “Powered By @ KITERP.com”' }]
+              : []),
           ].map(({ key, label }) => (
             <label key={key} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={key === 'show_newsletter' || key === 'show_powered_by' ? (p as any)[key] === true : (p as any)[key] !== false}
+                checked={
+                  key === 'show_powered_by'
+                    ? (p as any).powered_by_admin_disabled !== true
+                    : key === 'show_newsletter'
+                      ? (p as any)[key] === true
+                      : (p as any)[key] !== false
+                }
                 onChange={e => {
-                  if (key === 'show_powered_by' && e.target.checked) {
-                    onUpdate({
-                      show_powered_by: true,
-                      powered_by_text: String((p as any).powered_by_text || '').trim() || 'Powered By @ KITERP.com',
-                    } as any)
+                  if (key === 'show_powered_by') {
+                    if (e.target.checked) {
+                      onUpdate({
+                        show_powered_by: true,
+                        powered_by_admin_disabled: false,
+                        powered_by_text: String((p as any).powered_by_text || '').trim() || DEFAULT_POWERED_BY_TEXT,
+                        powered_by_text_url: String((p as any).powered_by_text_url || '').trim() || DEFAULT_POWERED_BY_URL,
+                        powered_by_text_link_new_tab: (p as any).powered_by_text_link_new_tab !== false,
+                      } as any)
+                    } else {
+                      onUpdate({
+                        show_powered_by: false,
+                        powered_by_admin_disabled: true,
+                      } as any)
+                    }
                     return
                   }
                   onUpdate({ [key]: e.target.checked } as any)
@@ -8488,15 +8518,17 @@ function PropsEditor({
               <span className="text-xs text-gray-600">{label}</span>
             </label>
           ))}
-          {(p as any).show_powered_by === true && (
+          {canEditPoweredBy && (p as any).powered_by_admin_disabled !== true && (
             <div className="mt-2">
               {inputRow({
                 label: 'Powered by text',
                 fieldKey: 'powered_by_text',
-                placeholder: 'Powered By @ KITERP.com',
+                placeholder: DEFAULT_POWERED_BY_TEXT,
               })}
               <p className="text-[10px] text-muted-foreground leading-snug mt-1">
-                Shown centered in the footer bar on every page after you publish. Use <span className="font-semibold text-foreground">Link</span> to make it clickable; without a link it stays plain text. Turn off to hide it on this website only.
+                Platform branding — shown on every site by default. Click opens{' '}
+                <span className="font-semibold text-foreground">{DEFAULT_POWERED_BY_URL}</span>.
+                Only this account can hide it.
               </p>
             </div>
           )}
@@ -10608,6 +10640,8 @@ function StructureShellDesignBarTools({
   onOpenLayoutPicker?: () => void
   onCycleLayout?: (direction: 'prev' | 'next') => void
 }) {
+  const canEditPoweredBy = canEditPoweredByOption(useAuthStore(s => s.user?.email))
+
   if (blockType === 'nav') {
     const toggles = [
       { key: 'show_logo', label: 'Logo' },
@@ -10734,26 +10768,40 @@ function StructureShellDesignBarTools({
       { key: 'show_social', label: 'Social' },
       { key: 'show_legal', label: 'Legal' },
       { key: 'show_newsletter', label: 'Newsletter' },
-      { key: 'show_powered_by', label: 'Powered by' },
-    ] as const
+      ...(canEditPoweredBy
+        ? [{ key: 'show_powered_by' as const, label: 'Powered by' }]
+        : []),
+    ]
     return (
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 px-1">
         <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-gray-400">Show</span>
         {toggles.map(({ key, label }) => {
-          const on = key === 'show_newsletter' || key === 'show_powered_by'
-            ? blockProps[key] === true
-            : blockProps[key] !== false
+          const on = key === 'show_powered_by'
+            ? blockProps.powered_by_admin_disabled !== true
+            : key === 'show_newsletter'
+              ? blockProps[key] === true
+              : blockProps[key] !== false
           return (
             <button
               key={key}
               type="button"
               title={`${on ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
               onClick={() => {
-                if (key === 'show_powered_by' && !on) {
-                  onUpdate({
-                    show_powered_by: true,
-                    powered_by_text: String(blockProps.powered_by_text || '').trim() || 'Powered By @ KITERP.com',
-                  } as Partial<BlockProps>)
+                if (key === 'show_powered_by') {
+                  if (!on) {
+                    onUpdate({
+                      show_powered_by: true,
+                      powered_by_admin_disabled: false,
+                      powered_by_text: String(blockProps.powered_by_text || '').trim() || DEFAULT_POWERED_BY_TEXT,
+                      powered_by_text_url: String(blockProps.powered_by_text_url || '').trim() || DEFAULT_POWERED_BY_URL,
+                      powered_by_text_link_new_tab: blockProps.powered_by_text_link_new_tab !== false,
+                    } as Partial<BlockProps>)
+                  } else {
+                    onUpdate({
+                      show_powered_by: false,
+                      powered_by_admin_disabled: true,
+                    } as Partial<BlockProps>)
+                  }
                   return
                 }
                 onUpdate({ [key]: !on } as Partial<BlockProps>)

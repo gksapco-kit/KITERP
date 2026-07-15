@@ -1,5 +1,5 @@
 import { mockCategories } from "@/commerce-blocks/mock/products";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { cn, imgUrl } from "@/lib/utils";
 import { buildCategoryCatalogPath } from "@/lib/categoryCatalogLink";
 import { useStorePath } from "@/hooks/useStorePath";
@@ -18,6 +18,8 @@ interface Props {
   imageHeightPct?: number;
   itemLimit?: number;
   bg_style?: string;
+  /** Builder Card text — when set, overrides the default light overlay labels. */
+  tile_text?: string | null;
 }
 
 type CategoryItem = {
@@ -53,6 +55,7 @@ function CategoryTile({
   className,
   titleClass = "text-lg font-semibold",
   overlay = "gradient",
+  overlayTextColor,
 }: {
   item: CategoryItem;
   showCount: boolean;
@@ -60,8 +63,12 @@ function CategoryTile({
   className?: string;
   titleClass?: string;
   overlay?: "gradient" | "dark" | "none";
+  overlayTextColor?: string;
 }) {
   const image = item.image ? imgUrl(item.image) : undefined;
+  const labelStyle: CSSProperties | undefined = overlayTextColor
+    ? { color: overlayTextColor }
+    : undefined;
   return (
     <div
       className={cn(
@@ -86,10 +93,17 @@ function CategoryTile({
         {overlay === "dark" && (
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
         )}
-        <div className="absolute inset-x-0 bottom-0 p-4 text-background">
-          <div className={titleClass}>{item.name}</div>
+        {/* Default: light labels on photo (text-background). Card text → inline color. */}
+        <div
+          className={cn(
+            "absolute inset-x-0 bottom-0 p-4",
+            !overlayTextColor && "text-background",
+          )}
+          style={labelStyle}
+        >
+          <div className={cn(titleClass, "builder-tile-overlay-title")}>{item.name}</div>
           {showCount && (
-            <div className="text-xs opacity-90">
+            <div className="builder-tile-overlay-title text-xs opacity-90">
               {item.count} product{item.count === 1 ? "" : "s"}
             </div>
           )}
@@ -108,6 +122,7 @@ export function CategoryShowcase({
   imageHeightPct = 100,
   itemLimit,
   bg_style,
+  tile_text,
 }: Props) {
   const mode = String(layout) as CategoryShowcaseLayout;
   const items = mockCategories.slice(0, itemLimit ?? mockCategories.length);
@@ -119,6 +134,8 @@ export function CategoryShowcase({
     "mb-6 text-2xl font-semibold tracking-tight",
     isDark && "text-white",
   );
+  const overlayTextColor =
+    typeof tile_text === "string" && tile_text.trim() ? tile_text.trim() : undefined;
 
   if (items.length === 0) {
     return (
@@ -170,6 +187,7 @@ export function CategoryShowcase({
                 imagePad={stripPad}
                 className="h-full"
                 titleClass={mode === "strip" ? "text-sm font-semibold" : "text-lg font-semibold"}
+                overlayTextColor={overlayTextColor}
               />
             </CategoryTileLink>
           ))}
@@ -193,6 +211,7 @@ export function CategoryShowcase({
                 imagePad={Math.max(45, imagePad * 0.55)}
                 titleClass="text-xl sm:text-2xl font-semibold"
                 overlay="dark"
+                overlayTextColor={overlayTextColor}
               />
             </CategoryTileLink>
           ))}
@@ -214,6 +233,7 @@ export function CategoryShowcase({
                 imagePad={Math.max(90, imagePad * 1.1)}
                 titleClass="text-xl font-semibold"
                 overlay="dark"
+                overlayTextColor={overlayTextColor}
               />
             </CategoryTileLink>
           ))}
@@ -235,6 +255,7 @@ export function CategoryShowcase({
                 showCount={showCount}
                 imagePad={Math.min(85, imagePad * 0.75)}
                 titleClass="text-sm font-semibold"
+                overlayTextColor={overlayTextColor}
               />
             </CategoryTileLink>
           ))}
@@ -254,6 +275,7 @@ export function CategoryShowcase({
               item={c}
               showCount={showCount}
               imagePad={imagePad}
+              overlayTextColor={overlayTextColor}
             />
           </CategoryTileLink>
         ))}

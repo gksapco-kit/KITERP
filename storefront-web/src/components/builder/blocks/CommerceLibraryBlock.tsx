@@ -615,6 +615,10 @@ export default function CommerceLibraryBlock({ style, props, liveItems, blockTyp
     ...(Array.isArray(props.presets) && props.presets.length ? { presets: props.presets } : {}),
     ...(Array.isArray(props.steps) && props.steps.length ? { steps: props.steps } : {}),
     ...(showcaseLayout ? { layout: showcaseLayout, bg_style: props.bg_style } : {}),
+    // Zod schemas strip unknown keys — forward Card text so Category Showcase overlays honor it.
+    ...(typeof props.tile_text === 'string' && props.tile_text.trim()
+      ? { tile_text: props.tile_text.trim() }
+      : {}),
     // Live-synced Property Listing / Property Detail (Sales → Property Listings). Falls back to static/mock when no live listings exist yet.
     ...(liveProperties.length ? { liveProperties } : {}),
     // Live-synced Course Catalog / Course Detail (Sales → Course Catalog). Falls back to static/mock when no live courses exist yet.

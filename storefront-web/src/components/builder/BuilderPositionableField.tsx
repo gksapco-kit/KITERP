@@ -399,7 +399,27 @@ export function BuilderPositionableField({
   const hasCustomWidth = storedWidthPct != null || widthPreviewPx != null
   const isWidthConstrained = hasCustomWidth || widthPreviewPx != null
 
-  if (!isEditor) return <>{children}</>
+  const layoutClassName = cn(
+    inline ? 'inline-flex max-w-full' : hasCustomWidth ? 'relative min-w-0 max-w-full' : 'relative w-fit max-w-full min-w-0',
+    isActive && 'group/field-pos z-[2]',
+    className,
+  )
+  const layoutStyle = wrapperStyle ?? { position: 'relative' as const }
+
+  // Preview / live must keep the same data-field-layout wrapper + offsets/sizes as
+  // the editor canvas so injected buildFieldStylesCss rules still apply.
+  if (!isEditor) {
+    return (
+      <div
+        data-field-layout={fieldKey}
+        data-field-width-constrained={isWidthConstrained ? 'true' : undefined}
+        className={layoutClassName}
+        style={layoutStyle}
+      >
+        {children}
+      </div>
+    )
+  }
 
   const resizeHandleClass =
     'absolute z-20 flex items-center justify-center rounded-sm border border-slate-500/70 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
@@ -411,12 +431,8 @@ export function BuilderPositionableField({
       data-field-width-constrained={isWidthConstrained ? 'true' : undefined}
       data-builder-field-selected={isActive ? 'true' : undefined}
       data-field-drag-preview={isDragging ? 'true' : undefined}
-      className={cn(
-        inline ? 'inline-flex max-w-full' : hasCustomWidth ? 'relative min-w-0 max-w-full' : 'relative w-fit max-w-full min-w-0',
-        isActive && 'group/field-pos z-[2]',
-        className,
-      )}
-      style={wrapperStyle ?? (inline ? { position: 'relative' } : { position: 'relative' })}
+      className={layoutClassName}
+      style={layoutStyle}
       onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
       onClick={(e: React.MouseEvent) => {
         if ((e.target as HTMLElement).closest('[data-text-key], [data-builder-cta-shell], [data-field-resize-handle]')) return

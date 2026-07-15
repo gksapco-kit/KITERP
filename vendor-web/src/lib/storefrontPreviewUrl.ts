@@ -367,6 +367,39 @@ export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
 
 /** Open preview in one browser tab (sync callers only — no preceding `await`). */
 export function openDraftPreviewInBrowser(previewShellUrl: string): boolean {
+  const url = alignPreviewUrlWithCurrentHost(previewShellUrl)
+  try {
+    const parsed = new URL(url)
+    const hasTarget = Boolean(parsed.searchParams.get('target')?.trim())
+    const hasToken = Boolean(parsed.searchParams.get('token')?.trim())
+    // Gallery template preview (?target= only): open once — no pending-token delivery retries.
+    if (hasTarget && !hasToken) {
+      stopPreviewDeliveryRetries()
+      lastPreviewNavigateUrl = null
+      if (previewWindowRef && !previewWindowRef.closed) {
+        try {
+          if (previewTabShowsUrl(previewWindowRef, url)) {
+            previewWindowRef.focus()
+            return true
+          }
+          previewWindowRef.location.replace(url)
+          previewWindowRef.focus()
+          return true
+        } catch {
+          /* fall through to open */
+        }
+      }
+      const tab = window.open(url, PREVIEW_WINDOW_NAME)
+      if (tab) {
+        previewWindowRef = tab
+        tab.focus()
+        return true
+      }
+      return false
+    }
+  } catch {
+    /* fall through to token/pending path */
+  }
   return navigateDraftPreviewTab(previewShellUrl)
 }
 

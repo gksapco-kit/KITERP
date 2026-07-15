@@ -288,6 +288,15 @@ export function useSyncWebsiteTemplate() {
   })
 }
 
+export function useCreateWebsiteTemplatePreview() {
+  return useMutation({
+    mutationFn: (siteId: string) => adminApi.createWebsiteTemplatePreview(siteId),
+    onError: (error: unknown) => {
+      toast.error(adminApiErrorMessage(error, 'Could not open preview'))
+    },
+  })
+}
+
 export function useDeleteWebsiteTemplate() {
   const queryClient = useQueryClient()
   return useMutation({

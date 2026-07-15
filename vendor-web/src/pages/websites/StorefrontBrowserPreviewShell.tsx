@@ -9,10 +9,9 @@ import {
   rememberDraftPreviewSession,
   subscribePreviewTabNavigate,
   subscribePreviewTabError,
-  consumePendingPreviewTabNavigate,
   peekPendingPreviewTabNavigate,
-  clearPendingPreviewTabNavigate,
   peekPendingPreviewTabError,
+  clearPendingPreviewTabNavigate,
   clearPendingPreviewTabError,
   draftPreviewNavigateTargetsMatch,
   PREVIEW_NAV_MESSAGE_TYPE,
@@ -227,9 +226,11 @@ export default function StorefrontBrowserPreviewShell() {
       }
     }
 
-    const pendingNavigate = consumePendingPreviewTabNavigate()
-    if (pendingNavigate && !draftPreviewNavigateTargetsMatch(window.location.href, pendingNavigate)) {
-      goToPreview(pendingNavigate)
+    // Already have a token (e.g. admin opened a full preview URL): ignore stale
+    // pending-nav localStorage from a previous builder session — that caused
+    // localhost ↔ 127.0.0.1 reload loops when hosts/tokens mismatched.
+    if (token) {
+      clearPendingPreviewTabNavigate()
     }
 
     return () => {

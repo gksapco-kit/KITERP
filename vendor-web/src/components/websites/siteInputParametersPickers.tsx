@@ -179,18 +179,42 @@ export function SetupFeaturesPicker({
   )
 }
 
+function PaletteSwatchStrip({
+  colors,
+  className,
+}: {
+  colors: WebsitePaletteColors
+  className?: string
+}) {
+  return (
+    <div className={cn('flex items-stretch overflow-hidden', className)} aria-hidden>
+      <span className="flex-[2]" style={{ backgroundColor: colors.primary_color }} />
+      <span className="flex-1" style={{ backgroundColor: colors.secondary_color }} />
+      <span className="flex-1" style={{ backgroundColor: colors.accent_color }} />
+      <span className="flex-1 border-l border-black/5" style={{ backgroundColor: colors.bg_color }} />
+    </div>
+  )
+}
+
 export function ColorPalettePicker({
   selected,
   customColors,
   disabled,
   onSelect,
   onCustomColorsChange,
+  title = 'Color palette',
+  description = 'Pick a preset or draft your own brand colors.',
+  idPrefix = 'palette',
 }: {
   selected: WebsiteColorPaletteId
   customColors: WebsitePaletteColors
   disabled?: boolean
   onSelect: (id: WebsiteColorPaletteId) => void
   onCustomColorsChange: (colors: WebsitePaletteColors) => void
+  title?: string
+  description?: string
+  /** Prefix for hex input ids (avoids collisions when two pickers mount). */
+  idPrefix?: string
 }) {
   const activeColors = resolveWebsitePaletteColors(selected, customColors)
   const isCustom = selected === CUSTOM_WEBSITE_PALETTE_ID
@@ -203,9 +227,9 @@ export function ColorPalettePicker({
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/80">
       <div className="border-b border-gray-100 bg-white/90 px-4 py-3.5">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-gray-900">Color palette</p>
-            <p className="mt-0.5 text-xs text-gray-500">Pick a preset or draft your own brand colors.</p>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900">{title}</p>
+            <p className="mt-0.5 text-xs text-gray-500">{description}</p>
           </div>
           <span className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
             {getWebsiteColorPaletteLabel(selected)}
@@ -214,7 +238,67 @@ export function ColorPalettePicker({
       </div>
 
       <div className="space-y-4 p-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {/* Live preview — how the palette reads on a site surface */}
+        <div
+          className="overflow-hidden rounded-xl border border-gray-200 shadow-sm"
+          style={{ backgroundColor: activeColors.bg_color }}
+          aria-label="Selected palette preview"
+        >
+          <div
+            className="flex items-center justify-between gap-3 px-4 py-3"
+            style={{ backgroundColor: activeColors.primary_color }}
+          >
+            <span className="text-xs font-semibold text-white/95">Your site</span>
+            <span
+              className="rounded-md px-2 py-1 text-[10px] font-semibold"
+              style={{ backgroundColor: activeColors.accent_color, color: '#fff' }}
+            >
+              Accent
+            </span>
+          </div>
+          <div className="px-4 py-3.5">
+            <div
+              className="rounded-lg border px-3 py-2.5 shadow-sm"
+              style={{
+                backgroundColor: activeColors.surface_color,
+                borderColor: `${activeColors.secondary_color}33`,
+              }}
+            >
+              <p className="text-sm font-semibold" style={{ color: activeColors.text_color }}>
+                Headline & buttons
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug opacity-70" style={{ color: activeColors.text_color }}>
+                Preview updates as you pick a palette.
+              </p>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <span
+                  className="inline-flex rounded-md px-2.5 py-1 text-[11px] font-semibold text-white"
+                  style={{ backgroundColor: activeColors.primary_color }}
+                >
+                  Primary
+                </span>
+                <span
+                  className="inline-flex rounded-md px-2.5 py-1 text-[11px] font-semibold text-white"
+                  style={{ backgroundColor: activeColors.secondary_color }}
+                >
+                  Secondary
+                </span>
+                <span
+                  className="inline-flex rounded-md border px-2.5 py-1 text-[11px] font-semibold"
+                  style={{
+                    borderColor: activeColors.accent_color,
+                    color: activeColors.accent_color,
+                    backgroundColor: activeColors.surface_color,
+                  }}
+                >
+                  Outline
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
           {WEBSITE_COLOR_PALETTES.map(palette => {
             const checked = selected === palette.id
             return (
@@ -224,6 +308,7 @@ export function ColorPalettePicker({
                 disabled={disabled}
                 onClick={() => onSelect(palette.id)}
                 aria-pressed={checked}
+                title={palette.description}
                 className={cn(
                   'group relative flex flex-col overflow-hidden rounded-xl border-2 text-left transition-all',
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
@@ -233,17 +318,15 @@ export function ColorPalettePicker({
                   disabled && 'cursor-not-allowed opacity-60',
                 )}
               >
-                <div className="flex h-14 items-stretch border-b border-gray-100" aria-hidden>
-                  <span className="flex-[2]" style={{ backgroundColor: palette.colors.primary_color }} />
-                  <span className="flex-1" style={{ backgroundColor: palette.colors.accent_color }} />
-                  <span className="flex-1 border-l border-gray-100" style={{ backgroundColor: palette.colors.bg_color }} />
-                </div>
-                <div className="px-3 py-2.5">
-                  <p className="text-xs font-semibold text-gray-900">{palette.label}</p>
-                  <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-gray-500">{palette.description}</p>
+                <PaletteSwatchStrip colors={palette.colors} className="h-12 border-b border-gray-100" />
+                <div className="px-2.5 py-2">
+                  <p className="truncate text-xs font-semibold text-gray-900">{palette.label}</p>
+                  <p className="mt-0.5 line-clamp-1 text-[10px] leading-snug text-gray-500">
+                    {palette.description}
+                  </p>
                 </div>
                 {checked && (
-                  <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow-sm">
+                  <span className="absolute right-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-primary shadow-sm ring-1 ring-black/5">
                     <Check className="h-3 w-3 stroke-[3]" aria-hidden />
                   </span>
                 )}
@@ -265,20 +348,18 @@ export function ColorPalettePicker({
               disabled && 'cursor-not-allowed opacity-60',
             )}
           >
-            <div className="flex h-14 items-stretch border-b border-gray-100" aria-hidden>
-              <span className="flex-[2]" style={{ backgroundColor: customColors.primary_color }} />
-              <span className="flex-1" style={{ backgroundColor: customColors.accent_color }} />
-              <span className="flex-1 border-l border-gray-100" style={{ backgroundColor: customColors.bg_color }} />
-            </div>
-            <div className="px-3 py-2.5">
-              <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
-                <Paintbrush className="h-3.5 w-3.5 text-primary" />
-                Custom palette
+            <PaletteSwatchStrip colors={customColors} className="h-12 border-b border-gray-100" />
+            <div className="px-2.5 py-2">
+              <p className="flex items-center gap-1 text-xs font-semibold text-gray-900">
+                <Paintbrush className="h-3.5 w-3.5 shrink-0 text-primary" />
+                Custom
               </p>
-              <p className="mt-0.5 text-[11px] leading-snug text-gray-500">Draft your own primary, accent, and background colors.</p>
+              <p className="mt-0.5 line-clamp-1 text-[10px] leading-snug text-gray-500">
+                Draft your own colors
+              </p>
             </div>
             {isCustom && (
-              <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow-sm">
+              <span className="absolute right-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-primary shadow-sm ring-1 ring-black/5">
                 <Check className="h-3 w-3 stroke-[3]" aria-hidden />
               </span>
             )}
@@ -287,9 +368,19 @@ export function ColorPalettePicker({
 
         {isCustom && (
           <div className="rounded-xl border border-primary/20 bg-white p-4 shadow-sm">
-            <div className="mb-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold text-gray-900">Draft your palette</p>
+              <PaletteSwatchStrip
+                colors={customColors}
+                className="h-7 max-w-[200px] flex-1 rounded-md border border-gray-200 shadow-inner"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               {WEBSITE_PALETTE_COLOR_FIELDS.map(({ key, label }) => (
-                <div key={key} className="flex items-center gap-2.5 rounded-lg border border-gray-100 bg-gray-50/80 px-2.5 py-2">
+                <div
+                  key={key}
+                  className="flex items-center gap-2.5 rounded-lg border border-gray-100 bg-gray-50/80 px-2.5 py-2"
+                >
                   <input
                     type="color"
                     value={customColors[key]}
@@ -299,9 +390,11 @@ export function ColorPalettePicker({
                     aria-label={`${label} color`}
                   />
                   <div className="min-w-0 flex-1">
-                    <label htmlFor={`palette-${key}`} className="block text-xs font-medium text-gray-700">{label}</label>
+                    <label htmlFor={`${idPrefix}-${key}`} className="block text-xs font-medium text-gray-700">
+                      {label}
+                    </label>
                     <input
-                      id={`palette-${key}`}
+                      id={`${idPrefix}-${key}`}
                       type="text"
                       value={customColors[key]}
                       disabled={disabled}
@@ -322,22 +415,12 @@ export function ColorPalettePicker({
             </div>
           </div>
         )}
-
-        {!isCustom && (
-          <div className="flex h-10 overflow-hidden rounded-xl border border-gray-200 shadow-inner" aria-label="Selected palette preview">
-            <span className="flex-[2]" style={{ backgroundColor: activeColors.primary_color }} />
-            <span className="flex-1" style={{ backgroundColor: activeColors.accent_color }} />
-            <span className="flex-1" style={{ backgroundColor: activeColors.bg_color }} />
-            <span className="flex-1 border-l border-gray-100" style={{ backgroundColor: activeColors.surface_color }} />
-            <span className="w-10" style={{ backgroundColor: activeColors.text_color }} />
-          </div>
-        )}
       </div>
 
       <div className="border-t border-gray-100 bg-gray-50/90 px-4 py-3">
         <p className="flex items-start gap-2 text-[11px] leading-relaxed text-gray-500">
           <Palette className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-          <span>Palette applies to buttons, heroes, cards, and CTAs across your site.</span>
+          <span>Applies to buttons, heroes, cards, and CTAs. You can fine-tune colors in the builder anytime.</span>
         </p>
       </div>
     </div>

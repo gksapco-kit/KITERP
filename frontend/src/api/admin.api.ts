@@ -419,6 +419,11 @@ export const adminApi = {
     return response.data
   },
 
+  createWebsiteTemplatePreview: async (siteId: string): Promise<AdminWebsiteTemplatePreview> => {
+    const response = await apiClient.post(`/admin/website-templates/${siteId}/preview`)
+    return response.data
+  },
+
   deleteWebsiteTemplate: async (
     siteId: string,
   ): Promise<{ ok: boolean; site_id: string; message: string }> => {
@@ -477,6 +482,13 @@ export interface AdminWebsiteTemplateDetail extends AdminWebsiteTemplateRow {
   } | null
   page_titles: string[]
   note: string
+}
+
+export interface AdminWebsiteTemplatePreview {
+  site_id: string
+  preview_token: string
+  vendor_slug?: string | null
+  page_slug?: string | null
 }
 
 export interface ContactQueryItem {

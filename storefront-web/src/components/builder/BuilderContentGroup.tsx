@@ -132,8 +132,15 @@ export function BuilderContentGroup({
   const isDragging = dragDelta != null && (dragDelta.x !== 0 || dragDelta.y !== 0)
 
   if (!isEditor) {
+    // Live / preview must keep content_offset_* and data-field-layout so builder
+    // drag offsets and injected field CSS still apply on published storefronts.
     return (
-      <div className={className} style={style}>
+      <div
+        className={className}
+        style={baseWrapperStyle ?? style}
+        data-content-group="true"
+        data-field-layout={CONTENT_GROUP_FIELD_KEY}
+      >
         {children}
       </div>
     )

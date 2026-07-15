@@ -315,7 +315,8 @@ export function BuilderTextField({
   const embeddedStyle: CSSProperties | undefined = embeddedInControl
     ? { ...textStyle, color: 'inherit' }
     : textStyle
-  const inPositionWrapper = isEditor && !skipPositionWrapper && !embeddedInControl
+  // Keep the position wrapper on preview/live so offsets, sizes, and alignment match the canvas.
+  const inPositionWrapper = !skipPositionWrapper && !embeddedInControl
 
   const fieldEl = (
     <Component
@@ -332,7 +333,7 @@ export function BuilderTextField({
       className={cn(
         typographyClassName,
         isEditor && !embeddedInControl && 'builder-canvas-text-field',
-        inPositionWrapper && 'builder-canvas-text-field-in-layout',
+        isEditor && inPositionWrapper && 'builder-canvas-text-field-in-layout',
         allowMultiline && 'builder-canvas-text-field-multiline',
         isEditor && !embeddedInControl && !editing && !inPositionWrapper && 'cursor-text rounded hover:outline hover:outline-1 hover:outline-primary/40 hover:outline-offset-2',
         editing && !embeddedInControl && 'outline outline-2 outline-primary/50 outline-offset-2 rounded bg-white/40 selection:bg-blue-500/25 selection:text-inherit',
@@ -376,7 +377,7 @@ export function BuilderTextField({
     />
   )
 
-  if (!isEditor || skipPositionWrapper) return fieldEl
+  if (skipPositionWrapper) return fieldEl
 
   return (
     <BuilderPositionableField

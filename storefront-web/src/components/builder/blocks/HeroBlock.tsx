@@ -443,6 +443,8 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
     const centered = opts?.centered ?? false
     const imageBgTextPassThrough =
       heroUsesImageBg && !splitSideBySide && !isSplit && !isEditorCanvas
+    const centeredImageTextPanel =
+      heroUsesImageBg && !splitSideBySide && !isSplit
     return (
       <BuilderContentGroup
         blockId={blockId}
@@ -457,7 +459,9 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
             : isSplit
               ? 'relative z-10 flex flex-1 max-w-xl flex-col gap-5'
               : cn(
-                  'relative z-10 mx-auto flex max-w-3xl flex-col gap-5 text-center',
+                  'relative z-10 mx-auto flex w-full max-w-3xl flex-col items-center gap-5 text-center',
+                  // Full-bleed banners: vertical padding so copy doesn’t hug the frame edges.
+                  centeredImageTextPanel && 'py-8 sm:py-10 lg:py-12',
                   imageBgTextPassThrough && 'pointer-events-none [&>*]:pointer-events-auto',
                 ))
         }
@@ -555,7 +559,8 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
       ? cn(
           BUILDER_SECTION_INSET_X,
           // Frame follows each banner's natural aspect ratio (see bannerAspect style below).
-          'relative w-full max-h-[min(70vh,640px)] overflow-hidden bg-muted/30 transition-[aspect-ratio] duration-500 ease-in-out',
+          // Vertically center the text cluster over the image (matches legacy HeroSection).
+          'relative flex w-full max-h-[min(70vh,640px)] items-center justify-center overflow-hidden bg-muted/30 transition-[aspect-ratio] duration-500 ease-in-out',
           !bannerAspect && 'aspect-[3/1]',
         )
       : cn(BUILDER_SECTION_INSET_X, 'relative py-24')

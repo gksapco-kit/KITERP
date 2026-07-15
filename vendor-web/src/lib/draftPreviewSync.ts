@@ -47,13 +47,22 @@ function canonicalizePreviewNavigateUrl(url: string): string {
   }
 }
 
-/** True when two draft preview shell URLs point at the same token/page/route. */
+/** True when two draft preview shell URLs point at the same token/page/route (or same template target). */
 export function draftPreviewNavigateTargetsMatch(a: string, b: string): boolean {
   try {
     const left = new URL(canonicalizePreviewNavigateUrl(a))
     const right = new URL(canonicalizePreviewNavigateUrl(b))
     const normPath = (p: string) => p.replace(/\/+$/, '') || '/'
     if (normPath(left.pathname) !== normPath(right.pathname)) return false
+
+    // Gallery template previews use ?target= (no token). Match those first so delivery
+    // retries do not keep calling location.replace on an already-open shell.
+    const leftTarget = left.searchParams.get('target') || ''
+    const rightTarget = right.searchParams.get('target') || ''
+    if (leftTarget || rightTarget) {
+      return leftTarget.length > 0 && leftTarget === rightTarget
+    }
+
     for (const key of ['token', 'page', 'route'] as const) {
       if ((left.searchParams.get(key) || '') !== (right.searchParams.get(key) || '')) return false
     }

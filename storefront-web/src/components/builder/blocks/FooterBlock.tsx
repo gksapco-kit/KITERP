@@ -43,9 +43,13 @@ interface Props {
 type RawColumn = { title?: string; links?: Array<{ label: string; href: string } | string> }
 
 const DEFAULT_POWERED_BY_TEXT = 'Powered By @ KITERP.com'
+const DEFAULT_POWERED_BY_URL = 'https://kiterp.com/'
 
 function resolvePoweredByText(props: Record<string, unknown>): string | null {
-  if (props.show_powered_by !== true) return null
+  // Platform branding is always on for every site.
+  // Only a platform admin can hide it (powered_by_admin_disabled).
+  // Ignore legacy show_powered_by:false so older BUs still show the mark.
+  if (props.powered_by_admin_disabled === true) return null
   const text = String(props.powered_by_text ?? '').trim()
   return text || DEFAULT_POWERED_BY_TEXT
 }
@@ -62,8 +66,7 @@ function resolvePoweredByHref(
   props: Record<string, unknown>,
   storePath: (p: string) => string,
 ): string | null {
-  const raw = String(props.powered_by_text_url ?? '').trim()
-  if (!raw) return null
+  const raw = String(props.powered_by_text_url ?? '').trim() || DEFAULT_POWERED_BY_URL
   if (isExternalHref(raw)) return raw
   return storePath(raw.startsWith('/') ? raw : `/${raw}`)
 }
@@ -412,7 +415,10 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   const copyright = (props.copyright as string) || `© ${new Date().getFullYear()} ${brandName}. All rights reserved.`
   const poweredByText = resolvePoweredByText(props)
   const poweredByHref = resolvePoweredByHref(props, storePath)
-  const poweredByNewTab = Boolean(props.powered_by_text_link_new_tab)
+  // External attribution links open in a new tab by default.
+  const poweredByNewTab = props.powered_by_text_link_new_tab === false
+    ? false
+    : Boolean(props.powered_by_text_link_new_tab) || Boolean(poweredByHref && isExternalHref(poweredByHref))
   const brand = brandName
   const description = (props.description as string) || site.description || ''
   const footerBg = (props.footer_bg as string) || style.surface_color || '#f9fafb'

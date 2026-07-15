@@ -103,7 +103,9 @@ export function buildBlockColorStyleCss(
       }
       ${selector} .builder-tile-card h3,
       ${selector} .builder-tile-card h4,
-      ${selector} .builder-tile-card .builder-tile-card-title {
+      ${selector} .builder-tile-card .builder-tile-card-title,
+      ${selector} .builder-tile-card .builder-tile-overlay-title,
+      ${selector} .builder-tile-overlay-title {
         ${props.tile_text ? `color: ${tileText} !important;` : ''}
       }
       ${selector} .builder-tile-card p,

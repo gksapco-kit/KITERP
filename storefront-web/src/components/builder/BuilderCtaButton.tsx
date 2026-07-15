@@ -61,7 +61,7 @@ export function BuilderCtaButton({
     isEditor && 'cursor-pointer',
   )
 
-  const shellStyle = blockProps && blockId
+  const shellStyle = blockProps
     ? fieldCtaShellStyle(blockProps, fieldKey, style)
     : style
 
@@ -117,20 +117,30 @@ export function BuilderCtaButton({
   // store path prefix corrupts them (e.g. `mailto:x` -> `/store/slug/mailto:x`).
   const isProtocol = /^(https?:|mailto:|tel:)/i.test(target) || target.startsWith('//')
   const isAnchor = target.startsWith('#')
-  if (isProtocol || isAnchor) {
-    return (
-      <a href={target} className={buttonClass} style={style}>
-        {label}
-        {trailing}
-      </a>
-    )
-  }
   // Query-only targets (e.g. `?branch=code`) attach to the store home.
   const to = target.startsWith('?') ? `${storePath('/')}${target}` : storePath(target || '/')
-  return (
-    <Link to={to} className={buttonClass} style={style}>
-      {label}
-      {trailing}
+
+  // Same shell + label typography + position wrapper as the editor so preview/live
+  // keep CTA colors, sizes, offsets, and text styles from the canvas.
+  const shell = isProtocol || isAnchor ? (
+    <a href={target} className={buttonClass} style={shellStyle} data-builder-cta-shell="true">
+      {inner}
+    </a>
+  ) : (
+    <Link to={to} className={buttonClass} style={shellStyle} data-builder-cta-shell="true">
+      {inner}
     </Link>
+  )
+
+  return (
+    <BuilderPositionableField
+      fieldKey={fieldKey}
+      blockId={blockId}
+      blockProps={blockProps}
+      inline
+      className="relative inline-block"
+    >
+      {shell}
+    </BuilderPositionableField>
   )
 }

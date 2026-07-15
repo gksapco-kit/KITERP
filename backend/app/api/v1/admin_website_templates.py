@@ -3,8 +3,10 @@ Admin — All Templates (curate vendor website-builder designs into the shared c
 """
 from __future__ import annotations
 
+import json
+import secrets
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -15,10 +17,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_platform_staff, get_current_superuser
 from app.database import get_db
 from app.models.user import User
-from app.models.website import WebsitePage, WebsiteSite
+from app.models.website import WebsiteBuilderPreview, WebsitePage, WebsiteSite
 from app.services import platform_website_templates as pwt
 
 router = APIRouter()
+
+MAX_BUILDER_PREVIEW_BYTES = 2 * 1024 * 1024
 
 
 class AdminTemplateStats(BaseModel):
@@ -70,6 +74,102 @@ class AdminTemplateDetail(AdminTemplateRow):
     )
 
 
+class AdminTemplatePreviewResponse(BaseModel):
+    site_id: str
+    preview_token: str
+    vendor_slug: Optional[str] = None
+    page_slug: Optional[str] = None
+
+
+def _preview_block_out(block) -> Dict[str, Any]:
+    return {
+        "id": str(block.id),
+        "page_id": str(block.page_id),
+        "block_type": block.block_type,
+        "label": block.label,
+        "props": block.props or {},
+        "style_overrides": block.style_overrides or {},
+        "visible": block.visible if block.visible is not None else True,
+        "visible_on_mobile": block.visible_on_mobile if block.visible_on_mobile is not None else True,
+        "visible_on_tablet": block.visible_on_tablet if block.visible_on_tablet is not None else True,
+        "visible_on_desktop": block.visible_on_desktop if block.visible_on_desktop is not None else True,
+        "animation": block.animation,
+        "animation_delay": block.animation_delay or 0,
+        "sort_order": block.sort_order or 0,
+        "visible_branches": (block.props or {}).get("_visible_branches") or [],
+    }
+
+
+def _preview_payload_from_site(site: WebsiteSite, vendor_slug: Optional[str]) -> Dict[str, Any]:
+    """Public-site JSON shape for draft browser preview (includes unpublished draft pages)."""
+    pages_data: List[Dict[str, Any]] = []
+    for page in sorted(site.pages or [], key=lambda p: (p.sort_order or 0, str(p.id))):
+        if page.deleted_at is not None:
+            continue
+        blocks = [
+            _preview_block_out(b)
+            for b in sorted(page.blocks or [], key=lambda x: (x.sort_order or 0, str(x.id)))
+            if b.visible is not False
+        ]
+        pages_data.append(
+            {
+                "id": str(page.id),
+                "site_id": str(page.site_id),
+                "title": page.title,
+                "slug": page.slug,
+                "page_type": page.page_type,
+                "seo_title": page.seo_title,
+                "seo_description": page.seo_description,
+                "og_image_url": page.og_image_url,
+                "focus_keyword": page.focus_keyword,
+                "seo_keywords": page.seo_keywords,
+                "noindex": bool(page.noindex),
+                "og_title": page.og_title,
+                "og_description": page.og_description,
+                "canonical_url": page.canonical_url,
+                "schema_type": page.schema_type or "auto",
+                "layout": page.layout,
+                "sort_order": page.sort_order or 0,
+                "is_published": True,
+                "is_homepage": bool(page.is_homepage),
+                "show_in_nav": page.show_in_nav if page.show_in_nav is not None else True,
+                "blocks": blocks,
+            }
+        )
+    return {
+        "id": str(site.id),
+        "vendor_id": str(site.vendor_id),
+        "vendor_slug": vendor_slug,
+        "name": site.name,
+        "subdomain": site.subdomain,
+        "custom_domain": site.custom_domain,
+        "description": site.description,
+        "favicon_url": site.favicon_url,
+        "logo_url": site.logo_url,
+        "style_config": site.style_config or {},
+        "seo_title": site.seo_title,
+        "seo_description": site.seo_description,
+        "seo_keywords": site.seo_keywords,
+        "og_image_url": site.og_image_url,
+        "is_published": True,
+        "status": site.status or "draft",
+        "google_analytics_id": site.google_analytics_id,
+        "meta_pixel_id": site.meta_pixel_id,
+        "custom_head_code": site.custom_head_code,
+        "custom_body_code": site.custom_body_code,
+        "language": site.language,
+        "languages_enabled": site.languages_enabled or ["en"],
+        "currency": site.currency,
+        "currencies_enabled": site.currencies_enabled or ([site.currency] if site.currency else ["USD"]),
+        "currency_symbol": site.currency_symbol,
+        "currency_position": site.currency_position,
+        "location": site.location,
+        "timezone": site.timezone,
+        "pages": pages_data,
+        "updated_at": site.updated_at.isoformat() if site.updated_at else None,
+    }
+
+
 def _row_from(
     site: WebsiteSite,
     vendor_name: str,
@@ -77,12 +177,14 @@ def _row_from(
     page_count: int,
     content_updated: datetime,
     platform,
+    *,
+    block_image: Optional[str] = None,
 ) -> AdminTemplateRow:
     sc = site.style_config if isinstance(site.style_config, dict) else {}
     bucket = pwt.assignment_bucket(site)
     catalog_status = platform.catalog_status if platform else None
     sync = bool(platform and pwt.needs_sync(platform, content_updated))
-    thumbnail = site.og_image_url or site.logo_url or site.favicon_url
+    thumbnail = pwt.resolve_site_card_thumbnail(site, platform, block_image=block_image)
     return AdminTemplateRow(
         site_id=str(site.id),
         name=site.name,
@@ -166,6 +268,10 @@ async def list_website_templates(
         ]
 
     items: List[AdminTemplateRow] = []
+    preview_images = await pwt.load_homepage_preview_images(
+        db,
+        [site.id for site, *_rest in filtered],
+    )
     for site, vendor, platform, content_updated in filtered:
         page_count_res = await db.execute(
             select(func.count(WebsitePage.id)).where(
@@ -182,6 +288,7 @@ async def list_website_templates(
                 page_count,
                 content_updated,
                 platform,
+                block_image=preview_images.get(site.id),
             )
         )
 
@@ -208,6 +315,15 @@ async def _detail_for_site(db: AsyncSession, site_id: str) -> AdminTemplateDetai
     content_updated = await pwt.source_content_updated_at(db, site)
     pages = [p for p in (site.pages or []) if p.deleted_at is None]
     page_titles = [p.title for p in sorted(pages, key=lambda x: x.sort_order or 0)]
+    ordered_pages = sorted(
+        pages,
+        key=lambda p: (0 if p.is_homepage else 1, p.sort_order or 0, str(p.id)),
+    )
+    block_image = None
+    for page in ordered_pages:
+        block_image = pwt.extract_preview_image_from_orm_blocks(list(page.blocks or []))
+        if block_image:
+            break
     row = _row_from(
         site,
         vendor.business_name or vendor.display_name or "Business",
@@ -215,6 +331,7 @@ async def _detail_for_site(db: AsyncSession, site_id: str) -> AdminTemplateDetai
         len(pages),
         content_updated,
         platform,
+        block_image=block_image,
     )
     snapshot_preview = None
     if platform and isinstance(platform.snapshot, dict):
@@ -243,6 +360,70 @@ async def get_website_template_detail(
     db: AsyncSession = Depends(get_db),
 ):
     return await _detail_for_site(db, site_id)
+
+
+@router.post(
+    "/website-templates/{site_id}/preview",
+    response_model=AdminTemplatePreviewResponse,
+)
+async def create_website_template_preview(
+    site_id: str,
+    _: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Snapshot the vendor builder site into a draft preview token so admins can
+    open the same browser preview vendors use (without publishing the catalog entry).
+    """
+    try:
+        sid = UUID(site_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid site id")
+
+    site = await pwt.load_site_with_pages(db, sid)
+    if not site:
+        raise HTTPException(404, "Template site not found")
+
+    from app.models.vendor import Vendor
+
+    vendor_res = await db.execute(select(Vendor).where(Vendor.id == site.vendor_id))
+    vendor = vendor_res.scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(404, "Business account not found")
+
+    vendor_slug = (vendor.slug or "").strip() or None
+    payload = _preview_payload_from_site(site, vendor_slug)
+    pages = payload.get("pages") or []
+    if not isinstance(pages, list) or len(pages) == 0:
+        raise HTTPException(400, "This template has no pages to preview yet")
+
+    try:
+        raw = json.dumps(payload, default=str)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Preview payload could not be serialized")
+    if len(raw.encode("utf-8")) > MAX_BUILDER_PREVIEW_BYTES:
+        raise HTTPException(400, "Preview payload too large (max 2MB)")
+
+    home = next((p for p in pages if p.get("is_homepage")), None) or pages[0]
+    page_slug = home.get("slug") if isinstance(home, dict) else None
+
+    token = secrets.token_urlsafe(48)[:64]
+    row = WebsiteBuilderPreview(
+        site_id=site.id,
+        preview_token=token,
+        label=f"Admin preview · {site.name}"[:200],
+        payload=payload,
+    )
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+
+    return AdminTemplatePreviewResponse(
+        site_id=str(site.id),
+        preview_token=row.preview_token,
+        vendor_slug=vendor_slug,
+        page_slug=page_slug if isinstance(page_slug, str) else None,
+    )
 
 
 @router.post("/website-templates/{site_id}/publish", response_model=AdminTemplateDetail)

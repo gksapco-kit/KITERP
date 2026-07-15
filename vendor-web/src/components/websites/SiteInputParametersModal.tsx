@@ -328,6 +328,7 @@ export function SiteInputParametersModal({
             disabled={disabled || saving}
             onSelect={onPaletteSelect}
             onCustomColorsChange={onCustomColorsChange}
+            idPrefix="site-params-palette"
           />
         </div>
 

@@ -3919,7 +3919,7 @@ export default function DashboardLayout() {
                   title={storeHeaderName}
                   className={cn(
                     headerBarPillClass,
-                    'w-[9.5rem] gap-1.5 px-2.5',
+                    'w-[min(14rem,32vw)] min-w-[10.5rem] gap-1.5 px-2.5',
                     storePillActive
                       ? 'border-primary bg-primary text-white shadow-sm shadow-primary/20 hover:bg-primary/90 hover:border-primary'
                       : 'hover:bg-muted/80',

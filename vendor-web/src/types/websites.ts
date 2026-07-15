@@ -139,6 +139,8 @@ export interface BlockProps {
   copyright?: string
   show_legal?: boolean
   show_powered_by?: boolean
+  /** When true, platform admin (admin@kiterp.com) hid Powered By. Vendors cannot set this. */
+  powered_by_admin_disabled?: boolean
   powered_by_text?: string
   powered_by_text_url?: string
   powered_by_text_link_new_tab?: boolean

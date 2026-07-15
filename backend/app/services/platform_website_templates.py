@@ -32,6 +32,197 @@ _SITE_SCOPED_STYLE_KEYS = frozenset({
     "applied_template_name",
 })
 
+_TOP_LEVEL_IMAGE_FIELDS = (
+    "bg_image_url",
+    "image_url",
+    "cover_image_url",
+    "thumbnail_url",
+    "brand_logo",
+    "logo_url",
+    "src",
+)
+
+_ARRAY_IMAGE_FIELDS = (
+    ("images", "src"),
+    ("banners", "image_url"),
+    ("banners", "src"),
+    ("banners", "bg_image_url"),
+    ("slides", "image_url"),
+    ("slides", "src"),
+    ("features", "image_url"),
+    ("categories", "image_url"),
+    ("testimonials", "avatar_url"),
+    ("members", "avatar_url"),
+    ("projects", "image_url"),
+    ("posts", "image_url"),
+    ("logos", "image_url"),
+)
+
+_HERO_BLOCK_TYPES = frozenset({
+    "hero",
+    "hero_split",
+    "hero_minimal",
+    "announcement_bar",
+    "nav",
+})
+
+
+def _pick_image_url(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    trimmed = value.strip()
+    return trimmed or None
+
+
+def _extract_overlay_image(props: Dict[str, Any]) -> Optional[str]:
+    overlays = props.get("overlays")
+    if not isinstance(overlays, list):
+        return None
+    for item in overlays:
+        if not isinstance(item, dict) or item.get("type") != "image":
+            continue
+        url = _pick_image_url(item.get("src"))
+        if url:
+            return url
+    return None
+
+
+def _extract_image_from_block_props(props: Optional[dict]) -> Optional[str]:
+    if not isinstance(props, dict):
+        return None
+    for field in _TOP_LEVEL_IMAGE_FIELDS:
+        url = _pick_image_url(props.get(field))
+        if url:
+            return url
+    overlay = _extract_overlay_image(props)
+    if overlay:
+        return overlay
+    for key, field in _ARRAY_IMAGE_FIELDS:
+        items = props.get(key)
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            url = _pick_image_url(item.get(field))
+            if url:
+                return url
+    return None
+
+
+def extract_preview_image_from_block_dicts(blocks: List[dict]) -> Optional[str]:
+    """First usable image from block prop dicts (hero blocks preferred)."""
+    sorted_blocks = sorted(
+        blocks,
+        key=lambda b: (
+            0 if (b.get("block_type") or "") in _HERO_BLOCK_TYPES else 1,
+            int(b.get("sort_order") or 0),
+        ),
+    )
+    for block in sorted_blocks:
+        if (block.get("block_type") or "") not in _HERO_BLOCK_TYPES:
+            continue
+        url = _extract_image_from_block_props(block.get("props") if isinstance(block.get("props"), dict) else None)
+        if url:
+            return url
+    for block in sorted_blocks:
+        url = _extract_image_from_block_props(block.get("props") if isinstance(block.get("props"), dict) else None)
+        if url:
+            return url
+    return None
+
+
+def extract_preview_image_from_orm_blocks(blocks: List[WebsiteBlock]) -> Optional[str]:
+    dicts = [
+        {
+            "block_type": b.block_type,
+            "sort_order": b.sort_order or 0,
+            "props": b.props if isinstance(b.props, dict) else {},
+        }
+        for b in blocks
+        if b.visible is not False
+    ]
+    return extract_preview_image_from_block_dicts(dicts)
+
+
+def extract_preview_image_from_snapshot(snapshot: Optional[dict]) -> Optional[str]:
+    if not isinstance(snapshot, dict):
+        return None
+    thumb = _pick_image_url(snapshot.get("thumbnail"))
+    if thumb:
+        return thumb
+    pages = snapshot.get("pages") or []
+    if not isinstance(pages, list):
+        return None
+    ordered = sorted(
+        [p for p in pages if isinstance(p, dict)],
+        key=lambda p: (0 if p.get("is_homepage") else 1, int(p.get("sort_order") or 0)),
+    )
+    for page in ordered:
+        blocks = page.get("blocks") or []
+        if not isinstance(blocks, list):
+            continue
+        url = extract_preview_image_from_block_dicts(
+            [b for b in blocks if isinstance(b, dict)]
+        )
+        if url:
+            return url
+    return None
+
+
+def resolve_site_card_thumbnail(
+    site: WebsiteSite,
+    platform: Optional[PlatformWebsiteTemplate] = None,
+    *,
+    block_image: Optional[str] = None,
+) -> Optional[str]:
+    """Best static image for admin / gallery template cards."""
+    for candidate in (
+        block_image,
+        site.og_image_url,
+        platform.thumbnail if platform else None,
+        extract_preview_image_from_snapshot(platform.snapshot if platform else None),
+        site.logo_url,
+        site.favicon_url,
+    ):
+        url = _pick_image_url(candidate)
+        if url:
+            return url
+    return None
+
+
+async def load_homepage_preview_images(
+    db: AsyncSession,
+    site_ids: List[UUID],
+) -> Dict[UUID, str]:
+    """Batch-load the first hero/cover image from each site's homepage (or first page)."""
+    if not site_ids:
+        return {}
+    result = await db.execute(
+        select(WebsitePage)
+        .where(
+            WebsitePage.site_id.in_(site_ids),
+            WebsitePage.deleted_at.is_(None),
+        )
+        .options(selectinload(WebsitePage.blocks))
+    )
+    by_site: Dict[UUID, List[WebsitePage]] = {}
+    for page in result.scalars().all():
+        by_site.setdefault(page.site_id, []).append(page)
+
+    out: Dict[UUID, str] = {}
+    for site_id, pages in by_site.items():
+        ordered = sorted(
+            pages,
+            key=lambda p: (0 if p.is_homepage else 1, p.sort_order or 0, str(p.id)),
+        )
+        for page in ordered:
+            url = extract_preview_image_from_orm_blocks(list(page.blocks or []))
+            if url:
+                out[site_id] = url
+                break
+    return out
+
 
 def _is_sandbox_site(site: WebsiteSite) -> bool:
     desc = (site.description or "").strip()
@@ -144,8 +335,17 @@ def build_template_snapshot(site: WebsiteSite, slug: str) -> Dict[str, Any]:
 
     sc = site.style_config if isinstance(site.style_config, dict) else {}
     category = str(sc.get("business_type") or sc.get("category") or "custom").strip() or "custom"
+    block_thumb = None
+    for page in sorted(
+        [p for p in (site.pages or []) if p.deleted_at is None],
+        key=lambda p: (0 if p.is_homepage else 1, p.sort_order or 0, str(p.id)),
+    ):
+        block_thumb = extract_preview_image_from_orm_blocks(list(page.blocks or []))
+        if block_thumb:
+            break
     thumbnail = (
         site.og_image_url
+        or block_thumb
         or site.logo_url
         or site.favicon_url
         or "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800"

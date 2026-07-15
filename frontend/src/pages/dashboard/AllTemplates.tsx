@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { format } from 'date-fns'
+import { toast } from 'sonner'
 import {
   LayoutTemplate,
   Loader2,
@@ -10,47 +12,221 @@ import {
   Store,
   Clock,
   Globe,
+  FileText,
+  Calendar,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/authStore'
 import { isSuperuserAdmin } from '@/lib/platformAccess'
+import { buildAdminDraftPreviewUrl } from '@/lib/appUrls'
+import { cn, mediaUrl } from '@/lib/utils'
 import {
   useAdminWebsiteTemplates,
-  useAdminWebsiteTemplate,
   usePublishWebsiteTemplate,
   useUnpublishWebsiteTemplate,
   useSyncWebsiteTemplate,
+  useCreateWebsiteTemplatePreview,
 } from '@/hooks/useAdmin'
-import type { AdminWebsiteTemplateBucket, AdminWebsiteTemplateRow } from '@/api/admin.api'
+import type { AdminWebsiteTemplateRow } from '@/api/admin.api'
 
 const selectCls =
   'h-9 rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary'
 
-function formatWhen(value?: string | null) {
+function formatShortDate(value?: string | null) {
   if (!value) return '—'
   try {
-    return new Date(value).toLocaleString()
+    return format(new Date(value), 'MMM d, yy')
   } catch {
-    return value
+    return '—'
   }
 }
 
-function catalogBadge(row: AdminWebsiteTemplateRow) {
+function statusChip(row: AdminWebsiteTemplateRow) {
   if (row.catalog_published) {
-    return { label: 'Published', className: 'bg-green-100 text-green-700' }
+    return {
+      label: 'In catalog',
+      className: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+      Icon: CheckCircle2,
+    }
   }
-  if (row.platform_template_id) {
-    return { label: 'Not published', className: 'bg-yellow-100 text-yellow-800' }
+  if (row.needs_sync) {
+    return {
+      label: 'Sync available',
+      className: 'bg-orange-50 text-orange-800 border-orange-200',
+      Icon: RefreshCw,
+    }
   }
-  return { label: 'Not published', className: 'bg-gray-100 text-gray-600' }
+  if (row.list_bucket === 'assigned') {
+    return {
+      label: 'Assigned',
+      className: 'bg-blue-50 text-blue-800 border-blue-200',
+      Icon: Store,
+    }
+  }
+  return {
+    label: 'Draft',
+    className: 'bg-violet-50 text-violet-800 border-violet-200',
+    Icon: LayoutTemplate,
+  }
 }
 
-function bucketBadge(bucket: AdminWebsiteTemplateBucket) {
-  if (bucket === 'assigned') {
-    return { label: 'Assigned', className: 'bg-blue-100 text-blue-700' }
-  }
-  return { label: 'Draft', className: 'bg-amber-50 text-amber-800' }
+type TemplateCardProps = {
+  row: AdminWebsiteTemplateRow
+  busy: boolean
+  previewing: boolean
+  onPreview: () => void
+  onPublish: () => void
+  onUnpublish: () => void
+  onSync: () => void
+}
+
+function AdminTemplateCard({
+  row,
+  busy,
+  previewing,
+  onPreview,
+  onPublish,
+  onUnpublish,
+  onSync,
+}: TemplateCardProps) {
+  const chip = statusChip(row)
+  const thumb = row.thumbnail ? mediaUrl(row.thumbnail) : null
+  const StatusIcon = chip.Icon
+
+  return (
+    <div className="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md">
+      {/* Thumbnail */}
+      <div
+        role="button"
+        tabIndex={0}
+        className="relative aspect-[16/10] cursor-pointer overflow-hidden rounded-t-xl bg-gradient-to-br from-slate-100 via-emerald-50 to-teal-100"
+        onClick={onPreview}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onPreview()
+          }
+        }}
+      >
+        {thumb ? (
+          <img
+            src={thumb}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-top"
+            onError={(e) => {
+              ;(e.target as HTMLImageElement).style.display = 'none'
+            }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <LayoutTemplate className="h-10 w-10 text-primary/30" />
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-0 bg-black/0 transition-all group-hover:bg-black/10" />
+        <div
+          className={cn(
+            'absolute left-2 top-2 flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium',
+            chip.className,
+          )}
+        >
+          <StatusIcon className="h-2.5 w-2.5" />
+          {chip.label}
+        </div>
+        {row.catalog_published && row.needs_sync && (
+          <div className="absolute right-2 top-2 rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-800">
+            Sync
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="p-2.5">
+        <h3 className="truncate text-sm font-bold leading-tight text-gray-900" title={row.name}>
+          {row.name}
+        </h3>
+
+        <div className="mt-2">
+          <span
+            className="inline-flex max-w-full items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-800"
+            title={row.vendor_email ? `${row.vendor_name} · ${row.vendor_email}` : row.vendor_name}
+          >
+            <Store className="h-2.5 w-2.5 shrink-0" />
+            <span className="truncate">{row.vendor_name}</span>
+          </span>
+        </div>
+
+        <div className="mt-2 flex items-center gap-2 border-t border-gray-100 pt-2 text-[10px] text-gray-500">
+          <span className="flex items-center gap-0.5">
+            <FileText className="h-2.5 w-2.5" />
+            {row.page_count} pg{row.page_count !== 1 ? 's' : ''}
+          </span>
+          <span className="flex items-center gap-0.5 truncate">
+            <Calendar className="h-2.5 w-2.5 shrink-0" />
+            {formatShortDate(row.content_updated_at)}
+          </span>
+        </div>
+
+        <div className="mt-2 grid grid-cols-1 gap-1.5">
+          <div className="flex gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 min-w-0 flex-1 px-2 text-[11px]"
+              disabled={previewing || busy}
+              onClick={onPreview}
+            >
+              {previewing ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <Eye className="mr-1 h-3 w-3" />
+              )}
+              {previewing ? 'Opening…' : 'Preview'}
+            </Button>
+            {row.needs_sync ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 w-7 shrink-0 px-0"
+                disabled={busy}
+                title="Sync catalog"
+                aria-label="Sync catalog"
+                onClick={onSync}
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            ) : null}
+          </div>
+          {row.catalog_published ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 w-full px-2 text-[11px]"
+              disabled={busy}
+              onClick={onUnpublish}
+            >
+              <XCircle className="mr-1 h-3 w-3" />
+              Unpublish
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 w-full bg-primary px-2 text-[11px] text-white hover:bg-primary/90"
+              disabled={busy}
+              onClick={onPublish}
+            >
+              <CheckCircle2 className="mr-1 h-3 w-3" />
+              Publish
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function AllTemplates() {
@@ -59,7 +235,7 @@ export default function AllTemplates() {
 
   const [view, setView] = useState<'assigned' | 'draft' | 'all'>('all')
   const [search, setSearch] = useState('')
-  const [openSiteId, setOpenSiteId] = useState<string | null>(null)
+  const [previewingSiteId, setPreviewingSiteId] = useState<string | null>(null)
 
   const { data, isLoading, isError, error, refetch, isFetching } = useAdminWebsiteTemplates(
     {
@@ -68,10 +244,10 @@ export default function AllTemplates() {
     },
     { enabled: isSuperuser },
   )
-  const detailQuery = useAdminWebsiteTemplate(isSuperuser ? openSiteId : null)
   const publishMut = usePublishWebsiteTemplate()
   const unpublishMut = useUnpublishWebsiteTemplate()
   const syncMut = useSyncWebsiteTemplate()
+  const previewMut = useCreateWebsiteTemplatePreview()
 
   const stats = data?.stats
   const items = data?.items ?? []
@@ -81,6 +257,53 @@ export default function AllTemplates() {
     if (typeof detail === 'string') return detail
     return 'Could not load website templates.'
   }, [error])
+
+  const openPreview = useCallback(
+    async (siteId: string) => {
+      if (previewMut.isPending) return
+      // Open synchronously from the click — async `window.open` after await is blocked.
+      const previewTab = window.open('about:blank', 'kiterp-admin-template-preview')
+      setPreviewingSiteId(siteId)
+      try {
+        const result = await previewMut.mutateAsync(siteId)
+        const url = buildAdminDraftPreviewUrl(
+          result.preview_token,
+          result.page_slug,
+          result.vendor_slug,
+        )
+        if (previewTab && !previewTab.closed) {
+          previewTab.location.replace(url)
+          previewTab.focus()
+          return
+        }
+        const tab = window.open(url, 'kiterp-admin-template-preview')
+        if (tab) {
+          tab.focus()
+          return
+        }
+        try {
+          await navigator.clipboard.writeText(url)
+          toast.error('Pop-up blocked. Preview link copied — paste it into a new tab.', {
+            duration: 8000,
+          })
+        } catch {
+          toast.error(`Could not open preview. Open this URL manually: ${url}`, {
+            duration: 12000,
+          })
+        }
+      } catch {
+        try {
+          previewTab?.close()
+        } catch {
+          /* ignore */
+        }
+        // Error toast handled by mutation
+      } finally {
+        setPreviewingSiteId(null)
+      }
+    },
+    [previewMut.isPending, previewMut.mutateAsync],
+  )
 
   const busy =
     publishMut.isPending ||
@@ -170,194 +393,23 @@ export default function AllTemplates() {
               Website Builder, it will appear here.
             </p>
           ) : (
-            <div className="space-y-3">
-              {items.map((row) => {
-                const cat = catalogBadge(row)
-                const bucket = bucketBadge(row.list_bucket)
-                return (
-                  <div
-                    key={row.site_id}
-                    className="flex flex-col gap-3 border-b py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-gray-900">{row.name}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${bucket.className}`}>
-                          {bucket.label}
-                        </span>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cat.className}`}>
-                          {cat.label}
-                        </span>
-                        {row.needs_sync && (
-                          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
-                            Sync available
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
-                        <Store className="h-3 w-3" />
-                        {row.vendor_name}
-                        {row.vendor_email ? ` · ${row.vendor_email}` : ''}
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-400">
-                        {row.page_count} pages · Updated {formatWhen(row.content_updated_at)}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setOpenSiteId(row.site_id)}
-                      >
-                        <Eye className="mr-1.5 h-3.5 w-3.5" />
-                        Open
-                      </Button>
-                      {row.needs_sync && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={busy}
-                          onClick={() => syncMut.mutate(row.site_id)}
-                        >
-                          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                          Sync
-                        </Button>
-                      )}
-                      {row.catalog_published ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={busy}
-                          onClick={() => unpublishMut.mutate(row.site_id)}
-                        >
-                          <XCircle className="mr-1.5 h-3.5 w-3.5" />
-                          Unpublish
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => publishMut.mutate(row.site_id)}
-                        >
-                          <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                          Publish
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {items.map((row) => (
+                <AdminTemplateCard
+                  key={row.site_id}
+                  row={row}
+                  busy={busy}
+                  previewing={previewingSiteId === row.site_id}
+                  onPreview={() => void openPreview(row.site_id)}
+                  onPublish={() => publishMut.mutate(row.site_id)}
+                  onUnpublish={() => unpublishMut.mutate(row.site_id)}
+                  onSync={() => syncMut.mutate(row.site_id)}
+                />
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Detail modal */}
-      {openSiteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white shadow-xl">
-            <div className="flex items-start justify-between border-b px-5 py-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {detailQuery.data?.name || 'Template'}
-                </h2>
-                <p className="text-sm text-gray-500">{detailQuery.data?.vendor_name}</p>
-              </div>
-              <button
-                type="button"
-                className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-                onClick={() => setOpenSiteId(null)}
-                aria-label="Close"
-              >
-                <XCircle className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="space-y-4 px-5 py-4 text-sm">
-              {detailQuery.isLoading ? (
-                <p className="text-gray-500">Loading…</p>
-              ) : detailQuery.data ? (
-                <>
-                  <p className="text-gray-600">
-                    {detailQuery.data.description || 'No description provided.'}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${bucketBadge(detailQuery.data.list_bucket).className}`}>
-                      {bucketBadge(detailQuery.data.list_bucket).label}
-                    </span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${catalogBadge(detailQuery.data).className}`}>
-                      {catalogBadge(detailQuery.data).label}
-                    </span>
-                    {detailQuery.data.needs_sync && (
-                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
-                        Source changed — sync to update catalog
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <p className="mb-1 font-medium text-gray-800">Pages</p>
-                    <ul className="list-inside list-disc text-gray-600">
-                      {(detailQuery.data.page_titles.length
-                        ? detailQuery.data.page_titles
-                        : ['(no pages yet)']
-                      ).map((title) => (
-                        <li key={title}>{title}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  {detailQuery.data.platform_slug && (
-                    <p className="text-xs text-gray-500">
-                      Catalog id: <code>{detailQuery.data.platform_slug}</code>
-                    </p>
-                  )}
-                  <p className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-                    {detailQuery.data.note}
-                  </p>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {detailQuery.data.needs_sync && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => syncMut.mutate(detailQuery.data!.site_id)}
-                      >
-                        <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                        Sync recent changes
-                      </Button>
-                    )}
-                    {detailQuery.data.catalog_published ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => unpublishMut.mutate(detailQuery.data!.site_id)}
-                      >
-                        Mark not published
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => publishMut.mutate(detailQuery.data!.site_id)}
-                      >
-                        Publish for all vendors
-                      </Button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <p className="text-red-600">Failed to load template detail.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

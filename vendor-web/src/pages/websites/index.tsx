@@ -14,23 +14,11 @@ import {
   Globe2, ClipboardCopy,
   Pencil,
   X,
-  Smartphone,
   ShoppingBag,
-  Wrench,
-  Star,
-  Mail,
   ShoppingCart,
   Search,
-  ClipboardList,
-  Users,
-  CreditCard,
-  BookOpen,
-  CalendarCheck,
-  GalleryHorizontal,
   LayoutTemplate,
-  Lock,
   Store,
-  Palette,
   Paintbrush,
   Download,
   type LucideIcon,
@@ -52,18 +40,16 @@ import { websiteApi } from '@/api/websites'
 import type { SiteListItem } from '@/types/websites'
 import { cn } from '@/lib/utils'
 import { extractApiError } from '@/lib/errorMessages'
-import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableSetupFeatures, getCoreSetupFeatures, getDefaultSetupFeatures, normalizeSetupFeatures, buildPagesFromSetupFeatures, buildGenerateSitePrompt, type SetupFeatureId, type SetupFeatureOption, resolveWebsiteSetupFromBusinessSettings } from '@/lib/businessSitePresets'
+import { imageCategoryForBusinessType, stylePresetForBusinessType, getAvailableSetupFeatures, getCoreSetupFeatures, getDefaultSetupFeatures, normalizeSetupFeatures, buildPagesFromSetupFeatures, buildGenerateSitePrompt, type SetupFeatureId, resolveWebsiteSetupFromBusinessSettings } from '@/lib/businessSitePresets'
 import {
   CUSTOM_WEBSITE_PALETTE_ID,
   DEFAULT_CUSTOM_WEBSITE_PALETTE_COLORS,
   DEFAULT_WEBSITE_COLOR_PALETTE_ID,
-  getWebsiteColorPaletteLabel,
   resolveWebsitePaletteColors,
-  WEBSITE_COLOR_PALETTES,
-  WEBSITE_PALETTE_COLOR_FIELDS,
   type WebsiteColorPaletteId,
   type WebsitePaletteColors,
 } from '@/lib/websiteColorPalettes'
+import { ColorPalettePicker, SetupFeaturesPicker } from '@/components/websites/siteInputParametersPickers'
 import { WEBSITE_SELLING_MODES } from '@/lib/websiteCreateWizardPresets'
 import { companyTypeLabel } from '@/data/companyTypes'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -114,7 +100,7 @@ const WEBSITE_STORE_SCOPE_OPTIONS: {
   {
     id: 'all',
     label: 'All stores',
-    desc: 'One website for every business unit â€” shared catalog and branding',
+    desc: 'One website for every business unit — shared catalog and branding',
     icon: Globe,
   },
   {
@@ -126,30 +112,12 @@ const WEBSITE_STORE_SCOPE_OPTIONS: {
   {
     id: 'external',
     label: 'Other Use',
-    desc: 'Marketing or portfolio site on your own domain â€” not tied to a store',
+    desc: 'Marketing or portfolio site on your own domain — not tied to a store',
     icon: Globe2,
   },
 ]
 
 const SITE_CARD_GRID = 'grid grid-cols-2 lg:grid-cols-4 gap-3'
-
-const SETUP_FEATURE_ICONS: Record<SetupFeatureId, LucideIcon> = {
-  homepage_copy: FileText,
-  mobile_layout: Smartphone,
-  products_sections: ShoppingBag,
-  services_sections: Wrench,
-  reviews_trust: Star,
-  contact_form: Mail,
-  commerce_blocks: ShoppingCart,
-  seo_content: Search,
-  publish_checklist: ClipboardList,
-  about_page: Users,
-  services_page: Wrench,
-  pricing_page: CreditCard,
-  blog_page: BookOpen,
-  booking_blocks: CalendarCheck,
-  menu_gallery: GalleryHorizontal,
-}
 
 function WebsiteCreationApproachPicker({
   selected,
@@ -223,348 +191,6 @@ function WebsiteCreationApproachPicker({
   )
 }
 
-function SetupFeaturesPicker({
-  features,
-  selected,
-  businessType,
-  sellingMode,
-  disabled,
-  onToggle,
-  onSelectRecommended,
-}: {
-  features: SetupFeatureOption[]
-  selected: SetupFeatureId[]
-  businessType: string
-  sellingMode: string
-  disabled?: boolean
-  onToggle: (id: SetupFeatureId, locked?: boolean) => void
-  onSelectRecommended: () => void
-}) {
-  const core = features.filter(f => f.locked)
-  const optional = features.filter(f => !f.locked)
-  const optionalSelected = optional.filter(f => selected.includes(f.id)).length
-
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/80 overflow-hidden">
-      <div className="px-4 py-3.5 border-b border-gray-100 bg-white/90">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-gray-900">4. Your ready-made setup includes</p>
-            <p className="text-xs text-gray-500 mt-0.5">Core features are always on. Toggle optional sections below.</p>
-          </div>
-          <span className="shrink-0 inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary tabular-nums">
-            {selected.length} of {features.length}
-          </span>
-        </div>
-      </div>
-
-      {core.length > 0 && (
-        <div className="px-4 py-3 border-b border-gray-100">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2.5">Always included</p>
-          <div className="flex flex-wrap gap-2">
-            {core.map(feature => {
-              const Icon = SETUP_FEATURE_ICONS[feature.id]
-              return (
-                <div
-                  key={feature.id}
-                  title={feature.description}
-                  className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/90 px-3 py-1.5 text-[11px] font-medium text-emerald-800"
-                >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white">
-                    <Check className="h-3 w-3 stroke-[3]" />
-                  </span>
-                  <Icon className="h-3.5 w-3.5 opacity-70" />
-                  <span>{feature.label}</span>
-                  <Lock className="h-3 w-3 opacity-40" aria-hidden />
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {optional.length > 0 && (
-        <div className="px-4 py-3.5">
-          <div className="flex items-center justify-between gap-2 mb-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              Optional sections
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-400 tabular-nums">{optionalSelected}/{optional.length} on</span>
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={onSelectRecommended}
-                className="text-[10px] font-semibold text-primary hover:text-primary/80 disabled:opacity-50"
-              >
-                Reset to recommended
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {optional.map(feature => {
-              const Icon = SETUP_FEATURE_ICONS[feature.id]
-              const checked = selected.includes(feature.id)
-              return (
-                <button
-                  key={feature.id}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => onToggle(feature.id, false)}
-                  aria-pressed={checked}
-                  className={cn(
-                    'group relative flex items-start gap-3 rounded-xl border-2 p-3 text-left transition-all',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
-                    checked
-                      ? 'border-primary bg-primary/[0.06] shadow-sm shadow-primary/10'
-                      : 'border-gray-200 bg-white hover:border-primary/30 hover:bg-gray-50/80',
-                    disabled && 'opacity-60 cursor-not-allowed',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors',
-                      checked ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-primary/10 group-hover:text-primary',
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="flex-1 min-w-0 pr-6">
-                    <span className={cn('block text-xs font-semibold leading-tight', checked ? 'text-gray-900' : 'text-gray-800')}>
-                      {feature.label}
-                    </span>
-                    <span className="block text-[11px] text-gray-500 mt-0.5 leading-snug line-clamp-2">
-                      {feature.description}
-                    </span>
-                  </span>
-                  <span
-                    className={cn(
-                      'absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-md border-2 transition-all',
-                      checked
-                        ? 'border-primary bg-primary text-white'
-                        : 'border-gray-300 bg-white group-hover:border-primary/50',
-                    )}
-                    aria-hidden
-                  >
-                    {checked && <Check className="h-3 w-3 stroke-[3]" />}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="px-4 py-3 bg-gray-50/90 border-t border-gray-100">
-        <p className="text-[11px] text-gray-500 leading-relaxed flex items-start gap-2">
-          <Sparkles className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-          <span>
-            We generate pages, modern layouts, and category photos from your{' '}
-            <strong className="font-medium text-gray-700">{businessType}</strong> setup
-            {sellingMode !== 'both' ? ` (${sellingMode})` : ''}.
-          </span>
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function ColorPalettePicker({
-  selected,
-  customColors,
-  disabled,
-  onSelect,
-  onCustomColorsChange,
-}: {
-  selected: WebsiteColorPaletteId
-  customColors: WebsitePaletteColors
-  disabled?: boolean
-  onSelect: (id: WebsiteColorPaletteId) => void
-  onCustomColorsChange: (colors: WebsitePaletteColors) => void
-}) {
-  const activeColors = resolveWebsitePaletteColors(selected, customColors)
-  const isCustom = selected === CUSTOM_WEBSITE_PALETTE_ID
-
-  const updateCustomColor = (key: keyof WebsitePaletteColors, value: string) => {
-    onCustomColorsChange({ ...customColors, [key]: value })
-  }
-
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50/80 overflow-hidden">
-      <div className="px-4 py-3.5 border-b border-gray-100 bg-white/90">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-gray-900">Choose your color palette</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Pick a preset or draft your own colors for the website. You can fine-tune these in the builder later.
-            </p>
-          </div>
-          <span className="shrink-0 inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-            {getWebsiteColorPaletteLabel(selected)}
-          </span>
-        </div>
-      </div>
-
-      <div className="p-4 space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {WEBSITE_COLOR_PALETTES.map(palette => {
-            const checked = selected === palette.id
-            return (
-              <button
-                key={palette.id}
-                type="button"
-                disabled={disabled}
-                onClick={() => onSelect(palette.id)}
-                aria-pressed={checked}
-                className={cn(
-                  'group relative flex flex-col overflow-hidden rounded-xl border-2 text-left transition-all',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
-                  checked
-                    ? 'border-primary shadow-sm shadow-primary/10 ring-1 ring-primary/20'
-                    : 'border-gray-200 bg-white hover:border-primary/30 hover:shadow-sm',
-                  disabled && 'opacity-60 cursor-not-allowed',
-                )}
-              >
-                <div className="flex h-14 items-stretch border-b border-gray-100" aria-hidden>
-                  <span className="flex-[2]" style={{ backgroundColor: palette.colors.primary_color }} />
-                  <span className="flex-1" style={{ backgroundColor: palette.colors.accent_color }} />
-                  <span
-                    className="flex-1 border-l border-gray-100"
-                    style={{ backgroundColor: palette.colors.bg_color }}
-                  />
-                </div>
-                <div className="px-3 py-2.5">
-                  <p className="text-xs font-semibold text-gray-900">{palette.label}</p>
-                  <p className="mt-0.5 text-[11px] text-gray-500 leading-snug line-clamp-2">
-                    {palette.description}
-                  </p>
-                </div>
-                {checked && (
-                  <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow-sm">
-                    <Check className="h-3 w-3 stroke-[3]" aria-hidden />
-                  </span>
-                )}
-              </button>
-            )
-          })}
-
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onSelect(CUSTOM_WEBSITE_PALETTE_ID)}
-            aria-pressed={isCustom}
-            className={cn(
-              'group relative flex flex-col overflow-hidden rounded-xl border-2 border-dashed text-left transition-all',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
-              isCustom
-                ? 'border-primary bg-primary/[0.04] shadow-sm shadow-primary/10 ring-1 ring-primary/20'
-                : 'border-gray-300 bg-white hover:border-primary/40 hover:bg-gray-50/80',
-              disabled && 'opacity-60 cursor-not-allowed',
-            )}
-          >
-            <div className="flex h-14 items-stretch border-b border-gray-100" aria-hidden>
-              <span className="flex-[2]" style={{ backgroundColor: customColors.primary_color }} />
-              <span className="flex-1" style={{ backgroundColor: customColors.accent_color }} />
-              <span
-                className="flex-1 border-l border-gray-100"
-                style={{ backgroundColor: customColors.bg_color }}
-              />
-            </div>
-            <div className="px-3 py-2.5">
-              <p className="text-xs font-semibold text-gray-900 flex items-center gap-1.5">
-                <Paintbrush className="h-3.5 w-3.5 text-primary" />
-                Custom palette
-              </p>
-              <p className="mt-0.5 text-[11px] text-gray-500 leading-snug">
-                Draft your own primary, accent, and background colors.
-              </p>
-            </div>
-            {isCustom && (
-              <span className="absolute right-2 top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow-sm">
-                <Check className="h-3 w-3 stroke-[3]" aria-hidden />
-              </span>
-            )}
-          </button>
-        </div>
-
-        {isCustom && (
-          <div className="rounded-xl border border-primary/20 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <p className="text-xs font-semibold text-gray-900">Draft your palette</p>
-              <div
-                className="flex h-8 flex-1 max-w-[220px] overflow-hidden rounded-lg border border-gray-200 shadow-inner"
-                aria-hidden
-              >
-                {WEBSITE_PALETTE_COLOR_FIELDS.map(({ key }) => (
-                  <span key={key} className="flex-1" style={{ backgroundColor: customColors[key] }} />
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {WEBSITE_PALETTE_COLOR_FIELDS.map(({ key, label }) => (
-                <div key={key} className="flex items-center gap-2.5 rounded-lg border border-gray-100 bg-gray-50/80 px-2.5 py-2">
-                  <input
-                    type="color"
-                    value={customColors[key]}
-                    disabled={disabled}
-                    onChange={e => updateCustomColor(key, e.target.value)}
-                    className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border border-gray-200 bg-white p-0.5"
-                    aria-label={`${label} color`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <label htmlFor={`palette-${key}`} className="block text-xs font-medium text-gray-700">
-                      {label}
-                    </label>
-                    <input
-                      id={`palette-${key}`}
-                      type="text"
-                      value={customColors[key]}
-                      disabled={disabled}
-                      onChange={e => {
-                        const v = e.target.value.trim()
-                        if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) updateCustomColor(key, v)
-                      }}
-                      onBlur={e => {
-                        const v = e.target.value.trim()
-                        if (!/^#[0-9A-Fa-f]{6}$/.test(v)) {
-                          updateCustomColor(key, customColors[key])
-                        }
-                      }}
-                      className="mt-0.5 w-full bg-transparent font-mono text-[11px] text-gray-500 outline-none"
-                      spellCheck={false}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!isCustom && (
-          <div
-            className="flex h-10 overflow-hidden rounded-xl border border-gray-200 shadow-inner"
-            aria-label="Selected palette preview"
-          >
-            <span className="flex-[2]" style={{ backgroundColor: activeColors.primary_color }} />
-            <span className="flex-1" style={{ backgroundColor: activeColors.accent_color }} />
-            <span className="flex-1" style={{ backgroundColor: activeColors.bg_color }} />
-            <span className="flex-1 border-l border-gray-100" style={{ backgroundColor: activeColors.surface_color }} />
-            <span className="w-10" style={{ backgroundColor: activeColors.text_color }} />
-          </div>
-        )}
-      </div>
-
-      <div className="px-4 py-3 bg-gray-50/90 border-t border-gray-100">
-        <p className="text-[11px] text-gray-500 leading-relaxed flex items-start gap-2">
-          <Palette className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-          <span>
-            Your palette applies to buttons, heroes, cards, and CTAs across every generated page.
-          </span>
-        </p>
-      </div>
-    </div>
-  )
-}
 
 function CreateSiteWizardMoreMenu({
   onInputParameters,
@@ -799,7 +425,7 @@ function CreateSiteModal({
         return
       }
 
-      toast.success('Website created. Building your pagesâ€¦')
+      toast.success('Website created. Building your pages…')
       setGenerating(true)
 
       try {
@@ -846,9 +472,9 @@ function CreateSiteModal({
         await websiteApi.aiApplyGeneratedSite(site.id, gen)
         await queryClient.invalidateQueries({ queryKey: ['websites', site.id] })
         await queryClient.invalidateQueries({ queryKey: ['websites'] })
-        toast.success(`Your website is ready â€” ${gen.pages?.length ?? pages.length} page(s) with modern layouts and photos.`)
+        toast.success(`Your website is ready — ${gen.pages?.length ?? pages.length} page(s) with modern layouts and photos.`)
       } catch (e) {
-        let msg = 'Smart setup could not finish. A starter site was created â€” open the builder to continue.'
+        let msg = 'Smart setup could not finish. A starter site was created — open the builder to continue.'
         if (isAxiosError(e)) {
           const d = e.response?.data as { detail?: unknown } | undefined
           if (d?.detail != null) msg = Array.isArray(d.detail) ? d.detail.map(x => typeof x === 'object' && x && 'msg' in x ? String((x as { msg: string }).msg) : String(x)).join('; ') : String(d.detail)
@@ -886,30 +512,35 @@ function CreateSiteModal({
 
   const WIZARD_STEPS = 3
 
+  const stepLabels = ['Basics', 'Structure', 'Colors'] as const
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
         className={cn(
-          'bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full overflow-hidden max-h-[90vh] overflow-y-auto transition-[max-width] duration-300',
+          'flex w-full max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl transition-[max-width] duration-300',
           step === 1 ? 'max-w-xl' : step === 2 ? 'max-w-4xl' : 'max-w-3xl',
         )}
         onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-website-title"
       >
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-primary to-info px-6 py-5 text-white">
+        <div className="relative shrink-0 bg-gradient-to-br from-primary via-primary to-info px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3.5">
+            <div className="flex min-w-0 items-start gap-3.5">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
-                <Globe className="h-5 w-5" />
+                {step === 3 ? <Paintbrush className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
               </span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold leading-tight">Create Website</h2>
-                  <span className="inline-flex items-center rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold tabular-nums">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 id="create-website-title" className="text-xl font-bold leading-tight">Create Website</h2>
+                  <span className="inline-flex items-center rounded-full bg-black/20 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums ring-1 ring-white/30">
                     Step {step} of {WIZARD_STEPS}
                   </span>
                 </div>
-                <p className="text-primary-foreground/85 text-sm mt-1">
+                <p className="mt-1 text-sm text-white/90">
                   {step === 1
                     ? 'Choose where this website is used and give it a name.'
                     : step === 2
@@ -925,27 +556,43 @@ function CreateSiteModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors shrink-0"
+              className="shrink-0 rounded-full bg-white/15 p-1.5 ring-1 ring-white/25 transition-colors hover:bg-white/25"
               aria-label="Close"
             >
-              <X className="w-5 h-5 text-white" />
+              <X className="h-5 w-5 text-white" />
             </button>
           </div>
           {/* Step progress */}
-          <div className="mt-4 flex items-center gap-2">
-            {Array.from({ length: WIZARD_STEPS }, (_, i) => i + 1).map(s => (
-              <span
-                key={s}
-                className={cn(
-                  'h-1.5 flex-1 rounded-full transition-all duration-300',
-                  s <= step ? 'bg-white' : 'bg-white/25',
-                )}
-              />
-            ))}
+          <div className="mt-4 space-y-1.5">
+            <div className="flex items-center gap-2">
+              {Array.from({ length: WIZARD_STEPS }, (_, i) => i + 1).map(s => (
+                <span
+                  key={s}
+                  className={cn(
+                    'h-1.5 flex-1 rounded-full transition-all duration-300',
+                    s < step ? 'bg-white' : s === step ? 'bg-white shadow-[0_0_0_1px_rgba(255,255,255,0.35)]' : 'bg-white/30',
+                  )}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between gap-2 text-[10px] font-semibold uppercase tracking-wide text-white/75">
+              {stepLabels.map((label, i) => (
+                <span
+                  key={label}
+                  className={cn(
+                    'min-w-0 flex-1 truncate',
+                    i === 0 ? 'text-left' : i === stepLabels.length - 1 ? 'text-right' : 'text-center',
+                    i + 1 === step && 'text-white',
+                  )}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
             {(step === 2 || step === 3) ? (
               <div className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-100 bg-violet-50/50 px-3 py-2.5">
                 {!isExternalScope ? (
@@ -974,7 +621,7 @@ function CreateSiteModal({
                 )}
                 {name.trim() ? (
                   <span className="text-xs text-gray-500">
-                    Â· <span className="font-medium text-gray-700">{name.trim()}</span>
+                    · <span className="font-medium text-gray-700">{name.trim()}</span>
                   </span>
                 ) : null}
                 <CreateSiteWizardMoreMenu
@@ -1016,7 +663,7 @@ function CreateSiteModal({
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Built for</p>
                     <p className="text-sm font-semibold text-gray-900">
-                      {formatStoreCode(singleStore)} Â· {singleStore.name}
+                      {formatStoreCode(singleStore)} · {singleStore.name}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-600 leading-relaxed">
                       This label appears on your template card while drafting. Business type and what you sell come from{' '}
@@ -1088,7 +735,7 @@ function CreateSiteModal({
                 <div className="mt-3">
                   <label htmlFor="website-bu" className="block text-xs font-semibold text-gray-600 mb-1.5">
                     Business unit
-                    <span className="ml-1 font-normal text-gray-400">â€” shown on your template card while drafting</span>
+                    <span className="ml-1 font-normal text-gray-400">— shown on your template card while drafting</span>
                   </label>
                   <div className="relative">
                     <Store className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -1098,7 +745,7 @@ function CreateSiteModal({
                       onChange={setWebsiteStoreId}
                       options={stores.map(s => ({
                         value: s.id,
-                        label: `${formatStoreCode(s)} Â· ${s.name}`,
+                        label: `${formatStoreCode(s)} · ${s.name}`,
                       }))}
                       aria-label="Business unit"
                       className="w-full rounded-xl py-2.5 pl-10 pr-3 text-sm font-medium shadow-sm"
@@ -1229,10 +876,14 @@ function CreateSiteModal({
               disabled={isLoading}
               onSelect={handlePaletteSelect}
               onCustomColorsChange={setCustomPaletteColors}
+              title="Choose your color palette"
+              description="Pick a preset or draft your own colors. You can fine-tune these in the builder later."
+              idPrefix="create-site-palette"
             />
             )}
+          </div>
 
-            <div className="-mx-6 -mb-6 mt-1 flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50/70 px-6 py-4">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-gray-100 bg-gray-50/90 px-6 py-4">
               {step === 1 ? (
                 <>
                   <p className="hidden text-xs text-gray-400 sm:block">Next: ready pages or build from scratch</p>
@@ -1266,12 +917,11 @@ function CreateSiteModal({
                   </Button>
                   <Button onClick={handleGuidedCreate} disabled={isLoading} className="bg-primary hover:bg-primary/90 text-white">
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : creationApproach === 'scratch' ? <Paintbrush className="w-4 h-4 mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                    {generating ? 'Generating websiteâ€¦' : creationApproach === 'scratch' ? 'Create & Open Builder' : 'Build My Website'}
+                    {generating ? 'Generating website…' : creationApproach === 'scratch' ? 'Create & Open Builder' : 'Build My Website'}
                   </Button>
                 </>
               )}
             </div>
-          </div>
 
         <SiteInputParametersModal
           open={inputParamsOpen}
@@ -1892,9 +1542,9 @@ function SiteCard({
       })
       await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
       if (finalName !== name.trim()) {
-        toast.success(`Name already in use â€” saved as "${finalName}"`)
+        toast.success(`Name already in use — saved as "${finalName}"`)
       } else {
-        toast.success(`"${finalName}" saved â€” find it in Business Website Builder`)
+        toast.success(`"${finalName}" saved — find it in Business Website Builder`)
       }
       setSaveAsOpen(false)
     } catch {
@@ -2010,7 +1660,7 @@ function SiteCard({
                   />
                   <SiteCardMenuItem
                     icon={previewing ? Loader2 : Eye}
-                    label={previewing ? 'Opening previewâ€¦' : 'Preview draft'}
+                    label={previewing ? 'Opening preview…' : 'Preview draft'}
                     disabled={previewing || copyingPreviewLink}
                     iconSpin={previewing}
                     onClick={() => {
@@ -2025,7 +1675,7 @@ function SiteCard({
                       <SiteCardMenuItem
                         key={link.href}
                         icon={ExternalLink}
-                        label={viewLiveLinks.length > 1 ? `View live Â· ${link.label}` : 'View live'}
+                        label={viewLiveLinks.length > 1 ? `View live · ${link.label}` : 'View live'}
                         onClick={() => { window.open(link.href, '_blank'); setMenuOpen(false) }}
                       />
                     ))
@@ -2178,7 +1828,7 @@ function SiteCard({
               ) : (
                 <Eye className="w-3 h-3 mr-1" />
               )}
-              {previewing ? 'Openingâ€¦' : 'Preview'}
+              {previewing ? 'Opening…' : 'Preview'}
             </Button>
             {showViewLive && viewLiveLinks.length === 1 ? (
               <Button
@@ -2276,7 +1926,7 @@ export default function WebsitesPage() {
         siteId = existing.id
       } else {
         const created = await createSite.mutateAsync({
-          name: `Template edit â€” ${new Date().toISOString().slice(0, 10)}`,
+          name: `Template edit — ${new Date().toISOString().slice(0, 10)}`,
           description: 'Sandbox: pick a template in the builder',
           style_config: {},
         } as any)
@@ -2317,7 +1967,7 @@ export default function WebsitesPage() {
           siteId = existing.id
         } else {
           const created = await createSite.mutateAsync({
-            name: `${templateName} â€” Template Edit`,
+            name: `${templateName} — Template Edit`,
             description: `Sandbox for template: ${templateId}`,
             style_config: {},
           } as any)
@@ -2350,7 +2000,7 @@ export default function WebsitesPage() {
             <Globe className="w-6 h-6 text-primary" /> Business Website Builder
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Create your store website in minutes â€” pick a style, edit text and photos, then publish
+            Create your store website in minutes — pick a style, edit text and photos, then publish
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -2368,7 +2018,7 @@ export default function WebsitesPage() {
             className="border-primary/30 text-primary hover:bg-accent hover:border-primary/60"
           >
             {openingTemplateEditor
-              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Openingâ€¦</>
+              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Opening…</>
               : <><Pencil className="w-4 h-4 mr-2" /> Edit Template</>}
           </Button>
           <Button
@@ -2388,12 +2038,12 @@ export default function WebsitesPage() {
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Build Your First Store Website</h2>
           <p className="text-gray-600 text-sm max-w-md mx-auto mb-6">
-            Choose your business type, enter your name, pick what to include â€” we build modern pages with photos and layouts automatically.
+            Choose your business type, enter your name, pick what to include — we build modern pages with photos and layouts automatically.
           </p>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 text-left">
             {[
-              { icon: Rocket, label: 'Guided Setup', desc: 'Business type â†’ ready-made store website' },
+              { icon: Rocket, label: 'Guided Setup', desc: 'Business type → ready-made store website' },
               { icon: Layout, label: 'Ready Sections', desc: 'Products, services, reviews, contact, checkout' },
               { icon: Sparkles, label: 'AI Copy', desc: 'Homepage, SEO, FAQs, and CTAs generated' },
               { icon: Globe, label: 'Go Live', desc: 'Mobile-ready pages with publish checklist' },

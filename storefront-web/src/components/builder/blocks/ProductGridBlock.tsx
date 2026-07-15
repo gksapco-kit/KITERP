@@ -683,9 +683,13 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                         as="h3"
                         className={cn(
                           isMinimalCard ? 'text-sm' : isCompactCard ? 'text-base' : 'text-lg sm:text-xl',
-                          'font-semibold text-white',
+                          'builder-tile-overlay-title font-semibold',
+                          !colorProps.tile_text && 'text-white',
                         )}
-                        style={{ fontFamily: style.font_heading }}
+                        style={{
+                          fontFamily: style.font_heading,
+                          ...(colorProps.tile_text ? { color: colorProps.tile_text } : {}),
+                        }}
                       />
                     </div>
                   ),
@@ -696,7 +700,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                 c,
                 <div
                   className={cn(
-                    'relative isolate w-full overflow-hidden',
+                    'builder-tile-card relative isolate w-full overflow-hidden',
                     cardRadius,
                     !shapedTile.frame.clipToShape && 'bg-gray-100',
                     catalogTileHostBackdropClass(categoryTileSettings.backdrop, shapedTile.frame.clipToShape, sectionBg),
@@ -759,9 +763,13 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                         as="h3"
                         className={cn(
                           isMinimalCard ? 'text-sm' : isCompactCard ? 'text-sm' : 'text-base',
-                          'font-semibold text-white',
+                          'builder-tile-overlay-title font-semibold',
+                          !colorProps.tile_text && 'text-white',
                         )}
-                        style={{ fontFamily: style.font_heading }}
+                        style={{
+                          fontFamily: style.font_heading,
+                          ...(colorProps.tile_text ? { color: colorProps.tile_text } : {}),
+                        }}
                       />
                     </div>
                   ),
@@ -772,7 +780,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                 c,
                 <div
                   className={cn(
-                    'relative isolate w-full overflow-hidden',
+                    'builder-tile-card relative isolate w-full overflow-hidden',
                     cardRadius,
                     !shapedTile.frame.clipToShape && 'bg-gray-100',
                     catalogTileHostBackdropClass(categoryTileSettings.backdrop, shapedTile.frame.clipToShape, sectionBg),

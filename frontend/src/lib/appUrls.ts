@@ -11,6 +11,22 @@ function isLoopbackAdminHost(): boolean {
   return h === 'localhost' || h === '127.0.0.1' || h === '[::1]'
 }
 
+/** Prefer 127.0.0.1 so vendor-web does not redirect localhost → 127.0.0.1 in a loop. */
+function canonicalizeLoopbackHostname(hostname: string): string {
+  if (hostname === 'localhost' || hostname === '[::1]') return '127.0.0.1'
+  return hostname
+}
+
+function rewriteLoopbackOrigin(origin: string): string {
+  try {
+    const u = new URL(origin)
+    u.hostname = canonicalizeLoopbackHostname(u.hostname)
+    return u.origin
+  } catch {
+    return origin
+  }
+}
+
 /**
  * Path-based storefront on port 3002 in local dev; production uses subdomains unless
  * `VITE_STOREFRONT_URL` is set (aligned with vendor-web `storefrontPreviewUrl.ts`).
@@ -36,7 +52,8 @@ export function getCustomerStorefrontBaseUrl(vendorSlug: string): string {
     return `${fromEnv.replace(/\/$/, '')}/store/${encodeURIComponent(slug)}`
   }
   if (typeof window !== 'undefined' && shouldUseLocalStorefrontUrls()) {
-    return `${window.location.protocol}//${window.location.hostname}:3002/store/${encodeURIComponent(slug)}`
+    const host = canonicalizeLoopbackHostname(window.location.hostname)
+    return `${window.location.protocol}//${host}:3002/store/${encodeURIComponent(slug)}`
   }
   return `https://${encodeURIComponent(slug)}.${storefrontPublicBaseDomain}`
 }
@@ -45,5 +62,37 @@ export function getCustomerStorefrontBaseUrl(vendorSlug: string): string {
 export function vendorDashboardLoginUrl(vendorSlug: string): string {
   const slug = vendorSlug.trim()
   const params = new URLSearchParams({ vendor: slug })
-  return `${vendorAppBaseUrl}/login?${params.toString()}`
+  return `${rewriteLoopbackOrigin(vendorAppBaseUrl)}/login?${params.toString()}`
+}
+
+/**
+ * Admin template preview URL.
+ * Prefer storefront `/store/:slug/preview/:token` (stable, no vendor pending-nav sync).
+ * Fall back to vendor-web draft shell on 127.0.0.1.
+ */
+export function buildAdminDraftPreviewUrl(
+  previewToken: string,
+  pageSlug?: string | null,
+  vendorSlug?: string | null,
+): string {
+  const token = previewToken.trim()
+  const slug = vendorSlug?.trim()
+  const page = pageSlug?.trim()
+  const pageSuffix =
+    page && page.length > 0 && page.toLowerCase() !== 'home'
+      ? `/${encodeURIComponent(page.replace(/^\/+/, ''))}`
+      : ''
+
+  if (slug) {
+    const storeBase = getCustomerStorefrontBaseUrl(slug)
+    return `${storeBase}/preview/${encodeURIComponent(token)}${pageSuffix}`
+  }
+
+  const vendorOrigin = rewriteLoopbackOrigin(vendorAppBaseUrl)
+  const url = new URL(`${vendorOrigin}/preview/draft`)
+  url.searchParams.set('token', token)
+  if (pageSuffix) {
+    url.searchParams.set('page', page!.replace(/^\/+/, ''))
+  }
+  return url.toString()
 }

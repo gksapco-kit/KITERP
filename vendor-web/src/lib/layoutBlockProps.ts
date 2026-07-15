@@ -11,7 +11,7 @@ const CONTENT_PROP_KEYS = new Set([
   'social_links', 'form_fields', 'items', 'categories', 'posts', 'projects',
   'logos', '_field_styles', 'video_url', 'form_hint', 'submit_label',
   'message', 'accept_label', 'decline_label', 'policy_url',
-  'show_legal', 'show_powered_by', 'powered_by_text', 'powered_by_text_url',
+  'show_legal', 'show_powered_by', 'powered_by_admin_disabled', 'powered_by_text', 'powered_by_text_url',
   'powered_by_text_link_type', 'powered_by_text_link_new_tab', 'powered_by_text_link_label',
   'show_credit_card_note', 'service_name', 'target_date', 'html', 'text',
   'plans', 'messages', 'links', 'menu_categories', 'products', 'hidden_kpi_ids',
