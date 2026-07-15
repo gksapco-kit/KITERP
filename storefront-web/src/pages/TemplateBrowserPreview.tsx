@@ -7,7 +7,7 @@
  *
  * For all other IDs: fetches PublicSite from the API and renders via BlockRenderer.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
+import { Component, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ErrorInfo, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Check, ChevronDown, ChevronRight, ExternalLink, Loader2, Paintbrush, Pencil, RotateCcw, Store, Type, X } from 'lucide-react'
 import BlockRenderer from '@/components/builder/BlockRenderer'
@@ -29,6 +29,49 @@ const STOREFRONT_TEMPLATES: Record<string, React.ComponentType<{ config?: Storef
   storefront_fashion:     FashionTemplate,
   storefront_electronics: ElectronicsTemplate,
   storefront_services:    ServicesTemplate,
+}
+
+/** Surfaces lazy-chunk load failures instead of React Router's generic "Unexpected Application Error". */
+class TemplateChunkErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  override componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('Template preview chunk failed to load:', error, info)
+  }
+
+  override render() {
+    const { error } = this.state
+    if (!error) return this.props.children
+    const isChunk =
+      /Failed to fetch dynamically imported module/i.test(error.message)
+      || /Loading chunk [\d]+ failed/i.test(error.message)
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 px-4 text-center">
+        <p className="text-gray-800 font-medium">
+          {isChunk ? 'Could not load this template preview.' : 'Something went wrong in the preview.'}
+        </p>
+        <p className="text-sm text-gray-500 max-w-md">
+          {isChunk
+            ? 'The page may be outdated after an update. Reload once, or close this tab and open Preview again.'
+            : error.message}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90"
+        >
+          Reload preview
+        </button>
+      </div>
+    )
+  }
 }
 
 // ── Available fonts (matches globals.css Google Fonts imports) ────────────────
@@ -773,13 +816,15 @@ function StorefrontPreview({ templateId }: { templateId: string }) {
           }
         />
         <div className={panelOpen ? 'pr-72 transition-all' : 'transition-all'}>
-          <Suspense fallback={
-            <div className="flex-1 flex items-center justify-center py-32">
-              <Loader2 className="w-8 h-8 text-primary/80 animate-spin" />
-            </div>
-          }>
-            <TemplateComponent config={config} basePath={`/template-browser/${templateId}`} />
-          </Suspense>
+          <TemplateChunkErrorBoundary>
+            <Suspense fallback={
+              <div className="flex-1 flex items-center justify-center py-32">
+                <Loader2 className="w-8 h-8 text-primary/80 animate-spin" />
+              </div>
+            }>
+              <TemplateComponent config={config} basePath={`/template-browser/${templateId}`} />
+            </Suspense>
+          </TemplateChunkErrorBoundary>
         </div>
 
         {panelOpen && (

@@ -28,8 +28,8 @@ function rewriteLoopbackOrigin(origin: string): string {
 }
 
 /**
- * Path-based storefront on port 3002 in local dev; production uses subdomains unless
- * `VITE_STOREFRONT_URL` is set (aligned with vendor-web `storefrontPreviewUrl.ts`).
+ * Path-based storefront on port 3002 in local dev; production uses
+ * `VITE_STOREFRONT_URL` + `/store/{slug}` (aligned with vendor-web `storefrontPreviewUrl.ts`).
  */
 export function shouldUseLocalStorefrontUrls(): boolean {
   return import.meta.env.DEV || isLoopbackAdminHost()
@@ -43,7 +43,8 @@ const storefrontPublicBaseDomain = (import.meta.env.VITE_BASE_DOMAIN || 'kiterp.
  * Public customer store URL for this vendor (no trailing slash).
  * - `VITE_STOREFRONT_URL`: `{env}/store/{slug}`
  * - local: `{protocol}//{host}:3002/store/{slug}`
- * - else: `https://{slug}.{VITE_BASE_DOMAIN}`
+ * - prod without env: same host as admin (`/store/{slug}`) — path-based gateway
+ * - last resort: `https://{slug}.{VITE_BASE_DOMAIN}` (wildcard DNS only)
  */
 export function getCustomerStorefrontBaseUrl(vendorSlug: string): string {
   const slug = vendorSlug.trim()
@@ -54,6 +55,11 @@ export function getCustomerStorefrontBaseUrl(vendorSlug: string): string {
   if (typeof window !== 'undefined' && shouldUseLocalStorefrontUrls()) {
     const host = canonicalizeLoopbackHostname(window.location.hostname)
     return `${window.location.protocol}//${host}:3002/store/${encodeURIComponent(slug)}`
+  }
+  // Prod gateway serves admin at /admin and storefront at / on the same host.
+  // Prefer path-based URLs over slug subdomains (those often have no DNS → NXDOMAIN).
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin.replace(/\/$/, '')}/store/${encodeURIComponent(slug)}`
   }
   return `https://${encodeURIComponent(slug)}.${storefrontPublicBaseDomain}`
 }

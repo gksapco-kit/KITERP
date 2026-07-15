@@ -8,9 +8,11 @@ import { Toaster } from 'sonner'
 
 import { router } from './routes'
 import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
+import { startSessionKeepAlive } from './lib/authSession'
 import './styles/globals.css'
 
 initGlobalEscapeHandler()
+startSessionKeepAlive()
 
 const queryClient = createAppQueryClient()
 attachAutoRefreshInterceptor(apiClient)

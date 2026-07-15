@@ -1,36 +1,54 @@
+import { useEffect } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useMe } from '@/hooks/useAuth'
+import { useAuthHydrated } from '@/hooks/useAuthHydrated'
 import { PageLoading } from '@/components/common/Loading'
+import { isAxiosAuthError, isAxiosNetworkError } from '@/lib/errorMessages'
 
-interface ProtectedRouteProps {
-  children: React.ReactNode
-}
+const AUTH_RETRY_MS = import.meta.env.DEV ? 60_000 : 30_000
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const { accessToken, isAuthenticated } = useAuthStore()
-  const { isLoading, isError } = useMe()
+  const hydrated = useAuthHydrated()
+  const { accessToken, isAuthenticated, logout } = useAuthStore()
+  const me = useMe()
+  const { isError, error, data: meData, isPending, isFetching, refetch } = me
 
-  // No token at all
-  if (!accessToken) {
-    return <Navigate to="/login" state={{ from: location }} replace />
-  }
+  const networkFailure = isError && isAxiosNetworkError(error)
+  const authFailure = isError && isAxiosAuthError(error)
 
-  // Loading user data
-  if (isLoading) {
+  const waitingOnSession =
+    Boolean(accessToken) && !isError && meData === undefined && (isPending || isFetching)
+
+  // Slow API — retry instead of forcing logout.
+  useEffect(() => {
+    if (!waitingOnSession) return undefined
+    const id = setTimeout(() => {
+      void refetch()
+    }, AUTH_RETRY_MS)
+    return () => clearTimeout(id)
+  }, [waitingOnSession, refetch])
+
+  // Temporary API/network blips — retry instead of logging out.
+  useEffect(() => {
+    if (!networkFailure || !accessToken) return undefined
+    const interval = import.meta.env.DEV ? 3000 : 5000
+    const id = window.setInterval(() => void refetch(), interval)
+    return () => window.clearInterval(id)
+  }, [networkFailure, accessToken, refetch])
+
+  if (!hydrated) return <PageLoading />
+
+  if (!accessToken) return <Navigate to="/login" state={{ from: location }} replace />
+  if (waitingOnSession || networkFailure) {
     return <PageLoading />
   }
-
-  // Error fetching user (invalid token)
-  if (isError) {
+  if (authFailure || isError) {
+    logout()
     return <Navigate to="/login" state={{ from: location }} replace />
   }
-
-  // Not authenticated after loading
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />
-  }
+  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
 
   return <>{children}</>
 }

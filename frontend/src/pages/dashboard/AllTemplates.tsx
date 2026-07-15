@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -236,6 +236,7 @@ export default function AllTemplates() {
   const [view, setView] = useState<'assigned' | 'draft' | 'all'>('all')
   const [search, setSearch] = useState('')
   const [previewingSiteId, setPreviewingSiteId] = useState<string | null>(null)
+  const previewInFlightRef = useRef(false)
 
   const { data, isLoading, isError, error, refetch, isFetching } = useAdminWebsiteTemplates(
     {
@@ -260,7 +261,8 @@ export default function AllTemplates() {
 
   const openPreview = useCallback(
     async (siteId: string) => {
-      if (previewMut.isPending) return
+      if (previewInFlightRef.current) return
+      previewInFlightRef.current = true
       // Open synchronously from the click — async `window.open` after await is blocked.
       const previewTab = window.open('about:blank', 'kiterp-admin-template-preview')
       setPreviewingSiteId(siteId)
@@ -299,10 +301,11 @@ export default function AllTemplates() {
         }
         // Error toast handled by mutation
       } finally {
+        previewInFlightRef.current = false
         setPreviewingSiteId(null)
       }
     },
-    [previewMut.isPending, previewMut.mutateAsync],
+    [previewMut.mutateAsync],
   )
 
   const busy =

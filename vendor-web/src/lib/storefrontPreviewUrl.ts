@@ -365,37 +365,55 @@ export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
   }
 }
 
-/** Open preview in one browser tab (sync callers only — no preceding `await`). */
-export function openDraftPreviewInBrowser(previewShellUrl: string): boolean {
-  const url = alignPreviewUrlWithCurrentHost(previewShellUrl)
-  try {
-    const parsed = new URL(url)
-    const hasTarget = Boolean(parsed.searchParams.get('target')?.trim())
-    const hasToken = Boolean(parsed.searchParams.get('token')?.trim())
-    // Gallery template preview (?target= only): open once — no pending-token delivery retries.
-    if (hasTarget && !hasToken) {
-      stopPreviewDeliveryRetries()
-      lastPreviewNavigateUrl = null
-      if (previewWindowRef && !previewWindowRef.closed) {
-        try {
-          if (previewTabShowsUrl(previewWindowRef, url)) {
-            previewWindowRef.focus()
-            return true
-          }
-          previewWindowRef.location.replace(url)
-          previewWindowRef.focus()
-          return true
-        } catch {
-          /* fall through to open */
-        }
-      }
-      const tab = window.open(url, PREVIEW_WINDOW_NAME)
-      if (tab) {
-        previewWindowRef = tab
-        tab.focus()
+/**
+ * Open a preview URL once in the shared preview tab.
+ * Do not use `navigateDraftPreviewTab` here — its retry loop calls `location.replace`
+ * every ~750ms, which aborts lazy chunks (e.g. FashionTemplate) on same-origin previews
+ * and looks like a continuous reload + "Failed to fetch dynamically imported module".
+ */
+function openPreviewTabOnce(url: string): boolean {
+  stopPreviewDeliveryRetries()
+  lastPreviewNavigateUrl = null
+  if (previewWindowRef && !previewWindowRef.closed) {
+    try {
+      if (previewTabShowsUrl(previewWindowRef, url)) {
+        previewWindowRef.focus()
         return true
       }
-      return false
+      previewWindowRef.location.replace(url)
+      previewWindowRef.focus()
+      return true
+    } catch {
+      /* fall through to open */
+    }
+  }
+  const tab = window.open(url, PREVIEW_WINDOW_NAME)
+  if (tab) {
+    previewWindowRef = tab
+    tab.focus()
+    return true
+  }
+  return false
+}
+
+/** Open preview in one browser tab (sync callers only — no preceding `await`). */
+export function openDraftPreviewInBrowser(previewShellUrl: string): boolean {
+  try {
+    const parsed = new URL(previewShellUrl, typeof window !== 'undefined' ? window.location.href : undefined)
+    const hasTarget = Boolean(parsed.searchParams.get('target')?.trim())
+    const hasToken = Boolean(parsed.searchParams.get('token')?.trim())
+    const isPendingShell = parsed.searchParams.get(DRAFT_PREVIEW_PENDING_PARAM) === '1'
+    const isDraftShell = matchesDraftPreviewBrowserPath(parsed.pathname)
+
+    // Catalog / template-browser previews (and legacy ?target= shell): open once.
+    // Draft-token handoff still uses navigateDraftPreviewTab below.
+    if ((hasTarget && !hasToken) || (!isDraftShell && !hasToken && !isPendingShell)) {
+      // Align only vendor draft-shell hosts (loopback port quirks). Keep absolute
+      // storefront origins (VITE_STOREFRONT_URL) unchanged.
+      const url = isDraftShell || hasTarget
+        ? alignPreviewUrlWithCurrentHost(previewShellUrl)
+        : previewShellUrl
+      return openPreviewTabOnce(url)
     }
   } catch {
     /* fall through to token/pending path */

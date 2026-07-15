@@ -41,7 +41,7 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env.config}
       - JWT_ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-365}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_REGION=${AWS_REGION:-ap-south-1}
@@ -85,6 +85,9 @@ services:
         VITE_PUBLIC_BASE_PATH: ${VITE_ADMIN_BASE_PATH:-/admin/}
         VITE_ROUTER_BASENAME: ${VITE_ADMIN_ROUTER_BASENAME:-/admin}
         VITE_VENDOR_URL: ${VITE_VENDOR_URL:?Set VITE_VENDOR_URL in .env.config}
+        # Required for admin template Preview — without this, URLs become
+        # https://{slug}.kiterp.com/... which has no DNS (NXDOMAIN) on path-based prod.
+        VITE_STOREFRONT_URL: ${VITE_STOREFRONT_URL:?Set VITE_STOREFRONT_URL in .env.config}
     container_name: kiterp-admin
     restart: always
     expose:
