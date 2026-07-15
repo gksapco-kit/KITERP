@@ -212,6 +212,11 @@ function sitePagesToLiveItems(site: PublicSite, limit: number): LiveItem[] {
   return items
 }
 
+function resolveLiveSiteId(site: PublicSite): string {
+  const override = (site.live_site_id || site.source_site_id || '').trim()
+  return override || site.id
+}
+
 function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
   const customFetch = useLiveDataFetch()
   const dataSource = block.props?.data_source as { type?: string; selected_ids?: string[]; limit?: number; auto?: boolean } | undefined
@@ -220,13 +225,14 @@ function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
     : undefined
   const resource = (sourceType && sourceType !== 'external_api' ? sourceType : BLOCK_LIVE_RESOURCE[block.block_type] || inferCommerceLiveResource(block.block_type)) as LiveResource | undefined
   const effectiveLimit = Number(dataSource?.limit ?? limit) || limit
+  const liveSiteId = resolveLiveSiteId(site)
   const embeddedPagesKey = resource === 'pages'
     ? (site.pages || []).map(p => `${p.id}:${p.slug}:${p.title}:${p.show_in_nav}:${p.is_homepage}`).join('|')
     : ''
   const [data, setData] = useState<LiveItem[] | null>(null)
 
   useEffect(() => {
-    if (!resource || !site.id) { setData([]); return }
+    if (!resource || !liveSiteId) { setData([]); return }
     if (resource === 'pages' && site.pages?.length) {
       setData(sitePagesToLiveItems(site, effectiveLimit))
       return
@@ -251,17 +257,17 @@ function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
     }
 
     if (customFetch) {
-      customFetch(site.id, resource, effectiveLimit, params)
+      customFetch(liveSiteId, resource, effectiveLimit, params)
         .then(apply)
         .catch(applyEmpty)
       return () => { cancelled = true }
     }
 
-    publicSitesApi.getLiveResource(site.id, resource, effectiveLimit, params)
+    publicSitesApi.getLiveResource(liveSiteId, resource, effectiveLimit, params)
       .then(r => apply(r.items))
       .catch(applyEmpty)
     return () => { cancelled = true }
-  }, [customFetch, site.id, resource, effectiveLimit, embeddedPagesKey, dataSource?.selected_ids?.join(',')])
+  }, [customFetch, liveSiteId, resource, effectiveLimit, embeddedPagesKey, dataSource?.selected_ids?.join(',')])
 
   return data
 }

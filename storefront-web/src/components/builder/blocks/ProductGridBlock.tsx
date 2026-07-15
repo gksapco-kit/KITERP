@@ -25,6 +25,7 @@ import {
 import { cn, imgUrl } from '@/lib/utils'
 import { buildCategoryCatalogPath } from '@/lib/categoryCatalogLink'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
+import { vendorDashboardUrl } from '@/lib/vendorDashboardUrl'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import {
   CATALOG_GRID_COL_CLASS,
@@ -327,7 +328,9 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           message={isEditorCanvas
             ? 'Categories from your catalog will appear here once you add them.'
             : 'No categories to show yet.'}
-          hint={isEditorCanvas ? 'Open Sales → Categories to create and manage categories.' : undefined}
+          hint="Add categories in your dashboard, then they appear here automatically."
+          actionHref={vendorDashboardUrl('/categories')}
+          actionLabel="Add categories"
           icon={<FolderTree className="w-10 h-10" style={{ color: style.primary_color }} />}
         />
       )
@@ -382,7 +385,9 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           message={isEditorCanvas
             ? 'Categories from your catalog will appear here once you add them.'
             : 'No categories to show yet.'}
-          hint={isEditorCanvas ? 'Open Sales → Categories to create and manage categories.' : undefined}
+          hint="Add categories in your dashboard, then they appear here automatically."
+          actionHref={vendorDashboardUrl('/categories')}
+          actionLabel="Add categories"
           icon={<FolderTree className="w-10 h-10" style={{ color: style.primary_color }} />}
         />
       )
@@ -531,7 +536,9 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           message={isEditorCanvas
             ? 'Categories from your catalog will appear here once you add them.'
             : 'No categories to show yet.'}
-          hint={isEditorCanvas ? 'Open Sales → Categories to create and manage categories.' : undefined}
+          hint="Add categories in your dashboard, then they appear here automatically."
+          actionHref={vendorDashboardUrl('/categories')}
+          actionLabel="Add categories"
           icon={<FolderTree className="w-10 h-10" style={{ color: style.primary_color }} />}
         />
       )
@@ -1239,7 +1246,18 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
         <div className="text-center py-12 px-6 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/80">
           <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-40" style={{ color: style.primary_color }} />
           <p className="text-sm font-medium text-gray-600">Products will show here</p>
-          <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">Add products in your dashboard under Products, then they will appear in this section automatically.</p>
+          <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+            Add products in your dashboard under Products, then they will appear in this section automatically.
+          </p>
+          <a
+            href={vendorDashboardUrl('/products/new')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center mt-4 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: style.primary_color || '#274832' }}
+          >
+            Add a product
+          </a>
         </div>
       ) : (
         <div

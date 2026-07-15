@@ -32,6 +32,7 @@ import { shouldShowServiceBookCta } from '@/lib/serviceStorefrontCta'
 import { resolveServiceDuration } from '@/lib/servicePricing'
 import { ServiceCard } from '@/kit/services/ServiceBlocks'
 import { toast } from 'sonner'
+import { vendorDashboardUrl } from '@/lib/vendorDashboardUrl'
 
 type FilterType = 'products' | 'services' | 'both'
 
@@ -653,7 +654,9 @@ export default function ProductList() {
               <p className="text-gray-500 text-sm mb-4">
                 {catalogError
                   ? 'Your products are still in the store — try refreshing the page.'
-                  : 'Try adjusting your search or filters'}
+                  : (search || selectedCategory || minPrice || maxPrice || inStockOnly)
+                    ? 'Try adjusting your search or filters'
+                    : 'Add products in your dashboard and they will appear here automatically.'}
               </p>
               {catalogError ? (
                 <Button
@@ -668,7 +671,17 @@ export default function ProductList() {
                 </Button>
               ) : (search || selectedCategory || minPrice || maxPrice || inStockOnly) ? (
                 <Button variant="outline" size="sm" onClick={clearFilters}>Clear Filters</Button>
-              ) : null}
+              ) : (
+                <a
+                  href={vendorDashboardUrl('/products/new')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90"
+                  style={{ backgroundColor: theme.colors.primary }}
+                >
+                  Add a product
+                </a>
+              )}
             </div>
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">

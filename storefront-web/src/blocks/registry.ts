@@ -205,6 +205,13 @@ export interface PublicPage {
 export interface PublicSite {
   id: string
   vendor_id: string
+  /**
+   * When set (template-browser / assigned template overlay), live ERP fetches
+   * use this published site id instead of the synthetic `id`.
+   */
+  live_site_id?: string | null
+  /** Curated platform template source site (mirrors live_site_id when published). */
+  source_site_id?: string | null
   /** Catalog slug for /store/:slug (Vendor.slug). */
   vendor_slug?: string | null
   name: string

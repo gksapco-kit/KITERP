@@ -458,16 +458,48 @@ def _norm_item(**kw) -> Dict[str, Any]:
 
 # ── Public site endpoints ─────────────────────────────────────────────────────
 
+_LIVE_CATALOG_RESOURCES = frozenset({
+    "products", "services", "categories", "testimonials", "team", "kpis",
+    "profile", "customers", "orders", "bookings", "media", "stores", "blog",
+    "plans", "properties", "courses", "fitness_classes", "vehicles", "events",
+    "recurring_plans", "booking_wizard_steps", "booking_resources",
+})
+
+
+def _coerce_optional_uuid_str(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return str(UUID(text))
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
 def _public_site_dict_from_template(tpl: Dict[str, Any]) -> Dict[str, Any]:
     """
     Build the same shape as _site_out() from a WEBSITE_TEMPLATES preset dict
     for unauthenticated template browser preview (no DB rows).
+
+    When `live_site_id` / `source_site_id` is present (admin-published platform
+    templates), BlockRenderer live fetches use that real published site so
+    products, categories, and profile match admin preview. Synthetic `id` is
+    kept for page routing in /template-browser.
     """
     import uuid as _uuid
 
     template_id = str(tpl.get("id") or "unknown")
     site_id = str(_uuid.uuid5(_uuid.NAMESPACE_URL, f"wb-template-preview:{template_id}"))
-    vendor_id = str(_uuid.uuid5(_uuid.NAMESPACE_URL, "wb-template-preview-vendor"))
+    vendor_id = (
+        _coerce_optional_uuid_str(tpl.get("source_vendor_id"))
+        or str(_uuid.uuid5(_uuid.NAMESPACE_URL, "wb-template-preview-vendor"))
+    )
+    live_site_id = (
+        _coerce_optional_uuid_str(tpl.get("live_site_id"))
+        or _coerce_optional_uuid_str(tpl.get("source_site_id"))
+    )
 
     style = tpl.get("default_style") or tpl.get("style_config") or {}
     if not isinstance(style, dict):
@@ -491,12 +523,22 @@ def _public_site_dict_from_template(tpl: Dict[str, Any]) -> Dict[str, Any]:
             _props = dict(b_tpl.get("props") or {})
             if not isinstance(_props, dict):
                 _props = {}
-            # Auto-wire live data source so template previews show vendor's
-            # real catalog / profile instead of static placeholder content.
             from app.api.v1.vendor_websites import BLOCK_AUTO_SOURCE as _BAS
             auto_src = _BAS.get(b_type)
-            if auto_src and "data_source" not in _props:
-                _props["data_source"] = {"type": auto_src, "auto": True}
+            ds = _props.get("data_source")
+            ds_type = ds.get("type") if isinstance(ds, dict) else None
+            if live_site_id:
+                # Auto-wire live data so previews show the source vendor catalog
+                # (same feed admin draft preview uses via the real site id).
+                if auto_src and "data_source" not in _props:
+                    _props["data_source"] = {"type": auto_src, "auto": True}
+            else:
+                # No resolvable live site — drop catalog data_source so snapshot
+                # static props (categories/images) can render instead of 404 empties.
+                if isinstance(ds, dict) and (
+                    ds.get("auto") or (isinstance(ds_type, str) and ds_type.replace("internal_", "") in _LIVE_CATALOG_RESOURCES)
+                ):
+                    _props.pop("data_source", None)
             blocks_out.append(
                 {
                     "id": bid,
@@ -534,7 +576,7 @@ def _public_site_dict_from_template(tpl: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
-    return {
+    out: Dict[str, Any] = {
         "id": site_id,
         "vendor_id": vendor_id,
         "name": tpl.get("name") or "Template preview",
@@ -565,6 +607,12 @@ def _public_site_dict_from_template(tpl: Dict[str, Any]) -> Dict[str, Any]:
         "pages": pages_out,
         "updated_at": None,
     }
+    if live_site_id:
+        out["live_site_id"] = live_site_id
+        out["source_site_id"] = live_site_id
+    if tpl.get("source_vendor_id"):
+        out["source_vendor_id"] = str(tpl.get("source_vendor_id"))
+    return out
 
 
 _IG_SHORTCODE_RE = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -646,6 +694,9 @@ async def get_website_template_preview(
     Unauthenticated: return a synthetic `PublicSite` JSON for a catalog template,
     for opening a full browser preview (business front BlockRenderer) before apply.
     Includes admin-published platform templates as well as built-ins.
+
+    Platform templates also expose `live_site_id` (source published site) so
+    product/category live feeds match admin template preview.
     """
     from app.api.v1.vendor_websites import WEBSITE_TEMPLATES
     from app.services.platform_website_templates import (
@@ -658,6 +709,24 @@ async def get_website_template_preview(
         platform = await get_published_platform_template_by_slug(db, template_id)
         if platform:
             tpl = catalog_template_dict(platform)
+            # Only wire live_site_id when the curated source site is still published
+            # (same constraint as GET /{site_id}/live/{resource}).
+            source_id = platform.source_site_id
+            if source_id:
+                src = (
+                    await db.execute(
+                        select(WebsiteSite.id).where(
+                            WebsiteSite.id == source_id,
+                            WebsiteSite.is_published == True,  # noqa: E712
+                            WebsiteSite.deleted_at.is_(None),
+                        )
+                    )
+                ).scalar_one_or_none()
+                if src:
+                    tpl["live_site_id"] = str(source_id)
+                else:
+                    tpl.pop("live_site_id", None)
+                    tpl.pop("source_site_id", None)
     if not tpl:
         raise HTTPException(status_code=404, detail="Template not found")
     return _public_site_dict_from_template(dict(tpl))

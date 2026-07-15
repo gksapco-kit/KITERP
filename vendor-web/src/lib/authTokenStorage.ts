@@ -24,21 +24,21 @@ export function setAuthTokens(accessToken: string, refreshToken: string): void {
 export function clearAuthTokens(): void {
   sessionStorage.removeItem(ACCESS_KEY)
   sessionStorage.removeItem(REFRESH_KEY)
-  // Drop legacy localStorage session so old installs do not auto-login across tabs.
+  // Only drop vendor zustand persist. Do NOT remove bare access_token /
+  // refresh_token from localStorage — admin (frontend) uses those same keys
+  // on the shared kiterp.com origin, and clearing them logs admin out.
   try {
-    localStorage.removeItem(ACCESS_KEY)
-    localStorage.removeItem(REFRESH_KEY)
     localStorage.removeItem(ZUSTAND_KEY)
   } catch {
     /* ignore quota / private mode */
   }
 }
 
-/** One-time cleanup of pre-sessionStorage auth persistence. */
+/** One-time cleanup of pre-sessionStorage vendor zustand persist. */
 export function clearLegacyAuthLocalStorage(): void {
   try {
-    localStorage.removeItem(ACCESS_KEY)
-    localStorage.removeItem(REFRESH_KEY)
+    // vendor-auth-storage only. Bare access_token/refresh_token in localStorage
+    // belong to the admin app on the same origin — leave them alone.
     localStorage.removeItem(ZUSTAND_KEY)
   } catch {
     /* ignore */

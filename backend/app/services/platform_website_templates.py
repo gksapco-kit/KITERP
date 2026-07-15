@@ -396,6 +396,12 @@ def catalog_template_dict(platform: PlatformWebsiteTemplate) -> Dict[str, Any]:
     snap.setdefault("nav_page_count", len([p for p in pages if p.get("show_in_nav", True)]))
     snap["source"] = "platform"
     snap["platform_template_id"] = str(platform.id)
+    # Used by public template-browser preview to fetch live products/categories
+    # from the curated source site (admin preview already uses that site id).
+    if platform.source_site_id:
+        snap["source_site_id"] = str(platform.source_site_id)
+    if platform.source_vendor_id:
+        snap["source_vendor_id"] = str(platform.source_vendor_id)
     return snap
 
 

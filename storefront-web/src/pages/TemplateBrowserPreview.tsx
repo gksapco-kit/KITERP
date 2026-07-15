@@ -874,11 +874,18 @@ function BlockBasedPreview({ templateId }: { templateId: string }) {
   const vendorValue = useMemo((): VendorContextType => {
     const base = `/template-browser/${templateId}`
     return {
-      vendor: null, vendorSlug: 'template-preview', isLoading: false, error: null,
+      vendor: null,
+      vendorSlug: 'template-preview',
+      isLoading: false,
+      error: null,
+      // Enables in-preview page nav via ?p= and keeps site_pages links (no invented commerce defaults).
+      previewShell: true,
       storePath: (path: string) => {
         const clean = path.startsWith('/') ? path : `/${path}`
         if (clean === '/' || clean === '') return base
-        return `${base}?p=${encodeURIComponent(clean.replace(/^\//, ''))}`
+        const slug = clean.replace(/^\//, '').split('/')[0] || ''
+        if (!slug || slug === 'home') return base
+        return `${base}?p=${encodeURIComponent(slug)}`
       },
       displayFields: { product: DEFAULT_PRODUCT_DISPLAY, service: DEFAULT_SERVICE_DISPLAY },
     }

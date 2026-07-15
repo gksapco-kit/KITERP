@@ -8,12 +8,17 @@ export default function BlockEmptyPlaceholder({
   hint,
   style,
   icon,
+  actionHref,
+  actionLabel,
 }: {
-  title: string
+  title?: string
   message: string
   hint?: string
   style?: StyleConfig
   icon?: ReactNode
+  /** Optional dashboard deep-link (e.g. create product). */
+  actionHref?: string
+  actionLabel?: string
 }) {
   const textColor = style?.text_color || '#374151'
   const surface = style?.surface_color || style?.bg_color || '#f9fafb'
@@ -29,12 +34,14 @@ export default function BlockEmptyPlaceholder({
         style={{ borderColor: `${primary}44`, backgroundColor: `${primary}08` }}
       >
         {icon && <div className="mb-4 flex justify-center opacity-60">{icon}</div>}
-        <h3
-          className="text-lg sm:text-xl font-semibold mb-2"
-          style={{ fontFamily: style?.font_heading, color: textColor }}
-        >
-          {title}
-        </h3>
+        {title ? (
+          <h3
+            className="text-lg sm:text-xl font-semibold mb-2"
+            style={{ fontFamily: style?.font_heading, color: textColor }}
+          >
+            {title}
+          </h3>
+        ) : null}
         <p className="text-sm opacity-80 max-w-md mx-auto leading-relaxed" style={{ color: textColor }}>
           {message}
         </p>
@@ -43,6 +50,17 @@ export default function BlockEmptyPlaceholder({
             {hint}
           </p>
         )}
+        {actionHref && actionLabel ? (
+          <a
+            href={actionHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center mt-5 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: primary }}
+          >
+            {actionLabel}
+          </a>
+        ) : null}
       </div>
     </section>
   )

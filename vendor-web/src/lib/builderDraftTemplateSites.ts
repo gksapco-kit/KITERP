@@ -731,6 +731,22 @@ export async function assignBuilderSiteToStores({
   })
 }
 
+/**
+ * Block-based / platform catalog templates need real builder pages for multipage nav
+ * and live product feeds. React shells (storefront_fashion, …) and default layouts
+ * only need the settings pointer.
+ */
+function isBlockCatalogTemplateId(templateId: string): boolean {
+  const id = templateId.trim()
+  if (!id || isBuilderSiteTemplateId(id)) return false
+  if (id === 'light' || id === 'dark') return false
+  // React catalog shells — settings-only assign (CatalogStorefrontLiveHome).
+  if (id.startsWith('storefront_') && id !== 'storefront_grocery' && id !== 'storefront_supermarket') {
+    return false
+  }
+  return true
+}
+
 /** Assign a catalog template to stores and clear any stale builder-site links for those stores. */
 export async function assignCatalogTemplateToStores({
   templateId,
@@ -743,6 +759,8 @@ export async function assignCatalogTemplateToStores({
   sites: SiteListItem[]
   stores: StoreLike[]
 }): Promise<void> {
+  const materializeBlocks = isBlockCatalogTemplateId(templateId)
+
   await Promise.all(
     storeIds.map(async storeId => {
       const store = stores.find(s => s.id === storeId)
@@ -751,8 +769,51 @@ export async function assignCatalogTemplateToStores({
       const linkedSite = sites.find(
         s => s.website_store_scope === 'store' && s.website_store_id === storeId,
       )
-      if (linkedSite) {
-        await unlinkSiteFromStore(linkedSite.id)
+
+      if (!materializeBlocks) {
+        if (linkedSite) {
+          await unlinkSiteFromStore(linkedSite.id)
+        }
+        await vendorApi.updateStore(storeId, {
+          settings: { ...(store.settings ?? {}), [STORE_FRONT_TEMPLATE_KEY]: templateId },
+        })
+        return
+      }
+
+      // Materialize template pages/blocks onto a store-linked published site so
+      // live catalog + Remaining page navigation work (not homepage-only overlay).
+      let siteId = linkedSite?.id
+      if (!siteId) {
+        const created = await websiteApi.createSite({
+          name: `${store.name || 'Store'} Website`,
+          description: `Applied catalog template: ${templateId}`,
+          style_config: {
+            website_store_scope: 'store',
+            website_store_id: storeId,
+            website_store_name: store.name ?? null,
+            storefront_assigned: true,
+          } as WebsiteSite['style_config'],
+        })
+        siteId = created.id
+      } else {
+        const full = await websiteApi.getSite(siteId)
+        const styleConfig = { ...(full.style_config ?? {}) } as Record<string, unknown>
+        await websiteApi.updateSite(siteId, {
+          style_config: {
+            ...styleConfig,
+            website_store_scope: 'store',
+            website_store_id: storeId,
+            website_store_name: store.name ?? null,
+            storefront_assigned: true,
+          } as WebsiteSite['style_config'],
+        })
+      }
+
+      await websiteApi.applyTemplate(siteId, templateId)
+      try {
+        await websiteApi.publishSite(siteId)
+      } catch {
+        /* applied even if publish fails; vendor can publish from builder */
       }
 
       await vendorApi.updateStore(storeId, {

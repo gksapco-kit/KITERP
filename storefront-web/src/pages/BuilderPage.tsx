@@ -376,7 +376,20 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
     )
   }
 
+  const assignedBlockTemplateId =
+    assignedTemplateId && isWebsiteBuilderBlockTemplateId(assignedTemplateId) ? assignedTemplateId : null
+
   if (!builderSite) {
+    // No published builder site — still serve assigned block-template pages
+    // (home + About/Contact/…) so navigation is not a blank screen.
+    if (assignedBlockTemplateId) {
+      return (
+        <WebsiteBuilderTemplateLiveHome
+          templateId={assignedBlockTemplateId}
+          pageSlug={isHomePath ? null : normalizedSlug}
+        />
+      )
+    }
     return null
   }
 
@@ -386,7 +399,7 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
       ? null
       : resolveLiveCatalogTemplateId(assignedTemplateId, wbCatalogTemplateId)
   const blockTemplateId =
-    (assignedTemplateId && isWebsiteBuilderBlockTemplateId(assignedTemplateId) ? assignedTemplateId : null)
+    assignedBlockTemplateId
     || (wbCatalogTemplateId && isBlockBasedStorefrontTemplateId(wbCatalogTemplateId) ? wbCatalogTemplateId : null)
   // Only fall back to the hardcoded catalog-template React shell when the
   // vendor has NOT yet added any blocks in the builder. Once they save real
@@ -394,8 +407,14 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   const hasSavedBuilderBlocks = Boolean(
     builderSite.pages?.some(p => p.blocks?.length > 0),
   )
-  if (blockTemplateId && !hasSavedBuilderBlocks && isHomePath) {
-    return <WebsiteBuilderTemplateLiveHome templateId={blockTemplateId} />
+  if (blockTemplateId && !hasSavedBuilderBlocks) {
+    // Homepage + remaining template pages (About, Contact, …) via catalog snapshot.
+    return (
+      <WebsiteBuilderTemplateLiveHome
+        templateId={blockTemplateId}
+        pageSlug={isHomePath ? null : normalizedSlug}
+      />
+    )
   }
 
   if (catalogTemplateId && !isBlockBasedStorefrontTemplateId(catalogTemplateId) && !hasSavedBuilderBlocks && isHomePath) {
@@ -407,6 +426,16 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   }
 
   if (!page) {
+    // Builder site has blocks but this slug is missing — still try catalog template pages
+    // (covers partially-applied / out-of-sync sites).
+    if (blockTemplateId && !isHomePath) {
+      return (
+        <WebsiteBuilderTemplateLiveHome
+          templateId={blockTemplateId}
+          pageSlug={normalizedSlug}
+        />
+      )
+    }
     return (
       <div className="min-h-screen flex items-center justify-center text-center px-4">
         <div>

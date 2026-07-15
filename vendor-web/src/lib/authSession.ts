@@ -6,7 +6,7 @@ import { getRefreshToken } from '@/lib/authTokenStorage'
 
 /** Endpoints where 401 means bad credentials — never attempt token refresh. */
 const SKIP_TOKEN_REFRESH_RE =
-  /\/auth\/(?:login|refresh|vendor-handoff|register|forgot|reset|vendor-signup|password-reset)(?:\/|$|\?)/i
+  /\/auth\/(?:login|refresh|vendor-handoff|register|forgot|reset|vendor-signup|password-reset)(?:[-/]|$|\?)/i
 
 export function shouldSkipTokenRefresh(url: string | undefined): boolean {
   if (!url) return false

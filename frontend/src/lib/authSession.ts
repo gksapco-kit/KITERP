@@ -5,7 +5,7 @@ import { isAxiosNetworkError } from '@/lib/errorMessages'
 
 /** Endpoints where 401 means bad credentials — never attempt token refresh. */
 const SKIP_TOKEN_REFRESH_RE =
-  /\/auth\/(?:login|refresh|register|forgot|reset)(?:\/|$|\?)/i
+  /\/auth\/(?:login|refresh|register|forgot|reset)(?:[-/]|$|\?)/i
 
 export function shouldSkipTokenRefresh(url: string | undefined): boolean {
   if (!url) return false
