@@ -80,7 +80,8 @@ export function RichMessageEditor({
         placeholder={placeholder}
         className={
           compact
-            ? 'flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed font-sans resize-y min-h-[7.5rem] max-h-[14rem] focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 outline-none'
+            // Fixed compact height for split-pane modals: scroll long pastes, no manual resize
+            ? 'flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed font-sans resize-none overflow-y-auto min-h-[7.5rem] max-h-[14rem] focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 outline-none'
             : 'flex w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm leading-relaxed font-sans resize-y min-h-[200px] focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 outline-none'
         }
       />

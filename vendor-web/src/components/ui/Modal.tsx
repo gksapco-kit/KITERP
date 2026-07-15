@@ -89,6 +89,14 @@ export function ModalCloseButton({
   )
 }
 
+/** Nested-safe body scroll lock for handcrafted portals (same counter as ModalOverlay). */
+export function useModalScrollLock() {
+  useLayoutEffect(() => {
+    lockModalScroll()
+    return () => unlockModalScroll()
+  }, [])
+}
+
 export function ModalOverlay({
   onClose,
   children,
@@ -99,11 +107,7 @@ export function ModalOverlay({
   className?: string
 }) {
   useEscapeToClose(onClose)
-
-  useLayoutEffect(() => {
-    lockModalScroll()
-    return () => unlockModalScroll()
-  }, [])
+  useModalScrollLock()
 
   const overlay = (
     <div

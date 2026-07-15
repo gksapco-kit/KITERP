@@ -22,12 +22,14 @@ export const modalOverlayCenterClass =
 /**
  * Drop-in classes for handcrafted dialogs (not using ModalOverlay/ModalPanel).
  * Overlay never scrolls; panel is a flex column; put scroll only on dialogBodyClass.
+ * z-[100] matches modalOverlayClass so stacking is consistent with ModalOverlay.
  */
 export const dialogOverlayClass =
-  'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none'
+  'fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none'
 
+/** Nested handcrafted dialog above a primary overlay (Dept/Desig pickers, etc.). */
 export const dialogOverlayClassZ60 =
-  'fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none'
+  'fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none'
 
 export const dialogPanelClass =
   'bg-card border border-border text-foreground rounded-xl shadow-2xl w-full my-auto max-h-[min(92dvh,calc(100vh-1.5rem))] flex flex-col overflow-hidden'

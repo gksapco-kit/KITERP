@@ -92,6 +92,8 @@ export default function AnnouncementsPage() {
 
 function AnnouncementModal({
  item, onClose }: { item: Announcement | null; onClose: () => void }) {
+  useEscapeToClose(onClose)
+
   const create = useCreateAnnouncement()
   const update = useUpdateAnnouncement()
   const [form, setForm] = useState({

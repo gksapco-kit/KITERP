@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { TableColumnLabel, CheckboxFieldLabel, FormColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { useModalScrollLock } from '@/components/ui/Modal'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,7 +36,7 @@ import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
-import type { InvoiceSettings } from '@/lib/invoiceTemplates'
+import { printInvoice, type InvoiceSettings } from '@/lib/invoiceTemplates'
 import {
   invoiceBadgeClass,
   invoiceNumberLinkClass,
@@ -657,6 +658,7 @@ export function CreateInvoiceModal({
   }
 }) {
   useEscapeToClose(onClose)
+  useModalScrollLock()
 
   const [form, setForm] = useState({
     invoice_type: defaultType,
