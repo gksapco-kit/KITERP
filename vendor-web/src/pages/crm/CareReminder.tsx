@@ -10,6 +10,14 @@ import { toast } from 'sonner'
 import { useCustomers } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { extractApiError } from '@/lib/errorMessages'
+import { cn } from '@/lib/utils'
+import {
+  dialogOverlayClass,
+  dialogPanelClass,
+  dialogHeaderClass,
+  dialogBodyClass,
+  dialogFooterClass,
+} from '@/lib/modalUi'
 import type { Customer as ApiCustomer } from '@/types'
 import {
   Heart, Plus, Search, Mail, MessageCircle, Phone,
@@ -267,10 +275,10 @@ function ComposeModal({
   const ChIcon = chMeta.icon
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onClose}>
+      <div className={cn(dialogPanelClass, 'max-w-2xl rounded-2xl')} onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+        <div className={cn(dialogHeaderClass, 'flex items-center justify-between px-6')}>
           <div className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold">{editing ? 'Edit Reminder' : 'New Care & Reminder'}</h2>
@@ -295,7 +303,7 @@ function ComposeModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className={cn(dialogBodyClass, 'p-6 space-y-5')}>
 
           {/* ── Step 1: Customer ── */}
           {step === 'customer' && (
@@ -540,7 +548,7 @@ function ComposeModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t bg-gray-50 flex justify-between shrink-0">
+        <div className={cn(dialogFooterClass, 'px-6 bg-gray-50 justify-between')}>
           <Button
             variant={step === 'customer' ? 'cancel' : 'ghost'}
             onClick={step === 'customer' ? onClose : () => setStep(step === 'schedule' ? 'compose' : 'customer')}

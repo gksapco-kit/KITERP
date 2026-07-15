@@ -1496,11 +1496,11 @@ export function AddPartyModal({
 
   return (
     <>
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-[720px] max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-hidden" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-[720px] max-h-[min(92dvh,calc(100vh-1.5rem))] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10 shrink-0">
           <div className="flex items-center gap-2">
             <User className="w-5 h-5 text-primary" />
             <div>
@@ -1532,7 +1532,7 @@ export function AddPartyModal({
           </div>
         </div>
 
-        <form id="add-party-form" onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form id="add-party-form" onSubmit={handleSubmit} className="p-6 space-y-5 flex-1 min-h-0 overflow-y-auto overscroll-contain">
 
           {/* Error / warning banner */}
           {duplicateError && (() => {

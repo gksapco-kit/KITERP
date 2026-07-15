@@ -289,184 +289,207 @@ export function TemplateForm({
       title={tpl ? 'Edit marketing template' : 'New marketing template'}
       onClose={onClose}
       maxW="max-w-6xl"
+      bodyClassName="!overflow-hidden !px-0 !pt-0 !pb-0 flex flex-col min-h-0"
       headerActions={
         <Button type="button" variant="outline" size="sm" className="lg:hidden"
           onClick={() => setMobilePreview(p => !p)}>
           <Eye className="w-4 h-4 mr-1" /> {mobilePreview ? 'Edit' : 'Preview'}
         </Button>
       }
+      footer={
+        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="cancel" onClick={onClose}>Cancel</Button>
+          <Button
+            type="submit"
+            form="marketing-template-form"
+            disabled={save.isPending || uploading}
+          >
+            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            Save template
+          </Button>
+        </div>
+      }
     >
-      <form onSubmit={submit}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className={cn('space-y-3', mobilePreview && 'hidden lg:block')}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Template name" required>
-                <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Summer promo" />
-              </Field>
-              <Field label="Channel">
-                <Select
-                  value={form.channel}
-                  onChange={v => setForm(p => ({
-                    ...p,
-                    channel: v,
-                    body_text: isRichChannel(v) && !p.body_text ? DEFAULT_WHATSAPP_BODY : p.body_text,
-                  }))}
-                  options={[
-                    { value: 'whatsapp', label: 'WhatsApp' },
-                    { value: 'sms', label: 'SMS' },
-                    { value: 'email', label: 'Email' },
-                  ]}
-                />
-              </Field>
-            </div>
-            <div className="flex items-end justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <Field label={rich ? 'Internal title' : 'Subject line'} required>
-                  <Input value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))}
-                    placeholder={rich ? 'e.g. Swarna Ashadam sale' : 'e.g. Special offer for {{contact.first_name}}'} />
+      <form id="marketing-template-form" onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+        {/* Single scroll for form + preview together; footer Save stays pinned */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+            <div className={cn('space-y-2', mobilePreview && 'hidden lg:block')}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Field label="Template name" required>
+                  <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Summer promo" className="h-9" />
+                </Field>
+                <Field label="Channel">
+                  <Select
+                    value={form.channel}
+                    onChange={v => setForm(p => ({
+                      ...p,
+                      channel: v,
+                      body_text: isRichChannel(v) && !p.body_text ? DEFAULT_WHATSAPP_BODY : p.body_text,
+                    }))}
+                    options={[
+                      { value: 'whatsapp', label: 'WhatsApp' },
+                      { value: 'sms', label: 'SMS' },
+                      { value: 'email', label: 'Email' },
+                    ]}
+                  />
                 </Field>
               </div>
-              {rich && <LoadPromoSampleButton onLoad={loadPromoSample} />}
-            </div>
-            <Field label="Description (optional)">
-              <Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Internal note about this template" />
-            </Field>
-
-            {rich ? (
-              <>
-                <Field label="Header video or image">
-                  <input ref={headerRef} type="file" accept="image/*,video/*" className="hidden"
-                    onChange={e => handleHeaderUpload(e.target.files)} />
-                  <div className="space-y-2">
-                    <Button type="button" variant="outline" size="sm" disabled={uploading}
-                      onClick={() => headerRef.current?.click()}>
-                      {uploading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Video className="w-4 h-4 mr-1" />}
-                      Upload header media
-                    </Button>
-                    {headerAttachment(form.attachments) && (
-                      <div className="relative rounded-lg border overflow-hidden bg-gray-900 max-w-xs">
-                        {headerAttachment(form.attachments)!.type === 'video' ? (
-                          <video src={headerAttachment(form.attachments)!.url} className="w-full h-32 object-cover" muted />
-                        ) : (
-                          <img src={headerAttachment(form.attachments)!.url} alt="" className="w-full h-32 object-cover" />
-                        )}
-                        <Button type="button" size="sm" variant="destructive" className="absolute top-2 right-2 h-7 text-xs"
+              <div className="flex items-end justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <Field label={rich ? 'Internal title' : 'Subject line'} required>
+                    <Input value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))}
+                      placeholder={rich ? 'e.g. Swarna Ashadam sale' : 'e.g. Special offer for {{contact.first_name}}'}
+                      className="h-9"
+                    />
+                  </Field>
+                </div>
+                {rich && <LoadPromoSampleButton onLoad={loadPromoSample} />}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Field label="Description (optional)">
+                  <Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Internal note" className="h-9" />
+                </Field>
+                {rich ? (
+                  <Field label="Header media">
+                    <input ref={headerRef} type="file" accept="image/*,video/*" className="hidden"
+                      onChange={e => handleHeaderUpload(e.target.files)} />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" className="h-9" disabled={uploading}
+                        onClick={() => headerRef.current?.click()}>
+                        {uploading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Video className="w-4 h-4 mr-1" />}
+                        Upload
+                      </Button>
+                      {headerAttachment(form.attachments) && (
+                        <Button type="button" size="sm" variant="ghost" className="h-9 text-destructive"
                           onClick={() => setForm(p => ({ ...p, attachments: p.attachments.filter(a => !a.is_header) }))}>
                           Remove
                         </Button>
-                      </div>
-                    )}
-                    <p className="text-[11px] text-gray-400">Shown at the top of the message — like a promo video banner.</p>
-                  </div>
-                </Field>
-                <Field label="Message body" required>
-                  <RichMessageEditor
-                    value={form.body_text}
-                    onChange={v => setForm(p => ({
-                      ...p,
-                      body_text: v,
-                      body_html: resolveEmailBodyHtml(p.body_html, v),
-                    }))}
-                    placeholder="*Celebrate bigger and shop smarter!* 🌟"
-                  />
-                </Field>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Field label="CTA button label">
-                    <Input value={form.settings.cta_label || ''}
-                      onChange={e => setForm(p => ({ ...p, settings: { ...p.settings, cta_label: e.target.value } }))}
-                      placeholder="Explore Now" />
+                      )}
+                    </div>
                   </Field>
-                  <Field label="CTA button link">
-                    <Input value={form.settings.cta_url || ''}
-                      onChange={e => setForm(p => ({ ...p, settings: { ...p.settings, cta_url: e.target.value } }))}
-                      placeholder="https://yourstore.com/sale" />
-                  </Field>
-                </div>
-                <Field label="Footer (T&C, unsubscribe)">
-                  <textarea
-                    value={form.settings.footer_text || ''}
-                    onChange={e => setForm(p => ({ ...p, settings: { ...p.settings, footer_text: e.target.value } }))}
-                    rows={3}
-                    className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                    placeholder={DEFAULT_WHATSAPP_FOOTER}
-                  />
-                </Field>
-              </>
-            ) : (
-              <>
-                <Field label="Email body">
-                  <EmailBodyEditor
-                    value={form.body_html}
-                    onChange={v => setForm(p => ({ ...p, body_html: v }))}
-                    plainText={form.body_text}
-                    onPlainTextChange={v => setForm(p => ({ ...p, body_text: v }))}
-                  />
-                </Field>
-                <Field label="Images & videos">
-                  <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden"
-                    onChange={e => handleUpload(e.target.files)} />
-                  <div className="space-y-2">
-                    <Button type="button" variant="outline" size="sm" disabled={uploading}
-                      onClick={() => fileRef.current?.click()}>
-                      {uploading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ImagePlus className="w-4 h-4 mr-1" />}
-                      Attach image or video
-                    </Button>
-                    {form.attachments.length > 0 && (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {form.attachments.map((att, idx) => (
-                          <div key={idx} className="relative rounded-lg border overflow-hidden bg-gray-50 group">
-                            {att.type === 'video' ? (
-                              <video src={att.url} className="w-full h-24 object-cover" />
-                            ) : (
-                              <img src={att.url} alt="" className="w-full h-24 object-cover" />
-                            )}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1">
-                              <Button type="button" size="sm" variant="secondary" className="h-7 text-xs"
-                                onClick={() => insertAttachment(att)}>Insert</Button>
-                              <Button type="button" size="sm" variant="destructive" className="h-7 text-xs"
-                                onClick={() => removeAttachment(idx)}>Remove</Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </Field>
-              </>
-            )}
-            <ActiveToggle checked={form.is_active} onChange={v => setForm(p => ({ ...p, is_active: v }))} />
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-              <Button type="submit" className="flex-1" disabled={save.isPending || uploading}>
-                {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-                Save template
-              </Button>
-            </div>
-          </div>
-
-          <div className={cn(
-            'rounded-xl border bg-white p-4 lg:sticky lg:top-0 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto',
-            !mobilePreview && 'hidden lg:block',
-          )}>
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b">
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4 text-emerald-600" />
-                <p className="text-sm font-semibold text-gray-900">Live preview</p>
+                ) : null}
               </div>
-              <PreviewChannelTabs value={previewChannel} onChange={setPreviewChannel} />
+              {rich && headerAttachment(form.attachments) ? (
+                <div className="relative max-w-[10rem] overflow-hidden rounded-lg border bg-gray-900">
+                  {headerAttachment(form.attachments)!.type === 'video' ? (
+                    <video src={headerAttachment(form.attachments)!.url} className="h-16 w-full object-cover" muted />
+                  ) : (
+                    <img src={headerAttachment(form.attachments)!.url} alt="" className="h-16 w-full object-cover" />
+                  )}
+                </div>
+              ) : null}
+
+              {rich ? (
+                <>
+                  <Field label="Message body" required>
+                    <RichMessageEditor
+                      compact
+                      rows={5}
+                      value={form.body_text}
+                      onChange={v => setForm(p => ({
+                        ...p,
+                        body_text: v,
+                        body_html: resolveEmailBodyHtml(p.body_html, v),
+                      }))}
+                      placeholder="*Celebrate bigger and shop smarter!* 🌟"
+                    />
+                  </Field>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Field label="CTA button label">
+                      <Input value={form.settings.cta_label || ''}
+                        onChange={e => setForm(p => ({ ...p, settings: { ...p.settings, cta_label: e.target.value } }))}
+                        placeholder="Explore Now"
+                        className="h-9"
+                      />
+                    </Field>
+                    <Field label="CTA button link">
+                      <Input value={form.settings.cta_url || ''}
+                        onChange={e => setForm(p => ({ ...p, settings: { ...p.settings, cta_url: e.target.value } }))}
+                        placeholder="https://yourstore.com/sale"
+                        className="h-9"
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Footer (T&C, unsubscribe)">
+                    <textarea
+                      value={form.settings.footer_text || ''}
+                      onChange={e => setForm(p => ({ ...p, settings: { ...p.settings, footer_text: e.target.value } }))}
+                      rows={2}
+                      className="flex w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                      placeholder={DEFAULT_WHATSAPP_FOOTER}
+                    />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label="Email body">
+                    <EmailBodyEditor
+                      value={form.body_html}
+                      onChange={v => setForm(p => ({ ...p, body_html: v }))}
+                      plainText={form.body_text}
+                      onPlainTextChange={v => setForm(p => ({ ...p, body_text: v }))}
+                    />
+                  </Field>
+                  <Field label="Images & videos">
+                    <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden"
+                      onChange={e => handleUpload(e.target.files)} />
+                    <div className="space-y-2">
+                      <Button type="button" variant="outline" size="sm" disabled={uploading}
+                        onClick={() => fileRef.current?.click()}>
+                        {uploading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ImagePlus className="w-4 h-4 mr-1" />}
+                        Attach image or video
+                      </Button>
+                      {form.attachments.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {form.attachments.map((att, idx) => (
+                            <div key={idx} className="relative rounded-lg border overflow-hidden bg-gray-50 group">
+                              {att.type === 'video' ? (
+                                <video src={att.url} className="w-full h-24 object-cover" />
+                              ) : (
+                                <img src={att.url} alt="" className="w-full h-24 object-cover" />
+                              )}
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1">
+                                <Button type="button" size="sm" variant="secondary" className="h-7 text-xs"
+                                  onClick={() => insertAttachment(att)}>Insert</Button>
+                                <Button type="button" size="sm" variant="destructive" className="h-7 text-xs"
+                                  onClick={() => removeAttachment(idx)}>Remove</Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Field>
+                </>
+              )}
+              <ActiveToggle checked={form.is_active} onChange={v => setForm(p => ({ ...p, is_active: v }))} />
             </div>
-            <MarketingTemplatePreview
-              channel={previewChannel}
-              tpl={{
-                subject: form.subject,
-                body_html: form.body_html,
-                body_text: form.body_text,
-                channel: form.channel,
-                attachments: form.attachments,
-                settings: form.settings,
-              }}
-              defaultView="mobile"
-            />
+
+            <div className={cn(
+              'rounded-xl border bg-white p-3 lg:sticky lg:top-0 lg:self-start',
+              !mobilePreview && 'hidden lg:block',
+            )}>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-emerald-600" />
+                  <p className="text-sm font-semibold text-gray-900">Live preview</p>
+                </div>
+                <PreviewChannelTabs value={previewChannel} onChange={setPreviewChannel} />
+              </div>
+              <MarketingTemplatePreview
+                channel={previewChannel}
+                tpl={{
+                  subject: form.subject,
+                  body_html: form.body_html,
+                  body_text: form.body_text,
+                  channel: form.channel,
+                  attachments: form.attachments,
+                  settings: form.settings,
+                }}
+                defaultView="mobile"
+              />
+            </div>
           </div>
         </div>
       </form>

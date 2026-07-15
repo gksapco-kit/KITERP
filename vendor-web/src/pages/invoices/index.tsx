@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { TableColumnLabel, CheckboxFieldLabel, FormColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
@@ -764,11 +765,24 @@ export function CreateInvoiceModal({
     setLoading(false)
   }
 
-  return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8" onClick={onClose}>
+  // Portal to body so the overlay covers sidebar + header chrome (page content uses
+  // overflow-x-clip, which otherwise traps position:fixed inside the main column).
+  return createPortal(
+    <div
+      data-kiterp-modal
+      role="presentation"
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto overscroll-none bg-black/50 py-8"
+      // Full-screen dimmer: blocks all clicks to chrome behind; does not close the dialog.
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
         className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full mx-4 max-w-3xl max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
+        onPointerDown={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">
@@ -965,6 +979,7 @@ export function CreateInvoiceModal({
           returnTo="?returnTo=quotations"
         />
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }

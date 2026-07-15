@@ -1,4 +1,5 @@
 import { onModalBackdropClick, cn } from '@/lib/utils'
+import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Button } from '@/components/ui/button'
 import { hrInputClass, hrTabActiveClass, hrTabInactiveClass, hrStatusBadge, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
 import { InlineFieldLabel } from '@/components/common/InlineFieldLabel'
@@ -117,13 +118,13 @@ function AnnouncementModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4" onClick={onModalBackdropClick(onClose)}>
-      <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-xl border border-border bg-card text-foreground shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border p-4">
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-lg')}>
+        <div className="shrink-0 flex items-center justify-between border-b border-border p-4">
           <h2 className="text-lg font-bold text-foreground">{item ? 'Edit Announcement' : 'New Announcement'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
         </div>
-        <div className="space-y-3 p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 p-4">
           <Field label="Title *">
             <input className={hrInputClass} value={form.title}
               onChange={e => setForm({ ...form, title: e.target.value })} />
@@ -201,7 +202,7 @@ function AnnouncementModal({
             </Field>
           </div>
         </div>
-        <div className="flex justify-end gap-2 border-t border-border p-4">
+        <div className="shrink-0 flex justify-end gap-2 border-t border-border p-4">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           <Button type="button" onClick={submit} disabled={!form.title.trim() || !form.body.trim() || create.isPending || update.isPending}>
             {item ? 'Save' : 'Publish'}

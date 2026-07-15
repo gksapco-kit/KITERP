@@ -13,18 +13,40 @@ export const modalDefaultMaxWidth = modalWidthLg
 
 /** Full-screen modal backdrop — z-[100] sits above sticky form bars (z-10–z-30) and dashboard chrome */
 export const modalOverlayClass =
-  'fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto'
+  'fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none'
 
 /** Vertically centered backdrop (legacy pages) */
 export const modalOverlayCenterClass =
-  'fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto'
+  'fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none'
+
+/**
+ * Drop-in classes for handcrafted dialogs (not using ModalOverlay/ModalPanel).
+ * Overlay never scrolls; panel is a flex column; put scroll only on dialogBodyClass.
+ */
+export const dialogOverlayClass =
+  'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none'
+
+export const dialogOverlayClassZ60 =
+  'fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none'
+
+export const dialogPanelClass =
+  'bg-card border border-border text-foreground rounded-xl shadow-2xl w-full my-auto max-h-[min(92dvh,calc(100vh-1.5rem))] flex flex-col overflow-hidden'
+
+export const dialogHeaderClass =
+  'shrink-0 border-b border-border px-5 py-4'
+
+export const dialogBodyClass =
+  'min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4'
+
+export const dialogFooterClass =
+  'shrink-0 border-t border-border bg-muted/25 px-5 py-4 flex gap-2 justify-end'
 
 /** Standard dialog panel shell */
 export const modalPanelClass =
-  `bg-card border border-border text-foreground rounded-xl shadow-2xl w-full ${modalDefaultMaxWidth} my-auto max-h-[min(90dvh,calc(100vh-2rem))] flex flex-col overflow-hidden`
+  `bg-card border border-border text-foreground rounded-xl shadow-2xl w-full ${modalDefaultMaxWidth} my-auto max-h-[min(92dvh,calc(100vh-1.5rem))] flex flex-col overflow-hidden`
 
 export const modalPanel2xlClass =
-  'bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col'
+  'bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-h-[min(92dvh,calc(100vh-1.5rem))] overflow-hidden flex flex-col'
 
 /** Scrollable main area when a modal has a pinned footer. */
 export const modalBodyScrollClass =

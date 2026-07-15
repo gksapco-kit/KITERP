@@ -6,7 +6,14 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { useOrderInvoice, useInvoiceById, useInvoiceSettings } from '@/hooks/useVendor'
-import { formatCurrency, formatDate, formatDateTime, mediaUrl } from '@/lib/utils'
+import { cn, formatCurrency, formatDate, formatDateTime, mediaUrl } from '@/lib/utils'
+import {
+  dialogOverlayClass,
+  dialogPanelClass,
+  dialogHeaderClass,
+  dialogBodyClass,
+  dialogFooterClass,
+} from '@/lib/modalUi'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -964,18 +971,22 @@ export default function BookingDetail() {
 
       {/* Cancel Modal */}
       {showCancelModal && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => setShowCancelModal(false)}>
-          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-1">Cancel Booking</h3>
-            <p className="text-sm text-gray-500 mb-4">Please provide a reason for cancellation.</p>
-            <textarea
-              className="w-full border rounded-lg px-3 py-2 text-sm resize-none"
-              rows={3}
-              value={cancelReason}
-              onChange={e => setCancelReason(e.target.value)}
-              placeholder="Reason for cancellation…"
-            />
-            <div className="flex gap-3 mt-4">
+        <div data-kiterp-modal className={dialogOverlayClass} onClick={() => setShowCancelModal(false)}>
+          <div className={cn(dialogPanelClass, 'max-w-md')} onClick={e => e.stopPropagation()}>
+            <div className={dialogHeaderClass}>
+              <h3 className="text-lg font-semibold">Cancel Booking</h3>
+              <p className="text-sm text-gray-500 mt-1">Please provide a reason for cancellation.</p>
+            </div>
+            <div className={dialogBodyClass}>
+              <textarea
+                className="w-full border rounded-lg px-3 py-2 text-sm resize-none"
+                rows={3}
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                placeholder="Reason for cancellation…"
+              />
+            </div>
+            <div className={cn(dialogFooterClass, 'gap-3')}>
               <Button variant="outline" className="flex-1" onClick={() => setShowCancelModal(false)}>Keep</Button>
               <Button variant="destructive" className="flex-1" disabled={statusLoading}
                 onClick={() => {
@@ -991,33 +1002,37 @@ export default function BookingDetail() {
 
       {/* Complete Modal */}
       {showCompleteModal && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => setShowCompleteModal(false)}>
-          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-1">Mark as Completed</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              {otpSent ? 'Enter the OTP sent to the customer to verify completion.' : 'Add optional notes about service delivery.'}
-            </p>
-            {otpSent && (
-              <div className="space-y-1.5 mb-3">
-                <Label className="text-sm">Completion OTP</Label>
-                <Input
-                  value={completionOtp}
-                  onChange={(e) => setCompletionOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="6-digit code"
-                  inputMode="numeric"
-                  maxLength={6}
-                />
-              </div>
-            )}
-            <Label className="text-sm">Delivery Notes (optional)</Label>
-            <textarea
-              className="w-full border rounded-lg px-3 py-2 text-sm resize-none mt-1"
-              rows={3}
-              value={deliveryNotes}
-              onChange={e => setDeliveryNotes(e.target.value)}
-              placeholder="e.g. Service completed successfully, customer was satisfied…"
-            />
-            <div className="flex gap-3 mt-4">
+        <div data-kiterp-modal className={dialogOverlayClass} onClick={() => setShowCompleteModal(false)}>
+          <div className={cn(dialogPanelClass, 'max-w-md')} onClick={e => e.stopPropagation()}>
+            <div className={dialogHeaderClass}>
+              <h3 className="text-lg font-semibold">Mark as Completed</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {otpSent ? 'Enter the OTP sent to the customer to verify completion.' : 'Add optional notes about service delivery.'}
+              </p>
+            </div>
+            <div className={dialogBodyClass}>
+              {otpSent && (
+                <div className="space-y-1.5 mb-3">
+                  <Label className="text-sm">Completion OTP</Label>
+                  <Input
+                    value={completionOtp}
+                    onChange={(e) => setCompletionOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="6-digit code"
+                    inputMode="numeric"
+                    maxLength={6}
+                  />
+                </div>
+              )}
+              <Label className="text-sm">Delivery Notes (optional)</Label>
+              <textarea
+                className="w-full border rounded-lg px-3 py-2 text-sm resize-none mt-1"
+                rows={3}
+                value={deliveryNotes}
+                onChange={e => setDeliveryNotes(e.target.value)}
+                placeholder="e.g. Service completed successfully, customer was satisfied…"
+              />
+            </div>
+            <div className={cn(dialogFooterClass, 'gap-3')}>
               <Button variant="cancel" className="flex-1" onClick={() => setShowCompleteModal(false)}>Cancel</Button>
               <Button
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white"

@@ -4,12 +4,14 @@ import { MERGE_TAGS } from './crmMarketingForms'
 import { RICH_FORMAT_CHIPS, insertAtCursor, wrapSelection } from './marketingTemplateRich'
 
 export function RichMessageEditor({
-  value, onChange, placeholder, rows = 14,
+  value, onChange, placeholder, rows = 8, compact = false,
 }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
   rows?: number
+  /** Tighter toolbar + shorter textarea for split-pane modals. */
+  compact?: boolean
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
 
@@ -48,7 +50,7 @@ export function RichMessageEditor({
   }
 
   return (
-    <div className="space-y-2">
+    <div className={compact ? 'space-y-1.5' : 'space-y-2'}>
       <div className="flex flex-wrap gap-1">
         {RICH_FORMAT_CHIPS.map(chip => (
           <button
@@ -74,13 +76,19 @@ export function RichMessageEditor({
         ref={ref}
         value={value}
         onChange={e => onChange(e.target.value)}
-        rows={rows}
+        rows={compact ? Math.min(rows, 6) : rows}
         placeholder={placeholder}
-        className="flex w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm leading-relaxed font-sans resize-y min-h-[200px] focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 outline-none"
+        className={
+          compact
+            ? 'flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed font-sans resize-y min-h-[7.5rem] max-h-[14rem] focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 outline-none'
+            : 'flex w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm leading-relaxed font-sans resize-y min-h-[200px] focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 outline-none'
+        }
       />
-      <p className="text-[11px] text-gray-400">
-        Use *bold*, _italic_, and ✅ lines for offer lists — like WhatsApp marketing messages.
-      </p>
+      {!compact && (
+        <p className="text-[11px] text-gray-400">
+          Use *bold*, _italic_, and ✅ lines for offer lists — like WhatsApp marketing messages.
+        </p>
+      )}
     </div>
   )
 }

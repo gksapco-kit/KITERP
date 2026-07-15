@@ -2,7 +2,14 @@ import { Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
+import {
+  dialogOverlayClass,
+  dialogPanelClass,
+  dialogHeaderClass,
+  dialogBodyClass,
+  dialogFooterClass,
+} from '@/lib/modalUi'
 
 interface ResolveReturnModalProps {
   action: 'approve' | 'reject'
@@ -26,16 +33,19 @@ export function ResolveReturnModal({
   const label = returnType === 'exchange' ? 'Exchange' : 'Return'
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onClose}>
+      <div
+        className={cn(dialogPanelClass, 'max-w-md')}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={cn(dialogHeaderClass, 'flex items-center justify-between')}>
           <h2 className="text-lg font-semibold">
             {isApprove ? 'Approve' : 'Reject'} {label}
           </h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
             <X className="w-5 h-5" /></button>
         </div>
-        <div className="px-6 py-5 space-y-4">
+        <div className={cn(dialogBodyClass, 'space-y-4')}>
           <div className="bg-gray-50 rounded-lg p-3 text-sm">
             <p className="font-medium text-gray-700 mb-1">Customer's reason:</p>
             <p className="text-gray-600">{returnReason}</p>
@@ -69,18 +79,17 @@ export function ResolveReturnModal({
               onChange={(e) => onNotesChange(e.target.value)}
             />
           </div>
-
-          <div className="flex gap-3 pt-2">
-            <Button variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button
-              className={`flex-1 gap-2 ${isApprove ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
-              disabled={isPending}
-              onClick={onSubmit}
-            >
-              {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isApprove ? 'Approve' : 'Reject'}
-            </Button>
-          </div>
+        </div>
+        <div className={cn(dialogFooterClass, 'gap-3')}>
+          <Button variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button
+            className={`flex-1 gap-2 ${isApprove ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+            disabled={isPending}
+            onClick={onSubmit}
+          >
+            {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isApprove ? 'Approve' : 'Reject'}
+          </Button>
         </div>
       </div>
     </div>

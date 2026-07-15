@@ -250,6 +250,11 @@ class InvoiceService:
         if invoice.status in ("paid", "cancelled"):
             raise ValueError(f"Cannot edit invoice in '{invoice.status}' status")
 
+        if invoice.order_id:
+            raise ValueError(
+                "This invoice is linked to an order and cannot be edited. Update the order instead."
+            )
+
         if "due_date" in data:
             data = {**data, "due_date": _parse_optional_date(data.get("due_date"))}
 

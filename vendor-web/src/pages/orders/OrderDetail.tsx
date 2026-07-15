@@ -23,6 +23,8 @@ import {
 import { vendorApi } from '@/api/vendor'
 import type { OrderAttachmentRef } from '@/types'
 import { Loader2, CheckCircle, XCircle, RotateCcw, Repeat, MessageSquare, X, ZoomIn, ShieldCheck } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { dialogBodyClass, dialogFooterClass, dialogHeaderClass, dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 
 const MAX_ORDER_MEDIA = 10
 
@@ -556,14 +558,14 @@ export default function OrderDetail() {
       {showApproveConfirm && (
         <div
           data-kiterp-modal
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50"
+          className={cn(dialogOverlayClass, 'bg-black/50')}
           onClick={() => { if (!reviewingPayment) { setShowApproveConfirm(false); setApproveConfirmText('') } }}
         >
           <div
-            className="mx-4 w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card text-foreground shadow-2xl"
+            className={cn(dialogPanelClass, 'mx-4 max-w-md')}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b px-6 py-4">
+            <div className={cn(dialogHeaderClass, 'flex items-center justify-between')}>
               <h2 className="flex items-center gap-2 text-lg font-semibold">
                 <ShieldCheck className="h-5 w-5 text-green-600" /> Confirm payment approval
               </h2>
@@ -577,7 +579,7 @@ export default function OrderDetail() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="space-y-4 px-6 py-5">
+            <div className={cn(dialogBodyClass, 'space-y-4')}>
               <p className="text-sm text-gray-600">
                 Approving this payment will <strong>confirm the order</strong>. This action cannot be undone.
                 To continue, type <strong>approved</strong> in the box below.
@@ -594,24 +596,24 @@ export default function OrderDetail() {
                   }
                 }}
               />
-              <div className="flex gap-3 pt-1">
-                <Button
-                  variant="cancel"
-                  className="flex-1"
-                  disabled={reviewingPayment}
-                  onClick={() => { setShowApproveConfirm(false); setApproveConfirmText('') }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 gap-2"
-                  disabled={reviewingPayment || approveConfirmText.trim().toLowerCase() !== 'approved'}
-                  onClick={() => void reviewPayment('approve')}
-                >
-                  {reviewingPayment && <Loader2 className="h-4 w-4 animate-spin" />}
-                  OK, confirm order
-                </Button>
-              </div>
+            </div>
+            <div className={dialogFooterClass}>
+              <Button
+                variant="cancel"
+                className="flex-1"
+                disabled={reviewingPayment}
+                onClick={() => { setShowApproveConfirm(false); setApproveConfirmText('') }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 gap-2"
+                disabled={reviewingPayment || approveConfirmText.trim().toLowerCase() !== 'approved'}
+                onClick={() => void reviewPayment('approve')}
+              >
+                {reviewingPayment && <Loader2 className="h-4 w-4 animate-spin" />}
+                OK, confirm order
+              </Button>
             </div>
           </div>
         </div>
@@ -621,7 +623,7 @@ export default function OrderDetail() {
       {showPayLaterApproveConfirm && (
         <div
           data-kiterp-modal
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50"
+          className={cn(dialogOverlayClass, 'bg-black/50')}
           onClick={() => {
             if (!approvingPayLater) {
               setShowPayLaterApproveConfirm(false)
@@ -630,10 +632,10 @@ export default function OrderDetail() {
           }}
         >
           <div
-            className="mx-4 w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card text-foreground shadow-2xl"
+            className={cn(dialogPanelClass, 'mx-4 max-w-md')}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b px-6 py-4">
+            <div className={cn(dialogHeaderClass, 'flex items-center justify-between')}>
               <h2 className="flex items-center gap-2 text-lg font-semibold">
                 <ShieldCheck className="h-5 w-5 text-green-600" /> Approve Pay later order
               </h2>
@@ -647,7 +649,7 @@ export default function OrderDetail() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="space-y-4 px-6 py-5">
+            <div className={cn(dialogBodyClass, 'space-y-4')}>
               <p className="text-sm text-gray-600">
                 Approving will <strong>confirm order {order.order_number}</strong>. Payment is still due later.
                 This action cannot be undone. To continue, type <strong>approved</strong> below.
@@ -668,24 +670,24 @@ export default function OrderDetail() {
                   }
                 }}
               />
-              <div className="flex gap-3 pt-1">
-                <Button
-                  variant="cancel"
-                  className="flex-1"
-                  disabled={approvingPayLater}
-                  onClick={() => { setShowPayLaterApproveConfirm(false); setPayLaterApproveText('') }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 gap-2"
-                  disabled={approvingPayLater || payLaterApproveText.trim().toLowerCase() !== 'approved'}
-                  onClick={approvePayLaterOrder}
-                >
-                  {approvingPayLater && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Approve order
-                </Button>
-              </div>
+            </div>
+            <div className={dialogFooterClass}>
+              <Button
+                variant="cancel"
+                className="flex-1"
+                disabled={approvingPayLater}
+                onClick={() => { setShowPayLaterApproveConfirm(false); setPayLaterApproveText('') }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 gap-2"
+                disabled={approvingPayLater || payLaterApproveText.trim().toLowerCase() !== 'approved'}
+                onClick={approvePayLaterOrder}
+              >
+                {approvingPayLater && <Loader2 className="h-4 w-4 animate-spin" />}
+                Approve order
+              </Button>
             </div>
           </div>
         </div>

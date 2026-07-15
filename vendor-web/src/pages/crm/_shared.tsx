@@ -21,7 +21,7 @@ import { Loader2, X, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function CrmModal({
-  title, onClose, children, footer, maxW = modalWidthLg, headerActions,
+  title, onClose, children, footer, maxW = modalWidthLg, headerActions, bodyClassName,
 }: {
   title: ReactNode
   onClose: () => void
@@ -30,6 +30,8 @@ export function CrmModal({
   footer?: ReactNode
   maxW?: string
   headerActions?: ReactNode
+  /** Override scroll/layout on the modal body (e.g. `!overflow-hidden` for split panes). */
+  bodyClassName?: string
 }) {
   useEscapeToClose(onClose)
 
@@ -39,7 +41,7 @@ export function CrmModal({
         className={cn(modalPanel2xlClass, maxW)}
         onClick={e => e.stopPropagation()}
       >
-        <div className={modalHeaderStickyClass}>
+        <div className={cn(modalHeaderStickyClass, 'shrink-0')}>
           <h2 className={cn(modalTitleClass, 'truncate')}>{title}</h2>
           <div className="flex items-center gap-2 shrink-0">
             {headerActions}
@@ -48,14 +50,13 @@ export function CrmModal({
             </button>
           </div>
         </div>
+        {/* Body and footer as siblings so the footer never scrolls away / clips */}
+        <div className={cn(footer ? modalBodyScrollClass : modalBodyPadClass, 'min-h-0 flex-1', bodyClassName)}>
+          {children}
+        </div>
         {footer ? (
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div className={modalBodyScrollClass}>{children}</div>
-            <div className={cn(modalFooterClass, 'rounded-b-2xl shrink-0')}>{footer}</div>
-          </div>
-        ) : (
-          <div className={modalBodyPadClass}>{children}</div>
-        )}
+          <div className={cn(modalFooterClass, 'rounded-b-2xl shrink-0')}>{footer}</div>
+        ) : null}
       </div>
     </div>
   )

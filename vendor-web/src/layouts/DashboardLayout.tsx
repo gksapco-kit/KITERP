@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { useKiterpModalOpen } from '@/hooks/useKiterpModalOpen'
 import { useViewportAnchoredPanel } from '@/hooks/useViewportAnchoredPanel'
 import { createPortal } from 'react-dom'
 import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
@@ -1392,6 +1393,8 @@ export default function DashboardLayout() {
   const { vendor, selectedStore, setSelectedStore, favouriteStoreId, setFavouriteStoreId } = useVendorStore()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  /** Hide chrome edge controls while a full-screen modal overlay is open. */
+  const kiterpModalOpen = useKiterpModalOpen()
   /** Desktop sidebar layout (persisted in this browser). */
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(loadSidebarMode)
   /** Expanded sidebar width (desktop); persisted per browser. */
@@ -3803,27 +3806,30 @@ export default function DashboardLayout() {
         )}
       </aside>
 
-      {/* Desktop: collapse control on sidebar edge (aligned with header border) */}
+      {/* Desktop: collapse control centered on sidebar × header divider junction */}
+      {/* z-[85]: above sticky header (z-[80]); hidden while modals are open so it does not sit on the dialog */}
       <button
         type="button"
         onClick={toggleSidebarDesktop}
         aria-expanded={sidebarMode !== 'hidden'}
         aria-label={sidebarDesktopToggleLabel}
         title={sidebarDesktopToggleLabel}
+        aria-hidden={kiterpModalOpen || undefined}
+        tabIndex={kiterpModalOpen ? -1 : undefined}
         className={cn(
-          'fixed z-[45] hidden h-8 w-8 items-center justify-center border border-border bg-card text-muted-foreground shadow-md',
+          'fixed z-[85] hidden h-7 w-7 items-center justify-center border border-border bg-card text-muted-foreground shadow-sm',
           'hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
           'top-14 -translate-y-1/2 lg:flex',
-          isSidebarResizing && 'lg:pointer-events-none lg:opacity-0',
-          !isSidebarResizing && 'transition-[left] duration-200 ease-out motion-reduce:transition-none',
+          (isSidebarResizing || kiterpModalOpen) && 'lg:pointer-events-none lg:opacity-0',
+          !isSidebarResizing && !kiterpModalOpen && 'transition-[left,opacity] duration-200 ease-out motion-reduce:transition-none',
           sidebarMode === 'hidden' && 'left-0 rounded-r-md border-l-0',
           sidebarMode !== 'hidden' && 'lg:left-[var(--sidebar-width)] -translate-x-1/2 rounded-md',
         )}
       >
         {sidebarMode === 'hidden' ? (
-          <PanelLeft className="h-4 w-4" strokeWidth={2} aria-hidden />
+          <PanelLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
         ) : (
-          <PanelLeftClose className="h-4 w-4" strokeWidth={2} aria-hidden />
+          <PanelLeftClose className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
         )}
       </button>
 

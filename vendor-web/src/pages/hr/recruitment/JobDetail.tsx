@@ -1,4 +1,5 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { onModalBackdropClick, cn } from '@/lib/utils'
+import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
 import { useState, useMemo } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -34,17 +35,17 @@ function AddCandidateToJobModal({
   )
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-3 border-b">
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-lg max-h-[80vh]')} onClick={e => e.stopPropagation()}>
+        <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">Add Candidate to Pipeline</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
         </div>
-        <div className="p-4 border-b">
+        <div className="shrink-0 p-4 border-b">
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search candidates…"
             className="w-full px-3 py-2 border rounded-lg text-sm" />
         </div>
-        <div className="overflow-y-auto flex-1">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {filtered.length === 0 ? (
             <div className="p-8 text-center text-gray-400 text-sm">No candidates found.</div>
           ) : filtered.map(c => (
@@ -89,14 +90,15 @@ function ScheduleInterviewModal({
     onClose()
   }
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-3 border-b">
+    <div data-kiterp-modal className={dialogOverlayClass}>
+      <div className={cn(dialogPanelClass, 'max-w-md')}>
+        <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">Schedule Interview</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
                 <X className="w-4 h-4" /></button>
         </div>
-        <form onSubmit={submit} className="p-5 space-y-3">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 p-5">
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase">Round Name</Label>
             <input value={form.round_name} onChange={e => setForm({ ...form, round_name: e.target.value })}
@@ -131,7 +133,8 @@ function ScheduleInterviewModal({
               onChange={e => setForm({ ...form, location_or_link: e.target.value })}
               className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="https://meet…" />
           </div>
-          <div className="flex justify-end gap-2 pt-3 border-t">
+          </div>
+          <div className="shrink-0 flex justify-end gap-2 border-t px-5 py-3">
             <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={create.isPending}
               className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">

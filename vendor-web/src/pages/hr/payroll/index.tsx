@@ -1,4 +1,5 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { onModalBackdropClick, cn } from '@/lib/utils'
+import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useState } from 'react'
@@ -30,16 +31,17 @@ function ProcessWizard({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-md relative')} onClick={e => e.stopPropagation()}>
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="absolute top-4 right-4 z-10 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
         </button>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">
         {step === 'config' && (
           <>
             <h2 className="text-lg font-semibold mb-4 pr-8">Process Payroll</h2>
@@ -90,6 +92,7 @@ function ProcessWizard({
             <button onClick={onClose} className="mt-4 px-5 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Done</button>
           </div>
         )}
+        </div>
       </div>
     </div>
   )
@@ -106,16 +109,17 @@ function DeleteConfirmModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm p-6 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-sm relative')} onClick={e => e.stopPropagation()}>
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="absolute top-4 right-4 z-10 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
         </button>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">
         <div className="flex items-center gap-3 mb-4 pr-8">
           <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
             <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -138,6 +142,7 @@ function DeleteConfirmModal({
             {deleteRun.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
             Delete
           </button>
+        </div>
         </div>
       </div>
     </div>

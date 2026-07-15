@@ -15,6 +15,7 @@ import {
 } from '@/hooks/useVendor'
 import type { AttendanceRecord } from '@/types'
 import { cn, onModalBackdropClick } from '@/lib/utils'
+import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 
 // ── Config ───────────────────────────────────────────────────────────────────────
 const STATUS_OPTS = ['present', 'absent', 'late', 'half_day', 'on_leave', 'holiday', 'week_off', 'time', 'total_hours']
@@ -114,13 +115,14 @@ function AttendanceModal({
   const isPending = mark.isPending || update.isPending
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-lg')} onClick={e => e.stopPropagation()}>
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-base font-semibold text-gray-900">{isEdit ? 'Edit Attendance Record' : 'Mark Attendance'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4 p-6">
           {!isEdit && (
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1" required>Employee</Label>
@@ -197,7 +199,8 @@ function AttendanceModal({
             <Label className="block text-xs font-medium text-gray-600 mb-1">Notes</Label>
             <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes…" />
           </div>
-          <div className="flex justify-end gap-2 pt-1">
+          </div>
+          <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t">
             <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={isPending} className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg disabled:opacity-50 hover:bg-primary/90">
               <Save className="w-4 h-4" />
@@ -370,8 +373,8 @@ function RangeMarkModal({
   // STEP 1 — Range + defaults
   // ═══════════════════════════════════════════════════════════════════
   if (step === 1) return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-xl max-h-[92vh] flex flex-col">
+    <div data-kiterp-modal className={dialogOverlayClass}>
+      <div className={cn(dialogPanelClass, 'max-w-xl')}>
 
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <div className="flex items-center gap-2">
@@ -385,7 +388,7 @@ function RangeMarkModal({
                 <X className="w-5 h-5" /></button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 space-y-5">
 
           {/* Date range — future dates allowed on To */}
           <div>
@@ -567,8 +570,8 @@ function RangeMarkModal({
   )
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col">
+    <div data-kiterp-modal className={dialogOverlayClass}>
+      <div className={cn(dialogPanelClass, 'max-w-4xl max-h-[95vh]')}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
@@ -590,7 +593,7 @@ function RangeMarkModal({
         <SaveBar top />
 
         {/* Table */}
-        <div className="overflow-y-auto flex-1">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <table className="w-full text-xs border-collapse">
             <thead className="sticky top-0 z-10 bg-gray-100 border-b">
               <tr>

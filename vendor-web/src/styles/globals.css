@@ -2429,24 +2429,57 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 }
 
 /*
- * Viewport-safe centered modals — keep content reachable when zoomed or on short screens.
- * Targets standard overlay + panel markup used across vendor-web.
+ * Centered dialog popups — no page / overlay scrollbars.
+ * Panel = header + body (+ optional footer). Body scrolls when needed;
+ * footer stays pinned and visible.
  */
 @layer components {
-  .fixed.inset-0.flex.items-center.justify-center:not(.overflow-hidden):not([data-modal-fullscreen]) {
+  /* Lock document scroll whenever a centered or tagged modal overlay is open */
+  html:has([data-kiterp-modal]),
+  html:has(.fixed.inset-0.flex.items-center.justify-center),
+  body:has([data-kiterp-modal]),
+  body:has(.fixed.inset-0.flex.items-center.justify-center) {
+    overflow: hidden !important;
+  }
+
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen]) {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+  }
+
+  /* Direct dialog panel: flex column shell (no outer scrollbar on the card) */
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-']:not([class*='inset-']) {
+    max-height: min(92dvh, calc(100vh - 1.5rem));
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Header */
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-']:not([class*='inset-']) > *:first-child {
+    flex-shrink: 0;
+  }
+
+  /* Body (middle with footer, or last when no footer) */
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-']:not([class*='inset-']) > *:not(:first-child):not(:last-child),
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-']:not([class*='inset-']) > *:last-child:nth-child(2),
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-']:not([class*='inset-']) > *:only-child {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
 
+  /* Footer (3rd+ child) stays pinned */
   .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
-    > div[class*='rounded-']:not([class*='max-h-']):not([class*='inset-']) {
-    max-height: min(90dvh, calc(100vh - 2rem));
-    overflow-y: auto;
-  }
-
-  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
-    > div[class*='rounded-'][class*='max-h-'][class*='flex-col']:not([class*='overflow-hidden']) {
-    overflow: hidden;
+    > div[class*='rounded-']:not([class*='inset-']) > *:last-child:nth-child(n + 3) {
+    flex-shrink: 0;
   }
 }
 

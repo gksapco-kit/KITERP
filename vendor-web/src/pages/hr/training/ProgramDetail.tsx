@@ -1,4 +1,5 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { onModalBackdropClick, cn } from '@/lib/utils'
+import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { InlineFieldLabel } from '@/components/common/InlineFieldLabel'
 import { Select } from '@/components/ui/select'
 import { useState } from 'react'
@@ -150,13 +151,13 @@ function CourseModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
-        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-2xl')}>
+        <div className="shrink-0 flex items-center justify-between p-4 border-b bg-card">
           <h2 className="text-lg font-bold">{course ? 'Edit Course' : 'Add Course'}</h2>
           <button type="button" aria-label="Close" onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
-        <div className="p-4 space-y-3">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 space-y-3">
           <Field label="Title *">
             <input className="w-full border rounded px-3 py-2 text-sm" value={form.title}
               onChange={e => setForm({ ...form, title: e.target.value })} />
@@ -278,7 +279,7 @@ function CourseModal({
             </div>
           )}
         </div>
-        <div className="flex justify-end gap-2 p-4 border-t bg-gray-50 sticky bottom-0">
+        <div className="shrink-0 flex justify-end gap-2 p-4 border-t bg-muted/25">
           <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg text-gray-700">Cancel</button>
           <button onClick={submit} disabled={!form.title.trim() || create.isPending || update.isPending}
             className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">

@@ -1,4 +1,5 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { onModalBackdropClick, cn } from '@/lib/utils'
+import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -191,9 +192,9 @@ function CreateOfferModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className={`bg-card border border-border text-foreground rounded-xl shadow-2xl w-full ${showPreview ? 'max-w-5xl' : 'max-w-lg'} p-6 max-h-[92vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 mb-4">
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, showPreview ? 'max-w-5xl' : 'max-w-lg')} onClick={e => e.stopPropagation()}>
+        <div className="shrink-0 flex items-start justify-between gap-3 px-6 pt-6 pb-2">
           <div>
             <h2 className="text-lg font-semibold">New Offer Letter</h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -213,7 +214,7 @@ function CreateOfferModal({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4 px-6 pb-6">
           {step === 'details' ? (
             <>
               {/* Template picker */}

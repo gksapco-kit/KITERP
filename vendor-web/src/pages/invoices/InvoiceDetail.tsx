@@ -495,6 +495,9 @@ export default function InvoiceDetail() {
   const listPath = isQuotation ? '/quotations' : '/invoices'
   const shareDocType = isQuotation ? 'quotation' as const : 'invoice' as const
   const storeName = useStoreName((inv as { store_id?: string } | undefined)?.store_id)
+  /** Invoices created from a web-store / POS / booking order stay in sync with that order. */
+  const isOrderLinked = Boolean((inv as { order_id?: string } | undefined)?.order_id)
+  const canEditInvoice = Boolean(inv) && !isOrderLinked && inv?.status !== 'paid' && inv?.status !== 'cancelled'
 
   useEffect(() => {
     if (!inv || isLoading || !id) return
@@ -633,7 +636,7 @@ export default function InvoiceDetail() {
   }, [inv, settingsLoading, effectiveSettings])
 
   const startEditing = useCallback(() => {
-    if (!inv) return
+    if (!inv || !canEditInvoice) return
     setCustomerName(inv.customer_name || '')
     setCustomerPhone(inv.customer_phone || '')
     setCustomerGstin(inv.customer_gstin || '')
@@ -641,7 +644,11 @@ export default function InvoiceDetail() {
     setEditItems(parseLineItems(inv.items || []))
     setEditExtraFields(normalizeQuotationExtraFields(inv.extra_fields))
     setIsEditing(true)
-  }, [inv])
+  }, [inv, canEditInvoice])
+
+  useEffect(() => {
+    if (!canEditInvoice && isEditing) setIsEditing(false)
+  }, [canEditInvoice, isEditing])
 
   const cancelEditing = useCallback(() => {
     setIsEditing(false)
@@ -786,9 +793,11 @@ export default function InvoiceDetail() {
       {/* Action toolbar — single horizontal line */}
       {!isEditing && (
         <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3" onClick={startEditing}>
-            <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
-          </Button>
+          {canEditInvoice ? (
+            <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3" onClick={startEditing}>
+              <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+            </Button>
+          ) : null}
           <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3"
             disabled={settingsLoading}
             onClick={() => printWithTemplate(invRecord, docSettings)}>
@@ -915,25 +924,27 @@ export default function InvoiceDetail() {
                   className="h-9"
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor="customer_phone" className="text-xs text-gray-500">Phone</Label>
-                  <PhoneInput
-                    value={customerPhone}
-                    onChange={setCustomerPhone}
-                    defaultCountryIso="IN"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="customer_gstin" className="text-xs text-gray-500">GSTIN</Label>
-                  <Input
-                    id="customer_gstin"
-                    value={customerGstin}
-                    onChange={e => setCustomerGstin(e.target.value)}
-                    placeholder="GSTIN"
-                    className="h-9"
-                  />
-                </div>
+              <div>
+                <Label htmlFor="customer_phone" className="text-xs text-gray-500">Phone</Label>
+                <PhoneInput
+                  id="customer_phone"
+                  value={customerPhone}
+                  onChange={setCustomerPhone}
+                  defaultCountryIso="IN"
+                  compactCountry
+                  compact
+                  subtleFeedback
+                />
+              </div>
+              <div>
+                <Label htmlFor="customer_gstin" className="text-xs text-gray-500">GSTIN</Label>
+                <Input
+                  id="customer_gstin"
+                  value={customerGstin}
+                  onChange={e => setCustomerGstin(e.target.value)}
+                  placeholder="GSTIN"
+                  className="h-9"
+                />
               </div>
             </div>
           ) : (
@@ -1003,6 +1014,9 @@ export default function InvoiceDetail() {
                   <ShoppingBag className="w-3.5 h-3.5" />
                   {String((inv as Record<string, unknown>).order_number || (inv as Record<string, unknown>).order_id)}
                 </button>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Created from an order — edit the order instead of this invoice.
+                </p>
               </div>
             )}
           </div>

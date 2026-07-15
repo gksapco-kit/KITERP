@@ -1,4 +1,5 @@
 import { onModalBackdropClick, cn } from '@/lib/utils'
+import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Button } from '@/components/ui/button'
 import { hrInputClass, hrSelectClass, hrTabActiveClass, hrTabInactiveClass, hrTableHeadClass, hrStatusBadge, hrLabelClass, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
 import { Label } from '@/components/ui/label'
@@ -83,13 +84,14 @@ function JobModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-2xl')} onClick={e => e.stopPropagation()}>
+        <div className="shrink-0 flex items-center justify-between border-b border-border px-5 py-3">
           <h2 className="text-lg font-semibold text-foreground">{existing ? 'Edit Job' : 'New Job Posting'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
-        <form onSubmit={submit} className="space-y-4 p-5">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4 p-5">
           <div>
             <Label className={hrLabelClass} required>Title</Label>
             <input required value={form.title} onChange={e => set('title', e.target.value)}
@@ -177,7 +179,8 @@ function JobModal({
               <option value="closed">Closed</option>
             </select>
           </div>
-          <div className="flex justify-end gap-2 border-t border-border pt-3">
+          </div>
+          <div className="shrink-0 flex justify-end gap-2 border-t border-border px-5 py-3">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={create.isPending || update.isPending}>
               {create.isPending || update.isPending ? 'Saving…' : (existing ? 'Save changes' : 'Create job')}
@@ -221,14 +224,15 @@ function CandidateModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+    <div data-kiterp-modal className={dialogOverlayClass}>
+      <div className={cn(dialogPanelClass, 'max-w-2xl')}>
+        <div className="shrink-0 flex items-center justify-between border-b border-border px-5 py-3">
           <h2 className="text-lg font-semibold text-foreground">Add Candidate</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
                 <X className="h-4 w-4" /></button>
         </div>
-        <form onSubmit={submit} className="p-5 space-y-3">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 p-5">
           <div>
             <Label className={hrLabelClass} required>Full Name</Label>
             <input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })}
@@ -312,7 +316,8 @@ function CandidateModal({
             <textarea rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
               className={cn(hrInputClass, 'mt-1')} />
           </div>
-          <div className="flex justify-end gap-2 border-t border-border pt-3">
+          </div>
+          <div className="shrink-0 flex justify-end gap-2 border-t border-border px-5 py-3">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={create.isPending}>
               {create.isPending ? 'Saving…' : 'Add candidate'}

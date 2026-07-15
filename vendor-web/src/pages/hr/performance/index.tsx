@@ -1,4 +1,5 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { onModalBackdropClick, cn } from '@/lib/utils'
+import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -196,13 +197,14 @@ function CycleModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-3 border-b">
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-2xl')}>
+        <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">{existing ? 'Edit Cycle' : 'New Review Cycle'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
         </div>
-        <form onSubmit={submit} className="p-5 space-y-4">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4 p-5">
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase" required>Cycle Name</Label>
             <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
@@ -290,7 +292,8 @@ function CycleModal({
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-3 border-t">
+          </div>
+          <div className="shrink-0 flex justify-end gap-2 border-t px-5 py-3">
             <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
               className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
@@ -428,14 +431,15 @@ function GoalModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-3 border-b">
+    <div data-kiterp-modal className={dialogOverlayClass}>
+      <div className={cn(dialogPanelClass, 'max-w-md')}>
+        <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b">
           <h2 className="text-lg font-semibold">{existing ? 'Edit Goal' : 'New Goal'}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
                 <X className="w-4 h-4" /></button>
         </div>
-        <form onSubmit={submit} className="p-5 space-y-3">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 p-5">
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase" required>Employee</Label>
             <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}
@@ -486,7 +490,8 @@ function GoalModal({
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. 100k revenue" />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-3 border-t">
+          </div>
+          <div className="shrink-0 flex justify-end gap-2 border-t px-5 py-3">
             <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
               className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">

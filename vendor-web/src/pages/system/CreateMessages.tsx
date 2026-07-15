@@ -1103,9 +1103,9 @@ export default function CreateMessagesPage() {
       )}
 
       {(emailModal || phoneModal) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl border border-border bg-background shadow-xl">
-            <div className="px-5 py-4 border-b border-border">
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-hidden">
+          <div className="flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl">
+            <div className="shrink-0 px-5 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">
                 {emailModal
                   ? (emailModal.editing ? 'Edit Email Recipient' : 'Add Email Recipient')
@@ -1113,7 +1113,7 @@ export default function CreateMessagesPage() {
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">For: {activeEventLabel}</p>
             </div>
-            <div className="px-5 py-4 space-y-4">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
               {emailModal ? (
                 <>
                   <div className="space-y-1.5">
@@ -1143,6 +1143,8 @@ export default function CreateMessagesPage() {
                       value={phoneForm.phone}
                       onChange={(v) => setPhoneForm((f) => ({ ...f, phone: v }))}
                       defaultCountryIso="IN"
+                      compactCountry
+                      compact
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -1156,7 +1158,7 @@ export default function CreateMessagesPage() {
                 </>
               )}
             </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
+            <div className="flex shrink-0 justify-end gap-2 px-5 py-4 border-t border-border">
               <Button
                 type="button"
                 variant="outline"
@@ -1173,9 +1175,9 @@ export default function CreateMessagesPage() {
       )}
 
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl border border-border bg-background shadow-xl">
-            <div className="px-5 py-4 border-b border-border">
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-hidden">
+          <div className="flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl">
+            <div className="shrink-0 px-5 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">
                 {deleteConfirm.type === 'template' ? 'Delete template?' : 'Delete recipient?'}
               </h2>
@@ -1188,10 +1190,10 @@ export default function CreateMessagesPage() {
                 )}
               </p>
             </div>
-            <div className="px-5 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
               <p className="text-sm font-medium text-foreground break-all">{deleteConfirm.value}</p>
             </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
+            <div className="flex shrink-0 justify-end gap-2 px-5 py-4 border-t border-border">
               <Button type="button" variant="outline" onClick={() => setDeleteConfirm(null)}>
                 Cancel
               </Button>
@@ -1204,9 +1206,9 @@ export default function CreateMessagesPage() {
       )}
 
       {templateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-background shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="px-5 py-4 border-b border-border">
+        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-hidden">
+          <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl">
+            <div className="shrink-0 px-5 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">
                 {templateModal.editing
                   ? (templateModal.audience === 'vendor' ? 'Edit Vendor Template' : 'Edit Customer Template')
@@ -1214,7 +1216,7 @@ export default function CreateMessagesPage() {
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">For: {activeEventLabel} · {storeLabel}</p>
             </div>
-            <div className="px-5 py-4 space-y-4">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-4">
               <div className="space-y-1.5">
                 <Label helpKey="message center:template name">Template name</Label>
                 <Input
@@ -1239,7 +1241,7 @@ export default function CreateMessagesPage() {
                 <Textarea
                   value={templateForm.message}
                   onChange={(e) => setTemplateForm((f) => ({ ...f, message: e.target.value }))}
-                  rows={6}
+                  rows={4}
                   placeholder={templateModal.audience === 'vendor'
                     ? DEFAULT_VENDOR_TEMPLATE_MESSAGE
                     : DEFAULT_TEMPLATE_MESSAGE}
@@ -1317,7 +1319,7 @@ export default function CreateMessagesPage() {
                 <Eye className="w-3.5 h-3.5" /> Preview message
               </Button>
             </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
+            <div className="flex shrink-0 justify-end gap-2 px-5 py-4 border-t border-border">
               <Button type="button" variant="outline" onClick={() => setTemplateModal(null)}>Cancel</Button>
               <Button type="button" onClick={saveTemplate}>
                 {templateModal.editing ? 'Update' : 'Add'}
@@ -1328,15 +1330,15 @@ export default function CreateMessagesPage() {
       )}
 
       {templatePreview && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl border border-border bg-background shadow-xl">
-            <div className="px-5 py-4 border-b border-border">
+        <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 overflow-hidden">
+          <div className="flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl">
+            <div className="shrink-0 px-5 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">Message preview</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {templatePreview.template.name} · {templatePreview.eventLabel} · {storeLabel}
               </p>
             </div>
-            <div className="px-5 py-4 space-y-3">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-4">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Email subject</p>
                 <p className="text-sm text-foreground">
@@ -1361,7 +1363,7 @@ export default function CreateMessagesPage() {
                 Schedule: {formatScheduleRange(templatePreview.template.start_at, templatePreview.template.end_at)}
               </p>
             </div>
-            <div className="flex justify-end px-5 py-4 border-t border-border">
+            <div className="flex shrink-0 justify-end px-5 py-4 border-t border-border">
               <Button type="button" onClick={() => setTemplatePreview(null)}>Close</Button>
             </div>
           </div>

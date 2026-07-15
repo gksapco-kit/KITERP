@@ -288,7 +288,7 @@ function WhatsAppMarketingPreview({
   return (
     <div className={cn('mx-auto', view === 'mobile' ? 'max-w-[340px]' : 'max-w-[380px]')}>
       <div className="rounded-[1.75rem] border-[5px] border-gray-800 bg-[#0b141a] p-2 shadow-2xl">
-        <div className="rounded-[1.25rem] overflow-hidden bg-[#0b141a] min-h-[480px] flex flex-col">
+        <div className="rounded-[1.25rem] overflow-hidden bg-[#0b141a] min-h-[360px] flex flex-col">
           <div className="bg-[#1f2c34] px-3 py-2.5 flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-[#00a884] flex items-center justify-center text-white text-xs font-bold">
               {vendorName.charAt(0)}
@@ -330,7 +330,7 @@ function SmsMarketingPreview({
   return (
     <div className={cn('mx-auto', view === 'mobile' ? 'max-w-[320px]' : 'max-w-[360px]')}>
       <div className="rounded-[2rem] border-[6px] border-gray-800 bg-gray-900 p-2 shadow-xl">
-        <div className="rounded-[1.4rem] bg-gray-100 overflow-hidden min-h-[420px] flex flex-col">
+        <div className="rounded-[1.4rem] bg-gray-100 overflow-hidden min-h-[340px] flex flex-col">
           <div className="bg-white border-b px-4 py-3 text-center">
             <p className="text-xs font-semibold text-gray-900">Messages</p>
             <p className="text-[10px] text-gray-400">{SAMPLE_CONTACT.first_name} {SAMPLE_CONTACT.last_name}</p>

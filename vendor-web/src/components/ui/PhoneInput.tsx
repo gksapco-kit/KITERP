@@ -445,7 +445,7 @@ export function PhoneInput({
         </button>
 
         {/* Number input */}
-        <div className="relative min-w-0 flex-1">
+        <div className="relative min-w-[7.5rem] flex-1">
           <input
             id={id}
             name={name}
@@ -460,9 +460,12 @@ export function PhoneInput({
             placeholder={placeholder ?? (country.iso === 'IN' ? '98765 43210' : 'Phone number')}
             className={cn(
               phoneInputUi.numberField,
+              'min-w-0',
               rowH,
               textSize,
               compact ? 'px-2.5 sm:px-3' : comfortable ? (dense ? 'px-2.5' : 'px-3') : 'px-3',
+              // Counter sits inside the field — reserve space when visible
+              localNumber.length > 0 && maxDigits <= 12 && !subtleFeedback && 'pr-10',
               focusRingClassName,
               error ? 'border-destructive bg-destructive/10' : '',
               isOverLimit && 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15',

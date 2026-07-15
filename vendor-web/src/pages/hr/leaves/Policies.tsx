@@ -1,4 +1,11 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { cn, onModalBackdropClick } from '@/lib/utils'
+import {
+  dialogOverlayClass,
+  dialogPanelClass,
+  dialogHeaderClass,
+  dialogBodyClass,
+  dialogFooterClass,
+} from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -29,51 +36,53 @@ function PolicyModal({
   const busy = create.isPending || update.isPending
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 mb-3">
-              <h2 className="text-lg font-semibold mb-4">{policy ? 'Edit Policy' : 'New Leave Policy'}</h2>
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-md')} onClick={e => e.stopPropagation()}>
+        <div className={cn(dialogHeaderClass, 'flex items-start justify-between gap-3')}>
+          <h2 className="text-lg font-semibold">{policy ? 'Edit Policy' : 'New Leave Policy'}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className={cn(dialogBodyClass, 'space-y-4')}>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="block text-xs font-medium text-gray-700 mb-1" required>Name</Label>
+                <input required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Casual Leave" />
+              </div>
+              <div>
+                <Label className="block text-xs font-medium text-gray-700 mb-1" required>Code</Label>
+                <input required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. CL" />
+              </div>
             </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1" required>Name</Label>
-              <input required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Casual Leave" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">Days/Year</Label>
+                <input type="number" min={0} step={0.5} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.days_per_year} onChange={e => setForm(f => ({ ...f, days_per_year: parseFloat(e.target.value) || 0 }))} />
+              </div>
+              <div>
+                <Label className="block text-xs font-medium text-gray-700 mb-1">Max Carry Forward</Label>
+                <input type="number" min={0} step={0.5} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.max_carry_forward_days} onChange={e => setForm(f => ({ ...f, max_carry_forward_days: parseFloat(e.target.value) || 0 }))} />
+              </div>
             </div>
-            <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1" required>Code</Label>
-              <input required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. CL" />
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={form.carry_forward} onChange={e => setForm(f => ({ ...f, carry_forward: e.target.checked }))} className="rounded" />
+                Carry Forward
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={form.is_paid} onChange={e => setForm(f => ({ ...f, is_paid: e.target.checked }))} className="rounded" />
+                Paid Leave
+              </label>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Days/Year</Label>
-              <input type="number" min={0} step={0.5} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.days_per_year} onChange={e => setForm(f => ({ ...f, days_per_year: parseFloat(e.target.value) || 0 }))} />
-            </div>
-            <div>
-              <Label className="block text-xs font-medium text-gray-700 mb-1">Max Carry Forward</Label>
-              <input type="number" min={0} step={0.5} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.max_carry_forward_days} onChange={e => setForm(f => ({ ...f, max_carry_forward_days: parseFloat(e.target.value) || 0 }))} />
-            </div>
-          </div>
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={form.carry_forward} onChange={e => setForm(f => ({ ...f, carry_forward: e.target.checked }))} className="rounded" />
-              Carry Forward
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={form.is_paid} onChange={e => setForm(f => ({ ...f, is_paid: e.target.checked }))} className="rounded" />
-              Paid Leave
-            </label>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className={cn(dialogFooterClass, 'gap-3')}>
             <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={busy} className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {busy ? 'Saving…' : policy ? 'Update' : 'Create'}

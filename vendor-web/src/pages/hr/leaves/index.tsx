@@ -1,4 +1,5 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { onModalBackdropClick, cn } from '@/lib/utils'
+import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -23,10 +24,10 @@ function RejectModal({
     onClose()
   }
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 mb-3">
-              <h2 className="text-lg font-semibold mb-3">Reject Leave Request</h2>
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-sm')} onClick={e => e.stopPropagation()}>
+        <div className="shrink-0 flex items-start justify-between gap-3 px-6 pt-6 pb-2">
+              <h2 className="text-lg font-semibold">Reject Leave Request</h2>
               <button
                 type="button"
                 onClick={onClose}
@@ -36,12 +37,14 @@ function RejectModal({
                 <X className="w-5 h-5" />
               </button>
             </div>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 px-6 py-2">
           <div>
             <Label className="block text-xs font-medium text-gray-600 mb-1">Reason</Label>
             <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={reason} onChange={e => setReason(e.target.value)} required />
           </div>
-          <div className="flex justify-end gap-2">
+          </div>
+          <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t">
             <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={reject.isPending} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg disabled:opacity-50">Reject</button>
           </div>

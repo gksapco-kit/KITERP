@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ElementType, type ReactNode } from 'react'
 import { ChevronRight, Link2, PackageMinus, PackagePlus, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { ModalBody, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
+import { ModalBody, ModalFooter, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/button'
 import { cn, searchFieldInnerInputClassName, searchFieldShellClassName, surfaceBorderClassName } from '@/lib/utils'
 import {
@@ -122,24 +122,24 @@ function AppGridCard({
         }
       }}
       className={cn(
-        'group relative flex h-full flex-col overflow-hidden rounded-xl bg-card shadow-sm transition-[box-shadow,border-color] duration-200',
-        'border-[1.5px] border-[color:var(--border-color)]',
-        expanded && 'z-10 border-primary shadow-md',
-        installed && !expanded && 'border-primary/35',
-        !expanded && 'hover:shadow-md',
+        'group relative flex h-full flex-col overflow-hidden rounded-2xl bg-card transition-[box-shadow,border-color,transform] duration-200',
+        'border border-[color:var(--border-color)]',
+        expanded && 'z-10 border-primary/60 shadow-md ring-1 ring-primary/15',
+        installed && !expanded && 'border-primary/30 bg-primary/[0.02]',
+        !expanded && 'hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md',
         hasSubmenus && 'cursor-pointer',
       )}
       aria-expanded={hasSubmenus ? expanded : undefined}
     >
-      <div className="flex flex-1 flex-col p-3 sm:p-3.5">
+      <div className="flex flex-1 flex-col p-4">
         <div className="flex items-start justify-between gap-2">
           <span
             className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+              'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
               surfaceBorderClassName,
               installed
                 ? 'border-primary/30 bg-gradient-to-br from-primary/15 to-primary/5 text-primary'
-                : 'bg-muted/35 text-muted-foreground',
+                : 'bg-muted/40 text-muted-foreground group-hover:bg-muted/60',
             )}
             aria-hidden
           >
@@ -149,7 +149,7 @@ function AppGridCard({
           {hasSubmenus ? (
             <span
               className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-[1.5px] text-muted-foreground',
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-muted-foreground transition-colors',
                 surfaceBorderClassName,
                 expanded && 'border-primary/30 bg-primary/10 text-primary',
               )}
@@ -162,19 +162,23 @@ function AppGridCard({
           ) : null}
         </div>
 
-        <div className="mt-2.5 min-w-0 flex-1">
-          <h4 className="text-sm font-semibold leading-snug text-foreground">{section.title}</h4>
-          <p className={cn('mt-0.5 text-[10px] font-medium', installed ? 'text-primary' : 'text-muted-foreground')}>
+        <div className="mt-3 min-w-0 flex-1">
+          <h4 className="text-[0.8125rem] font-semibold leading-snug tracking-tight text-foreground">
+            {section.title}
+          </h4>
+          <p className={cn('mt-1 text-[11px] font-medium', installed ? 'text-primary' : 'text-muted-foreground')}>
             {section.itemCount} menu item{section.itemCount === 1 ? '' : 's'}
             {installed ? ' · Installed' : ''}
           </p>
           {!expanded && section.description ? (
-            <p className="mt-1.5 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{section.description}</p>
+            <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+              {section.description}
+            </p>
           ) : null}
         </div>
 
         {expanded && hasSubmenus ? (
-          <div className="mt-2 max-h-36 overflow-y-auto border-t border-[color:var(--border-color)] pt-2 pr-0.5">
+          <div className="mt-3 border-t border-[color:var(--border-color)] pt-3">
             <div className="flex flex-wrap gap-1.5">
               {section.submenuItems.map((item, index) => (
                 <SubmenuBubble
@@ -189,12 +193,12 @@ function AppGridCard({
         ) : null}
 
         <div
-          className="mt-2.5"
+          className="mt-3.5"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
           {pinned ? (
-            <span className="inline-flex w-full items-center justify-center rounded-lg border-[1.5px] border-primary/25 bg-primary/10 px-2.5 py-1.5 text-[11px] font-medium text-primary">
+            <span className="inline-flex w-full items-center justify-center rounded-lg border border-primary/25 bg-primary/10 px-2.5 py-2 text-[11px] font-medium text-primary">
               Always installed
             </span>
           ) : installed ? (
@@ -202,10 +206,10 @@ function AppGridCard({
               type="button"
               variant="outline"
               size="sm"
-              className={cn('h-7 w-full gap-1 text-[11px]', surfaceBorderClassName)}
+              className={cn('h-8 w-full gap-1.5 text-[11px]', surfaceBorderClassName)}
               onClick={onUninstall}
             >
-              <PackageMinus className="h-3 w-3" aria-hidden />
+              <PackageMinus className="h-3.5 w-3.5" aria-hidden />
               Uninstall
             </Button>
           ) : (
@@ -213,10 +217,10 @@ function AppGridCard({
               type="button"
               variant="default"
               size="sm"
-              className="h-7 w-full gap-1 text-[11px]"
+              className="h-8 w-full gap-1.5 text-[11px]"
               onClick={onInstall}
             >
-              <PackagePlus className="h-3 w-3" aria-hidden />
+              <PackagePlus className="h-3.5 w-3.5" aria-hidden />
               Install
             </Button>
           )}
@@ -288,10 +292,10 @@ export function SidebarAppsPickerModal({
   }
 
   return (
-    <ModalOverlay onClose={onClose}>
-      <ModalPanel className="max-w-6xl overflow-hidden bg-background text-foreground shadow-2xl">
+    <ModalOverlay onClose={onClose} className="overflow-hidden overscroll-none">
+      <ModalPanel className="max-h-[calc(100dvh-2rem)] max-w-6xl overflow-hidden bg-background text-foreground shadow-2xl">
         <div
-          className="relative px-5 py-4 text-center text-white sm:px-6 sm:py-5"
+          className="relative shrink-0 px-5 py-5 text-center text-white sm:px-8 sm:py-6"
           style={{
             background:
               'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--hero-via)) 48%, hsl(var(--hero-to)) 100%)',
@@ -301,7 +305,7 @@ export function SidebarAppsPickerModal({
             type="button"
             data-escape-close
             onClick={onClose}
-            className="absolute right-3 top-3 rounded-lg p-1 text-white/85 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 sm:right-4 sm:top-3.5"
+            className="absolute right-3 top-3 rounded-lg p-1.5 text-white/85 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 sm:right-4 sm:top-4"
             aria-label="Close"
           >
             <X className="h-4 w-4" strokeWidth={2} />
@@ -309,7 +313,7 @@ export function SidebarAppsPickerModal({
 
           <blockquote className="mx-auto max-w-xl">
             <h2
-              className="text-[1.35rem] font-semibold leading-snug sm:text-[1.65rem]"
+              className="text-[1.4rem] font-semibold leading-snug sm:text-[1.75rem]"
               style={{ fontFamily: "'Caveat', cursive" }}
             >
               <span
@@ -329,12 +333,12 @@ export function SidebarAppsPickerModal({
             </h2>
           </blockquote>
 
-          <p className="mx-auto mt-2 max-w-md text-xs leading-snug text-white/88 sm:text-sm">
+          <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed text-white/90 sm:text-sm">
             {isVendorAdmin
               ? 'Tap a card to show menu bubbles. Install or uninstall apps in your sidebar.'
               : 'Tap a card to browse menu items. Installing apps requires owner or admin access.'}
           </p>
-          <p className="mt-1.5 text-[11px] text-white/70 sm:text-xs">
+          <p className="mt-2 text-[11px] tracking-wide text-white/70 sm:text-xs">
             <span className="font-semibold text-white">{sections.length}</span> apps
             <span className="mx-1.5 opacity-50">·</span>
             <span className="font-semibold text-white">{totalSubmenus}</span> menu items
@@ -343,15 +347,15 @@ export function SidebarAppsPickerModal({
           </p>
         </div>
 
-        <div className="border-y border-[1.5px] border-[color:var(--border-color)] bg-muted/20 px-5 py-3 sm:px-6">
-          <div className={cn(searchFieldShellClassName, 'relative px-3 py-0.5')}>
+        <div className="shrink-0 border-b border-[color:var(--border-color)] bg-muted/15 px-5 py-3.5 sm:px-8">
+          <div className={cn(searchFieldShellClassName, 'relative px-3.5 py-0.5')}>
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search apps, pages, or routes…"
-              className={cn(searchFieldInnerInputClassName, 'py-2 text-sm')}
+              className={cn(searchFieldInnerInputClassName, 'py-2.5 text-sm')}
               aria-label="Search apps"
             />
             {query ? (
@@ -367,40 +371,43 @@ export function SidebarAppsPickerModal({
           </div>
         </div>
 
-        <ModalBody className="px-5 py-4 sm:px-6">
+        <ModalBody className="overscroll-contain px-5 py-5 sm:px-8 sm:py-6">
           {filtered.length === 0 ? (
             <div
               className={cn(
-                'rounded-xl border-dashed px-4 py-14 text-center text-sm text-muted-foreground',
+                'rounded-2xl border-dashed px-4 py-16 text-center text-sm text-muted-foreground',
                 surfaceBorderClassName,
               )}
             >
               No apps match &ldquo;{query}&rdquo;
             </div>
           ) : (
-            <div className="max-h-[min(62vh,34rem)] overflow-y-auto overscroll-contain px-0.5 py-1 sm:px-1 sm:py-1.5" role="list">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 lg:gap-5">
-                {filtered.map((section) => (
-                  <AppGridCard
-                    key={section.id}
-                    section={section}
-                    installed={enabledSet.has(section.id)}
-                    pinned={isPinnedSidebarSection(section.id)}
-                    expanded={expandedSectionId === section.id}
-                    onToggleExpand={() => toggleExpanded(section.id)}
-                    onInstall={() => installSection(section)}
-                    onUninstall={() => uninstallSection(section)}
-                  />
-                ))}
-              </div>
+            <div
+              className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5"
+              role="list"
+            >
+              {filtered.map((section) => (
+                <AppGridCard
+                  key={section.id}
+                  section={section}
+                  installed={enabledSet.has(section.id)}
+                  pinned={isPinnedSidebarSection(section.id)}
+                  expanded={expandedSectionId === section.id}
+                  onToggleExpand={() => toggleExpanded(section.id)}
+                  onInstall={() => installSection(section)}
+                  onUninstall={() => uninstallSection(section)}
+                />
+              ))}
             </div>
           )}
+        </ModalBody>
 
-          <p className="mt-4 text-center text-[11px] text-muted-foreground">
+        <ModalFooter className="justify-center border-t border-[color:var(--border-color)] bg-muted/10 py-3">
+          <p className="text-center text-[11px] text-muted-foreground">
             Use <span className="font-medium text-foreground">Reorder</span> in the sidebar to arrange modules, or{' '}
             <span className="font-medium text-foreground">Ctrl+K</span> to open any page.
           </p>
-        </ModalBody>
+        </ModalFooter>
       </ModalPanel>
     </ModalOverlay>
   )

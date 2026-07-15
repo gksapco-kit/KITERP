@@ -1,4 +1,11 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { cn, onModalBackdropClick } from '@/lib/utils'
+import {
+  dialogOverlayClassZ60,
+  dialogPanelClass,
+  dialogHeaderClass,
+  dialogBodyClass,
+  dialogFooterClass,
+} from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -79,55 +86,57 @@ export function DesigModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold mb-4">{desig ? 'Edit Designation' : 'New Designation'}</h2>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
+    <div data-kiterp-modal className={dialogOverlayClassZ60} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-sm')} onClick={e => e.stopPropagation()}>
+        <div className={cn(dialogHeaderClass, 'flex items-start justify-between gap-3')}>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold">{desig ? 'Edit Designation' : 'New Designation'}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className={cn(dialogBodyClass, 'space-y-4')}>
+            <div>
+              <Label className="block text-sm font-medium text-gray-700 mb-1" required>Title</Label>
+              <input
+                className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none${errors.name ? ' border-red-500 bg-red-50' : ''}`}
+                value={form.name}
+                onChange={e => {
+                  setForm(f => ({ ...f, name: e.target.value }))
+                  setErrors(p => ({ ...p, name: undefined }))
+                }}
+                required
+                minLength={2}
+                maxLength={100}
+              />
+              {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
             </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label className="block text-sm font-medium text-gray-700 mb-1" required>Title</Label>
-            <input
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none${errors.name ? ' border-red-500 bg-red-50' : ''}`}
-              value={form.name}
-              onChange={e => {
-                setForm(f => ({ ...f, name: e.target.value }))
-                setErrors(p => ({ ...p, name: undefined }))
-              }}
-              required
-              minLength={2}
-              maxLength={100}
-            />
-            {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
+            <div>
+              <Label className="block text-sm font-medium text-gray-700 mb-1" required>Seniority Level</Label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                required
+                className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none${errors.level ? ' border-red-500 bg-red-50' : ''}`}
+                value={form.level}
+                onChange={e => {
+                  setForm(f => ({ ...f, level: parseInt(e.target.value, 10) || 1 }))
+                  setErrors(p => ({ ...p, level: undefined }))
+                }}
+              />
+              {errors.level && <p className="text-xs text-red-600 mt-1">{errors.level}</p>}
+              <p className="text-xs text-gray-400 mt-1">Higher number = more senior (e.g. L1 = junior, L10 = VP)</p>
+            </div>
           </div>
-          <div>
-            <Label className="block text-sm font-medium text-gray-700 mb-1" required>Seniority Level</Label>
-            <input
-              type="number"
-              min={1}
-              max={20}
-              required
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none${errors.level ? ' border-red-500 bg-red-50' : ''}`}
-              value={form.level}
-              onChange={e => {
-                setForm(f => ({ ...f, level: parseInt(e.target.value, 10) || 1 }))
-                setErrors(p => ({ ...p, level: undefined }))
-              }}
-            />
-            {errors.level && <p className="text-xs text-red-600 mt-1">{errors.level}</p>}
-            <p className="text-xs text-gray-400 mt-1">Higher number = more senior (e.g. L1 = junior, L10 = VP)</p>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className={cn(dialogFooterClass, 'gap-3')}>
             <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={busy} className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
               {busy ? 'Saving…' : desig ? 'Update' : 'Create'}

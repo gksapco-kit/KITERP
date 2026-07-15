@@ -1,4 +1,5 @@
-import { onModalBackdropClick } from '@/lib/utils'
+import { onModalBackdropClick, cn } from '@/lib/utils'
+import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useState } from 'react'
@@ -32,10 +33,10 @@ function SalaryModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 mb-3">
-              <h2 className="text-lg font-semibold mb-4">Create / Revise Salary Structure</h2>
+    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
+      <div className={cn(dialogPanelClass, 'max-w-2xl')} onClick={e => e.stopPropagation()}>
+        <div className="shrink-0 flex items-start justify-between gap-3 px-6 pt-6 pb-2">
+              <h2 className="text-lg font-semibold">Create / Revise Salary Structure</h2>
               <button
                 type="button"
                 onClick={onClose}
@@ -45,7 +46,8 @@ function SalaryModal({
                 <X className="w-5 h-5" />
               </button>
             </div>
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-5 px-6 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="block text-xs font-medium text-gray-700 mb-1" required>Employee</Label>
@@ -119,8 +121,9 @@ function SalaryModal({
               <p className="text-lg font-semibold text-blue-800">₹{(gross * 12).toLocaleString()}</p>
             </div>
           </div>
+          </div>
 
-          <div className="flex justify-end gap-3">
+          <div className="shrink-0 flex justify-end gap-3 px-6 py-4 border-t">
             <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={create.isPending} className="px-4 py-2 text-sm bg-primary text-white rounded-lg disabled:opacity-50">
               {create.isPending ? 'Saving…' : 'Save Structure'}
