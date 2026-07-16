@@ -83,6 +83,15 @@ export const storeApi = {
   getProduct: async (slug: string): Promise<Product> => {
     const res = await apiClient.get(`/catalog/products/${slug}`); return res.data
   },
+  recordProductView: async (
+    slug: string,
+    visitorId: string,
+  ): Promise<{ slug: string; view_count: number; counted: boolean }> => {
+    const res = await apiClient.post(`/catalog/products/${slug}/view`, {
+      visitor_id: visitorId,
+    })
+    return res.data
+  },
   listServices: async (params?: Record<string, unknown>): Promise<PaginatedResponse<Service>> => {
     const res = await apiClient.get('/catalog/services', { params }); return res.data
   },

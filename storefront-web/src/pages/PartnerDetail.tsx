@@ -17,6 +17,7 @@ import {
   partnerWhatsAppHref,
   type PartnerVendor,
 } from '@/lib/partnerDirectory'
+import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
 import type { Product, PaginatedResponse } from '@/types'
 import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
 import { mediaUrl } from '@/lib/utils'
@@ -95,13 +96,17 @@ export default function PartnerDetail() {
         setVisitCount(profile.visit_count ?? 0)
         setVendorContext(profile.slug, profile.id)
 
-        // Record visit (best-effort; don't block UI)
-        apiClient
-          .post<{ visit_count: number }>(`/catalog/vendor/${slug}/visit`)
-          .then((r) => {
-            if (!cancelled) setVisitCount(r.data.visit_count)
-          })
-          .catch(() => {})
+        // Unique visit (once per browser session client-side; 24h server-side)
+        if (slug && claimSessionTrack('partner', slug)) {
+          apiClient
+            .post<{ visit_count: number }>(`/catalog/vendor/${slug}/visit`, {
+              visitor_id: getVisitorId(),
+            })
+            .then((r) => {
+              if (!cancelled) setVisitCount(r.data.visit_count)
+            })
+            .catch(() => {})
+        }
 
         const productsRes = await apiClient.get<PaginatedResponse<Product>>(
           '/catalog/products',

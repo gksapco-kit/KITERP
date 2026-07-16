@@ -1,6 +1,7 @@
 # app/api/v1/catalog.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, status, Query, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from uuid import UUID
@@ -25,11 +26,16 @@ from app.utils.geo import haversine_km
 from app.utils.vendor_storefront import vendor_live_on_storefront
 from app.services.storefront_theme_config import normalize_theme_config, theme_config_needs_migration
 from app.utils.social_link_normalize import normalize_social_links
+from app.utils.view_dedupe import claim_unique_view, visitor_key_from_request
 
 router = APIRouter()
 
 _VISIT_COUNT_KEY = "storefront_visit_count"
 _PLACEHOLDER_LOCATION = re.compile(r"^(?:[-–—._\s]+|n/?a|null|undefined|none|unknown|0+)$", re.I)
+
+
+class TrackViewBody(BaseModel):
+    visitor_id: Optional[str] = Field(None, max_length=120)
 
 
 def _vendor_visit_count(vendor) -> int:
@@ -363,9 +369,11 @@ async def list_storefront_vendors(
 @router.post("/vendor/{vendor_slug}/visit")
 async def record_vendor_visit(
     vendor_slug: str,
+    request: Request,
+    body: TrackViewBody = Body(default_factory=TrackViewBody),
     db: AsyncSession = Depends(get_db),
 ):
-    """Increment public storefront visit count when a partner profile is opened."""
+    """Count a unique partner-profile visit (once per visitor per 24h)."""
     from sqlalchemy.orm.attributes import flag_modified
 
     repo = VendorRepository(db)
@@ -373,13 +381,19 @@ async def record_vendor_visit(
     if not vendor or not vendor_live_on_storefront(vendor.status):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
+    current = _vendor_visit_count(vendor)
+    visitor_key = visitor_key_from_request(body.visitor_id, request)
+    counted = await claim_unique_view("partner", str(vendor.id), visitor_key)
+    if not counted:
+        return {"slug": vendor.slug, "visit_count": current, "counted": False}
+
     settings = dict(vendor.settings) if isinstance(vendor.settings, dict) else {}
-    next_count = _vendor_visit_count(vendor) + 1
+    next_count = current + 1
     settings[_VISIT_COUNT_KEY] = next_count
     vendor.settings = settings
     flag_modified(vendor, "settings")
     await db.commit()
-    return {"slug": vendor.slug, "visit_count": next_count}
+    return {"slug": vendor.slug, "visit_count": next_count, "counted": True}
 
 
 @router.get("/vendor/{vendor_slug}/distance")
@@ -809,7 +823,7 @@ async def get_product(
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a specific product by slug."""
+    """Get a specific product by slug (does not increment view_count)."""
     repo = ProductRepository(db)
     product = await repo.find_by_slug(vendor_id, slug)
 
@@ -818,10 +832,6 @@ async def get_product(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found"
         )
-
-    product.view_count = (product.view_count or 0) + 1
-    await db.commit()
-    await db.refresh(product)
 
     review_repo = ReviewRepository(db)
     d = _product_to_dict(product)
@@ -837,6 +847,40 @@ async def get_product(
     d["upsell_products"] = merch["upsell"]
 
     return JSONResponse(content=d)
+
+
+@router.post("/products/{slug}/view")
+async def record_product_view(
+    slug: str,
+    request: Request,
+    body: TrackViewBody = Body(default_factory=TrackViewBody),
+    vendor_id: UUID = Depends(get_vendor_id_from_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Count a unique product detail view (once per visitor per 24h)."""
+    repo = ProductRepository(db)
+    product = await repo.find_by_slug(vendor_id, slug)
+
+    if not product or product.status != "active" or not product.is_visible:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+
+    current = int(product.view_count or 0)
+    visitor_key = visitor_key_from_request(body.visitor_id, request)
+    counted = await claim_unique_view("product", str(product.id), visitor_key)
+    if not counted:
+        return {"slug": product.slug, "view_count": current, "counted": False}
+
+    product.view_count = current + 1
+    await db.commit()
+    await db.refresh(product)
+    return {
+        "slug": product.slug,
+        "view_count": int(product.view_count or 0),
+        "counted": True,
+    }
 
 
 async def _product_to_card(p, review_repo: ReviewRepository) -> dict:

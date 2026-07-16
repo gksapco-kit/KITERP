@@ -20,10 +20,12 @@ import {
 } from '@/lib/variantOptions'
 import { ClassicDetail, ModernDetail, MinimalDetail, ProductQuoteModal } from './templates'
 import { trackView } from '@/lib/recentlyViewed'
+import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
 import { assertCanAddToCart, getMaxAddQuantity, getMinAddQuantity, getOnHandQuantity } from '@/lib/stockValidation'
 import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
 import { setPendingBuyNow } from '@/lib/pendingBuyNow'
 import { isSignInMandatory } from '@/lib/deliveryConditions'
+import { storeApi } from '@/api/store'
 import { toast } from 'sonner'
 
 export default function ProductDetail() {
@@ -173,6 +175,13 @@ export default function ProductDetail() {
       currency: displayCurrency,
     })
   }, [product?.id, displayPrice, displayCurrency, storePath, product?.images, product?.name, product?.slug])
+
+  // Unique product view (once per browser session; 24h server-side dedupe)
+  useEffect(() => {
+    if (!product?.slug) return
+    if (!claimSessionTrack('product', product.slug)) return
+    storeApi.recordProductView(product.slug, getVisitorId()).catch(() => {})
+  }, [product?.slug])
 
   const variantColors = useMemo(() => {
     const options = getProductPageColorOptions(activeVariants, product?.images)
