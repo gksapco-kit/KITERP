@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingBag, Star, Heart, FolderTree } from 'lucide-react'
+import { ShoppingBag, Star, Heart, FolderTree, Eye } from 'lucide-react'
 import { useAddToCart, useCart, useCartProductQtyMap, useSetCatalogCartQty } from '@/hooks/useStore'
 import { useStorePath } from '@/hooks/useStorePath'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
@@ -106,6 +106,25 @@ function resolveCategoryCardText(
   if (props.tile_text) return props.tile_text
   if (darkSection) return '#f9fafb'
   return style.text_color || '#111827'
+}
+
+function productViewCount(item: LiveItem): number | null {
+  const raw = item.meta?.view_count
+  if (raw == null || raw === '') return null
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null
+}
+
+function ProductViewBadge({ count }: { count: number }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-black/55 backdrop-blur-sm text-white text-[11px] font-semibold px-2 py-0.5 shadow-sm"
+      title={`${count.toLocaleString()} views`}
+    >
+      <Eye className="w-3 h-3 shrink-0" aria-hidden />
+      {count.toLocaleString()}
+    </span>
+  )
 }
 
 function resolveCategoryCardPropData(
@@ -1069,6 +1088,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               const cartQty = cartQtyByProduct.get(String(item.id)) ?? 0
               const isPh = String(item.id || '').startsWith('ph-') || String(item.id || '').startsWith('wl-showcase-')
               const isShowcase = !!(item.meta as Record<string, unknown>)?.is_category_showcase
+              const views = productViewCount(item)
               return (
                 <div key={item.id || item.title} className="group">
                   {isEditorCanvas ? (
@@ -1109,9 +1129,12 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-300" /></div>
                         )}
-                        {showBadges && !!item.meta?.is_featured && (
-                          <span style={{ backgroundColor: style.primary_color, color: '#fff' }} className="absolute top-3 left-3 text-xs uppercase tracking-[0.2em] px-2 py-1">Featured</span>
-                        )}
+                        <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 items-start pointer-events-none">
+                          {views != null && <ProductViewBadge count={views} />}
+                          {showBadges && !!item.meta?.is_featured && (
+                            <span style={{ backgroundColor: style.primary_color, color: '#fff' }} className="text-xs uppercase tracking-[0.2em] px-2 py-1">Featured</span>
+                          )}
+                        </div>
                         {!isPh && (
                           <div
                             className="absolute bottom-3 left-3 right-3 h-10 text-xs uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-semibold"
@@ -1150,9 +1173,12 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-300" /></div>
                       )}
-                      {showBadges && !!item.meta?.is_featured && (
-                        <span style={{ backgroundColor: style.primary_color, color: '#fff' }} className="absolute top-3 left-3 text-xs uppercase tracking-[0.2em] px-2 py-1">Featured</span>
-                      )}
+                      <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 items-start pointer-events-none">
+                        {views != null && <ProductViewBadge count={views} />}
+                        {showBadges && !!item.meta?.is_featured && (
+                          <span style={{ backgroundColor: style.primary_color, color: '#fff' }} className="text-xs uppercase tracking-[0.2em] px-2 py-1">Featured</span>
+                        )}
+                      </div>
                       {!isPh && (
                         <div
                           className="absolute bottom-3 left-3 right-3 h-10 text-xs uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-semibold"
@@ -1268,6 +1294,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             const cartQty = cartQtyByProduct.get(String(item.id)) ?? 0
             const isAdding = addToCart.isPending && addToCart.variables && (addToCart.variables as any).product_id === item.id
             const outOfStock = item.meta?.stock_status === 'out_of_stock'
+            const views = productViewCount(item)
             const imageShell = buildCatalogImageShell({
               imageHeightPct,
               imageAspect,
@@ -1310,9 +1337,12 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                         <ShoppingBag className={isMinimalCard ? 'w-8 h-8' : 'w-12 h-12'} />
                       </div>
                     )}
-                    {showBadges && !!item.meta?.is_on_sale && (
-                      <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">SALE</span>
-                    )}
+                    <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 items-start pointer-events-none">
+                      {views != null && <ProductViewBadge count={views} />}
+                      {showBadges && !!item.meta?.is_on_sale && (
+                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">SALE</span>
+                      )}
+                    </div>
                     {showBadges && !!item.meta?.is_featured && (
                       <span className="absolute top-2 right-2 bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><Star className="w-3 h-3" />Featured</span>
                     )}

@@ -863,6 +863,7 @@ export default function ProductList() {
                   rating: (item.avg_rating ?? 0) > 0 ? { value: item.avg_rating, count: item.review_count ?? 0 } : undefined,
                   tags: item.tags || [],
                 } as any)
+                kitProduct.viewCount = item.view_count ?? 0
 
                 return (
                   <ProductCard

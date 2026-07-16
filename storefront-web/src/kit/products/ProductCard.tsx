@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
-import { Star } from "lucide-react";
+import { Eye, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ProductWishlistButton } from "@/components/products/ProductWishlistButton";
 import { ProductThumb } from "@/components/products/ProductThumb";
@@ -214,9 +214,20 @@ export function ProductCard({
             />
           </div>
         </Link>
-        {showTags && product.tags?.[0] && (
-          <Badge className="absolute top-2 left-2 z-10 capitalize pointer-events-none">{product.tags[0]}</Badge>
-        )}
+        <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 items-start pointer-events-none">
+          {typeof product.viewCount === "number" && product.viewCount >= 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-black/55 backdrop-blur-sm text-white text-[11px] font-semibold px-2 py-0.5 shadow-sm"
+              title={`${product.viewCount.toLocaleString()} views`}
+            >
+              <Eye className="h-3 w-3 shrink-0" aria-hidden />
+              {product.viewCount.toLocaleString()}
+            </span>
+          )}
+          {showTags && product.tags?.[0] && (
+            <Badge className="capitalize">{product.tags[0]}</Badge>
+          )}
+        </div>
         {displayCompare && displayCompare > displayPrice && (
           <Badge variant="destructive" className="absolute bottom-2 left-2 z-10 pointer-events-none">
             -{Math.round(((displayCompare - displayPrice) / displayCompare) * 100)}%

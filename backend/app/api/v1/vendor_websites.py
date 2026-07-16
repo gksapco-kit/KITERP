@@ -4100,6 +4100,7 @@ async def _fetch_live_resource_items(
                     "currency": p.currency,
                     "offer_label": p.offer_label,
                     "price_from_variants": price_fields["price_from_variants"],
+                    "view_count": int(p.view_count or 0),
                 },
             ))
 

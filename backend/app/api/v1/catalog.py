@@ -851,6 +851,7 @@ async def _product_to_card(p, review_repo: ReviewRepository) -> dict:
         "images": [{"id": str(img.id), "url": img.url, "alt_text": img.alt_text, "is_primary": img.is_primary, "media_type": img.media_type or "image"} for img in (p.images or [])],
         "avg_rating": stats["avg_rating"],
         "review_count": stats["review_count"],
+        "view_count": int(p.view_count or 0),
         "stock_status": p.stock_status or "in_stock",
         "brand": p.brand,
         "category": p.category,

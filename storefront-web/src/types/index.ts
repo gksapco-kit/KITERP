@@ -55,6 +55,7 @@ export interface ProductCard {
   price: number; compare_at_price?: number; currency?: string
   images: { id: string; url: string; alt_text?: string; is_primary: boolean; media_type?: 'image' | 'video' | 'model3d' }[]
   avg_rating?: number; review_count?: number
+  view_count?: number
   stock_status?: string; brand?: string; category?: string
 }
 

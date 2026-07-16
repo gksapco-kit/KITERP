@@ -27,6 +27,7 @@ export interface Product {
   images?: Array<string | { url: string; alt_text?: string }>;
   rating?: number;
   reviewCount?: number;
+  viewCount?: number;
   tags?: string[];
   inStock?: boolean;
   description?: string;

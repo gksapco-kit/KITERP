@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Globe, MapPin, Users } from 'lucide-react'
+import { ArrowLeft, Eye, Globe, MapPin, Users } from 'lucide-react'
 import { apiClient, setVendorContext } from '@/api/client'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
@@ -275,8 +275,9 @@ export default function PartnerDetail() {
                           className="block relative rounded-2xl overflow-hidden bg-[#1a3d2e] aspect-[4/3] ring-1 ring-[#1e3d34]/10 transition group-hover/card:ring-[#64C3A0]/35"
                         >
                           <ProductOfferThumb name={p.name} src={img} />
-                          <span className="absolute bottom-2 right-2 z-10 rounded-full bg-white/95 backdrop-blur px-2.5 py-0.5 text-[11px] font-semibold text-[#1e3d34] shadow-sm">
-                            {views.toLocaleString()} Views
+                          <span className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-1 rounded-full bg-white/95 backdrop-blur px-2.5 py-0.5 text-[11px] font-semibold text-[#1e3d34] shadow-sm">
+                            <Eye className="w-3 h-3" aria-hidden />
+                            {views.toLocaleString()}
                           </span>
                         </Link>
                         {waHref ? (
