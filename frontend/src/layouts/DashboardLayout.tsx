@@ -17,6 +17,7 @@ import {
   Table2,
   MessageSquareText,
   LayoutTemplate,
+  BarChart3,
   X,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
@@ -40,6 +41,7 @@ const adminNavItemsSuperuser = [
   { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts' },
   { to: '/dashboard/plans', icon: CreditCard, label: 'Plans' },
   { to: '/dashboard/templates', icon: LayoutTemplate, label: 'All Templates' },
+  { to: '/dashboard/website-analytics', icon: BarChart3, label: 'Website Analytics' },
   { to: '/dashboard/platform-team', icon: Headphones, label: 'Support team' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: '/dashboard/queries', icon: MessageSquareText, label: 'Queries' },
@@ -51,6 +53,7 @@ const adminNavItemsSuperuser = [
 const adminNavItemsSupport = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts' },
+  { to: '/dashboard/website-analytics', icon: BarChart3, label: 'Website Analytics' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: '/dashboard/queries', icon: MessageSquareText, label: 'Queries' },
 ]
@@ -103,7 +106,7 @@ export default function DashboardLayout() {
   const closeSidebar = () => setSidebarOpen(false)
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-gray-50">
+    <div className="min-h-screen overflow-x-hidden bg-gray-50">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <button

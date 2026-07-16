@@ -551,6 +551,7 @@ const allSections: NavSection[] = [
       { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
       { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
       { to: '/websites/seo', icon: Search, label: 'SEO Management', alwaysShow: true },
+      { to: '/websites/analytics', icon: BarChart3, label: 'Website Analytics', alwaysShow: true },
     ],
   },
   {
@@ -1159,6 +1160,7 @@ const pageTitles: Record<string, string> = {
   '/purchase-orders/templates': 'PO Templates',
   '/websites': 'Business Website Builder',
   '/websites/seo': 'SEO Management',
+  '/websites/analytics': 'Website Analytics',
   '/websites/templates': 'Business Website Templates',
   '/blog': 'Blog Manager',
   '/finance/basic': 'Finance',

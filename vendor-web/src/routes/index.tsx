@@ -219,6 +219,7 @@ import BlogManagerPage from '@/pages/blog/index'
 import WebsitesPage from '@/pages/websites/index'
 import WebsiteBuilder from '@/pages/websites/Builder'
 import SEOManagementPage from '@/pages/websites/SEOManagement'
+import WebsiteAnalyticsPage from '@/pages/websites/WebsiteAnalytics'
 import WebsiteSubmissions from '@/pages/websites/Submissions'
 import WebsiteTemplateGallery from '@/pages/websites/TemplateGallery'
 import StorefrontBrowserPreviewShell from '@/pages/websites/StorefrontBrowserPreviewShell'
@@ -381,6 +382,7 @@ export const router = createBrowserRouter([
       /* Static path must be above :siteId or "templates" is treated as a site id. */
       { path: 'websites/templates', element: <WebsiteTemplateGallery /> },
       { path: 'websites/seo', element: <SEOManagementPage /> },
+      { path: 'websites/analytics', element: <WebsiteAnalyticsPage /> },
       { path: 'websites/:siteId', element: <WebsiteBuilder /> },
       { path: 'websites/:siteId/submissions', element: <WebsiteSubmissions /> },
       { path: 'website-templates', element: <Navigate to="/websites/templates" replace /> },

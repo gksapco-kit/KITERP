@@ -35,6 +35,7 @@ export const CANONICAL_SIDEBAR_SECTION_IDS = [
 export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/websites': 'website-management',
   '/websites/seo': 'website-management',
+  '/websites/analytics': 'website-management',
   '/websites/templates': 'website-management',
   '/system/storefront-display': 'website-management',
   '/system/social-links': 'website-management',
@@ -53,6 +54,7 @@ const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/system/social-links': '/system/storefront-display',
   '/blog': '/system/social-links',
   '/websites/seo': '/blog',
+  '/websites/analytics': '/websites/seo',
   '/system/messages': '/crm/integrations',
   '/crm/integrations': '/system/modules',
   '/team': '/system/browse-table',
@@ -324,6 +326,7 @@ export function reconcileNavPlacements(
     '/system/social-links',
     '/blog',
     '/websites/seo',
+    '/websites/analytics',
   ]
   const websiteManagementRoutes = websiteManagementOrder.filter((to) => validTos.has(to))
   if (websiteManagementRoutes.length && out['website-management']) {

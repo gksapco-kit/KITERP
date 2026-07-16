@@ -10,7 +10,7 @@ from app.api.v1 import (
     vendor_bookings, vendor_projects, vendor_notifications, vendor_merchandising, vendor_loyalty,
     vendor_mrp, vendor_hr, vendor_hr_extra, vendor_stores, vendor_sales_area, vendor_message_config, vendor_production,
     vendor_production_ops, vendor_production_analytics,
-    catalog, admin, admin_website_templates, app_builds,
+    catalog, admin,     admin_website_templates, app_builds,
     store_auth, store_hr, store_cart, store_checkout, store_orders, store_notifications, store_reviews, store_coupons,
     store_bookings, store_wishlist, store_marketplace, store_subscriptions, store_rentals,
     uploads,
@@ -20,6 +20,7 @@ from app.api.v1 import (
     vendor_controlling_area,
     vendor_commission,
     vendor_schema_catalog,
+    vendor_website_analytics,
     vendor_websites,
     public_sites,
     vendor_blog,
@@ -41,6 +42,7 @@ from app.api.v1 import (
     vendor_subscriptions,
     vendor_rentals,
     admin_schema_catalog,
+    admin_website_analytics,
     vendor_procurement_sourcing,
     vendor_procurement_requisition,
     vendor_procurement_invoice,
@@ -58,6 +60,11 @@ api_router.include_router(
     admin_website_templates.router,
     prefix="/admin",
     tags=["Admin Website Templates"],
+)
+api_router.include_router(
+    admin_website_analytics.router,
+    prefix="/admin",
+    tags=["Admin Website Analytics"],
 )
 api_router.include_router(admin_schema_catalog.router, prefix="/admin/schema", tags=["Admin Schema"])
 
@@ -172,6 +179,12 @@ api_router.include_router(vendor_booking_wizard_steps.router, prefix="/vendors/m
 api_router.include_router(vendor_booking_resources.router, prefix="/vendors/me/booking-resources", tags=["Vendor Booking Resources"])
 
 # ── Website Builder ───────────────────────────────────────────────
+# Analytics must be registered before the catch-all /{site_id} routes.
+api_router.include_router(
+    vendor_website_analytics.router,
+    prefix="/vendors/me/websites",
+    tags=["Website Analytics"],
+)
 api_router.include_router(vendor_websites.router, prefix="/vendors/me/websites", tags=["Website Builder"])
 
 # ── Public Sites (business front renderer, no auth) ───────────────────

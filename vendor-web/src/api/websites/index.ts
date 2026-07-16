@@ -11,8 +11,53 @@ import type {
 
 const base = '/vendors/me/websites'
 
+export type WebsiteAnalyticsPageRow = {
+  path: string
+  views: number
+  unique_visitors: number
+  active_users: number
+}
+
+export type WebsiteAnalyticsProductRow = {
+  id: string | null
+  name: string
+  slug: string
+  view_count: number
+  image_url: string | null
+  source: 'catalog' | 'journey'
+}
+
+export type WebsiteAnalyticsReport = {
+  summary: {
+    total_page_views: number
+    unique_visitors: number
+    total_product_views: number
+    pages_tracked: number
+    realtime_active_users: number
+  }
+  pages: WebsiteAnalyticsPageRow[]
+  products: WebsiteAnalyticsProductRow[]
+  filters: {
+    business_unit_id: string | null
+    branch_id: string | null
+    days: number
+    limit: number
+  }
+}
+
 // ── Sites ─────────────────────────────────────────────────────────────────────
 export const websiteApi = {
+  // Analytics
+  getAnalytics: (params?: {
+    business_unit_id?: string
+    branch_id?: string
+    days?: number
+    limit?: number
+  }) =>
+    apiClient
+      .get<WebsiteAnalyticsReport>(`${base}/analytics`, { params })
+      .then(r => r.data),
+
   // Sites
   listSites: () => apiClient.get<SiteListItem[]>(`${base}/`).then(r => r.data),
   createSite: (data: Partial<WebsiteSite>) => apiClient.post<WebsiteSite>(`${base}/`, data).then(r => r.data),

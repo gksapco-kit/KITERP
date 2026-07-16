@@ -399,6 +399,22 @@ export const adminApi = {
     return response.data
   },
 
+  getWebsiteAnalytics: async (params?: {
+    vendor_id?: string
+    business_unit_id?: string
+    branch_id?: string
+    days?: number
+    limit?: number
+  }): Promise<AdminWebsiteAnalyticsReport> => {
+    const response = await apiClient.get('/admin/website-analytics', { params })
+    return response.data
+  },
+
+  listVendorStores: async (vendorId: string): Promise<AdminVendorStoresResponse> => {
+    const response = await apiClient.get(`/admin/vendors/${vendorId}/stores`)
+    return response.data
+  },
+
   getWebsiteTemplate: async (siteId: string): Promise<AdminWebsiteTemplateDetail> => {
     const response = await apiClient.get(`/admin/website-templates/${siteId}`)
     return response.data
@@ -529,4 +545,62 @@ export interface OrderDisputeListResponse {
   page: number
   size: number
   pages: number
+}
+
+export type AdminWebsiteAnalyticsPageRow = {
+  path: string
+  views: number
+  unique_visitors: number
+  active_users: number
+  vendor_id?: string
+  vendor_slug?: string
+  vendor_name?: string
+}
+
+export type AdminWebsiteAnalyticsProductRow = {
+  id: string | null
+  name: string
+  slug: string
+  view_count: number
+  image_url: string | null
+  source: 'catalog' | 'journey'
+  vendor_id?: string
+  vendor_slug?: string
+  vendor_name?: string
+}
+
+export type AdminWebsiteAnalyticsReport = {
+  summary: {
+    total_page_views: number
+    unique_visitors: number
+    total_product_views: number
+    pages_tracked: number
+    realtime_active_users: number
+  }
+  pages: AdminWebsiteAnalyticsPageRow[]
+  products: AdminWebsiteAnalyticsProductRow[]
+  filters: {
+    vendor_id?: string | null
+    vendor_ids?: string[]
+    business_unit_id?: string | null
+    branch_id?: string | null
+    days: number
+    limit: number
+  }
+}
+
+export type AdminStoreBrief = {
+  id: string
+  name: string
+  code?: string | null
+  unit_type: string
+  parent_id?: string | null
+  is_default?: boolean
+  is_active?: boolean
+}
+
+export type AdminVendorStoresResponse = {
+  vendor_id: string
+  business_units: AdminStoreBrief[]
+  branches: AdminStoreBrief[]
 }

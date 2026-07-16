@@ -156,6 +156,17 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     ],
   },
   {
+    kind: 'nav', id: 'website-analytics',
+    label: 'Website Analytics',
+    description: 'Website Management → Storefront page views and product view counts',
+    section: 'Website Management', sectionId: 'website-management',
+    to: '/websites/analytics',
+    keywords: [
+      'analytics', 'website analytics', 'page views', 'product views', 'traffic',
+      'realtime', 'visitors', 'google analytics', 'eye count', 'branch filter',
+    ],
+  },
+  {
     kind: 'nav', id: 'settings-main',
     label: 'Settings',
     description: 'My Kit → Business Unit / Store settings',
