@@ -98,7 +98,35 @@ class SupplierService:
         return supplier
 
     async def delete(self, vendor_id: UUID, supplier_id: UUID) -> None:
+        from sqlalchemy import delete as sa_delete
+
+        from app.models.business_partner import BusinessPartner, BusinessPartnerRole
+
         supplier = await self._get(vendor_id, supplier_id)
+
+        role_rows = (
+            await self.db.execute(
+                select(BusinessPartnerRole.business_partner_id).where(
+                    BusinessPartnerRole.supplier_id == supplier_id
+                )
+            )
+        ).all()
+        bp_ids = {row[0] for row in role_rows if row[0]}
+        await self.db.execute(
+            sa_delete(BusinessPartnerRole).where(BusinessPartnerRole.supplier_id == supplier_id)
+        )
+        for bp_id in bp_ids:
+            remaining = int(
+                await self.db.scalar(
+                    select(func.count())
+                    .select_from(BusinessPartnerRole)
+                    .where(BusinessPartnerRole.business_partner_id == bp_id)
+                )
+                or 0
+            )
+            if remaining == 0:
+                await self.db.execute(sa_delete(BusinessPartner).where(BusinessPartner.id == bp_id))
+
         try:
             await self.db.delete(supplier)
             await self.db.commit()
@@ -106,7 +134,7 @@ class SupplierService:
             await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Cannot delete supplier — they have linked purchase orders",
+                detail="Cannot delete supplier — they have linked purchase orders. Deactivate instead.",
             )
 
     async def get(self, vendor_id: UUID, supplier_id: UUID) -> Supplier:

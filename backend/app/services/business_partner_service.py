@@ -8,22 +8,35 @@ BusinessPartnerService orchestrates:
 """
 from __future__ import annotations
 
+import asyncio
 from uuid import UUID
 from typing import Optional, List
 
 from fastapi import HTTPException, status
-from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import get_password_hash
 from app.models.business_partner import BusinessPartner, BusinessPartnerRole
 from app.models.customer import Customer
 from app.models.procurement import Supplier
 from app.repositories.business_partner_repo import BusinessPartnerRepository
-
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.services.sms_service import is_valid_e164, normalize_e164
 
 # Roles that map to the supplier table
 _SUPPLIER_PARTY_TYPES = {"vendor", "employee", "partner", "contractor"}
+
+
+def _normalize_phone(raw: Optional[str]) -> Optional[str]:
+    if not raw or not str(raw).strip():
+        return None
+    phone = normalize_e164(str(raw).strip())
+    if not is_valid_e164(phone):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Enter a valid mobile number (e.g. 9703200341 or +919703200341)",
+        )
+    # customer.phone is String(20)
+    return phone[:20]
 
 
 class BusinessPartnerService:
@@ -84,12 +97,13 @@ class BusinessPartnerService:
         the customer role's `attributes.customer_group`.
         """
         raw_password = bp.phone or "Welcome@123"
+        password_hash = await asyncio.to_thread(get_password_hash, raw_password)
         customer = Customer(
             vendor_id=vendor_id,
             full_name=bp.name,
-            email=bp.email,
+            email=(bp.email or "").strip().lower() or None,
             phone=bp.phone,
-            password_hash=_pwd.hash(raw_password),
+            password_hash=password_hash,
             gstin=bp.gstin,
             pan_number=bp.pan_number,
             cin=bp.cin,
@@ -165,6 +179,11 @@ class BusinessPartnerService:
         `roles` is a list of {role: str, attributes: dict|None}.
         Raises 409 on duplicate (same name/phone/email/GSTIN already has a BP).
         """
+        if data.get("phone"):
+            data["phone"] = _normalize_phone(data.get("phone"))
+        if data.get("email"):
+            data["email"] = str(data["email"]).strip().lower() or None
+
         duplicate = await self.repo.find_duplicate(
             vendor_id,
             data.get("name", ""),
@@ -182,6 +201,9 @@ class BusinessPartnerService:
                     "existing_roles": [r.role for r in (duplicate.roles or [])],
                 },
             )
+
+        if not roles:
+            roles = [{"role": "customer", "attributes": None}]
 
         bp = BusinessPartner(vendor_id=vendor_id, **data)
         await self.repo.create(bp)

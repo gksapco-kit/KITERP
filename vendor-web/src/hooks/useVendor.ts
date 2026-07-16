@@ -739,9 +739,10 @@ export function useDeleteCustomer() {
     mutationFn: (id: string) => vendorApi.deleteCustomer(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'customers'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'business-partners'] })
       toast.success('Customer deleted')
     },
-    onError: apiError('Could not delete customer — they may have linked orders'),
+    onError: apiError('Could not delete customer'),
   })
 }
 
@@ -1075,8 +1076,12 @@ export function useDeleteSupplier() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.deleteSupplier(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'suppliers'] }); toast.success('Supplier deleted') },
-    onError: apiError('Could not delete supplier — they may have linked purchase orders'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'suppliers'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'business-partners'] })
+      toast.success('Supplier deleted')
+    },
+    onError: apiError('Could not delete supplier'),
   })
 }
 

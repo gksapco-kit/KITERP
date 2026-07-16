@@ -212,8 +212,8 @@ def is_sign_in_mandatory(vendor: Vendor) -> bool:
     settings = vendor.settings if isinstance(vendor.settings, dict) else {}
     conditions = settings.get("delivery_conditions")
     if not isinstance(conditions, dict):
-        return False
-    return conditions.get("sign_in_mandatory") is True
+        return True
+    return conditions.get("sign_in_mandatory") is not False
 
 
 def resolve_shipping_amount(

@@ -1551,10 +1551,9 @@ export default function MasterDataReport() {
       } else {
         await deleteCustomer.mutateAsync(deleteTarget.id)
       }
-      toast.success(`${deleteTarget.name} deleted`)
       setDeleteTarget(null)
     } catch {
-      toast.error('Failed to delete record')
+      /* toast handled by deleteCustomer / deleteSupplier hooks */
     } finally {
       setDeleteBusy(false)
     }

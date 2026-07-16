@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from uuid import UUID
 import math
+import re
 
 from app.database import get_db
 from app.middleware.tenant import get_current_vendor_id as get_tenant_vendor_id
@@ -26,6 +27,220 @@ from app.services.storefront_theme_config import normalize_theme_config, theme_c
 from app.utils.social_link_normalize import normalize_social_links
 
 router = APIRouter()
+
+_VISIT_COUNT_KEY = "storefront_visit_count"
+_PLACEHOLDER_LOCATION = re.compile(r"^(?:[-–—._\s]+|n/?a|null|undefined|none|unknown|0+)$", re.I)
+
+
+def _vendor_visit_count(vendor) -> int:
+    settings = vendor.settings if isinstance(vendor.settings, dict) else {}
+    try:
+        return max(0, int(settings.get(_VISIT_COUNT_KEY) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _clean_location_part(value) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or _PLACEHOLDER_LOCATION.match(text):
+        return None
+    return text
+
+
+def _store_address_fields(store) -> Optional[dict]:
+    """Map Store.address JSON → partner directory address fields."""
+    raw = store.address if isinstance(getattr(store, "address", None), dict) else {}
+    street = _clean_location_part(raw.get("street"))
+    city = _clean_location_part(raw.get("city"))
+    state = _clean_location_part(raw.get("state"))
+    postal = _clean_location_part(raw.get("pincode") or raw.get("postal_code"))
+    country = _clean_location_part(raw.get("country"))
+    if not any((street, city, state, postal)):
+        return None
+
+    lat = raw.get("latitude")
+    lon = raw.get("longitude")
+    try:
+        latitude = float(lat) if lat is not None and lat != "" else None
+    except (TypeError, ValueError):
+        latitude = None
+    try:
+        longitude = float(lon) if lon is not None and lon != "" else None
+    except (TypeError, ValueError):
+        longitude = None
+
+    return {
+        "street_address": street,
+        "city": city,
+        "state": state,
+        "postal_code": postal,
+        "country": country,
+        "latitude": latitude,
+        "longitude": longitude,
+        "store_name": getattr(store, "name", None),
+    }
+
+
+def _vendor_profile_address_fields(vendor) -> dict:
+    street = _clean_location_part(vendor.street_address)
+    city = _clean_location_part(vendor.city)
+    state = _clean_location_part(vendor.state)
+    postal = _clean_location_part(vendor.postal_code)
+    country = _clean_location_part(vendor.country)
+    return {
+        "street_address": street,
+        "city": city,
+        "state": state,
+        "postal_code": postal,
+        "country": country,
+        "latitude": float(vendor.latitude) if vendor.latitude is not None else None,
+        "longitude": float(vendor.longitude) if vendor.longitude is not None else None,
+    }
+
+
+def _has_usable_address(fields: dict) -> bool:
+    return any(
+        fields.get(k)
+        for k in ("street_address", "city", "state", "postal_code")
+    )
+
+
+def _store_logo_url(store) -> Optional[str]:
+    """BU / store logo from settings.logo_url (per-unit branding)."""
+    if store is None:
+        return None
+    settings = store.settings if isinstance(getattr(store, "settings", None), dict) else {}
+    raw = settings.get("logo_url")
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    return None
+
+
+def _store_display_name(store) -> Optional[str]:
+    if store is None:
+        return None
+    name = getattr(store, "name", None)
+    if isinstance(name, str) and name.strip():
+        return name.strip()
+    return None
+
+
+def _store_phone(store) -> Optional[str]:
+    if store is None:
+        return None
+    phone = getattr(store, "phone", None)
+    if isinstance(phone, str) and phone.strip():
+        return phone.strip()
+    settings = store.settings if isinstance(getattr(store, "settings", None), dict) else {}
+    for key in ("whatsapp", "whatsapp_number", "phone"):
+        raw = settings.get(key)
+        if isinstance(raw, str) and raw.strip():
+            return raw.strip()
+    return None
+
+
+def _partner_whatsapp(vendor, store=None) -> str:
+    """WhatsApp from social links, else BU phone, else vendor phone."""
+    links = normalize_social_links(vendor.social_links or {})
+    from_social = (links.get("whatsapp") or "").strip()
+    if from_social:
+        return from_social
+
+    # Build wa.me from a phone number when social WhatsApp is not configured
+    candidates = [
+        _store_phone(store),
+        getattr(vendor, "support_phone", None),
+        getattr(vendor, "primary_phone", None),
+    ]
+    for raw in candidates:
+        if not isinstance(raw, str) or not raw.strip():
+            continue
+        digits = re.sub(r"\D", "", raw.strip())
+        if len(digits) >= 8:
+            return f"https://wa.me/{digits}"
+    return ""
+
+
+def _partner_directory_item(vendor, store=None) -> dict:
+    """Public partner-card payload for the Our Partners directory.
+
+    Prefer the default business-unit / store address and logo when present;
+    otherwise use the vendor profile (ignoring placeholder address values).
+    """
+    links = normalize_social_links(vendor.social_links or {})
+    profile = _vendor_profile_address_fields(vendor)
+    store_name = _store_display_name(store)
+    address = profile
+
+    store_fields = _store_address_fields(store) if store is not None else None
+    if store_fields:
+        # Address helper may also carry store_name; keep the resolved display name
+        store_fields.pop("store_name", None)
+        if store_fields.get("latitude") is None:
+            store_fields["latitude"] = profile.get("latitude")
+        if store_fields.get("longitude") is None:
+            store_fields["longitude"] = profile.get("longitude")
+        address = store_fields
+    elif not _has_usable_address(profile):
+        address = {
+            "street_address": None,
+            "city": None,
+            "state": None,
+            "postal_code": None,
+            "country": None,
+            "latitude": profile.get("latitude"),
+            "longitude": profile.get("longitude"),
+        }
+
+    logo_url = _store_logo_url(store) or (vendor.logo_url or None)
+
+    return {
+        "slug": vendor.slug,
+        "display_name": vendor.display_name or vendor.business_name,
+        "business_name": vendor.business_name,
+        "logo_url": logo_url,
+        "street_address": address.get("street_address"),
+        "city": address.get("city"),
+        "state": address.get("state"),
+        "postal_code": address.get("postal_code"),
+        "country": address.get("country"),
+        "latitude": address.get("latitude"),
+        "longitude": address.get("longitude"),
+        "store_name": store_name,
+        "social_links": {
+            "whatsapp": _partner_whatsapp(vendor, store),
+            "website": links.get("website") or "",
+        },
+        "business_hours": vendor.business_hours or {},
+        "visit_count": _vendor_visit_count(vendor),
+    }
+
+
+async def _default_stores_by_vendor(db: AsyncSession, vendor_ids: list) -> dict:
+    """Pick one active store per vendor: default first, else first with an address."""
+    if not vendor_ids:
+        return {}
+    from sqlalchemy import select
+    from app.models.store import Store
+
+    result = await db.execute(
+        select(Store)
+        .where(Store.vendor_id.in_(vendor_ids), Store.is_active == True)
+        .order_by(Store.is_default.desc(), Store.name.asc())
+    )
+    stores = list(result.scalars().all())
+    chosen: dict = {}
+    for store in stores:
+        vid = store.vendor_id
+        if vid not in chosen:
+            chosen[vid] = store
+            continue
+        # Prefer a store that actually has address details over an empty default
+        if not _store_address_fields(chosen[vid]) and _store_address_fields(store):
+            chosen[vid] = store
+    return chosen
 
 
 async def get_vendor_id_from_tenant(
@@ -131,22 +346,40 @@ async def list_storefront_vendors(
 ):
     """
     Public directory of vendors that can be opened on the path-based business front
-    (``/store/{slug}``). Used by the marketing landing page for suggestions.
+    (``/store/{slug}``). Used by the marketing landing page and Our Partners page.
     """
     repo = VendorRepository(db)
     items, total = await repo.list_storefront_directory(search=q, skip=0, limit=limit)
+    stores_by_vendor = await _default_stores_by_vendor(db, [v.id for v in items])
     return JSONResponse(content={
         "items": [
-            {
-                "slug": v.slug,
-                "display_name": v.display_name or v.business_name,
-                "business_name": v.business_name,
-                "logo_url": v.logo_url,
-            }
+            _partner_directory_item(v, stores_by_vendor.get(v.id))
             for v in items
         ],
         "total": total,
     })
+
+
+@router.post("/vendor/{vendor_slug}/visit")
+async def record_vendor_visit(
+    vendor_slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Increment public storefront visit count when a partner profile is opened."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    repo = VendorRepository(db)
+    vendor = await repo.find_by_slug(vendor_slug)
+    if not vendor or not vendor_live_on_storefront(vendor.status):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    settings = dict(vendor.settings) if isinstance(vendor.settings, dict) else {}
+    next_count = _vendor_visit_count(vendor) + 1
+    settings[_VISIT_COUNT_KEY] = next_count
+    vendor.settings = settings
+    flag_modified(vendor, "settings")
+    await db.commit()
+    return {"slug": vendor.slug, "visit_count": next_count}
 
 
 @router.get("/vendor/{vendor_slug}/distance")
@@ -223,6 +456,9 @@ async def get_vendor_by_slug(
     else:
         theme_payload = normalize_theme_config(raw_theme)
 
+    stores_by_vendor = await _default_stores_by_vendor(db, [vendor.id])
+    partner_addr = _partner_directory_item(vendor, stores_by_vendor.get(vendor.id))
+
     return {
         "id": str(vendor.id),
         "business_name": vendor.business_name,
@@ -230,7 +466,7 @@ async def get_vendor_by_slug(
         "slug": vendor.slug,
         "offering_type": vendor.offering_type or "both",
         "description": vendor.description,
-        "logo_url": vendor.logo_url,
+        "logo_url": partner_addr.get("logo_url") or vendor.logo_url,
         "banner_url": vendor.banner_url,
         "theme_config": theme_payload,
         "primary_email": vendor.primary_email,
@@ -238,16 +474,21 @@ async def get_vendor_by_slug(
         "support_email": vendor.support_email,
         "support_phone": vendor.support_phone,
         "settings": vendor.settings or {},
-        "street_address": vendor.street_address,
-        "city": vendor.city,
-        "state": vendor.state,
-        "postal_code": vendor.postal_code,
-        "country": vendor.country,
-        "latitude": float(vendor.latitude) if vendor.latitude else None,
-        "longitude": float(vendor.longitude) if vendor.longitude else None,
+        "street_address": partner_addr.get("street_address"),
+        "city": partner_addr.get("city"),
+        "state": partner_addr.get("state"),
+        "postal_code": partner_addr.get("postal_code"),
+        "country": partner_addr.get("country") or vendor.country,
+        "latitude": partner_addr.get("latitude"),
+        "longitude": partner_addr.get("longitude"),
+        "store_name": partner_addr.get("store_name"),
         "service_radius_km": vendor.service_radius_km,
-        "social_links": normalize_social_links(vendor.social_links or {}),
+        "social_links": {
+            **normalize_social_links(vendor.social_links or {}),
+            **(partner_addr.get("social_links") or {}),
+        },
         "business_hours": vendor.business_hours or {},
+        "visit_count": _vendor_visit_count(vendor),
         "gstin": vendor.gstin,
         "is_gst_registered": vendor.is_gst_registered,
         "default_tax_rate": float(vendor.default_tax_rate) if vendor.default_tax_rate else None,

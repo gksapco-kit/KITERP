@@ -78,6 +78,8 @@ export interface Product {
   length_cm?: number; width_cm?: number; height_cm?: number
   images: { id: string; url: string; alt_text?: string; is_primary: boolean; media_type?: 'image' | 'video' | 'model3d' }[]
   variants?: ProductVariant[]
+  view_count?: number
+  purchase_count?: number
   cross_sell_products?: ProductCard[]
   upsell_products?: ProductCard[]
   // Subscription

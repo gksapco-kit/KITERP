@@ -12,7 +12,7 @@ const DEFAULTS: DeliveryConditionsSettings = {
   free_delivery_threshold: null,
   minimum_delivery_charge: null,
   calculate_gst: null,
-  sign_in_mandatory: false,
+  sign_in_mandatory: true,
 }
 
 function parsePositiveNumber(value: unknown): number | null {
@@ -43,7 +43,7 @@ export function readDeliveryConditions(
       obj.minimum_delivery_charge ?? obj.min_delivery_charge,
     ),
     calculate_gst: calculateGst,
-    sign_in_mandatory: obj.sign_in_mandatory === true,
+    sign_in_mandatory: obj.sign_in_mandatory !== false,
   }
 }
 

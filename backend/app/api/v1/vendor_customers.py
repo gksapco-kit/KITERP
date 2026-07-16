@@ -492,11 +492,121 @@ async def delete_customer(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Delete a master-data customer.
+
+    Clears soft links created on master-data create (business-partner role, CRM,
+    cart/wishlist, etc.). Blocks only when transactional history exists.
+    """
+    from sqlalchemy import delete as sa_delete, func, select, update
+
+    from app.models.booking import Booking
+    from app.models.business_partner import BusinessPartner, BusinessPartnerRole
+    from app.models.cart import Cart
+    from app.models.coupon import CouponUsage
+    from app.models.crm import CrmChatConversation, CrmContact, CrmJourneyEvent
+    from app.models.customer_subscription import CustomerSubscription
+    from app.models.invoice import Invoice
+    from app.models.loyalty import LoyaltyAccount, LoyaltyTransaction
+    from app.models.notification import Notification
+    from app.models.order import Order
+    from app.models.order_dispute import OrderDispute
+    from app.models.pos import POSTransaction
+    from app.models.rental import RentalBooking
+    from app.models.review import Review
+    from app.models.wishlist import Wishlist
+
     vendor_id = await _get_vendor_id(current_user, db)
     repo = CustomerRepository(db)
     customer = await repo.get_by_vendor_and_id(vendor_id, customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
+
+    async def _count(model) -> int:
+        return int(
+            await db.scalar(
+                select(func.count()).select_from(model).where(model.customer_id == customer_id)
+            )
+            or 0
+        )
+
+    blockers: list[str] = []
+    if await _count(Order):
+        blockers.append("orders")
+    if await _count(Invoice):
+        blockers.append("invoices")
+    if await _count(POSTransaction):
+        blockers.append("POS sales")
+    if await _count(Booking):
+        blockers.append("bookings")
+    if await _count(CustomerSubscription):
+        blockers.append("subscriptions")
+    if await _count(RentalBooking):
+        blockers.append("rentals")
+    if blockers:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Cannot delete customer — they have linked "
+                + ", ".join(blockers)
+                + ". Deactivate the record instead."
+            ),
+        )
+
+    # Soft / disposable links from master-data create & storefront activity
+    role_rows = (
+        await db.execute(
+            select(BusinessPartnerRole.business_partner_id).where(
+                BusinessPartnerRole.customer_id == customer_id
+            )
+        )
+    ).all()
+    bp_ids = {row[0] for row in role_rows if row[0]}
+
+    await db.execute(
+        sa_delete(BusinessPartnerRole).where(BusinessPartnerRole.customer_id == customer_id)
+    )
+    for bp_id in bp_ids:
+        remaining = int(
+            await db.scalar(
+                select(func.count())
+                .select_from(BusinessPartnerRole)
+                .where(BusinessPartnerRole.business_partner_id == bp_id)
+            )
+            or 0
+        )
+        if remaining == 0:
+            await db.execute(sa_delete(BusinessPartner).where(BusinessPartner.id == bp_id))
+
+    await db.execute(
+        update(CrmContact).where(CrmContact.customer_id == customer_id).values(customer_id=None)
+    )
+    await db.execute(
+        update(CrmChatConversation)
+        .where(CrmChatConversation.customer_id == customer_id)
+        .values(customer_id=None)
+    )
+    await db.execute(
+        update(CrmJourneyEvent)
+        .where(CrmJourneyEvent.customer_id == customer_id)
+        .values(customer_id=None)
+    )
+    await db.execute(
+        update(Customer)
+        .where(Customer.linked_customer_id == customer_id)
+        .values(linked_customer_id=None)
+    )
+    await db.execute(
+        update(OrderDispute).where(OrderDispute.customer_id == customer_id).values(customer_id=None)
+    )
+
+    await db.execute(sa_delete(LoyaltyTransaction).where(LoyaltyTransaction.customer_id == customer_id))
+    await db.execute(sa_delete(LoyaltyAccount).where(LoyaltyAccount.customer_id == customer_id))
+    await db.execute(sa_delete(CouponUsage).where(CouponUsage.customer_id == customer_id))
+    await db.execute(sa_delete(Review).where(Review.customer_id == customer_id))
+    await db.execute(sa_delete(Cart).where(Cart.customer_id == customer_id))
+    await db.execute(sa_delete(Wishlist).where(Wishlist.customer_id == customer_id))
+    await db.execute(sa_delete(Notification).where(Notification.customer_id == customer_id))
+
     try:
         await db.delete(customer)
         await db.commit()
@@ -504,7 +614,7 @@ async def delete_customer(
         await db.rollback()
         raise HTTPException(
             status_code=409,
-            detail="Cannot delete customer — they have orders or other linked records",
+            detail="Cannot delete customer — they have linked records. Deactivate instead.",
         )
 
 

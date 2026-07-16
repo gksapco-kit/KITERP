@@ -25,7 +25,7 @@ export default function DeliveryConditionsPage() {
     free_delivery_threshold: null,
     minimum_delivery_charge: null,
     calculate_gst: true,
-    sign_in_mandatory: false,
+    sign_in_mandatory: true,
   })
 
   useEffect(() => {
