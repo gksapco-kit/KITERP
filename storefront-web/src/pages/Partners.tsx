@@ -5,6 +5,7 @@ import { apiClient } from '@/api/client'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
+import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import { vendorInitials } from '@/components/landing/landingData'
 import {
   formatPartnerLocation,
@@ -111,6 +112,7 @@ export default function Partners() {
 
   return (
     <div className="kiterp-landing font-kiterp-body min-h-screen bg-[linear-gradient(180deg,#f3faf7_0%,#f7f8f8_42%,#f4f5f5_100%)]">
+      <PlatformAnalyticsBeacon />
       <LandingHeader />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <section className="relative overflow-hidden rounded-3xl border border-[#64C3A0]/15 bg-white/80 backdrop-blur-sm px-5 py-7 sm:px-8 sm:py-9 mb-8 sm:mb-10 shadow-[0_8px_30px_rgba(30,61,52,0.04)]">

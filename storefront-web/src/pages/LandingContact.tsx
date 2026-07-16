@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { apiClient } from '@/api/client'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
+import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import '@/styles/kiterp-landing.css'
 
 type PlatformContact = {
@@ -80,6 +81,7 @@ export default function LandingContact() {
 
   return (
     <div className="kiterp-landing kiterp-contact-page font-kiterp-body">
+      <PlatformAnalyticsBeacon />
       <div className="kiterp-contact-glow" aria-hidden />
       <LandingHeader />
 

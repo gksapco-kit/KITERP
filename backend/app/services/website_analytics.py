@@ -12,6 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.crm import CrmJourneyEvent
+from app.models.platform_website_analytics import (
+    PLATFORM_SITE_KEY,
+    PLATFORM_SITE_LABEL,
+    PLATFORM_VENDOR_ID,
+    PlatformWebsitePageView,
+)
 from app.models.store import Store
 from app.models.vendor import Vendor
 from app.models.vendor_product import Product
@@ -19,6 +25,19 @@ from app.services.store_scope import store_ids_in_scope
 
 PRODUCT_PATH_MARKER = "/products/"
 REALTIME_WINDOW = timedelta(minutes=30)
+
+
+def resolve_lookback_since(
+    now: datetime,
+    *,
+    days: int = 7,
+    minutes: Optional[int] = None,
+) -> tuple[datetime, int, Optional[int]]:
+    """Return (since, days_for_filters, minutes_for_filters). minutes wins when set."""
+    if minutes is not None and minutes > 0:
+        return now - timedelta(minutes=minutes), days, minutes
+    safe_days = max(1, int(days or 7))
+    return now - timedelta(days=safe_days), safe_days, None
 
 
 def _product_image_url(product: Any | None) -> str | None:
@@ -114,6 +133,7 @@ async def build_website_analytics(
     business_unit_id: Optional[UUID] = None,
     branch_id: Optional[UUID] = None,
     days: int = 7,
+    minutes: Optional[int] = None,
     limit: int = 50,
     include_vendor_meta: bool = False,
 ) -> Dict[str, Any]:
@@ -125,7 +145,7 @@ async def build_website_analytics(
     single vendor is in scope.
     """
     now = datetime.now(timezone.utc)
-    since = now - timedelta(days=days)
+    since, days, minutes = resolve_lookback_since(now, days=days, minutes=minutes)
     realtime_since = now - REALTIME_WINDOW
 
     if not vendor_ids:
@@ -144,6 +164,7 @@ async def build_website_analytics(
                 "business_unit_id": str(business_unit_id) if business_unit_id else None,
                 "branch_id": str(branch_id) if branch_id else None,
                 "days": days,
+                "minutes": minutes,
                 "limit": limit,
             },
         }
@@ -336,6 +357,130 @@ async def build_website_analytics(
             "business_unit_id": str(business_unit_id) if business_unit_id else None,
             "branch_id": str(branch_id) if branch_id else None,
             "days": days,
+            "minutes": minutes,
             "limit": limit,
+            "site": None,
         },
+    }
+
+
+def _platform_meta() -> Dict[str, str]:
+    return {
+        "vendor_id": PLATFORM_VENDOR_ID,
+        "vendor_slug": PLATFORM_SITE_KEY,
+        "vendor_name": PLATFORM_SITE_LABEL,
+    }
+
+
+async def build_platform_website_analytics(
+    db: AsyncSession,
+    *,
+    days: int = 7,
+    minutes: Optional[int] = None,
+    limit: int = 50,
+) -> Dict[str, Any]:
+    """Aggregate page_view events for kiterp.com (platform marketing site)."""
+    now = datetime.now(timezone.utc)
+    since, days, minutes = resolve_lookback_since(now, days=days, minutes=minutes)
+    realtime_since = now - REALTIME_WINDOW
+    meta = _platform_meta()
+
+    events = (
+        await db.execute(
+            select(PlatformWebsitePageView).where(
+                PlatformWebsitePageView.event_type == "page_view",
+                PlatformWebsitePageView.occurred_at >= since,
+            )
+        )
+    ).scalars().all()
+
+    page_views: Dict[str, int] = defaultdict(int)
+    page_visitors: Dict[str, Set[str]] = defaultdict(set)
+    page_realtime_visitors: Dict[str, Set[str]] = defaultdict(set)
+    all_visitors: Set[str] = set()
+    matched_events = 0
+
+    for ev in events:
+        payload = ev.payload if isinstance(ev.payload, dict) else {}
+        raw_path = (ev.path or payload.get("path") or "").strip()
+        path, _ = parse_path_and_branch(raw_path)
+        if not path:
+            continue
+        matched_events += 1
+        page_views[path] += 1
+        visitor = (ev.visitor_id or "").strip() or f"anon:{ev.id}"
+        page_visitors[path].add(visitor)
+        all_visitors.add(visitor)
+        occurred = ev.occurred_at
+        if occurred and occurred.tzinfo is None:
+            occurred = occurred.replace(tzinfo=timezone.utc)
+        if occurred and occurred >= realtime_since:
+            page_realtime_visitors[path].add(visitor)
+
+    pages: List[Dict[str, Any]] = []
+    for path, views in page_views.items():
+        pages.append({
+            "path": path,
+            "views": views,
+            "unique_visitors": len(page_visitors[path]),
+            "active_users": len(page_realtime_visitors.get(path, set())),
+            **meta,
+        })
+    pages.sort(key=lambda r: (-r["active_users"], -r["views"], r["path"]))
+    pages = pages[:limit]
+
+    return {
+        "summary": {
+            "total_page_views": matched_events,
+            "unique_visitors": len(all_visitors),
+            "total_product_views": 0,
+            "pages_tracked": len(page_views),
+            "realtime_active_users": sum(len(v) for v in page_realtime_visitors.values()),
+        },
+        "pages": pages,
+        "products": [],
+        "filters": {
+            "vendor_ids": [],
+            "vendor_id": PLATFORM_VENDOR_ID,
+            "business_unit_id": None,
+            "branch_id": None,
+            "days": days,
+            "minutes": minutes,
+            "limit": limit,
+            "site": PLATFORM_SITE_KEY,
+        },
+    }
+
+
+def merge_platform_into_vendor_report(
+    vendor_report: Dict[str, Any],
+    platform_report: Dict[str, Any],
+    *,
+    limit: int = 50,
+) -> Dict[str, Any]:
+    """Combine All-businesses vendor report with KITERP.com platform rows."""
+    pages = list(vendor_report.get("pages") or []) + list(platform_report.get("pages") or [])
+    pages.sort(key=lambda r: (-(r.get("active_users") or 0), -(r.get("views") or 0), r.get("path") or ""))
+    pages = pages[:limit]
+
+    vs = vendor_report.get("summary") or {}
+    ps = platform_report.get("summary") or {}
+    products = list(vendor_report.get("products") or [])[:limit]
+
+    filters = dict(vendor_report.get("filters") or {})
+    filters["site"] = None
+    filters["includes_platform"] = True
+
+    return {
+        "summary": {
+            "total_page_views": int(vs.get("total_page_views") or 0) + int(ps.get("total_page_views") or 0),
+            "unique_visitors": int(vs.get("unique_visitors") or 0) + int(ps.get("unique_visitors") or 0),
+            "total_product_views": int(vs.get("total_product_views") or 0),
+            "pages_tracked": int(vs.get("pages_tracked") or 0) + int(ps.get("pages_tracked") or 0),
+            "realtime_active_users": int(vs.get("realtime_active_users") or 0)
+            + int(ps.get("realtime_active_users") or 0),
+        },
+        "pages": pages,
+        "products": products,
+        "filters": filters,
     }

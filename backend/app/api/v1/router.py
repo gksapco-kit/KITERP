@@ -66,6 +66,11 @@ api_router.include_router(
     prefix="/admin",
     tags=["Admin Website Analytics"],
 )
+api_router.include_router(
+    admin_website_analytics.public_router,
+    prefix="/public/platform",
+    tags=["Platform Analytics Public"],
+)
 api_router.include_router(admin_schema_catalog.router, prefix="/admin/schema", tags=["Admin Schema"])
 
 # ── Vendor Management ────────────────────────────────────────────

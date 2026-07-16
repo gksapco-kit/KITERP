@@ -9,11 +9,26 @@ import { BranchSelect } from '@/components/common/BranchSelect'
 import { websiteApi, type WebsiteAnalyticsReport } from '@/api/websites'
 import { cn } from '@/lib/utils'
 
-const DAY_PRESETS = [
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-  { label: '90d', days: 90 },
-]
+const PERIOD_PRESETS = [
+  { key: '30m', label: '30m', minutes: 30 },
+  { key: '1h', label: '1h', minutes: 60 },
+  { key: '1d', label: '1d', days: 1 },
+  { key: '7d', label: '7d', days: 7 },
+  { key: '30d', label: '30d', days: 30 },
+  { key: '90d', label: '90d', days: 90 },
+] as const
+
+type PeriodKey = (typeof PERIOD_PRESETS)[number]['key']
+
+function periodHint(key: PeriodKey): string {
+  const p = PERIOD_PRESETS.find((x) => x.key === key)
+  if (!p) return 'Selected period'
+  if ('minutes' in p && p.minutes != null) {
+    return p.minutes === 60 ? 'Last 1 hour' : `Last ${p.minutes} minutes`
+  }
+  const d = 'days' in p ? p.days : 7
+  return d === 1 ? 'Last 1 day' : `Last ${d} days`
+}
 
 function KpiCard({
   icon: Icon,
@@ -43,16 +58,18 @@ function KpiCard({
 export default function WebsiteAnalyticsPage() {
   const [businessUnitId, setBusinessUnitId] = useState('')
   const [branchId, setBranchId] = useState('')
-  const [days, setDays] = useState(7)
+  const [periodKey, setPeriodKey] = useState<PeriodKey>('7d')
+  const period = PERIOD_PRESETS.find((p) => p.key === periodKey) ?? PERIOD_PRESETS[3]
 
   const params = useMemo(
     () => ({
       business_unit_id: businessUnitId || undefined,
       branch_id: branchId || undefined,
-      days,
+      days: 'minutes' in period && period.minutes != null ? undefined : ('days' in period ? period.days : 7),
+      minutes: 'minutes' in period ? period.minutes : undefined,
       limit: 50,
     }),
-    [businessUnitId, branchId, days],
+    [businessUnitId, branchId, period],
   )
 
   const { data, isLoading, isFetching, refetch, error } = useQuery({
@@ -118,15 +135,15 @@ export default function WebsiteAnalyticsPage() {
         </div>
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">Period</span>
-          <div className="flex gap-1">
-            {DAY_PRESETS.map((p) => (
+          <div className="flex flex-wrap gap-1">
+            {PERIOD_PRESETS.map((p) => (
               <button
-                key={p.days}
+                key={p.key}
                 type="button"
-                onClick={() => setDays(p.days)}
+                onClick={() => setPeriodKey(p.key)}
                 className={cn(
                   'rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
-                  days === p.days
+                  periodKey === p.key
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80',
                 )}
@@ -149,7 +166,7 @@ export default function WebsiteAnalyticsPage() {
           icon={FileText}
           label="Page views"
           value={(summary?.total_page_views ?? 0).toLocaleString()}
-          hint={`Last ${days} days`}
+          hint={periodHint(periodKey)}
         />
         <KpiCard
           icon={Users}

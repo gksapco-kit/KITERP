@@ -23,6 +23,12 @@ async def website_analytics(
     business_unit_id: Optional[UUID] = Query(None, description="Business unit (store parent)"),
     branch_id: Optional[UUID] = Query(None, description="Branch store id"),
     days: int = Query(7, ge=1, le=90, description="Lookback window for page views"),
+    minutes: Optional[int] = Query(
+        None,
+        ge=1,
+        le=90 * 24 * 60,
+        description="Lookback in minutes (overrides days when set; e.g. 30 or 60)",
+    ),
     limit: int = Query(50, ge=1, le=200),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
@@ -33,14 +39,17 @@ async def website_analytics(
         business_unit_id=business_unit_id,
         branch_id=branch_id,
         days=days,
+        minutes=minutes,
         limit=limit,
         include_vendor_meta=False,
     )
     # Keep vendor API filter shape stable (no vendor_ids list required by UI).
+    built_filters = report.get("filters") or {}
     report["filters"] = {
         "business_unit_id": str(business_unit_id) if business_unit_id else None,
         "branch_id": str(branch_id) if branch_id else None,
-        "days": days,
+        "days": built_filters.get("days", days),
+        "minutes": built_filters.get("minutes", minutes),
         "limit": limit,
     }
     return report

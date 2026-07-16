@@ -52,6 +52,7 @@ from app.models.loyalty import LoyaltyProgram, LoyaltyAccount, LoyaltyTransactio
 from app.models.platform_setting import PlatformSetting
 from app.models.platform_staff_audit import PlatformStaffAuditLog
 from app.models.vendor_platform_audit import VendorPlatformAuditLog
+from app.models.platform_website_analytics import PlatformWebsitePageView
 from app.models.mrp import ProductBOMItem, StockReservation
 from app.models.production import ProductionOrder
 from app.models.production_routing import WorkCenter, ProductionOperation
@@ -315,6 +316,7 @@ __all__ = [
     "WebsiteFormSubmission", "WebsitePageRevision", "WebsiteBuilderPreview",
     "WebsiteBlockTranslation", "WebsiteSymbol", "WebsiteABExposure",
     "WebsiteWebhook", "PlatformWebsiteTemplate",
+    "PlatformWebsitePageView",
     # Controlling (CO)
     "CoControllingArea",
     "CoActivityType", "CoOverheadPool", "CoOverheadRate",

@@ -9,14 +9,35 @@ import { FilterSelect } from '@/components/ui/FilterSelect'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff } from '@/lib/platformAccess'
 import { useAdminVendors } from '@/hooks/useAdmin'
-import { adminApi, type AdminWebsiteAnalyticsReport } from '@/api/admin.api'
+import {
+  adminApi,
+  PLATFORM_ANALYTICS_SITE_ID,
+  type AdminWebsiteAnalyticsReport,
+} from '@/api/admin.api'
 import { cn } from '@/lib/utils'
 
-const DAY_PRESETS = [
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-  { label: '90d', days: 90 },
-]
+const PERIOD_PRESETS = [
+  { key: '30m', label: '30m', minutes: 30 },
+  { key: '1h', label: '1h', minutes: 60 },
+  { key: '1d', label: '1d', days: 1 },
+  { key: '7d', label: '7d', days: 7 },
+  { key: '30d', label: '30d', days: 30 },
+  { key: '90d', label: '90d', days: 90 },
+] as const
+
+type PeriodKey = (typeof PERIOD_PRESETS)[number]['key']
+
+function periodHint(key: PeriodKey): string {
+  const p = PERIOD_PRESETS.find((x) => x.key === key)
+  if (!p) return 'Selected period'
+  if ('minutes' in p && p.minutes != null) {
+    return p.minutes === 60 ? 'Last 1 hour' : `Last ${p.minutes} minutes`
+  }
+  const d = 'days' in p ? p.days : 7
+  return d === 1 ? 'Last 1 day' : `Last ${d} days`
+}
+
+const isPlatformSite = (id: string) => id === PLATFORM_ANALYTICS_SITE_ID
 
 function KpiCard({
   icon: Icon,
@@ -52,7 +73,8 @@ export default function WebsiteAnalytics() {
   const [vendorId, setVendorId] = useState('')
   const [businessUnitId, setBusinessUnitId] = useState('')
   const [branchId, setBranchId] = useState('')
-  const [days, setDays] = useState(7)
+  const [periodKey, setPeriodKey] = useState<PeriodKey>('7d')
+  const period = PERIOD_PRESETS.find((p) => p.key === periodKey) ?? PERIOD_PRESETS[3]
 
   // Admin vendors API allows size <= 100 (422 if larger) — that left Branch empty.
   const { data: vendorsData } = useAdminVendors(
@@ -61,10 +83,12 @@ export default function WebsiteAnalytics() {
   )
   const vendors = vendorsData?.items ?? []
 
+  const vendorScoped = !!vendorId && !isPlatformSite(vendorId)
+
   const { data: storesData, isLoading: storesLoading } = useQuery({
     queryKey: ['admin', 'vendor-stores', vendorId],
     queryFn: () => adminApi.listVendorStores(vendorId),
-    enabled: isPlatformStaff(user) && !!vendorId,
+    enabled: isPlatformStaff(user) && vendorScoped,
   })
 
   const businessUnits = storesData?.business_units ?? []
@@ -76,13 +100,15 @@ export default function WebsiteAnalytics() {
 
   const params = useMemo(
     () => ({
-      vendor_id: vendorId || undefined,
-      business_unit_id: vendorId && businessUnitId ? businessUnitId : undefined,
-      branch_id: vendorId && branchId ? branchId : undefined,
-      days,
+      site: isPlatformSite(vendorId) ? 'platform' : undefined,
+      vendor_id: vendorScoped ? vendorId : undefined,
+      business_unit_id: vendorScoped && businessUnitId ? businessUnitId : undefined,
+      branch_id: vendorScoped && branchId ? branchId : undefined,
+      days: 'minutes' in period && period.minutes != null ? undefined : ('days' in period ? period.days : 7),
+      minutes: 'minutes' in period ? period.minutes : undefined,
       limit: 50,
     }),
-    [vendorId, businessUnitId, branchId, days],
+    [vendorId, vendorScoped, businessUnitId, branchId, period],
   )
 
   const { data, isLoading, isFetching, refetch, error, isError } = useQuery({
@@ -92,9 +118,10 @@ export default function WebsiteAnalytics() {
     refetchInterval: 60_000,
   })
 
-  /** Businesses for Branch: admin vendor list + names from the open report (Realtime BUSINESS col). */
+  /** Businesses for Branch: KITERP.com + admin vendors + names from the open report. */
   const businessChoices = useMemo(() => {
     const map = new Map<string, string>()
+    map.set(PLATFORM_ANALYTICS_SITE_ID, 'KITERP.com')
     for (const v of vendors) {
       const label = v.display_name || v.business_name || v.slug || v.id
       if (v.id) map.set(v.id, label)
@@ -107,14 +134,16 @@ export default function WebsiteAnalytics() {
         map.set(id, row.vendor_name || row.vendor_slug || id)
       }
     }
-    return Array.from(map.entries())
+    const rest = Array.from(map.entries())
+      .filter(([id]) => id !== PLATFORM_ANALYTICS_SITE_ID)
       .map(([id, label]) => ({ id, label }))
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+    return [{ id: PLATFORM_ANALYTICS_SITE_ID, label: 'KITERP.com' }, ...rest]
   }, [vendors, data])
 
   /** Business unit dropdown: vendor list when All, else that vendor's BUs. */
   const buOptions = useMemo(() => {
-    if (!vendorId) {
+    if (!vendorScoped) {
       return [
         { value: '', label: 'All businesses' },
         ...businessChoices.map((v) => ({
@@ -133,13 +162,12 @@ export default function WebsiteAnalytics() {
         label: `${storeLabel(bu)}${bu.is_default ? ' (default)' : ''}`,
       })),
     ]
-  }, [vendorId, businessChoices, storesLoading, businessUnits])
+  }, [vendorScoped, vendorId, businessChoices, storesLoading, businessUnits])
 
-  const buSelectValue = !vendorId ? '' : businessUnitId || `__vendor__:${vendorId}`
+  const buSelectValue = !vendorScoped ? '' : businessUnitId || `__vendor__:${vendorId}`
 
   /**
-   * Branch dropdown always lists businesses (matches Realtime pages BUSINESS column).
-   * Selecting one filters the whole report to that business.
+   * Branch dropdown: All, KITERP.com (platform site), then businesses.
    */
   const branchOptions = useMemo(
     () => [
@@ -154,6 +182,7 @@ export default function WebsiteAnalytics() {
 
   const selectedVendorLabel = useMemo(() => {
     if (!vendorId) return 'All businesses'
+    if (isPlatformSite(vendorId)) return 'KITERP.com'
     const v = businessChoices.find((x) => x.id === vendorId)
     return v?.label || 'Selected business'
   }, [vendorId, businessChoices])
@@ -177,12 +206,14 @@ export default function WebsiteAnalytics() {
   const summary = report?.summary
   const showVendorCol = !vendorId
   const scopeHint = !vendorId
-    ? 'All businesses'
-    : branchId
-      ? 'Selected branch'
-      : businessUnitId
-        ? 'Selected business unit'
-        : selectedVendorLabel
+    ? 'All businesses + KITERP.com'
+    : isPlatformSite(vendorId)
+      ? 'KITERP.com'
+      : branchId
+        ? 'Selected branch'
+        : businessUnitId
+          ? 'Selected business unit'
+          : selectedVendorLabel
 
   const errorDetail =
     isError && error && typeof error === 'object' && 'response' in error
@@ -202,8 +233,8 @@ export default function WebsiteAnalytics() {
             Website Analytics
           </h1>
           <p className="mt-1 text-sm text-gray-600">
-            Open <strong>Branch</strong> and pick a business (testotp, VRK, RK Mart, …)
-            to filter Realtime pages and products to that business only.
+            Open <strong>Branch</strong> and pick <strong>KITERP.com</strong> for the platform
+            site, or a business (testotp, VRK, RK Mart, …) for that storefront only.
           </p>
         </div>
         <Button
@@ -232,7 +263,7 @@ export default function WebsiteAnalytics() {
           className="sm:w-[18rem]"
         />
 
-        {vendorId ? (
+        {vendorScoped ? (
           <FilterSelect
             label="Store branch"
             value={branchId}
@@ -242,7 +273,7 @@ export default function WebsiteAnalytics() {
           />
         ) : null}
 
-        {vendorId ? (
+        {vendorScoped ? (
           <FilterSelect
             label="Store unit (optional)"
             value={buSelectValue}
@@ -262,15 +293,15 @@ export default function WebsiteAnalytics() {
 
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-gray-500">Period</span>
-          <div className="flex gap-1">
-            {DAY_PRESETS.map((p) => (
+          <div className="flex flex-wrap gap-1">
+            {PERIOD_PRESETS.map((p) => (
               <button
-                key={p.days}
+                key={p.key}
                 type="button"
-                onClick={() => setDays(p.days)}
+                onClick={() => setPeriodKey(p.key)}
                 className={cn(
                   'rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
-                  days === p.days
+                  periodKey === p.key
                     ? 'bg-primary text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
                 )}
@@ -293,7 +324,7 @@ export default function WebsiteAnalytics() {
           icon={FileText}
           label="Page views"
           value={(summary?.total_page_views ?? 0).toLocaleString()}
-          hint={`Last ${days} days`}
+          hint={periodHint(periodKey)}
         />
         <KpiCard
           icon={Users}

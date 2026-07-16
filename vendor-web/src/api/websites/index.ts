@@ -52,6 +52,7 @@ export const websiteApi = {
     business_unit_id?: string
     branch_id?: string
     days?: number
+    minutes?: number
     limit?: number
   }) =>
     apiClient

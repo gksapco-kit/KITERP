@@ -401,9 +401,13 @@ export const adminApi = {
 
   getWebsiteAnalytics: async (params?: {
     vendor_id?: string
+    /** 'platform' = kiterp.com marketing site */
+    site?: string
     business_unit_id?: string
     branch_id?: string
     days?: number
+    /** Overrides days when set (e.g. 30 or 60) */
+    minutes?: number
     limit?: number
   }): Promise<AdminWebsiteAnalyticsReport> => {
     const response = await apiClient.get('/admin/website-analytics', { params })
@@ -586,8 +590,13 @@ export type AdminWebsiteAnalyticsReport = {
     branch_id?: string | null
     days: number
     limit: number
+    site?: string | null
+    includes_platform?: boolean
   }
 }
+
+/** Sentinel used by Website Analytics Branch filter for kiterp.com */
+export const PLATFORM_ANALYTICS_SITE_ID = '__platform__'
 
 export type AdminStoreBrief = {
   id: string

@@ -1004,6 +1004,18 @@ async def ensure_crm_tables() -> None:
         "CREATE INDEX IF NOT EXISTS ix_crm_journey_vendor_time ON crm_journey_event(vendor_id, occurred_at);",
         "CREATE INDEX IF NOT EXISTS ix_crm_journey_contact ON crm_journey_event(contact_id);",
         "CREATE INDEX IF NOT EXISTS ix_crm_journey_visitor ON crm_journey_event(vendor_id, visitor_id);",
+        # Platform marketing site (kiterp.com) page views
+        """CREATE TABLE IF NOT EXISTS platform_website_page_view (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            visitor_id VARCHAR(120),
+            event_type VARCHAR(60) NOT NULL DEFAULT 'page_view',
+            path VARCHAR(500) NOT NULL DEFAULT '/',
+            payload JSONB DEFAULT '{}'::jsonb,
+            occurred_at TIMESTAMPTZ DEFAULT now() NOT NULL
+        );""",
+        "CREATE INDEX IF NOT EXISTS ix_platform_pv_occurred ON platform_website_page_view(occurred_at);",
+        "CREATE INDEX IF NOT EXISTS ix_platform_pv_path_time ON platform_website_page_view(path, occurred_at);",
+        "CREATE INDEX IF NOT EXISTS ix_platform_pv_visitor ON platform_website_page_view(visitor_id);",
         # Lead intake tokens
         """CREATE TABLE IF NOT EXISTS crm_lead_intake_token (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

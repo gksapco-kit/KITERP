@@ -5,6 +5,7 @@ import { apiClient, setVendorContext } from '@/api/client'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
+import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import { vendorInitials } from '@/components/landing/landingData'
 import {
   cleanLocationPart,
@@ -138,6 +139,7 @@ export default function PartnerDetail() {
 
   return (
     <div className="kiterp-landing font-kiterp-body min-h-screen bg-[linear-gradient(180deg,#f3faf7_0%,#f7f8f8_42%,#f4f5f5_100%)]">
+      <PlatformAnalyticsBeacon />
       <LandingHeader />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <Link

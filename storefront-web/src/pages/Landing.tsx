@@ -9,6 +9,7 @@ import { CommunityMosaicSection } from '@/components/landing/CommunityMosaicSect
 import { GrowthCtaSection } from '@/components/landing/GrowthCtaSection'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
+import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import type { StorefrontVendor } from '@/components/landing/landingData'
 import '@/styles/kiterp-landing.css'
 
@@ -65,6 +66,7 @@ export default function Landing() {
 
   return (
     <div className="kiterp-landing font-kiterp-body min-h-screen bg-white">
+      <PlatformAnalyticsBeacon />
       <LandingHeader />
       <main>
         <LandingHero />
