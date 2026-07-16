@@ -17,6 +17,10 @@
  *  - Value: JSON `{ status, updated_at, site_id? }` or legacy plain strings
  *    (`granted` / `denied` / `accepted` / `declined`).
  *
+ * Consent is scoped per website (`site_id`). A choice made on store A must
+ * not hide the banner (or unlock tracking) on store B under the same origin
+ * (e.g. local `127.0.0.1:3002`).
+ *
  * Changes broadcast through `kiterp:consent-change` so analytics can react
  * without a full page reload.
  */
@@ -34,25 +38,6 @@ export const CONSENT_STORAGE_KEY = 'cookie_consent'
 
 const STORAGE_KEY = CONSENT_STORAGE_KEY
 const EVENT_NAME = 'kiterp:consent-change'
-
-function parseStoredConsent(raw: string | null): ConsentState {
-  if (!raw) return 'unknown'
-  if (raw === 'accepted' || raw === 'granted') return 'granted'
-  if (raw === 'declined' || raw === 'denied') return 'denied'
-  try {
-    const parsed = JSON.parse(raw) as Partial<ConsentRecord>
-    if (parsed.status === 'granted' || parsed.status === 'denied') return parsed.status
-  } catch {
-    /* legacy plain string handled above */
-  }
-  return 'unknown'
-}
-
-/** Read the current consent without subscribing to changes. */
-export function getConsent(): ConsentState {
-  if (typeof window === 'undefined') return 'unknown'
-  return parseStoredConsent(window.localStorage.getItem(STORAGE_KEY))
-}
 
 /** Full stored record when present (for debugging / admin). */
 export function getConsentRecord(): ConsentRecord | null {
@@ -74,9 +59,24 @@ export function getConsentRecord(): ConsentRecord | null {
   return null
 }
 
-/** True when the user has explicitly opted in. */
-export function hasGrantedConsent(): boolean {
-  return getConsent() === 'granted'
+/**
+ * Read consent for a site.
+ * When `siteId` is provided, only a matching `site_id` record counts —
+ * legacy global values and other sites are treated as unknown.
+ */
+export function getConsent(siteId?: string | null): ConsentState {
+  if (typeof window === 'undefined') return 'unknown'
+  const record = getConsentRecord()
+  if (!record) return 'unknown'
+  if (siteId) {
+    if (!record.site_id || record.site_id !== siteId) return 'unknown'
+  }
+  return record.status
+}
+
+/** True when the user has explicitly opted in for this site. */
+export function hasGrantedConsent(siteId?: string | null): boolean {
+  return getConsent(siteId) === 'granted'
 }
 
 /** Persist a new consent choice and broadcast it. */
@@ -92,15 +92,16 @@ export function setConsent(next: 'granted' | 'denied', opts?: { siteId?: string 
 }
 
 /** Subscribe to consent changes. Returns an unsubscribe function. */
-export function onConsentChange(handler: (state: ConsentState) => void): () => void {
+export function onConsentChange(
+  handler: (state: ConsentState) => void,
+  siteId?: string | null,
+): () => void {
   if (typeof window === 'undefined') return () => {}
-  const wrapped = (e: Event) => {
-    const ce = e as CustomEvent<ConsentState>
-    handler(ce.detail ?? getConsent())
-  }
+  const emit = () => handler(getConsent(siteId))
+  const wrapped = () => emit()
   window.addEventListener(EVENT_NAME, wrapped)
   const onStorage = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY) handler(getConsent())
+    if (e.key === STORAGE_KEY) emit()
   }
   window.addEventListener('storage', onStorage)
   return () => {

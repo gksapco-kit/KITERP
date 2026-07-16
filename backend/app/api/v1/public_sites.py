@@ -305,10 +305,6 @@ async def _resolve_site_by_subdomain(
         if store is not None:
             specific_tid = _store_specific_template_id(vendor.settings, store.settings)
 
-            # Catalog/legacy templates (light, storefront_*, …) override builder sites.
-            if _is_catalog_storefront_template_id(specific_tid):
-                return None
-
             # A builder site linked to this branch wins over a shared UUID assignment.
             linked = _linked_site_for_store(str(store.id))
             if linked is not None:
@@ -322,16 +318,26 @@ async def _resolve_site_by_subdomain(
             # Per-unit mode: vendor-wide template fallback when the branch has no override.
             effective_tid = _resolve_effective_template_id(vendor.settings, store.settings)
             if effective_tid and effective_tid != specific_tid:
-                if _is_catalog_storefront_template_id(effective_tid):
-                    return None
                 assigned_site = await _try_load_assigned_builder_site(effective_tid, vendor.id, db)
                 if assigned_site is not None:
                     return assigned_site
 
-            # Nothing assigned for this branch → use the shared/global default.
-            # Never serve a *different* store's store-scoped site for this
-            # branch; only an "all stores" (or legacy) site may stand in.
-            return _shared_default_site()
+            # Prefer the shared/global published builder site when one exists.
+            # Catalog/legacy template ids (storefront_grocery, light, …) still drive
+            # the frontend renderer when the site has no saved blocks, but must not
+            # hide a published site — otherwise GA / cookie consent / SEO never load
+            # on /store/:slug?branch=….
+            shared = _shared_default_site()
+            if shared is not None:
+                return shared
+
+            # No builder site at all → catalog/legacy renderer (builderSite=null).
+            if _is_catalog_storefront_template_id(specific_tid) or _is_catalog_storefront_template_id(
+                effective_tid
+            ):
+                return None
+
+            return None
 
     # No branch (or an unknown branch): honour vendor-wide builder site UUID assignment.
     single_tid = _settings_str(vendor.settings, "single_front_template_id")

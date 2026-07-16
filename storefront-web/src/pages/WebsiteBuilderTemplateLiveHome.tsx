@@ -66,6 +66,11 @@ export default function WebsiteBuilderTemplateLiveHome({ templateId, pageSlug }:
       live_site_id: vendorLiveId,
       vendor_id: builderSite.vendor_id || site.vendor_id,
       vendor_slug: builderSite.vendor_slug ?? site.vendor_slug,
+      // Template preview JSON clears tracking IDs — use the vendor site's IDs.
+      google_analytics_id: builderSite.google_analytics_id ?? site.google_analytics_id,
+      meta_pixel_id: builderSite.meta_pixel_id ?? site.meta_pixel_id,
+      custom_head_code: builderSite.custom_head_code ?? site.custom_head_code,
+      custom_body_code: builderSite.custom_body_code ?? site.custom_body_code,
     }
   }, [site, builderSite])
 

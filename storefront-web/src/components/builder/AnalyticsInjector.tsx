@@ -14,6 +14,9 @@
  * user later flips their choice, this component injects (or removes)
  * scripts on the fly without a page reload by listening to the consent
  * change event from `@/lib/consent`.
+ *
+ * Important: scripts inserted via `innerHTML` do not execute in browsers.
+ * All `<script>` nodes are re-created with `createElement` so gtag / pixels run.
  */
 import { useEffect, useState } from 'react'
 import type { PublicSite } from '@/blocks/registry'
@@ -25,31 +28,62 @@ interface Props {
 
 const SCRIPT_IDS = ['ga4-script', 'ga4-init', 'meta-pixel', 'custom-head-code', 'custom-body-code']
 
-function injectScript(id: string, html: string): void {
-  if (document.getElementById(id)) return
-  const div = document.createElement('div')
-  div.innerHTML = html
-  const script = div.querySelector('script')
-  if (script) {
-    const el = document.createElement('script')
-    if (script.src) el.src = script.src
-    if (script.async) el.async = script.async
-    if (script.textContent) el.textContent = script.textContent
-    el.id = id
-    document.head.appendChild(el)
+/** Append a real <script> so the browser executes it (unlike innerHTML). */
+function appendExecutableScript(
+  parent: ParentNode,
+  source: HTMLScriptElement,
+  id?: string,
+): void {
+  const el = document.createElement('script')
+  if (id) el.id = id
+  for (const attr of Array.from(source.attributes)) {
+    if (attr.name === 'id' && id) continue
+    el.setAttribute(attr.name, attr.value)
   }
+  if (source.textContent) el.textContent = source.textContent
+  parent.appendChild(el)
 }
 
-function injectRaw(id: string, html: string, target: 'head' | 'body'): void {
+/**
+ * Inject HTML snippets (custom head/body). Non-script nodes keep their markup;
+ * script tags are re-created so they actually run.
+ */
+function injectHtml(id: string, html: string, target: 'head' | 'body'): void {
   if (document.getElementById(id)) return
-  const div = document.createElement('div')
-  div.id = id
-  div.innerHTML = html
-  if (target === 'body') {
-    document.body.appendChild(div)
-  } else {
-    document.head.appendChild(div)
+  const parent = target === 'body' ? document.body : document.head
+  const wrapper = document.createElement('div')
+  wrapper.id = id
+  wrapper.setAttribute('data-kiterp-analytics', '1')
+
+  const parsed = document.createElement('div')
+  parsed.innerHTML = html
+
+  for (const node of Array.from(parsed.childNodes)) {
+    if (node.nodeName === 'SCRIPT') {
+      appendExecutableScript(wrapper, node as HTMLScriptElement)
+    } else {
+      wrapper.appendChild(node.cloneNode(true))
+    }
   }
+
+  parent.appendChild(wrapper)
+}
+
+function injectExternalScript(id: string, src: string): void {
+  if (document.getElementById(id)) return
+  const el = document.createElement('script')
+  el.id = id
+  el.async = true
+  el.src = src
+  document.head.appendChild(el)
+}
+
+function injectInlineScript(id: string, code: string): void {
+  if (document.getElementById(id)) return
+  const el = document.createElement('script')
+  el.id = id
+  el.textContent = code
+  document.head.appendChild(el)
 }
 
 /** Remove any tracking we previously injected. Used when consent is revoked. */
@@ -68,11 +102,11 @@ function removeAllInjected(): void {
 export default function AnalyticsInjector({ site }: Props) {
   // Track consent in state so the effect re-runs when the user clicks
   // accept/decline mid-session.
-  const [consentGranted, setConsentGranted] = useState<boolean>(() => hasGrantedConsent())
+  const [consentGranted, setConsentGranted] = useState<boolean>(() => hasGrantedConsent(site.id))
 
   useEffect(() => {
-    return onConsentChange(state => setConsentGranted(state === 'granted'))
-  }, [])
+    return onConsentChange(state => setConsentGranted(state === 'granted'), site.id)
+  }, [site.id])
 
   useEffect(() => {
     if (!consentGranted) {
@@ -81,50 +115,52 @@ export default function AnalyticsInjector({ site }: Props) {
     }
 
     if (site.google_analytics_id) {
-      const gid = site.google_analytics_id
-      injectScript('ga4-script', `<script async src="https://www.googletagmanager.com/gtag/js?id=${gid}"></script>`)
-      injectRaw(
-        'ga4-init',
-        `
-        <script>
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${gid}', { anonymize_ip: true });
-        </script>
-      `,
-        'head',
-      )
+      const gid = site.google_analytics_id.trim()
+      // Only accept GA4 measurement IDs (avoids injecting arbitrary strings as JS).
+      if (/^G-[A-Z0-9]+$/i.test(gid)) {
+        injectExternalScript(
+          'ga4-script',
+          `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gid)}`,
+        )
+        injectInlineScript(
+          'ga4-init',
+          [
+            'window.dataLayer = window.dataLayer || [];',
+            'function gtag(){dataLayer.push(arguments);}',
+            'gtag("js", new Date());',
+            `gtag("config", ${JSON.stringify(gid)}, { anonymize_ip: true });`,
+          ].join('\n'),
+        )
+      }
     }
 
     if (site.meta_pixel_id) {
-      const pid = site.meta_pixel_id
-      injectRaw(
-        'meta-pixel',
-        `
-        <script>
-          !function(f,b,e,v,n,t,s)
-          {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-          n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-          if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-          n.queue=[];t=b.createElement(e);t.async=!0;
-          t.src=v;s=b.getElementsByTagName(e)[0];
-          s.parentNode.insertBefore(t,s)}(window,document,'script',
-          'https://connect.facebook.net/en_US/fbevents.js');
-          fbq('init', '${pid}');
-          fbq('track', 'PageView');
-        </script>
-      `,
-        'head',
-      )
+      const pid = site.meta_pixel_id.trim()
+      if (/^\d{5,20}$/.test(pid)) {
+        injectInlineScript(
+          'meta-pixel',
+          [
+            '!function(f,b,e,v,n,t,s)',
+            '{if(f.fbq)return;n=f.fbq=function(){n.callMethod?',
+            'n.callMethod.apply(n,arguments):n.queue.push(arguments)};',
+            "if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';",
+            'n.queue=[];t=b.createElement(e);t.async=!0;',
+            't.src=v;s=b.getElementsByTagName(e)[0];',
+            's.parentNode.insertBefore(t,s)}(window,document,"script",',
+            '"https://connect.facebook.net/en_US/fbevents.js");',
+            `fbq("init", ${JSON.stringify(pid)});`,
+            'fbq("track", "PageView");',
+          ].join('\n'),
+        )
+      }
     }
 
     if (site.custom_head_code) {
-      injectRaw('custom-head-code', site.custom_head_code, 'head')
+      injectHtml('custom-head-code', site.custom_head_code, 'head')
     }
 
     if (site.custom_body_code) {
-      injectRaw('custom-body-code', site.custom_body_code, 'body')
+      injectHtml('custom-body-code', site.custom_body_code, 'body')
     }
   }, [
     consentGranted,
@@ -148,8 +184,8 @@ declare global {
   }
 }
 
-function trackingAllowed(): boolean {
-  return hasGrantedConsent()
+function trackingAllowed(siteId?: string | null): boolean {
+  return hasGrantedConsent(siteId)
 }
 
 export function ga4Event(eventName: string, params: Record<string, unknown> = {}): void {

@@ -83,13 +83,24 @@ export function BuilderSiteProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     // Pass the active business unit so each branch resolves to its own
     // linked storefront site, not the vendor's latest published one.
+    // If the branch-scoped lookup 404s (legacy catalog override), fall back to
+    // the vendor default site so analytics / cookie consent still load.
     publicSitesApi
       .getBySubdomain(subdomain, branchCode)
       .then(site => {
         if (!cancelled) setBuilderSite(site)
       })
-      .catch(() => {
-        if (!cancelled) setBuilderSite(null)
+      .catch(async () => {
+        if (!branchCode) {
+          if (!cancelled) setBuilderSite(null)
+          return
+        }
+        try {
+          const fallback = await publicSitesApi.getBySubdomain(subdomain, null)
+          if (!cancelled) setBuilderSite(fallback)
+        } catch {
+          if (!cancelled) setBuilderSite(null)
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false)

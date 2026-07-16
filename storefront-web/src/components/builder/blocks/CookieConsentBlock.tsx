@@ -30,7 +30,7 @@ export default function CookieConsentBlock({ style, props, site, blockId }: Prop
 
   const shouldShowInitially = alwaysShowChrome
     ? true
-    : getConsent() === 'unknown'
+    : getConsent(site.id) === 'unknown'
 
   const [visible, setVisible] = useState(shouldShowInitially)
 
@@ -43,11 +43,11 @@ export default function CookieConsentBlock({ style, props, site, blockId }: Prop
       setVisible(true)
       return
     }
-    setVisible(getConsent() === 'unknown')
+    setVisible(getConsent(site.id) === 'unknown')
     return onConsentChange(state => {
       if (!dismissed) setVisible(state === 'unknown')
-    })
-  }, [dismissed, alwaysShowChrome])
+    }, site.id)
+  }, [dismissed, alwaysShowChrome, site.id])
 
   const message = resolveBlockTextField(props, 'message')
   const acceptLabel = resolveBlockTextField(props, 'accept_label')
