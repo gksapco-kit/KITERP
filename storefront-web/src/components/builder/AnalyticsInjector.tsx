@@ -9,8 +9,8 @@
  *   - Custom head code
  *   - Custom body code
  *
- * Consent: tracking is **opt-in by default**. Nothing fires until the
- * visitor has explicitly accepted in the cookie consent banner. When the
+ * Consent: tracking is allowed by default. Scripts are removed only if the
+ * visitor explicitly Declines via an optional Cookie Consent block. When the
  * user later flips their choice, this component injects (or removes)
  * scripts on the fly without a page reload by listening to the consent
  * change event from `@/lib/consent`.
@@ -105,7 +105,7 @@ export default function AnalyticsInjector({ site }: Props) {
   const [consentGranted, setConsentGranted] = useState<boolean>(() => hasGrantedConsent(site.id))
 
   useEffect(() => {
-    return onConsentChange(state => setConsentGranted(state === 'granted'), site.id)
+    return onConsentChange(state => setConsentGranted(state !== 'denied'), site.id)
   }, [site.id])
 
   useEffect(() => {

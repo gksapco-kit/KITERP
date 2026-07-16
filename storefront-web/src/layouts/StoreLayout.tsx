@@ -15,7 +15,6 @@ import { StorefrontDisplayFieldsBridge } from '@/contexts/StorefrontDisplayField
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import { BuilderSiteProvider, useBuilderSite } from '@/contexts/BuilderSiteContext'
 import AnalyticsInjector from '@/components/builder/AnalyticsInjector'
-import DefaultCookieConsentBanner from '@/components/builder/DefaultCookieConsentBanner'
 import { useAssignedStorefrontTemplateId, useStoreSpecificAssignedTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
 import { shouldHideStoreLayoutChrome, siteHasNavShell } from '@/lib/storefrontLayoutChrome'
 import { BuilderSiteShellChrome } from '@/components/builder/BuilderSiteShellChrome'
@@ -475,13 +474,7 @@ function StoreContent() {
 
   // GA4 / Meta Pixel / custom tags — mount once for all store routes (builder,
   // catalog templates, product pages). Page-level injectors are idempotent.
-  // Fallback cookie banner when tracking is configured but no Cookie Consent block exists.
-  const analyticsNode = builderSite ? (
-    <>
-      <AnalyticsInjector site={builderSite} />
-      <DefaultCookieConsentBanner site={builderSite} />
-    </>
-  ) : null
+  const analyticsNode = builderSite ? <AnalyticsInjector site={builderSite} /> : null
 
   const legacyDraftCatalogRedirect = (() => {
     if (isDraftCatalogEmbedPath(pathname)) return null

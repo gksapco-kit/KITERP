@@ -2,15 +2,16 @@
  * Cookie / tracking consent helper.
  *
  * Single source of truth used by:
- *  - `CookieConsentBlock` to set the user's choice and display the banner.
+ *  - `CookieConsentBlock` to set the user's choice and display the banner
+ *    (only when a vendor adds that block intentionally).
  *  - `AnalyticsInjector` to gate GA4 / Meta Pixel / GTM / custom scripts.
  *
- * Consent model:
- *  - "granted"  — user clicked Accept. Tracking allowed.
+ * Consent model (opt-out):
+ *  - "granted"  — user clicked Accept (or tracking allowed by default).
  *  - "denied"   — user clicked Decline. Tracking forbidden.
- *  - "unknown"  — user has not chosen. Tracking forbidden by default
- *                 (GDPR/EEA/UK and most modern privacy regimes require
- *                 explicit opt-in before non-essential cookies fire).
+ *  - "unknown"  — user has not chosen. Tracking is allowed by default so
+ *                 stores without a Cookie Consent block do not show a banner
+ *                 or block analytics.
  *
  * Storage (browser localStorage):
  *  - Key: `cookie_consent`
@@ -74,9 +75,9 @@ export function getConsent(siteId?: string | null): ConsentState {
   return record.status
 }
 
-/** True when the user has explicitly opted in for this site. */
+/** True when tracking is allowed (not explicitly declined). */
 export function hasGrantedConsent(siteId?: string | null): boolean {
-  return getConsent(siteId) === 'granted'
+  return getConsent(siteId) !== 'denied'
 }
 
 /** Persist a new consent choice and broadcast it. */
