@@ -173,8 +173,8 @@ export default function ProductDetail() {
       image_url: resolveProductThumbnailUrl({ images: product.images, variants: activeVariants }),
       price: displayPrice,
       currency: displayCurrency,
-    })
-  }, [product?.id, displayPrice, displayCurrency, storePath, product?.images, product?.name, product?.slug])
+    }, vendorSlug)
+  }, [product?.id, displayPrice, displayCurrency, storePath, product?.images, product?.name, product?.slug, vendorSlug])
 
   // Unique product view (once per browser session; 24h server-side dedupe)
   useEffect(() => {

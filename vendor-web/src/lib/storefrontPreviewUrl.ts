@@ -2,6 +2,7 @@ import {
   broadcastPreviewTabNavigate,
   draftPreviewNavigateTargetsMatch,
   PREVIEW_NAV_MESSAGE_TYPE,
+  PREVIEW_SITE_QUERY_PARAM,
 } from '@/lib/draftPreviewSync'
 import { isSameLoopbackOrigin, normalizeLoopbackHostname, normalizeLoopbackOrigin } from '@/lib/loopbackHost'
 
@@ -113,15 +114,31 @@ export function alignPreviewUrlWithCurrentHost(previewShellUrl: string): string 
   }
 }
 
-/** Draft preview URL on vendor-web only: /preview/draft?token=…&page=… */
-export function buildVendorDraftPreviewUrl(previewToken: string, pageSlug?: string | null): string {
+/** Draft preview URL on vendor-web only: /preview/draft?token=…&page=…&siteId=… */
+export function buildVendorDraftPreviewUrl(
+  previewToken: string,
+  pageSlug?: string | null,
+  siteId?: string | null,
+): string {
   const url = new URL(getDraftBrowserPreviewAbsolutePath(), getVendorPreviewOrigin())
   url.searchParams.set('token', previewToken)
   const slug = pageSlug?.trim()
   if (slug && slug.length > 0 && slug.toLowerCase() !== 'home') {
     url.searchParams.set('page', slug)
   }
+  const scope = siteId?.trim()
+  if (scope) url.searchParams.set(PREVIEW_SITE_QUERY_PARAM, scope)
   return url.toString()
+}
+
+/** Read siteId from a draft-preview shell URL (pending or token). */
+export function extractPreviewSiteIdFromUrl(previewShellUrl: string): string {
+  try {
+    return new URL(previewShellUrl, typeof window !== 'undefined' ? window.location.href : undefined)
+      .searchParams.get(PREVIEW_SITE_QUERY_PARAM)?.trim() ?? ''
+  } catch {
+    return ''
+  }
 }
 
 /** Same origin rules as template gallery; path matches storefront draft preview route. */
@@ -151,23 +168,53 @@ export function wrapStorefrontPreviewForVendorBrowser(storefrontPreviewUrl: stri
   return shell.toString()
 }
 
-/** Reused preview tab name — repeat clicks navigate the same tab instead of opening new ones. */
+/**
+ * Scope for template-gallery previews (no wb site id).
+ * Kept separate from site draft windows so catalog previews cannot steal a site tab.
+ */
+export const PREVIEW_TEMPLATE_SCOPE = 'template'
+
+/** @deprecated Use previewWindowNameForSite — legacy unscoped name caused cross-site tab reuse. */
 export const PREVIEW_WINDOW_NAME = 'kiterp-draft-preview'
+
+/** Stable window.name per site so Nursery / Sweet Mohona keep separate preview tabs. */
+export function previewWindowNameForSite(siteId: string): string {
+  const scope = siteId.trim() || PREVIEW_TEMPLATE_SCOPE
+  return `kiterp-draft-preview-${scope.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+}
 
 /** Pending shell asks the builder tab to re-deliver the preview URL (handles load race). */
 export const PREVIEW_PENDING_READY_TYPE = 'kiterp-preview-pending-ready'
 
-let previewWindowRef: Window | null = null
-/** Set when prepareDraftPreviewTab runs; navigate must not open a second tab in that case. */
-let previewPrepareActive = false
-/** Last URL handed to navigateDraftPreviewTab — retried when the pending tab finishes loading. */
-let lastPreviewNavigateUrl: string | null = null
-let previewDeliveryRetryIntervalId: ReturnType<typeof setInterval> | null = null
+type PreviewSlot = {
+  windowRef: Window | null
+  prepareActive: boolean
+  lastNavigateUrl: string | null
+  retryIntervalId: ReturnType<typeof setInterval> | null
+}
 
-function stopPreviewDeliveryRetries(): void {
-  if (previewDeliveryRetryIntervalId != null) {
-    window.clearInterval(previewDeliveryRetryIntervalId)
-    previewDeliveryRetryIntervalId = null
+const previewSlots = new Map<string, PreviewSlot>()
+
+function getPreviewSlot(siteId: string): PreviewSlot {
+  const scope = siteId.trim() || PREVIEW_TEMPLATE_SCOPE
+  let slot = previewSlots.get(scope)
+  if (!slot) {
+    slot = {
+      windowRef: null,
+      prepareActive: false,
+      lastNavigateUrl: null,
+      retryIntervalId: null,
+    }
+    previewSlots.set(scope, slot)
+  }
+  return slot
+}
+
+function stopPreviewDeliveryRetries(siteId: string): void {
+  const slot = getPreviewSlot(siteId)
+  if (slot.retryIntervalId != null) {
+    window.clearInterval(slot.retryIntervalId)
+    slot.retryIntervalId = null
   }
 }
 
@@ -179,175 +226,199 @@ function previewTabShowsUrl(tab: Window, url: string): boolean {
   }
 }
 
-function rememberLastPreviewNavigateUrl(url: string): void {
-  lastPreviewNavigateUrl = url
-}
-
-function deliverPreviewNavigateUrl(url: string): void {
+function deliverPreviewNavigateUrl(url: string, siteId: string): void {
+  const scope = siteId.trim()
+  if (!scope) return
   const target = alignPreviewUrlWithCurrentHost(url)
-  broadcastPreviewTabNavigate(target)
-  reacquirePreviewWindowRef()
-  if (previewWindowRef && !previewWindowRef.closed) {
+  const slot = getPreviewSlot(scope)
+  broadcastPreviewTabNavigate(target, scope)
+  if (slot.windowRef && !slot.windowRef.closed) {
     try {
       const targetOrigin = new URL(target).origin
       if (isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
-        if (previewTabShowsUrl(previewWindowRef, target)) {
-          stopPreviewDeliveryRetries()
-          postMessageToPreviewTabLoopback(target)
+        if (previewTabShowsUrl(slot.windowRef, target)) {
+          stopPreviewDeliveryRetries(scope)
+          postMessageToPreviewTabLoopback(scope, target)
           return
         }
-        previewWindowRef.location.replace(target)
-        previewWindowRef.focus()
+        slot.windowRef.location.replace(target)
+        slot.windowRef.focus()
       }
     } catch {
       /* localStorage poll + postMessage remain the fallback */
     }
-    postMessageToPreviewTabLoopback(target)
+    postMessageToPreviewTabLoopback(scope, target)
   }
 }
 
-function retryLastPreviewNavigateDelivery(): void {
-  if (!lastPreviewNavigateUrl) return
-  deliverPreviewNavigateUrl(lastPreviewNavigateUrl)
+function retryLastPreviewNavigateDelivery(siteId: string): void {
+  const scope = siteId.trim()
+  if (!scope) return
+  const slot = getPreviewSlot(scope)
+  if (!slot.lastNavigateUrl) return
+  deliverPreviewNavigateUrl(slot.lastNavigateUrl, scope)
 }
 
 /** Pending tab may mount after the first handoff — retry only until the tab arrives. */
-function schedulePreviewDeliveryRetries(url: string, durationMs = 12_000): void {
-  stopPreviewDeliveryRetries()
+function schedulePreviewDeliveryRetries(url: string, siteId: string, durationMs = 12_000): void {
+  const scope = siteId.trim()
+  if (!scope) return
+  stopPreviewDeliveryRetries(scope)
   const target = alignPreviewUrlWithCurrentHost(url)
-  deliverPreviewNavigateUrl(target)
+  const slot = getPreviewSlot(scope)
+  deliverPreviewNavigateUrl(target, scope)
   const startedAt = Date.now()
-  previewDeliveryRetryIntervalId = window.setInterval(() => {
+  slot.retryIntervalId = window.setInterval(() => {
     if (Date.now() - startedAt > durationMs) {
-      stopPreviewDeliveryRetries()
+      stopPreviewDeliveryRetries(scope)
       return
     }
-    if (previewWindowRef && !previewWindowRef.closed && previewTabShowsUrl(previewWindowRef, target)) {
-      stopPreviewDeliveryRetries()
+    if (slot.windowRef && !slot.windowRef.closed && previewTabShowsUrl(slot.windowRef, target)) {
+      stopPreviewDeliveryRetries(scope)
       return
     }
-    deliverPreviewNavigateUrl(target)
+    deliverPreviewNavigateUrl(target, scope)
   }, 750)
 }
 
 /** Listen for the pending preview tab signalling it is ready to receive the token URL. */
 export function initPreviewTabOpenerBridge(): void {
   if (typeof window === 'undefined') return
-  window.addEventListener('message', (ev: MessageEvent<{ type?: string }>) => {
+  window.addEventListener('message', (ev: MessageEvent<{ type?: string; siteId?: string }>) => {
     if (ev.data?.type !== PREVIEW_PENDING_READY_TYPE) return
-    retryLastPreviewNavigateDelivery()
+    const siteId = ev.data.siteId?.trim()
+    if (!siteId) return
+    retryLastPreviewNavigateDelivery(siteId)
   })
 }
 
-function closePreviewWindowRef(): void {
-  if (!previewWindowRef || previewWindowRef.closed) {
-    previewWindowRef = null
+function closePreviewWindowRef(siteId: string): void {
+  const slot = getPreviewSlot(siteId)
+  if (!slot.windowRef || slot.windowRef.closed) {
+    slot.windowRef = null
     return
   }
   try {
-    previewWindowRef.close()
+    slot.windowRef.close()
   } catch {
     /* cross-origin or already gone */
   }
-  previewWindowRef = null
+  slot.windowRef = null
 }
 
-function postMessageToPreviewTab(url: string, targetOrigin: string): boolean {
-  if (!previewWindowRef || previewWindowRef.closed) return false
+function postMessageToPreviewTab(siteId: string, url: string, targetOrigin: string): boolean {
+  const slot = getPreviewSlot(siteId)
+  if (!slot.windowRef || slot.windowRef.closed) return false
   try {
-    previewWindowRef.postMessage({ type: PREVIEW_NAV_MESSAGE_TYPE, url }, targetOrigin)
-    previewWindowRef.focus()
+    slot.windowRef.postMessage(
+      { type: PREVIEW_NAV_MESSAGE_TYPE, url, siteId: siteId.trim() },
+      targetOrigin,
+    )
+    slot.windowRef.focus()
     return true
   } catch {
-    previewWindowRef = null
+    slot.windowRef = null
     return false
   }
 }
 
-function postMessageToPreviewTabLoopback(url: string): boolean {
-  if (!previewWindowRef || previewWindowRef.closed) return false
+function postMessageToPreviewTabLoopback(siteId: string, url: string): boolean {
+  const slot = getPreviewSlot(siteId)
+  if (!slot.windowRef || slot.windowRef.closed) return false
   const targetOrigin = new URL(url).origin
-  if (postMessageToPreviewTab(url, targetOrigin)) return true
+  if (postMessageToPreviewTab(siteId, url, targetOrigin)) return true
   if (typeof window !== 'undefined' && isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
-    return postMessageToPreviewTab(url, normalizeLoopbackOrigin(window.location.origin))
-      || postMessageToPreviewTab(url, '*')
+    return postMessageToPreviewTab(siteId, url, normalizeLoopbackOrigin(window.location.origin))
+      || postMessageToPreviewTab(siteId, url, '*')
   }
   return false
 }
 
-function buildVendorDraftPreviewPendingUrl(): string {
+function buildVendorDraftPreviewPendingUrl(siteId: string): string {
   const url = new URL(getDraftBrowserPreviewAbsolutePath(), getVendorPreviewOrigin())
   url.searchParams.set(DRAFT_PREVIEW_PENDING_PARAM, '1')
+  url.searchParams.set(PREVIEW_SITE_QUERY_PARAM, siteId.trim())
   return url.toString()
 }
 
 /**
  * Call synchronously from a click handler (before any `await`).
  * Opens a same-origin loading shell the builder can target after the preview API returns.
+ * Each siteId gets its own named window so multi-tab builders do not overwrite each other.
  */
-export function prepareDraftPreviewTab(): Window | null {
-  const pendingUrl = buildVendorDraftPreviewPendingUrl()
-  previewPrepareActive = true
+export function prepareDraftPreviewTab(siteId: string): Window | null {
+  const scope = siteId.trim()
+  if (!scope) return null
+  const pendingUrl = buildVendorDraftPreviewPendingUrl(scope)
+  const slot = getPreviewSlot(scope)
+  slot.prepareActive = true
   try {
-    if (previewWindowRef && !previewWindowRef.closed) {
+    if (slot.windowRef && !slot.windowRef.closed) {
       const targetOrigin = new URL(pendingUrl).origin
       try {
         if (isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
-          previewWindowRef.location.replace(pendingUrl)
-        } else if (!postMessageToPreviewTabLoopback(pendingUrl)) {
-          closePreviewWindowRef()
+          slot.windowRef.location.replace(pendingUrl)
+        } else if (!postMessageToPreviewTabLoopback(scope, pendingUrl)) {
+          closePreviewWindowRef(scope)
         } else {
-          previewWindowRef.focus()
-          return previewWindowRef
+          slot.windowRef.focus()
+          return slot.windowRef
         }
-        if (previewWindowRef && !previewWindowRef.closed) {
-          previewWindowRef.focus()
-          return previewWindowRef
+        if (slot.windowRef && !slot.windowRef.closed) {
+          slot.windowRef.focus()
+          return slot.windowRef
         }
       } catch {
-        closePreviewWindowRef()
+        closePreviewWindowRef(scope)
       }
     }
-    const tab = window.open(pendingUrl, PREVIEW_WINDOW_NAME)
+    const tab = window.open(pendingUrl, previewWindowNameForSite(scope))
     if (tab) {
-      previewWindowRef = tab
+      slot.windowRef = tab
       tab.focus()
     }
     return tab
   } catch {
-    previewPrepareActive = false
+    slot.prepareActive = false
     return null
   }
 }
 
-function reacquirePreviewWindowRef(): void {
-  if (previewWindowRef && !previewWindowRef.closed) return
-  // Do not window.open('', PREVIEW_WINDOW_NAME) — on some browsers that navigates the
-  // existing preview tab to about:blank and breaks the pending shell.
-}
-
 /** Navigate the prepared preview tab (safe to call after async work). */
-export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
+export function navigateDraftPreviewTab(previewShellUrl: string, siteId: string): boolean {
+  const scope = siteId.trim() || extractPreviewSiteIdFromUrl(previewShellUrl)
+  if (!scope) return false
   const url = alignPreviewUrlWithCurrentHost(previewShellUrl)
-  rememberLastPreviewNavigateUrl(url)
-  reacquirePreviewWindowRef()
+  // Ensure siteId stays on the URL so the shell keeps filtering after handoff.
+  let finalUrl = url
+  try {
+    const parsed = new URL(url)
+    if (!parsed.searchParams.get(PREVIEW_SITE_QUERY_PARAM)) {
+      parsed.searchParams.set(PREVIEW_SITE_QUERY_PARAM, scope)
+      finalUrl = parsed.toString()
+    }
+  } catch {
+    /* keep url */
+  }
+  const slot = getPreviewSlot(scope)
+  slot.lastNavigateUrl = finalUrl
   let locationNavigated = false
   try {
-    const targetOrigin = new URL(url).origin
+    const targetOrigin = new URL(finalUrl).origin
 
     // Always persist for the pending tab to poll — never clear from the builder side.
-    deliverPreviewNavigateUrl(url)
-    if (previewWindowRef && !previewWindowRef.closed && isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
+    deliverPreviewNavigateUrl(finalUrl, scope)
+    if (slot.windowRef && !slot.windowRef.closed && isSameLoopbackOrigin(window.location.origin, targetOrigin)) {
       locationNavigated = true
     }
-    schedulePreviewDeliveryRetries(url)
+    schedulePreviewDeliveryRetries(finalUrl, scope)
 
     // Only open a new tab when prepare did not run and we have no live preview window.
-    if (!locationNavigated && !previewPrepareActive && (!previewWindowRef || previewWindowRef.closed)) {
+    if (!locationNavigated && !slot.prepareActive && (!slot.windowRef || slot.windowRef.closed)) {
       try {
-        const tab = window.open(url, PREVIEW_WINDOW_NAME)
+        const tab = window.open(finalUrl, previewWindowNameForSite(scope))
         if (tab) {
-          previewWindowRef = tab
+          slot.windowRef = tab
           tab.focus()
           locationNavigated = true
         }
@@ -356,40 +427,42 @@ export function navigateDraftPreviewTab(previewShellUrl: string): boolean {
       }
     }
 
-    const delivered = locationNavigated || previewPrepareActive
-    previewPrepareActive = false
+    const delivered = locationNavigated || slot.prepareActive
+    slot.prepareActive = false
     return delivered
   } catch {
-    previewPrepareActive = false
+    slot.prepareActive = false
     return false
   }
 }
 
 /**
- * Open a preview URL once in the shared preview tab.
+ * Open a preview URL once in the site-scoped preview tab.
  * Do not use `navigateDraftPreviewTab` here — its retry loop calls `location.replace`
  * every ~750ms, which aborts lazy chunks (e.g. FashionTemplate) on same-origin previews
  * and looks like a continuous reload + "Failed to fetch dynamically imported module".
  */
-function openPreviewTabOnce(url: string): boolean {
-  stopPreviewDeliveryRetries()
-  lastPreviewNavigateUrl = null
-  if (previewWindowRef && !previewWindowRef.closed) {
+function openPreviewTabOnce(url: string, siteId: string): boolean {
+  const scope = siteId.trim() || PREVIEW_TEMPLATE_SCOPE
+  stopPreviewDeliveryRetries(scope)
+  const slot = getPreviewSlot(scope)
+  slot.lastNavigateUrl = null
+  if (slot.windowRef && !slot.windowRef.closed) {
     try {
-      if (previewTabShowsUrl(previewWindowRef, url)) {
-        previewWindowRef.focus()
+      if (previewTabShowsUrl(slot.windowRef, url)) {
+        slot.windowRef.focus()
         return true
       }
-      previewWindowRef.location.replace(url)
-      previewWindowRef.focus()
+      slot.windowRef.location.replace(url)
+      slot.windowRef.focus()
       return true
     } catch {
       /* fall through to open */
     }
   }
-  const tab = window.open(url, PREVIEW_WINDOW_NAME)
+  const tab = window.open(url, previewWindowNameForSite(scope))
   if (tab) {
-    previewWindowRef = tab
+    slot.windowRef = tab
     tab.focus()
     return true
   }
@@ -397,7 +470,13 @@ function openPreviewTabOnce(url: string): boolean {
 }
 
 /** Open preview in one browser tab (sync callers only — no preceding `await`). */
-export function openDraftPreviewInBrowser(previewShellUrl: string): boolean {
+export function openDraftPreviewInBrowser(
+  previewShellUrl: string,
+  siteId?: string | null,
+): boolean {
+  const scope = siteId?.trim()
+    || extractPreviewSiteIdFromUrl(previewShellUrl)
+    || PREVIEW_TEMPLATE_SCOPE
   try {
     const parsed = new URL(previewShellUrl, typeof window !== 'undefined' ? window.location.href : undefined)
     const hasTarget = Boolean(parsed.searchParams.get('target')?.trim())
@@ -413,12 +492,12 @@ export function openDraftPreviewInBrowser(previewShellUrl: string): boolean {
       const url = isDraftShell || hasTarget
         ? alignPreviewUrlWithCurrentHost(previewShellUrl)
         : previewShellUrl
-      return openPreviewTabOnce(url)
+      return openPreviewTabOnce(url, scope)
     }
   } catch {
     /* fall through to token/pending path */
   }
-  return navigateDraftPreviewTab(previewShellUrl)
+  return navigateDraftPreviewTab(previewShellUrl, scope)
 }
 
 /** Crisp labels on dense builder toolbars (avoids muddy 12px extrabold on Windows). */

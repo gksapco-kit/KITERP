@@ -17088,9 +17088,9 @@ export default function WebsiteBuilder() {
     if (!siteId || !site || openingBrowserPreviewRef.current) return
     openingBrowserPreviewRef.current = true
     setOpeningBrowserPreview(true)
-    clearPendingPreviewTabNavigate()
-    clearPendingPreviewTabError()
-    const previewTab = prepareDraftPreviewTab()
+    clearPendingPreviewTabNavigate(siteId)
+    clearPendingPreviewTabError(siteId)
+    const previewTab = prepareDraftPreviewTab(siteId)
     try {
       // /store/:vendorSlug must match Vendor.slug (catalog), never wb_sites.subdomain alone.
       let vendorSlug = myVendor?.slug?.trim() ?? ''
@@ -17105,7 +17105,7 @@ export default function WebsiteBuilder() {
       if (!vendorSlug) {
         const message = 'Could not resolve your vendor store slug. Open the dashboard home once, then try again.'
         toast.error(message)
-        broadcastPreviewTabError(message)
+        broadcastPreviewTabError(message, siteId)
         return
       }
       const payload = buildPublicSitePayloadFromLocal(site, localPages, localBlocks, localStyle, vendorSlug)
@@ -17114,8 +17114,8 @@ export default function WebsiteBuilder() {
         label: `Preview ${new Date().toLocaleString()}`,
       })
       rememberDraftPreviewSession(siteId, preview_token)
-      const url = buildVendorDraftPreviewUrl(preview_token, activePage?.slug)
-      const delivered = navigateDraftPreviewTab(url)
+      const url = buildVendorDraftPreviewUrl(preview_token, activePage?.slug, siteId)
+      const delivered = navigateDraftPreviewTab(url, siteId)
       if (!delivered) {
         try {
           await navigator.clipboard.writeText(url)
@@ -17136,7 +17136,7 @@ export default function WebsiteBuilder() {
       }
       toast.error(message)
       // Stop the opened preview tab from hanging on "Preparing…" forever.
-      broadcastPreviewTabError(message)
+      broadcastPreviewTabError(message, siteId)
     } finally {
       openingBrowserPreviewRef.current = false
       setOpeningBrowserPreview(false)

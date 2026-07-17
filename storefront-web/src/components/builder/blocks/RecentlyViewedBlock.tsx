@@ -30,15 +30,15 @@ interface Props {
 export default function RecentlyViewedBlock({ style, props, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
-  const { storePath } = useVendor()
+  const { storePath, vendorSlug } = useVendor()
   const max = Math.min(200, Math.max(1, Number(props.max ?? props.show_count ?? 6) || 6))
   const columns = clampCatalogColumns(props.columns, 6, 'recently_viewed')
   const cardLayout = readCatalogCardLayout(props, 'recently_viewed', { defaultColumns: 6 })
   const [items, setItems] = useState<LiveItem[]>([])
 
   useEffect(() => {
-    setItems(getRecent(max))
-  }, [max])
+    setItems(getRecent(max, vendorSlug))
+  }, [max, vendorSlug])
 
   const title = resolveBlockTextField(props, 'title')
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)

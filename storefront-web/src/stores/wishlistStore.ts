@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import type { WishlistItem } from '@/kit/types'
+import { vendorSlugFromLocation } from '@/lib/vendorScope'
 
 interface WishlistState {
   items: WishlistItem[]
@@ -8,6 +9,22 @@ interface WishlistState {
   remove: (id: string) => void
   has: (id: string) => boolean
   toggle: (item: WishlistItem) => void
+}
+
+/** Persist each vendor's wishlist under its own key so live tabs do not merge. */
+const vendorScopedStorage: StateStorage = {
+  getItem: (name) => {
+    const slug = vendorSlugFromLocation() || 'default'
+    return localStorage.getItem(`${name}:${slug}`)
+  },
+  setItem: (name, value) => {
+    const slug = vendorSlugFromLocation() || 'default'
+    localStorage.setItem(`${name}:${slug}`, value)
+  },
+  removeItem: (name) => {
+    const slug = vendorSlugFromLocation() || 'default'
+    localStorage.removeItem(`${name}:${slug}`)
+  },
 }
 
 export const useWishlistStore = create<WishlistState>()(
@@ -25,6 +42,9 @@ export const useWishlistStore = create<WishlistState>()(
         else get().add(item)
       },
     }),
-    { name: 'kiterp-wishlist' },
+    {
+      name: 'kiterp-wishlist',
+      storage: createJSONStorage(() => vendorScopedStorage),
+    },
   ),
 )

@@ -13,8 +13,8 @@ export function authScopeKey(vendorId: string | null, storeId: string | null): s
 }
 
 function activeScope(): string {
-  const vendorId = _vendorId || (typeof localStorage !== 'undefined' ? localStorage.getItem('vendor_id') : null)
-  return authScopeKey(vendorId, _storeId)
+  // Do not read shared localStorage vendor_id — that bleeds auth across live tabs.
+  return authScopeKey(_vendorId, _storeId)
 }
 
 function tokenKey(kind: 'access' | 'refresh', scope: string): string {
@@ -31,10 +31,16 @@ export function getActiveAuthScope(): string {
 
 export function readScopedCustomerTokens(): { access: string | null; refresh: string | null } {
   const scope = activeScope()
-  return {
-    access: localStorage.getItem(tokenKey('access', scope)) || localStorage.getItem('customer_access_token'),
-    refresh: localStorage.getItem(tokenKey('refresh', scope)) || localStorage.getItem('customer_refresh_token'),
+  const access = localStorage.getItem(tokenKey('access', scope))
+  const refresh = localStorage.getItem(tokenKey('refresh', scope))
+  // Legacy global tokens only when this tab has no vendor scope yet.
+  if (!_vendorId) {
+    return {
+      access: access || localStorage.getItem('customer_access_token'),
+      refresh: refresh || localStorage.getItem('customer_refresh_token'),
+    }
   }
+  return { access, refresh }
 }
 
 export function writeScopedCustomerTokens(access: string, refresh?: string | null) {

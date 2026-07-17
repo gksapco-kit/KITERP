@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
-import { setVendorContext } from '@/api/client'
+import { setVendorContext, setVendorSlugHint } from '@/api/client'
 import type { DisplayFields } from '@/types'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 import {
@@ -92,6 +92,11 @@ export function VendorProvider({ children }: { children: ReactNode }) {
 
   const slug = params?.vendorSlug || ''
 
+  // Pin this tab's URL slug immediately so catalog calls never use another live tab's vendor.
+  useEffect(() => {
+    if (slug.trim()) setVendorSlugHint(slug)
+  }, [slug])
+
   useEffect(() => {
     if (!slug || slug.trim() === '') {
       setError('No vendor specified')
@@ -102,13 +107,14 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     setIsLoading(true)
     setError(null)
+    setVendor(null)
 
     axios
       .get(`${API_URL}/catalog/vendor/${encodeURIComponent(slug)}`, { timeout: 15_000 })
       .then((res) => {
         if (!cancelled) {
           setVendor(res.data)
-          // Set vendor context in API client (in-memory + localStorage)
+          // Tab-local sessionStorage + in-memory (never shared localStorage)
           setVendorContext(res.data.slug, res.data.id)
         }
       })
@@ -142,6 +148,21 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
   }, [slug])
+
+  // Re-pin after focus so this tab cannot silently pick up another site's headers.
+  useEffect(() => {
+    if (!vendor?.slug || !vendor?.id) return
+    const pin = () => setVendorContext(vendor.slug, vendor.id)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') pin()
+    }
+    window.addEventListener('focus', pin)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('focus', pin)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [vendor?.slug, vendor?.id])
 
   const storePath = (path: string) => {
     const clean = path.startsWith('/') ? path : `/${path}`

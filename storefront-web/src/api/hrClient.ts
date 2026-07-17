@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
+import { vendorSlugFromLocation } from '@/lib/vendorScope'
 
 const API_URL = getStorefrontApiBaseUrl()
 
@@ -7,10 +8,16 @@ let _vendorSlug: string | null = null
 let _vendorId: string | null = null
 
 export function setHrVendorContext(slug: string, id: string) {
-  _vendorSlug = slug
-  _vendorId = id
-  localStorage.setItem('vendor_slug', slug)
-  localStorage.setItem('vendor_id', id)
+  _vendorSlug = slug.trim()
+  _vendorId = id.trim()
+  try {
+    sessionStorage.setItem('vendor_slug', _vendorSlug)
+    sessionStorage.setItem('vendor_id', _vendorId)
+    localStorage.removeItem('vendor_slug')
+    localStorage.removeItem('vendor_id')
+  } catch {
+    /* private mode */
+  }
 }
 
 export const hrApiClient = axios.create({
@@ -32,14 +39,15 @@ hrApiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
 
-  const vendorSlug = _vendorSlug || localStorage.getItem('vendor_slug')
+  const urlSlug = vendorSlugFromLocation()
+  const vendorSlug = urlSlug || _vendorSlug
   if (vendorSlug) {
     config.headers['X-Vendor-Slug'] = vendorSlug
   }
 
-  const vendorId = _vendorId || localStorage.getItem('vendor_id')
-  if (vendorId) {
-    config.headers['X-Vendor-Id'] = vendorId
+  // Only send id when it matches this tab's slug (avoid cross-tab localStorage bleed).
+  if (_vendorId && _vendorSlug && (!urlSlug || _vendorSlug === urlSlug)) {
+    config.headers['X-Vendor-Id'] = _vendorId
   }
 
   return config
@@ -48,7 +56,7 @@ hrApiClient.interceptors.request.use((config) => {
 function clearHrAuthAndRedirect() {
   localStorage.removeItem('employee_access_token')
   localStorage.removeItem('employee-hr-auth-storage')
-  const slug = _vendorSlug || localStorage.getItem('vendor_slug')
+  const slug = vendorSlugFromLocation() || _vendorSlug
   window.location.href = slug ? `/store/${slug}/hr/login` : '/'
 }
 

@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -738,6 +738,15 @@ async def get_website_template_preview(
     return _public_site_dict_from_template(dict(tpl))
 
 
+# Draft previews must never be HTTP-cached — shared browser disk cache across tabs
+# could otherwise serve Site A's snapshot when Site B's preview tab revalidates.
+_PREVIEW_NO_STORE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
 @router.get("/preview/by-token/{token}")
 async def get_builder_preview_by_token(
     token: str,
@@ -762,9 +771,8 @@ async def get_builder_preview_by_token(
 
     payload = row.payload if isinstance(row.payload, dict) else {}
     site = await _load_site_for_preview_seo(str(row.site_id), db)
-    if site:
-        return _overlay_live_seo_on_preview_payload(payload, site)
-    return payload
+    body = _overlay_live_seo_on_preview_payload(payload, site) if site else payload
+    return JSONResponse(content=body, headers=_PREVIEW_NO_STORE_HEADERS)
 
 
 @router.get("/by-subdomain/{subdomain}")

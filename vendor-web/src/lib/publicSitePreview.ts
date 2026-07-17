@@ -69,10 +69,25 @@ export function findPublicPreviewPage(
   )
 }
 
-export async function fetchPublicPreviewByToken(token: string): Promise<PublicPreviewSite> {
+export async function fetchPublicPreviewByToken(
+  token: string,
+  opts?: { siteId?: string | null },
+): Promise<PublicPreviewSite> {
+  const params = new URLSearchParams()
+  // Bust shared HTTP disk cache across tabs (tokens are unique, but proxies/browsers
+  // may still reuse entries when Cache-Control was missing on older responses).
+  params.set('_cb', `${Date.now()}`)
+  const siteId = opts?.siteId?.trim()
+  if (siteId) params.set('siteId', siteId)
   const res = await fetch(
-    `/api/v1/public/sites/preview/by-token/${encodeURIComponent(token)}`,
-    { cache: 'no-store' },
+    `/api/v1/public/sites/preview/by-token/${encodeURIComponent(token)}?${params}`,
+    {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    },
   )
   if (!res.ok) {
     throw new Error(res.status === 404 ? 'Preview expired or not found' : `Preview load failed (${res.status})`)

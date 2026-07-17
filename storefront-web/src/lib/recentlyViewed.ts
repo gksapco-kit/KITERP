@@ -2,15 +2,13 @@
  * Recently-viewed product tracking — backed by localStorage so it works
  * without a customer login.
  *
- * Storage shape: a small JSON array of `{ id, title, url, image_url, price, currency }`
- * trimmed to the most recent N entries (default 12). Newest first.
- *
- * Call `trackView(item)` from any product detail / card render to push an
- * item; call `getRecent(limit)` from `RecentlyViewedBlock` to read it.
+ * Keys are per vendor slug so two live tabs on the same origin do not merge lists.
  */
 import type { LiveItem } from '@/blocks/registry'
+import { vendorSlugFromLocation } from '@/lib/vendorScope'
 
-const STORAGE_KEY = 'kiterp_recently_viewed'
+const STORAGE_PREFIX = 'kiterp_recently_viewed'
+const LEGACY_STORAGE_KEY = 'kiterp_recently_viewed'
 const MAX_ITEMS = 24
 
 export interface RecentlyViewedItem {
@@ -23,11 +21,26 @@ export interface RecentlyViewedItem {
   viewed_at: string
 }
 
-function read(): RecentlyViewedItem[] {
+function storageKey(vendorSlug?: string | null): string {
+  const slug = (vendorSlug || vendorSlugFromLocation() || 'default').trim() || 'default'
+  return `${STORAGE_PREFIX}:${slug}`
+}
+
+function read(vendorSlug?: string | null): RecentlyViewedItem[] {
   if (typeof window === 'undefined') return []
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
+    const raw = window.localStorage.getItem(storageKey(vendorSlug))
+    if (!raw) {
+      // One-time: ignore legacy unscoped list (mixed vendors) rather than migrate.
+      if (!vendorSlug && !vendorSlugFromLocation()) {
+        const legacy = window.localStorage.getItem(LEGACY_STORAGE_KEY)
+        if (legacy) {
+          const parsed = JSON.parse(legacy)
+          return Array.isArray(parsed) ? (parsed as RecentlyViewedItem[]) : []
+        }
+      }
+      return []
+    }
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? (parsed as RecentlyViewedItem[]) : []
   } catch {
@@ -35,20 +48,30 @@ function read(): RecentlyViewedItem[] {
   }
 }
 
-function write(items: RecentlyViewedItem[]): void {
+function write(items: RecentlyViewedItem[], vendorSlug?: string | null): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, MAX_ITEMS)))
+    window.localStorage.setItem(storageKey(vendorSlug), JSON.stringify(items.slice(0, MAX_ITEMS)))
   } catch {
     /* quota / serialization — ignore */
   }
 }
 
 /** Push a product onto the recently-viewed list (deduped by id). */
-export function trackView(item: { id?: string | null; title: string; url?: string | null; image_url?: string | null; price?: number | null; currency?: string | null }): void {
+export function trackView(
+  item: {
+    id?: string | null
+    title: string
+    url?: string | null
+    image_url?: string | null
+    price?: number | null
+    currency?: string | null
+  },
+  vendorSlug?: string | null,
+): void {
   if (!item.id || !item.title) return
   const id = String(item.id)
-  const existing = read().filter(i => i.id !== id)
+  const existing = read(vendorSlug).filter(i => i.id !== id)
   const next: RecentlyViewedItem = {
     id,
     title: item.title,
@@ -58,11 +81,11 @@ export function trackView(item: { id?: string | null; title: string; url?: strin
     currency: item.currency ?? null,
     viewed_at: new Date().toISOString(),
   }
-  write([next, ...existing])
+  write([next, ...existing], vendorSlug)
 }
 
-export function getRecent(limit = 6): LiveItem[] {
-  return read()
+export function getRecent(limit = 6, vendorSlug?: string | null): LiveItem[] {
+  return read(vendorSlug)
     .slice(0, limit)
     .map(i => ({
       id: i.id,
@@ -78,6 +101,6 @@ export function getRecent(limit = 6): LiveItem[] {
     }))
 }
 
-export function clearRecent(): void {
-  write([])
+export function clearRecent(vendorSlug?: string | null): void {
+  write([], vendorSlug)
 }

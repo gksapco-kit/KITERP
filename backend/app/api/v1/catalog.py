@@ -253,28 +253,34 @@ async def get_vendor_id_from_tenant(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> UUID:
-    """Get vendor ID from tenant context, X-Vendor-Slug header, or X-Vendor-Id header."""
-    # 1. Tenant middleware (subdomain)
+    """
+    Get vendor ID from tenant context, X-Vendor-Slug, or X-Vendor-Id.
+
+    Slug must win over Id: path-based live tabs send both headers, and a stale
+    X-Vendor-Id from another tab's localStorage must not override /store/{slug}.
+    (Same order as get_store_vendor_id in app.api.deps.)
+    """
+    # 1. Tenant middleware (subdomain / custom domain)
     vendor_id = get_tenant_vendor_id(request)
     if vendor_id:
         return UUID(vendor_id)
 
-    # 2. X-Vendor-Id header
-    header_id = request.headers.get("x-vendor-id")
-    if header_id:
-        return UUID(header_id)
-
-    # 3. X-Vendor-Slug header (SaaS path-based resolution)
+    # 2. X-Vendor-Slug before Id (multi-tab same-origin isolation)
     vendor_slug = request.headers.get("x-vendor-slug")
     if vendor_slug:
         repo = VendorRepository(db)
-        vendor = await repo.find_by_slug(vendor_slug)
+        vendor = await repo.find_by_slug(vendor_slug.strip())
         if vendor and vendor_live_on_storefront(vendor.status):
             return vendor.id
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Vendor '{vendor_slug}' not found or not available on the business front.",
         )
+
+    # 3. X-Vendor-Id (mobile / callers that only have UUID)
+    header_id = request.headers.get("x-vendor-id")
+    if header_id:
+        return UUID(header_id)
 
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,

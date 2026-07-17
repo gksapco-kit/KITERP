@@ -34,6 +34,13 @@ apiClient.interceptors.request.use(
     if (vendorId) {
       config.headers['X-Vendor-Id'] = vendorId
     }
+    // Website builder GETs: discourage HTTP disk-cache reuse across multi-tab site editing.
+    const method = (config.method || 'get').toLowerCase()
+    const url = `${config.baseURL || ''}${config.url || ''}`
+    if (method === 'get' && /\/websites(\/|$|\?)/i.test(url)) {
+      config.headers['Cache-Control'] = 'no-cache'
+      config.headers.Pragma = 'no-cache'
+    }
     return config
   },
   (error) => Promise.reject(error)

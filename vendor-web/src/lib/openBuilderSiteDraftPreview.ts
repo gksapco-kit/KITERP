@@ -43,7 +43,7 @@ export async function resolveBuilderSiteDraftPreviewUrl(siteId: string): Promise
     label: `Preview ${new Date().toLocaleString()}`,
   })
   rememberDraftPreviewSession(siteId, preview_token)
-  return buildVendorDraftPreviewUrl(preview_token, homePage?.slug)
+  return buildVendorDraftPreviewUrl(preview_token, homePage?.slug, siteId)
 }
 
 /** Copy the draft preview URL for a site to the clipboard. */
@@ -56,19 +56,19 @@ export async function copyBuilderSiteDraftPreviewLink(siteId: string): Promise<v
     console.error('[DashboardPreviewCopy] failed:', err)
     const message = previewErrorMessage(err)
     toast.error(message)
-    broadcastPreviewTabError(message)
+    broadcastPreviewTabError(message, siteId)
   }
 }
 
 /** Open saved builder site JSON in the draft browser preview tab (same flow as Builder toolbar). */
 export async function openBuilderSiteDraftPreview(siteId: string): Promise<void> {
-  clearPendingPreviewTabNavigate()
-  clearPendingPreviewTabError()
-  const previewTab = prepareDraftPreviewTab()
+  clearPendingPreviewTabNavigate(siteId)
+  clearPendingPreviewTabError(siteId)
+  const previewTab = prepareDraftPreviewTab(siteId)
 
   try {
     const url = await resolveBuilderSiteDraftPreviewUrl(siteId)
-    const delivered = navigateDraftPreviewTab(url)
+    const delivered = navigateDraftPreviewTab(url, siteId)
     if (!delivered) {
       try {
         await navigator.clipboard.writeText(url)
@@ -83,6 +83,6 @@ export async function openBuilderSiteDraftPreview(siteId: string): Promise<void>
     console.error('[DashboardPreview] failed:', err)
     const message = previewErrorMessage(err)
     toast.error(message)
-    broadcastPreviewTabError(message)
+    broadcastPreviewTabError(message, siteId)
   }
 }

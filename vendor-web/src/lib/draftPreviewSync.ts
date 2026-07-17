@@ -9,8 +9,22 @@ import { normalizeLoopbackHostname } from '@/lib/loopbackHost'
 const PREVIEW_SITE_KEY = 'kiterp:draft-preview-site-id'
 const PREVIEW_CHANNEL = 'kiterp-draft-preview'
 const PREVIEW_NAV_CHANNEL = 'kiterp-draft-preview-nav'
+
+/** Query param on /preview/draft so each pending shell only accepts its site. */
+export const PREVIEW_SITE_QUERY_PARAM = 'siteId'
+
+/** @deprecated Unscoped key — cleared on write so old multi-tab handoffs cannot retarget other sites. */
 export const PREVIEW_NAV_STORAGE_KEY = 'kiterp:pending-preview-navigate'
+/** @deprecated Unscoped key — see PREVIEW_NAV_STORAGE_KEY. */
 export const PREVIEW_ERROR_STORAGE_KEY = 'kiterp:pending-preview-error'
+
+export function previewNavStorageKey(siteId: string): string {
+  return `${PREVIEW_NAV_STORAGE_KEY}:${siteId.trim()}`
+}
+
+export function previewErrorStorageKey(siteId: string): string {
+  return `${PREVIEW_ERROR_STORAGE_KEY}:${siteId.trim()}`
+}
 
 /** postMessage type — works in Cursor Simple Browser where BroadcastChannel may not. */
 export const PREVIEW_NAV_MESSAGE_TYPE = 'kiterp-preview-navigate'
@@ -18,16 +32,19 @@ export const PREVIEW_NAV_MESSAGE_TYPE = 'kiterp-preview-navigate'
 export type DraftPreviewNavigateMessage = {
   type: 'navigate'
   url: string
+  siteId: string
 }
 
 export type DraftPreviewErrorMessage = {
   type: 'preview-error'
   message: string
+  siteId: string
 }
 
 export type PreviewTabPostMessage = {
   type: typeof PREVIEW_NAV_MESSAGE_TYPE
   url?: string
+  siteId?: string
   /** Catalog segment for /preview/draft?route=… when embedded storefront navigates in preview. */
   route?: string
 }
@@ -96,102 +113,132 @@ export function recallDraftPreviewSiteId(): string {
   }
 }
 
-/** Tell an open /preview/draft?pending=1 tab to navigate (works after async API calls). */
-export function broadcastPreviewTabNavigate(url: string): void {
-  const target = canonicalizePreviewNavigateUrl(url)
-  if (!target) return
-  // A successful navigate supersedes any earlier error.
-  clearPendingPreviewTabError()
-  const existing = peekPendingPreviewTabNavigate()
-  if (existing && draftPreviewNavigateTargetsMatch(existing, target)) {
-    try {
-      const channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
-      channel.postMessage({ type: 'navigate', url: target } satisfies DraftPreviewNavigateMessage)
-      channel.close()
-    } catch {
-      /* BroadcastChannel unavailable */
-    }
-    return
-  }
-  // localStorage is shared across tabs on the same origin (canonical 127.0.0.1 in dev).
-  try {
-    localStorage.setItem(PREVIEW_NAV_STORAGE_KEY, target)
-  } catch {
-    /* private mode */
-  }
-  try {
-    const channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
-    channel.postMessage({ type: 'navigate', url: target } satisfies DraftPreviewNavigateMessage)
-    channel.close()
-  } catch {
-    /* BroadcastChannel unavailable */
-  }
-}
-
-export function peekPendingPreviewTabNavigate(): string | null {
-  try {
-    return localStorage.getItem(PREVIEW_NAV_STORAGE_KEY)?.trim() || null
-  } catch {
-    return null
-  }
-}
-
-export function clearPendingPreviewTabNavigate(): void {
+function clearLegacyUnscopedPreviewKeys(): void {
   try {
     localStorage.removeItem(PREVIEW_NAV_STORAGE_KEY)
-  } catch {
-    /* private mode */
-  }
-}
-
-export function consumePendingPreviewTabNavigate(): string | null {
-  const pending = peekPendingPreviewTabNavigate()
-  if (!pending) return null
-  clearPendingPreviewTabNavigate()
-  return pending
-}
-
-/** Tell the pending preview tab the builder failed to produce a snapshot. */
-export function broadcastPreviewTabError(message: string): void {
-  const msg = message.trim() || 'Preview could not be prepared.'
-  try {
-    localStorage.setItem(PREVIEW_ERROR_STORAGE_KEY, msg)
-  } catch {
-    /* private mode */
-  }
-  try {
-    const channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
-    channel.postMessage({ type: 'preview-error', message: msg })
-    channel.close()
-  } catch {
-    /* BroadcastChannel unavailable */
-  }
-}
-
-export function peekPendingPreviewTabError(): string | null {
-  try {
-    return localStorage.getItem(PREVIEW_ERROR_STORAGE_KEY)?.trim() || null
-  } catch {
-    return null
-  }
-}
-
-export function clearPendingPreviewTabError(): void {
-  try {
     localStorage.removeItem(PREVIEW_ERROR_STORAGE_KEY)
   } catch {
     /* private mode */
   }
 }
 
-export function subscribePreviewTabNavigate(handler: (url: string) => void): () => void {
+/** Tell an open /preview/draft?pending=1&siteId=… tab to navigate (works after async API calls). */
+export function broadcastPreviewTabNavigate(url: string, siteId: string): void {
+  const scope = siteId.trim()
+  if (!scope) return
+  const target = canonicalizePreviewNavigateUrl(url)
+  if (!target) return
+  // A successful navigate supersedes any earlier error for this site only.
+  clearPendingPreviewTabError(scope)
+  clearLegacyUnscopedPreviewKeys()
+  const existing = peekPendingPreviewTabNavigate(scope)
+  if (existing && draftPreviewNavigateTargetsMatch(existing, target)) {
+    try {
+      const channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
+      channel.postMessage({ type: 'navigate', url: target, siteId: scope } satisfies DraftPreviewNavigateMessage)
+      channel.close()
+    } catch {
+      /* BroadcastChannel unavailable */
+    }
+    return
+  }
+  // localStorage is shared across tabs — keys are site-scoped so other sites are not retargeted.
+  try {
+    localStorage.setItem(previewNavStorageKey(scope), target)
+  } catch {
+    /* private mode */
+  }
+  try {
+    const channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
+    channel.postMessage({ type: 'navigate', url: target, siteId: scope } satisfies DraftPreviewNavigateMessage)
+    channel.close()
+  } catch {
+    /* BroadcastChannel unavailable */
+  }
+}
+
+export function peekPendingPreviewTabNavigate(siteId: string): string | null {
+  const scope = siteId.trim()
+  if (!scope) return null
+  try {
+    return localStorage.getItem(previewNavStorageKey(scope))?.trim() || null
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingPreviewTabNavigate(siteId: string): void {
+  const scope = siteId.trim()
+  if (!scope) return
+  try {
+    localStorage.removeItem(previewNavStorageKey(scope))
+  } catch {
+    /* private mode */
+  }
+  clearLegacyUnscopedPreviewKeys()
+}
+
+export function consumePendingPreviewTabNavigate(siteId: string): string | null {
+  const pending = peekPendingPreviewTabNavigate(siteId)
+  if (!pending) return null
+  clearPendingPreviewTabNavigate(siteId)
+  return pending
+}
+
+/** Tell the pending preview tab for this site that the builder failed to produce a snapshot. */
+export function broadcastPreviewTabError(message: string, siteId: string): void {
+  const scope = siteId.trim()
+  if (!scope) return
+  const msg = message.trim() || 'Preview could not be prepared.'
+  clearLegacyUnscopedPreviewKeys()
+  try {
+    localStorage.setItem(previewErrorStorageKey(scope), msg)
+  } catch {
+    /* private mode */
+  }
+  try {
+    const channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
+    channel.postMessage({ type: 'preview-error', message: msg, siteId: scope } satisfies DraftPreviewErrorMessage)
+    channel.close()
+  } catch {
+    /* BroadcastChannel unavailable */
+  }
+}
+
+export function peekPendingPreviewTabError(siteId: string): string | null {
+  const scope = siteId.trim()
+  if (!scope) return null
+  try {
+    return localStorage.getItem(previewErrorStorageKey(scope))?.trim() || null
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingPreviewTabError(siteId: string): void {
+  const scope = siteId.trim()
+  if (!scope) return
+  try {
+    localStorage.removeItem(previewErrorStorageKey(scope))
+  } catch {
+    /* private mode */
+  }
+  clearLegacyUnscopedPreviewKeys()
+}
+
+export function subscribePreviewTabNavigate(
+  handler: (url: string) => void,
+  siteId: string,
+): () => void {
+  const scope = siteId.trim()
+  if (!scope) return () => {}
   let channel: BroadcastChannel | null = null
   try {
     channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
     channel.onmessage = (ev: MessageEvent<DraftPreviewNavigateMessage | DraftPreviewErrorMessage>) => {
-      if (ev.data?.type === 'navigate' && typeof ev.data.url === 'string') {
-        handler(ev.data.url)
-      }
+      if (ev.data?.type !== 'navigate' || typeof ev.data.url !== 'string') return
+      if ((ev.data.siteId || '').trim() !== scope) return
+      handler(ev.data.url)
     }
   } catch {
     /* noop */
@@ -201,14 +248,19 @@ export function subscribePreviewTabNavigate(handler: (url: string) => void): () 
   }
 }
 
-export function subscribePreviewTabError(handler: (message: string) => void): () => void {
+export function subscribePreviewTabError(
+  handler: (message: string) => void,
+  siteId: string,
+): () => void {
+  const scope = siteId.trim()
+  if (!scope) return () => {}
   let channel: BroadcastChannel | null = null
   try {
     channel = new BroadcastChannel(PREVIEW_NAV_CHANNEL)
     channel.onmessage = (ev: MessageEvent<DraftPreviewNavigateMessage | DraftPreviewErrorMessage>) => {
-      if (ev.data?.type === 'preview-error' && typeof ev.data.message === 'string') {
-        handler(ev.data.message)
-      }
+      if (ev.data?.type !== 'preview-error' || typeof ev.data.message !== 'string') return
+      if ((ev.data.siteId || '').trim() !== scope) return
+      handler(ev.data.message)
     }
   } catch {
     /* noop */

@@ -14,9 +14,10 @@ import {
   clearPendingPreviewTabNavigate,
   clearPendingPreviewTabError,
   draftPreviewNavigateTargetsMatch,
+  previewNavStorageKey,
+  previewErrorStorageKey,
   PREVIEW_NAV_MESSAGE_TYPE,
-  PREVIEW_NAV_STORAGE_KEY,
-  PREVIEW_ERROR_STORAGE_KEY,
+  PREVIEW_SITE_QUERY_PARAM,
   type PreviewTabPostMessage,
 } from '@/lib/draftPreviewSync'
 import {
@@ -33,9 +34,11 @@ import { cn } from '@/lib/utils'
 /** Allow time for slow preview snapshots; must exceed createBuilderPreview timeout (120s). */
 const PENDING_PREVIEW_TIMEOUT_MS = 150_000
 
-function requestPreviewDeliveryFromOpener(): void {
+function requestPreviewDeliveryFromOpener(siteId: string): void {
+  const scope = siteId.trim()
+  if (!scope) return
   try {
-    window.opener?.postMessage({ type: PREVIEW_PENDING_READY_TYPE }, '*')
+    window.opener?.postMessage({ type: PREVIEW_PENDING_READY_TYPE, siteId: scope }, '*')
   } catch {
     /* cross-origin or closed opener */
   }
@@ -82,6 +85,8 @@ export default function StorefrontBrowserPreviewShell() {
   const pageSlug = searchParams.get('page')?.trim() || null
   const catalogRoute = searchParams.get('route')?.trim() || null
   const pending = searchParams.get(DRAFT_PREVIEW_PENDING_PARAM) === '1'
+  /** Isolates this shell so navigate/error from other site builders cannot retarget it. */
+  const previewSiteId = searchParams.get(PREVIEW_SITE_QUERY_PARAM)?.trim() ?? ''
   const templateTarget = legacyTarget && isAllowedTemplateTarget(legacyTarget) ? legacyTarget : null
 
   const openBuilderForPage = useCallback((nextPageSlug: string | null) => {
@@ -108,8 +113,12 @@ export default function StorefrontBrowserPreviewShell() {
       setLoading(true)
       setError(null)
     }
-    return fetchPublicPreviewByToken(previewToken)
+    return fetchPublicPreviewByToken(previewToken, { siteId: previewSiteId || undefined })
       .then(data => {
+        // Ignore stale responses if this shell was retargeted mid-flight (multi-tab).
+        if (previewSiteId && data?.id && String(data.id) !== previewSiteId) {
+          return
+        }
         setSite(data)
         setLastSyncedAt(new Date())
         if (data?.id) rememberDraftPreviewSession(String(data.id), previewToken)
@@ -121,24 +130,28 @@ export default function StorefrontBrowserPreviewShell() {
       .finally(() => {
         if (!opts?.quiet) setLoading(false)
       })
-  }, [])
+  }, [previewSiteId])
 
   useEffect(() => {
     if (token) rememberDraftPreviewToken(token)
   }, [token])
 
   useEffect(() => {
-    if (!pending || token) return
-    requestPreviewDeliveryFromOpener()
-    const retryId = window.setInterval(requestPreviewDeliveryFromOpener, 2000)
+    if (!pending || token || !previewSiteId) return
+    const ask = () => requestPreviewDeliveryFromOpener(previewSiteId)
+    ask()
+    const retryId = window.setInterval(ask, 2000)
     return () => window.clearInterval(retryId)
-  }, [pending, token])
+  }, [pending, token, previewSiteId])
 
   useEffect(() => {
+    // Without siteId we cannot safely listen — unscoped handoffs used to retarget every open preview.
+    if (!previewSiteId) return
+
     const goToPreview = (navUrl: string) => {
       const canonical = alignPreviewUrlWithCurrentHost(navUrl)
       if (!isAllowedPreviewNavigateUrl(canonical)) return
-      clearPendingPreviewTabNavigate()
+      clearPendingPreviewTabNavigate(previewSiteId)
       if (draftPreviewNavigateTargetsMatch(window.location.href, canonical)) {
         return
       }
@@ -147,6 +160,8 @@ export default function StorefrontBrowserPreviewShell() {
 
     const onWindowMessage = (ev: MessageEvent<PreviewTabPostMessage>) => {
       if (ev.data?.type !== PREVIEW_NAV_MESSAGE_TYPE) return
+      const msgSiteId = ev.data.siteId?.trim()
+      if (msgSiteId && msgSiteId !== previewSiteId) return
       if (typeof ev.data.url === 'string') {
         goToPreview(ev.data.url)
         return
@@ -172,22 +187,24 @@ export default function StorefrontBrowserPreviewShell() {
     }
     window.addEventListener('message', onWindowMessage)
 
+    const navKey = previewNavStorageKey(previewSiteId)
+    const errKey = previewErrorStorageKey(previewSiteId)
     const onStorage = (ev: StorageEvent) => {
-      if (ev.key === PREVIEW_NAV_STORAGE_KEY && ev.newValue) {
+      if (ev.key === navKey && ev.newValue) {
         goToPreview(ev.newValue)
         return
       }
-      if (ev.key === PREVIEW_ERROR_STORAGE_KEY && ev.newValue) {
+      if (ev.key === errKey && ev.newValue) {
         setPendingError(ev.newValue)
       }
     }
     window.addEventListener('storage', onStorage)
 
-    const unsubscribeChannel = subscribePreviewTabNavigate(goToPreview)
-    const unsubscribeError = subscribePreviewTabError(msg => setPendingError(msg))
+    const unsubscribeChannel = subscribePreviewTabNavigate(goToPreview, previewSiteId)
+    const unsubscribeError = subscribePreviewTabError(msg => setPendingError(msg), previewSiteId)
 
     if (pending && !token) {
-      const immediate = peekPendingPreviewTabNavigate()
+      const immediate = peekPendingPreviewTabNavigate(previewSiteId)
       if (immediate) {
         goToPreview(immediate)
         return () => {
@@ -197,14 +214,14 @@ export default function StorefrontBrowserPreviewShell() {
           unsubscribeError()
         }
       }
-      const existingErr = peekPendingPreviewTabError()
+      const existingErr = peekPendingPreviewTabError(previewSiteId)
       if (existingErr) setPendingError(existingErr)
       const startedAt = Date.now()
       let timedOut = false
       const pollId = window.setInterval(() => {
-        const nav = peekPendingPreviewTabNavigate()
+        const nav = peekPendingPreviewTabNavigate(previewSiteId)
         if (nav) { goToPreview(nav); return }
-        const err = peekPendingPreviewTabError()
+        const err = peekPendingPreviewTabError(previewSiteId)
         if (err) {
           setPendingError(err)
           return
@@ -230,7 +247,7 @@ export default function StorefrontBrowserPreviewShell() {
     // pending-nav localStorage from a previous builder session — that caused
     // localhost ↔ 127.0.0.1 reload loops when hosts/tokens mismatched.
     if (token) {
-      clearPendingPreviewTabNavigate()
+      clearPendingPreviewTabNavigate(previewSiteId)
     }
 
     return () => {
@@ -239,7 +256,7 @@ export default function StorefrontBrowserPreviewShell() {
       unsubscribeChannel()
       unsubscribeError()
     }
-  }, [pending, token, setSearchParams, pendingRetryKey])
+  }, [pending, token, previewSiteId, setSearchParams, pendingRetryKey])
 
   useEffect(() => {
     if (!token) {
@@ -258,15 +275,34 @@ export default function StorefrontBrowserPreviewShell() {
     if (!token) return
     return subscribeDraftPreviewUpdates(msg => {
       if (msg.token !== token) return
+      if (previewSiteId && msg.siteId && msg.siteId !== previewSiteId) return
       void loadPreview(token, { quiet: true })
     })
-  }, [token, loadPreview])
+  }, [token, previewSiteId, loadPreview])
 
   const vendorSlug = useMemo(() => resolvePreviewVendorSlug(site), [site])
 
   const previewOrigin = getVendorPreviewOrigin()
 
   if (pending && !token && !templateTarget) {
+    if (!previewSiteId) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-6">
+          <AlertTriangle className="w-10 h-10 text-amber-400 mb-4" />
+          <h1 className="text-lg font-semibold mb-2">Preview link is invalid</h1>
+          <p className="text-sm text-gray-400 mb-6 text-center max-w-md">
+            Open Preview in Browser from the Business Website Builder again.
+          </p>
+          <button
+            type="button"
+            onClick={() => { window.close() }}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+          >
+            Close
+          </button>
+        </div>
+      )
+    }
     if (pendingError) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-6">
@@ -278,9 +314,9 @@ export default function StorefrontBrowserPreviewShell() {
               type="button"
               onClick={() => {
                 setPendingError(null)
-                clearPendingPreviewTabError()
-                requestPreviewDeliveryFromOpener()
-                const nav = peekPendingPreviewTabNavigate()
+                clearPendingPreviewTabError(previewSiteId)
+                requestPreviewDeliveryFromOpener(previewSiteId)
+                const nav = peekPendingPreviewTabNavigate(previewSiteId)
                 if (nav) {
                   window.location.replace(alignPreviewUrlWithCurrentHost(nav))
                   return
@@ -295,7 +331,7 @@ export default function StorefrontBrowserPreviewShell() {
             </button>
             <button
               type="button"
-              onClick={() => { clearPendingPreviewTabError(); window.close() }}
+              onClick={() => { clearPendingPreviewTabError(previewSiteId); window.close() }}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
             >
               Close this tab

@@ -8,28 +8,84 @@ import {
   setAuthStorageScope,
   writeScopedCustomerTokens,
 } from '@/lib/customerAuthStorage'
+import { vendorSlugFromLocation } from '@/lib/vendorScope'
 
 const API_URL = getStorefrontApiBaseUrl()
 
 // ── In-memory vendor / BU context (set by VendorContext / StorefrontBuSync) ──
+// Tab-local only: sessionStorage (not localStorage). Shared localStorage was the
+// main reason two live /store/:slug tabs eventually merged catalog/images.
 let _vendorSlug: string | null = null
 let _vendorId: string | null = null
 let _branchQuery: string | null = null
 let _storeId: string | null = null
 
+const SS_VENDOR_SLUG = 'vendor_slug'
+const SS_VENDOR_ID = 'vendor_id'
+
+function ssGet(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key)?.trim() || null
+  } catch {
+    return null
+  }
+}
+
+function ssSet(key: string, value: string | null) {
+  try {
+    if (!value) sessionStorage.removeItem(key)
+    else sessionStorage.setItem(key, value)
+  } catch {
+    /* private mode */
+  }
+}
+
+function clearLegacySharedVendorKeys() {
+  try {
+    localStorage.removeItem('vendor_slug')
+    localStorage.removeItem('vendor_id')
+  } catch {
+    /* private mode */
+  }
+}
+
 export { readScopedCustomerTokens, writeScopedCustomerTokens } from '@/lib/customerAuthStorage'
 
+/** Pin slug from the URL immediately (before vendor JSON loads) so early API calls stay on this tab's site. */
+export function setVendorSlugHint(slug: string) {
+  const next = slug.trim()
+  if (!next) return
+  _vendorSlug = next
+  _vendorId = null
+  ssSet(SS_VENDOR_SLUG, next)
+  ssSet(SS_VENDOR_ID, null)
+  clearLegacySharedVendorKeys()
+}
+
 export function setVendorContext(slug: string, id: string) {
-  _vendorSlug = slug
-  _vendorId = id
-  // Also persist to localStorage as fallback
-  localStorage.setItem('vendor_slug', slug)
-  localStorage.setItem('vendor_id', id)
-  setAuthStorageScope(id, _storeId)
+  _vendorSlug = slug.trim()
+  _vendorId = id.trim()
+  ssSet(SS_VENDOR_SLUG, _vendorSlug)
+  ssSet(SS_VENDOR_ID, _vendorId)
+  clearLegacySharedVendorKeys()
+  setAuthStorageScope(_vendorId, _storeId)
 }
 
 export function getVendorSlug(): string | null {
-  return _vendorSlug || localStorage.getItem('vendor_slug')
+  return vendorSlugFromLocation() || _vendorSlug || ssGet(SS_VENDOR_SLUG)
+}
+
+function resolveVendorHeaders(): { slug: string | null; id: string | null } {
+  const urlSlug = vendorSlugFromLocation()
+  const memSlug = _vendorSlug || ssGet(SS_VENDOR_SLUG)
+  const slug = urlSlug || memSlug
+  // Only send vendor id when it belongs to this tab's slug (never another tab's leftover id).
+  const idMatches =
+    Boolean(_vendorId)
+    && Boolean(_vendorSlug)
+    && (!urlSlug || _vendorSlug === urlSlug)
+  const id = idMatches ? _vendorId : (urlSlug ? null : ssGet(SS_VENDOR_ID))
+  return { slug, id }
 }
 
 export function getStorefrontStoreId(): string | null {
@@ -51,7 +107,7 @@ export function setStorefrontBuContext(storeId: string | null, branch: string | 
   const prevScope = getActiveAuthScope()
   _storeId = nextStore
   _branchQuery = nextBranch
-  setAuthStorageScope(_vendorId || localStorage.getItem('vendor_id'), _storeId)
+  setAuthStorageScope(_vendorId || ssGet(SS_VENDOR_ID), _storeId)
   const nextScope = getActiveAuthScope()
 
   if (prevScope === nextScope) return
@@ -109,15 +165,14 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
 
-  // SaaS model: send vendor context — prefer in-memory, fallback to localStorage
-  const vendorSlug = _vendorSlug || localStorage.getItem('vendor_slug')
+  // SaaS: URL slug wins (tab-local). Never fall back to shared localStorage.
+  const { slug: vendorSlug, id: vendorId } = resolveVendorHeaders()
   if (vendorSlug) {
     config.headers['X-Vendor-Slug'] = vendorSlug
   } else {
     console.warn('No vendor slug found for request:', config.url)
   }
 
-  const vendorId = _vendorId || localStorage.getItem('vendor_id')
   if (vendorId) {
     config.headers['X-Vendor-Id'] = vendorId
   }
@@ -188,8 +243,8 @@ apiClient.interceptors.response.use(
         url: originalRequest?.url,
         method: originalRequest?.method,
         hasToken: !!readScopedCustomerTokens().access,
-        vendorSlug: _vendorSlug || localStorage.getItem('vendor_slug'),
-        vendorId: _vendorId || localStorage.getItem('vendor_id'),
+        vendorSlug: resolveVendorHeaders().slug,
+        vendorId: resolveVendorHeaders().id,
         storeId: _storeId,
         errorDetail: error.response?.data,
       })
@@ -222,9 +277,8 @@ apiClient.interceptors.response.use(
       }
 
       // Ensure vendor + BU context is sent with refresh request
-      const vendorSlug = _vendorSlug || localStorage.getItem('vendor_slug')
-      const vendorId = _vendorId || localStorage.getItem('vendor_id')
-      
+      const { slug: vendorSlug, id: vendorId } = resolveVendorHeaders()
+
       const refreshHeaders: Record<string, string> = {}
       if (vendorSlug) refreshHeaders['X-Vendor-Slug'] = vendorSlug
       if (vendorId) refreshHeaders['X-Vendor-Id'] = vendorId

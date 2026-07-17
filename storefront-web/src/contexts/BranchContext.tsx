@@ -69,7 +69,7 @@ export function BranchPreviewProvider({
 }
 
 export function BranchProvider({ children }: { children: ReactNode }) {
-  const { vendorSlug, storePath: vendorStorePath } = useVendor()
+  const { vendorSlug, vendor, isLoading: vendorLoading, storePath: vendorStorePath } = useVendor()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
@@ -87,9 +87,16 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         return key === 'products' || key === 'services' || key === 'product' || key === 'service' || key === 'store-categories'
       },
     })
-  }, [branchCode, qc])
+  }, [branchCode, vendorSlug, qc])
 
+  // Wait until this tab's vendor context is set — otherwise listBranches can hit another site's headers.
   useEffect(() => {
+    if (!vendorSlug || vendorLoading || !vendor?.id) {
+      setLoading(true)
+      setBranchesLoaded(false)
+      setBranches([])
+      return
+    }
     let cancelled = false
     setLoading(true)
     setBranchesLoaded(false)
@@ -113,7 +120,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [branchCode])
+  }, [vendorSlug, vendor?.id, vendorLoading, branchCode])
 
   useEffect(() => {
     setBranchQueryParam(branchCode)

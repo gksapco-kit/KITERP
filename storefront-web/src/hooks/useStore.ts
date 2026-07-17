@@ -86,35 +86,61 @@ export function resolveCartLineIndex(
 }
 
 export function useStoreInfo() {
-  return useQuery({ queryKey: storeKeys.info, queryFn: storeApi.getStoreInfo, staleTime: 10 * 60 * 1000, retry: false })
+  const { vendorSlug } = useVendor()
+  return useQuery({
+    queryKey: [...storeKeys.info, vendorSlug],
+    queryFn: storeApi.getStoreInfo,
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+    enabled: !!vendorSlug,
+  })
 }
 
 export function useStoreCategories(params?: Record<string, unknown>) {
-  return useQuery({ queryKey: storeKeys.categories(params), queryFn: () => storeApi.listCategories(params), staleTime: 5 * 60 * 1000 })
+  const { vendorSlug } = useVendor()
+  return useQuery({
+    queryKey: [...storeKeys.categories(params), vendorSlug],
+    queryFn: () => storeApi.listCategories(params),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!vendorSlug,
+  })
 }
 
 export function useProducts(params?: Record<string, unknown>) {
+  const { vendorSlug } = useVendor()
   return useQuery({
-    queryKey: storeKeys.products(params),
+    queryKey: [...storeKeys.products(params), vendorSlug],
     queryFn: () => storeApi.listProducts(params),
-    placeholderData: (previous) => previous,
+    enabled: !!vendorSlug,
+    // Do not keep previous vendor's products while switching /store/:slug in the same tab.
   })
 }
 
 export function useProduct(slug: string) {
-  return useQuery({ queryKey: storeKeys.product(slug), queryFn: () => storeApi.getProduct(slug), enabled: !!slug })
+  const { vendorSlug } = useVendor()
+  return useQuery({
+    queryKey: [...storeKeys.product(slug), vendorSlug],
+    queryFn: () => storeApi.getProduct(slug),
+    enabled: !!slug && !!vendorSlug,
+  })
 }
 
 export function useServices(params?: Record<string, unknown>) {
+  const { vendorSlug } = useVendor()
   return useQuery({
-    queryKey: storeKeys.services(params),
+    queryKey: [...storeKeys.services(params), vendorSlug],
     queryFn: () => storeApi.listServices(params),
-    placeholderData: (previous) => previous,
+    enabled: !!vendorSlug,
   })
 }
 
 export function useService(slug: string) {
-  return useQuery({ queryKey: storeKeys.service(slug), queryFn: () => storeApi.getService(slug), enabled: !!slug })
+  const { vendorSlug } = useVendor()
+  return useQuery({
+    queryKey: [...storeKeys.service(slug), vendorSlug],
+    queryFn: () => storeApi.getService(slug),
+    enabled: !!slug && !!vendorSlug,
+  })
 }
 
 function syncCartStore(cart: Cart) {

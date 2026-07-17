@@ -37,8 +37,20 @@ export const publicSitesApi = {
       .then(r => r.data),
 
   /** Frozen builder snapshot (opaque token). Same JSON shape as getBySubdomain. */
-  getPreviewByToken: (token: string): Promise<PublicSite> =>
-    publicApi.get<PublicSite>(`/preview/by-token/${encodeURIComponent(token)}`).then(r => r.data),
+  getPreviewByToken: (token: string, opts?: { siteId?: string | null }): Promise<PublicSite> =>
+    publicApi
+      .get<PublicSite>(`/preview/by-token/${encodeURIComponent(token)}`, {
+        // Avoid shared browser/proxy cache mixing draft snapshots across tabs/sites.
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+        params: {
+          _cb: Date.now(),
+          ...(opts?.siteId?.trim() ? { siteId: opts.siteId.trim() } : {}),
+        },
+      })
+      .then(r => r.data),
 
   /** Fetch a single published page by slug. */
   getPage: (siteId: string, slug: string): Promise<PublicPage> =>

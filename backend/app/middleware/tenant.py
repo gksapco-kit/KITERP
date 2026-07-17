@@ -67,8 +67,15 @@ def _extract_subdomain(host: str) -> Optional[str]:
     return None
 
 
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "[::1]", "::1"})
+
+
 def _extract_custom_domain(host: str) -> Optional[str]:
-    host_without_port = host.split(":")[0]
+    host_without_port = host.split(":")[0].lower()
+    # Path-based /store/:slug on loopback must not resolve a single custom-domain tenant
+    # for every tab (that collapses nursery + sweet-mohona into one vendor).
+    if host_without_port in _LOOPBACK_HOSTS:
+        return None
     base_domain = settings.BASE_DOMAIN
     if not host_without_port.endswith(base_domain):
         return host_without_port

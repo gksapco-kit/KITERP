@@ -52,13 +52,9 @@ export default function HrLogin() {
     setError(null)
     setSubmitting(true)
     try {
-      // Never send a stale X-Vendor-Id from localStorage when vendor fetch failed — it overrides slug on the
-      // backend and HR login resolves the wrong tenant (“no employee profile”).
+      // Never send a stale X-Vendor-Id from another tab — slug must win for this store URL.
       if (vendorSlug && vendor?.id) {
         setHrVendorContext(vendorSlug, vendor.id)
-      } else if (vendorSlug) {
-        localStorage.setItem('vendor_slug', vendorSlug)
-        localStorage.removeItem('vendor_id')
       }
       const headers: Record<string, string> = {}
       if (vendorSlug) headers['X-Vendor-Slug'] = vendorSlug
