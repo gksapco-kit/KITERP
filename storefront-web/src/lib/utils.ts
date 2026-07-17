@@ -15,6 +15,10 @@ export function cn(...inputs: ClassValue[]) {
 export const focusRingClassName =
   'focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-inset focus:ring-ring focus:border-primary focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary'
 
+/** Text field focus — border highlight only (no outer/inset ring). */
+export const formFieldFocusClassName =
+  'focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus:ring-offset-0 focus-visible:ring-offset-0 focus:border-primary focus-visible:border-primary'
+
 export const solidButtonFocusClassName = 'btn-focus-solid focus-visible:outline-none'
 
 export function hasSolidPrimaryBgClass(className?: string) {

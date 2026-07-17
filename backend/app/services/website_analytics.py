@@ -1,4 +1,4 @@
-"""Shared website analytics aggregation (journey page_view + product view_count)."""
+"""Shared website analytics aggregation (journey page_view + product/service view_count)."""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -21,9 +21,11 @@ from app.models.platform_website_analytics import (
 from app.models.store import Store
 from app.models.vendor import Vendor
 from app.models.vendor_product import Product
+from app.models.vendor_service import Service
 from app.services.store_scope import store_ids_in_scope
 
 PRODUCT_PATH_MARKER = "/products/"
+SERVICE_PATH_MARKER = "/services/"
 REALTIME_WINDOW = timedelta(minutes=30)
 
 
@@ -90,6 +92,39 @@ def product_slug_from_path(path: str) -> Optional[str]:
     return slug or None
 
 
+def service_slug_from_path(path: str) -> Optional[str]:
+    if SERVICE_PATH_MARKER not in path:
+        return None
+    after = path.split(SERVICE_PATH_MARKER, 1)[1]
+    slug = after.split("/", 1)[0].strip()
+    return slug or None
+
+
+def _service_image_url(service: Any | None) -> str | None:
+    if service is None:
+        return None
+    direct = (getattr(service, "image_url", None) or "").strip()
+    if direct:
+        return direct
+    gallery = getattr(service, "gallery", None) or []
+    if isinstance(gallery, list):
+        for item in gallery:
+            if isinstance(item, str) and item.strip():
+                return item.strip()
+            if isinstance(item, dict):
+                url = (item.get("url") or item.get("src") or "").strip()
+                if url:
+                    return url
+    media = getattr(service, "media", None) or []
+    if isinstance(media, list):
+        for item in media:
+            if isinstance(item, dict):
+                url = (item.get("url") or item.get("src") or "").strip()
+                if url:
+                    return url
+    return None
+
+
 async def branch_tokens_for_scope(
     db: AsyncSession,
     vendor_id: UUID,
@@ -138,9 +173,9 @@ async def build_website_analytics(
     include_vendor_meta: bool = False,
 ) -> Dict[str, Any]:
     """
-    Aggregate page_view journeys + product views for one or more vendors.
+    Aggregate page_view journeys + product/service views for one or more vendors.
 
-    When multiple vendors (or include_vendor_meta), page/product rows include
+    When multiple vendors (or include_vendor_meta), page/product/service rows include
     vendor_id / vendor_slug / vendor_name. BU/branch filters only apply when a
     single vendor is in scope.
     """
@@ -154,11 +189,13 @@ async def build_website_analytics(
                 "total_page_views": 0,
                 "unique_visitors": 0,
                 "total_product_views": 0,
+                "total_service_views": 0,
                 "pages_tracked": 0,
                 "realtime_active_users": 0,
             },
             "pages": [],
             "products": [],
+            "services": [],
             "filters": {
                 "vendor_ids": [],
                 "business_unit_id": str(business_unit_id) if business_unit_id else None,
@@ -209,8 +246,9 @@ async def build_website_analytics(
     page_views: Dict[Any, int] = defaultdict(int)
     page_visitors: Dict[Any, Set[str]] = defaultdict(set)
     page_realtime_visitors: Dict[Any, Set[str]] = defaultdict(set)
-    # Product journey: (vendor_id, slug) -> views
+    # Product/service journey: (vendor_id, slug) -> views
     product_journey_views: Dict[tuple, int] = defaultdict(int)
+    service_journey_views: Dict[tuple, int] = defaultdict(int)
     all_visitors: Set[str] = set()
     matched_events = 0
 
@@ -236,9 +274,12 @@ async def build_website_analytics(
         if occurred and occurred >= realtime_since:
             page_realtime_visitors[key].add(visitor)
 
-        slug = product_slug_from_path(path)
-        if slug:
-            product_journey_views[(ev.vendor_id, slug)] += 1
+        product_slug = product_slug_from_path(path)
+        if product_slug:
+            product_journey_views[(ev.vendor_id, product_slug)] += 1
+        service_slug = service_slug_from_path(path)
+        if service_slug:
+            service_journey_views[(ev.vendor_id, service_slug)] += 1
 
     pages: List[Dict[str, Any]] = []
     for key, views in page_views.items():
@@ -342,16 +383,90 @@ async def build_website_analytics(
             products_out.append(item)
         total_product_views = sum(int(p.get("view_count") or 0) for p in products_out)
 
+    services_out: List[Dict[str, Any]] = []
+    if not scoped:
+        svc_q = (
+            select(Service)
+            .where(
+                Service.vendor_id.in_(vendor_ids),
+                Service.is_visible.is_(True),
+            )
+            .order_by(Service.view_count.desc().nullslast(), Service.created_at.desc())
+            .limit(limit)
+        )
+        services = (await db.execute(svc_q)).scalars().all()
+        for s in services:
+            item = {
+                "id": str(s.id),
+                "name": s.name,
+                "slug": s.slug,
+                "view_count": int(s.view_count or 0),
+                "image_url": _service_image_url(s),
+                "source": "catalog",
+            }
+            if include_vendor_meta or not single_vendor:
+                item.update(vendor_meta.get(s.vendor_id, {
+                    "vendor_id": str(s.vendor_id),
+                    "vendor_slug": "",
+                    "vendor_name": "",
+                }))
+            services_out.append(item)
+
+        total_row = await db.execute(
+            select(Service.view_count).where(
+                Service.vendor_id.in_(vendor_ids),
+                Service.is_visible.is_(True),
+            )
+        )
+        total_service_views = sum(int(v or 0) for (v,) in total_row.all())
+    else:
+        pairs = list(service_journey_views.keys())
+        by_key: Dict[tuple, Service] = {}
+        if pairs:
+            vids = {vid for vid, _ in pairs}
+            slugs = {slug for _, slug in pairs}
+            rows = (
+                await db.execute(
+                    select(Service).where(
+                        Service.vendor_id.in_(vids),
+                        Service.slug.in_(slugs),
+                    )
+                )
+            ).scalars().all()
+            by_key = {(s.vendor_id, s.slug): s for s in rows if s.slug}
+
+        ranked = sorted(service_journey_views.items(), key=lambda x: -x[1])[:limit]
+        for (vid, slug), views in ranked:
+            s = by_key.get((vid, slug))
+            item = {
+                "id": str(s.id) if s else None,
+                "name": s.name if s else slug,
+                "slug": slug,
+                "view_count": views,
+                "image_url": _service_image_url(s),
+                "source": "journey",
+            }
+            if include_vendor_meta or not single_vendor:
+                item.update(vendor_meta.get(vid, {
+                    "vendor_id": str(vid),
+                    "vendor_slug": "",
+                    "vendor_name": "",
+                }))
+            services_out.append(item)
+        total_service_views = sum(int(s.get("view_count") or 0) for s in services_out)
+
     return {
         "summary": {
             "total_page_views": matched_events,
             "unique_visitors": len(all_visitors),
             "total_product_views": total_product_views,
+            "total_service_views": total_service_views,
             "pages_tracked": len(page_views),
             "realtime_active_users": sum(len(v) for v in page_realtime_visitors.values()),
         },
         "pages": pages,
         "products": products_out,
+        "services": services_out,
         "filters": {
             "vendor_ids": [str(v) for v in vendor_ids],
             "business_unit_id": str(business_unit_id) if business_unit_id else None,
@@ -434,11 +549,13 @@ async def build_platform_website_analytics(
             "total_page_views": matched_events,
             "unique_visitors": len(all_visitors),
             "total_product_views": 0,
+            "total_service_views": 0,
             "pages_tracked": len(page_views),
             "realtime_active_users": sum(len(v) for v in page_realtime_visitors.values()),
         },
         "pages": pages,
         "products": [],
+        "services": [],
         "filters": {
             "vendor_ids": [],
             "vendor_id": PLATFORM_VENDOR_ID,
@@ -466,6 +583,7 @@ def merge_platform_into_vendor_report(
     vs = vendor_report.get("summary") or {}
     ps = platform_report.get("summary") or {}
     products = list(vendor_report.get("products") or [])[:limit]
+    services = list(vendor_report.get("services") or [])[:limit]
 
     filters = dict(vendor_report.get("filters") or {})
     filters["site"] = None
@@ -476,11 +594,13 @@ def merge_platform_into_vendor_report(
             "total_page_views": int(vs.get("total_page_views") or 0) + int(ps.get("total_page_views") or 0),
             "unique_visitors": int(vs.get("unique_visitors") or 0) + int(ps.get("unique_visitors") or 0),
             "total_product_views": int(vs.get("total_product_views") or 0),
+            "total_service_views": int(vs.get("total_service_views") or 0),
             "pages_tracked": int(vs.get("pages_tracked") or 0) + int(ps.get("pages_tracked") or 0),
             "realtime_active_users": int(vs.get("realtime_active_users") or 0)
             + int(ps.get("realtime_active_users") or 0),
         },
         "pages": pages,
         "products": products,
+        "services": services,
         "filters": filters,
     }

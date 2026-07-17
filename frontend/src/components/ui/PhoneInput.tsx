@@ -293,14 +293,14 @@ export function PhoneInput({
             placeholder={placeholder ?? (country.iso === 'IN' ? '98765 43210' : 'Phone number')}
             className={cn(
               'w-full h-11 rounded-r-lg border px-3 text-sm outline-none transition-all',
-              'focus:ring-2 focus:border-blue-500',
+              'focus:ring-0 focus:ring-offset-0 focus:border-primary',
               error
-                ? 'border-red-400 bg-red-50/30 focus:ring-red-300'
+                ? 'border-red-400 bg-red-50/30 focus:border-red-500'
                 : isOverLimit
-                  ? 'border-amber-400 bg-amber-50/20 focus:ring-amber-300'
+                  ? 'border-amber-400 bg-amber-50/20 focus:border-amber-500'
                   : isFull
-                    ? 'border-green-400 bg-green-50/20 focus:ring-green-300'
-                    : 'border-gray-300 focus:ring-blue-200',
+                    ? 'border-green-400 bg-green-50/20 focus:border-green-500'
+                    : 'border-gray-300',
               disabled && 'opacity-50 cursor-not-allowed bg-gray-50',
             )}
           />

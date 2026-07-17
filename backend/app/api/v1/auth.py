@@ -1601,7 +1601,8 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
         counter += 1
         slug = f"{slug_base}-{counter}"
 
-    placeholder_email = (email or f"{slug}@phone-signup.kiterp.local")[:255]
+    from app.utils.validators import phone_signup_placeholder_email
+    placeholder_email = (email or phone_signup_placeholder_email(slug))[:255]
     primary_phone_val = (phone or "-")[:20]
 
     from app.models.vendor import Vendor, VendorOwner

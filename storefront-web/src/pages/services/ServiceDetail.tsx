@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useService, useCreateBooking, useRequestQuote, useCreateSubscription } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
+import { storeApi } from '@/api/store'
+import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
 import { formatCurrency, imgUrl } from '@/lib/utils'
 import {
   Clock, Wrench, Loader2, ChevronRight, CheckCircle, XCircle,
@@ -43,6 +45,53 @@ const intervalShort: Record<string, string> = {
 const intervalLabel: Record<string, string> = {
   daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly',
   quarterly: 'Quarterly', biannual: 'Half-Yearly', yearly: 'Yearly',
+}
+
+/** Pluralize duration units for clearer labels (e.g. "2 months", "1 month"). */
+function pluralizeDurationUnit(unit: string, value: number) {
+  if (value === 1) return unit
+  const invariable = new Set(['kg', 'ml', 'sq.ft', 'sq.m', 'km'])
+  if (invariable.has(unit.toLowerCase()) || unit.endsWith('s')) return unit
+  return `${unit}s`
+}
+
+/** Duration label uses billing UOM when set (e.g. Time / Month → "2 months"), else minutes. */
+function formatDurationLabel(value: number, uom?: string | null) {
+  if (uom && uom !== 'fixed') {
+    const unit = UOM_LABELS[uom] || uom.replace(/^per_/, '').replace(/_/g, ' ')
+    return `${value} ${pluralizeDurationUnit(unit, value)}`
+  }
+  return value === 1 ? '1 min' : `${value} mins`
+}
+
+function isIntervalRedundantWithUom(interval: string, uom?: string | null) {
+  if (!uom) return false
+  const unit = (UOM_LABELS[uom] || uom).toLowerCase()
+  const pairs: Record<string, string[]> = {
+    daily: ['day', 'daily'],
+    weekly: ['week', 'weekly'],
+    biweekly: ['week', 'weekly'],
+    monthly: ['month', 'monthly'],
+    quarterly: ['month', 'monthly'],
+    biannual: ['month', 'monthly', 'year', 'yearly'],
+    yearly: ['year', 'yearly'],
+  }
+  return (pairs[interval] || []).includes(unit)
+}
+
+/** Subtitle: interval only when duration is shown in the badge (avoids "Monthly · per week"). */
+function formatPlanBillingSubtitle(plan: ServicePlan) {
+  const vInterval = plan.subscription_interval || 'monthly'
+  const interval = intervalLabel[vInterval] || vInterval
+  if (plan.duration_minutes) return interval
+  const vPriceType = plan.price_type || 'per_cycle'
+  if (
+    vPriceType === 'per_unit'
+    && !isIntervalRedundantWithUom(vInterval, plan.uom)
+  ) {
+    return `${interval} · per ${UOM_LABELS[plan.uom!] || plan.uom || 'unit'}`
+  }
+  return interval
 }
 
 type AvailSlot = { id?: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean }
@@ -134,8 +183,8 @@ export function PlanSelector({
 
           return (
             <button key={plan.id} type="button" onClick={() => onSelect(plan.id)}
-              className={`w-full rounded-xl border-2 text-left transition-all duration-200 ${
-                isCompact ? 'p-2.5' : hidePrice ? 'p-3.5 sm:p-4' : 'p-4 sm:p-5'
+              className={`w-fit max-w-full rounded-xl border-2 text-left transition-all duration-200 ${
+                isCompact ? 'p-2.5' : hidePrice ? 'p-3.5 sm:p-4' : 'p-3.5 sm:p-4'
               } ${
                 isSelected
                   ? 'border-[color:var(--color-secondary)] bg-white shadow-md ring-1 ring-[color:var(--color-secondary)]/20'
@@ -154,22 +203,21 @@ export function PlanSelector({
                 >
                   {isSelected ? <CheckCircle className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} text-white`} strokeWidth={2.5} /> : null}
                 </div>
-                <div className={`flex flex-1 min-w-0 ${hidePrice ? 'items-center' : 'items-start justify-between gap-4'}`}>
-                  <div className="flex-1 min-w-0">
+                <div className={`flex min-w-0 ${hidePrice ? 'items-center gap-2' : 'items-start gap-5'}`}>
+                  <div className="min-w-0">
                     <p className={`font-bold text-gray-900 truncate ${isCompact ? 'text-sm' : 'text-base'}`}>{plan.name}</p>
                     <p className={`text-gray-600 ${isCompact ? 'text-xs mt-0' : 'text-sm mt-0.5'}`}>
-                      {intervalLabel[vInterval] || vInterval}
-                      {vPriceType === 'per_unit' && ` · per ${UOM_LABELS[plan.uom] || plan.uom || 'unit'}`}
+                      {formatPlanBillingSubtitle(plan)}
                     </p>
                     {plan.description && !isCompact && (
-                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">{plan.description}</p>
+                      <p className="text-sm text-gray-500 mt-1 line-clamp-2 max-w-xs">{plan.description}</p>
                     )}
                   </div>
                   {!hidePrice && (
-                    <div className="text-right shrink-0 min-w-[5rem] pl-2">
+                    <div className="text-right shrink-0">
                       {plan.price != null ? (
                         <>
-                          <p className="text-xl font-extrabold text-gray-900">
+                          <p className="text-lg font-extrabold text-gray-900 tabular-nums">
                             {formatCurrency(plan.price, currency)}
                           </p>
                           <p className="text-sm text-gray-500">{vShort}</p>
@@ -189,7 +237,7 @@ export function PlanSelector({
                 </div>
               </div>
               {(hasTrial || hasSetup || plan.duration_minutes) && (
-                <div className={`flex flex-wrap gap-1 ${isCompact ? 'mt-1.5 ml-6' : 'mt-3 ml-8'}`}>
+                <div className={`flex flex-wrap gap-1 ${isCompact ? 'mt-1.5 ml-6' : 'mt-2.5 ml-8'}`}>
                   {hasTrial && (
                     <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                       {plan.subscription_trial_days}d free trial
@@ -202,7 +250,7 @@ export function PlanSelector({
                   )}
                   {plan.duration_minutes ? (
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-0.5 ${themeUi.pillDuration}`}>
-                      <Clock className="w-2.5 h-2.5" />{plan.duration_minutes}m
+                      <Clock className="w-2.5 h-2.5" />{formatDurationLabel(plan.duration_minutes, plan.uom)}
                     </span>
                   ) : null}
                 </div>
@@ -499,6 +547,13 @@ export default function ServiceDetail() {
     if (sidebarMode === 'subscription') setShowBooking(false)
   }, [sidebarMode])
 
+  // Unique service view (once per browser session; 24h server-side dedupe)
+  useEffect(() => {
+    if (!service?.slug) return
+    if (!claimSessionTrack('service', service.slug)) return
+    storeApi.recordServiceView(service.slug, getVisitorId()).catch(() => {})
+  }, [service?.slug])
+
   const activePlans = useMemo(() => (service?.plans || []).filter(p => p.is_active), [service])
   const selectedPlan = useMemo(
     () => activePlans.find(p => p.id === selectedPlanId) ?? activePlans[0] ?? null,
@@ -576,7 +631,7 @@ export default function ServiceDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         {/* Left — Media Gallery (sticky) */}
-        <div className="lg:col-span-3 xl:col-span-3">
+        <div className="lg:col-span-4 xl:col-span-4">
           <div className="lg:sticky lg:top-4">
             {displayMedia.length > 0 ? (
               <MediaViewer
@@ -584,7 +639,7 @@ export default function ServiceDetail() {
                 selectedIndex={selectedImage}
                 onSelect={setSelectedImage}
                 productName={service.name}
-                layout="detail"
+                layout="fit"
                 badges={
                   <div className="absolute top-3 left-3 flex flex-col gap-1.5">
                     {isSubscription && (
@@ -601,7 +656,7 @@ export default function ServiceDetail() {
                 }
               />
             ) : (
-              <div className={`aspect-[4/3] max-h-[min(420px,55vw)] w-full max-w-[560px] mx-auto lg:mx-0 rounded-2xl border border-gray-200/80 flex flex-col items-center justify-center ${themeUi.gradientHeroBr}`}>
+              <div className={`aspect-[4/3] w-full max-w-[640px] mx-auto lg:mx-0 rounded-2xl border border-gray-200/80 flex flex-col items-center justify-center ${themeUi.gradientHeroBr}`}>
                 <Wrench className={`w-14 h-14 mb-2 ${themeUi.iconPlaceholder}`} />
                 <p className="text-sm text-gray-400">No media available</p>
               </div>
@@ -610,7 +665,7 @@ export default function ServiceDetail() {
         </div>
 
         {/* Center — Service Info */}
-        <div className="lg:col-span-3 xl:col-span-3 space-y-6">
+        <div className="lg:col-span-4 xl:col-span-4 space-y-6">
           <header className="space-y-3">
           {/* Badges */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -659,7 +714,11 @@ export default function ServiceDetail() {
               )}
               {isDisplayFieldEnabled(sf, 'duration') && (selectedPlan?.duration_minutes ?? service.duration_minutes) ? (
                 <span className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
-                  <Clock className={`w-4 h-4 ${themeUi.iconPrimary}`} /> {selectedPlan?.duration_minutes ?? service.duration_minutes} min
+                  <Clock className={`w-4 h-4 ${themeUi.iconPrimary}`} />{' '}
+                  {formatDurationLabel(
+                    selectedPlan?.duration_minutes ?? service.duration_minutes!,
+                    selectedPlan?.uom ?? service.uom,
+                  )}
                 </span>
               ) : null}
             </div>
@@ -789,8 +848,8 @@ export default function ServiceDetail() {
           )}
         </div>
 
-        {/* Right — Sidebar (wider for subscription scheduling) */}
-        <div className="lg:col-span-6 xl:col-span-6 min-w-0">
+        {/* Right — Sidebar */}
+        <div className="lg:col-span-4 xl:col-span-4 min-w-0">
           <div className={`rounded-2xl border p-4 sm:p-5 sticky top-4 space-y-4 shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             {/* Mode toggle — shown when vendor enabled both booking & subscription */}
             {hasBothModes && (
@@ -894,7 +953,15 @@ export default function ServiceDetail() {
                 {isDisplayFieldEnabled(sf, 'duration') && (selectedPlan?.duration_minutes ?? service.duration_minutes) ? (
                   <div className={`flex items-center gap-3 text-sm text-gray-600 rounded-xl p-3 border ${themeUi.bgBlueishPanel} ${themeUi.borderPrimarySoft}`}>
                     <Clock className={`w-5 h-5 ${themeUi.iconPrimary}`} />
-                    <span>Duration: <strong>{selectedPlan?.duration_minutes ?? service.duration_minutes} min</strong></span>
+                    <span>
+                      Duration:{' '}
+                      <strong>
+                        {formatDurationLabel(
+                          selectedPlan?.duration_minutes ?? service.duration_minutes!,
+                          selectedPlan?.uom ?? service.uom,
+                        )}
+                      </strong>
+                    </span>
                   </div>
                 ) : null}
 

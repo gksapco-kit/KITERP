@@ -12,7 +12,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { ChevronDown, Search, CheckCircle2, X } from 'lucide-react'
 import { COUNTRIES, POPULAR_COUNTRIES, type CountryEntry } from '@/data/countries'
-import { cn, focusRingClassName, formFieldBorderClassName, searchFieldInnerInputClassName } from '@/lib/utils'
+import { cn, focusRingClassName, formFieldBorderClassName, formFieldFocusClassName, searchFieldInnerInputClassName } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 import {
   getCachedInferredPhoneCountryIso,
@@ -466,7 +466,7 @@ export function PhoneInput({
               compact ? 'px-2.5 sm:px-3' : comfortable ? (dense ? 'px-2.5' : 'px-3') : 'px-3',
               // Counter sits inside the field — reserve space when visible
               localNumber.length > 0 && maxDigits <= 12 && !subtleFeedback && 'pr-10',
-              focusRingClassName,
+              formFieldFocusClassName,
               error ? 'border-destructive bg-destructive/10' : '',
               isOverLimit && 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15',
               isFull && !error && !subtleFeedback && 'border-green-600 bg-green-500/10 dark:border-green-500 dark:bg-green-500/15',

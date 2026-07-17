@@ -219,9 +219,11 @@ async def admin_create_vendor(
     Returns the vendor data plus the owner's login credentials.
     """
     user_repo = UserRepository(db)
+    from app.services.sms_service import normalize_e164
 
     owner_email = (body.owner_email or "").strip().lower() or None
-    owner_phone = (body.owner_phone or "").strip() or None
+    owner_phone_raw = (body.owner_phone or "").strip() or None
+    owner_phone = normalize_e164(owner_phone_raw) if owner_phone_raw else None
     if not owner_email and not owner_phone:
         raise HTTPException(
             status_code=422,
@@ -237,6 +239,10 @@ async def admin_create_vendor(
     if existing_user:
         owner_user = existing_user
         user_created = False
+        # Align stored phone to E.164 so vendor login (+91…) can find this user
+        if owner_phone and existing_user.phone != owner_phone:
+            existing_user.phone = owner_phone
+            await db.flush()
     else:
         owner_user = User(
             email=owner_email,
@@ -252,7 +258,15 @@ async def admin_create_vendor(
         user_created = True
 
     # Build VendorCreate schema
+    # Vendor.primary_email is NOT NULL; phone-only owners get a synthetic email
+    # that still passes EmailStr (do not use reserved TLDs like .local).
     from app.schemas.vendor import AddressCreate, BusinessType, OfferingType
+    from app.utils.validators import phone_signup_placeholder_email
+    primary_email = (
+        (body.primary_email or "").strip()
+        or owner_email
+        or phone_signup_placeholder_email(body.slug)
+    )[:255]
     vendor_data = VendorCreate(
         business_name=body.business_name,
         display_name=body.display_name,
@@ -261,7 +275,7 @@ async def admin_create_vendor(
         offering_type=OfferingType(body.offering_type),
         industry=body.industry,
         description=body.description,
-        primary_email=body.primary_email or owner_email,
+        primary_email=primary_email,
         primary_phone=body.primary_phone,
         owner_name=body.owner_name,
         address=AddressCreate(

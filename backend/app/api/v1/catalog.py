@@ -1088,7 +1088,7 @@ async def get_service(
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a specific service by slug."""
+    """Get a specific service by slug (does not increment view_count)."""
     repo = ServiceRepository(db)
     svc = await repo.find_by_slug(vendor_id, slug)
 
@@ -1107,3 +1107,37 @@ async def get_service(
     d["rating_distribution"] = distribution
 
     return JSONResponse(content=d)
+
+
+@router.post("/services/{slug}/view")
+async def record_service_view(
+    slug: str,
+    request: Request,
+    body: TrackViewBody = Body(default_factory=TrackViewBody),
+    vendor_id: UUID = Depends(get_vendor_id_from_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Count a unique service detail view (once per visitor per 24h)."""
+    repo = ServiceRepository(db)
+    svc = await repo.find_by_slug(vendor_id, slug)
+
+    if not svc or svc.status != "active" or not svc.is_visible:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Service not found",
+        )
+
+    current = int(svc.view_count or 0)
+    visitor_key = visitor_key_from_request(body.visitor_id, request)
+    counted = await claim_unique_view("service", str(svc.id), visitor_key)
+    if not counted:
+        return {"slug": svc.slug, "view_count": current, "counted": False}
+
+    svc.view_count = current + 1
+    await db.commit()
+    await db.refresh(svc)
+    return {
+        "slug": svc.slug,
+        "view_count": int(svc.view_count or 0),
+        "counted": True,
+    }

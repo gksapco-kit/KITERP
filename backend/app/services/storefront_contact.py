@@ -19,12 +19,22 @@ def _extra_strings(settings: Mapping[str, Any] | None, key: str) -> list[str]:
     return [s.strip() for s in raw if isinstance(s, str) and s.strip()]
 
 
+def _is_placeholder_email(email: str) -> bool:
+    from app.utils.validators import is_phone_signup_placeholder_email
+    return is_phone_signup_placeholder_email(email)
+
+
 def resolve_public_support_email(vendor, store=None) -> Optional[str]:
     branch_email = _str(getattr(store, "email", None)) if store else ""
-    if branch_email:
+    if branch_email and not _is_placeholder_email(branch_email):
         return branch_email
     primary = _str(getattr(vendor, "support_email", None))
-    return primary or _str(getattr(vendor, "primary_email", None)) or None
+    if primary and not _is_placeholder_email(primary):
+        return primary
+    fallback = _str(getattr(vendor, "primary_email", None))
+    if fallback and not _is_placeholder_email(fallback):
+        return fallback
+    return None
 
 
 def resolve_public_support_phone(vendor, store=None) -> Optional[str]:

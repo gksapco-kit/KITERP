@@ -31,7 +31,7 @@ import {
 import type { AdminWebsiteTemplateRow } from '@/api/admin.api'
 
 const selectCls =
-  'h-9 rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary'
+  'h-9 rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-none focus:ring-0 focus:border-primary'
 
 function formatShortDate(value?: string | null) {
   if (!value) return '—'
@@ -378,7 +378,7 @@ export default function AllTemplates() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name or business…"
-              className="h-9 min-w-[12rem] rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="h-9 min-w-[12rem] rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-none focus:ring-0 focus:border-primary"
             />
           </div>
         </CardHeader>

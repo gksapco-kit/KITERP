@@ -20,7 +20,7 @@ interface MediaItem {
   media_type?: MediaType
 }
 
-export type MediaViewerLayout = 'detail' | 'square'
+export type MediaViewerLayout = 'detail' | 'square' | 'fit'
 export type MediaViewerThumbnailPosition = 'bottom' | 'left'
 
 interface MediaViewerProps {
@@ -31,7 +31,7 @@ interface MediaViewerProps {
   badges?: React.ReactNode
   /** e.g. wishlist — pinned to the top-right of the main stage */
   topRightOverlay?: React.ReactNode
-  /** `detail` — capped 4:3 hero (default). `square` — full-width square stage. */
+  /** `detail` — square hero (default). `square` — full-width square. `fit` — 4:3, fills frame. */
   layout?: MediaViewerLayout
   /** Vertical thumbnails on the left when multiple images exist. */
   thumbnailPosition?: MediaViewerThumbnailPosition
@@ -47,6 +47,11 @@ const STAGE_LAYOUT: Record<MediaViewerLayout, { stage: string; image: string; vi
     stage: 'aspect-square w-full',
     image: 'object-cover',
     video: 'object-contain',
+  },
+  fit: {
+    stage: 'aspect-[4/3] w-full max-w-[640px] mx-auto lg:mx-0',
+    image: 'object-cover',
+    video: 'object-cover',
   },
 }
 

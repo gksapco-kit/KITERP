@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  BarChart3, Eye, Loader2, RefreshCw, Users, FileText, Package,
+  BarChart3, Eye, Loader2, RefreshCw, Users, FileText, Package, Search, Wrench,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { FilterSelect } from '@/components/ui/FilterSelect'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff } from '@/lib/platformAccess'
@@ -74,6 +75,9 @@ export default function WebsiteAnalytics() {
   const [businessUnitId, setBusinessUnitId] = useState('')
   const [branchId, setBranchId] = useState('')
   const [periodKey, setPeriodKey] = useState<PeriodKey>('7d')
+  const [pagesSearch, setPagesSearch] = useState('')
+  const [productsSearch, setProductsSearch] = useState('')
+  const [servicesSearch, setServicesSearch] = useState('')
   const period = PERIOD_PRESETS.find((p) => p.key === periodKey) ?? PERIOD_PRESETS[3]
 
   // Admin vendors API allows size <= 100 (422 if larger) — that left Branch empty.
@@ -128,7 +132,7 @@ export default function WebsiteAnalytics() {
     }
     const report = data
     if (report) {
-      for (const row of [...(report.pages || []), ...(report.products || [])]) {
+      for (const row of [...(report.pages || []), ...(report.products || []), ...(report.services || [])]) {
         const id = row.vendor_id
         if (!id || map.has(id)) continue
         map.set(id, row.vendor_name || row.vendor_slug || id)
@@ -197,6 +201,38 @@ export default function WebsiteAnalytics() {
     ],
     [storesLoading, branches],
   )
+
+  const filteredPages = useMemo(() => {
+    const rows = data?.pages ?? []
+    const q = pagesSearch.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter((row) => {
+      const business = `${row.vendor_name || ''} ${row.vendor_slug || ''}`.toLowerCase()
+      return row.path.toLowerCase().includes(q) || business.includes(q)
+    })
+  }, [data?.pages, pagesSearch])
+
+  const filteredProducts = useMemo(() => {
+    const rows = data?.products ?? []
+    const q = productsSearch.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter((p) => {
+      const business = `${p.vendor_name || ''} ${p.vendor_slug || ''}`.toLowerCase()
+      const product = `${p.name || ''} ${p.slug || ''}`.toLowerCase()
+      return product.includes(q) || business.includes(q)
+    })
+  }, [data?.products, productsSearch])
+
+  const filteredServices = useMemo(() => {
+    const rows = data?.services ?? []
+    const q = servicesSearch.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter((s) => {
+      const business = `${s.vendor_name || ''} ${s.vendor_slug || ''}`.toLowerCase()
+      const service = `${s.name || ''} ${s.slug || ''}`.toLowerCase()
+      return service.includes(q) || business.includes(q)
+    })
+  }, [data?.services, servicesSearch])
 
   if (!isPlatformStaff(user)) {
     return <Navigate to="/dashboard" replace />
@@ -319,7 +355,7 @@ export default function WebsiteAnalytics() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           icon={FileText}
           label="Page views"
@@ -338,6 +374,12 @@ export default function WebsiteAnalytics() {
           hint={scopeHint}
         />
         <KpiCard
+          icon={Wrench}
+          label="Service visits"
+          value={(summary?.total_service_views ?? 0).toLocaleString()}
+          hint={scopeHint}
+        />
+        <KpiCard
           icon={Users}
           label="Active now"
           value={(summary?.realtime_active_users ?? 0).toLocaleString()}
@@ -345,11 +387,26 @@ export default function WebsiteAnalytics() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-3">
         <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-            <h2 className="text-sm font-bold text-gray-900">Realtime pages</h2>
-            <span className="text-xs text-gray-500">{report?.pages?.length ?? 0} paths</span>
+          <div className="flex flex-col gap-2 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-2 sm:justify-start">
+              <h2 className="text-sm font-bold text-gray-900">Realtime pages</h2>
+              <span className="text-xs text-gray-500">
+                {pagesSearch.trim()
+                  ? `${filteredPages.length} of ${report?.pages?.length ?? 0}`
+                  : `${report?.pages?.length ?? 0} paths`}
+              </span>
+            </div>
+            <div className="relative w-full sm:w-52">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <Input
+                value={pagesSearch}
+                onChange={(e) => setPagesSearch(e.target.value)}
+                placeholder={showVendorCol ? 'Search path or business…' : 'Search page path…'}
+                className="h-8 pl-8 text-xs focus-visible:border-primary focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[28rem] text-sm">
@@ -375,8 +432,14 @@ export default function WebsiteAnalytics() {
                       {businessUnitId || branchId ? ' for the selected scope' : ''}.
                     </td>
                   </tr>
+                ) : !filteredPages.length ? (
+                  <tr>
+                    <td colSpan={showVendorCol ? 4 : 3} className="px-4 py-12 text-center text-gray-500">
+                      No pages match “{pagesSearch.trim()}”.
+                    </td>
+                  </tr>
                 ) : (
-                  report.pages.map((row) => (
+                  filteredPages.map((row) => (
                     <tr key={`${row.vendor_id || ''}:${row.path}`} className="hover:bg-gray-50">
                       {showVendorCol ? (
                         <td className="max-w-[8rem] truncate px-4 py-2.5 text-xs text-gray-600" title={row.vendor_name || ''}>
@@ -401,14 +464,29 @@ export default function WebsiteAnalytics() {
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-            <h2 className="flex items-center gap-1.5 text-sm font-bold text-gray-900">
-              <Package className="h-4 w-4 text-primary" />
-              Top products
-            </h2>
-            <span className="text-xs text-gray-500">
-              {businessUnitId || branchId ? 'By branch journey' : 'By view count'}
-            </span>
+          <div className="flex flex-col gap-2 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-2 sm:justify-start">
+              <h2 className="flex items-center gap-1.5 text-sm font-bold text-gray-900">
+                <Package className="h-4 w-4 text-primary" />
+                Top products
+              </h2>
+              <span className="text-xs text-gray-500">
+                {productsSearch.trim()
+                  ? `${filteredProducts.length} of ${report?.products?.length ?? 0}`
+                  : businessUnitId || branchId
+                    ? 'By branch journey'
+                    : 'By view count'}
+              </span>
+            </div>
+            <div className="relative w-full sm:w-52">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <Input
+                value={productsSearch}
+                onChange={(e) => setProductsSearch(e.target.value)}
+                placeholder={showVendorCol ? 'Search product or business…' : 'Search products…'}
+                className="h-8 pl-8 text-xs focus-visible:border-primary focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[22rem] text-sm">
@@ -437,8 +515,14 @@ export default function WebsiteAnalytics() {
                       {businessUnitId || branchId ? ' for this scope' : ''}.
                     </td>
                   </tr>
+                ) : !filteredProducts.length ? (
+                  <tr>
+                    <td colSpan={showVendorCol ? 3 : 2} className="px-4 py-12 text-center text-gray-500">
+                      No products match “{productsSearch.trim()}”.
+                    </td>
+                  </tr>
                 ) : (
-                  report.products.map((p) => (
+                  filteredProducts.map((p) => (
                     <tr key={`${p.vendor_id || ''}:${p.slug}`} className="hover:bg-gray-50">
                       {showVendorCol ? (
                         <td className="max-w-[8rem] truncate px-4 py-2.5 text-xs text-gray-600" title={p.vendor_name || ''}>
@@ -466,6 +550,102 @@ export default function WebsiteAnalytics() {
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">
                         {p.view_count.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+          <div className="flex flex-col gap-2 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-2 sm:justify-start">
+              <h2 className="flex items-center gap-1.5 text-sm font-bold text-gray-900">
+                <Wrench className="h-4 w-4 text-primary" />
+                Top services
+              </h2>
+              <span className="text-xs text-gray-500">
+                {servicesSearch.trim()
+                  ? `${filteredServices.length} of ${report?.services?.length ?? 0}`
+                  : businessUnitId || branchId
+                    ? 'By branch journey'
+                    : 'By view count'}
+              </span>
+            </div>
+            <div className="relative w-full sm:w-52">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <Input
+                value={servicesSearch}
+                onChange={(e) => setServicesSearch(e.target.value)}
+                placeholder={showVendorCol ? 'Search service or business…' : 'Search services…'}
+                className="h-8 pl-8 text-xs focus-visible:border-primary focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[22rem] text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                  {showVendorCol ? <th className="px-4 py-2.5 font-medium">Business</th> : null}
+                  <th className="px-4 py-2.5 font-medium">Service</th>
+                  <th className="px-4 py-2.5 font-medium text-right">
+                    <span className="inline-flex items-center gap-1">
+                      <Eye className="h-3 w-3" /> Visits
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={showVendorCol ? 3 : 2} className="px-4 py-12 text-center">
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
+                    </td>
+                  </tr>
+                ) : !report?.services?.length ? (
+                  <tr>
+                    <td colSpan={showVendorCol ? 3 : 2} className="px-4 py-12 text-center text-gray-500">
+                      No service visits yet
+                      {businessUnitId || branchId ? ' for this scope' : ''}.
+                    </td>
+                  </tr>
+                ) : !filteredServices.length ? (
+                  <tr>
+                    <td colSpan={showVendorCol ? 3 : 2} className="px-4 py-12 text-center text-gray-500">
+                      No services match “{servicesSearch.trim()}”.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredServices.map((s) => (
+                    <tr key={`${s.vendor_id || ''}:${s.slug}`} className="hover:bg-gray-50">
+                      {showVendorCol ? (
+                        <td className="max-w-[8rem] truncate px-4 py-2.5 text-xs text-gray-600" title={s.vendor_name || ''}>
+                          {s.vendor_name || s.vendor_slug || '—'}
+                        </td>
+                      ) : null}
+                      <td className="px-4 py-2.5">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          {s.image_url ? (
+                            <img
+                              src={s.image_url}
+                              alt=""
+                              className="h-9 w-9 shrink-0 rounded-lg bg-gray-100 object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                              <Wrench className="h-4 w-4 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-gray-900">{s.name}</p>
+                            <p className="truncate font-mono text-[11px] text-gray-400">{s.slug}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">
+                        {s.view_count.toLocaleString()}
                       </td>
                     </tr>
                   ))

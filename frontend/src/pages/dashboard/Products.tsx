@@ -185,7 +185,7 @@ export default function Products() {
             <div className="space-y-2">
               <Label>Description</Label>
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Detailed product description..."
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-0 focus-visible:border-primary" />
             </div>
           </CardContent>
         </Card>
@@ -211,7 +211,7 @@ export default function Products() {
               <div className="space-y-2">
                 <Label>GST Rate (%)</Label>
                 <select value={form.tax_rate ?? ''} onChange={(e) => setForm({ ...form, tax_rate: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:border-primary">
                   <option value="">No GST</option>
                   <option value="0">0% (Exempt)</option>
                   <option value="5">5%</option>
@@ -310,7 +310,7 @@ export default function Products() {
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-          className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:border-primary"
         >
           <option value="">All Status</option>
           <option value="draft">Draft</option>

@@ -573,16 +573,20 @@ export type AdminWebsiteAnalyticsProductRow = {
   vendor_name?: string
 }
 
+export type AdminWebsiteAnalyticsServiceRow = AdminWebsiteAnalyticsProductRow
+
 export type AdminWebsiteAnalyticsReport = {
   summary: {
     total_page_views: number
     unique_visitors: number
     total_product_views: number
+    total_service_views: number
     pages_tracked: number
     realtime_active_users: number
   }
   pages: AdminWebsiteAnalyticsPageRow[]
   products: AdminWebsiteAnalyticsProductRow[]
+  services: AdminWebsiteAnalyticsServiceRow[]
   filters: {
     vendor_id?: string | null
     vendor_ids?: string[]

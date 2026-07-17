@@ -98,6 +98,15 @@ export const storeApi = {
   getService: async (slug: string): Promise<Service> => {
     const res = await apiClient.get(`/catalog/services/${slug}`); return res.data
   },
+  recordServiceView: async (
+    slug: string,
+    visitorId: string,
+  ): Promise<{ slug: string; view_count: number; counted: boolean }> => {
+    const res = await apiClient.post(`/catalog/services/${slug}/view`, {
+      visitor_id: visitorId,
+    })
+    return res.data
+  },
 
   // Cart
   getCart: async (): Promise<Cart> => {

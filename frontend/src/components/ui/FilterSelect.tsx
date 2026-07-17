@@ -98,9 +98,9 @@ export function FilterSelect({
         }}
         className={cn(
           'flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-900',
-          'hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/30',
+          'hover:border-gray-300 focus:outline-none focus:ring-0 focus:border-primary',
           disabled && 'cursor-not-allowed opacity-60 hover:border-gray-200',
-          open && !disabled && 'border-primary/40 ring-2 ring-primary/20',
+          open && !disabled && 'border-primary',
         )}
       >
         <span className="min-w-0 truncate">{display}</span>

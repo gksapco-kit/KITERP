@@ -1,5 +1,5 @@
 # app/schemas/vendor.py
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, TypeAdapter, field_validator, model_validator
 from typing import Any, Optional, List
 from datetime import datetime, date
 from uuid import UUID
@@ -71,7 +71,8 @@ class VendorCreate(BaseModel):
     offering_type: OfferingType = Field(default=OfferingType.BOTH)
     industry: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=2000)
-    primary_email: EmailStr
+    # str (not EmailStr) so phone-only synthetic placeholders are accepted
+    primary_email: str = Field(..., min_length=3, max_length=255)
     primary_phone: str = Field(..., min_length=10, max_length=20)
     owner_name: str = Field(..., min_length=2, max_length=255)
     logo_url: Optional[str] = None
@@ -86,6 +87,17 @@ class VendorCreate(BaseModel):
         if v.startswith("-") or v.endswith("-"):
             raise ValueError("Slug cannot start or end with a hyphen")
         return v.lower()
+
+    @field_validator("primary_email")
+    @classmethod
+    def validate_primary_email(cls, v: str) -> str:
+        from app.utils.validators import is_phone_signup_placeholder_email
+        email = (v or "").strip()
+        if not email:
+            raise ValueError("Email is required")
+        if is_phone_signup_placeholder_email(email):
+            return email.lower()
+        return str(TypeAdapter(EmailStr).validate_python(email))
 
     @field_validator("primary_phone")
     @classmethod

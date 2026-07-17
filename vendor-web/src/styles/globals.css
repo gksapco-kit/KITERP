@@ -437,15 +437,12 @@
   svg.lucide {
     stroke-width: 2;
   }
-  /* Keyboard focus — inset ring stays visible inside overflow-hidden / bordered panels */
+  /* Keyboard focus — buttons/links keep inset ring; form fields use border only */
   :focus {
     outline: none;
   }
   button:focus-visible:not(.btn-focus-solid):not(.btn-brand):not(.btn-outer-line):not(.kit-solid-green-btn):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='bg-primary/85']):not([class~='bg-primary/80']):not([class~='dark:bg-primary']):not([class~='from-primary']):not([class*='from-primary']):not([class*='ring-offset-']):not([class*='bg-primary'][class*='text-white']):not([class*='bg-primary'][class*='text-primary-foreground']),
   a:focus-visible:not([class~='bg-primary']):not([class~='from-primary']):not([class*='from-primary']):not(.kit-solid-green-btn):not(.btn-brand):not([class*='bg-primary'][class*='text-white']):not([class*='bg-primary'][class*='text-primary-foreground']),
-  select:focus-visible,
-  textarea:focus-visible,
-  input:focus-visible:not([data-kiterp-no-field-focus]),
   summary:focus-visible,
   [role='button']:focus-visible:not(.btn-focus-solid):not(.btn-outer-line):not(.kit-solid-green-btn):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='bg-primary/85']):not([class~='bg-primary/80']):not([class~='dark:bg-primary']):not([class~='from-primary']):not([class*='from-primary']):not([class*='ring-offset-']):not([class*='bg-primary'][class*='text-white']):not([class*='bg-primary'][class*='text-primary-foreground']),
   [role='combobox']:focus-visible,
@@ -453,9 +450,12 @@
   [role='tab']:focus-visible {
     @apply ring-2 ring-inset ring-ring;
   }
-  input:focus-visible:not([data-kiterp-no-field-focus]),
-  textarea:focus-visible {
-    @apply border-primary;
+  /* Text inputs / selects — highlight the field border only (no outer/inset ring) */
+  input:focus-visible:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='button']):not([type='submit']):not([type='reset']):not([data-kiterp-no-field-focus]),
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply border-primary ring-0 ring-offset-0;
+    box-shadow: none;
   }
 
   /* Search shells — single green border on focus (no inset inner ring) */
@@ -562,7 +562,7 @@
   /* Native selects — use on pages that still use raw <select> */
   .form-select {
     @apply inline-flex h-10 max-w-full min-w-0 items-center rounded-md border-[1.5px] border-input bg-background px-2.5 py-0 text-sm leading-none text-foreground
-           focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50;
+           focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50;
     color-scheme: light;
     box-sizing: border-box;
   }
@@ -2745,7 +2745,7 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 
 @layer utilities {
   /*
-   * App-wide form control focus — single inset ring, no offset halo.
+   * App-wide form control focus — border highlight only (no inset/outer ring).
    * Overrides per-page focus:ring-* / ring-offset on native fields.
    */
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):not([data-kiterp-no-field-focus]):focus,
@@ -2757,15 +2757,17 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     outline: none !important;
     --tw-ring-offset-width: 0px !important;
     --tw-ring-offset-shadow: 0 0 #0000 !important;
-    --tw-ring-inset: inset !important;
-    box-shadow: inset 0 0 0 2px hsl(var(--ring)) !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-width: 0px !important;
+    box-shadow: none !important;
     border-color: hsl(var(--primary)) !important;
   }
 
   .form-field-focus-within:focus-within {
     outline: none;
     --tw-ring-offset-width: 0px;
-    box-shadow: inset 0 0 0 2px hsl(var(--ring));
+    --tw-ring-shadow: 0 0 #0000;
+    box-shadow: none;
     border-color: hsl(var(--primary));
   }
 

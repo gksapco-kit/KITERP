@@ -27,16 +27,20 @@ export type WebsiteAnalyticsProductRow = {
   source: 'catalog' | 'journey'
 }
 
+export type WebsiteAnalyticsServiceRow = WebsiteAnalyticsProductRow
+
 export type WebsiteAnalyticsReport = {
   summary: {
     total_page_views: number
     unique_visitors: number
     total_product_views: number
+    total_service_views: number
     pages_tracked: number
     realtime_active_users: number
   }
   pages: WebsiteAnalyticsPageRow[]
   products: WebsiteAnalyticsProductRow[]
+  services: WebsiteAnalyticsServiceRow[]
   filters: {
     business_unit_id: string | null
     branch_id: string | null

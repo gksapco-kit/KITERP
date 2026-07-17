@@ -432,7 +432,7 @@ export default function VendorDetail() {
                   value={editData.description ?? vendor.description ?? ''}
                   onChange={(e) => handleFieldChange('description', e.target.value)}
                   rows={3}
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-0 focus:border-primary"
                 />
               </div>
             ) : vendor.description ? (
@@ -587,7 +587,7 @@ export default function VendorDetail() {
                   <div>
                     <Label className="text-xs text-gray-500 uppercase tracking-wide">Assigned manager</Label>
                     <select
-                      className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-0 focus:border-primary"
                       value={selectedRmId ?? ''}
                       onChange={(e) => {
                         const v = e.target.value

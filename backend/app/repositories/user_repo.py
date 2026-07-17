@@ -3,7 +3,7 @@ import re
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import select, func as sqlfunc
+from sqlalchemy import or_, select, func as sqlfunc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -25,6 +25,32 @@ class UserRepository(BaseRepository[User]):
     def _phone_digit_key(self, phone: str) -> str:
         return re.sub(r"\D", "", phone or "")
 
+    def _phone_digit_keys(self, phone: str) -> List[str]:
+        """Digit forms to match national vs E.164 storage (e.g. 7418… vs 917418…)."""
+        from app.services.sms_service import normalize_e164
+
+        raw = (phone or "").strip()
+        if not raw:
+            return []
+        normalized = normalize_e164(raw)
+        keys: List[str] = []
+        for source in (normalized, raw):
+            digits = self._phone_digit_key(source or "")
+            if not digits or len(digits) < 7:
+                continue
+            keys.append(digits)
+            if len(digits) > 10:
+                keys.append(digits[-10:])
+            if digits.startswith("91") and len(digits) >= 12:
+                keys.append(digits[2:])
+        seen: set[str] = set()
+        out: List[str] = []
+        for k in keys:
+            if k and k not in seen:
+                seen.add(k)
+                out.append(k)
+        return out
+
     def _phone_lookup_variants(self, phone: str) -> List[str]:
         from app.services.sms_service import normalize_e164
 
@@ -32,11 +58,12 @@ class UserRepository(BaseRepository[User]):
         if not raw:
             return []
         normalized = normalize_e164(raw)
-        digits = self._phone_digit_key(normalized or raw)
         variants: List[str] = []
         if normalized:
             variants.append(normalized)
-        if digits:
+        if raw and raw != normalized:
+            variants.append(raw)
+        for digits in self._phone_digit_keys(phone):
             variants.append(digits)
             variants.append(f"+{digits}")
         # de-dupe while preserving order
@@ -57,13 +84,13 @@ class UserRepository(BaseRepository[User]):
             users = list(result.scalars().all())
             if users:
                 return users
-        digits = self._phone_digit_key(phone)
-        if len(digits) < 7:
+        digit_keys = self._phone_digit_keys(phone)
+        if not digit_keys:
             return []
         result = await self.db.execute(
             select(User).where(
                 User.phone.isnot(None),
-                sqlfunc.regexp_replace(User.phone, r"[^0-9]", "", "g") == digits,
+                sqlfunc.regexp_replace(User.phone, r"[^0-9]", "", "g").in_(digit_keys),
             ),
         )
         return list(result.scalars().all())
@@ -105,16 +132,29 @@ class UserRepository(BaseRepository[User]):
         return list(r.scalars().all())
 
     async def list_users_by_phone_for_vendor(self, vendor_id: UUID, phone: str) -> List[User]:
-        """Users with active membership on vendor matching phone."""
+        """Users with active membership on vendor matching phone (national or E.164)."""
         if not phone:
             return []
+        variants = self._phone_lookup_variants(phone)
+        digit_keys = self._phone_digit_keys(phone)
+        phone_match = []
+        if variants:
+            phone_match.append(User.phone.in_(variants))
+        if digit_keys:
+            phone_match.append(
+                sqlfunc.regexp_replace(User.phone, r"[^0-9]", "", "g").in_(digit_keys)
+            )
+        if not phone_match:
+            return []
+
         q = (
             select(User)
             .join(VendorUser, VendorUser.user_id == User.id)
             .where(
                 VendorUser.vendor_id == vendor_id,
                 VendorUser.is_active.is_(True),
-                User.phone == phone,
+                User.phone.isnot(None),
+                or_(*phone_match),
             )
         )
         r = await self.db.execute(q)

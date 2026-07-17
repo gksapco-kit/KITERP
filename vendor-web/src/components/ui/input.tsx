@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn, focusRingClassName, formFieldBorderClassName } from '@/lib/utils'
+import { cn, formFieldBorderClassName, formFieldFocusClassName } from '@/lib/utils'
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
@@ -22,7 +22,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type,
       }
       className={cn(
         `flex h-10 w-full rounded-md ${formFieldBorderClassName} bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50`,
-        focusRingClassName,
+        formFieldFocusClassName,
         // Keep the native calendar/clock indicator clearly visible, enlarged, and
         // padded away from the right edge so it has breathing space.
         isDateLike && 'pr-9 cursor-pointer [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:[width:1.2rem] [&::-webkit-calendar-picker-indicator]:[height:1.2rem] [&::-webkit-calendar-picker-indicator]:[margin-inline-start:0.5rem]',

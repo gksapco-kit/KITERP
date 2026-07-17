@@ -2,6 +2,24 @@
 import re
 from typing import Optional
 
+# Must be a normal DNS label — email-validator rejects reserved TLDs like .local
+PHONE_SIGNUP_EMAIL_DOMAIN = "phone-signup.kiterp.app"
+_PHONE_SIGNUP_EMAIL_SUFFIXES = (
+    f"@{PHONE_SIGNUP_EMAIL_DOMAIN}",
+    "@phone-signup.kiterp.local",  # legacy placeholders
+)
+
+
+def phone_signup_placeholder_email(slug: str) -> str:
+    """Synthetic email for phone-only vendors (DB column is NOT NULL)."""
+    local = re.sub(r"[^a-z0-9._+-]+", "-", (slug or "vendor").lower()).strip("-._+") or "vendor"
+    return f"{local}@{PHONE_SIGNUP_EMAIL_DOMAIN}"[:255]
+
+
+def is_phone_signup_placeholder_email(email: Optional[str]) -> bool:
+    e = (email or "").strip().lower()
+    return any(e.endswith(suffix) for suffix in _PHONE_SIGNUP_EMAIL_SUFFIXES)
+
 
 def validate_phone(phone: str) -> tuple[bool, Optional[str]]:
     """

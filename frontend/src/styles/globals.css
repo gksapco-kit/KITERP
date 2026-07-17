@@ -111,15 +111,12 @@ img.leaflet-tile {
   svg.lucide {
     stroke-width: 2;
   }
-  /* Keyboard focus — inset ring stays visible inside overflow-hidden / bordered panels */
+  /* Keyboard focus — buttons/links keep inset ring; form fields use border only */
   :focus {
     outline: none;
   }
   button:focus-visible:not(.btn-focus-solid):not(.btn-brand):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
   a:focus-visible:not([class~='bg-primary']):not([class~='from-primary']),
-  select:focus-visible,
-  textarea:focus-visible,
-  input:focus-visible,
   summary:focus-visible,
   [role='button']:focus-visible:not(.btn-focus-solid):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
   [role='combobox']:focus-visible,
@@ -129,10 +126,37 @@ img.leaflet-tile {
   }
   button:focus-visible:not(.btn-focus-solid):not(.btn-brand):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
   a:focus-visible:not([class~='bg-primary']):not([class~='from-primary']),
-  select:focus-visible,
   [role='button']:focus-visible:not(.btn-focus-solid):not(.chip-active):not([class~='bg-primary']):not([class~='bg-primary/90']):not([class~='from-primary']),
   [role='combobox']:focus-visible {
     @apply border-primary;
+  }
+  /* Text inputs / selects — highlight the field border only (no outer/inset ring) */
+  input:focus-visible:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='button']):not([type='submit']):not([type='reset']),
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply border-primary ring-0 ring-offset-0;
+    box-shadow: none;
+  }
+}
+
+@layer utilities {
+  /*
+   * App-wide form control focus — border highlight only (no inset/outer ring).
+   * Overrides per-page focus:ring-* / ring-offset on native fields.
+   */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):focus,
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):focus-visible,
+  textarea:focus,
+  textarea:focus-visible,
+  select:focus,
+  select:focus-visible {
+    outline: none !important;
+    --tw-ring-offset-width: 0px !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-width: 0px !important;
+    box-shadow: none !important;
+    border-color: hsl(var(--primary)) !important;
   }
 }
 

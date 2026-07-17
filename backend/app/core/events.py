@@ -59,13 +59,19 @@ async def _load_vendor(vendor_id: str) -> Vendor | None:
         return result.scalar_one_or_none()
 
 
+def _has_deliverable_email(vendor: Vendor) -> bool:
+    from app.utils.validators import is_phone_signup_placeholder_email
+    email = (vendor.primary_email or "").strip()
+    return bool(email) and not is_phone_signup_placeholder_email(email)
+
+
 # Register default event handlers
 async def on_vendor_registered(data: dict):
     """Handle vendor registration event."""
     vendor_id = data.get("vendor_id")
     logger.info("Vendor registered: %s", vendor_id)
     vendor = await _load_vendor(vendor_id)
-    if not vendor or not vendor.primary_email:
+    if not vendor or not _has_deliverable_email(vendor):
         return
     # Auto-approved vendors get the approval email immediately after; avoid duplicate welcome.
     if vendor.status == "approved":
@@ -82,7 +88,7 @@ async def on_vendor_approved(data: dict):
     vendor_id = data.get("vendor_id")
     logger.info("Vendor approved: %s", vendor_id)
     vendor = await _load_vendor(vendor_id)
-    if not vendor or not vendor.primary_email:
+    if not vendor or not _has_deliverable_email(vendor):
         return
     try:
         from app.services.vendor_lifecycle_emails import send_vendor_approved_email
@@ -97,7 +103,7 @@ async def on_vendor_rejected(data: dict):
     reason = data.get("reason")
     logger.info("Vendor rejected: %s", vendor_id)
     vendor = await _load_vendor(vendor_id)
-    if not vendor or not vendor.primary_email:
+    if not vendor or not _has_deliverable_email(vendor):
         return
     try:
         from app.services.vendor_lifecycle_emails import send_vendor_rejected_email
@@ -123,7 +129,7 @@ async def on_vendor_submitted_for_review(data: dict):
             send_vendor_submitted_vendor_email,
             send_vendor_submitted_admin_email,
         )
-        if vendor.primary_email:
+        if _has_deliverable_email(vendor):
             await send_vendor_submitted_vendor_email(vendor)
         await send_vendor_submitted_admin_email(db, vendor)
 

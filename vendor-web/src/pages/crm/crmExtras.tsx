@@ -182,9 +182,9 @@ function urgencyPresetCls(tone: CrmUrgencyTone): string {
 
 function urgencyInputCls(tone: CrmUrgencyTone): string {
   const map: Record<CrmUrgencyTone, string> = {
-    green: 'h-8 text-xs border-emerald-200 bg-emerald-50/40 focus-visible:ring-emerald-300 focus-visible:border-emerald-300',
-    golden: 'h-8 text-xs border-amber-200 bg-amber-50/40 focus-visible:ring-amber-300 focus-visible:border-amber-300',
-    pink: 'h-8 text-xs border-pink-200 bg-pink-50/50 focus-visible:ring-pink-300 focus-visible:border-pink-300',
+    green: 'h-8 text-xs border-emerald-200 bg-emerald-50/40 focus-visible:ring-0 focus-visible:border-emerald-400',
+    golden: 'h-8 text-xs border-amber-200 bg-amber-50/40 focus-visible:ring-0 focus-visible:border-amber-400',
+    pink: 'h-8 text-xs border-pink-200 bg-pink-50/50 focus-visible:ring-0 focus-visible:border-pink-400',
   }
   return map[tone]
 }

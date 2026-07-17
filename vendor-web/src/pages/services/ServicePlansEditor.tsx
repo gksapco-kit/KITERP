@@ -459,8 +459,7 @@ export function ServicePlansEditor({
                             </select>
                           </FormField>
                           <FormField label={`Time / ${uomLbl.replace(/\s*\(.*\)/, '')}`}>
-                            <InputWithSuffix
-                              suffix="min"
+                            <Input
                               type="number"
                               min="0"
                               step="any"

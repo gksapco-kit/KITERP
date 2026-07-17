@@ -64,8 +64,9 @@ export function isSolidPrimaryButtonClassName(className?: string) {
 export const formFieldClassName =
   `${formFieldBorderClassName} bg-background text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:light] dark:[color-scheme:dark]`
 
-/** Alias — inset focus for custom triggers that are not native inputs. */
-export const formFieldFocusClassName = focusRingClassName
+/** Form field focus — border highlight only (no outer/inset ring). */
+export const formFieldFocusClassName =
+  'focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus:ring-offset-0 focus-visible:ring-offset-0 focus:border-primary focus-visible:border-primary'
 
 /** Close modal only when clicking the dimmed backdrop, not when events bubble from inputs inside the panel. */
 export function onModalBackdropClick(onClose: () => void) {

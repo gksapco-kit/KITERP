@@ -100,7 +100,7 @@ export function SmartLoginInput({
               className={cn(
                 'pl-9 border-gray-300',
                 inputClassName,
-                error && 'border-red-400 focus-visible:ring-red-200',
+                error && 'border-red-400 focus-visible:border-red-500',
               )}
             />
           </div>

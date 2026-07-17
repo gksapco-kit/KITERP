@@ -18,7 +18,7 @@ export function getVisitorId(): string {
  * Client-side guard so React Strict Mode / remounts don't spam the track API.
  * Server still dedupes for 24h; this only reduces duplicate requests in-session.
  */
-export function claimSessionTrack(kind: 'partner' | 'product', key: string): boolean {
+export function claimSessionTrack(kind: 'partner' | 'product' | 'service', key: string): boolean {
   const storageKey = `kiterp_track:${kind}:${key}`
   try {
     if (sessionStorage.getItem(storageKey)) return false
