@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  BarChart3, Eye, Loader2, RefreshCw, Users, FileText, Package, Search, Wrench,
+  BarChart3, ChevronDown, ChevronLeft, ChevronRight, Eye, Loader2, RefreshCw, Users, FileText, Package, Search, Wrench,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,8 @@ import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
 import { websiteApi, type WebsiteAnalyticsReport } from '@/api/websites'
 import { cn } from '@/lib/utils'
+
+const TABLE_PAGE_SIZE = 10
 
 const PERIOD_PRESETS = [
   { key: '30m', label: '30m', minutes: 30 },
@@ -56,6 +58,123 @@ function KpiCard({
   )
 }
 
+function paginateRows<T>(rows: T[], page: number, pageSize: number) {
+  const total = rows.length
+  const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1)
+  const safePage = Math.min(Math.max(1, page), totalPages)
+  const start = (safePage - 1) * pageSize
+  return {
+    rows: rows.slice(start, start + pageSize),
+    total,
+    totalPages,
+    page: safePage,
+  }
+}
+
+function TablePager({
+  page,
+  totalPages,
+  total,
+  pageSize,
+  itemLabel,
+  onPageChange,
+}: {
+  page: number
+  totalPages: number
+  total: number
+  pageSize: number
+  itemLabel: string
+  onPageChange: (page: number) => void
+}) {
+  if (total <= 0) return null
+  const from = (page - 1) * pageSize + 1
+  const to = Math.min(page * pageSize, total)
+  return (
+    <div className="flex flex-col gap-2 border-t border-border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-muted-foreground">
+        {from}–{to} of {total} {itemLabel}
+      </p>
+      <div className="flex items-center gap-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 w-8 p-0"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="min-w-[4rem] px-2 text-center text-xs tabular-nums text-muted-foreground">
+          {page} / {totalPages}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 w-8 p-0"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          aria-label="Next page"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function CollapsibleSection({
+  title,
+  icon: Icon,
+  meta,
+  open,
+  onOpenChange,
+  searchSlot,
+  children,
+}: {
+  title: string
+  icon?: typeof Package
+  meta?: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  searchSlot?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-border bg-card">
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        aria-expanded={open}
+        className={cn(
+          'flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40',
+          open && 'border-b border-border',
+        )}
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {Icon ? <Icon className="h-4 w-4 shrink-0 text-primary" /> : null}
+          <h2 className="text-sm font-bold text-foreground">{title}</h2>
+          {meta ? <span className="text-xs text-muted-foreground">{meta}</span> : null}
+        </div>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+      {open ? (
+        <>
+          {searchSlot ? <div className="border-b border-border px-4 py-2.5">{searchSlot}</div> : null}
+          {children}
+        </>
+      ) : null}
+    </section>
+  )
+}
+
 export default function WebsiteAnalyticsPage() {
   const [businessUnitId, setBusinessUnitId] = useState('')
   const [branchId, setBranchId] = useState('')
@@ -63,6 +182,12 @@ export default function WebsiteAnalyticsPage() {
   const [pagesSearch, setPagesSearch] = useState('')
   const [productsSearch, setProductsSearch] = useState('')
   const [servicesSearch, setServicesSearch] = useState('')
+  const [pagesPage, setPagesPage] = useState(1)
+  const [productsPage, setProductsPage] = useState(1)
+  const [servicesPage, setServicesPage] = useState(1)
+  const [pagesOpen, setPagesOpen] = useState(true)
+  const [productsOpen, setProductsOpen] = useState(true)
+  const [servicesOpen, setServicesOpen] = useState(true)
   const period = PERIOD_PRESETS.find((p) => p.key === periodKey) ?? PERIOD_PRESETS[3]
 
   const params = useMemo(
@@ -112,6 +237,31 @@ export default function WebsiteAnalyticsPage() {
       return service.includes(q)
     })
   }, [report?.services, servicesSearch])
+
+  useEffect(() => {
+    setPagesPage(1)
+  }, [pagesSearch, businessUnitId, branchId, periodKey])
+
+  useEffect(() => {
+    setProductsPage(1)
+  }, [productsSearch, businessUnitId, branchId, periodKey])
+
+  useEffect(() => {
+    setServicesPage(1)
+  }, [servicesSearch, businessUnitId, branchId, periodKey])
+
+  const pagedPages = useMemo(
+    () => paginateRows(filteredPages, pagesPage, TABLE_PAGE_SIZE),
+    [filteredPages, pagesPage],
+  )
+  const pagedProducts = useMemo(
+    () => paginateRows(filteredProducts, productsPage, TABLE_PAGE_SIZE),
+    [filteredProducts, productsPage],
+  )
+  const pagedServices = useMemo(
+    () => paginateRows(filteredServices, servicesPage, TABLE_PAGE_SIZE),
+    [filteredServices, servicesPage],
+  )
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
@@ -224,18 +374,18 @@ export default function WebsiteAnalyticsPage() {
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <section className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center justify-between gap-2 sm:justify-start">
-              <h2 className="text-sm font-bold text-foreground">Realtime pages</h2>
-              <span className="text-xs text-muted-foreground">
-                {pagesSearch.trim()
-                  ? `${filteredPages.length} of ${report?.pages?.length ?? 0}`
-                  : `${report?.pages?.length ?? 0} paths`}
-              </span>
-            </div>
-            <div className="relative w-full sm:w-52">
+      <div className="flex flex-col gap-6">
+        <CollapsibleSection
+          title="Realtime pages"
+          meta={
+            pagesSearch.trim()
+              ? `${filteredPages.length} of ${report?.pages?.length ?? 0}`
+              : `${report?.pages?.length ?? 0} paths`
+          }
+          open={pagesOpen}
+          onOpenChange={setPagesOpen}
+          searchSlot={
+            <div className="relative w-full sm:max-w-xs">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={pagesSearch}
@@ -244,7 +394,8 @@ export default function WebsiteAnalyticsPage() {
                 className="h-8 pl-8 text-xs focus-visible:border-primary focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
-          </div>
+          }
+        >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[28rem] text-sm">
               <thead>
@@ -275,7 +426,7 @@ export default function WebsiteAnalyticsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredPages.map((row) => (
+                  pagedPages.rows.map((row) => (
                     <tr key={row.path} className="hover:bg-muted/30">
                       <td className="max-w-[18rem] truncate px-4 py-2.5 font-mono text-xs text-foreground" title={row.path}>
                         {row.path}
@@ -292,24 +443,30 @@ export default function WebsiteAnalyticsPage() {
               </tbody>
             </table>
           </div>
-        </section>
+          <TablePager
+            page={pagedPages.page}
+            totalPages={pagedPages.totalPages}
+            total={pagedPages.total}
+            pageSize={TABLE_PAGE_SIZE}
+            itemLabel="paths"
+            onPageChange={setPagesPage}
+          />
+        </CollapsibleSection>
 
-        <section className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center justify-between gap-2 sm:justify-start">
-              <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-                <Package className="h-4 w-4 text-primary" />
-                Top products
-              </h2>
-              <span className="text-xs text-muted-foreground">
-                {productsSearch.trim()
-                  ? `${filteredProducts.length} of ${report?.products?.length ?? 0}`
-                  : scoped
-                    ? 'By branch journey'
-                    : 'By catalog view count'}
-              </span>
-            </div>
-            <div className="relative w-full sm:w-52">
+        <CollapsibleSection
+          title="Top products"
+          icon={Package}
+          meta={
+            productsSearch.trim()
+              ? `${filteredProducts.length} of ${report?.products?.length ?? 0}`
+              : scoped
+                ? 'By branch journey'
+                : 'By catalog view count'
+          }
+          open={productsOpen}
+          onOpenChange={setProductsOpen}
+          searchSlot={
+            <div className="relative w-full sm:max-w-xs">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={productsSearch}
@@ -318,7 +475,8 @@ export default function WebsiteAnalyticsPage() {
                 className="h-8 pl-8 text-xs focus-visible:border-primary focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
-          </div>
+          }
+        >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[22rem] text-sm">
               <thead>
@@ -352,10 +510,10 @@ export default function WebsiteAnalyticsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredProducts.map((p) => (
+                  pagedProducts.rows.map((p) => (
                     <tr key={p.slug} className="hover:bg-muted/30">
                       <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex min-w-0 items-center gap-2.5">
                           {p.image_url ? (
                             <img
                               src={p.image_url}
@@ -382,24 +540,30 @@ export default function WebsiteAnalyticsPage() {
               </tbody>
             </table>
           </div>
-        </section>
+          <TablePager
+            page={pagedProducts.page}
+            totalPages={pagedProducts.totalPages}
+            total={pagedProducts.total}
+            pageSize={TABLE_PAGE_SIZE}
+            itemLabel="products"
+            onPageChange={setProductsPage}
+          />
+        </CollapsibleSection>
 
-        <section className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center justify-between gap-2 sm:justify-start">
-              <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-                <Wrench className="h-4 w-4 text-primary" />
-                Top services
-              </h2>
-              <span className="text-xs text-muted-foreground">
-                {servicesSearch.trim()
-                  ? `${filteredServices.length} of ${report?.services?.length ?? 0}`
-                  : scoped
-                    ? 'By branch journey'
-                    : 'By catalog view count'}
-              </span>
-            </div>
-            <div className="relative w-full sm:w-52">
+        <CollapsibleSection
+          title="Top services"
+          icon={Wrench}
+          meta={
+            servicesSearch.trim()
+              ? `${filteredServices.length} of ${report?.services?.length ?? 0}`
+              : scoped
+                ? 'By branch journey'
+                : 'By catalog view count'
+          }
+          open={servicesOpen}
+          onOpenChange={setServicesOpen}
+          searchSlot={
+            <div className="relative w-full sm:max-w-xs">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={servicesSearch}
@@ -408,7 +572,8 @@ export default function WebsiteAnalyticsPage() {
                 className="h-8 pl-8 text-xs focus-visible:border-primary focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
-          </div>
+          }
+        >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[22rem] text-sm">
               <thead>
@@ -442,7 +607,7 @@ export default function WebsiteAnalyticsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredServices.map((s) => (
+                  pagedServices.rows.map((s) => (
                     <tr key={s.slug} className="hover:bg-muted/30">
                       <td className="px-4 py-2.5">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -472,7 +637,15 @@ export default function WebsiteAnalyticsPage() {
               </tbody>
             </table>
           </div>
-        </section>
+          <TablePager
+            page={pagedServices.page}
+            totalPages={pagedServices.totalPages}
+            total={pagedServices.total}
+            pageSize={TABLE_PAGE_SIZE}
+            itemLabel="services"
+            onPageChange={setServicesPage}
+          />
+        </CollapsibleSection>
       </div>
     </div>
   )
