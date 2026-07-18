@@ -15,6 +15,7 @@ import { usePlatformJobRoles } from '@/hooks/usePlatformJobRoles'
 import type { PlatformStaffMember } from '@/api/admin.api'
 import { Headphones, KeyRound, Loader2, Pencil, Plus, UserMinus, UserX } from 'lucide-react'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 export default function PlatformTeam() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
@@ -190,9 +191,9 @@ export default function PlatformTeam() {
                             size="icon"
                             className="h-7 w-7 shrink-0"
                             disabled={busy}
-                            onClick={() => {
+                            onClick={async () => {
                               if (
-                                confirm(
+                                await askConfirm(
                                   'Remove platform access? They will no longer be able to open this admin app.',
                                 )
                               ) {

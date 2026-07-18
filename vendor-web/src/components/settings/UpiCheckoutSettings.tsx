@@ -20,6 +20,7 @@ import {
 import type { Vendor } from '@/types'
 import { toast } from 'sonner'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
   const updateVendor = useUpdateVendor()
   const updateStore = useUpdateStore()
@@ -80,8 +81,8 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
     })
   }
 
-  const handleStoreChange = (storeId: string) => {
-    if (formDirtyRef.current && !window.confirm('You have unsaved changes. Switch business unit anyway?')) return
+  const handleStoreChange = async (storeId: string) => {
+    if (formDirtyRef.current && !await askConfirm('You have unsaved changes. Switch business unit anyway?')) return
     formDirtyRef.current = false
     setSelectedStoreId(storeId)
   }
@@ -127,9 +128,9 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
     )
   }
 
-  const handleClearOverride = () => {
+  const handleClearOverride = async () => {
     if (!activeStore || mode !== 'per_unit') return
-    if (!window.confirm(`Clear ${activeStore.name} UPI override and use the shared UPI instead?`)) return
+    if (!await askConfirm(`Clear ${activeStore.name} UPI override and use the shared UPI instead?`)) return
     savingRef.current = true
     formDirtyRef.current = false
     const settings = { ...(activeStore.settings ?? {}) }

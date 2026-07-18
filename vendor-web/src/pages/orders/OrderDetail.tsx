@@ -534,7 +534,7 @@ export default function OrderDetail() {
       {showProofPreview && order.payment_proof?.screenshot_url && (
         <div
           data-kiterp-modal
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
           onClick={() => setShowProofPreview(false)}
         >
           <button

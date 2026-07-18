@@ -36,7 +36,7 @@ export function VendorSignupShell({
       </aside>
 
       <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden bg-white">
-        <header className="shrink-0 border-b border-slate-100 px-4 py-2 sm:px-5">
+        <header className="shrink-0 px-4 py-2 sm:px-5">
           <div className="mx-auto flex max-w-xl items-center justify-between md:max-w-lg xl:max-w-xl">
             <a href={homeHref} className="flex items-center gap-2 transition-opacity hover:opacity-80 md:hidden">
               <Store className="h-5 w-5" style={{ color: SIGNUP_BRAND }} aria-hidden />
@@ -49,7 +49,7 @@ export function VendorSignupShell({
                   Already a vendor?{' '}
                   <Link
                     to={signInHref}
-                    className="font-semibold hover:underline"
+                    className="font-semibold no-underline hover:no-underline"
                     style={{ color: SIGNUP_BRAND }}
                     onMouseEnter={(e) => { e.currentTarget.style.color = SIGNUP_BRAND_HOVER }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = SIGNUP_BRAND }}
@@ -60,7 +60,7 @@ export function VendorSignupShell({
               ) : (
                 <Link
                   to={signInHref}
-                  className="font-semibold hover:underline"
+                  className="font-semibold no-underline hover:no-underline"
                   style={{ color: SIGNUP_BRAND }}
                 >
                   {signInText}

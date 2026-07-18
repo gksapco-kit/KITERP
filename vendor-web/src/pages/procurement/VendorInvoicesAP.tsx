@@ -59,7 +59,7 @@ function InvoiceDetailPanel({ invoice, onClose }: { invoice: VendorInvoice; onCl
   const matchBadge = MATCH_BADGE[invoice.match_status] || 'bg-gray-100 text-gray-500'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-end bg-black/30" onClick={onClose}>
       <div className="w-full max-w-2xl h-full bg-white dark:bg-gray-900 shadow-2xl overflow-y-auto"
         onClick={e => e.stopPropagation()}>
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b px-6 py-4 flex items-center justify-between">
@@ -211,7 +211,7 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white dark:bg-gray-900 z-10">
           <h2 className="text-lg font-semibold flex items-center gap-2">

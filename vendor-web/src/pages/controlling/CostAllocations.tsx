@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Plus, SendHorizonal, Trash2, GitMerge, X } from 'lucide-react'
+import { Plus, SendHorizonal, Trash2 } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
 import {
   useCostAllocations,
@@ -14,6 +14,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import type { CostAllocationOut } from '@/api/controlling'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const METHODS = ['percentage', 'fixed_amount', 'quantity_based', 'headcount']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -43,8 +44,6 @@ export default function CostAllocationsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [error, setError] = useState('')
-
-  useEscapeToClose(() => setShowCreate(false), showCreate)
 
   const activeCo = useMemo(
     () => companyId || companies.find(c => c.is_default)?.id || companies[0]?.id || '',
@@ -104,7 +103,7 @@ export default function CostAllocationsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this allocation?')) return
+    if (!await askConfirm('Delete this allocation?')) return
     try {
       await deleteMut.mutateAsync(id)
     } catch (err: unknown) {
@@ -119,20 +118,19 @@ export default function CostAllocationsPage() {
   )
 
   return (
-    <div className="p-6 max-w-7xl space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/controlling" className="text-gray-400 hover:text-gray-600">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cost Allocations</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Period-end cost center to cost center allocations</p>
-        </div>
+    <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Period-end cost center to cost center allocations
+          {' · '}
+          <Link to="/controlling" className="text-primary hover:underline">Controlling</Link>
+        </p>
         <button
+          type="button"
           onClick={() => setShowCreate(true)}
-          className="ml-auto flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 text-sm font-medium"
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
         >
-          <Plus className="w-4 h-4" /> New Allocation
+          <Plus className="h-3.5 w-3.5" /> New Allocation
         </button>
       </div>
 
@@ -246,85 +244,79 @@ export default function CostAllocationsPage() {
 
       {/* Create modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowCreate(false)}>
-          <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-border flex items-start justify-between gap-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <GitMerge className="w-5 h-5 text-primary" /> New Cost Allocation
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowCreate(false)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">Allocation Cycle Name</Label>
-                <input value={form.allocation_cycle}
-                  onChange={e => setForm(f => ({ ...f, allocation_cycle: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="e.g. ADMIN-ALLOC, FACILITY-COST" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+        <ModalOverlay onClose={() => setShowCreate(false)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-lg max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
+            <ModalHeader
+              title="New Cost Allocation"
+              onClose={() => setShowCreate(false)}
+              className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+            />
+            <form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Year</Label>
-                  <input type="number" value={form.period_year}
-                    onChange={e => setForm(f => ({ ...f, period_year: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Allocation Cycle Name</Label>
+                  <input value={form.allocation_cycle}
+                    onChange={e => setForm(f => ({ ...f, allocation_cycle: e.target.value }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                    placeholder="e.g. ADMIN-ALLOC, FACILITY-COST" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>Year</Label>
+                    <input type="number" value={form.period_year}
+                      onChange={e => setForm(f => ({ ...f, period_year: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" required />
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>Month</Label>
+                    <select value={form.period_month}
+                      onChange={e => setForm(f => ({ ...f, period_month: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm">
+                      {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Month</Label>
-                  <select value={form.period_month}
-                    onChange={e => setForm(f => ({ ...f, period_month: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                    {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Allocation Method</Label>
+                  <select value={form.allocation_method}
+                    onChange={e => setForm(f => ({ ...f, allocation_method: e.target.value }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm">
+                    {METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
-              </div>
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">Allocation Method</Label>
-                <select value={form.allocation_method}
-                  onChange={e => setForm(f => ({ ...f, allocation_method: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                  {METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">{form.allocation_method === 'percentage' ? 'Percentage (%)' : 'Driver Value'}</Label>
-                  <input type="number" step="0.000001" value={form.allocation_value}
-                    onChange={e => setForm(f => ({ ...f, allocation_value: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">{form.allocation_method === 'percentage' ? 'Percentage (%)' : 'Driver Value'}</Label>
+                    <input type="number" step="0.000001" value={form.allocation_value}
+                      onChange={e => setForm(f => ({ ...f, allocation_value: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Allocated Amount</Label>
+                    <input type="number" step="0.0001" value={form.allocated_amount}
+                      onChange={e => setForm(f => ({ ...f, allocated_amount: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
+                  </div>
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Allocated Amount</Label>
-                  <input type="number" step="0.0001" value={form.allocated_amount}
-                    onChange={e => setForm(f => ({ ...f, allocated_amount: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Narration</Label>
+                  <input value={form.narration} onChange={e => setForm(f => ({ ...f, narration: e.target.value }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                    placeholder="Description…" />
                 </div>
-              </div>
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">Narration</Label>
-                <input value={form.narration} onChange={e => setForm(f => ({ ...f, narration: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="Description…" />
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <div className="flex gap-3 pt-2">
+                {error && <p className="text-sm text-red-600">{error}</p>}
+              </ModalBody>
+              <ModalFooter className="border-0 px-4 py-2.5">
                 <button type="button" onClick={() => setShowCreate(false)}
-                  className="btn-cancel flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
+                  className="btn-cancel h-8 rounded-md border border-border px-3 text-sm font-medium">Cancel</button>
                 <button type="submit" disabled={createMut.isPending}
-                  className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
+                  className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60">
                   {createMut.isPending ? 'Saving…' : 'Create Allocation'}
                 </button>
-              </div>
+              </ModalFooter>
             </form>
-          </div>
-        </div>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

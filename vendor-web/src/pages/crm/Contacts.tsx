@@ -11,14 +11,13 @@ import { Badge } from '@/components/ui/badge'
 import { useContacts, useSaveContact } from '@/hooks/useCrm'
 import { useTeamMembers } from '@/hooks/useVendor'
 import type { Contact } from '@/api/crm'
-import { Plus, Loader2, UserPlus, Mail, Phone, Pencil, Building2, User } from 'lucide-react'
+import { Plus, Loader2, UserPlus, Mail, Pencil, Building2, User, ChevronDown, ChevronUp } from 'lucide-react'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { normalizePhoneE164 } from '@/lib/phoneE164'
 import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
-import { modalWidthMd } from '@/lib/modalUi'
 import { useCrmExtras, CrmExtrasView } from './crmExtras'
-import { SALUTATIONS, contactDisplayName, inputCls } from './crmContactsShared'
-import { formatCurrency, formatDateTime } from '@/lib/utils'
+import { SALUTATIONS, contactDisplayName } from './crmContactsShared'
+import { cn, formatCurrency, formatDateTime } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 type RecordFilter = '' | 'person' | 'company'
@@ -83,8 +82,8 @@ function ContactPersonsSection({ companyId }: { companyId: string }) {
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3 rounded-lg border border-gray-100 bg-gray-50/40 px-3 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{title}</p>
+    <div className="space-y-1.5 rounded-md border border-border/60 bg-muted/20 px-2.5 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
       {children}
     </div>
   )
@@ -170,38 +169,43 @@ function ContactForm({
 
   const companies = companiesData?.items ?? []
   const formId = contact ? `contact-form-${contact.id}` : 'contact-form-new'
+  const [moreOpen, setMoreOpen] = useState(false)
+  const inputCls = 'h-8 text-sm'
 
   return (
     <CrmModal
       title={isEdit ? (type === 'company' ? 'Edit company' : 'Edit contact') : (type === 'company' ? 'Add company' : 'Add contact')}
       onClose={onClose}
-      maxW={modalWidthMd}
+      maxW="max-w-md min-h-[min(34rem,calc(100dvh-1.5rem))]"
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form={formId} disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            {isEdit ? 'Save changes' : 'Save'}
+          <Button type="submit" form={formId} className="h-8 rounded-md px-3 text-sm" disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
+            {isEdit ? 'Save' : 'Save'}
           </Button>
         </>
       }
     >
-      <form id={formId} onSubmit={handle} className="space-y-4 pb-4" autoComplete="off">
+      <form id={formId} onSubmit={handle} className="space-y-2.5" autoComplete="off">
         {!parentCompanyId && !isEdit && (
           <Field label="Type">
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               {(['person', 'company'] as const).map(t => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setType(t)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-md border text-sm transition-colors ${
-                    type === t ? 'border-primary bg-primary/5 text-primary font-medium' : 'border-input hover:bg-gray-50'
-                  }`}
+                  className={cn(
+                    'flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border text-xs transition-colors',
+                    type === t
+                      ? 'border-primary bg-primary/5 font-medium text-primary'
+                      : 'border-input hover:bg-muted/50',
+                  )}
                 >
-                  {t === 'company' ? <Building2 className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                  {t === 'company' ? <Building2 className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
                   {t === 'company' ? 'Company' : 'Person'}
                 </button>
               ))}
@@ -212,45 +216,41 @@ function ContactForm({
         <FormSection title={type === 'company' ? 'Company details' : 'Name & role'}>
         {type === 'person' ? (
           <>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="w-full shrink-0 sm:w-[6.5rem] min-w-0">
-                <Field label="Salutation">
-                  <Select
-                    value={form.salutation}
-                    onChange={v => setForm(p => ({ ...p, salutation: v }))}
-                    placeholder="—"
-                    className="w-full min-w-0"
-                    triggerClassName="min-w-0 w-full"
-                    options={selectOptionsWithBlank('—', SALUTATIONS.map(s => ({ value: s, label: s })))}
-                  />
-                </Field>
-              </div>
-              <div className="min-w-0 flex-1">
-                <Field label="First name" required>
-                  <Input
-                    value={form.first_name}
-                    onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))}
-                    autoComplete="off"
-                    name="crm-contact-first-name"
-                    data-1p-ignore="true"
-                    data-lpignore="true"
-                  />
-                </Field>
-              </div>
-              <div className="min-w-0 flex-1">
-                <Field label="Last name">
-                  <Input
-                    value={form.last_name}
-                    onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))}
-                    autoComplete="off"
-                    name="crm-contact-last-name"
-                    data-1p-ignore="true"
-                  />
-                </Field>
-              </div>
+            <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-1.5">
+              <Field label="Salutation">
+                <Select
+                  value={form.salutation}
+                  onChange={v => setForm(p => ({ ...p, salutation: v }))}
+                  placeholder="—"
+                  className="w-full min-w-0"
+                  triggerClassName={cn('min-w-0 w-full', inputCls)}
+                  options={selectOptionsWithBlank('—', SALUTATIONS.map(s => ({ value: s, label: s })))}
+                />
+              </Field>
+              <Field label="First name" required>
+                <Input
+                  className={inputCls}
+                  value={form.first_name}
+                  onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))}
+                  autoComplete="off"
+                  name="crm-contact-first-name"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                />
+              </Field>
+              <Field label="Last name">
+                <Input
+                  className={inputCls}
+                  value={form.last_name}
+                  onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))}
+                  autoComplete="off"
+                  name="crm-contact-last-name"
+                  data-1p-ignore="true"
+                />
+              </Field>
             </div>
             <Field label="Title">
-              <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="VP Sales" />
+              <Input className={inputCls} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="VP Sales" />
             </Field>
             {!parentCompanyId && (
               <Field label="Company">
@@ -258,6 +258,7 @@ function ContactForm({
                   value={form.parent_contact_id}
                   onChange={v => setForm(p => ({ ...p, parent_contact_id: v }))}
                   placeholder="— None —"
+                  triggerClassName={inputCls}
                   options={selectOptionsWithBlank(
                     '— None —',
                     companies.map(c => ({ value: c.id, label: c.first_name })),
@@ -270,44 +271,42 @@ function ContactForm({
           <>
             <Field label="Company name" required>
               <Input
+                className={inputCls}
                 value={form.first_name}
                 onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))}
                 autoComplete="off"
                 name="crm-company-name"
               />
             </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Industry"><Input value={form.industry} onChange={e => setForm(p => ({ ...p, industry: e.target.value }))} /></Field>
-              <Field label="Region"><Input value={form.region} onChange={e => setForm(p => ({ ...p, region: e.target.value }))} /></Field>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Field label="Industry"><Input className={inputCls} value={form.industry} onChange={e => setForm(p => ({ ...p, industry: e.target.value }))} /></Field>
+              <Field label="Region"><Input className={inputCls} value={form.region} onChange={e => setForm(p => ({ ...p, region: e.target.value }))} /></Field>
             </div>
-            <Field label="Website"><Input value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} placeholder="https://" /></Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Annual revenue"><Input type="number" value={form.annual_revenue} onChange={e => setForm(p => ({ ...p, annual_revenue: e.target.value }))} /></Field>
-              <Field label="Employees"><Input type="number" value={form.employee_count} onChange={e => setForm(p => ({ ...p, employee_count: e.target.value }))} /></Field>
+            <Field label="Website"><Input className={inputCls} value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} placeholder="https://" /></Field>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Field label="Annual revenue"><Input className={inputCls} type="number" value={form.annual_revenue} onChange={e => setForm(p => ({ ...p, annual_revenue: e.target.value }))} /></Field>
+              <Field label="Employees"><Input className={inputCls} type="number" value={form.employee_count} onChange={e => setForm(p => ({ ...p, employee_count: e.target.value }))} /></Field>
             </div>
           </>
         )}
         </FormSection>
 
         <FormSection title="Contact channels">
-          <p className="text-[11px] text-gray-500 -mt-1">
-            Email and phone are used for campaigns (email, SMS, WhatsApp). Use country code for mobile numbers.
-          </p>
           <Field label="Email">
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <Mail className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="email"
                 value={form.email}
                 onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                className="pl-9"
+                className={cn(inputCls, 'pl-8')}
                 placeholder="name@company.com"
                 autoComplete="off"
                 name="crm-contact-email"
               />
             </div>
           </Field>
-          <div className={type === 'person' ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
+          <div className={type === 'person' ? 'grid grid-cols-1 gap-1.5 sm:grid-cols-2' : ''}>
             <Field label="Phone">
               <PhoneInput
                 value={form.phone}
@@ -316,6 +315,7 @@ function ContactForm({
                 inferCountryFromLocation
                 compact
                 compactCountry
+                subtleFeedback
                 placeholder="Office or landline"
               />
             </Field>
@@ -328,6 +328,7 @@ function ContactForm({
                   inferCountryFromLocation
                   compact
                   compactCountry
+                  subtleFeedback
                   placeholder="SMS / WhatsApp"
                 />
               </Field>
@@ -335,49 +336,67 @@ function ContactForm({
           </div>
         </FormSection>
 
-        <FormSection title="Assignment & source">
-        <Field label="Sales person">
-          <SalesPersonSelect value={form.owner_id} onChange={v => setForm(p => ({ ...p, owner_id: v }))} />
-        </Field>
+        <div className="overflow-hidden rounded-md border border-border">
+          <button
+            type="button"
+            onClick={() => setMoreOpen(v => !v)}
+            className="flex w-full items-center justify-between bg-muted/40 px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/60"
+          >
+            <span>{moreOpen ? 'Fewer details' : 'More details'}</span>
+            {moreOpen ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+          </button>
+          {moreOpen && (
+            <div className="space-y-2.5 p-2.5">
+              <FormSection title="Assignment & source">
+                <Field label="Sales person">
+                  <SalesPersonSelect value={form.owner_id} onChange={v => setForm(p => ({ ...p, owner_id: v }))} />
+                </Field>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Field label="Lifecycle stage">
+                    <Select
+                      value={form.lifecycle_stage}
+                      onChange={v => setForm(p => ({ ...p, lifecycle_stage: v }))}
+                      triggerClassName={inputCls}
+                      options={[
+                        { value: 'subscriber', label: 'Subscriber' },
+                        { value: 'lead', label: 'Lead' },
+                        { value: 'mql', label: 'MQL' },
+                        { value: 'sql', label: 'SQL' },
+                        { value: 'customer', label: 'Customer' },
+                        { value: 'evangelist', label: 'Evangelist' },
+                      ]}
+                    />
+                  </Field>
+                  <Field label="Lead source">
+                    <Input className={inputCls} value={form.lead_source} onChange={e => setForm(p => ({ ...p, lead_source: e.target.value }))} placeholder="website, referral…" />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Field label="Tags">
+                    <Input className={inputCls} value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} placeholder="vip, enterprise" />
+                  </Field>
+                  <Field label="Location">
+                    <Input className={inputCls} value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} placeholder="City, Country" />
+                  </Field>
+                </div>
+              </FormSection>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Lifecycle stage">
-            <Select
-              value={form.lifecycle_stage}
-              onChange={v => setForm(p => ({ ...p, lifecycle_stage: v }))}
-              options={[
-                { value: 'subscriber', label: 'Subscriber' },
-                { value: 'lead', label: 'Lead' },
-                { value: 'mql', label: 'MQL' },
-                { value: 'sql', label: 'SQL' },
-                { value: 'customer', label: 'Customer' },
-                { value: 'evangelist', label: 'Evangelist' },
-              ]}
-            />
-          </Field>
-          <Field label="Lead source">
-            <Input value={form.lead_source} onChange={e => setForm(p => ({ ...p, lead_source: e.target.value }))} placeholder="website, referral…" />
-          </Field>
+              <Field label="Note">
+                <Textarea
+                  value={form.notes}
+                  onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                  placeholder="Anything worth remembering…"
+                  className="min-h-[3rem] resize-none text-sm"
+                />
+              </Field>
+
+              {extras.actionToolbar}
+              {extras.sections}
+              {extras.documentsSection}
+              {extras.photosSection}
+            </div>
+          )}
         </div>
-
-        <div className="grid grid-cols-2 gap-3 items-start">
-          <Field label="Tags (comma separated)">
-            <Input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} placeholder="vip, enterprise" />
-          </Field>
-          <Field label="Location">
-            <Input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} placeholder="City, Country" />
-          </Field>
-        </div>
-        </FormSection>
-
-        <Field label="Note">
-          <Textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Anything worth remembering…" className="min-h-[40px]" />
-        </Field>
-
-        {extras.actionToolbar}
-        {extras.sections}
-        {extras.documentsSection}
-        {extras.photosSection}
       </form>
     </CrmModal>
   )
@@ -403,14 +422,14 @@ function ContactView({
     <CrmModal
       title={isCompany ? 'Company details' : 'Contact details'}
       onClose={onClose}
-      maxW={modalWidthMd}
+      maxW="max-w-md"
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={onClose}>
             Close
           </Button>
-          <Button type="button" onClick={onEdit}>
-            <Pencil className="w-4 h-4 mr-2" /> Edit
+          <Button type="button" className="h-8 rounded-md px-3 text-sm" onClick={onEdit}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
           </Button>
         </>
       }
@@ -498,18 +517,17 @@ export default function ContactsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
-          <h1 className="text-2xl font-bold text-gray-900">Contacts</h1>
-        </div>
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          People and companies for CRM outreach
+        </p>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => openCreate('company')}>
-            <Building2 className="w-4 h-4 mr-2" /> Add company
+          <Button variant="outline" className="h-8 gap-1.5 px-3 text-sm" onClick={() => openCreate('company')}>
+            <Building2 className="h-3.5 w-3.5" /> Add company
           </Button>
-          <Button onClick={() => openCreate('person')}>
-            <Plus className="w-4 h-4 mr-2" /> Add contact
+          <Button className="h-8 gap-1.5 px-3 text-sm" onClick={() => openCreate('person')}>
+            <Plus className="h-3.5 w-3.5" /> Add contact
           </Button>
         </div>
       </div>

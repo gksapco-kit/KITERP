@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import { TemplateForm, TemplatePreviewModal } from './CampaignTemplatesPanel'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 export default function TemplatesPage() {
   const qc = useQueryClient()
   const { data, isLoading } = useEmailTemplates()
@@ -18,7 +19,7 @@ export default function TemplatesPage() {
   const [showCreate, setShowCreate] = useState(false)
 
   const remove = async (id: string) => {
-    if (!confirm('Delete this template?')) return
+    if (!await askConfirm('Delete this template?')) return
     try {
       await crmApi.deleteTemplate(id)
       await qc.invalidateQueries({ queryKey: ['crm', 'templates'] })

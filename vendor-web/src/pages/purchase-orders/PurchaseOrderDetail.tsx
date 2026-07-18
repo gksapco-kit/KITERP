@@ -32,6 +32,7 @@ import { printPO, generatePOHtml, DEFAULT_PO_SETTINGS } from '@/lib/poTemplates'
 import type { POTemplateSettings } from '@/lib/poTemplates'
 import { fetchAsDataUrl, resolveMediaUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
   draft: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Draft' },
   sent: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Sent to Supplier' },
@@ -156,8 +157,8 @@ export default function PurchaseOrderDetail() {
     })
   }, [po, updateMut])
 
-  const deleteItem = useCallback(async (item: POItem) => {
-    if (!po || !confirm(`Remove "${item.product_name || 'this item'}" from the PO?`)) return
+  const deleteItem = useCallbackasync (async (item: POItem) => {
+    if (!po || !await askConfirm(`Remove "${item.product_name || 'this item'}" from the PO?`)) return
     const remaining = po.items
       .filter(i => i.id !== item.id)
       .map(i => ({ product_id: i.product_id, variant_id: i.variant_id || undefined, quantity: i.quantity_ordered, unit_cost: i.unit_cost }))
@@ -328,7 +329,7 @@ export default function PurchaseOrderDetail() {
                 <Send className="w-4 h-4" /> Send to Supplier
               </Button>
               <Button variant="cancel" className="gap-2 text-red-600 hover:text-red-700" disabled={actionLoading}
-                onClick={() => { if (confirm('Cancel this purchase order?')) cancelMut.mutate(po.id) }}>
+                onClick={async () => { if (await askConfirm('Cancel this purchase order?')) cancelMut.mutate(po.id) }}>
                 <XCircle className="w-4 h-4" />Cancel</Button>
             </>
           )}
@@ -337,9 +338,9 @@ export default function PurchaseOrderDetail() {
               <Button className="gap-2" onClick={() => setShowReceive(true)}>
                 <PackageCheck className="w-4 h-4" /> Receive Items
               </Button>
-              {po.status === 'sent' && (
+              {po.status === 'sent' && async (
                 <Button variant="cancel" className="gap-2 text-red-600 hover:text-red-700" disabled={actionLoading}
-                  onClick={() => { if (confirm('Cancel this purchase order?')) cancelMut.mutate(po.id) }}>
+                  onClick={async () => { if (await askConfirm('Cancel this purchase order?')) cancelMut.mutate(po.id) }}>
                   <XCircle className="w-4 h-4" />Cancel</Button>
               )}
             </>
@@ -1023,7 +1024,7 @@ function ReceiveModal({
 
   if (receivableItems.length === 0) {
     return (
-      <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+      <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
         <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
           <p className="text-center text-gray-600">All items have been fully received.</p>
           <Button className="w-full mt-4" onClick={onClose}>Close</Button>
@@ -1033,7 +1034,7 @@ function ReceiveModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-lg font-semibold">Receive Items</h2>

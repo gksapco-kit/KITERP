@@ -1,20 +1,21 @@
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Loader2, Home, ToggleLeft, ToggleRight, X, ImagePlus } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Home, ToggleLeft, ToggleRight, ImagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
-import { formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { cn, formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { modalWidthLg } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -27,6 +28,7 @@ import {
 import { propertiesApi } from '@/api/properties'
 import type { VendorProperty, VendorPropertyCreate } from '@/api/properties'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const PROPERTY_TYPES = ['house', 'condo', 'loft', 'townhouse', 'pg']
 const CURRENCIES = ['USD', 'INR', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD', 'JPY']
 const PROPERTY_STATUSES = [
@@ -48,7 +50,6 @@ function PropertyModal({
   onSave: (data: VendorPropertyCreate) => void
   saving: boolean
 }) {
-  useEscapeToClose(onClose)
   const [title, setTitle] = useState(initial?.title ?? '')
   const [address, setAddress] = useState(initial?.address ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -137,173 +138,170 @@ function PropertyModal({
     })
   }
 
+  const labelCls = 'text-xs'
+  const fieldGap = 'space-y-1'
+  const selectCls = 'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">{initial ? 'Edit listing' : 'New listing'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
-          <div>
-            <Label>Listing photo</Label>
-            <ImageSourcePicker
-              title="Listing photo"
-              uploading={imageUploading}
-              onFile={handleImageFile}
-              onUrl={handleImageUrl}
-              className="mt-1"
-            >
-              {({ open, uploading }) => (
-                <button
-                  type="button"
-                  onClick={open}
-                  disabled={uploading}
-                  className="flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2">
+      <ModalPanel className={cn(modalWidthLg, 'max-h-[calc(100dvh-1rem)]')}>
+        <ModalHeader
+          title={initial ? 'Edit listing' : 'New listing'}
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+            <div className="grid grid-cols-[5.5rem_1fr] gap-2.5 items-start">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Photo</Label>
+                <ImageSourcePicker
+                  title="Listing photo"
+                  uploading={imageUploading}
+                  onFile={handleImageFile}
+                  onUrl={handleImageUrl}
                 >
-                  {imageUrl ? (
-                    <img
-                      src={
-                        imageUrl.startsWith('blob:')
-                          ? imageUrl
-                          : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
-                      }
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
-                      {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                      Add photo
-                    </span>
+                  {({ open, uploading }) => (
+                    <button
+                      type="button"
+                      onClick={open}
+                      disabled={uploading}
+                      className="flex h-14 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
+                    >
+                      {imageUrl ? (
+                        <img
+                          src={
+                            imageUrl.startsWith('blob:')
+                              ? imageUrl
+                              : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
+                          }
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex flex-col items-center gap-0.5 text-[10px] text-muted-foreground">
+                          {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                          Add
+                        </span>
+                      )}
+                    </button>
                   )}
-                </button>
-              )}
-            </ImageSourcePicker>
-          </div>
-          <div>
-            <Label>Title</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Sunlit Park Slope Brownstone" />
-          </div>
-          <div>
-            <Label>Address</Label>
-            <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="127 Carroll St, Brooklyn, NY" />
-          </div>
-          <div>
-            <Label>Description (optional)</Label>
-            <AiDescriptionTextarea
-              value={description}
-              onChange={setDescription}
-              rows={3}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              placeholder="About this home…"
-              maxLength={2000}
-              context={{
-                field_kind: 'property_description',
-                name: title,
-                category: type,
-                extra_context: { address, beds, baths, sqft, status },
-              }}
+                </ImageSourcePicker>
+              </div>
+              <div className="space-y-2">
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Title *</Label>
+                  <Input className="h-8 text-sm" value={title} onChange={e => setTitle(e.target.value)} required autoFocus placeholder="Sunlit Park Slope Brownstone" />
+                </div>
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Address</Label>
+                  <Input className="h-8 text-sm" value={address} onChange={e => setAddress(e.target.value)} placeholder="127 Carroll St, Brooklyn, NY" />
+                </div>
+              </div>
+            </div>
+
+            <div className={fieldGap}>
+              <Label className={labelCls}>Description (optional)</Label>
+              <AiDescriptionTextarea
+                value={description}
+                onChange={setDescription}
+                rows={2}
+                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+                placeholder="About this home…"
+                maxLength={2000}
+                context={{
+                  field_kind: 'property_description',
+                  name: title,
+                  category: type,
+                  extra_context: { address, beds, baths, sqft, status },
+                }}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
+              <div className={cn(fieldGap, 'sm:col-span-2')}>
+                <Label className={labelCls}>Price</Label>
+                <Input className="h-8 text-sm" type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Currency</Label>
+                <select value={currency} onChange={e => setCurrency(e.target.value)} className={selectCls}>
+                  {(CURRENCIES.includes(currency) ? CURRENCIES : [currency, ...CURRENCIES]).map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Beds</Label>
+                <Input className="h-8 text-sm" type="number" min={0} value={beds} onChange={e => setBeds(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Baths</Label>
+                <Input className="h-8 text-sm" type="number" min={0} value={baths} onChange={e => setBaths(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Sq ft</Label>
+                <Input className="h-8 text-sm" type="number" min={0} value={sqft} onChange={e => setSqft(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Type</Label>
+                <select value={type} onChange={e => setType(e.target.value)} className={selectCls}>
+                  {PROPERTY_TYPES.map(t => (
+                    <option key={t} value={t}>{t === 'pg' ? 'PG' : t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Status</Label>
+                <select value={status} onChange={e => setStatus(e.target.value)} className={selectCls}>
+                  {PROPERTY_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>CTA label</Label>
+                <Input className="h-8 text-sm" value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Sort order</Label>
+                <Input className="h-8 text-sm" type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Listing agent</Label>
+                <Input className="h-8 text-sm" value={agentName} onChange={e => setAgentName(e.target.value)} placeholder="Sasha Reed" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Agent phone</Label>
+                <Input className="h-8 text-sm" value={agentPhone} onChange={e => setAgentPhone(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Agent email</Label>
+                <Input className="h-8 text-sm" value={agentEmail} onChange={e => setAgentEmail(e.target.value)} />
+              </div>
+            </div>
+
+            <CheckboxFieldLabel
+              label="Active on storefront"
+              checked={isActive}
+              onChange={setIsActive}
+              labelClassName="text-xs"
             />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <Label>Price</Label>
-              <Input type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
-            </div>
-            <div>
-              <Label>Currency</Label>
-              <select
-                value={currency}
-                onChange={e => setCurrency(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              >
-                {(CURRENCIES.includes(currency) ? CURRENCIES : [currency, ...CURRENCIES]).map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label>Beds</Label>
-              <Input type="number" min={0} value={beds} onChange={e => setBeds(e.target.value)} />
-            </div>
-            <div>
-              <Label>Baths</Label>
-              <Input type="number" min={0} value={baths} onChange={e => setBaths(e.target.value)} />
-            </div>
-            <div>
-              <Label>Sq ft</Label>
-              <Input type="number" min={0} value={sqft} onChange={e => setSqft(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Property type</Label>
-              <select
-                value={type}
-                onChange={e => setType(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              >
-                {PROPERTY_TYPES.map(t => (
-                  <option key={t} value={t}>{t === 'pg' ? 'PG' : t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Status</Label>
-              <select
-                value={status}
-                onChange={e => setStatus(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              >
-                {PROPERTY_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Listing agent</Label>
-              <Input value={agentName} onChange={e => setAgentName(e.target.value)} placeholder="Sasha Reed" />
-            </div>
-            <div>
-              <Label>Button label</Label>
-              <Input value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Agent phone</Label>
-              <Input value={agentPhone} onChange={e => setAgentPhone(e.target.value)} />
-            </div>
-            <div>
-              <Label>Agent email</Label>
-              <Input value={agentEmail} onChange={e => setAgentEmail(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <Label>Sort order</Label>
-            <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-            Active on storefront
-          </label>
-        </div>
-        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          </ModalBody>
+          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-2.5">
+            <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
+            <Button type="submit" className="h-8 px-3 text-sm" disabled={saving || !title.trim()}>
+              {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               {initial ? 'Save' : 'Create'}
             </Button>
-        </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -342,19 +340,19 @@ export default function SalesPropertiesPage() {
   const { isSaving, patchField } = useInlineFieldPatch(updateProperty)
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Home className="h-5 w-5 text-primary" />
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+            <Home className="h-4 w-4 shrink-0 text-primary" />
             Property Listings
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage real-estate listings shown on your storefront. Listings sync automatically to Property Listing and Property Detail sections in the website builder.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Storefront listings · syncs to Website Builder
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
-          <Plus className="h-4 w-4" /> Add listing
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="h-3.5 w-3.5" /> Add listing
         </Button>
       </div>
 
@@ -529,9 +527,9 @@ export default function SalesPropertiesPage() {
                         <button
                           type="button"
                           title="Delete"
-                          onClick={e => {
+                          onClick={async e => {
                             e.stopPropagation()
-                            if (window.confirm(`Delete listing "${property.title}"?`)) deleteProperty.mutate(property.id)
+                            if (await askConfirm(`Delete listing "${property.title}"?`)) deleteProperty.mutate(property.id)
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >

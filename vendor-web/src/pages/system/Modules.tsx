@@ -25,6 +25,7 @@ import {
   type ModuleFormState,
 } from '@/lib/vendorModuleRoleDefaults'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const OFFERING_OPTIONS = [
   { value: 'products', label: 'Products only', description: 'Sell physical or digital products.' },
   { value: 'services', label: 'Services only', description: 'Offer services, bookings, or consultations.' },
@@ -395,7 +396,7 @@ export default function ModulesPage() {
     })
   }
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (!canManageModules) {
       toast.error('Only owners and admins can reset module settings.')
       return
@@ -404,7 +405,7 @@ export default function ModulesPage() {
 
     const roleLabel = vendorRole?.role_name ?? roleKey
     if (
-      !window.confirm(
+      !await askConfirm(
         `Restore recommended module settings for the "${roleLabel}" role? This updates modules for your entire business.`,
       )
     ) {

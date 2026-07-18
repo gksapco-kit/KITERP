@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { FormColumnLabel } from '@/components/common/FieldLabel'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Link, useNavigate } from 'react-router-dom'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import {
@@ -45,6 +45,7 @@ import { toast } from 'sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const SYSTEM_ROLES = ['owner', 'admin', 'manager', 'sales', 'staff']
 
 type MemberUpdatePayload = {
@@ -298,34 +299,28 @@ export default function TeamPage() {
     setEditMember(null)
   }
 
-  const handleToggleStatus = (member: TeamMember) => {
+  const handleToggleStatus = async (member: TeamMember) => {
     const nextActive = !member.is_active
-    if (!confirm(`${nextActive ? 'Activate' : 'Deactivate'} ${member.full_name || 'this team member'}?`)) return
+    if (!await askConfirm(`${nextActive ? 'Activate' : 'Deactivate'} ${member.full_name || 'this team member'}?`)) return
     updateMutation.mutate({ id: member.id, data: { is_active: nextActive } })
   }
 
-  const handleRemove = (memberId: string) => {
-    if (confirm('Delete this team member permanently? This cannot be undone.')) {
+  const handleRemove = async (memberId: string) => {
+    if (await askConfirm('Delete this team member permanently? This cannot be undone.')) {
       removeMutation.mutate(memberId)
     }
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Users className="w-7 h-7 text-primary" />
-            Staff Access Control
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage Users, Roles, And Permissions For Your Workspace
-          </p>
-        </div>
+    <div className="mx-auto max-w-6xl space-y-3 p-3 md:p-4">
+      {/* Page header — title already shown in the top bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Manage users, roles, and permissions for your workspace
+        </p>
         {canInvite && (
-          <Button onClick={() => setShowInvite(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
+          <Button type="button" size="sm" className="h-8 gap-1.5" onClick={() => setShowInvite(true)}>
+            <Plus className="h-3.5 w-3.5" />
             Add Team Member
           </Button>
         )}
@@ -608,15 +603,14 @@ export default function TeamPage() {
 
       {/* Invite Modal */}
       {showInvite && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowInvite(false)}>
-          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
-              <h2 className="text-lg font-semibold text-gray-900">Add Team Member</h2>
-              <button type="button" aria-label="Close" onClick={() => setShowInvite(false)} className="p-1 rounded hover:bg-gray-100">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
+        <ModalOverlay onClose={() => setShowInvite(false)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-h-[calc(100dvh-1.5rem)] max-w-lg !rounded-lg overflow-hidden">
+            <ModalHeader
+              title="Add Team Member"
+              onClose={() => setShowInvite(false)}
+              className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+            />
+            <ModalBody className="space-y-3 overflow-y-auto px-4 pb-1 pt-0">
 
               <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
@@ -718,21 +712,24 @@ export default function TeamPage() {
                   onAccessEndsAtChange={(v) => setInviteForm(f => ({ ...f, access_ends_at: v }))}
                 />
               </div>
-              <p className="text-xs text-gray-500 bg-blue-50 rounded-lg p-3">
+              <p className="rounded-md bg-blue-50 px-2.5 py-1.5 text-xs text-gray-500">
                 A 6-digit verification OTP will be generated after creation. Share it with the member to verify their contact.
               </p>
-            </div>
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl shrink-0">
-              <Button variant="ghost" onClick={() => setShowInvite(false)}>Cancel</Button>
+            </ModalBody>
+            <ModalFooter className="border-0 px-4 py-2.5">
+              <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setShowInvite(false)}>Cancel</Button>
               <Button
+                type="button"
+                size="sm"
+                className="h-8"
                 onClick={handleInvite}
                 disabled={!inviteForm.email || !inviteForm.full_name || !inviteForm.password || inviteMutation.isPending}
               >
                 {inviteMutation.isPending ? 'Adding...' : 'Add Member'}
               </Button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
 
       {/* OTP Display Modal — shown after member creation or send-verification */}

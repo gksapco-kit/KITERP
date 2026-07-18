@@ -1,10 +1,10 @@
-﻿import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { ModalEscapeHandler } from '@/components/ui/ModalEscapeHandler'
+import { ModalBody, ModalCloseButton, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/stores/vendorStore'
 import { formatCurrency, cn, searchFieldInnerInputClassName, searchFieldShellClassName } from '@/lib/utils'
@@ -50,14 +50,14 @@ import {
   PRIORITY_CONFIG,
 } from './productionShared'
 
-// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Constants ───────────────────────────────────────────────────────────────
 const TEMPLATES = [
-  { id: 'standard',  label: 'Standard',  emoji: 'ðŸ­', desc: 'Regular batch production' },
-  { id: 'urgent',    label: 'Urgent',    emoji: 'ðŸ”´', desc: 'Fast-track, priority queue' },
-  { id: 'batch',     label: 'Batch',     emoji: 'ðŸ“¦', desc: 'Multiple batches, same product' },
-  { id: 'rework',    label: 'Rework',    emoji: 'ðŸ”§', desc: 'Fix defective units' },
-  { id: 'assembly',  label: 'Assembly',  emoji: 'âš™ï¸', desc: 'Assemble from components' },
-  { id: 'custom',    label: 'Custom',    emoji: 'âœï¸', desc: 'Custom requirements' },
+  { id: 'standard',  label: 'Standard',  emoji: '🏭', desc: 'Regular batch production' },
+  { id: 'urgent',    label: 'Urgent',    emoji: '🔴', desc: 'Fast-track, priority queue' },
+  { id: 'batch',     label: 'Batch',     emoji: '📦', desc: 'Multiple batches, same product' },
+  { id: 'rework',    label: 'Rework',    emoji: '🔧', desc: 'Fix defective units' },
+  { id: 'assembly',  label: 'Assembly',  emoji: '⚙️', desc: 'Assemble from components' },
+  { id: 'custom',    label: 'Custom',    emoji: '✏️', desc: 'Custom requirements' },
 ]
 
 /** Uniform control height in the create-order modal */
@@ -65,7 +65,7 @@ const CREATE_FIELD_H = 'h-8 min-h-8'
 const CREATE_INPUT_CLS = `w-full ${CREATE_FIELD_H} border border-border rounded-md px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring`
 const CREATE_SELECT_TRIGGER_CLS = `${CREATE_FIELD_H} !h-8 py-0 text-sm border border-border rounded-md bg-card focus:outline-none focus:ring-1 focus:ring-ring`
 
-// â”€â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function ProductionOrdersPage() {
   const navigate = useNavigate()
   const { vendor, selectedStore } = useVendorStore()
@@ -112,7 +112,7 @@ export default function ProductionOrdersPage() {
   const [createType, setCreateType]     = useState<POType | null>(null)
   const [showFilters, setShowFilters]   = useState(false)
 
-  // â”€â”€ Form state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Form state ───────────────────────────────────────────────────────────
   const [formRef,          setFormRef]          = useState('')
   const [formTemplate,     setFormTemplate]     = useState('standard')
   const [formPriority,     setFormPriority]     = useState<Priority>('medium')
@@ -149,11 +149,11 @@ export default function ProductionOrdersPage() {
   const [formSpecialReq,      setFormSpecialReq]      = useState('')
   // MTS fields
   const [formTargetStock,     setFormTargetStock]     = useState('')
-  // Item picker â€” products + services
+  // Item picker — products + services
   const [itemSearch,          setItemSearch]          = useState('')
   const [itemQty,             setItemQty]             = useState('1')
   const [itemTab,             setItemTab]             = useState<'product' | 'service'>('product')
-  // Variant picker â€” shown when a product has active variants
+  // Variant picker — shown when a product has active variants
   const [variantPickerProduct, setVariantPickerProduct] = useState<any | null>(null)
   // Barcode scanner
   const [showCameraScanner,   setShowCameraScanner]   = useState(false)
@@ -169,16 +169,16 @@ export default function ProductionOrdersPage() {
     setCreateType(null)
   }, [])
 
-  // Background handlers â€” disabled while the create modal is open so Esc closes the modal.
+  // Background handlers — disabled while the create modal is open so Esc closes the modal.
   useEscapeToClose(() => setVariantPickerProduct(null), !!variantPickerProduct)
   useEscapeToClose(() => setShowNewCustomer(false), showNewCustomer)
   useEscapeToClose(() => setMrpOrder(null), !!mrpOrder)
-  // Create modal â€” register before inner dropdowns so nested pickers close first on Esc.
+  // Create modal — register before inner dropdowns so nested pickers close first on Esc.
   useEscapeToClose(closeCreateModal, showCreate)
   useEscapeToClose(() => setCustomerDropOpen(false), customerDropOpen && showCreate)
   useEscapeToClose(() => setAssigneeDropOpen(false), assigneeDropOpen && showCreate)
 
-  // Hardware barcode scanner (keyboard-wedge) â€” only active when the create modal is open
+  // Hardware barcode scanner (keyboard-wedge) — only active when the create modal is open
   useBarcodeScanner({
     onScan: useCallback((code: string) => {
       if (showCreate && createType) { handleBarcodeScan(code) }
@@ -187,7 +187,7 @@ export default function ProductionOrdersPage() {
     enabled: showCreate && !!createType,
   })
 
-  // â”€â”€ Computed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Computed ─────────────────────────────────────────────────────────────
   const stats = useMemo(() => ({
     total: orders.length,
     mto: orders.filter(o => o.type === 'mto').length,
@@ -254,7 +254,7 @@ export default function ProductionOrdersPage() {
     ).slice(0, 10)
   }, [suppliers, assigneeSearch])
 
-  // â”€â”€ Form helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Form helpers ─────────────────────────────────────────────────────────
   function resetForm() {
         setFormStoreId(selectedStore?.id || '')
         setFormBranchId('')
@@ -297,7 +297,7 @@ export default function ProductionOrdersPage() {
     variant_id?: string; variant_name?: string; variant_sku?: string; variant_barcode?: string;
   }) {
     const qty = parseInt(itemQty) || 1
-    const displayName = item.variant_name ? `${item.name} â€” ${item.variant_name}` : item.name
+    const displayName = item.variant_name ? `${item.name} — ${item.variant_name}` : item.name
     const existing = formItems.find(i =>
       i.product_id === item.id && (i.variant_id ?? '') === (item.variant_id ?? ''),
     )
@@ -423,12 +423,12 @@ export default function ProductionOrdersPage() {
     })
   }
 
-  // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -439,7 +439,7 @@ export default function ProductionOrdersPage() {
               {storeId ? (
                 <>Showing orders for <strong>{selectedStore?.name}</strong></>
               ) : (
-                <>Showing orders for <strong>all business units</strong> â€” pick a business unit in the header to filter</>
+                <>Showing orders for <strong>all business units</strong> — pick a business unit in the header to filter</>
               )}
             </p>
           </div>
@@ -449,7 +449,7 @@ export default function ProductionOrdersPage() {
           </Button>
         </div>
 
-        {/* â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Stats ──────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {[
             { label: 'Total Orders', value: stats.total, icon: ClipboardList, bg: 'bg-accent', color: 'text-primary' },
@@ -476,7 +476,7 @@ export default function ProductionOrdersPage() {
           ))}
         </div>
 
-        {/* â”€â”€ MTO vs MTS explainer strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── MTO vs MTS explainer strip ─────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3 dark:bg-indigo-500/10 dark:border-indigo-500/30">
             <ShoppingCart className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
@@ -494,7 +494,7 @@ export default function ProductionOrdersPage() {
           </div>
         </div>
 
-        {/* â”€â”€ Toolbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Toolbar ────────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-2">
           <div
             data-kiterp-search-field
@@ -505,7 +505,7 @@ export default function ProductionOrdersPage() {
               data-kiterp-no-field-focus
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by ref, product, customerâ€¦"
+              placeholder="Search by ref, product, customer…"
               className={cn(searchFieldInnerInputClassName, 'text-sm text-foreground placeholder:text-muted-foreground')}
             />
             {search && <button type="button" aria-label="Close" onClick={() => setSearch('')}>
@@ -517,7 +517,7 @@ export default function ProductionOrdersPage() {
             {(['all', 'mto', 'mts'] as const).map(t => (
               <button key={t} onClick={() => setTypeFilter(t)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${typeFilter === t ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-                {t === 'all' ? 'All Types' : t === 'mto' ? 'ðŸ›’ MTO' : 'ðŸ“¦ MTS'}
+                {t === 'all' ? 'All Types' : t === 'mto' ? '🛒 MTO' : '📦 MTS'}
               </button>
             ))}
           </div>
@@ -573,11 +573,11 @@ export default function ProductionOrdersPage() {
           </div>
         )}
 
-        {/* â”€â”€ Order list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Order list ─────────────────────────────────────────────────── */}
         <div className="space-y-2">
           {ordersLoading ? (
             <div className="bg-card rounded-2xl border border-border text-center py-16 text-gray-400">
-              Loading production ordersâ€¦
+              Loading production orders…
             </div>
           ) : filtered.length === 0 ? (
             <div className="bg-card rounded-2xl border border-border text-center py-20 text-gray-400">
@@ -603,72 +603,101 @@ export default function ProductionOrdersPage() {
         </div>
       </div>
 
-      {/* â”€â”€ Create Order Drawer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* Create order: portaled ModalOverlay (escape handled by ModalOverlay) */}
       {showCreate && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm backdrop-blur-sm overflow-y-auto" onClick={() => { setShowCreate(false); setCreateType(null) }}>
-          <ModalEscapeHandler onClose={closeCreateModal} />
-          <div className="bg-card rounded-xl shadow-2xl w-full max-w-4xl max-h-[94vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <ModalOverlay
+          onClose={closeCreateModal}
+          className="z-[100] overflow-y-auto overscroll-contain bg-black/60 p-2 sm:p-3"
+        >
+          <ModalPanel
+            className={cn(
+              'my-auto w-full !rounded-lg',
+              !createType
+                ? 'max-w-md min-h-[min(28rem,calc(100dvh-1.5rem))] max-h-[calc(100dvh-1rem)]'
+                : 'max-w-2xl max-h-[calc(100dvh-1rem)]',
+            )}
+          >
 
             {/* Step 1: choose type */}
             {!createType ? (
-              <div>
-                <div className="flex items-center gap-2.5 px-4 py-3 border-b bg-gradient-to-r from-accent to-primary/10">
-                  <div className="p-1.5 bg-primary/12 rounded-lg"><Factory className="w-4 h-4 text-primary" /></div>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="font-semibold text-sm text-gray-900">New Production Order</h2>
-                    <p className="text-[11px] text-muted-foreground">Choose the production type</p>
+              <>
+                <div className="flex shrink-0 items-center gap-2.5 px-4 py-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                    <Factory className="h-4 w-4 text-primary" />
                   </div>
-                  <button type="button" data-escape-close aria-label="Close" onClick={() => setShowCreate(false)} className="p-1.5 hover:bg-primary/12 rounded-lg">
-                <X className="w-4 h-4 text-muted-foreground" /></button>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-base font-semibold leading-tight text-foreground">New Production Order</h2>
+                    <p className="text-xs text-muted-foreground">Choose the production type</p>
+                  </div>
+                  <ModalCloseButton onClose={() => setShowCreate(false)} />
                 </div>
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <button onClick={() => { setCreateType('mto'); setFormRef(genRef('mto')) }}
-                      className="flex items-start gap-3 p-3 rounded-xl border-2 border-indigo-200 bg-indigo-50 hover:border-indigo-400 hover:bg-indigo-100 transition-all text-left">
-                      <div className="p-2 bg-indigo-100 rounded-lg shrink-0"><ShoppingCart className="w-5 h-5 text-indigo-600" /></div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-indigo-900 text-sm">Make to Order (MTO)</p>
-                        <p className="text-[11px] text-indigo-700 mt-0.5 leading-snug">Customer-specific production linked to a sales order.</p>
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {['Customer-specific', 'Direct dispatch'].map(t => (
-                            <span key={t} className="text-[10px] bg-indigo-200/80 text-indigo-800 px-1.5 py-0.5 rounded-full font-medium">{t}</span>
-                          ))}
-                        </div>
+                <ModalBody className="flex flex-1 flex-col justify-center space-y-3 overflow-y-auto px-4 pb-5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setCreateType('mto'); setFormRef(genRef('mto')) }}
+                    className="flex w-full flex-col items-start gap-3 rounded-xl border-2 border-indigo-200 bg-indigo-50 p-4 text-left transition-all hover:border-indigo-400 hover:bg-indigo-100"
+                  >
+                    <div className="flex w-full items-start gap-3">
+                      <div className="shrink-0 rounded-lg bg-indigo-100 p-2.5">
+                        <ShoppingCart className="h-5 w-5 text-indigo-600" />
                       </div>
-                    </button>
-                    <button onClick={() => { setCreateType('mts'); setFormRef(genRef('mts')) }}
-                      className="flex items-start gap-3 p-3 rounded-xl border-2 border-teal-200 bg-teal-50 hover:border-teal-400 hover:bg-teal-100 transition-all text-left">
-                      <div className="p-2 bg-teal-100 rounded-lg shrink-0"><Package className="w-5 h-5 text-teal-600" /></div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-teal-900 text-sm">Make to Stock (MTS)</p>
-                        <p className="text-[11px] text-teal-700 mt-0.5 leading-snug">Replenish inventory â€” finished goods go to store stock.</p>
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {['Stock replenishment', 'Adds to inventory'].map(t => (
-                            <span key={t} className="text-[10px] bg-teal-200/80 text-teal-800 px-1.5 py-0.5 rounded-full font-medium">{t}</span>
-                          ))}
-                        </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-indigo-900">Make to Order (MTO)</p>
+                        <p className="mt-1 text-xs leading-snug text-indigo-700">
+                          Customer-specific production linked to a sales order.
+                        </p>
                       </div>
-                    </button>
-                </div>
-              </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pl-[3.25rem]">
+                      {['Customer-specific', 'Direct dispatch'].map(t => (
+                        <span key={t} className="rounded-full bg-indigo-200/80 px-2 py-0.5 text-[10px] font-medium text-indigo-800">{t}</span>
+                      ))}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCreateType('mts'); setFormRef(genRef('mts')) }}
+                    className="flex w-full flex-col items-start gap-3 rounded-xl border-2 border-teal-200 bg-teal-50 p-4 text-left transition-all hover:border-teal-400 hover:bg-teal-100"
+                  >
+                    <div className="flex w-full items-start gap-3">
+                      <div className="shrink-0 rounded-lg bg-teal-100 p-2.5">
+                        <Package className="h-5 w-5 text-teal-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-teal-900">Make to Stock (MTS)</p>
+                        <p className="mt-1 text-xs leading-snug text-teal-700">
+                          Replenish inventory — finished goods go to store stock.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pl-[3.25rem]">
+                      {['Stock replenishment', 'Adds to inventory'].map(t => (
+                        <span key={t} className="rounded-full bg-teal-200/80 px-2 py-0.5 text-[10px] font-medium text-teal-800">{t}</span>
+                      ))}
+                    </div>
+                  </button>
+                </ModalBody>
+              </>
             ) : (
               /* Step 2: fill details */
-              <div className="flex flex-col max-h-[94vh]">
-                <div className={`flex items-center gap-2 px-3 py-2 border-b shrink-0 ${createType === 'mto' ? 'bg-indigo-50/80' : 'bg-teal-50/80'}`}>
-                  <div className={`p-1 rounded-md shrink-0 ${createType === 'mto' ? 'bg-indigo-100' : 'bg-teal-100'}`}>
-                    {createType === 'mto' ? <ShoppingCart className="w-3.5 h-3.5 text-indigo-600" /> : <Package className="w-3.5 h-3.5 text-teal-600" />}
+              <>
+                <div className={`flex shrink-0 items-center gap-2 px-3 py-2.5 ${createType === 'mto' ? 'bg-indigo-50/80' : 'bg-teal-50/80'}`}>
+                  <div className={`shrink-0 rounded-md p-1 ${createType === 'mto' ? 'bg-indigo-100' : 'bg-teal-100'}`}>
+                    {createType === 'mto' ? <ShoppingCart className="h-3.5 w-3.5 text-indigo-600" /> : <Package className="h-3.5 w-3.5 text-teal-600" />}
                   </div>
-                  <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                    <h2 className="font-semibold text-sm text-gray-900">{createType === 'mto' ? 'Make to Order' : 'Make to Stock'}</h2>
-                    <span className="text-[10px] font-mono bg-card border border-border text-muted-foreground px-1.5 py-0.5 rounded">{formRef}</span>
-                    <span className="text-[10px] text-muted-foreground hidden sm:inline">Â· {createType === 'mto' ? 'Customer-specific' : 'Stock replenishment'}</span>
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                    <h2 className="text-sm font-semibold text-foreground">{createType === 'mto' ? 'Make to Order' : 'Make to Stock'}</h2>
+                    <span className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{formRef}</span>
+                    <span className="hidden text-[10px] text-muted-foreground sm:inline">· {createType === 'mto' ? 'Customer-specific' : 'Stock replenishment'}</span>
                   </div>
-                  <button onClick={() => setCreateType(null)} className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5 shrink-0"><ChevronDown className="w-3 h-3 rotate-90" /> Back</button>
-                  <button type="button" data-escape-close aria-label="Close" onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }} className="p-1 hover:bg-accent rounded-md shrink-0">
-                <X className="w-4 h-4 text-muted-foreground" /></button>
+                  <button type="button" onClick={() => setCreateType(null)} className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground">
+                    <ChevronDown className="h-3 w-3 rotate-90" /> Back
+                  </button>
+                  <ModalCloseButton onClose={() => { setShowCreate(false); setCreateType(null); resetForm() }} showEscHint={false} />
                 </div>
-                <div className="p-3 space-y-2 overflow-y-auto min-h-0 flex-1">
+                <ModalBody className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-3 pt-2">
 
-                  {/* Template â€” inline single row */}
+                  {/* Template — inline single row */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide shrink-0">Template</span>
                     {TEMPLATES.map(t => (
@@ -685,7 +714,7 @@ export default function ProductionOrdersPage() {
                     ))}
                   </div>
 
-                  {/* Core fields â€” 12-column grid, max fields per row */}
+                  {/* Core fields — 12-column grid, max fields per row */}
                   <div className="grid grid-cols-12 gap-x-2 gap-y-1.5">
                     <div className="col-span-12 sm:col-span-4">
                       <label className="block text-[10px] font-medium text-muted-foreground mb-0.5">Business unit</label>
@@ -718,10 +747,10 @@ export default function ProductionOrdersPage() {
                         value={formPriority}
                         onChange={(v) => setFormPriority(v as Priority)}
                         options={[
-                          { value: 'low', label: 'ðŸŸ¢ Low' },
-                          { value: 'medium', label: 'ðŸ”µ Medium' },
-                          { value: 'high', label: 'ðŸŸ  High' },
-                          { value: 'urgent', label: 'ðŸ”´ Urgent' },
+                          { value: 'low', label: '🟢 Low' },
+                          { value: 'medium', label: '🔵 Medium' },
+                          { value: 'high', label: '🟠 High' },
+                          { value: 'urgent', label: '🔴 Urgent' },
                         ]}
                         aria-label="Priority"
                         className="w-full"
@@ -734,7 +763,7 @@ export default function ProductionOrdersPage() {
                         <Select
                           value={formPlantId}
                           onChange={(v) => { setFormPlantId(v); setFormOutputLocationId('') }}
-                          options={selectOptionsWithBlank('â€” No plant â€”', formPlants.map(p => ({ value: p.id, label: `${p.name}${p.code ? ` (${p.code})` : ''}` })))}
+                          options={selectOptionsWithBlank('— No plant —', formPlants.map(p => ({ value: p.id, label: `${p.name}${p.code ? ` (${p.code})` : ''}` })))}
                           aria-label="Plant"
                           className="w-full"
                           triggerClassName={CREATE_SELECT_TRIGGER_CLS}
@@ -747,7 +776,7 @@ export default function ProductionOrdersPage() {
                         <Select
                           value={formOutputLocationId}
                           onChange={setFormOutputLocationId}
-                          options={selectOptionsWithBlank('â€” None â€”', formLocations.map(l => ({ value: l.id, label: l.name })))}
+                          options={selectOptionsWithBlank('— None —', formLocations.map(l => ({ value: l.id, label: l.name })))}
                           aria-label="Output storage location"
                           className="w-full"
                           triggerClassName={CREATE_SELECT_TRIGGER_CLS}
@@ -773,7 +802,7 @@ export default function ProductionOrdersPage() {
                     )}
                   </div>
 
-                  {/* MTO â€” customer row integrated into same grid density */}
+                  {/* MTO — customer row integrated into same grid density */}
                   {createType === 'mto' && (
                     <div className="grid grid-cols-12 gap-x-2 gap-y-1.5 rounded-lg border border-indigo-100 bg-indigo-50/50 p-2">
                       <div className="col-span-12 sm:col-span-5 relative">
@@ -784,7 +813,7 @@ export default function ProductionOrdersPage() {
                             value={customerSearch}
                             onChange={e => { setCustomerSearch(e.target.value); setCustomerDropOpen(true); setSelectedCustomerId('') }}
                             onFocus={() => setCustomerDropOpen(true)}
-                            placeholder="Search name, phone, emailâ€¦"
+                            placeholder="Search name, phone, email…"
                             className="flex-1 px-1.5 text-sm outline-none bg-transparent min-w-0 h-full"
                           />
                           {selectedCustomerId && <CheckCircle className="w-3 h-3 text-green-500 mr-1.5 shrink-0" />}
@@ -805,7 +834,7 @@ export default function ProductionOrdersPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-semibold text-gray-800">{c.full_name}</p>
-                                  <p className="text-xs text-gray-400 truncate">{c.phone || ''}{c.phone && c.email ? ' Â· ' : ''}{c.email || ''}</p>
+                                  <p className="text-xs text-gray-400 truncate">{c.phone || ''}{c.phone && c.email ? ' · ' : ''}{c.email || ''}</p>
                                   <p className="text-xs font-mono text-gray-300">{c.id}</p>
                                 </div>
                               </button>
@@ -820,7 +849,7 @@ export default function ProductionOrdersPage() {
                         )}
                         {customerDropOpen && <div className="fixed inset-0 z-20" onClick={() => setCustomerDropOpen(false)} />}
                         {selectedCustomerId && (
-                          <p className="text-[10px] text-indigo-700 mt-0.5 truncate">{formCustomerName}{formCustomerPhone ? ` Â· ${formCustomerPhone}` : ''}</p>
+                          <p className="text-[10px] text-indigo-700 mt-0.5 truncate">{formCustomerName}{formCustomerPhone ? ` · ${formCustomerPhone}` : ''}</p>
                         )}
                       </div>
                       <div className="col-span-6 sm:col-span-2">
@@ -835,7 +864,7 @@ export default function ProductionOrdersPage() {
                       </div>
                       <div className="col-span-12 sm:col-span-3">
                         <label className="block text-[10px] font-medium text-muted-foreground mb-0.5">Special Requirements</label>
-                        <input value={formSpecialReq} onChange={e => setFormSpecialReq(e.target.value)} placeholder="Customisation notesâ€¦"
+                        <input value={formSpecialReq} onChange={e => setFormSpecialReq(e.target.value)} placeholder="Customisation notes…"
                           className={`${CREATE_INPUT_CLS} focus:ring-indigo-400/60`} />
                       </div>
 
@@ -855,14 +884,14 @@ export default function ProductionOrdersPage() {
                               className={`flex-1 flex items-center justify-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-2 ${CREATE_FIELD_H} rounded-md text-[11px] font-semibold disabled:opacity-50`}>
                               {createCustomer.isPending ? <RefreshCw className="w-3 h-3 animate-spin" /> : 'Add'}
                             </button>
-                            <button onClick={() => setShowNewCustomer(false)} className={`px-2 ${CREATE_FIELD_H} text-[11px] border border-border rounded-md`}>âœ•</button>
+                            <button onClick={() => setShowNewCustomer(false)} className={`px-2 ${CREATE_FIELD_H} text-[11px] border border-border rounded-md`}>✕</button>
                           </div>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* Items + Assign + Notes â€” one dense row block */}
+                  {/* Items + Assign + Notes — one dense row block */}
                   <div className="grid grid-cols-12 gap-x-2 gap-y-1.5">
                     <div className="col-span-12 lg:col-span-6">
                       <label className="block text-[10px] font-medium text-muted-foreground mb-0.5 flex items-center gap-1"><Hammer className="w-3 h-3" /> Items to Produce</label>
@@ -876,7 +905,7 @@ export default function ProductionOrdersPage() {
                         <div className="flex-1 relative min-w-0">
                           <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                           <input value={itemSearch} onChange={e => setItemSearch(e.target.value)}
-                            placeholder="Search product or SKUâ€¦"
+                            placeholder="Search product or SKU…"
                             className={`w-full ${CREATE_FIELD_H} border border-border rounded-md pl-6 pr-6 text-sm focus:outline-none focus:ring-1 focus:ring-ring`} />
                           {itemSearch && <button type="button" aria-label="Clear" onClick={() => setItemSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2">
                 <X className="w-3 h-3 text-muted-foreground" /></button>}
@@ -888,7 +917,7 @@ export default function ProductionOrdersPage() {
                           {scanLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <ScanLine className="w-3 h-3" />}
                         </button>
                       </div>
-                    {/* Results list â€” only when searching */}
+                    {/* Results list — only when searching */}
                     {itemSearch.trim() && (itemTab === 'product' ? filteredProducts : filteredServices).length > 0 && (
                       <div className="border border-border rounded-md overflow-hidden mt-1 max-h-24 overflow-y-auto">
                         {(itemTab === 'product' ? filteredProducts : filteredServices).map((p: any) => {
@@ -966,7 +995,7 @@ export default function ProductionOrdersPage() {
                         <div className="relative flex-1 min-w-0">
                           <input value={assigneeSearch} onChange={e => { setAssigneeSearch(e.target.value); setAssigneeDropOpen(true) }}
                             onFocus={() => setAssigneeDropOpen(true)}
-                            placeholder="Searchâ€¦"
+                            placeholder="Search…"
                             className={`w-full ${CREATE_FIELD_H} border border-border rounded-md px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring`} />
                           {assigneeDropOpen && (
                             <div className="absolute left-0 right-0 top-full mt-0.5 bg-card border border-border rounded-md shadow-xl z-30 overflow-hidden max-h-32 overflow-y-auto">
@@ -996,7 +1025,7 @@ export default function ProductionOrdersPage() {
 
                     <div className="col-span-12 lg:col-span-3">
                       <label className="block text-[10px] font-medium text-muted-foreground mb-0.5">Notes &amp; Attachments</label>
-                      <input value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Instructionsâ€¦"
+                      <input value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Instructions…"
                         className={`${CREATE_INPUT_CLS} mb-1`} />
                       <div className="flex items-center gap-1 flex-wrap">
                         {formAttachments.map((a, i) => (
@@ -1018,25 +1047,32 @@ export default function ProductionOrdersPage() {
                     </div>
                   </div>
 
-                </div>
-
-                <div className="flex gap-2 px-3 py-2 border-t border-border shrink-0 bg-card">
-                  <button onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }}
-                    className="btn-cancel flex-1 border border-border rounded-md py-1.5 text-sm font-medium text-muted-foreground">Cancel</button>
-                  <button onClick={submitCreate}
-                    className={`flex-1 text-white rounded-md py-1.5 text-sm font-semibold flex items-center justify-center gap-1.5 ${createType === 'mto' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-teal-600 hover:bg-teal-700'}`}>
-                    <Factory className="w-3.5 h-3.5" /> Create {createType.toUpperCase()} Order
+                </ModalBody>
+                <div className="flex shrink-0 gap-2 bg-card px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }}
+                    className="btn-cancel flex-1 rounded-md border border-border py-1.5 text-sm font-medium text-muted-foreground"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitCreate}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-sm font-semibold text-white ${createType === 'mto' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-teal-600 hover:bg-teal-700'}`}
+                  >
+                    <Factory className="h-3.5 w-3.5" /> Create {createType.toUpperCase()} Order
                   </button>
                 </div>
-              </div>
+              </>
             )}
-          </div>
-        </div>
+          </ModalPanel>
+        </ModalOverlay>
       )}
 
-      {/* â”€â”€ Variant Picker Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Variant Picker Modal ─────────────────────────────────────────────── */}
       {variantPickerProduct && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 overflow-y-auto" onClick={() => setVariantPickerProduct(null)}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={() => setVariantPickerProduct(null)}>
           <div className="bg-card rounded-xl shadow-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <div>
@@ -1076,7 +1112,7 @@ export default function ProductionOrdersPage() {
                       </p>
                     </div>
                     <div className="text-right ml-3 shrink-0">
-                      <p className="text-xs text-muted-foreground">Stock: {v.quantity ?? 'â€”'}</p>
+                      <p className="text-xs text-muted-foreground">Stock: {v.quantity ?? '—'}</p>
                       <Plus className="w-3.5 h-3.5 text-primary/70 ml-auto mt-1" />
                     </div>
                   </button>
@@ -1086,7 +1122,7 @@ export default function ProductionOrdersPage() {
         </div>
       )}
 
-      {/* â”€â”€ Camera Barcode Scanner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Camera Barcode Scanner ───────────────────────────────────────────── */}
       <BarcodeScannerModal
         open={showCameraScanner}
         onScan={code => { setShowCameraScanner(false); handleBarcodeScan(code) }}
@@ -1112,7 +1148,7 @@ export default function ProductionOrdersPage() {
   )
 }
 
-// â”€â”€ ProductionOrderCard (with MRP button + reservation badge) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ProductionOrderCard (with MRP button + reservation badge) ─────────────────
 
 function ProductionOrderCard({
   order,
@@ -1146,7 +1182,7 @@ function ProductionOrderCard({
               <TypeBadge type={order.type} />
               <StatusBadge status={order.status} />
               {order.priority === 'urgent' && (
-                <span className="text-xs font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">ðŸ”´ URGENT</span>
+                <span className="text-xs font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">🔴 URGENT</span>
               )}
               {hasActiveReservations && (
                 <span className="inline-flex items-center gap-1 text-xs font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
@@ -1156,11 +1192,11 @@ function ProductionOrderCard({
             </div>
             <p className="text-xs text-muted-foreground mt-1 truncate">
               {order.type === 'mto'
-                ? `Customer: ${order.customer_name || 'â€”'} Â· Order: ${order.order_ref || 'â€”'}`
-                : `Stock replenishment Â· Target: ${order.target_stock_level ?? 'â€”'} units`}
+                ? `Customer: ${order.customer_name || '—'} · Order: ${order.order_ref || '—'}`
+                : `Stock replenishment · Target: ${order.target_stock_level ?? '—'} units`}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">
-              {order.items.length} item{order.items.length !== 1 ? 's' : ''} Â· Team: {order.team || 'â€”'} Â· Target: {order.target_date}
+              {order.items.length} item{order.items.length !== 1 ? 's' : ''} · Team: {order.team || '—'} · Target: {order.target_date}
             </p>
             <div className="mt-2">
               <ProgressBar value={order.progress} status={order.status} />

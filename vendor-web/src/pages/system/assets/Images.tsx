@@ -45,6 +45,7 @@ import { vendorApi } from '@/api/vendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { isAxiosError } from 'axios'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 function imageMatchesQuery(img: BusinessImage, q: string): boolean {
   const cat = categoryById(img.categoryId)
   return (
@@ -393,7 +394,7 @@ function UploadedPreviewModal({
 
   return (
     <div data-kiterp-modal
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm overflow-y-auto"
       onClick={onClose}
       role="presentation"
     >
@@ -586,7 +587,7 @@ function PreviewModal({
 
   return (
     <div data-kiterp-modal
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm overflow-y-auto"
       onClick={onClose}
       role="presentation"
     >
@@ -908,7 +909,7 @@ export default function AssetImagesPage() {
 
   const permanentlyDeleteUrls = async (urls: string[]) => {
     if (!urls.length) return
-    const confirmed = window.confirm(
+    const confirmed = await askConfirm(
       urls.length === 1
         ? 'Permanently delete this image? This cannot be undone.'
         : `Permanently delete ${urls.length} images? This cannot be undone.`,

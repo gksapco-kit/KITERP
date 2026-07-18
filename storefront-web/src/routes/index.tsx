@@ -15,6 +15,7 @@ import StorefrontConfirmationRoute from '@/checkout/pages/StorefrontConfirmation
 import Landing from '@/pages/Landing'
 import Partners from '@/pages/Partners'
 import PartnerDetail from '@/pages/PartnerDetail'
+import Careers from '@/pages/Careers'
 import VendorSignup from '@/pages/vendor/VendorSignup'
 import VerifyEmail from '@/pages/vendor/VerifyEmail'
 import { VENDOR_SIGNUP_PATH, VENDOR_VERIFY_EMAIL_PATH } from '@/lib/vendorSignupPaths'
@@ -145,6 +146,10 @@ export const router = createBrowserRouter([
   {
     path: '/partners/:slug',
     element: <PartnerDetail />,
+  },
+  {
+    path: '/careers',
+    element: <Careers />,
   },
   // Vendor self-service signup (storefront-only; not under /vendor/* — see vendorSignupPaths.ts)
   {

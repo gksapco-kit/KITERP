@@ -12,6 +12,7 @@ import {
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 type ViewMode = 'list' | 'create' | 'edit'
 
 const statusColors: Record<string, string> = {
@@ -128,8 +129,8 @@ export default function Products() {
     }
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this product?')) {
+  const handleDelete = async (id: string) => {
+    if (await askConfirm('Are you sure you want to delete this product?')) {
       deleteProduct.mutate(id)
     }
   }

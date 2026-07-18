@@ -448,7 +448,7 @@ function ReportDetailModal({ report, data, rangeLabel, from, to, storeId, onClos
   const rows = report.rows(data)
   const Icon = report.icon
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 sm:p-8 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-start justify-center bg-black/40 p-4 sm:p-8 overflow-y-auto" onClick={onClose}>
       <div
         className="w-full max-w-5xl rounded-xl border border-border bg-card shadow-xl my-4"
         onClick={e => e.stopPropagation()}

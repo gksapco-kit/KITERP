@@ -2256,6 +2256,92 @@ async def update_storefront_contact_query(
     return {"ok": True, "id": str(row.id), "status": row.status}
 
 
+@router.get("/career-applications")
+async def list_career_applications(
+    status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Platform admin inbox for Careers page applications (CV + passport photo)."""
+    from app.models.platform_career_application import PlatformCareerApplication
+
+    filters = []
+    if status:
+        filters.append(PlatformCareerApplication.status == status)
+
+    count_stmt = select(func.count(PlatformCareerApplication.id))
+    for f in filters:
+        count_stmt = count_stmt.where(f)
+    total = (await db.execute(count_stmt)).scalar() or 0
+
+    base = select(PlatformCareerApplication)
+    for f in filters:
+        base = base.where(f)
+    rows = (
+        await db.execute(
+            base.order_by(PlatformCareerApplication.created_at.desc())
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+    ).scalars().all()
+
+    items = [
+        {
+            "id": str(row.id),
+            "full_name": row.full_name,
+            "email": row.email,
+            "phone": row.phone,
+            "company": row.college,
+            "experience_years": row.graduation_year,
+            "city": row.city,
+            "cover_note": row.cover_note,
+            "cv_url": row.cv_url,
+            "cv_filename": row.cv_filename,
+            "photo_url": row.photo_url,
+            "photo_filename": row.photo_filename,
+            "status": row.status,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        }
+        for row in rows
+    ]
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size) if total else 0,
+    }
+
+
+@router.patch("/career-applications/{application_id}")
+async def update_career_application(
+    application_id: UUID,
+    body: dict,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.platform_career_application import PlatformCareerApplication
+
+    status = (body.get("status") or "").strip().lower()
+    if status not in {"new", "reviewed", "shortlisted", "rejected"}:
+        raise HTTPException(
+            status_code=422,
+            detail="status must be one of: new, reviewed, shortlisted, rejected",
+        )
+
+    result = await db.execute(
+        select(PlatformCareerApplication).where(PlatformCareerApplication.id == application_id)
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Application not found")
+    row.status = status
+    await db.commit()
+    return {"ok": True, "id": str(row.id), "status": row.status}
+
+
 @router.get("/disputes")
 async def list_order_disputes(
     status: Optional[str] = Query(None),

@@ -33,6 +33,7 @@ import {
   commissionTh,
 } from '@/pages/commission/commissionUi'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const LINK_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'All payee types' },
   { value: 'vendor_user', label: 'Staff' },
@@ -173,7 +174,7 @@ export default function AssignmentsPage() {
   const handleToggleStatus = async (a: CommissionAssignment) => {
     const nextActive = !a.is_active
     const label = nextActive ? 'activate' : 'deactivate'
-    if (!confirm(`${nextActive ? 'Activate' : 'Deactivate'} this assignment?`)) return
+    if (!await askConfirm(`${nextActive ? 'Activate' : 'Deactivate'} this assignment?`)) return
     try {
       await update.mutateAsync({ id: a.id, data: { is_active: nextActive } })
       toast.success(`Assignment ${label}d`)
@@ -183,7 +184,7 @@ export default function AssignmentsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this assignment permanently? This cannot be undone.')) return
+    if (!await askConfirm('Delete this assignment permanently? This cannot be undone.')) return
     try {
       await remove.mutateAsync(id)
       toast.success('Assignment deleted')
@@ -475,7 +476,7 @@ export default function AssignmentsPage() {
 
       {showForm && (
         <div data-kiterp-modal
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
           onClick={closeForm}
         >
           <div

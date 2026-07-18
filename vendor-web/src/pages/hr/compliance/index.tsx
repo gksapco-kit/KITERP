@@ -15,6 +15,14 @@ import {
 import { vendorApi } from '@/api/vendor'
 import type { Policy, ComplianceCertification, ComplianceAuditLog, EmployeeProfile } from '@/types'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
+
+const denseFieldClass =
+  'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
+const denseLabelClass = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
+const denseTextareaClass =
+  'w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none'
+
 type Tab = 'policies' | 'certifications' | 'audit'
 
 const POLICY_STATUS: Record<string, { label: string; color: string }> = {
@@ -119,13 +127,13 @@ function PoliciesTab() {
                               className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
                               <Pencil className="w-4 h-4" />
                             </button>
-                            <button onClick={() => { if (confirm('Publish this policy? Employees will be asked to acknowledge.')) publish.mutate(p.id) }}
+                            <button onClick={async () => { if (await askConfirm('Publish this policy? Employees will be asked to acknowledge.')) publish.mutate(p.id) }}
                               className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Publish">
                               <Send className="w-4 h-4" />
                             </button>
                           </>
                         )}
-                        <button onClick={() => { if (confirm('Delete this policy?')) del.mutate(p.id) }}
+                        <button onClick={async () => { if (await askConfirm('Delete this policy?')) del.mutate(p.id) }}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -176,78 +184,79 @@ function PolicyModal({
   }
 
   return (
-    <ModalOverlay onClose={onClose}>
-      <ModalPanel className="max-w-2xl max-h-[90vh]">
-        <div className="shrink-0 border-b border-border px-5 py-3">
-          <ModalHeader
-            title={existing ? `Edit Policy (v${existing.version})` : 'New Policy'}
-            onClose={onClose}
-          />
-        </div>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-h-[calc(100dvh-1.5rem)] max-w-2xl !rounded-lg overflow-hidden">
+        <ModalHeader
+          title={existing ? `Edit Policy (v${existing.version})` : 'New Policy'}
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+        />
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-3 p-5">
+          <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase" required>Title</Label>
+              <Label className={denseLabelClass} required>Title</Label>
               <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={denseFieldClass} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs font-medium text-gray-600 uppercase">Category</Label>
+                <Label className={denseLabelClass}>Category</Label>
                 <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. Code of Conduct" />
+                  className={denseFieldClass} placeholder="e.g. Code of Conduct" />
               </div>
               <div>
-                <Label className="text-xs font-medium text-gray-600 uppercase">Audience</Label>
+                <Label className={denseLabelClass}>Audience</Label>
                 <select value={form.audience} onChange={e => setForm({ ...form, audience: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                  className={denseFieldClass}>
                   <option value="all">All employees</option>
                   <option value="department">Specific department</option>
                   <option value="designation">Specific designation</option>
                 </select>
               </div>
               <div>
-                <Label className="text-xs font-medium text-gray-600 uppercase">Effective From</Label>
+                <Label className={denseLabelClass}>Effective From</Label>
                 <input type="date" value={form.effective_from} onChange={e => setForm({ ...form, effective_from: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                  className={denseFieldClass} />
               </div>
               <div>
-                <Label className="text-xs font-medium text-gray-600 uppercase">Expires On</Label>
+                <Label className={denseLabelClass}>Expires On</Label>
                 <input type="date" value={form.expires_on} onChange={e => setForm({ ...form, expires_on: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                  className={denseFieldClass} />
               </div>
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Summary</Label>
+              <Label className={denseLabelClass}>Summary</Label>
               <textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                className={denseTextareaClass} placeholder="Short overview…" />
             </div>
             <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Body (HTML/Markdown)</Label>
-              <textarea rows={10} value={form.body} onChange={e => setForm({ ...form, body: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm font-mono" />
+              <Label className={denseLabelClass}>Body (HTML/Markdown)</Label>
+              <textarea rows={4} value={form.body} onChange={e => setForm({ ...form, body: e.target.value })}
+                className={cn(denseTextareaClass, 'font-mono text-xs')} />
             </div>
-            <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Attachment URL</Label>
-              <input value={form.attachment_url} onChange={e => setForm({ ...form, attachment_url: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="https://…" />
+            <div className="grid grid-cols-[1fr_auto] items-end gap-2">
+              <div>
+                <Label className={denseLabelClass}>Attachment URL</Label>
+                <input value={form.attachment_url} onChange={e => setForm({ ...form, attachment_url: e.target.value })}
+                  className={denseFieldClass} placeholder="https://…" />
+              </div>
+              <label className="mb-1 flex h-8 items-center gap-1.5 whitespace-nowrap text-xs text-foreground">
+                <input type="checkbox" checked={form.requires_acknowledgement}
+                  onChange={e => setForm({ ...form, requires_acknowledgement: e.target.checked })} />
+                Requires acknowledgement
+              </label>
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.requires_acknowledgement}
-                onChange={e => setForm({ ...form, requires_acknowledgement: e.target.checked })} />
-              Requires acknowledgement
-            </label>
             {existing && existing.status === 'published' && (
-              <label className="flex items-center gap-2 text-sm bg-amber-50 border border-amber-200 rounded p-2">
+              <label className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
                 <input type="checkbox" checked={bumpVersion} onChange={e => setBumpVersion(e.target.checked)} />
-                Bump version (clears existing acknowledgements, requires re-ack)
+                Bump version (clears acknowledgements, requires re-ack)
               </label>
             )}
           </ModalBody>
-          <ModalFooter className="flex justify-end gap-2 border-t border-border bg-card px-5 py-3">
-            <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
+          <ModalFooter className="border-0 px-4 py-2.5">
+            <button type="button" onClick={onClose} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
-              className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+              className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50">
               {create.isPending || update.isPending ? 'Saving…' : 'Save'}
             </button>
           </ModalFooter>
@@ -336,7 +345,7 @@ function CertificationsTab() {
                           className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => { if (confirm('Delete certification?')) del.mutate(c.id) }}
+                        <button onClick={async () => { if (await askConfirm('Delete certification?')) del.mutate(c.id) }}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
                           <Trash2 className="w-4 h-4" />
                         </button>

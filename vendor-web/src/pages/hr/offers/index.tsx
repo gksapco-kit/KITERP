@@ -1,12 +1,11 @@
-import { onModalBackdropClick, cn } from '@/lib/utils'
-import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
+import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { PhoneInput } from '@/components/ui/PhoneInput'
-import { Plus, Send, ExternalLink, Trash2, FileText, Settings2, Loader2, X, Eye, LayoutTemplate } from 'lucide-react'
+import { Plus, Send, ExternalLink, Trash2, FileText, Settings2, Loader2, Eye, LayoutTemplate } from 'lucide-react'
 import {
   useHROffers, useCreateHROffer, useDeleteHROffer, useSendHROffer,
   useHRDepartments, useHRDesignations, useHROfferTemplates, useStores,
@@ -20,6 +19,12 @@ import {
 } from '@/lib/offerLayouts'
 import { HtmlRichEditor, type HtmlRichEditorHandle } from '@/components/hr/HtmlRichEditor'
 import { OfferLetterPreviewFrame } from '@/components/hr/OfferLetterPreviewFrame'
+
+import { askConfirm } from '@/components/common/ConfirmProvider'
+
+const denseFieldClass =
+  'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
+const denseLabelClass = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
 
 // Opens the offer HTML in a new tab using an authenticated API call + Blob URL
 function useOpenOfferPreview() {
@@ -192,173 +197,184 @@ function CreateOfferModal({
   }
 
   return (
-    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
-      <div className={cn(dialogPanelClass, showPreview ? 'max-w-5xl' : 'max-w-lg')} onClick={e => e.stopPropagation()}>
-        <div className="shrink-0 flex items-start justify-between gap-3 px-6 pt-6 pb-2">
-          <div>
-            <h2 className="text-lg font-semibold">New Offer Letter</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {step === 'details' ? 'Step 1 — Candidate & offer details' : 'Step 2 — Edit letter content & preview'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {step === 'edit' && (
-              <button type="button" onClick={() => setShowPreview(v => !v)}
-                className={`flex items-center gap-1 px-2.5 py-1 text-xs border rounded-lg ${showPreview ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'hover:bg-gray-50'}`}>
-                <Eye className="w-3.5 h-3.5" /> Preview
-              </button>
-            )}
-            <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" aria-label="Close">
-              <X className="w-5 h-5" />
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className={cn(
+        'max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden',
+        showPreview && step === 'edit' ? 'max-w-5xl' : 'max-w-lg',
+      )}>
+        <ModalHeader
+          title={
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold leading-none text-foreground">New Offer Letter</h2>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {step === 'details' ? 'Step 1 — Candidate & offer details' : 'Step 2 — Edit letter content & preview'}
+              </p>
+            </div>
+          }
+          onClose={onClose}
+          className="border-0 px-4 py-2.5"
+        />
+        {step === 'edit' && (
+          <div className="flex shrink-0 justify-end px-4 pb-1">
+            <button type="button" onClick={() => setShowPreview(v => !v)}
+              className={`flex h-7 items-center gap-1 rounded-md border px-2 text-[11px] ${showPreview ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-border hover:bg-muted'}`}>
+              <Eye className="h-3.5 w-3.5" /> Preview
             </button>
           </div>
-        </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4 px-6 pb-6">
-          {step === 'details' ? (
-            <>
-              {/* Template picker */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-gray-700">Template</label>
-                  <button type="button" onClick={() => navigate('/hr/offers/templates')}
-                    className="text-xs text-blue-500 hover:underline flex items-center gap-0.5">
-                    <Settings2 className="w-3 h-3" /> Manage templates
-                  </button>
-                </div>
-                <select value={form.template_id} onChange={e => set('template_id', e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                  <option value="">
-                    {bestTemplate ? `Auto: ${tplLabel(bestTemplate)}` : '— System default —'}
-                  </option>
-                  {templates.map((t: OfferLetterTemplate) => (
-                    <option key={t.id} value={t.id}>{tplLabel(t)}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <Label className="block text-xs font-medium text-gray-700 mb-1" required>Candidate Name</Label>
-                  <input required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={form.candidate_name} onChange={e => set('candidate_name', e.target.value)} />
-                </div>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
+            {step === 'details' ? (
+              <>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Email</Label>
-                  <input type="email" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={form.candidate_email} onChange={e => set('candidate_email', e.target.value)} />
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Phone</Label>
-                  <PhoneInput value={form.candidate_phone} onChange={v => set('candidate_phone', v)} defaultCountryIso="IN" />
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Designation</Label>
-                  <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={form.designation_id} onChange={e => set('designation_id', e.target.value)}>
-                    <option value="">— None —</option>
-                    {designations.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Department</Label>
-                  <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={form.department_id} onChange={e => set('department_id', e.target.value)}>
-                    <option value="">— None —</option>
-                    {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Store / Branch</Label>
-                  <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={form.store_id} onChange={e => set('store_id', e.target.value)}>
-                    <option value="">— None —</option>
-                    {stores.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">CTC (Annual ₹)</Label>
-                  <input type="number" min={0} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={form.offered_ctc} onChange={e => set('offered_ctc', e.target.value)} />
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Offer Date</Label>
-                  <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={form.offered_date} onChange={e => set('offered_date', e.target.value)} />
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Joining Date</Label>
-                  <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={form.joining_date} onChange={e => set('joining_date', e.target.value)} />
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Offer Expiry</Label>
-                  <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
-                <button type="button" disabled={!form.candidate_name}
-                  onClick={() => { setStep('edit'); setShowPreview(true) }}
-                  className="px-4 py-2 text-sm bg-primary text-white rounded-lg disabled:opacity-50 hover:bg-primary/90">
-                  Next — Edit Letter
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className={`grid gap-4 ${showPreview ? 'lg:grid-cols-2' : ''}`}>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
-                    <LayoutTemplate className="w-3.5 h-3.5" /> Layout
-                  </label>
-                  <select value={form.layout} onChange={e => set('layout', e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-                    {OFFER_LAYOUTS.map(l => (
-                      <option key={l.id} value={l.id}>{l.label}</option>
+                  <div className="mb-0.5 flex items-center justify-between">
+                    <label className="text-[11px] font-medium text-muted-foreground">Template</label>
+                    <button type="button" onClick={() => navigate('/hr/offers/templates')}
+                      className="flex items-center gap-0.5 text-[11px] text-primary hover:underline">
+                      <Settings2 className="h-3 w-3" /> Manage templates
+                    </button>
+                  </div>
+                  <select value={form.template_id} onChange={e => set('template_id', e.target.value)}
+                    className={denseFieldClass}>
+                    <option value="">
+                      {bestTemplate ? `Auto: ${tplLabel(bestTemplate)}` : '— System default —'}
+                    </option>
+                    {templates.map((t: OfferLetterTemplate) => (
+                      <option key={t.id} value={t.id}>{tplLabel(t)}</option>
                     ))}
                   </select>
-                  <p className="text-[10px] text-gray-400 mt-1">{layoutLabel(form.layout)}</p>
                 </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Letter Content</Label>
-                  <HtmlRichEditor
-                    ref={editorRef}
-                    editorKey={activeTemplate?.id ?? 'offer-new'}
-                    value={form.body_html}
-                    onChange={v => set('body_html', v)}
-                    className="min-h-[280px]"
-                  />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="col-span-2">
+                    <Label className={denseLabelClass} required>Candidate Name</Label>
+                    <input required className={denseFieldClass}
+                      value={form.candidate_name} onChange={e => set('candidate_name', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className={denseLabelClass}>Email</Label>
+                    <input type="email" className={denseFieldClass}
+                      value={form.candidate_email} onChange={e => set('candidate_email', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className={denseLabelClass}>Phone</Label>
+                    <PhoneInput compact compactCountry value={form.candidate_phone} onChange={v => set('candidate_phone', v)} defaultCountryIso="IN" />
+                  </div>
+                  <div className="col-span-2 grid grid-cols-3 gap-2">
+                    <div>
+                      <Label className={denseLabelClass}>Designation</Label>
+                      <select className={denseFieldClass}
+                        value={form.designation_id} onChange={e => set('designation_id', e.target.value)}>
+                        <option value="">— None —</option>
+                        {designations.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className={denseLabelClass}>Department</Label>
+                      <select className={denseFieldClass}
+                        value={form.department_id} onChange={e => set('department_id', e.target.value)}>
+                        <option value="">— None —</option>
+                        {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className={denseLabelClass}>Store / Branch</Label>
+                      <select className={denseFieldClass}
+                        value={form.store_id} onChange={e => set('store_id', e.target.value)}>
+                        <option value="">— None —</option>
+                        {stores.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className={denseLabelClass}>CTC (Annual ₹)</Label>
+                    <input type="number" min={0} className={denseFieldClass}
+                      value={form.offered_ctc} onChange={e => set('offered_ctc', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className={denseLabelClass}>Offer Date</Label>
+                    <input type="date" className={denseFieldClass}
+                      value={form.offered_date} onChange={e => set('offered_date', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className={denseLabelClass}>Joining Date</Label>
+                    <input type="date" className={denseFieldClass}
+                      value={form.joining_date} onChange={e => set('joining_date', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className={denseLabelClass}>Offer Expiry</Label>
+                    <input type="date" className={denseFieldClass}
+                      value={form.expiry_date} onChange={e => set('expiry_date', e.target.value)} />
+                  </div>
                 </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-700 mb-1">Notes (internal)</Label>
-                  <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2}
-                    value={form.notes} onChange={e => set('notes', e.target.value)} />
+              </>
+            ) : (
+              <div className={`grid gap-3 ${showPreview ? 'lg:grid-cols-2' : ''}`}>
+                <div className="space-y-2">
+                  <div>
+                    <label className={cn(denseLabelClass, 'flex items-center gap-1')}>
+                      <LayoutTemplate className="h-3.5 w-3.5" /> Layout
+                    </label>
+                    <select value={form.layout} onChange={e => set('layout', e.target.value)}
+                      className={denseFieldClass}>
+                      {OFFER_LAYOUTS.map(l => (
+                        <option key={l.id} value={l.id}>{l.label}</option>
+                      ))}
+                    </select>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">{layoutLabel(form.layout)}</p>
+                  </div>
+                  <div>
+                    <Label className={denseLabelClass}>Letter Content</Label>
+                    <HtmlRichEditor
+                      ref={editorRef}
+                      editorKey={activeTemplate?.id ?? 'offer-new'}
+                      value={form.body_html}
+                      onChange={v => set('body_html', v)}
+                      className="min-h-[220px]"
+                    />
+                  </div>
+                  <div>
+                    <Label className={denseLabelClass}>Notes (internal)</Label>
+                    <textarea className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm" rows={2}
+                      value={form.notes} onChange={e => set('notes', e.target.value)} />
+                  </div>
                 </div>
+                {showPreview && (
+                  <div>
+                    <p className="mb-1.5 text-[11px] font-medium uppercase text-muted-foreground">Preview with candidate data</p>
+                    <OfferLetterPreviewFrame html={previewHtml} title="Offer preview" />
+                  </div>
+                )}
               </div>
-              {showPreview && (
-                <div>
-                  <p className="text-xs text-gray-500 mb-2 font-medium uppercase">Preview with candidate data</p>
-                  <OfferLetterPreviewFrame html={previewHtml} title="Offer preview" />
-                </div>
-              )}
-              <div className={`flex justify-between gap-3 pt-2 ${showPreview ? 'lg:col-span-2' : ''}`}>
-                <button type="button" onClick={() => setStep('details')} className="px-4 py-2 text-sm border rounded-lg">Back</button>
-                <div className="flex gap-3">
-                  <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
+            )}
+          </ModalBody>
+          <ModalFooter className={cn('border-0 px-4 py-2.5', step === 'edit' && 'justify-between')}>
+            {step === 'details' ? (
+              <>
+                <button type="button" onClick={onClose} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
+                <button type="button" disabled={!form.candidate_name}
+                  onClick={() => { setStep('edit'); setShowPreview(true) }}
+                  className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50">
+                  Next — Edit Letter
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={() => setStep('details')} className="h-8 rounded-md border border-border px-3 text-sm">Back</button>
+                <div className="flex gap-2">
+                  <button type="button" onClick={onClose} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
                   <button type="submit" disabled={create.isPending}
-                    className="px-4 py-2 text-sm bg-primary text-white rounded-lg disabled:opacity-50 hover:bg-primary/90">
+                    className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50">
                     {create.isPending ? 'Creating…' : 'Create Draft'}
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -445,7 +461,7 @@ export default function OffersPage() {
                               <Send className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => { if (confirm('Delete this offer letter?')) deleteOffer.mutate(offer.id) }}
+                              onClick={async () => { if (await askConfirm('Delete this offer letter?')) deleteOffer.mutate(offer.id) }}
                               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
                               <Trash2 className="w-4 h-4" />
                             </button>

@@ -33,6 +33,7 @@ import {
 } from 'lucide-react'
 import type { Order, OrderItem } from '@/types'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 type MemoMode = 'credit_memo' | 'debit_memo'
 
 interface MemoItem {
@@ -596,10 +597,10 @@ export default function CreditDebitMemos() {
     }
   }, [])
 
-  const voidMemo = useCallback(
+  const voidMemo = useCallbackasync (
     async (id: string, label: string) => {
       if (
-        !window.confirm(
+        !await askConfirm(
           `Void memo ${label}? The document stays in the system (audit) but will be marked voided and excluded from normal totals where applicable.`,
         )
       ) {
@@ -1929,7 +1930,7 @@ function MemoPaymentModal({
   ]
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className={`flex items-center justify-between px-6 py-4 border-b ${isCredit ? 'bg-orange-50' : 'bg-blue-50'}`}>
           <div>

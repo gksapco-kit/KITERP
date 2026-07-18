@@ -46,21 +46,41 @@ function FieldGrid({
   onChange: (next: Record<string, boolean>) => void
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3">
       {defs.map(f => (
         <label
           key={f.key}
-          className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50"
+          className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-accent/70 dark:hover:bg-secondary/50"
         >
           <input
             type="checkbox"
             checked={values[f.key] ?? true}
             onChange={e => onChange({ ...values, [f.key]: e.target.checked })}
-            className="h-4 w-4 rounded border-input text-primary"
+            className="h-3.5 w-3.5 shrink-0 rounded border-input text-primary"
           />
-          <span className="text-sm text-foreground">{f.label}</span>
+          <span className="text-xs leading-snug text-foreground">{f.label}</span>
         </label>
       ))}
+    </div>
+  )
+}
+
+function SectionToggle({
+  onShowAll,
+  onHideAll,
+}: {
+  onShowAll: () => void
+  onHideAll: () => void
+}) {
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <button type="button" onClick={onShowAll} className="text-primary hover:text-primary/80">
+        Show All
+      </button>
+      <span className="text-border">|</span>
+      <button type="button" onClick={onHideAll} className="text-muted-foreground hover:text-foreground">
+        Hide All
+      </button>
     </div>
   )
 }
@@ -183,39 +203,43 @@ export default function StorefrontDisplayPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <form onSubmit={handleSubmit} className="mx-auto max-w-7xl space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-foreground">Business Front Display</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Choose fields per website template. When a template is assigned to a business unit, customers see only the
-            fields you enable here — product data still controls whether a row appears.
+          <h1 className="text-xl font-bold text-foreground">Business Front Display</h1>
+          <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+            Choose fields per website template. Customers see only the fields you enable here.
           </p>
         </div>
-        <div className="shrink-0 self-end sm:self-start">
+        <div className="shrink-0">
           <SaveButton loading={updateVendor.isPending} />
         </div>
       </div>
 
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
-              <LayoutTemplate className="h-5 w-5" strokeWidth={2} />
+        <CardHeader className="space-y-0 p-3 pb-2">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+                <LayoutTemplate className="h-4 w-4" strokeWidth={2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-sm">Website template</CardTitle>
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                  Settings apply to business units using this template on the storefront.
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <CardTitle className="text-base">Website template</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Settings apply to business units using this template on the storefront.
-              </p>
-            </div>
+            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 px-3 text-xs" onClick={resetTemplateDefaults}>
+              Enable all fields
+            </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-1.5 p-3 pt-0">
           <select
             value={selectedTemplateId}
             onChange={e => setSelectedTemplateId(e.target.value)}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
           >
             {templateOptions.map(opt => (
               <option key={opt.id || 'global'} value={opt.id}>
@@ -225,74 +249,57 @@ export default function StorefrontDisplayPage() {
             ))}
           </select>
           {selectedOption?.assignedTo?.length ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               Assigned to: {selectedOption.assignedTo.join(', ')}
             </p>
           ) : selectedTemplateId ? (
-            <p className="text-xs text-amber-700">
+            <p className="text-[11px] text-amber-700">
               Not assigned to a business unit yet — configure now so it is ready when you assign this template.
             </p>
           ) : null}
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Button type="button" variant="outline" size="sm" onClick={resetTemplateDefaults}>
-              Enable all fields
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
-                <Package className="h-5 w-5" strokeWidth={2} />
+      <div className="grid gap-3 xl:grid-cols-2">
+        <Card>
+          <CardHeader className="space-y-0 p-3 pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+                  <Package className="h-4 w-4" strokeWidth={2} />
+                </div>
+                <CardTitle className="text-sm">Product Fields</CardTitle>
               </div>
-              <CardTitle className="text-base">Product Fields</CardTitle>
+              <SectionToggle
+                onShowAll={() => toggleAll('product', true)}
+                onHideAll={() => toggleAll('product', false)}
+              />
             </div>
-            <div className="flex gap-3 text-xs">
-              <button type="button" onClick={() => toggleAll('product', true)} className="text-primary hover:underline">
-                Show All
-              </button>
-              <span className="text-border">|</span>
-              <button type="button" onClick={() => toggleAll('product', false)} className="text-muted-foreground hover:underline">
-                Hide All
-              </button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <FieldGrid defs={PRODUCT_DISPLAY_FIELD_DEFS} values={productFields} onChange={setProductFields} />
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <FieldGrid defs={PRODUCT_DISPLAY_FIELD_DEFS} values={productFields} onChange={setProductFields} />
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
-                <Wrench className="h-5 w-5" strokeWidth={2} />
+        <Card>
+          <CardHeader className="space-y-0 p-3 pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+                  <Wrench className="h-4 w-4" strokeWidth={2} />
+                </div>
+                <CardTitle className="text-sm">Service Fields</CardTitle>
               </div>
-              <CardTitle className="text-base">Service Fields</CardTitle>
+              <SectionToggle
+                onShowAll={() => toggleAll('service', true)}
+                onHideAll={() => toggleAll('service', false)}
+              />
             </div>
-            <div className="flex gap-3 text-xs">
-              <button type="button" onClick={() => toggleAll('service', true)} className="text-primary hover:underline">
-                Show All
-              </button>
-              <span className="text-border">|</span>
-              <button type="button" onClick={() => toggleAll('service', false)} className="text-muted-foreground hover:underline">
-                Hide All
-              </button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <FieldGrid defs={SERVICE_DISPLAY_FIELD_DEFS} values={serviceFields} onChange={setServiceFields} />
-        </CardContent>
-      </Card>
-
-      <div className="flex justify-end">
-        <SaveButton loading={updateVendor.isPending} />
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <FieldGrid defs={SERVICE_DISPLAY_FIELD_DEFS} values={serviceFields} onChange={setServiceFields} />
+          </CardContent>
+        </Card>
       </div>
     </form>
   )

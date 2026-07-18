@@ -1,18 +1,18 @@
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Loader2, Quote, ToggleLeft, ToggleRight, X, ImagePlus, Star } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Quote, ToggleLeft, ToggleRight, ImagePlus, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
+import { cn, isLikelyImageFile, mediaUrl } from '@/lib/utils'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -25,6 +25,7 @@ import {
 import { testimonialsApi } from '@/api/testimonials'
 import type { VendorTestimonial, VendorTestimonialCreate } from '@/api/testimonials'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 function StarRow({ rating }: { rating: number }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -46,7 +47,6 @@ function TestimonialModal({
   onSave: (data: VendorTestimonialCreate) => void
   saving: boolean
 }) {
-  useEscapeToClose(onClose)
   const [name, setName] = useState(initial?.name ?? '')
   const [role, setRole] = useState(initial?.role ?? '')
   const [company, setCompany] = useState(initial?.company ?? '')
@@ -110,90 +110,124 @@ function TestimonialModal({
     })
   }
 
+  const labelCls = 'text-[10px] leading-none'
+  const fieldGap = 'space-y-0.5'
+  const inputCls = 'h-7 text-xs'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">{initial ? 'Edit testimonial' : 'New testimonial'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
-            <div className="flex items-center gap-4">
-              <label className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-input bg-muted/40 hover:bg-muted/60">
-                {avatarUrl ? (
-                  <img src={avatarUrl.startsWith('blob:') ? avatarUrl : mediaUrl(avatarUrl)} alt="" className="h-full w-full object-cover" />
-                ) : avatarUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ImagePlus className="h-4 w-4 text-muted-foreground" />
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (file) void handleAvatarFile(file)
-                  }}
-                />
-              </label>
-              <div className="flex-1">
-                <Label>Customer photo</Label>
-                <p className="text-xs text-muted-foreground">Optional — shown next to the quote.</p>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-md min-h-[28rem] max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+        <ModalHeader
+          title={initial ? 'Edit testimonial' : 'New testimonial'}
+          onClose={onClose}
+          className="border-0 px-4 py-3 [&>div>h2]:text-base"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="flex flex-1 flex-col space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+            <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2.5 items-start">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Photo</Label>
+                <label
+                  className={cn(
+                    'relative flex size-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden',
+                    'rounded border border-dashed border-input bg-muted/30',
+                    'transition-colors hover:border-primary/40 hover:bg-muted/50',
+                    avatarUrl && 'border-solid border-border',
+                  )}
+                  title="Customer photo"
+                  aria-label="Add customer photo"
+                >
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl.startsWith('blob:') ? avatarUrl : mediaUrl(avatarUrl)}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  ) : avatarUploading ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="flex flex-col items-center gap-0.5 text-muted-foreground">
+                      <ImagePlus className="h-5 w-5" />
+                      <span className="text-[10px] leading-none">Add</span>
+                    </span>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) void handleAvatarFile(file)
+                    }}
+                  />
+                </label>
+              </div>
+              <div className="min-w-0 space-y-2">
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Customer name *</Label>
+                  <Input className={inputCls} value={name} onChange={e => setName(e.target.value)} required autoFocus placeholder="Jane Cooper" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className={fieldGap}>
+                    <Label className={labelCls}>Role</Label>
+                    <Input className={inputCls} value={role} onChange={e => setRole(e.target.value)} placeholder="Marketing Lead" />
+                  </div>
+                  <div className={fieldGap}>
+                    <Label className={labelCls}>Company</Label>
+                    <Input className={inputCls} value={company} onChange={e => setCompany(e.target.value)} placeholder="Acme Inc." />
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Customer name</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} required placeholder="Jane Cooper" />
-              </div>
-              <div>
-                <Label>Role</Label>
-                <Input value={role} onChange={e => setRole(e.target.value)} placeholder="Marketing Lead" />
-              </div>
+
+            <div className={cn(fieldGap, 'flex min-h-0 flex-1 flex-col')}>
+              <Label className={labelCls}>Quote *</Label>
+              <Textarea
+                value={quote}
+                onChange={e => setQuote(e.target.value)}
+                required
+                rows={8}
+                className="min-h-[11rem] flex-1 resize-y px-2.5 py-2 text-xs"
+                placeholder="Working with this team was a game changer for our business..."
+              />
             </div>
-            <div>
-              <Label>Company</Label>
-              <Input value={company} onChange={e => setCompany(e.target.value)} placeholder="Acme Inc." />
-            </div>
-            <div>
-              <Label>Quote</Label>
-              <Textarea value={quote} onChange={e => setQuote(e.target.value)} required rows={4} placeholder="Working with this team was a game changer for our business..." />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Rating</Label>
-                <div className="mt-1 flex items-center gap-1">
+
+            <div className="grid grid-cols-[1fr_5rem] gap-2">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Rating</Label>
+                <div className="flex h-7 items-center gap-0.5">
                   {Array.from({ length: 5 }, (_, i) => (
-                    <button key={i} type="button" onClick={() => setRating(i + 1)} className="p-0.5">
-                      <Star className={`h-5 w-5 ${i < rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />
+                    <button key={i} type="button" onClick={() => setRating(i + 1)} className="p-0.5" aria-label={`${i + 1} stars`}>
+                      <Star className={cn('h-4 w-4', i < rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30')} />
                     </button>
                   ))}
                 </div>
               </div>
-              <div>
-                <Label>Sort order</Label>
-                <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+              <div className={fieldGap}>
+                <Label className={labelCls}>Sort</Label>
+                <Input className={inputCls} type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
               </div>
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-              Active on storefront
-            </label>
-          </div>
-          <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {initial ? 'Save' : 'Create'}
-            </Button>
-          </div>
+          </ModalBody>
+          <ModalFooter className="items-center justify-between gap-2 border-0 bg-transparent px-4 py-3">
+            <CheckboxFieldLabel
+              label="Active on storefront"
+              checked={isActive}
+              onChange={setIsActive}
+              labelClassName="text-xs"
+              inputClassName="h-3.5 w-3.5 rounded-sm accent-foreground"
+            />
+            <div className="flex gap-2">
+              <Button type="button" variant="cancel" className="h-7 px-2.5 text-xs" onClick={onClose}>Cancel</Button>
+              <Button type="submit" className="h-7 px-2.5 text-xs" disabled={saving || !name.trim() || !quote.trim()}>
+                {saving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                {initial ? 'Save' : 'Create'}
+              </Button>
+            </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -230,20 +264,19 @@ export default function SalesTestimonialsPage() {
   const { isSaving, patchField } = useInlineFieldPatch(updateTestimonial)
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Quote className="h-5 w-5 text-primary" />
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+            <Quote className="h-4 w-4 shrink-0 text-primary" />
             Testimonials
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Curate customer quotes shown on your storefront. Testimonials sync automatically to Testimonials sections in the
-            website builder — if none are added, verified 4★+ reviews are shown instead.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Storefront quotes · syncs to Website Builder
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
-          <Plus className="h-4 w-4" /> Add testimonial
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="h-3.5 w-3.5" /> Add testimonial
         </Button>
       </div>
 
@@ -390,9 +423,9 @@ export default function SalesTestimonialsPage() {
                         <button
                           type="button"
                           title="Delete"
-                          onClick={e => {
+                          onClick={async e => {
                             e.stopPropagation()
-                            if (window.confirm(`Delete testimonial from "${testimonial.name}"?`)) deleteTestimonial.mutate(testimonial.id)
+                            if (await askConfirm(`Delete testimonial from "${testimonial.name}"?`)) deleteTestimonial.mutate(testimonial.id)
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >

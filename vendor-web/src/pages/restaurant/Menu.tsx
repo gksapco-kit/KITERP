@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 import { cn, formatCurrency, mediaUrl } from '@/lib/utils'
 import { catalogItemPath } from '@/lib/catalogAddons'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
@@ -711,7 +712,7 @@ export default function RestaurantMenuPage() {
   }
 
   async function handleDeleteMenu(menuId: string) {
-    if (!confirm('Delete this menu? This cannot be undone.')) return
+    if (!(await askConfirm('Delete this menu? This cannot be undone.'))) return
     setBusy(true)
     try {
       await vendorApi.restaurantDeleteMenu(menuId)
@@ -859,7 +860,7 @@ export default function RestaurantMenuPage() {
 
   async function handleDeleteCategory(categoryId: string) {
     if (!selectedMenuId) return
-    if (!confirm('Delete this category and its sub-categories?')) return
+    if (!(await askConfirm('Delete this category and its sub-categories?'))) return
     setBusy(true)
     try {
       await vendorApi.restaurantDeleteMenuCategory(selectedMenuId, categoryId)

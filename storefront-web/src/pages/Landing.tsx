@@ -11,6 +11,7 @@ import { LandingFooter } from '@/components/landing/LandingFooter'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import type { StorefrontVendor } from '@/components/landing/landingData'
+import { PLATFORM_SEO, useDocumentSeo } from '@/lib/documentSeo'
 import '@/styles/kiterp-landing.css'
 
 type StoreDirectoryItem = StorefrontVendor
@@ -21,6 +22,15 @@ export default function Landing() {
   const [dirLoading, setDirLoading] = useState(true)
   const [dirError, setDirError] = useState<string | null>(null)
   const navigate = useNavigate()
+
+  useDocumentSeo({
+    title: PLATFORM_SEO.defaultTitle,
+    description: PLATFORM_SEO.defaultDescription,
+    keywords: PLATFORM_SEO.defaultKeywords,
+    canonicalPath: '/',
+    ogImage: '/favicon-192.png',
+    ogType: 'website',
+  })
 
   useEffect(() => {
     let cancelled = false

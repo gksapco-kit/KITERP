@@ -19,6 +19,7 @@ import { vendorApi } from '@/api/vendor'
 import { useAuthStore } from '@/stores/authStore'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 import { EmployeeTabBar } from './EmployeeTabBar'
 import { resolveEmployeeTab, type EmployeeTabId } from './employeeMasterTabs'
 import { IdentityTab } from './EmployeeMasterTabPanels'
@@ -500,7 +501,7 @@ function DocumentsTab({ empId }: { empId: string }) {
   }
 
   async function deleteDoc(docId: string) {
-    if (!confirm('Delete this document?')) return
+    if (!(await askConfirm('Delete this document?'))) return
     await vendorApi.hrDeleteDocument(empId, docId)
     setDocs(d => d.filter(x => x.id !== docId))
   }

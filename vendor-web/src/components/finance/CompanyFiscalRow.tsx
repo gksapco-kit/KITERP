@@ -8,6 +8,7 @@ import { finKeys } from '@/hooks/useFinance'
 import { formatIsoDate, isAuditWindowAfterFyEnd } from '@/lib/fiscalYearPreview'
 import { toast } from 'sonner'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const STATUS: Record<string, { label: string; cls: string }> = {
   open: { label: 'Open', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300' },
   locked: { label: 'Locked', cls: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300' },
@@ -290,12 +291,12 @@ export default function CompanyFiscalRow({
                                 {st.label}
                               </span>
                               <div className="flex items-center gap-1.5">
-                                {p.status === 'open' && (
+                                {p.status === 'open' && async (
                                   <>
                                     <button
                                       type="button"
                                       disabled={busy}
-                                      onClick={() => { if (confirm('Lock this period? Posting to this range will be blocked.')) lockMut.mutate(p.id) }}
+                                      onClick={async () => { if (await askConfirm('Lock this period? Posting to this range will be blocked.')) lockMut.mutate(p.id) }}
                                       className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-950/60 disabled:opacity-50"
                                     >
                                       <Lock className="w-3.5 h-3.5" />
@@ -304,7 +305,7 @@ export default function CompanyFiscalRow({
                                     <button
                                       type="button"
                                       disabled={busy}
-                                      onClick={() => { if (confirm('Close this period? You can still reopen for corrections with admin rights.')) closeMut.mutate(p.id) }}
+                                      onClick={async () => { if (await askConfirm('Close this period? You can still reopen for corrections with admin rights.')) closeMut.mutate(p.id) }}
                                       className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border border-border bg-muted/40 text-foreground hover:bg-muted/60 disabled:opacity-50"
                                     >
                                       <XCircle className="w-3.5 h-3.5" />
@@ -312,11 +313,11 @@ export default function CompanyFiscalRow({
                                     </button>
                                   </>
                                 )}
-                                {(p.status === 'locked' || p.status === 'closed') && (
+                                {(p.status === 'locked' || p.status === 'closed') && async (
                                   <button
                                     type="button"
                                     disabled={busy}
-                                    onClick={() => { if (confirm('Reopen this period for new postings?')) reopenMut.mutate(p.id) }}
+                                    onClick={async () => { if (await askConfirm('Reopen this period for new postings?')) reopenMut.mutate(p.id) }}
                                     className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 disabled:opacity-50"
                                   >
                                     <Unlock className="w-3.5 h-3.5" />

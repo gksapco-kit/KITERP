@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 export function KOTNumberingSection({
   restaurantId,
   restaurantName,
@@ -166,13 +167,13 @@ export function KOTNumberingSection({
             <Button size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
               {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save KOT settings'}
             </Button>
-            {mode === 'sequential' && (
+            {mode === 'sequential' && async (
               <Button
                 size="sm"
                 variant="outline"
                 disabled={resetCounter.isPending}
-                onClick={() => {
-                  if (confirm(`Reset counter to #${startNumber}? This affects the next ticket issued.`)) {
+                onClick={async () => {
+                  if (await askConfirm(`Reset counter to #${startNumber}? This affects the next ticket issued.`)) {
                     resetCounter.mutate()
                   }
                 }}

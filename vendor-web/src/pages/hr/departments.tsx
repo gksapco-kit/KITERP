@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 import { Plus, Pencil, Trash2, Building2, ChevronRight } from 'lucide-react'
 import { useHRDepartments, useDeleteHRDepartment } from '@/hooks/useVendor'
 import { DeptModal } from '@/components/hr/DeptModal'
@@ -13,8 +14,8 @@ export default function DepartmentsPage() {
   const topLevel = (departments as HRDepartment[]).filter((d: HRDepartment) => !d.parent_id)
   const children = (parentId: string) => (departments as HRDepartment[]).filter((d: HRDepartment) => d.parent_id === parentId)
 
-  function handleDelete(dept: HRDepartment) {
-    if (!confirm(`Delete department "${dept.name}"?`)) return
+  async function handleDelete(dept: HRDepartment) {
+    if (!(await askConfirm(`Delete department "${dept.name}"?`))) return
     deleteDept.mutate(dept.id)
   }
 

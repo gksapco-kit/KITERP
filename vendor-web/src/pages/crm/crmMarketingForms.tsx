@@ -206,25 +206,27 @@ export function WorkflowStepBuilder({
   const remove = (idx: number) => onChange(steps.filter((_, i) => i !== idx))
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {steps.length === 0 && (
-        <p className="text-xs text-gray-400 rounded-lg border border-dashed p-4 text-center">Add steps to define what happens after the trigger.</p>
+        <p className="rounded-md border border-dashed border-border px-2.5 py-2 text-center text-[11px] text-muted-foreground">
+          Add steps to define what happens after the trigger.
+        </p>
       )}
       {steps.map((step, idx) => (
-        <div key={idx} className="rounded-lg border p-3 space-y-2 bg-white">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-gray-400 w-5">{idx + 1}</span>
+        <div key={idx} className="space-y-1.5 rounded-md border border-border bg-card p-2">
+          <div className="flex items-center gap-1.5">
+            <span className="w-4 text-[10px] font-mono text-muted-foreground">{idx + 1}</span>
             <select value={step.type} onChange={e => update(idx, { type: e.target.value })}
-              className={`${inputCls} flex-1 h-9`}>
+              className={`${inputCls} h-8 flex-1 text-xs`}>
               {WORKFLOW_STEP_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
-            <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}>
-              <Trash2 className="w-4 h-4 text-red-500" />
+            <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => remove(idx)}>
+              <Trash2 className="h-3.5 w-3.5 text-red-500" />
             </Button>
           </div>
           {step.type === 'send_email' && (
             <select value={step.template_id || ''} onChange={e => update(idx, { template_id: e.target.value })}
-              className={inputCls}>
+              className={`${inputCls} h-8 text-xs`}>
               <option value="">Select email template…</option>
               {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
@@ -233,41 +235,41 @@ export function WorkflowStepBuilder({
             <div className="flex items-center gap-2">
               <Input type="number" min={1} value={step.minutes ?? 60}
                 onChange={e => update(idx, { minutes: Number(e.target.value) })}
-                className="h-9 w-24" />
-              <span className="text-sm text-gray-500">minutes</span>
+                className="h-8 w-20 text-xs" />
+              <span className="text-xs text-muted-foreground">minutes</span>
             </div>
           )}
           {step.type === 'create_task' && (
             <Input value={step.subject || ''} onChange={e => update(idx, { subject: e.target.value })}
-              placeholder="Task subject" className="h-9" />
+              placeholder="Task subject" className="h-8 text-xs" />
           )}
           {step.type === 'assign_user' && (
             <select value={step.user_id || ''} onChange={e => update(idx, { user_id: e.target.value })}
-              className={inputCls}>
+              className={`${inputCls} h-8 text-xs`}>
               <option value="">Select team member…</option>
               {teamOptions.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
           )}
           {step.type === 'update_field' && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               <Input value={step.field || ''} onChange={e => update(idx, { field: e.target.value })}
-                placeholder="Field name" className="h-9" />
+                placeholder="Field name" className="h-8 text-xs" />
               <Input value={step.value || ''} onChange={e => update(idx, { value: e.target.value })}
-                placeholder="New value" className="h-9" />
+                placeholder="New value" className="h-8 text-xs" />
             </div>
           )}
           {step.type === 'send_sms' && (
             <textarea value={step.body || ''} onChange={e => update(idx, { body: e.target.value })}
-              placeholder="SMS message…" className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              placeholder="SMS message…" className="flex min-h-[2.75rem] w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
           )}
           {step.type === 'webhook' && (
             <Input value={step.url || ''} onChange={e => update(idx, { url: e.target.value })}
-              placeholder="https://…" className="h-9" />
+              placeholder="https://…" className="h-8 text-xs" />
           )}
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" onClick={add}>
-        <Plus className="w-3.5 h-3.5 mr-1" /> Add step
+      <Button type="button" variant="outline" size="sm" className="h-7 px-2.5 text-xs" onClick={add}>
+        <Plus className="mr-1 h-3 w-3" /> Add step
       </Button>
     </div>
   )

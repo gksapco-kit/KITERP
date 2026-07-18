@@ -5,15 +5,16 @@ import { BranchSelect } from '@/components/common/BranchSelect'
 import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/CatalogItemPicker'
 import { useStores } from '@/hooks/useVendor'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { vendorApi } from '@/api/vendor'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
+import { modalWidthMd } from '@/lib/modalUi'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
@@ -21,8 +22,9 @@ import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { Plus, Loader2, Tag, Pencil, Trash2, X, ToggleLeft, ToggleRight, Copy, Share2, Mail, MessageCircle } from 'lucide-react'
+import { Plus, Loader2, Tag, Pencil, Trash2, ToggleLeft, ToggleRight, Copy, Share2, Mail, MessageCircle } from 'lucide-react'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 function couponShareText(c: Record<string, unknown>): string {
   const discount = c.discount_type === 'percentage'
     ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`
@@ -115,10 +117,18 @@ export default function CouponsPage() {
   }, [data?.items, sortKey, sortDir])
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Coupons & Promo Codes</h1>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2"><Plus className="w-4 h-4" />New Coupon</Button>
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+            <Tag className="h-4 w-4 shrink-0 text-primary" />
+            Coupons
+          </h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">Promo codes for storefront & checkout</p>
+        </div>
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="w-3.5 h-3.5" />New Coupon
+        </Button>
       </div>
 
       <Card>
@@ -315,7 +325,7 @@ export default function CouponsPage() {
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" title="Share via Email" onClick={() => shareViaEmail(c)}><Mail className="w-4 h-4 text-blue-600" /></Button>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" title="Share" onClick={() => shareViaNative(c)}><Share2 className="w-4 h-4 text-primary" /></Button>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" title="Edit" onClick={() => setModal({ mode: 'edit', coupon: c })}><Pencil className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0 text-red-500" title="Delete" onClick={() => { if (confirm('Delete this coupon?')) deleteCoupon.mutate(c.id as string) }}><Trash2 className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0 text-red-500" title="Delete" onClick={async () => { if (await askConfirm('Delete this coupon?')) deleteCoupon.mutate(c.id as string) }}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </td>
                 </tr>
@@ -333,8 +343,6 @@ export default function CouponsPage() {
 
 function CouponModal({
  mode, coupon, onClose, onSaved }: { mode: 'create' | 'edit'; coupon?: Record<string, unknown>; onClose: () => void; onSaved: () => void }) {
-  useEscapeToClose(onClose)
-
   const { buId: initialBuId, branchId: initialBranchId } = useResolveBuBranch((coupon?.store_id as string) || null)
 
   const [form, setForm] = useState({
@@ -417,38 +425,42 @@ function CouponModal({
     setLoading(false)
   }
 
+  const labelCls = 'text-xs'
+  const fieldGap = 'space-y-1'
+
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">{mode === 'create' ? 'New Coupon' : 'Edit Coupon'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
-          <div>
-            <Label>Business unit</Label>
-            <div className="mt-1 flex flex-wrap gap-2">
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2">
+      <ModalPanel className={cn(modalWidthMd, 'max-h-[calc(100dvh-1rem)]')}>
+        <ModalHeader
+          title={mode === 'create' ? 'New Coupon' : 'Edit Coupon'}
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base"
+        />
+        <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+          <div className={fieldGap}>
+            <Label className={labelCls}>Business unit</Label>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               <BusinessUnitSelect
                 value={form.store_id}
                 onChange={(id) => { setForm(f => ({ ...f, store_id: id, branch_id: '' })); setApplicableItems([]) }}
                 allowAll
-                className="flex-1 min-w-[10rem]"
+                className="min-w-0"
               />
               <BranchSelect
                 businessUnitId={form.store_id || null}
                 value={form.branch_id}
                 onChange={(id) => setForm(f => ({ ...f, branch_id: id }))}
                 allowAll
-                className="flex-1 min-w-[10rem]"
+                className="min-w-0"
               />
             </div>
-            <p className="text-[11px] text-gray-400 mt-1">Scopes which items can be selected below. "All business units" keeps it global; pick a branch to restrict further.</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Code</Label>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className={fieldGap}>
+              <Label className={labelCls}>Code *</Label>
               <Input
-                className={`mt-1 font-mono uppercase ${codeError ? 'border-red-500' : ''}`}
+                className={cn('h-8 font-mono uppercase text-sm', codeError && 'border-red-500')}
                 value={form.code}
                 onChange={e => {
                   setCodeError(null)
@@ -457,79 +469,100 @@ function CouponModal({
                 placeholder="SAVE20"
                 minLength={2}
                 disabled={mode === 'edit'}
+                autoFocus={mode === 'create'}
               />
-              {codeError ? (
-                <p className="mt-1 text-xs text-red-600">{codeError}</p>
-              ) : (
-                <p className="mt-1 text-[11px] text-gray-400">At least 2 characters (e.g. RR, SAVE10)</p>
-              )}
+              {codeError && <p className="text-[11px] text-red-600">{codeError}</p>}
             </div>
-            <div><Label>Title</Label><Input className="mt-1" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="20% Off" /></div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Title</Label>
+              <Input className="h-8 text-sm" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="20% Off" />
+            </div>
           </div>
-          <div><Label>Description</Label><Input className="mt-1" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Get 20% off on all products" /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Discount Type</Label>
+
+          <div className={fieldGap}>
+            <Label className={labelCls}>Description</Label>
+            <Input className="h-8 text-sm" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Get 20% off on all products" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className={fieldGap}>
+              <Label className={labelCls}>Type</Label>
               <Select
                 value={form.discount_type}
                 onChange={(v) => setForm({ ...form, discount_type: v })}
                 options={[
                   { value: 'percentage', label: 'Percentage (%)' },
-                  { value: 'flat', label: 'Flat Amount (₹)' },
+                  { value: 'flat', label: 'Flat (₹)' },
                 ]}
                 aria-label="Discount type"
-                className="mt-1"
+                triggerClassName="h-8 text-sm"
               />
             </div>
-            <div><Label>Discount Value</Label><Input type="number" className="mt-1" min={0} value={form.discount_value} onChange={e => setForm({ ...form, discount_value: Number(e.target.value) })} /></div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Value</Label>
+              <Input type="number" className="h-8 text-sm" min={0} value={form.discount_value} onChange={e => setForm({ ...form, discount_value: Number(e.target.value) })} />
+            </div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Max discount (₹)</Label>
+              <Input type="number" className="h-8 text-sm" min={0} value={form.max_discount} onChange={e => setForm({ ...form, max_discount: Number(e.target.value) })} placeholder="0 = no cap" />
+            </div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Min order (₹)</Label>
+              <Input type="number" className="h-8 text-sm" min={0} value={form.min_order_amount} onChange={e => setForm({ ...form, min_order_amount: Number(e.target.value) })} />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Max Discount (₹)</Label><Input type="number" className="mt-1" min={0} value={form.max_discount} onChange={e => setForm({ ...form, max_discount: Number(e.target.value) })} placeholder="0 = no cap" /></div>
-            <div><Label>Min Order (₹)</Label><Input type="number" className="mt-1" min={0} value={form.min_order_amount} onChange={e => setForm({ ...form, min_order_amount: Number(e.target.value) })} /></div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className={fieldGap}>
+              <Label className={labelCls}>Usage limit</Label>
+              <Input type="number" className="h-8 text-sm" min={0} value={form.usage_limit} onChange={e => setForm({ ...form, usage_limit: Number(e.target.value) })} placeholder="0 = unlimited" />
+            </div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Per customer</Label>
+              <Input type="number" className="h-8 text-sm" min={1} value={form.usage_per_customer} onChange={e => setForm({ ...form, usage_per_customer: Number(e.target.value) })} />
+            </div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Applies to</Label>
+              <Select
+                value={form.applicable_to}
+                onChange={(v) => setForm({ ...form, applicable_to: v })}
+                options={[
+                  { value: 'all', label: 'All items' },
+                  { value: 'products', label: 'Specific products' },
+                  { value: 'services', label: 'Specific services' },
+                  { value: 'specific', label: 'Products & services' },
+                ]}
+                aria-label="Applies to"
+                triggerClassName="h-8 text-sm"
+              />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Total Usage Limit</Label><Input type="number" className="mt-1" min={0} value={form.usage_limit} onChange={e => setForm({ ...form, usage_limit: Number(e.target.value) })} placeholder="0 = unlimited" /></div>
-            <div><Label>Per Customer</Label><Input type="number" className="mt-1" min={1} value={form.usage_per_customer} onChange={e => setForm({ ...form, usage_per_customer: Number(e.target.value) })} /></div>
-          </div>
-          <div>
-            <Label>Applies to</Label>
-            <Select
-              value={form.applicable_to}
-              onChange={(v) => setForm({ ...form, applicable_to: v })}
-              options={[
-                { value: 'all', label: 'All products & services' },
-                { value: 'products', label: 'Specific products' },
-                { value: 'services', label: 'Specific services' },
-                { value: 'specific', label: 'Specific products & services' },
-              ]}
-              aria-label="Applies to"
-              className="mt-1"
-            />
-          </div>
+
           {isSpecific && (
-            <div>
-              <Label>Eligible items</Label>
-              <div className="mt-1">
-                <CatalogItemPicker
-                  storeId={form.branch_id || form.store_id}
-                  value={applicableItems}
-                  onChange={setApplicableItems}
-                  kinds={form.applicable_to === 'products' ? ['product'] : form.applicable_to === 'services' ? ['service'] : ['product', 'service']}
-                />
-              </div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Eligible items</Label>
+              <CatalogItemPicker
+                storeId={form.branch_id || form.store_id}
+                value={applicableItems}
+                onChange={setApplicableItems}
+                kinds={form.applicable_to === 'products' ? ['product'] : form.applicable_to === 'services' ? ['service'] : ['product', 'service']}
+              />
             </div>
           )}
-          <div className="flex gap-6">
-            <CheckboxFieldLabel label="Active" checked={form.is_active} onChange={(is_active) => setForm({ ...form, is_active })} />
-            <CheckboxFieldLabel label="Visible on Store" checked={form.is_public} onChange={(is_public) => setForm({ ...form, is_public })} helpKey="visible on store" />
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <CheckboxFieldLabel label="Active" checked={form.is_active} onChange={(is_active) => setForm({ ...form, is_active })} labelClassName="text-xs" />
+            <CheckboxFieldLabel label="Visible on store" checked={form.is_public} onChange={(is_public) => setForm({ ...form, is_public })} helpKey="visible on store" labelClassName="text-xs" />
           </div>
-        </div>
-        <div className="px-6 py-4 border-t flex justify-end gap-3">
-          <Button variant="cancel" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={loading || form.code.trim().length < 2 || form.discount_value <= 0} className="gap-2">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Tag className="w-4 h-4" />}{mode === 'create' ? 'Create' : 'Save'}
+        </ModalBody>
+        <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-2.5">
+          <Button variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={loading || form.code.trim().length < 2 || form.discount_value <= 0} className="h-8 gap-1.5 px-3 text-sm">
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Tag className="w-3.5 h-3.5" />}
+            {mode === 'create' ? 'Create' : 'Save'}
           </Button>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }

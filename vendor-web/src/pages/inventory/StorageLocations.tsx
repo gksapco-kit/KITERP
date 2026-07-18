@@ -25,6 +25,7 @@ import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import type { StorageLocation, CustomField } from '@/types'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const selectCls = 'h-10 text-sm'
 
 const FIELD_TYPES = [
@@ -178,7 +179,7 @@ function LocationRow({ loc, level, onEdit, onAddSub, onDelete, patchField, isSav
               variant="ghost"
               size="sm"
               className="text-red-500"
-              onClick={() => { if (confirm(`Delete "${loc.name}" and all sub-locations?`)) onDelete(loc.id) }}
+              onClick={async () => { if (await askConfirm(`Delete "${loc.name}" and all sub-locations?`)) onDelete(loc.id) }}
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -445,7 +446,7 @@ export default function StorageLocationsPage() {
       </Card>
 
       {showForm && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
           <div className="w-full max-w-lg bg-card border border-border text-foreground rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
               <h2 className="text-lg font-semibold">{editing ? 'Edit Storage Location' : 'New Storage Location'}</h2>

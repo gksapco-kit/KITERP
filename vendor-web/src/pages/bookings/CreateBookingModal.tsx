@@ -4,20 +4,20 @@
  */
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Label } from '@/components/ui/label'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalOverlay } from '@/components/ui/Modal'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { apiClient } from '@/api/client'
 import { useServices } from '@/hooks/useVendor'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import {
   X, Search, Plus, CalendarDays, Clock, Users, Building2,
-  Hourglass, AlertTriangle, CheckCircle, Zap, ExternalLink,
-  Loader2, Check, CalendarCheck2,
+  Hourglass, CheckCircle, Zap, ExternalLink,
+  Loader2, CalendarCheck2,
 } from 'lucide-react'
 import type { Customer } from '@/types'
 import { bookingModalUi as bm } from './bookingModalUi'
@@ -51,8 +51,6 @@ export interface CreateBookingModalProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 export function CreateBookingModal({
  preFill, onCreated, onClose }: CreateBookingModalProps) {
-  useEscapeToClose(onClose)
-
   const qc = useQueryClient()
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
 
@@ -216,39 +214,38 @@ export function CreateBookingModal({
   ]
 
   return (
-    <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
-      onClick={onClose}
-    >
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2">
       <div
-        className={`${bm.shell} w-full max-w-4xl max-h-[94vh] flex flex-col overflow-hidden`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Create Booking"
+        className={`${bm.shell} w-full max-w-6xl max-h-[calc(100dvh-1rem)] flex flex-col overflow-hidden`}
         onClick={e => e.stopPropagation()}
+        onPointerDown={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary to-emerald-700 px-6 py-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
-              <CalendarCheck2 className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white">Create Booking</h2>
-              <p className="text-primary-foreground/85 text-xs mt-0.5">Fill in the details below to confirm the appointment</p>
+        <div className="bg-gradient-to-r from-primary to-emerald-700 px-4 py-2 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <CalendarCheck2 className="w-4 h-4 text-white shrink-0" />
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-white">Create Booking</h2>
+              <p className="text-primary-foreground/80 text-[10px] truncate">Fill in details and pick a time slot</p>
             </div>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors">
-                <X className="w-4 h-4 text-white" />
+          <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="p-1 rounded-md bg-white/10 hover:bg-white/25 transition-colors">
+            <X className="w-3.5 h-3.5 text-white" />
           </button>
         </div>
 
         {/* Body — three columns */}
         <div className="flex-1 overflow-hidden flex min-h-0">
           {/* ── COL 1: Who & What ──────────────────────────────────────────── */}
-          <div className={`w-64 shrink-0 border-r border-border overflow-y-auto px-4 py-5 space-y-4 ${bm.colMuted}`}>
+          <div className={`w-56 shrink-0 overflow-y-auto px-3 py-3 space-y-2.5 ${bm.colMuted}`}>
             <p className={bm.sectionTitle}>Who &amp; What</p>
 
             {/* Customer */}
             <div>
-              <Label className={`${bm.fieldLabel} block mb-1.5`} required>Customer</Label>
+              <Label className={`${bm.fieldLabel} block mb-1`} required>Customer</Label>
               {selectedCustomer ? (
                 <div className="flex items-center gap-2 p-2 bg-accent border border-primary/30 rounded-xl">
                   <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
@@ -304,7 +301,7 @@ export function CreateBookingModal({
 
             {/* Service */}
             <div>
-              <Label className={`${bm.fieldLabel} block mb-1.5`} required>Service</Label>
+              <Label className={`${bm.fieldLabel} block mb-1`} required>Service</Label>
               <Select
                 value={selectedService}
                 onChange={handleServiceChange}
@@ -327,7 +324,7 @@ export function CreateBookingModal({
             {/* Who Serves */}
             {teamMembers.length > 0 && (
               <div>
-                <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
+                <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1`}>
                   <Users className="w-3 h-3 text-primary/70" /> Who Serves
                 </label>
                 <Select
@@ -347,7 +344,7 @@ export function CreateBookingModal({
             {/* Store/Location */}
             {stores.length > 1 && (
               <div>
-                <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
+                <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1`}>
                   <Building2 className="w-3 h-3 text-primary/70" /> Location
                 </label>
                 <Select
@@ -366,7 +363,7 @@ export function CreateBookingModal({
 
             {/* Payment */}
             <div>
-              <Label className={`${bm.fieldLabel} block mb-1.5`}>Payment</Label>
+              <Label className={`${bm.fieldLabel} block mb-1`}>Payment</Label>
               <Select
                 value={paymentMethod}
                 onChange={setPaymentMethod}
@@ -384,10 +381,10 @@ export function CreateBookingModal({
 
             {/* Notes */}
             <div>
-              <Label className={`${bm.fieldLabel} block mb-1.5`}>Notes</Label>
+              <Label className={`${bm.fieldLabel} block mb-1`}>Notes</Label>
               <textarea
                 className={bm.textarea}
-                rows={3}
+                rows={2}
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 placeholder="Any special instructions…"
@@ -396,30 +393,25 @@ export function CreateBookingModal({
           </div>
 
           {/* ── COL 2: When ────────────────────────────────────────────────── */}
-          <div className={`w-56 shrink-0 border-r border-border overflow-y-auto px-4 py-5 space-y-4 ${bm.colMuted}`}>
+          <div className={`w-48 shrink-0 overflow-y-auto px-3 py-3 space-y-2.5 ${bm.colMain}`}>
             <p className={bm.sectionTitle}>When</p>
 
             {/* Date */}
             <div>
-              <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
+              <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1`}>
                 <CalendarDays className="w-3 h-3 text-primary/70" /> Date *
               </label>
               <input type="date" value={bookingDate} min={today}
                 onChange={e => setBookingDate(e.target.value)}
                 className={bm.input} />
-              {bookingDate && (
-                <p className={`${bm.hint} mt-1`}>
-                  {new Date(bookingDate + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short' })}
-                </p>
-              )}
             </div>
 
             {/* Start + End time */}
             <div>
-              <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
+              <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1`}>
                 <Clock className="w-3 h-3 text-primary/70" /> Time Slot
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 <div>
                   <p className={`${bm.hint} mb-0.5`}>Start</p>
                   <input type="time" value={startTime} onChange={e => handleStartChange(e.target.value)}
@@ -433,48 +425,20 @@ export function CreateBookingModal({
               </div>
               {svcDuration > 0 && startTime && (
                 <button type="button" onClick={() => setEndTime(minsT(Math.min(tMins(startTime) + svcDuration, 23*60+59)))}
-                  className="mt-1.5 flex items-center gap-1 text-xs text-primary hover:text-primary font-medium">
+                  className="mt-1 flex items-center gap-1 text-[10px] text-primary font-medium">
                   <Zap className="w-3 h-3" /> Auto-fill ({fmtDur(svcDuration)})
                 </button>
               )}
-            </div>
-
-            {/* Slot status */}
-            {selectedDuration > 0 && (
-              <div className={`rounded-xl border px-3 py-2.5 ${hasConflict ? bm.conflictAlert : bm.availableAlert}`}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  {hasConflict
-                    ? <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                    : <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />}
-                  <span className={`text-xs font-bold uppercase tracking-wide ${hasConflict ? bm.conflictTitle : bm.availableTitle}`}>
-                    {hasConflict ? 'Time Conflict' : 'Slot Available'}
-                  </span>
-                </div>
-                <p className={`text-xs font-medium ${hasConflict ? bm.conflictBody : bm.availableBody}`}>
-                  {fmt12(startTime)} – {fmt12(endTime)}
+              {selectedDuration > 0 && (
+                <p className={cn('mt-1 text-[10px] font-medium', hasConflict ? bm.conflictTitle : bm.availableTitle)}>
+                  {hasConflict ? 'Time conflict' : `${fmt12(startTime)} – ${fmt12(endTime)} · ${fmtDur(selectedDuration)}`}
                 </p>
-                <p className={`text-xs mt-0.5 ${hasConflict ? bm.conflictHint : bm.availableHint}`}>
-                  {hasConflict ? 'Overlaps an existing booking' : fmtDur(selectedDuration)}
-                </p>
-              </div>
-            )}
-
-            {/* Ready checklist */}
-            <div className={bm.checklist}>
-              <p className={bm.checklistTitle}>Ready?</p>
-              {readyChecks.map(item => (
-                <div key={item.label} className="flex items-center gap-2">
-                  <div className={item.ok ? bm.checklistDone : bm.checklistPending}>
-                    {item.ok && <Check className="w-2 h-2 text-white" />}
-                  </div>
-                  <span className={item.ok ? bm.checklistTextDone : bm.checklistTextPending}>{item.label}</span>
-                </div>
-              ))}
+              )}
             </div>
           </div>
 
           {/* ── COL 3: Availability ─────────────────────────────────────────── */}
-          <div className={`flex-1 min-w-0 overflow-y-auto px-4 py-5 space-y-4 ${bm.colMain}`}>
+          <div className={`flex-1 min-w-0 overflow-y-auto px-3 py-3 space-y-2.5 ${bm.colMain}`}>
             <div className="flex items-center justify-between">
               <p className={`${bm.sectionTitle} mb-0`}>Availability</p>
               {dateSlotsLoading
@@ -523,7 +487,7 @@ export function CreateBookingModal({
             )}
 
             {/* Slot list */}
-            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
+            <div className="space-y-1 max-h-48 overflow-y-auto pr-0.5">
               {!bookingDate && (
                 <div className={bm.emptyCol}>
                   <CalendarDays className="w-8 h-8 text-muted-foreground/40 mb-2" />
@@ -573,22 +537,19 @@ export function CreateBookingModal({
         </div>
 
         {/* Footer */}
-        <div className={`${bm.footer} py-4`}>
-          <Button variant="cancel" className="h-10 px-5" onClick={onClose} disabled={creating}>
-            Cancel
-          </Button>
+        <div className={bm.footer}>
+          <div className="flex items-center gap-1 shrink-0">
+            {readyChecks.map(item => (
+              <span key={item.label} title={item.label} className={item.ok ? bm.readyDotDone : bm.readyDotPending} />
+            ))}
+          </div>
           <div className="flex-1" />
-          {/* Summary pills */}
-          <div className="hidden sm:flex items-center gap-2 flex-wrap">
+          <div className="hidden sm:flex items-center gap-1.5 flex-wrap">
             {selectedCustomer && (
-              <span className={bm.summaryPill}>
-                {selectedCustomer.full_name}
-              </span>
+              <span className={bm.summaryPill}>{selectedCustomer.full_name}</span>
             )}
             {selectedSvc && (
-              <span className={bm.summaryPill}>
-                {selectedSvc.name as string}
-              </span>
+              <span className={bm.summaryPill}>{selectedSvc.name as string}</span>
             )}
             {bookingDate && (
               <span className={bm.summaryPill}>
@@ -597,16 +558,19 @@ export function CreateBookingModal({
               </span>
             )}
           </div>
+          <Button variant="cancel" className="h-8 px-3 text-xs" onClick={onClose} disabled={creating}>
+            Cancel
+          </Button>
           <Button
-            className="h-10 px-6 bg-primary hover:bg-primary/90 font-semibold gap-2 min-w-[160px]"
+            className="h-8 px-4 bg-primary hover:bg-primary/90 font-semibold gap-1.5 text-xs min-w-[8rem]"
             disabled={!selectedCustomer || !selectedService || !bookingDate || creating}
             onClick={handleCreate}
           >
-            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
             {creating ? 'Creating…' : 'Create Booking'}
           </Button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

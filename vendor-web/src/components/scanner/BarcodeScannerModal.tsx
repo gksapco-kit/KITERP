@@ -213,7 +213,7 @@ export function BarcodeScannerModal({
   if (!open) return null
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
       <div className="relative bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
         {/* Header */}

@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Clock, Trash2, X } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
 import {
   useActivityConfirmations,
@@ -15,6 +15,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import type { ActivityConfirmationOut } from '@/api/controlling'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const CONFIRMATION_TYPES = ['labor', 'machine', 'setup', 'other']
 
 interface CreateForm {
@@ -39,8 +40,6 @@ export default function ActivityConfirmationsPage() {
   const [toDate, setToDate] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [error, setError] = useState('')
-
-  useEscapeToClose(() => setShowCreate(false), showCreate)
 
   const activeCo = useMemo(
     () => companyId || companies.find(c => c.is_default)?.id || companies[0]?.id || '',
@@ -101,7 +100,7 @@ export default function ActivityConfirmationsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this activity confirmation?')) return
+    if (!await askConfirm('Delete this activity confirmation?')) return
     try {
       await deleteMut.mutateAsync(id)
     } catch (err: unknown) {
@@ -114,20 +113,19 @@ export default function ActivityConfirmationsPage() {
   const totalCost = confirmations.reduce((s, c) => s + parseFloat((c as ActivityConfirmationOut).total_cost), 0)
 
   return (
-    <div className="p-6 max-w-7xl space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/controlling" className="text-gray-400 hover:text-gray-600">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Activity Confirmations</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Time entry and actual activity cost confirmation for orders</p>
-        </div>
+    <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Time entry and activity cost confirmation for orders
+          {' · '}
+          <Link to="/controlling" className="text-primary hover:underline">Controlling</Link>
+        </p>
         <button
+          type="button"
           onClick={() => setShowCreate(true)}
-          className="ml-auto flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 text-sm font-medium"
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
         >
-          <Plus className="w-4 h-4" /> Post Confirmation
+          <Plus className="h-3.5 w-3.5" /> Post Confirmation
         </button>
       </div>
 
@@ -226,118 +224,112 @@ export default function ActivityConfirmationsPage() {
 
       {/* Create modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowCreate(false)}>
-          <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-border flex items-start justify-between gap-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-600" /> Post Activity Confirmation
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowCreate(false)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1" required>CO Order</Label>
-                <select value={form.order_id} onChange={e => setForm(f => ({ ...f, order_id: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required>
-                  <option value="">— select order —</option>
-                  {(orders as Array<{ id: string; order_no: string; title?: string }>).map(o => (
-                    <option key={o.id} value={o.id}>{o.order_no} {o.title ? `— ${o.title}` : ''}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+        <ModalOverlay onClose={() => setShowCreate(false)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-lg max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
+            <ModalHeader
+              title="Post Activity Confirmation"
+              onClose={() => setShowCreate(false)}
+              className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+            />
+            <form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Confirmation Type</Label>
-                  <select value={form.confirmation_type}
-                    onChange={e => setForm(f => ({ ...f, confirmation_type: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                    {CONFIRMATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Activity Type</Label>
-                  <select value={form.activity_type_id}
-                    onChange={e => setForm(f => ({ ...f, activity_type_id: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                    <option value="">— optional —</option>
-                    {(activityTypes as Array<{ id: string; code: string; name: string }>).map(a => (
-                      <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>CO Order</Label>
+                  <select value={form.order_id} onChange={e => setForm(f => ({ ...f, order_id: e.target.value }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" required>
+                    <option value="">— select order —</option>
+                    {(orders as Array<{ id: string; order_no: string; title?: string }>).map(o => (
+                      <option key={o.id} value={o.id}>{o.order_no} {o.title ? `— ${o.title}` : ''}</option>
                     ))}
                   </select>
                 </div>
-              </div>
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1" required>Confirmation Date</Label>
-                <input type="date" value={form.confirmation_date}
-                  onChange={e => setForm(f => ({ ...f, confirmation_date: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Qty Confirmed</Label>
-                  <input type="number" step="0.0001" value={form.qty_confirmed}
-                    onChange={e => setForm(f => ({ ...f, qty_confirmed: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Confirmation Type</Label>
+                    <select value={form.confirmation_type}
+                      onChange={e => setForm(f => ({ ...f, confirmation_type: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm">
+                      {CONFIRMATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Activity Type</Label>
+                    <select value={form.activity_type_id}
+                      onChange={e => setForm(f => ({ ...f, activity_type_id: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm">
+                      <option value="">— optional —</option>
+                      {(activityTypes as Array<{ id: string; code: string; name: string }>).map(a => (
+                        <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Hours</Label>
-                  <input type="number" step="0.001" value={form.hours_confirmed}
-                    onChange={e => setForm(f => ({ ...f, hours_confirmed: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>Confirmation Date</Label>
+                  <input type="date" value={form.confirmation_date}
+                    onChange={e => setForm(f => ({ ...f, confirmation_date: e.target.value }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" required />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Qty Confirmed</Label>
+                    <input type="number" step="0.0001" value={form.qty_confirmed}
+                      onChange={e => setForm(f => ({ ...f, qty_confirmed: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>Hours</Label>
+                    <input type="number" step="0.001" value={form.hours_confirmed}
+                      onChange={e => setForm(f => ({ ...f, hours_confirmed: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" required />
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Rate / Hour</Label>
+                    <input type="number" step="0.0001" value={form.rate_per_hour}
+                      onChange={e => setForm(f => ({ ...f, rate_per_hour: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Scrap Qty</Label>
+                    <input type="number" step="0.0001" value={form.scrap_qty}
+                      onChange={e => setForm(f => ({ ...f, scrap_qty: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Yield %</Label>
+                    <input type="number" step="0.01" min="0" max="100" value={form.yield_pct}
+                      onChange={e => setForm(f => ({ ...f, yield_pct: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
+                  </div>
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Rate / Hour</Label>
-                  <input type="number" step="0.0001" value={form.rate_per_hour}
-                    onChange={e => setForm(f => ({ ...f, rate_per_hour: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Narration</Label>
+                  <input value={form.narration} onChange={e => setForm(f => ({ ...f, narration: e.target.value }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                    placeholder="Optional notes…" />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Scrap Qty</Label>
-                  <input type="number" step="0.0001" value={form.scrap_qty}
-                    onChange={e => setForm(f => ({ ...f, scrap_qty: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Yield %</Label>
-                  <input type="number" step="0.01" min="0" max="100" value={form.yield_pct}
-                    onChange={e => setForm(f => ({ ...f, yield_pct: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
-                </div>
-              </div>
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">Narration</Label>
-                <input value={form.narration} onChange={e => setForm(f => ({ ...f, narration: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="Optional notes…" />
-              </div>
-              {form.hours_confirmed && form.rate_per_hour && (
-                <div className="rounded-lg bg-blue-50 text-blue-700 text-sm p-3">
-                  Computed total cost: <strong>{formatCurrency(parseFloat(form.hours_confirmed) * parseFloat(form.rate_per_hour))}</strong>
-                </div>
-              )}
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <div className="flex gap-3 pt-2">
+                {form.hours_confirmed && form.rate_per_hour && (
+                  <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700">
+                    Computed total cost: <strong>{formatCurrency(parseFloat(form.hours_confirmed) * parseFloat(form.rate_per_hour))}</strong>
+                  </div>
+                )}
+                {error && <p className="text-sm text-red-600">{error}</p>}
+              </ModalBody>
+              <ModalFooter className="border-0 px-4 py-2.5">
                 <button type="button" onClick={() => setShowCreate(false)}
-                  className="btn-cancel flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">
+                  className="btn-cancel h-8 rounded-md border border-border px-3 text-sm font-medium">
                   Cancel
                 </button>
                 <button type="submit" disabled={createMut.isPending}
-                  className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
+                  className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60">
                   {createMut.isPending ? 'Posting…' : 'Post Confirmation'}
                 </button>
-              </div>
+              </ModalFooter>
             </form>
-          </div>
-        </div>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

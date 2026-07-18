@@ -1,23 +1,18 @@
 import { type ReactNode, type FormEvent } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { onModalBackdropClick } from '@/lib/utils'
 import {
-  modalBodyPadClass,
-  modalBodyScrollClass,
-  modalCloseBtnClass,
-  modalFooterClass,
-  modalHeaderStickyClass,
-  modalOverlayCenterClass,
-  modalPanel2xlClass,
-  modalTitleClass,
-  modalWidthLg,
-} from '@/lib/modalUi'
+  ModalBody,
+  ModalCloseButton,
+  ModalFooter,
+  ModalOverlay,
+  ModalPanel,
+} from '@/components/ui/Modal'
+import { modalWidthLg } from '@/lib/modalUi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { TablePagination } from '@/components/table/TablePagination'
-import { Loader2, X, Search } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function CrmModal({
@@ -33,32 +28,45 @@ export function CrmModal({
   /** Override scroll/layout on the modal body (e.g. `!overflow-hidden` for split panes). */
   bodyClassName?: string
 }) {
-  useEscapeToClose(onClose)
-
   return (
-    <div data-kiterp-modal className={modalOverlayCenterClass} onClick={onModalBackdropClick(onClose)}>
-      <div
-        className={cn(modalPanel2xlClass, maxW)}
-        onClick={e => e.stopPropagation()}
+    <ModalOverlay
+      onClose={onClose}
+      className="z-[100] overflow-y-auto overscroll-contain bg-black/60 p-2 sm:p-3 md:p-4"
+    >
+      <ModalPanel
+        className={cn(
+          maxW,
+          'my-auto w-full max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1.5rem)] md:max-h-[calc(100dvh-2rem)] !rounded-lg',
+        )}
       >
-        <div className={cn(modalHeaderStickyClass, 'shrink-0')}>
-          <h2 className={cn(modalTitleClass, 'truncate')}>{title}</h2>
-          <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3">
+          {typeof title === 'string' ? (
+            <h2 className="min-w-0 truncate text-base font-semibold leading-none text-foreground">{title}</h2>
+          ) : (
+            <div className="min-w-0">{title}</div>
+          )}
+          <div className="flex shrink-0 items-center gap-2">
             {headerActions}
-            <button type="button" aria-label="Close" onClick={onClose} className={modalCloseBtnClass}>
-              <X className="w-5 h-5" />
-            </button>
+            <ModalCloseButton onClose={onClose} />
           </div>
         </div>
-        {/* Body and footer as siblings so the footer never scrolls away / clips */}
-        <div className={cn(footer ? modalBodyScrollClass : modalBodyPadClass, 'min-h-0 flex-1', bodyClassName)}>
+        {/* Scroll appears only when content exceeds the live viewport height */}
+        <ModalBody
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3 pt-0',
+            '[scrollbar-gutter:stable]',
+            bodyClassName,
+          )}
+        >
           {children}
-        </div>
+        </ModalBody>
         {footer ? (
-          <div className={cn(modalFooterClass, 'rounded-b-2xl shrink-0')}>{footer}</div>
+          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-3">
+            {footer}
+          </ModalFooter>
         ) : null}
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -66,8 +74,8 @@ export function Field({
   label, children, required, className,
 }: { label: string; children: React.ReactNode; required?: boolean; className?: string }) {
   return (
-    <div className={className}>
-      <Label required={required}>{label}</Label>
+    <div className={cn('space-y-0.5', className)}>
+      <Label required={required} className="text-xs leading-none text-muted-foreground">{label}</Label>
       {children}
     </div>
   )
@@ -128,9 +136,11 @@ export function Pager({
 
 export function LoadingRow({ cols }: { cols: number }) {
   return (
-    <tr><td colSpan={cols} className="px-6 py-12 text-center">
-      <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
-    </td></tr>
+    <tr>
+      <td colSpan={cols} className="px-6 py-12 text-center">
+        <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+      </td>
+    </tr>
   )
 }
 
@@ -138,9 +148,11 @@ export function EmptyRow({
   cols, message, action,
 }: { cols: number; message: string; action?: ReactNode }) {
   return (
-    <tr><td colSpan={cols} className="px-6 py-16 text-center">
-      <p className="text-sm text-muted-foreground mb-3">{message}</p>
-      {action}
-    </td></tr>
+    <tr>
+      <td colSpan={cols} className="px-6 py-16 text-center">
+        <p className="mb-3 text-sm text-muted-foreground">{message}</p>
+        {action}
+      </td>
+    </tr>
   )
 }

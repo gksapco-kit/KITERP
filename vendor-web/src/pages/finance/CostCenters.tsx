@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import {
   useCompanies,
@@ -13,6 +12,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
+import { askConfirm } from '@/components/common/ConfirmProvider'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -101,7 +102,6 @@ export default function CostCenters() {
 
   // ── Dialog state ──
   const [ccDialog, setCcDialog] = useState<{ open: boolean; editing?: CostCenter }>({ open: false })
-  useEscapeToClose(() => setCcDialog({ open: false }), ccDialog.open)
   const [ccForm, setCcForm] = useState<CCForm>(EMPTY_FORM)
   const [dialogTab, setDialogTab] = useState<DialogTab>('details')
   const [actionMenu, setActionMenu] = useState<string | null>(null)
@@ -199,7 +199,7 @@ export default function CostCenters() {
   }
 
   async function deleteOne(cc: CostCenter) {
-    if (!confirm(`Deactivate cost center "${cc.name}"?`)) return
+    if (!(await askConfirm(`Deactivate cost center "${cc.name}"?`))) return
     try {
       await deleteCC.mutateAsync(cc.id)
       toast.success('Cost center deactivated')
@@ -214,24 +214,19 @@ export default function CostCenters() {
   // ── Render ──
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl mx-auto">
+    <div className="mx-auto max-w-6xl space-y-3 p-3 md:p-4">
 
-      {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Layers className="w-6 h-6 text-primary" />
-            Cost Centers
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage Cost Centers Grouped By Department And Assigned To Business Units
-          </p>
-        </div>
+      {/* Page header — title already shown in the top bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Grouped by department and assigned to business units
+        </p>
         <button
+          type="button"
           onClick={openNewCC}
-          className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
         >
-          <Plus className="w-4 h-4" /> New Cost Center
+          <Plus className="h-3.5 w-3.5" /> New Cost Center
         </button>
       </div>
 
@@ -406,52 +401,46 @@ export default function CostCenters() {
 
       {/* ── Cost Center dialog ── */}
       {ccDialog.open && (
-        <div data-kiterp-modal
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
-          onClick={() => setCcDialog({ open: false })}
-        >
-          <div
-            className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-              <div>
-                <h2 className="font-semibold text-foreground text-base">
-                  {ccDialog.editing ? 'Edit Cost Center' : 'New Cost Center'}
-                </h2>
-                {ccDialog.editing && (
-                  <p className="text-xs text-muted-foreground mt-0.5 font-mono">{ccDialog.editing.code}</p>
-                )}
-              </div>
-              <button type="button" aria-label="Close" onClick={() => setCcDialog({ open: false })} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+        <ModalOverlay onClose={() => setCcDialog({ open: false })} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-lg max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
+            <ModalHeader
+              title={
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold leading-none text-foreground">
+                    {ccDialog.editing ? 'Edit Cost Center' : 'New Cost Center'}
+                  </h2>
+                  {ccDialog.editing && (
+                    <p className="mt-1 font-mono text-[11px] text-muted-foreground">{ccDialog.editing.code}</p>
+                  )}
+                </div>
+              }
+              onClose={() => setCcDialog({ open: false })}
+              className="border-0 px-4 py-2.5"
+            />
 
             {/* Tabs */}
-            <div className="flex border-b border-border px-6 shrink-0">
+            <div className="flex shrink-0 gap-1 px-4">
               {([
                 { id: 'details', label: 'Details', icon: FileText },
                 { id: 'info', label: 'Info & History', icon: Clock },
               ] as { id: DialogTab; label: string; icon: React.ComponentType<{ className?: string }> }[]).map(tab => (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setDialogTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                     dialogTab === tab.id
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
                   }`}
                 >
-                  <tab.icon className="w-3.5 h-3.5" />
+                  <tab.icon className="h-3.5 w-3.5" />
                   {tab.label}
                 </button>
               ))}
             </div>
 
-            {/* Body — scrollable */}
-            <div className="overflow-y-auto flex-1">
+            <ModalBody className="overflow-y-auto px-0 pt-1">
 
               {/* ── Details tab ── */}
               {dialogTab === 'details' && (
@@ -643,31 +632,32 @@ export default function CostCenters() {
               {/* Info tab when creating new */}
               {dialogTab === 'info' && !ccDialog.editing && (
                 <div className="px-6 py-10 text-center text-muted-foreground">
-                  <Clock className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  <Clock className="mx-auto mb-3 h-10 w-10 opacity-30" />
                   <p className="text-sm">History will be available after the cost center is created.</p>
                 </div>
               )}
-            </div>
+            </ModalBody>
 
-            {/* Footer */}
-            <div className="modal-footer-focus-safe flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/30 rounded-b-2xl shrink-0">
+            <ModalFooter className="border-0 px-4 py-2.5">
               <button
+                type="button"
                 onClick={() => setCcDialog({ open: false })}
-                className="btn-cancel px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg transition-colors hover:text-foreground hover:bg-muted/50"
+                className="btn-cancel h-8 rounded-md border border-border px-3 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={saveCC}
                 disabled={isSaving}
-                className="btn-focus-solid flex items-center gap-1.5 px-5 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium transition-colors"
+                className="btn-focus-solid flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
               >
-                {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                 {ccDialog.editing ? 'Update' : 'Create'}
               </button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
 
     </div>

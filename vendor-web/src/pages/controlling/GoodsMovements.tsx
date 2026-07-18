@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Plus, RotateCcw, Package, ArrowDownToLine, ArrowUpFromLine, X } from 'lucide-react'
+import { Plus, RotateCcw, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
 import {
   useGoodsMovements,
@@ -57,8 +57,6 @@ export default function GoodsMovementsPage() {
   const [reverseId, setReverseId] = useState<string | null>(null)
   const [reverseReason, setReverseReason] = useState('')
   const [error, setError] = useState('')
-
-  useEscapeToClose(() => setShowCreate(false), showCreate)
 
   const activeCo = useMemo(
     () => companyId || companies.find(c => c.is_default)?.id || companies[0]?.id || '',
@@ -128,20 +126,19 @@ export default function GoodsMovementsPage() {
   const total101 = movements.filter(m => m.movement_type === 'fg_receipt').reduce((s, m) => s + parseFloat(m.total_cost), 0)
 
   return (
-    <div className="p-6 max-w-7xl space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/controlling" className="text-gray-400 hover:text-gray-600">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Goods Movements</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Component issues, FG receipts, and returns</p>
-        </div>
+    <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Component issues, FG receipts, and returns
+          {' · '}
+          <Link to="/controlling" className="text-primary hover:underline">Controlling</Link>
+        </p>
         <button
+          type="button"
           onClick={() => setShowCreate(true)}
-          className="ml-auto flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 text-sm font-medium"
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
         >
-          <Plus className="w-4 h-4" /> Post Movement
+          <Plus className="h-3.5 w-3.5" /> Post Movement
         </button>
       </div>
 
@@ -247,142 +244,141 @@ export default function GoodsMovementsPage() {
 
       {/* Create modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowCreate(false)}>
-          <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-border flex items-start justify-between gap-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Package className="w-5 h-5 text-primary" /> Post Goods Movement
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowCreate(false)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1" required>Movement Type</Label>
-                <select
-                  value={form.movement_type}
-                  onChange={e => setForm(f => ({ ...f, movement_type: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  required
-                >
-                  {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1" required>CO Order</Label>
-                <select
-                  value={form.order_id}
-                  onChange={e => setForm(f => ({ ...f, order_id: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  required
-                >
-                  <option value="">— select order —</option>
-                  {(orders as Array<{ id: string; order_no: string; title?: string }>).map(o => (
-                    <option key={o.id} value={o.id}>{o.order_no} {o.title ? `— ${o.title}` : ''}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+        <ModalOverlay onClose={() => setShowCreate(false)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-lg max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
+            <ModalHeader
+              title="Post Goods Movement"
+              onClose={() => setShowCreate(false)}
+              className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+            />
+            <form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Posting Date</Label>
-                  <input type="date" value={form.posting_date}
-                    onChange={e => setForm(f => ({ ...f, posting_date: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>Movement Type</Label>
+                  <select
+                    value={form.movement_type}
+                    onChange={e => setForm(f => ({ ...f, movement_type: e.target.value }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                    required
+                  >
+                    {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">UoM</Label>
-                  <input value={form.uom} onChange={e => setForm(f => ({ ...f, uom: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>CO Order</Label>
+                  <select
+                    value={form.order_id}
+                    onChange={e => setForm(f => ({ ...f, order_id: e.target.value }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                    required
+                  >
+                    <option value="">— select order —</option>
+                    {(orders as Array<{ id: string; order_no: string; title?: string }>).map(o => (
+                      <option key={o.id} value={o.id}>{o.order_no} {o.title ? `— ${o.title}` : ''}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">Description</Label>
-                <input value={form.description}
-                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="Component name / item description" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Quantity</Label>
-                  <input type="number" step="0.0001" value={form.qty}
-                    onChange={e => setForm(f => ({ ...f, qty: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" required />
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Unit Cost</Label>
-                  <input type="number" step="0.0001" value={form.unit_cost}
-                    onChange={e => setForm(f => ({ ...f, unit_cost: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Storage Location</Label>
-                  <input value={form.storage_location}
-                    onChange={e => setForm(f => ({ ...f, storage_location: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>Posting Date</Label>
+                    <input type="date" value={form.posting_date}
+                      onChange={e => setForm(f => ({ ...f, posting_date: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" required />
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">UoM</Label>
+                    <input value={form.uom} onChange={e => setForm(f => ({ ...f, uom: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
+                  </div>
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Batch / Lot No</Label>
-                  <input value={form.batch_no}
-                    onChange={e => setForm(f => ({ ...f, batch_no: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Description</Label>
+                  <input value={form.description}
+                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                    placeholder="Component name / item description" />
                 </div>
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <div className="flex gap-3 pt-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>Quantity</Label>
+                    <input type="number" step="0.0001" value={form.qty}
+                      onChange={e => setForm(f => ({ ...f, qty: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" required />
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Unit Cost</Label>
+                    <input type="number" step="0.0001" value={form.unit_cost}
+                      onChange={e => setForm(f => ({ ...f, unit_cost: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Storage Location</Label>
+                    <input value={form.storage_location}
+                      onChange={e => setForm(f => ({ ...f, storage_location: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Batch / Lot No</Label>
+                    <input value={form.batch_no}
+                      onChange={e => setForm(f => ({ ...f, batch_no: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
+                  </div>
+                </div>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+              </ModalBody>
+              <ModalFooter className="border-0 px-4 py-2.5">
                 <button type="button" onClick={() => setShowCreate(false)}
-                  className="btn-cancel flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">
+                  className="btn-cancel h-8 rounded-md border border-border px-3 text-sm font-medium">
                   Cancel
                 </button>
                 <button type="submit" disabled={createMut.isPending}
-                  className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
+                  className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60">
                   {createMut.isPending ? 'Posting…' : 'Post Movement'}
                 </button>
-              </div>
+              </ModalFooter>
             </form>
-          </div>
-        </div>
+          </ModalPanel>
+        </ModalOverlay>
       )}
 
       {/* Reverse modal */}
       {reverseId && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-semibold text-gray-900">Reverse Goods Movement</h2>
-            <p className="text-sm text-gray-600">
-              This will mark the movement as reversed. Please provide a reason.
-            </p>
-            <textarea
-              value={reverseReason}
-              onChange={e => setReverseReason(e.target.value)}
-              rows={3}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              placeholder="Reason for reversal…"
+        <ModalOverlay onClose={() => setReverseId(null)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
+            <ModalHeader
+              title="Reverse Goods Movement"
+              onClose={() => setReverseId(null)}
+              className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
             />
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <div className="flex gap-3">
-              <button onClick={() => setReverseId(null)}
-                className="btn-cancel flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">
+            <ModalBody className="space-y-2 px-4 pb-1 pt-0">
+              <p className="text-sm text-muted-foreground">
+                This will mark the movement as reversed. Please provide a reason.
+              </p>
+              <textarea
+                value={reverseReason}
+                onChange={e => setReverseReason(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm"
+                placeholder="Reason for reversal…"
+              />
+              {error && <p className="text-sm text-red-600">{error}</p>}
+            </ModalBody>
+            <ModalFooter className="border-0 px-4 py-2.5">
+              <button type="button" onClick={() => setReverseId(null)}
+                className="btn-cancel h-8 rounded-md border border-border px-3 text-sm font-medium">
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleReverse}
                 disabled={!reverseReason.trim() || reverseMut.isPending}
-                className="flex-1 bg-amber-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-amber-700 disabled:opacity-60"
+                className="h-8 rounded-md bg-amber-600 px-3 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
               >
                 {reverseMut.isPending ? 'Reversing…' : 'Confirm Reversal'}
               </button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

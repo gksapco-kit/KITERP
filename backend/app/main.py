@@ -49,6 +49,7 @@ from app.database import (
     ensure_user_contact_change_request_table,
     ensure_storefront_contact_query_table,
     ensure_platform_job_role_table,
+    ensure_platform_career_application_table,
 )
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import CrmAuditMiddleware
@@ -106,6 +107,7 @@ async def lifespan(app: FastAPI):
     await ensure_user_contact_change_request_table()
     await ensure_storefront_contact_query_table()
     await ensure_platform_job_role_table()
+    await ensure_platform_career_application_table()
     await connect_redis()
     from app.services.email_service import email_is_configured, sendgrid_api_key
 

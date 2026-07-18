@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useBudgets, useCreateBudget, useBudgetVariance, useForecasts, useCreateForecast } from '@/hooks/useFinance'
-import { Plus, BarChart3, X } from 'lucide-react'
+import { Plus, BarChart3 } from 'lucide-react'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
@@ -26,23 +26,27 @@ export default function BudgetsForecast() {
 
   const closeNewBudget = () => setShowNewBudget(false)
 
-  useEscapeToClose(closeNewBudget, showNewBudget)
-
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Budgets & Forecasts</h1>
+    <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Budgets, variance analysis, and forecasts
+        </p>
         {tab === 'Budgets' && (
-          <button onClick={() => setShowNewBudget(true)} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
-            <Plus className="w-4 h-4" /> New Budget
+          <button
+            type="button"
+            onClick={() => setShowNewBudget(true)}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" /> New Budget
           </button>
         )}
       </div>
 
       <div className="flex gap-2">
         {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm border ${tab === t ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+          <button key={t} type="button" onClick={() => setTab(t)}
+            className={`rounded-lg border px-4 py-2 text-sm ${tab === t ? 'border-primary bg-primary text-white' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
             {t}
           </button>
         ))}
@@ -52,9 +56,9 @@ export default function BudgetsForecast() {
         <div className="space-y-3">
           {budgetsLoading ? <p className="text-sm text-gray-500">Loading…</p> :
            (budgets as any[]).length === 0 ? (
-            <div className="text-center py-12 text-gray-500 text-sm bg-white rounded-xl border border-gray-200">No budgets yet.</div>
+            <div className="rounded-xl border border-gray-200 bg-white py-12 text-center text-sm text-gray-500">No budgets yet.</div>
           ) : (budgets as any[]).map((b: any) => (
-            <div key={b.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between hover:border-primary/40 cursor-pointer"
+            <div key={b.id} className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-white p-4 hover:border-primary/40"
               onClick={() => { setSelectedBudgetId(b.id); setTab('Variance') }}>
               <div>
                 <p className="font-semibold text-gray-800">{b.name}</p>
@@ -64,7 +68,7 @@ export default function BudgetsForecast() {
                 <p className="text-sm font-medium text-green-600">Income: {fmt(b.total_income || 0)}</p>
                 <p className="text-sm font-medium text-red-600">Expense: {fmt(b.total_expense || 0)}</p>
               </div>
-              <BarChart3 className="w-5 h-5 text-gray-400 ml-4" />
+              <BarChart3 className="ml-4 h-5 w-5 text-gray-400" />
             </div>
           ))}
         </div>
@@ -72,20 +76,20 @@ export default function BudgetsForecast() {
 
       {tab === 'Variance' && (
         <div className="space-y-4">
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex flex-wrap gap-2">
             {(budgets as any[]).map((b: any) => (
-              <button key={b.id} onClick={() => setSelectedBudgetId(b.id)}
-                className={`px-3 py-1.5 rounded-full text-xs border ${selectedBudgetId === b.id ? 'bg-primary/15 border-primary/60 text-primary' : 'border-gray-300 text-gray-600'}`}>
+              <button key={b.id} type="button" onClick={() => setSelectedBudgetId(b.id)}
+                className={`rounded-full border px-3 py-1.5 text-xs ${selectedBudgetId === b.id ? 'border-primary/60 bg-primary/15 text-primary' : 'border-gray-300 text-gray-600'}`}>
                 {b.name}
               </button>
             ))}
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="border-b bg-gray-50">
                 <tr>
                   {['Account', 'Budget', 'Actual', 'Variance', 'Var %'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -119,66 +123,62 @@ export default function BudgetsForecast() {
         <div className="space-y-3">
           {forecastsLoading ? <p className="text-sm text-gray-500">Loading…</p> :
            (forecasts as any[]).length === 0 ? (
-            <div className="text-center py-12 text-gray-500 text-sm bg-white rounded-xl border border-gray-200">No forecasts yet.</div>
+            <div className="rounded-xl border border-gray-200 bg-white py-12 text-center text-sm text-gray-500">No forecasts yet.</div>
           ) : (forecasts as any[]).map((f: any) => (
-            <div key={f.id} className="bg-white rounded-xl border border-gray-200 p-4">
+            <div key={f.id} className="rounded-xl border border-gray-200 bg-white p-4">
               <p className="font-semibold text-gray-800">{f.name}</p>
               <p className="text-xs text-gray-500 capitalize">{f.forecast_type} · {f.method} · {f.status}</p>
-              <p className="text-xs text-gray-400 mt-1">Base: {f.base_date} · {f.months_ahead} months ahead</p>
+              <p className="mt-1 text-xs text-gray-400">Base: {f.base_date} · {f.months_ahead} months ahead</p>
             </div>
           ))}
         </div>
       )}
 
       {showNewBudget && (
-        <div data-kiterp-modal
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
-          onClick={closeNewBudget}
-        >
-          <div
-            className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="font-semibold text-lg">New Budget</h2>
+        <ModalOverlay onClose={closeNewBudget} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
+            <ModalHeader
+              title="New Budget"
+              onClose={closeNewBudget}
+              className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+            />
+            <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
+              {[
+                { label: 'Budget Name', key: 'name' },
+                { label: 'Fiscal Year ID', key: 'fiscal_year_id' },
+                { label: 'Notes', key: 'notes' },
+              ].map(({ label, key }) => (
+                <div key={key}>
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">{label}</Label>
+                  <input
+                    value={(budgetForm as any)[key]}
+                    onChange={e => setBudgetForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              ))}
+              <div>
+                <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Scope</Label>
+                <Select
+                  value={budgetForm.scope}
+                  onChange={v => setBudgetForm(f => ({ ...f, scope: v }))}
+                  options={['company', 'store', 'department'].map(s => ({ value: s, label: s }))}
+                />
+              </div>
+            </ModalBody>
+            <ModalFooter className="border-0 px-4 py-2.5">
+              <button type="button" onClick={closeNewBudget} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
               <button
                 type="button"
-                onClick={closeNewBudget}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            {[
-              { label: 'Budget Name', key: 'name' },
-              { label: 'Fiscal Year ID', key: 'fiscal_year_id' },
-              { label: 'Notes', key: 'notes' },
-            ].map(({ label, key }) => (
-              <div key={key}>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
-                <input value={(budgetForm as any)[key]} onChange={e => setBudgetForm(f => ({ ...f, [key]: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-              </div>
-            ))}
-            <div>
-              <Label className="block text-xs font-medium text-gray-600 mb-1">Scope</Label>
-              <Select
-                value={budgetForm.scope}
-                onChange={v => setBudgetForm(f => ({ ...f, scope: v }))}
-                options={['company', 'store', 'department'].map(s => ({ value: s, label: s }))}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={closeNewBudget} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
-              <button onClick={() => createBudgetMut.mutate(budgetForm, { onSuccess: closeNewBudget })}
+                onClick={() => createBudgetMut.mutate(budgetForm, { onSuccess: closeNewBudget })}
                 disabled={createBudgetMut.isPending}
-                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+                className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+              >
                 {createBudgetMut.isPending ? 'Saving…' : 'Save'}
               </button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

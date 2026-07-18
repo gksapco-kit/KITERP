@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { formLabelClass } from '@/components/common/FormSectionNav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,6 +35,9 @@ export default function AccrualsPage() {
     status: '', channel: '', date_from: '', date_to: '',
   })
   const [showFilters, setShowFilters] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<
+    null | { kind: 'bulk-approve' } | { kind: 'reverse'; id: string }
+  >(null)
 
   const params = { page, size: 20, ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) }
   const { data, isLoading } = useAccruals(params)
@@ -50,18 +54,30 @@ export default function AccrualsPage() {
     catch { toast.error('Failed to approve') }
   }
 
-  const handleReverse = async (id: string) => {
-    if (!confirm('Reverse this accrual? This cannot be undone.')) return
-    try { await reverse.mutateAsync(id); toast.success('Reversed') }
-    catch { toast.error('Failed to reverse') }
+  const handleReverse = (id: string) => {
+    setConfirmAction({ kind: 'reverse', id })
   }
 
-  const handleBulkApprove = async () => {
-    if (!confirm('Approve all accrued accruals?')) return
+  const handleBulkApprove = () => {
+    setConfirmAction({ kind: 'bulk-approve' })
+  }
+
+  const confirmBusy = reverse.isPending || bulkApprove.isPending
+
+  const runConfirmedAction = async () => {
+    if (!confirmAction) return
     try {
-      const r = await bulkApprove.mutateAsync(Object.fromEntries(Object.entries(filters).filter(([, v]) => v)))
-      toast.success(`Approved ${r.approved} accruals`)
-    } catch { toast.error('Bulk approve failed') }
+      if (confirmAction.kind === 'bulk-approve') {
+        const r = await bulkApprove.mutateAsync(Object.fromEntries(Object.entries(filters).filter(([, v]) => v)))
+        toast.success(`Approved ${r.approved} accruals`)
+      } else {
+        await reverse.mutateAsync(confirmAction.id)
+        toast.success('Reversed')
+      }
+      setConfirmAction(null)
+    } catch {
+      toast.error(confirmAction.kind === 'bulk-approve' ? 'Bulk approve failed' : 'Failed to reverse')
+    }
   }
 
   const fmtCurrency = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
@@ -197,6 +213,27 @@ export default function AccrualsPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmAction?.kind === 'bulk-approve'}
+        title="Approve all accrued accruals?"
+        description="This will approve every accrual that matches your current filters and is still in accrued status."
+        confirmLabel="Approve all"
+        variant="success"
+        busy={confirmBusy}
+        onCancel={() => { if (!confirmBusy) setConfirmAction(null) }}
+        onConfirm={() => void runConfirmedAction()}
+      />
+      <ConfirmDialog
+        open={confirmAction?.kind === 'reverse'}
+        title="Reverse this accrual?"
+        description="This cannot be undone. The accrual will be reversed permanently."
+        confirmLabel="Reverse"
+        variant="danger"
+        busy={confirmBusy}
+        onCancel={() => { if (!confirmBusy) setConfirmAction(null) }}
+        onConfirm={() => void runConfirmedAction()}
+      />
     </div>
   )
 }

@@ -25,6 +25,7 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface WorkCenter {
@@ -127,7 +128,7 @@ function WorkCentersPanel({ companyId }: { companyId: string }) {
   }
 
   const del = async (id: string) => {
-    if (!confirm('Delete this work centre?')) return
+    if (!await askConfirm('Delete this work centre?')) return
     try { await deleteWc.mutateAsync(id); toast.success('Deleted') }
     catch { toast.error('Delete failed') }
   }
@@ -326,7 +327,7 @@ function RoutingOperationsEditor({ routing, companyId }: { routing: Routing; com
   }
 
   const delOp2 = async (opId: string) => {
-    if (!confirm('Remove this operation?')) return
+    if (!await askConfirm('Remove this operation?')) return
     try { await delOp.mutateAsync({ routingId: routing.id, opId }); toast.success('Removed') }
     catch { toast.error('Failed') }
   }
@@ -528,7 +529,7 @@ export default function RoutingPage() {
   }
 
   const delRouting = async (id: string) => {
-    if (!confirm('Delete this routing and all its operations?')) return
+    if (!await askConfirm('Delete this routing and all its operations?')) return
     try {
       await deleteR.mutateAsync(id)
       toast.success('Routing deleted')

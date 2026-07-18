@@ -48,6 +48,7 @@ import {
 import { adminApi, type AdminVendor, type AdminVendorUpdatePayload } from '@/api/admin.api'
 import { vendorAppBaseUrl, getCustomerStorefrontBaseUrl } from '@/lib/appUrls'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const LocationPicker = lazy(() => import('@/components/common/LocationPicker'))
 
 const statusColors: Record<string, string> = {
@@ -863,8 +864,8 @@ export default function VendorDetail() {
           vendor={vendor}
           canMutate={canMutate}
           onApprove={() => approveDomain.mutate()}
-          onReject={() => {
-            if (confirm('Revoke this domain request? The vendor will need to re-submit.')) {
+          onReject={async () => {
+            if (await askConfirm('Revoke this domain request? The vendor will need to re-submit.')) {
               rejectDomain.mutate()
             }
           }}

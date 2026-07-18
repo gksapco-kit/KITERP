@@ -10,7 +10,7 @@ import { useOrders, useUpdateOrderStatus, useOrderReservations } from '@/hooks/u
 import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { MRPReportModal } from '@/components/mrp/MRPReportModal'
 import type { MRPItem } from '@/components/mrp/MRPReportModal'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { TablePagination } from '@/components/table/TablePagination'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -83,6 +83,32 @@ const sourceFilters = [
   { label: 'Booking', value: 'booking', icon: CalendarDays },
   { label: 'Quotes', value: 'quote', icon: MessageSquare },
 ]
+
+const sourceFilterShort: Record<string, string> = {
+  '': 'All',
+  online: 'Online',
+  pos: 'POS',
+  booking: 'Booking',
+  quote: 'Quotes',
+}
+
+const statusFilterShort: Record<string, string> = {
+  '': 'All',
+  quote_requested: 'Quotes',
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  processing: 'Processing',
+  shipped: 'Shipped',
+  delivered: 'Delivered',
+  return_requested: 'Returns',
+  returned: 'Returned',
+  exchange_requested: 'Exchanges',
+  exchanged: 'Exchanged',
+  cancelled: 'Cancelled',
+}
+
+const chipBtn =
+  'h-7 px-2 text-[11px] font-medium'
 
 const bulkStatusOptions = [
   { label: 'Confirmed', value: 'confirmed' },
@@ -227,84 +253,93 @@ export default function Orders() {
   }, [bulkStatus, selectedIds, updateStatus])
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          <Button className="gap-1.5" onClick={() => navigate('/pos')}>
-            <Plus className="w-4 h-4" /> Create Order
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-bold text-foreground">Orders</h1>
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <Button size="sm" className="h-8 gap-1.5" onClick={() => navigate('/pos')}>
+            <Plus className="h-3.5 w-3.5" /> Create Order
           </Button>
-          <Button variant="outline" className="gap-1.5" onClick={() => navigate('/pos')}>
-            <Monitor className="w-4 h-4" /> Open POS
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => navigate('/pos')}>
+            <Monitor className="h-3.5 w-3.5" /> Open POS
           </Button>
-          <Button variant="outline" className="gap-1.5" onClick={() => setShowCreateBooking(true)}>
-            <CalendarDays className="w-4 h-4" /> Bookings
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setShowCreateBooking(true)}>
+            <CalendarDays className="h-3.5 w-3.5" /> Bookings
           </Button>
-          <Button
-            variant="outline"
-            className="gap-1.5"
-            onClick={() => navigate('/quotations')}
-          >
-            <MessageSquare className="w-4 h-4" /> Quotations
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => navigate('/quotations')}>
+            <MessageSquare className="h-3.5 w-3.5" /> Quotations
           </Button>
         </div>
       </div>
 
       <Card>
-        <CardContent className="p-3 sm:p-4 space-y-2">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <SalesScopeFilters
-              businessUnitId={storeFilter}
-              branchId={branchFilter}
-              salesAreaId={salesAreaFilter}
-              onBusinessUnitChange={(id) => { setStoreFilter(id); setBranchFilter(''); setSalesAreaFilter(''); setPage(1) }}
-              onBranchChange={(id) => { setBranchFilter(id); setSalesAreaFilter(''); setPage(1) }}
-              onSalesAreaChange={(id) => { setSalesAreaFilter(id); setPage(1) }}
-              itemClassName="w-full min-w-[7rem] sm:w-[8rem]"
-            />
-            <form
-              onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }}
-              className="flex gap-1.5 min-w-[10rem] flex-1 basis-[12rem] sm:basis-auto sm:flex-none sm:w-44 lg:w-52"
-            >
-              <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  data-kiterp-search-field
-                  placeholder="Search orders..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className="pl-10 h-9"
-                />
-              </div>
-              <Button type="submit" variant="outline" className="shrink-0 h-9">Search</Button>
-            </form>
-            <div className="flex gap-1 flex-wrap items-center">
-              <span className="text-xs font-medium text-gray-500 shrink-0">Source:</span>
+        <CardContent className="space-y-0 p-0">
+          <div className="space-y-2 border-b border-border/60 p-3">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <SalesScopeFilters
+                businessUnitId={storeFilter}
+                branchId={branchFilter}
+                salesAreaId={salesAreaFilter}
+                onBusinessUnitChange={(id) => { setStoreFilter(id); setBranchFilter(''); setSalesAreaFilter(''); setPage(1) }}
+                onBranchChange={(id) => { setBranchFilter(id); setSalesAreaFilter(''); setPage(1) }}
+                onSalesAreaChange={(id) => { setSalesAreaFilter(id); setPage(1) }}
+                itemClassName="w-full min-w-[9rem] sm:w-[10.5rem]"
+              />
+              <form
+                onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }}
+                className="flex min-w-[12rem] flex-1 basis-[14rem] gap-1.5 sm:basis-auto sm:flex-none sm:w-48 lg:w-56"
+              >
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    data-kiterp-search-field
+                    placeholder="Search orders..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    className="h-8 pl-10"
+                  />
+                </div>
+                <Button type="submit" variant="outline" className="h-8 shrink-0 px-3">Search</Button>
+              </form>
+            </div>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="mr-0.5 shrink-0 text-[11px] font-medium text-muted-foreground">Source</span>
               {sourceFilters.map((f) => (
-                <Button key={f.value} variant={sourceFilter === f.value ? 'default' : 'outline'} size="sm"
-                  onClick={() => { setSourceFilter(f.value); setPage(1) }} className="gap-1 h-8">
-                  <f.icon className="w-3.5 h-3.5" />{f.label}
+                <Button
+                  key={f.value}
+                  variant={sourceFilter === f.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setSourceFilter(f.value); setPage(1) }}
+                  className={cn('gap-1', chipBtn)}
+                  title={f.label}
+                >
+                  <f.icon className="h-3 w-3" />
+                  {sourceFilterShort[f.value] ?? f.label}
+                </Button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="mr-0.5 shrink-0 text-[11px] font-medium text-muted-foreground">Status</span>
+              {statusFilters.map((f) => (
+                <Button
+                  key={f.value}
+                  variant={statusFilter === f.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setStatusFilter(f.value); setPage(1) }}
+                  className={chipBtn}
+                  title={f.label}
+                >
+                  {statusFilterShort[f.value] ?? f.label}
                 </Button>
               ))}
             </div>
           </div>
-          <div className="flex gap-1 flex-wrap items-center">
-            <span className="text-xs font-medium text-gray-500 shrink-0">Status:</span>
-            {statusFilters.map((f) => (
-              <Button key={f.value} variant={statusFilter === f.value ? 'default' : 'outline'} size="sm"
-                onClick={() => { setStatusFilter(f.value); setPage(1) }} className="h-8">{f.label}</Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardContent className="p-0">
           {selectedIds.size > 0 && (
-            <div className="flex items-center gap-3 px-6 py-3 bg-blue-50 border-b">
-              <span className="text-sm font-medium text-blue-700">{selectedIds.size} selected</span>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleDownloadCsv}>
-                <Download className="w-3.5 h-3.5" />Download CSV
+            <div className="flex flex-wrap items-center gap-2 border-b border-border/60 bg-blue-50 px-3 py-2 dark:bg-blue-950/30">
+              <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{selectedIds.size} selected</span>
+              <Button variant="outline" size="sm" className="h-7 gap-1.5 px-2 text-xs" onClick={handleDownloadCsv}>
+                <Download className="h-3.5 w-3.5" />Download CSV
               </Button>
               <div className="flex items-center gap-1.5">
                 <Select
@@ -313,19 +348,20 @@ export default function Orders() {
                   options={selectOptionsWithBlank('Change Status…', bulkStatusOptions)}
                   placeholder="Change Status…"
                   aria-label="Bulk status change"
-                  className="h-8 min-w-[10rem]"
+                  className="h-7 min-w-[9rem] text-xs"
                 />
                 <Button
                   variant="default"
                   size="sm"
+                  className="h-7 px-2 text-xs"
                   disabled={!bulkStatus || updateStatus.isPending}
                   onClick={handleBulkStatusChange}
                 >
-                  {updateStatus.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Apply'}
+                  {updateStatus.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Apply'}
                 </Button>
               </div>
-              <Button variant="ghost" size="sm" className="ml-auto gap-1" onClick={() => setSelectedIds(new Set())}>
-                <X className="w-3.5 h-3.5" />Clear
+              <Button variant="ghost" size="sm" className="ml-auto h-7 gap-1 px-2 text-xs" onClick={() => setSelectedIds(new Set())}>
+                <X className="h-3.5 w-3.5" />Clear
               </Button>
             </div>
           )}
@@ -348,26 +384,26 @@ export default function Orders() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
           />
-          <ResizableTable tableId="orders-v3" defaultWidths={[48, 130, 150, 80, 90, 90, 100, 110, 100, 80]}>
+          <ResizableTable tableId="orders-v3" defaultWidths={[44, 118, 168, 82, 108, 88, 98, 128, 98, 76]}>
             <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="w-12 px-3 py-3 text-center align-middle">
+              <tr className="border-b border-border bg-muted/30">
+                <th className="w-11 px-2 py-2 text-center align-middle">
                   <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleSelectAll}
-                    className="mx-auto block h-4 w-4 rounded border-input accent-primary"
+                    className="mx-auto block h-3.5 w-3.5 rounded border-input accent-primary"
                   />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Order</TableColumnLabel></th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Customer</TableColumnLabel></th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Items</TableColumnLabel></th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Total</TableColumnLabel></th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Source</TableColumnLabel></th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Payment</TableColumnLabel></th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Status</TableColumnLabel></th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Date</TableColumnLabel></th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-muted-foreground"><TableColumnLabel>Action</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Order</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Customer</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Items</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Total</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Source</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Payment</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Action</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -386,15 +422,15 @@ export default function Orders() {
                     }
                     navigate(`/orders/${order.id}`)
                   })}>
-                  <td className="w-12 px-3 py-4 text-center align-middle">
+                  <td className="w-11 px-2 py-2.5 text-center align-middle">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(order.id)}
                       onChange={() => toggleRow(order.id)}
-                      className="mx-auto block h-4 w-4 rounded border-input accent-primary"
+                      className="mx-auto block h-3.5 w-3.5 rounded border-input accent-primary"
                     />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-2.5">
                     {order.source === 'booking' && (order.items?.[0] as unknown as Record<string, unknown>)?.booking_number ? (
                       <p className="font-mono text-sm font-medium text-primary">
                         {(order.items[0] as unknown as Record<string, unknown>).booking_number as string}
@@ -403,26 +439,26 @@ export default function Orders() {
                       <p className="text-sm font-medium text-foreground">{order.order_number}</p>
                     )}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-2.5">
                     <p className="text-sm font-medium text-foreground">{order.customer_name || 'Unknown'}</p>
                     <p className="text-xs text-muted-foreground">{order.customer_email || ''}</p>
                   </td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">
+                  <td className="px-3 py-2.5 text-sm text-muted-foreground">
                     <InlineEditCell readOnly readOnlyMessage="Item count is calculated from order lines" value={order.item_count} onSave={() => {}}>
                       {order.item_count} items
                     </InlineEditCell>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-foreground">
+                  <td className="px-3 py-2.5 text-sm font-medium text-foreground">
                     <InlineEditCell readOnly readOnlyMessage="Order total is calculated from line items" value={order.total} onSave={() => {}}>
                       {formatCurrency(order.total)}
                     </InlineEditCell>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-2.5">
                     <InlineEditCell readOnly readOnlyMessage="Order source is set when the order is created" value={src} onSave={() => {}}>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${SOURCE_BADGE[src] || 'bg-muted text-muted-foreground'}`}>{src}</span>
                     </InlineEditCell>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-2.5">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm text-foreground">{payLabel}</span>
                       {order.payment_status === 'pending_verification' && (
@@ -433,7 +469,7 @@ export default function Orders() {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-2.5">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <InlineEditCell
                         type="select"
@@ -447,8 +483,8 @@ export default function Orders() {
                       <OrderReservationBadge orderId={order.id} />
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">{formatDate(order.created_at)}</td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-3 py-2.5 text-sm text-muted-foreground">{formatDate(order.created_at)}</td>
+                  <td className="px-3 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"

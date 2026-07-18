@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import {
   useBills, useBill, useApAging, useCreateBill, usePostBill, useRecordVendorPayment, usePaymentRuns,
   useAccounts, useAssetCategories, useCreateAssetFromBill,
@@ -75,7 +76,7 @@ function CapitalizeAssetModal({ billLineId, defaultName, onClose }: {
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-semibold text-lg">Capitalize as Fixed Asset</h2>
@@ -153,7 +154,7 @@ function BillDetailDrawer({ billId, onClose }: { billId: string; onClose: () => 
   useEscapeToClose(onClose, true)
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex justify-end bg-black/40" onClick={onClose}>
       <div className="bg-card text-foreground h-full w-full max-w-xl shadow-2xl overflow-y-auto p-6 space-y-4" onClick={e => e.stopPropagation()}>
         {isLoading || !bill ? (
           <div className="flex items-center justify-between">
@@ -257,7 +258,6 @@ export default function AccountsPayable() {
   )
 
   const closeNewBill = () => { setShowNewBill(false); setLines([]) }
-  useEscapeToClose(closeNewBill, showNewBill)
 
   const accountOptions = [
     { value: '', label: '— Select GL Account —' },
@@ -280,12 +280,18 @@ export default function AccountsPayable() {
   }
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Accounts Payable</h1>
+    <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Vendor bills, AP aging, and payment runs
+        </p>
         {tab === 'Bills' && (
-          <button onClick={() => setShowNewBill(true)} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
-            <Plus className="w-4 h-4" /> New Bill
+          <button
+            type="button"
+            onClick={() => setShowNewBill(true)}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" /> New Bill
           </button>
         )}
       </div>
@@ -405,99 +411,123 @@ export default function AccountsPayable() {
       )}
 
       {showNewBill && (
-        <div data-kiterp-modal
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
-          onClick={closeNewBill}
-        >
-          <div
-            className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="font-semibold text-lg">New Vendor Bill</h2>
-              <button
-                type="button"
-                onClick={closeNewBill}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            {[
-              { label: 'Supplier ID', key: 'supplier_id' },
-              { label: 'Bill Number', key: 'bill_no' },
-              { label: 'Bill Date', key: 'bill_date', type: 'date' },
-              { label: 'Due Date', key: 'due_date', type: 'date' },
-              { label: 'Subtotal', key: 'subtotal', type: 'number' },
-              { label: 'Tax Amount', key: 'tax_amount', type: 'number' },
-              { label: 'Total', key: 'total', type: 'number' },
-              { label: 'Notes', key: 'notes' },
-            ].map(({ label, key, type }) => (
-              <div key={key}>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
-                <input type={type || 'text'} value={(billForm as any)[key]}
-                  onChange={e => setBillForm(f => ({ ...f, [key]: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              </div>
-            ))}
+        <ModalOverlay onClose={closeNewBill} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
+            <ModalHeader
+              title="New Vendor Bill"
+              onClose={closeNewBill}
+              className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+            />
+            <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
+              {(() => {
+                const field = (
+                  label: string,
+                  key: keyof typeof billForm,
+                  type?: string,
+                  className = '',
+                ) => (
+                  <div className={className}>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">{label}</Label>
+                    <input
+                      type={type || 'text'}
+                      value={(billForm as any)[key]}
+                      onChange={e => setBillForm(f => ({ ...f, [key]: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                )
+                return (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      {field('Supplier ID', 'supplier_id')}
+                      {field('Bill Number', 'bill_no')}
+                      {field('Bill Date', 'bill_date', 'date')}
+                      {field('Due Date', 'due_date', 'date')}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {field('Subtotal', 'subtotal', 'number')}
+                      {field('Tax', 'tax_amount', 'number')}
+                      {field('Total', 'total', 'number')}
+                    </div>
+                    {field('Notes', 'notes')}
+                  </>
+                )
+              })()}
 
-            <div className="pt-3 border-t border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold text-gray-500 uppercase">Line Items (optional)</p>
-                <button
-                  type="button"
-                  onClick={() => setLines(ls => [...ls, blankLine()])}
-                  className="text-xs px-2 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Line
-                </button>
-              </div>
-              <p className="text-xs text-gray-400 mb-2">
-                Add lines with a GL account (e.g. a Fixed Asset account) so this bill can later
-                be capitalized into the Fixed Asset register.
-              </p>
-              {lines.length > 0 && (
-                <div className="space-y-2">
-                  {lines.map((ln, i) => (
-                    <div key={i} className="border border-gray-200 rounded-lg p-2 space-y-1.5 bg-gray-50">
-                      <div className="flex gap-1.5 items-start">
-                        <div className="flex-1 min-w-0">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Lines {lines.length > 0 ? `(${lines.length})` : '(optional)'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setLines(ls => [...ls, blankLine()])}
+                    className="flex h-7 items-center gap-1 rounded-md border border-border px-2 text-[11px] hover:bg-muted/30"
+                  >
+                    <Plus className="h-3 w-3" /> Add
+                  </button>
+                </div>
+                {lines.length > 0 && (
+                  <div className="mt-1.5 max-h-28 space-y-1.5 overflow-y-auto">
+                    {lines.map((ln, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_auto] gap-1 rounded-md border border-border bg-muted/15 p-1.5">
+                        <div className="min-w-0 space-y-1">
                           <Select value={ln.account_id} onChange={v => setLines(ls => ls.map((l, j) => j === i ? { ...l, account_id: v } : l))} options={accountOptions} />
+                          <div className="grid grid-cols-3 gap-1">
+                            <input
+                              placeholder="Desc"
+                              value={ln.description}
+                              onChange={e => setLines(ls => ls.map((l, j) => j === i ? { ...l, description: e.target.value } : l))}
+                              className="col-span-1 h-7 rounded-md border border-input bg-background px-1.5 text-xs"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="Qty"
+                              value={ln.quantity}
+                              onChange={e => setLines(ls => ls.map((l, j) => j === i ? { ...l, quantity: e.target.value } : l))}
+                              className="h-7 rounded-md border border-input bg-background px-1.5 text-xs"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="Price"
+                              value={ln.unit_price}
+                              onChange={e => setLines(ls => ls.map((l, j) => j === i ? { ...l, unit_price: e.target.value } : l))}
+                              className="h-7 rounded-md border border-input bg-background px-1.5 text-xs"
+                            />
+                          </div>
                         </div>
-                        <button type="button" onClick={() => setLines(ls => ls.filter((_, j) => j !== i))}
-                          className="p-2 text-gray-400 hover:text-red-600 shrink-0">
-                          <Trash2 className="w-4 h-4" />
+                        <button
+                          type="button"
+                          onClick={() => setLines(ls => ls.filter((_, j) => j !== i))}
+                          className="self-start p-1 text-muted-foreground hover:text-red-600"
+                          aria-label="Remove line"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                      <input placeholder="Description" value={ln.description}
-                        onChange={e => setLines(ls => ls.map((l, j) => j === i ? { ...l, description: e.target.value } : l))}
-                        className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white" />
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <input type="number" min={0} placeholder="Qty" value={ln.quantity}
-                          onChange={e => setLines(ls => ls.map((l, j) => j === i ? { ...l, quantity: e.target.value } : l))}
-                          className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white" />
-                        <input type="number" min={0} placeholder="Unit Price" value={ln.unit_price}
-                          onChange={e => setLines(ls => ls.map((l, j) => j === i ? { ...l, unit_price: e.target.value } : l))}
-                          className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white" />
-                      </div>
-                    </div>
-                  ))}
-                  <p className="text-xs text-gray-500 text-right">Lines total: <span className="font-mono">{fmt(linesTotal)}</span></p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <button onClick={closeNewBill} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
-              <button onClick={handleSaveBill}
+                    ))}
+                    <p className="text-right text-[11px] text-muted-foreground">
+                      Lines total: <span className="font-mono">{fmt(linesTotal)}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </ModalBody>
+            <ModalFooter className="border-0 px-4 py-2.5">
+              <button type="button" onClick={closeNewBill} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
+              <button
+                type="button"
+                onClick={handleSaveBill}
                 disabled={createBillMut.isPending}
-                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+                className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+              >
                 {createBillMut.isPending ? 'Saving…' : 'Save Bill'}
               </button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
 
       {detailBillId && (

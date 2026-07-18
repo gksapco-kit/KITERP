@@ -1103,7 +1103,7 @@ export default function CreateMessagesPage() {
       )}
 
       {(emailModal || phoneModal) && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-hidden">
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 overflow-hidden">
           <div className="flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl">
             <div className="shrink-0 px-5 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">
@@ -1175,7 +1175,7 @@ export default function CreateMessagesPage() {
       )}
 
       {deleteConfirm && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-hidden">
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 overflow-hidden">
           <div className="flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl">
             <div className="shrink-0 px-5 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">
@@ -1206,7 +1206,7 @@ export default function CreateMessagesPage() {
       )}
 
       {templateModal && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-hidden">
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 overflow-hidden">
           <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl">
             <div className="shrink-0 px-5 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">
@@ -1330,7 +1330,7 @@ export default function CreateMessagesPage() {
       )}
 
       {templatePreview && (
-        <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 overflow-hidden">
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 overflow-hidden">
           <div className="flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl">
             <div className="shrink-0 px-5 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">Message preview</h2>

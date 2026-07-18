@@ -21,6 +21,7 @@ import {
   commissionTbody,
 } from '@/pages/commission/commissionUi'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 function RunDetail({ runId }: { runId: string }) {
   const { data: run } = usePayoutRun(runId)
   if (!run) return <div className="px-6 py-4 text-sm text-muted-foreground">Loading…</div>
@@ -102,7 +103,7 @@ export default function PayoutsPage() {
     catch { toast.error('Failed to mark as paid') }
   }
   const handleCancel = async (id: string) => {
-    if (!confirm('Cancel this payout run?')) return
+    if (!await askConfirm('Cancel this payout run?')) return
     try { await cancelMut.mutateAsync({ id }); toast.success('Run cancelled') }
     catch { toast.error('Failed to cancel') }
   }
@@ -176,7 +177,7 @@ export default function PayoutsPage() {
 
       {showCreate && (
         <div data-kiterp-modal
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
           onClick={closeCreate}
         >
           <div

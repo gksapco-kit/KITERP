@@ -1,19 +1,20 @@
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Loader2, Car, ToggleLeft, ToggleRight, X, ImagePlus } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Car, ToggleLeft, ToggleRight, ImagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
-import { formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { cn, formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { modalWidthLg } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -26,6 +27,7 @@ import {
 import { vehiclesApi } from '@/api/vehicles'
 import type { VendorVehicle, VendorVehicleCreate } from '@/api/vehicles'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const CONDITIONS = ['New', 'Certified', 'Used']
 const FUEL_TYPES = ['Gas', 'Hybrid', 'Electric', 'Diesel']
 const TRANSMISSIONS = ['Auto', 'Manual']
@@ -41,7 +43,6 @@ function VehicleModal({
   onSave: (data: VendorVehicleCreate) => void
   saving: boolean
 }) {
-  useEscapeToClose(onClose)
   const [year, setYear] = useState(String(initial?.year ?? 2024))
   const [make, setMake] = useState(initial?.make ?? '')
   const [model, setModel] = useState(initial?.model ?? '')
@@ -134,177 +135,190 @@ function VehicleModal({
     })
   }
 
+  const labelCls = 'text-[10px] leading-none'
+  const fieldGap = 'space-y-0.5'
+  const inputCls = 'h-7 text-xs'
+  const selectCls = 'h-7 w-full rounded-md border border-input bg-background px-2 text-xs'
+  const moreOpen = !!highlightsText.trim() || !!locationNote.trim()
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">{initial ? 'Edit vehicle' : 'New vehicle'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
-          <div>
-            <Label>Vehicle photo</Label>
-            <ImageSourcePicker
-              title="Vehicle photo"
-              uploading={imageUploading}
-              onFile={handleImageFile}
-              onUrl={handleImageUrl}
-              className="mt-1"
-            >
-              {({ open, uploading }) => (
-                <button
-                  type="button"
-                  onClick={open}
-                  disabled={uploading}
-                  className="flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
-                >
-                  {imageUrl ? (
-                    <img
-                      src={
-                        imageUrl.startsWith('blob:')
-                          ? imageUrl
-                          : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
-                      }
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
-                      {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                      Add photo
-                    </span>
-                  )}
-                </button>
-              )}
-            </ImageSourcePicker>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label>Year</Label>
-              <Input type="number" value={year} onChange={e => setYear(e.target.value)} />
-            </div>
-            <div className="col-span-2">
-              <Label>Make</Label>
-              <Input value={make} onChange={e => setMake(e.target.value)} required placeholder="Rivian" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Model</Label>
-              <Input value={model} onChange={e => setModel(e.target.value)} required placeholder="R1S" />
-            </div>
-            <div>
-              <Label>Trim</Label>
-              <Input value={trim} onChange={e => setTrim(e.target.value)} placeholder="Adventure" />
-            </div>
-          </div>
-          <div>
-            <Label>Condition</Label>
-            <div className="mt-1 flex gap-1.5">
-              {CONDITIONS.map(c => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCondition(c)}
-                  className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-semibold transition-colors ${
-                    condition === c ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
-                  }`}
-                >{c}</button>
-              ))}
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <Label>Price</Label>
-              <Input type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
-            </div>
-            <div>
-              <Label>Currency</Label>
-              <Input value={currency} onChange={e => setCurrency(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Mileage</Label>
-              <Input type="number" min={0} value={mileage} onChange={e => setMileage(e.target.value)} />
-            </div>
-            <div>
-              <Label>Body style</Label>
-              <Input value={bodyStyle} onChange={e => setBodyStyle(e.target.value)} placeholder="SUV" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Fuel type</Label>
-              <select
-                value={fuel}
-                onChange={e => setFuel(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-1.5">
+      <ModalPanel className={cn(modalWidthLg, 'max-h-[calc(100dvh-0.75rem)]')}>
+        <ModalHeader
+          title={initial ? 'Edit vehicle' : 'New vehicle'}
+          onClose={onClose}
+          className="border-0 px-3 py-2 [&>div>h2]:text-sm"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-1.5 overflow-y-auto px-3 pb-2 pt-0">
+            <div className="grid grid-cols-[3.75rem_4.5rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-1.5 items-end">
+              <ImageSourcePicker
+                title="Vehicle photo"
+                uploading={imageUploading}
+                onFile={handleImageFile}
+                onUrl={handleImageUrl}
               >
-                {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
+                {({ open, uploading }) => (
+                  <button
+                    type="button"
+                    onClick={open}
+                    disabled={uploading}
+                    aria-label="Add vehicle photo"
+                    title="Vehicle photo"
+                    className="flex h-7 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
+                  >
+                    {imageUrl ? (
+                      <img
+                        src={
+                          imageUrl.startsWith('blob:')
+                            ? imageUrl
+                            : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
+                        }
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <ImagePlus className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </button>
+                )}
+              </ImageSourcePicker>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Year</Label>
+                <Input className={inputCls} type="number" value={year} onChange={e => setYear(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Make *</Label>
+                <Input className={inputCls} value={make} onChange={e => setMake(e.target.value)} required autoFocus placeholder="Rivian" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Model *</Label>
+                <Input className={inputCls} value={model} onChange={e => setModel(e.target.value)} required placeholder="R1S" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Trim</Label>
+                <Input className={inputCls} value={trim} onChange={e => setTrim(e.target.value)} placeholder="Adventure" />
+              </div>
             </div>
-            <div>
-              <Label>Transmission</Label>
-              <select
-                value={transmission}
-                onChange={e => setTransmission(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              >
-                {TRANSMISSIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-[1fr_1fr_5.5rem_5.5rem]">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Condition</Label>
+                <div className="flex h-7 gap-0.5">
+                  {CONDITIONS.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCondition(c)}
+                      className={cn(
+                        'flex-1 rounded-md border text-[10px] font-semibold transition-colors',
+                        condition === c
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-background text-muted-foreground hover:border-primary/40',
+                      )}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Price</Label>
+                <Input className={inputCls} type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Currency</Label>
+                <Input className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Mileage</Label>
+                <Input className={inputCls} type="number" min={0} value={mileage} onChange={e => setMileage(e.target.value)} />
+              </div>
             </div>
-          </div>
-          <div>
-            <Label>Exterior color</Label>
-            <Input value={exteriorColor} onChange={e => setExteriorColor(e.target.value)} placeholder="Forest Green" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Stock number</Label>
-              <Input value={stockNumber} onChange={e => setStockNumber(e.target.value)} placeholder="AC-V1-2025" />
+
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Body style</Label>
+                <Input className={inputCls} value={bodyStyle} onChange={e => setBodyStyle(e.target.value)} placeholder="SUV" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Fuel</Label>
+                <select value={fuel} onChange={e => setFuel(e.target.value)} className={selectCls}>
+                  {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Transmission</Label>
+                <select value={transmission} onChange={e => setTransmission(e.target.value)} className={selectCls}>
+                  {TRANSMISSIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Color</Label>
+                <Input className={inputCls} value={exteriorColor} onChange={e => setExteriorColor(e.target.value)} placeholder="Forest Green" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Stock #</Label>
+                <Input className={inputCls} value={stockNumber} onChange={e => setStockNumber(e.target.value)} placeholder="AC-V1-2025" />
+              </div>
             </div>
-            <div>
-              <Label>Button label</Label>
-              <Input value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-[1fr_5.5rem]">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Button label</Label>
+                <Input className={inputCls} value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Sort</Label>
+                <Input className={inputCls} type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+              </div>
             </div>
-          </div>
-          <div>
-            <Label>Location note</Label>
-            <Input value={locationNote} onChange={e => setLocationNote(e.target.value)} placeholder="Located at our Williamsburg showroom · Available for delivery" />
-          </div>
-          <div>
-            <Label>Highlights (one per line)</Label>
-            <textarea
-              value={highlightsText}
-              onChange={e => setHighlightsText(e.target.value)}
-              rows={4}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              placeholder={'One-owner, clean title\nFree CARFAX history report'}
+
+            <details className="rounded-md bg-muted/15 px-2 py-1" open={moreOpen}>
+              <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground hover:text-foreground">
+                Location &amp; highlights {moreOpen ? '' : '· optional'}
+              </summary>
+              <div className="mt-1.5 space-y-1.5">
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Location note</Label>
+                  <Input
+                    className={inputCls}
+                    value={locationNote}
+                    onChange={e => setLocationNote(e.target.value)}
+                    placeholder="Williamsburg showroom · Available for delivery"
+                  />
+                </div>
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Highlights (one per line)</Label>
+                  <textarea
+                    value={highlightsText}
+                    onChange={e => setHighlightsText(e.target.value)}
+                    rows={2}
+                    className="w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder={'One-owner, clean title\nFree CARFAX history report'}
+                  />
+                </div>
+              </div>
+            </details>
+          </ModalBody>
+          <ModalFooter className="items-center justify-between gap-2 border-0 bg-transparent px-3 py-2">
+            <CheckboxFieldLabel
+              label="Active on storefront"
+              checked={isActive}
+              onChange={setIsActive}
+              labelClassName="text-xs"
             />
-          </div>
-          <div>
-            <Label>Sort order</Label>
-            <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-            Active on storefront
-          </label>
-        </div>
-        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {initial ? 'Save' : 'Create'}
-            </Button>
-        </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="cancel" className="h-7 px-2.5 text-xs" onClick={onClose}>Cancel</Button>
+              <Button type="submit" className="h-7 px-2.5 text-xs" disabled={saving || !make.trim() || !model.trim()}>
+                {saving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                {initial ? 'Save' : 'Create'}
+              </Button>
+            </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -343,19 +357,19 @@ export default function SalesVehiclesPage() {
   const { isSaving, patchField } = useInlineFieldPatch(updateVehicle)
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Car className="h-5 w-5 text-primary" />
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+            <Car className="h-4 w-4 shrink-0 text-primary" />
             Vehicle Inventory
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage vehicles shown on your storefront. Vehicles sync automatically to Auto Inventory and Vehicle Detail sections in the website builder.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Storefront vehicles · syncs to Website Builder
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
-          <Plus className="h-4 w-4" /> Add vehicle
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="h-3.5 w-3.5" /> Add vehicle
         </Button>
       </div>
 
@@ -526,9 +540,9 @@ export default function SalesVehiclesPage() {
                         <button
                           type="button"
                           title="Delete"
-                          onClick={e => {
+                          onClick={async e => {
                             e.stopPropagation()
-                            if (window.confirm(`Delete "${vehicle.year} ${vehicle.make} ${vehicle.model}"?`)) deleteVehicle.mutate(vehicle.id)
+                            if (await askConfirm(`Delete "${vehicle.year} ${vehicle.make} ${vehicle.model}"?`)) deleteVehicle.mutate(vehicle.id)
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >

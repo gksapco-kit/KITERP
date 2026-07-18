@@ -373,7 +373,7 @@ function SupplierEditModal({
   }, [name, contactName, email, phone, street, city, addrState, postalCode, notes, gstin, panNumber, openingBalance, supplier.id, updateMut, onClose])
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-lg font-semibold">Edit Supplier / Vendor</h2>
@@ -506,7 +506,7 @@ function CustomerEditModal({
   }, [fullName, companyName, email, phone, gstin, panNumber, openingBalance, street, city, addrState, pincode, customer.id, updateMut, onClose])
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-lg font-semibold">Edit Customer</h2>
@@ -679,7 +679,7 @@ function MasterDataDrawer({
   )
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex justify-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-xl bg-card border-l border-border text-foreground shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
 
         {/* ── Header ── */}
@@ -1099,7 +1099,7 @@ function MasterDataDrawer({
 
       {/* Soft Delete confirmation */}
       {confirmSoftDel && (
-        <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => setConfirmSoftDel(false)}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => setConfirmSoftDel(false)}>
           <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
@@ -1126,7 +1126,7 @@ function MasterDataDrawer({
 
       {/* Hard Delete confirmation (suppliers only) */}
       {confirmHardDel && (
-        <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto"
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 overflow-y-auto"
           onClick={() => { setConfirmHardDel(false); setHardDelInput('') }}>
           <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
@@ -1560,23 +1560,19 @@ export default function MasterDataReport() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 p-3 md:p-4">
 
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">Master Data</p>
-          <h1 className="text-2xl font-bold text-gray-900">Customers / Suppliers</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {allRecords.length} total records across all party types
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          {allRecords.length} records · customers, vendors, and other parties
+        </p>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={exportCsv} className="gap-1.5">
-            <Download className="w-3.5 h-3.5" /> Export CSV
+          <Button variant="outline" className="h-8 gap-1.5 px-3 text-sm" onClick={exportCsv}>
+            <Download className="h-3.5 w-3.5" /> Export CSV
           </Button>
-          <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5 bg-primary hover:bg-primary/90">
-            <Plus className="w-3.5 h-3.5" /> Add Record
+          <Button className="h-8 gap-1.5 px-3 text-sm bg-primary hover:bg-primary/90" onClick={() => setShowCreate(true)}>
+            <Plus className="h-3.5 w-3.5" /> Add Record
           </Button>
         </div>
       </div>

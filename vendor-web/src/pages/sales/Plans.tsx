@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Hash, ToggleLeft, ToggleRight, X, Star } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Hash, ToggleLeft, ToggleRight, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { formatCurrency } from '@/lib/utils'
+import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
+import { cn, formatCurrency } from '@/lib/utils'
+import { modalWidthMd } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -22,6 +23,7 @@ import {
 } from '@/hooks/usePricingPlans'
 import type { PricingPlan, PricingPlanCreate } from '@/api/pricingPlans'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 function PlanModal({
   initial,
   onClose,
@@ -33,7 +35,6 @@ function PlanModal({
   onSave: (data: PricingPlanCreate) => void
   saving: boolean
 }) {
-  useEscapeToClose(onClose)
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [price, setPrice] = useState(initial?.price != null ? String(initial.price) : '')
@@ -65,80 +66,97 @@ function PlanModal({
     })
   }
 
+  const labelCls = 'text-xs'
+  const fieldGap = 'space-y-1'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">{initial ? 'Edit plan' : 'New plan'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4 p-5">
-          <div>
-            <Label>Plan name</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} required />
-          </div>
-          <div>
-            <Label>Description (optional)</Label>
-            <Input value={description} onChange={e => setDescription(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <Label>Price</Label>
-              <Input type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2">
+      <ModalPanel className={cn(modalWidthMd, 'max-h-[calc(100dvh-1rem)]')}>
+        <ModalHeader
+          title={initial ? 'Edit plan' : 'New plan'}
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[1fr_5.5rem]">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Plan name *</Label>
+                <Input className="h-8 text-sm" value={name} onChange={e => setName(e.target.value)} required autoFocus />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Order</Label>
+                <Input className="h-8 text-sm" type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+              </div>
             </div>
-            <div>
-              <Label>Currency</Label>
-              <Input value={currency} onChange={e => setCurrency(e.target.value)} />
+
+            <div className={fieldGap}>
+              <Label className={labelCls}>Description (optional)</Label>
+              <Input className="h-8 text-sm" value={description} onChange={e => setDescription(e.target.value)} placeholder="Short summary for the storefront" />
             </div>
-          </div>
-          <div>
-            <Label>Billing period (e.g. mo, yr, order)</Label>
-            <Input value={period} onChange={e => setPeriod(e.target.value)} />
-          </div>
-          <div>
-            <Label>Features (one per line)</Label>
-            <textarea
-              value={featuresRaw}
-              onChange={e => setFeaturesRaw(e.target.value)}
-              rows={5}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              placeholder={'Feature one\nFeature two'}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Button label</Label>
-              <Input value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className={cn(fieldGap, 'col-span-1')}>
+                <Label className={labelCls}>Price</Label>
+                <Input className="h-8 text-sm" type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Currency</Label>
+                <Input className="h-8 text-sm" value={currency} onChange={e => setCurrency(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Period</Label>
+                <Input className="h-8 text-sm" value={period} onChange={e => setPeriod(e.target.value)} placeholder="mo, yr…" />
+              </div>
             </div>
-            <div>
-              <Label>Button link</Label>
-              <Input value={ctaUrl} onChange={e => setCtaUrl(e.target.value)} />
+
+            <div className={fieldGap}>
+              <Label className={labelCls}>Features (one per line)</Label>
+              <textarea
+                value={featuresRaw}
+                onChange={e => setFeaturesRaw(e.target.value)}
+                rows={3}
+                className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder={'Feature one\nFeature two'}
+              />
             </div>
-          </div>
-          <div>
-            <Label>Sort order</Label>
-            <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} />
-            Featured / highlighted plan
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-            Active on storefront
-          </label>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Button label</Label>
+                <Input className="h-8 text-sm" value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Button link</Label>
+                <Input className="h-8 text-sm" value={ctaUrl} onChange={e => setCtaUrl(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-0.5">
+              <CheckboxFieldLabel
+                label="Featured"
+                checked={isFeatured}
+                onChange={setIsFeatured}
+                labelClassName="text-xs"
+              />
+              <CheckboxFieldLabel
+                label="Active on storefront"
+                checked={isActive}
+                onChange={setIsActive}
+                labelClassName="text-xs"
+              />
+            </div>
+          </ModalBody>
+          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-2.5">
+            <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
+            <Button type="submit" className="h-8 px-3 text-sm" disabled={saving || !name.trim()}>
+              {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               {initial ? 'Save' : 'Create'}
             </Button>
-          </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -178,19 +196,19 @@ export default function SalesPlansPage() {
   const { isSaving, patchField } = useInlineFieldPatch(updatePlan)
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Hash className="h-5 w-5 text-primary" />
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+            <Hash className="h-4 w-4 shrink-0 text-primary" />
             Pricing Plans
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage packages shown on your storefront. Plans sync automatically to Pricing Table and Pricing Tiers sections in the Business Website Builder.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Storefront packages · syncs to Website Builder pricing sections
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
-          <Plus className="h-4 w-4" /> Add plan
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="h-3.5 w-3.5" /> Add plan
         </Button>
       </div>
 
@@ -216,18 +234,18 @@ export default function SalesPlansPage() {
           <div className="overflow-x-auto">
             <ResizableTable tableId="pricing-plans-v1" defaultWidths={[72, 180, 120, 80, 90, 90, 90, 120]}>
               <thead>
-                <tr className="border-b bg-muted/40">
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Order</TableColumnLabel></th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Plan</TableColumnLabel></th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Price</TableColumnLabel></th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Period</TableColumnLabel></th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Features</TableColumnLabel></th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Featured</TableColumnLabel></th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
-                  <th className="text-right px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+                <tr className="bg-muted/30">
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Order</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Plan</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Price</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Period</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Features</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Featured</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Status</TableColumnLabel></th>
+                  <th className="text-right px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Actions</TableColumnLabel></th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody>
                 {isLoading ? (
                   <tr><td colSpan={8} className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></td></tr>
                 ) : rows.length === 0 ? (
@@ -235,15 +253,15 @@ export default function SalesPlansPage() {
                 ) : rows.map(plan => (
                   <tr
                     key={plan.id}
-                    className="hover:bg-muted/30 cursor-pointer"
+                    className="cursor-pointer hover:bg-muted/25"
                     onClick={onClickableTableRow(() => setModal({ mode: 'edit', plan }))}
                   >
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-sm">
                       <InlineEditCell type="number" value={plan.sort_order} readOnly readOnlyMessage="Use the full editor to change sort order" title="Order">
                         {plan.sort_order}
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium">
+                    <td className="px-3 py-2 text-sm font-medium">
                       <InlineEditCell
                         value={plan.name}
                         saving={isSaving(plan.id, 'name')}
@@ -254,7 +272,7 @@ export default function SalesPlansPage() {
                         {plan.name}
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-sm">
                       <InlineEditCell
                         type="number"
                         value={plan.price ?? 0}
@@ -268,7 +286,7 @@ export default function SalesPlansPage() {
                         {plan.price != null ? formatCurrency(plan.price, plan.currency) : '—'}
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-sm">
                       <InlineEditCell
                         value={plan.period}
                         saving={isSaving(plan.id, 'period')}
@@ -278,7 +296,7 @@ export default function SalesPlansPage() {
                         {plan.period}
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-sm">
                       <InlineEditCell
                         readOnly
                         readOnlyMessage="Edit features in the full editor"
@@ -287,7 +305,7 @@ export default function SalesPlansPage() {
                         {plan.features?.length ?? 0}
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <InlineEditCell
                         type="select"
                         value={plan.is_featured ? 'true' : 'false'}
@@ -302,7 +320,7 @@ export default function SalesPlansPage() {
                         {plan.is_featured ? <Star className="h-4 w-4 text-amber-500 fill-amber-500" /> : '—'}
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-sm">
                       <InlineEditCell
                         type="select"
                         value={plan.is_active ? 'true' : 'false'}
@@ -314,11 +332,11 @@ export default function SalesPlansPage() {
                         onSave={(v) => patchField(plan.id, 'is_active', v === 'true')}
                         title="Edit active status"
                       >
-                        {plan.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
+                        {plan.is_active ? <span className="font-medium text-primary">Active</span> : <span className="text-muted-foreground">Hidden</span>}
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center justify-end gap-0.5">
                         <button
                           type="button"
                           title={plan.is_active ? 'Deactivate' : 'Activate'}
@@ -326,7 +344,7 @@ export default function SalesPlansPage() {
                             e.stopPropagation()
                             toggleActive.mutate({ id: plan.id, is_active: !plan.is_active })
                           }}
-                          className="rounded p-1 hover:bg-muted"
+                          className="rounded-md p-1 hover:bg-muted"
                         >
                           {plan.is_active ? <ToggleRight className="h-4 w-4 text-primary" /> : <ToggleLeft className="h-4 w-4" />}
                         </button>
@@ -334,18 +352,18 @@ export default function SalesPlansPage() {
                           type="button"
                           title="Edit"
                           onClick={e => { e.stopPropagation(); setModal({ mode: 'edit', plan }) }}
-                          className="rounded p-1 hover:bg-muted"
+                          className="rounded-md p-1 hover:bg-muted"
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
                           title="Delete"
-                          onClick={e => {
+                          onClick={async e => {
                             e.stopPropagation()
-                            if (window.confirm(`Delete plan "${plan.name}"?`)) deletePlan.mutate(plan.id)
+                            if (await askConfirm(`Delete plan "${plan.name}"?`)) deletePlan.mutate(plan.id)
                           }}
-                          className="rounded p-1 hover:bg-muted text-destructive"
+                          className="rounded-md p-1 text-destructive hover:bg-muted"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

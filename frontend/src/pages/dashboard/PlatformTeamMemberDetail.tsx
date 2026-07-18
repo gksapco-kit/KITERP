@@ -14,6 +14,7 @@ import { formatPlatformJobRole, isRelationshipManagerRole, isTeamManagerRole } f
 import { usePlatformJobRoles } from '@/hooks/usePlatformJobRoles'
 import { ArrowLeft, KeyRound, Loader2, UserMinus, UserX } from 'lucide-react'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 export default function PlatformTeamMemberDetail() {
   const { userId } = useParams<{ userId: string }>()
   const navigate = useNavigate()
@@ -141,9 +142,9 @@ export default function PlatformTeamMemberDetail() {
             size="sm"
             className="h-8"
             disabled={busy}
-            onClick={() => {
+            onClick={async () => {
               if (
-                confirm(
+                await askConfirm(
                   'Remove platform access? They will no longer be able to open this admin app.',
                 )
               ) {

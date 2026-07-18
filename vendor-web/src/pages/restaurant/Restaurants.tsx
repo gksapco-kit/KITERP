@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import {
-  Plus, UtensilsCrossed, Edit2, Trash2, Star, X, Loader2, Building2, Check,
+  Plus, UtensilsCrossed, Edit2, Trash2, Star, Loader2, Building2, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -110,20 +111,13 @@ export default function RestaurantsPage() {
   const storeMap = Object.fromEntries(stores.map(s => [s.id, s.name]))
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
-            <UtensilsCrossed className="w-5 h-5 text-primary" />
-            Restaurants
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Each restaurant is an outlet under a Business Unit. All floor, kitchen, and reservation data is scoped per restaurant.
-          </p>
-        </div>
-        <Button onClick={openCreate} className="shrink-0">
-          <Plus className="w-4 h-4 mr-1.5" />New Restaurant
+    <div className="mx-auto max-w-5xl space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Outlets under a Business Unit · floors, kitchen, and reservations are scoped per restaurant
+        </p>
+        <Button onClick={openCreate} className="h-8 shrink-0 gap-1.5 px-3 text-sm">
+          <Plus className="h-3.5 w-3.5" /> New Restaurant
         </Button>
       </div>
 
@@ -216,17 +210,18 @@ export default function RestaurantsPage() {
 
       {/* Create / Edit modal */}
       {modal !== null && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-background rounded-xl shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-5 py-4 border-b">
-              <h2 className="font-semibold">{modal === 'create' ? 'New Restaurant' : 'Edit Restaurant'}</h2>
-              <Button variant="ghost" size="icon" onClick={() => setModal(null)}><X className="w-4 h-4" /></Button>
-            </div>
-            <div className="px-5 py-4 space-y-4">
-              <div className="space-y-1.5">
-                <Label>Business Unit (Hotel / Store) *</Label>
+        <ModalOverlay onClose={() => setModal(null)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+            <ModalHeader
+              title={modal === 'create' ? 'New Restaurant' : 'Edit Restaurant'}
+              onClose={() => setModal(null)}
+              className="border-0 px-4 py-3 [&>div>h2]:text-base"
+            />
+            <ModalBody className="space-y-2.5 px-4 pb-3 pt-0">
+              <div className="space-y-1">
+                <Label className="text-xs">Business Unit (Hotel / Store) *</Label>
                 <select
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
                   value={form.store_id}
                   onChange={e => setForm(f => ({ ...f, store_id: e.target.value }))}
                   disabled={typeof modal === 'object'}
@@ -236,70 +231,71 @@ export default function RestaurantsPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5 col-span-2">
-                  <Label>Restaurant Name *</Label>
-                  <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Rooftop Bistro" />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-2 space-y-1">
+                  <Label className="text-xs">Restaurant Name *</Label>
+                  <Input className="h-8 text-sm" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Rooftop Bistro" autoFocus />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Code</Label>
-                  <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. RTB-01" />
+                <div className="space-y-1">
+                  <Label className="text-xs">Code</Label>
+                  <Input className="h-8 text-sm" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. RTB-01" />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Cuisine</Label>
-                  <Input value={form.cuisine} onChange={e => setForm(f => ({ ...f, cuisine: e.target.value }))} placeholder="e.g. Indian, Italian" />
+                <div className="space-y-1">
+                  <Label className="text-xs">Cuisine</Label>
+                  <Input className="h-8 text-sm" value={form.cuisine} onChange={e => setForm(f => ({ ...f, cuisine: e.target.value }))} placeholder="e.g. Indian, Italian" />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Phone</Label>
-                  <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+91…" />
+                <div className="space-y-1">
+                  <Label className="text-xs">Phone</Label>
+                  <Input className="h-8 text-sm" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+91…" />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Email</Label>
-                  <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                <div className="space-y-1">
+                  <Label className="text-xs">Email</Label>
+                  <Input className="h-8 text-sm" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
                 </div>
               </div>
-
-              <div className="flex items-center gap-2">
+            </ModalBody>
+            <ModalFooter className="items-center justify-between gap-2 border-0 bg-transparent px-4 py-3">
+              <label className="flex items-center gap-1.5 text-xs text-foreground">
                 <input
                   id="is_active"
                   type="checkbox"
                   checked={form.is_active}
                   onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))}
-                  className="rounded"
+                  className="h-3.5 w-3.5 rounded accent-primary"
                 />
-                <Label htmlFor="is_active" className="cursor-pointer">Active</Label>
+                Active
+              </label>
+              <div className="flex gap-2">
+                <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={() => setModal(null)}>Cancel</Button>
+                <Button type="button" className="h-8 rounded-md px-3 text-sm" onClick={submit} disabled={isPending}>
+                  {isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                  {modal === 'create' ? 'Create' : 'Save'}
+                </Button>
               </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t">
-              <Button variant="outline" onClick={() => setModal(null)}>Cancel</Button>
-              <Button onClick={submit} disabled={isPending}>
-                {isPending && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
-                {modal === 'create' ? 'Create' : 'Save'}
-              </Button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
 
       {/* Delete confirm */}
       {deleteTarget && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-background rounded-xl shadow-xl w-full max-w-sm">
-            <div className="px-5 py-4 space-y-3">
-              <p className="font-semibold text-foreground">Delete "{deleteTarget.name}"?</p>
+        <ModalOverlay onClose={() => setDeleteTarget(null)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-sm !rounded-lg">
+            <ModalHeader title={`Delete “${deleteTarget.name}”?`} onClose={() => setDeleteTarget(null)} className="border-0 px-4 py-3 [&>div>h2]:text-base" />
+            <ModalBody className="px-4 pb-2 pt-0">
               <p className="text-sm text-muted-foreground">
-                This will permanently delete the restaurant and cascade to all its zones, tables, orders, KOTs, and reservations.
+                This permanently deletes the restaurant and cascades to zones, tables, orders, KOTs, and reservations.
               </p>
-            </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t">
-              <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-              <Button variant="destructive" onClick={() => deleteMutation.mutate(deleteTarget.id)} disabled={deleteMutation.isPending}>
-                {deleteMutation.isPending && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
+            </ModalBody>
+            <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-3">
+              <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+              <Button type="button" variant="destructive" className="h-8 rounded-md px-3 text-sm" onClick={() => deleteMutation.mutate(deleteTarget.id)} disabled={deleteMutation.isPending}>
+                {deleteMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 Delete
               </Button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

@@ -117,7 +117,7 @@ export default function ExpenseClaimDetailDrawer({
 
   return (
     <div data-kiterp-modal
-      className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex justify-end bg-black/50 backdrop-blur-sm"
       onClick={onModalBackdropClick(onClose)}
     >
       <div

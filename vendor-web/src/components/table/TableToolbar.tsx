@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { Search, SlidersHorizontal, Info } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { cn } from '@/lib/utils'
@@ -85,14 +85,23 @@ export function TableToolbar({
 
   const sortControls = (
     <>
-      {hint && <span className="text-xs text-muted-foreground hidden xl:inline whitespace-nowrap">{hint}</span>}
-      <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Sort</span>
+      {hint ? (
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          title={hint}
+          aria-label={hint}
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+      <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Sort</span>
       <ThemeSelect
         value={sortKey}
         onChange={onSortKeyChange}
         options={sortOptions.map((o) => ({ value: o.value, label: o.label }))}
         aria-label="Sort by column"
-        wrapperClassName="w-full min-w-[7rem] sm:w-[8rem]"
+        wrapperClassName="w-full min-w-[6.5rem] sm:w-[7.25rem]"
       />
       <ThemeSelect
         value={sortDir}
@@ -102,42 +111,44 @@ export function TableToolbar({
           { value: 'desc', label: 'High → Low' },
         ]}
         aria-label="Sort direction"
-        wrapperClassName="w-full min-w-[7rem] sm:w-[8.5rem]"
+        wrapperClassName="w-full min-w-[6.75rem] sm:w-[7.5rem]"
       />
       {extra}
     </>
   )
 
+  const pushSortRight = hideSearch && !leading && !hasMoreOptions
+
   return (
-    <div className="border-b border-border bg-muted/40">
-      <div className={`flex flex-wrap items-center gap-2 sm:gap-3 px-4 py-3 ${className}`}>
+    <div className="border-b border-border/60 bg-muted/25">
+      <div className={cn('flex flex-wrap items-center gap-1.5 px-3 py-2 sm:gap-2', className)}>
         {(leading || moreOptionsButton) && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0 shrink-0">
+          <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
             {leading}
             {moreOptionsButton}
           </div>
         )}
         {!hideSearch && (
           <div className={`relative min-w-0 ${searchWrapperClassName}`}>
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               data-kiterp-search-field
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder}
-              className="pl-10 h-9 w-full"
+              className="h-8 w-full pl-10"
               aria-label="Filter table"
             />
           </div>
         )}
         {!hideSort && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className={cn('flex shrink-0 items-center gap-1.5', pushSortRight && 'ml-auto')}>
             {sortControls}
           </div>
         )}
       </div>
       {hasMoreOptions && moreOpen && (
-        <div className="border-t border-border bg-muted/20 px-4 py-3">
+        <div className="border-t border-border/60 bg-muted/15 px-3 py-2">
           {moreOptions}
         </div>
       )}

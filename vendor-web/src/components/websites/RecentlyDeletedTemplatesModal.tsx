@@ -15,6 +15,7 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { toast } from 'sonner'
 import type { SiteTrashItem, WebsiteTemplate } from '@/types/websites'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 function TrashRow({
   item,
   vendorSlug,
@@ -147,8 +148,8 @@ export function RecentlyDeletedTemplatesModal({ onClose }: { onClose: () => void
     }
   }, [restoreSite])
 
-  const handlePermanentDelete = useCallback(async (id: string, name: string) => {
-    if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return
+  const handlePermanentDelete = useCallbackasync (async (id: string, name: string) => {
+    if (!await askConfirm(`Permanently delete "${name}"? This cannot be undone.`)) return
     try {
       await permanentlyDeleteSite.mutateAsync(id)
       toast.success(`"${name}" permanently deleted`)

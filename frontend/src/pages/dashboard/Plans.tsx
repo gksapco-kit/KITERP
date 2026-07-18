@@ -23,6 +23,7 @@ import {
 import { useAuthStore } from '@/stores/authStore'
 import { isSuperuserAdmin } from '@/lib/platformAccess'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const FEATURE_META: Record<string, { label: string; icon: typeof Smartphone; description: string }> = {
   branded_app: { label: 'Branded App', icon: Smartphone, description: 'White-label Android/iOS app for the vendor' },
   custom_domain: { label: 'Custom Domain', icon: Globe, description: 'Use their own domain name' },
@@ -165,9 +166,9 @@ export default function Plans() {
     )
   }
 
-  const handleDeletePlan = (plan: VendorPlan) => {
+  const handleDeletePlan = async (plan: VendorPlan) => {
     if (
-      !confirm(
+      !await askConfirm(
         `Delete plan "${plan.name}"? Vendors using it will have no plan until you assign another.`,
       )
     )

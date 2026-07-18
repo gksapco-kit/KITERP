@@ -1,16 +1,21 @@
-import { onModalBackdropClick, cn } from '@/lib/utils'
-import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { hrInputClass, hrTabActiveClass, hrTabInactiveClass, hrStatusBadge, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
+import { hrStatusBadge, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
 import { InlineFieldLabel } from '@/components/common/InlineFieldLabel'
 import { Select } from '@/components/ui/select'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { Megaphone, Plus, Pencil, Trash2, X, Pin } from 'lucide-react'
+import { Megaphone, Plus, Pencil, Trash2, Pin } from 'lucide-react'
 import {
   useHRAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement,
 } from '@/hooks/useVendor'
 import type { Announcement } from '@/types'
+
+import { askConfirm } from '@/components/common/ConfirmProvider'
+
+const denseFieldClass =
+  'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
+const denseLabelClass = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
 
 const STATUS: Record<string, { label: string; color: string }> = {
   draft:     { label: 'Draft',     color: hrStatusBadge.draft },
@@ -71,7 +76,7 @@ export default function AnnouncementsPage() {
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button type="button"
-                      onClick={() => { if (confirm(`Delete announcement "${a.title}"?`)) del.mutate(a.id) }}
+                      onClick={async () => { if (await askConfirm(`Delete announcement "${a.title}"?`)) del.mutate(a.id) }}
                       className="p-1.5 text-muted-foreground hover:text-destructive">
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -92,8 +97,6 @@ export default function AnnouncementsPage() {
 
 function AnnouncementModal({
  item, onClose }: { item: Announcement | null; onClose: () => void }) {
-  useEscapeToClose(onClose)
-
   const create = useCreateAnnouncement()
   const update = useUpdateAnnouncement()
   const [form, setForm] = useState({
@@ -120,22 +123,27 @@ function AnnouncementModal({
   }
 
   return (
-    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
-      <div className={cn(dialogPanelClass, 'max-w-lg')}>
-        <div className="shrink-0 flex items-center justify-between border-b border-border p-4">
-          <h2 className="text-lg font-bold text-foreground">{item ? 'Edit Announcement' : 'New Announcement'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 p-4">
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-h-[calc(100dvh-1.5rem)] max-w-lg !rounded-lg overflow-hidden">
+        <ModalHeader
+          title={item ? 'Edit Announcement' : 'New Announcement'}
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+        />
+        <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
           <Field label="Title *">
-            <input className={hrInputClass} value={form.title}
+            <input className={denseFieldClass} value={form.title}
               onChange={e => setForm({ ...form, title: e.target.value })} />
           </Field>
           <Field label="Body *">
-            <textarea className={cn(hrInputClass, 'min-h-[7rem] resize-y')} rows={5} value={form.body}
-              onChange={e => setForm({ ...form, body: e.target.value })} />
+            <textarea
+              className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              rows={3}
+              value={form.body}
+              onChange={e => setForm({ ...form, body: e.target.value })}
+            />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <Field label="Category">
               <Select
                 value={form.category}
@@ -148,7 +156,7 @@ function AnnouncementModal({
                   { value: 'urgent', label: 'Urgent' },
                 ]}
                 aria-label="Category"
-                className="w-full"
+                className="h-8 w-full"
               />
             </Field>
             <Field label="Audience">
@@ -162,32 +170,31 @@ function AnnouncementModal({
                   { value: 'designation', label: 'By designation' },
                 ]}
                 aria-label="Audience"
-                className="w-full"
+                className="h-8 w-full"
               />
             </Field>
-          </div>
-          <Field label="Cover image URL">
-            <input className={hrInputClass} value={form.cover_image_url}
-              onChange={e => setForm({ ...form, cover_image_url: e.target.value })} />
-          </Field>
-          <Field label="Attachment URL">
-            <input className={hrInputClass} value={form.attachment_url}
-              onChange={e => setForm({ ...form, attachment_url: e.target.value })} />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cover image URL">
+              <input className={denseFieldClass} value={form.cover_image_url}
+                onChange={e => setForm({ ...form, cover_image_url: e.target.value })} />
+            </Field>
+            <Field label="Attachment URL">
+              <input className={denseFieldClass} value={form.attachment_url}
+                onChange={e => setForm({ ...form, attachment_url: e.target.value })} />
+            </Field>
             <Field label="Publish at">
-              <input type="datetime-local" className={hrInputClass}
+              <input type="datetime-local" className={denseFieldClass}
                 value={form.publish_at} onChange={e => setForm({ ...form, publish_at: e.target.value })} />
             </Field>
             <Field label="Expires at">
-              <input type="datetime-local" className={hrInputClass}
+              <input type="datetime-local" className={denseFieldClass}
                 value={form.expires_at} onChange={e => setForm({ ...form, expires_at: e.target.value })} />
             </Field>
           </div>
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-sm">
+          <div className="grid grid-cols-[auto_1fr] items-end gap-2">
+            <label className="mb-1 flex h-8 items-center gap-1.5 whitespace-nowrap text-xs text-foreground">
               <input type="checkbox" checked={form.pinned}
-                onChange={e => setForm({ ...form, pinned: e.target.checked })} /> Pin to top
+                onChange={e => setForm({ ...form, pinned: e.target.checked })} />
+              Pin to top
             </label>
             <Field label="Status">
               <Select
@@ -199,26 +206,26 @@ function AnnouncementModal({
                   { value: 'archived', label: 'Archived' },
                 ]}
                 aria-label="Status"
-                className="w-full"
+                className="h-8 w-full"
               />
             </Field>
           </div>
-        </div>
-        <div className="shrink-0 flex justify-end gap-2 border-t border-border p-4">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="button" onClick={submit} disabled={!form.title.trim() || !form.body.trim() || create.isPending || update.isPending}>
+        </ModalBody>
+        <ModalFooter className="border-0 px-4 py-2.5">
+          <Button type="button" variant="outline" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
+          <Button type="button" size="sm" className="h-8" onClick={submit} disabled={!form.title.trim() || !form.body.trim() || create.isPending || update.isPending}>
             {item ? 'Save' : 'Publish'}
           </Button>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <InlineFieldLabel label={label} className="mb-1 block text-xs font-medium text-muted-foreground" />
+      <InlineFieldLabel label={label} className={denseLabelClass} />
       {children}
     </div>
   )

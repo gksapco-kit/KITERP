@@ -4,6 +4,7 @@ import { Plus, Trash2, Star } from 'lucide-react'
 import { useHRHolidays, useCreateHoliday, useDeleteHoliday } from '@/hooks/useVendor'
 import type { Holiday } from '@/types'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 export default function HolidaysPage() {
   const year = new Date().getFullYear()
   const { data: holidaysRaw = [], isLoading } = useHRHolidays(year)
@@ -88,7 +89,7 @@ export default function HolidaysPage() {
                         {h.is_optional && <span className="text-xs text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Optional</span>}
                       </div>
                     </div>
-                    <button onClick={() => { if (confirm(`Remove "${h.name}"?`)) deleteHoliday.mutate(h.id) }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                    <button onClick={async () => { if (await askConfirm(`Remove "${h.name}"?`)) deleteHoliday.mutate(h.id) }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>

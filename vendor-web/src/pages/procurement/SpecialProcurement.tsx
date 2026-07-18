@@ -41,7 +41,7 @@ function ValuationEditModal({ valuation, onClose }: { valuation: MaterialValuati
   useEscapeToClose(onClose, true)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="font-semibold">Update Valuation</h2>
@@ -131,7 +131,7 @@ function CreateSESModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
       <Card className="w-full max-w-xl shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="font-semibold flex items-center gap-2">
@@ -202,7 +202,7 @@ function SESDetailPanel({ ses, onClose }: { ses: ServiceEntrySheet; onClose: () 
   const badge = SES_BADGE[ses.status] ?? SES_BADGE.draft
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-end bg-black/30" onClick={onClose}>
       <div className="w-full max-w-xl h-full bg-white dark:bg-gray-900 shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b px-6 py-4 flex items-center justify-between">
           <div>

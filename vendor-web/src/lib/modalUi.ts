@@ -55,7 +55,7 @@ export const modalBodyScrollClass =
   'flex-1 overflow-y-auto overscroll-contain px-6 pt-6 min-h-0'
 
 export const modalHeaderClass =
-  'p-5 border-b border-border flex items-start justify-between gap-3 shrink-0'
+  'px-5 py-3.5 border-b border-border flex items-center justify-between gap-3 shrink-0'
 
 export const modalHeaderStickyClass =
   'flex items-center justify-between gap-3 px-6 py-4 border-b border-border sticky top-0 bg-card z-10 shrink-0'

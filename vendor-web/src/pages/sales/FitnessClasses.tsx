@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Dumbbell, ToggleLeft, ToggleRight, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Dumbbell, ToggleLeft, ToggleRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { formatCurrency } from '@/lib/utils'
+import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
+import { cn, formatCurrency } from '@/lib/utils'
+import { modalWidthMd } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -22,6 +23,7 @@ import {
 } from '@/hooks/useFitnessClasses'
 import type { VendorFitnessClass, VendorFitnessClassCreate } from '@/api/fitnessClasses'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const CLASS_TYPES = ['Yoga', 'HIIT', 'Cycle', 'Pilates', 'Strength', 'Boxing']
 const INTENSITY_LEVELS = [1, 2, 3, 4, 5]
 
@@ -55,7 +57,6 @@ function FitnessClassModal({
   onSave: (data: VendorFitnessClassCreate) => void
   saving: boolean
 }) {
-  useEscapeToClose(onClose)
   const [name, setName] = useState(initial?.name ?? '')
   const [instructor, setInstructor] = useState(initial?.instructor ?? '')
   const [type, setType] = useState(initial?.type ?? 'Yoga')
@@ -94,117 +95,125 @@ function FitnessClassModal({
     })
   }
 
+  const labelCls = 'text-[10px] leading-none'
+  const fieldGap = 'space-y-0.5'
+  const inputCls = 'h-7 text-xs'
+  const selectCls = 'h-7 w-full rounded-md border border-input bg-background px-2 text-xs'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">{initial ? 'Edit class' : 'New class'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
-          <div>
-            <Label>Class name</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} required placeholder="Sunrise Vinyasa" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Instructor</Label>
-              <Input value={instructor} onChange={e => setInstructor(e.target.value)} placeholder="Maya Lin" />
-            </div>
-            <div>
-              <Label>Type</Label>
-              <select
-                value={type}
-                onChange={e => setType(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              >
-                {CLASS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Date</Label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
-            </div>
-            <div>
-              <Label>Time</Label>
-              <Input type="time" value={time} onChange={e => setTime(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Duration (min)</Label>
-              <Input type="number" min={0} value={duration} onChange={e => setDuration(e.target.value)} />
-            </div>
-            <div>
-              <Label>Intensity</Label>
-              <div className="flex gap-1">
-                {INTENSITY_LEVELS.map(lvl => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => setIntensity(lvl)}
-                    className={`flex-1 rounded-lg border py-1.5 text-xs font-semibold transition-colors ${
-                      intensity === lvl ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
-                    }`}
-                  >{lvl}</button>
-                ))}
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2">
+      <ModalPanel className={cn(modalWidthMd, 'max-h-[calc(100dvh-1rem)]')}>
+        <ModalHeader
+          title={initial ? 'Edit class' : 'New class'}
+          onClose={onClose}
+          className="border-0 px-3 py-2 [&>div>h2]:text-sm"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-1.5 overflow-y-auto px-3 pb-2 pt-0">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[1.4fr_1fr_7.5rem]">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Class name *</Label>
+                <Input className={inputCls} value={name} onChange={e => setName(e.target.value)} required autoFocus placeholder="Sunrise Vinyasa" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Instructor</Label>
+                <Input className={inputCls} value={instructor} onChange={e => setInstructor(e.target.value)} placeholder="Maya Lin" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Type</Label>
+                <select value={type} onChange={e => setType(e.target.value)} className={selectCls}>
+                  {CLASS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
               </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Capacity</Label>
-              <Input type="number" min={0} value={capacity} onChange={e => setCapacity(e.target.value)} />
+
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Date</Label>
+                <Input className={inputCls} type="date" value={date} onChange={e => setDate(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Time</Label>
+                <Input className={inputCls} type="time" value={time} onChange={e => setTime(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Duration (min)</Label>
+                <Input className={inputCls} type="number" min={0} value={duration} onChange={e => setDuration(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Intensity</Label>
+                <div className="flex h-7 gap-0.5">
+                  {INTENSITY_LEVELS.map(lvl => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setIntensity(lvl)}
+                      className={cn(
+                        'flex-1 rounded-md border text-[10px] font-semibold transition-colors',
+                        intensity === lvl
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-background text-muted-foreground hover:border-primary/40',
+                      )}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div>
-              <Label>Already booked</Label>
-              <Input type="number" min={0} value={booked} onChange={e => setBooked(e.target.value)} />
+
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Capacity</Label>
+                <Input className={inputCls} type="number" min={0} value={capacity} onChange={e => setCapacity(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Booked</Label>
+                <Input className={inputCls} type="number" min={0} value={booked} onChange={e => setBooked(e.target.value)} />
+              </div>
+              <div className={cn(fieldGap, 'col-span-2')}>
+                <Label className={labelCls}>Studio / room</Label>
+                <Input className={inputCls} value={studio} onChange={e => setStudio(e.target.value)} placeholder="Studio A" />
+              </div>
             </div>
-          </div>
-          <div>
-            <Label>Studio / room</Label>
-            <Input value={studio} onChange={e => setStudio(e.target.value)} placeholder="Studio A" />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <Label>Price</Label>
-              <Input type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
+
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Price</Label>
+                <Input className={inputCls} type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Currency</Label>
+                <Input className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Button label</Label>
+                <Input className={inputCls} value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Sort order</Label>
+                <Input className={inputCls} type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+              </div>
             </div>
-            <div>
-              <Label>Currency</Label>
-              <Input value={currency} onChange={e => setCurrency(e.target.value)} />
+          </ModalBody>
+          <ModalFooter className="items-center justify-between gap-2 border-0 bg-transparent px-3 py-2">
+            <CheckboxFieldLabel
+              label="Active on storefront"
+              checked={isActive}
+              onChange={setIsActive}
+              labelClassName="text-xs"
+            />
+            <div className="flex gap-2">
+              <Button type="button" variant="cancel" className="h-7 px-2.5 text-xs" onClick={onClose}>Cancel</Button>
+              <Button type="submit" className="h-7 px-2.5 text-xs" disabled={saving || !name.trim()}>
+                {saving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                {initial ? 'Save' : 'Create'}
+              </Button>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Button label</Label>
-              <Input value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
-            </div>
-            <div>
-              <Label>Sort order</Label>
-              <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
-            </div>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-            Active on storefront
-          </label>
-        </div>
-        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {initial ? 'Save' : 'Create'}
-            </Button>
-        </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -243,19 +252,19 @@ export default function SalesFitnessClassesPage() {
   const { isSaving, patchField } = useInlineFieldPatch(updateClass)
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Dumbbell className="h-5 w-5 text-primary" />
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+            <Dumbbell className="h-4 w-4 shrink-0 text-primary" />
             Fitness Schedule
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage classes shown on your storefront. Classes sync automatically to the Fitness Schedule section in the website builder.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Storefront classes · syncs to Website Builder
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
-          <Plus className="h-4 w-4" /> Add class
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="h-3.5 w-3.5" /> Add class
         </Button>
       </div>
 
@@ -441,9 +450,9 @@ export default function SalesFitnessClassesPage() {
                         <button
                           type="button"
                           title="Delete"
-                          onClick={e => {
+                          onClick={async e => {
                             e.stopPropagation()
-                            if (window.confirm(`Delete class "${cls.name}"?`)) deleteClass.mutate(cls.id)
+                            if (await askConfirm(`Delete class "${cls.name}"?`)) deleteClass.mutate(cls.id)
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >

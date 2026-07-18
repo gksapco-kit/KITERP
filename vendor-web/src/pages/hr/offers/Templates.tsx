@@ -37,6 +37,7 @@ import { OfferLivePreview } from '@/components/hr/OfferLivePreview'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { InvoiceAccentColorPicker } from '@/components/invoices/InvoiceAccentColorPicker'
 import { LogoShapePicker, LOGO_SHAPE_PREVIEW_CLASS } from '@/components/common/LogoShapePicker'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 
 const MERGE_VARS = MERGE_VAR_KEYS.map(key => ({
   key,
@@ -328,7 +329,7 @@ export default function OfferTemplatesPage() {
   }
 
   async function handleDelete() {
-    if (!selected || !confirm(`Delete template "${selected.name}"?`)) return
+    if (!selected || !(await askConfirm(`Delete template "${selected.name}"?`))) return
     await deleteTpl.mutateAsync(selected.id)
     setSelected(null)
     applyEmptyForm()

@@ -11,6 +11,7 @@ import {
 } from '@/hooks/useVendor'
 import type { TrainingProgram, TrainingCourse, QuizQuestion, QuizOption } from '@/types'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const CONTENT_ICONS: Record<string, React.ElementType> = {
   text: FileText, video: Video, pdf: FileText, quiz: HelpCircle, scorm: BookOpen,
 }
@@ -55,7 +56,7 @@ export default function ProgramDetailPage() {
             <BookOpen className="w-10 h-10 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">No courses yet. Add the first lesson or quiz.</p>
           </div>
-        ) : (
+        ) : async (
           courses.map((c, idx) => {
             const Icon = CONTENT_ICONS[c.content_type] ?? FileText
             return (
@@ -83,7 +84,7 @@ export default function ProgramDetailPage() {
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => { if (confirm(`Delete course "${c.title}"?`)) del.mutate(c.id) }}
+                      onClick={async () => { if (await askConfirm(`Delete course "${c.title}"?`)) del.mutate(c.id) }}
                       className="p-1.5 text-gray-400 hover:text-red-600">
                       <Trash2 className="w-4 h-4" />
                     </button>

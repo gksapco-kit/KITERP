@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +44,7 @@ type FormData = z.infer<typeof schema>
 
 export default function Login() {
   const loginMutation = useLogin()
+  const [showPw, setShowPw] = useState(false)
   
   const {
     register,
@@ -76,13 +78,31 @@ export default function Login() {
 
       <div>
         <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          {...register('password')}
-          className="mt-1"
-        />
+        <div className="group relative mt-1">
+          <Input
+            id="password"
+            type={showPw ? 'text' : 'password'}
+            autoComplete="current-password"
+            {...register('password')}
+            className="pr-10"
+          />
+          <button
+            type="button"
+            tabIndex={-1}
+            onMouseEnter={() => setShowPw(true)}
+            onMouseLeave={() => setShowPw(false)}
+            onFocus={() => setShowPw(true)}
+            onBlur={() => setShowPw(false)}
+            className={cn(
+              'absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-opacity',
+              'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100',
+              'hover:bg-muted hover:text-foreground',
+            )}
+            aria-label={showPw ? 'Hide password' : 'Show password'}
+          >
+            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
         {errors.password && (
           <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>
         )}

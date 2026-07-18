@@ -21,6 +21,7 @@ import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import type { Plant } from '@/types'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 export default function PlantsPage() {
   const { data: storesData, isLoading: storesLoading } = useStores()
   const stores = storesData?.stores ?? []
@@ -227,8 +228,8 @@ export default function PlantsPage() {
                             variant="ghost"
                             size="sm"
                             className="text-red-500"
-                            onClick={() => {
-                              if (confirm(`Delete plant "${plant.name}"? All storage locations inside this plant will also be deleted.`))
+                            onClick={async () => {
+                              if (await askConfirm(`Delete plant "${plant.name}"? All storage locations inside this plant will also be deleted.`))
                                 deletePlant.mutate(plant.id)
                             }}
                           >
@@ -246,7 +247,7 @@ export default function PlantsPage() {
       </Card>
 
       {showForm && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
           <div className="w-full max-w-md bg-card border border-border text-foreground rounded-xl shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
               <h2 className="text-lg font-semibold">{editing ? 'Edit Plant' : 'New Plant'}</h2>

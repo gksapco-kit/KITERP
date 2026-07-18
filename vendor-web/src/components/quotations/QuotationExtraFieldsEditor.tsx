@@ -22,6 +22,7 @@ import {
   type QuotationExtraFieldType,
 } from '@/types/quotation'
 import { resolveMediaUrl } from '@/lib/printUtils'
+import { cn } from '@/lib/utils'
 
 function QuotationImageThumbnails({
   field,
@@ -81,9 +82,11 @@ const TYPE_ICONS: Record<QuotationExtraFieldType, React.ElementType> = {
 export function QuotationExtraFieldsEditor({
   fields,
   onChange,
+  compact = false,
 }: {
   fields: QuotationExtraField[]
   onChange: (fields: QuotationExtraField[]) => void
+  compact?: boolean
 }) {
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [lightboxFieldId, setLightboxFieldId] = useState<string | null>(null)

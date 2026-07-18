@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import {
   useCategoryTree, useCreateCategory, useUpdateCategory, useDeleteCategory,
   useCategoryCatalogues,
@@ -33,6 +34,7 @@ import { remoteImageToFile } from '@/components/common/MediaUploadPickerModal'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { vendorApi } from '@/api/vendor'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const APPLIES_OPTIONS = [
   { value: 'both', label: 'Product & Service' },
   { value: 'product', label: 'Product only' },
@@ -668,7 +670,7 @@ function CategoryDetailPanel({
           size="sm"
           variant="outline"
           className="h-8 gap-1 px-3 text-xs text-red-600 hover:text-red-700"
-          onClick={() => { if (confirm(`Delete "${cat.name}" and all subcategories?`)) onDelete(cat.id) }}
+          onClick={async () => { if (await askConfirm(`Delete "${cat.name}" and all subcategories?`)) onDelete(cat.id) }}
         >
           <Trash2 className="w-3.5 h-3.5" /> Delete
         </Button>
@@ -686,7 +688,7 @@ function CatalogueDrawer({
   const navigate = useNavigate()
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex justify-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-lg bg-card border-l border-border text-foreground shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <div>
@@ -855,7 +857,7 @@ function CustomFieldsEditor({
   )
 }
 
-// ── Category Form Panel ──────────────────────────────────────────
+// ── Category Form Modal ──────────────────────────────────────────
 function CategoryFormPanel({
   editing,
   parentId,
@@ -906,158 +908,144 @@ function CategoryFormPanel({
   onCancel: () => void
 }) {
   const title = editing ? 'Edit Category' : parentId ? 'New Subcategory' : 'New Category'
-  const fieldSelectCls = 'h-9 text-sm'
+  const labelCls = 'text-xs leading-none'
+  const fieldGap = 'space-y-1'
+  const fieldSelectCls = 'h-8 text-sm'
+
   return (
-    <div className="flex w-full max-h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:max-h-[calc(100dvh-12rem)]">
-      <form onSubmit={onSubmit} className="flex max-h-full flex-col">
-
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
-              <FolderTree className="h-3.5 w-3.5 text-primary" />
-            </div>
-            <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <CategoryVisibilityToggle visible={isVisible} onChange={onVisibleChange} />
-            <div className="h-5 w-px bg-border" aria-hidden />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onCancel}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              aria-label="Close form"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="overflow-y-auto overscroll-contain px-4 py-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_7.5rem]">
-            <div className="min-w-0 space-y-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-medium text-muted-foreground">Name <span className="text-red-500">*</span></Label>
-                <Input
-                  value={name}
-                  onChange={e => onNameChange(e.target.value)}
-                  placeholder="e.g. Electronics"
-                  required
-                  className="h-9 w-full"
-                  autoFocus
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-medium text-muted-foreground">Description</Label>
-                <AiDescriptionTextarea
-                  value={description}
-                  onChange={onDescriptionChange}
-                  placeholder="Optional short description"
-                  rows={2}
-                  maxLength={500}
-                  className="min-h-[4.5rem] resize-none text-sm"
-                  context={{
-                    field_kind: 'category_description',
-                    name,
-                    category: name,
-                    extra_context: { applies_to: appliesTo },
-                  }}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-medium text-muted-foreground">Applies To</Label>
-                <Select
-                  value={appliesTo}
-                  onChange={onAppliesToChange}
-                  options={APPLIES_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
-                  aria-label="Applies to"
-                  className={cn(fieldSelectCls, 'w-full')}
-                />
-              </div>
-
-              {(editing || parentId) && (
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Parent Category</Label>
-                  {editing ? (
-                    <Select
-                      value={parentId || ''}
-                      onChange={(v) => onParentIdChange(v || null)}
-                      options={selectOptionsWithBlank('— Root (top-level) —', flatOptions
-                        .filter(o => o.id !== editing.id)
-                        .map(o => ({ value: o.id, label: o.label })))}
-                      placeholder="— Root (top-level) —"
-                      aria-label="Parent category"
-                      className={cn(fieldSelectCls, 'w-full')}
+    <ModalOverlay onClose={onCancel} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-md min-h-[28rem] max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+        <ModalHeader
+          title={title}
+          onClose={onCancel}
+          className="border-0 px-4 py-3 [&>div>h2]:text-base"
+        />
+        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+            <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2.5 items-start">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Image</Label>
+                <div className="flex flex-col gap-1">
+                  {imageUrl ? (
+                    <SingleImagePreview
+                      url={imageUrl}
+                      alt="Category image"
+                      resolveUrl={(u) => mediaUrl(resolveBusinessGalleryDisplayUrl(u))}
+                      className="w-full rounded-md"
+                      imgClassName="aspect-square w-full rounded-md object-cover border border-border bg-muted/30"
+                      editable
+                      onSave={onUploadImage}
                     />
                   ) : (
-                    <div className="flex h-9 w-full items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-muted-foreground">
-                      <span className="truncate">Under: <strong className="text-foreground">{parentLabel}</strong></span>
+                    <div className="flex aspect-square w-full items-center justify-center rounded-md border border-dashed border-border bg-muted/20 text-muted-foreground/40">
+                      {imageUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderTree className="h-5 w-5" />}
                     </div>
                   )}
-                </div>
-              )}
-
-              <CustomFieldsEditor fields={customFields} onChange={onCustomFieldsChange} compact />
-            </div>
-
-            <div className="space-y-1.5 lg:pt-5">
-              <Label className="text-xs font-medium text-muted-foreground">Image</Label>
-              <div className="flex flex-col items-stretch gap-1.5">
-                {imageUrl ? (
-                  <SingleImagePreview
-                    url={imageUrl}
-                    alt="Category image"
-                    resolveUrl={(u) => mediaUrl(resolveBusinessGalleryDisplayUrl(u))}
-                    className="w-full rounded-lg"
-                    imgClassName="aspect-square w-full rounded-lg object-cover border border-border bg-muted/30"
-                    editable
-                    onSave={onUploadImage}
+                  <ImageSourcePicker
+                    title="Category image"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    disabled={pending}
+                    uploading={imageUploading}
+                    onFile={onUploadImage}
+                    onUrl={onImageUrl}
+                    buttonLabel="Upload"
+                    buttonClassName="h-7 w-full px-2 text-xs border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    className="w-full"
                   />
-                ) : (
-                  <div className="flex aspect-square w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 text-muted-foreground/40">
-                    {imageUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FolderTree className="h-6 w-6" />}
+                  {imageUrl && (
+                    <button
+                      type="button"
+                      onClick={onImageUrlClear}
+                      className="text-center text-[10px] text-red-500 hover:text-red-700"
+                      title="Remove image"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="min-w-0 space-y-2">
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Name *</Label>
+                  <Input
+                    value={name}
+                    onChange={e => onNameChange(e.target.value)}
+                    placeholder="e.g. Electronics"
+                    required
+                    className="h-8 w-full text-sm"
+                    autoFocus
+                  />
+                </div>
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Applies To</Label>
+                  <Select
+                    value={appliesTo}
+                    onChange={onAppliesToChange}
+                    options={APPLIES_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                    aria-label="Applies to"
+                    className={cn(fieldSelectCls, 'w-full')}
+                  />
+                </div>
+                {(editing || parentId) && (
+                  <div className={fieldGap}>
+                    <Label className={labelCls}>Parent</Label>
+                    {editing ? (
+                      <Select
+                        value={parentId || ''}
+                        onChange={(v) => onParentIdChange(v || null)}
+                        options={selectOptionsWithBlank('— Root (top-level) —', flatOptions
+                          .filter(o => o.id !== editing.id)
+                          .map(o => ({ value: o.id, label: o.label })))}
+                        placeholder="— Root (top-level) —"
+                        aria-label="Parent category"
+                        className={cn(fieldSelectCls, 'w-full')}
+                      />
+                    ) : (
+                      <div className="flex h-8 w-full items-center rounded-md border border-input bg-muted/30 px-2.5 text-xs text-muted-foreground">
+                        <span className="truncate">Under: <strong className="text-foreground">{parentLabel}</strong></span>
+                      </div>
+                    )}
                   </div>
-                )}
-                <ImageSourcePicker
-                  title="Category image"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  disabled={pending}
-                  uploading={imageUploading}
-                  onFile={onUploadImage}
-                  onUrl={onImageUrl}
-                  buttonLabel="Upload"
-                  buttonClassName="h-8 w-full px-2 text-xs border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  className="w-full"
-                />
-                {imageUrl && (
-                  <button
-                    type="button"
-                    onClick={onImageUrlClear}
-                    className="text-center text-[10px] text-red-500 hover:text-red-700"
-                    title="Remove image"
-                  >
-                    Clear
-                  </button>
                 )}
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-3">
-          <Button type="button" variant="outline" onClick={onCancel} className="h-8 px-4 text-sm">
-            Cancel
-          </Button>
-          <Button type="submit" disabled={pending} className="h-8 px-4 text-sm">
-            {pending && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-            {editing ? 'Save changes' : 'Create'}
-          </Button>
-        </div>
-      </form>
-    </div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Description</Label>
+              <AiDescriptionTextarea
+                value={description}
+                onChange={onDescriptionChange}
+                placeholder="Optional short description"
+                rows={4}
+                maxLength={500}
+                className="min-h-[6rem] resize-none text-sm"
+                context={{
+                  field_kind: 'category_description',
+                  name,
+                  category: name,
+                  extra_context: { applies_to: appliesTo },
+                }}
+              />
+            </div>
+
+            <CustomFieldsEditor fields={customFields} onChange={onCustomFieldsChange} compact />
+          </ModalBody>
+          <ModalFooter className="items-center justify-between gap-2 border-0 bg-transparent px-4 py-3">
+            <CategoryVisibilityToggle visible={isVisible} onChange={onVisibleChange} />
+            <div className="flex gap-2">
+              <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={onCancel}>
+                Cancel
+              </Button>
+              <Button type="submit" className="h-8 rounded-md px-3 text-sm" disabled={pending || !name.trim()}>
+                {pending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                {editing ? 'Save' : 'Create'}
+              </Button>
+            </div>
+          </ModalFooter>
+        </form>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -1102,7 +1090,6 @@ export default function CategoriesPage() {
     setImageUrl(null); setImageUploading(false)
   }
 
-  useEscapeToClose(resetForm, showForm)
   useEscapeToClose(() => setCatalogueId(null), !!catalogueId)
 
   const openCreate = (pId?: string) => {
@@ -1251,21 +1238,16 @@ export default function CategoriesPage() {
   )
 
   const parentLabel = parentId ? findInTree(data?.categories || [], parentId)?.name : null
-  const hasCategories = sortedCategories.length > 0
-  const showTreePanel = hasCategories || !showForm
 
   return (
     <div className="mx-auto flex max-h-[calc(100dvh-10rem)] min-h-0 w-full flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-3 pb-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-          <p className="mt-0.5 truncate text-sm text-gray-500">Organize your catalogue with categories, subcategories, and custom fields</p>
-        </div>
-        {!showForm && (
-          <Button onClick={() => openCreate()} className="shrink-0 gap-2">
-            <Plus className="h-4 w-4" /> Add Category
-          </Button>
-        )}
+      <div className="flex shrink-0 items-center justify-between gap-2 pb-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Organize your catalogue with categories, subcategories, and custom fields
+        </p>
+        <Button onClick={() => openCreate()} className="h-8 shrink-0 gap-1.5 px-3 text-sm">
+          <Plus className="h-3.5 w-3.5" /> Add Category
+        </Button>
       </div>
 
       {isLoading ? (
@@ -1275,75 +1257,66 @@ export default function CategoriesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div
-          className={cn(
-            'grid min-h-0 flex-1 grid-cols-1 gap-4 lg:items-start',
-            showTreePanel
-              ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]'
-              : 'mx-auto w-full max-w-2xl',
-          )}
-        >
-          {showTreePanel && (
-            <div className="h-full min-h-0">
-              <CategoryTreeExplorer
-                categories={sortedCategories}
-                selectedId={selectedId}
-                onSelect={(c) => { setSelectedId(c.id); setShowForm(false) }}
-                onAddSub={(pid) => openCreate(pid)}
-                onAddRoot={() => openCreate()}
-                onMove={handleMoveCategory}
-                onToggleVisibility={handleToggleCategoryVisibility}
-                sortKey={sortKey}
-                sortDir={sortDir}
-                onSortKeyChange={setSortKey}
-                onSortDirChange={setSortDir}
-                formOpen={showForm}
-              />
-            </div>
-          )}
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
+          <div className="h-full min-h-0">
+            <CategoryTreeExplorer
+              categories={sortedCategories}
+              selectedId={selectedId}
+              onSelect={(c) => { setSelectedId(c.id); setShowForm(false) }}
+              onAddSub={(pid) => openCreate(pid)}
+              onAddRoot={() => openCreate()}
+              onMove={handleMoveCategory}
+              onToggleVisibility={handleToggleCategoryVisibility}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSortKeyChange={setSortKey}
+              onSortDirChange={setSortDir}
+              formOpen={showForm}
+            />
+          </div>
           <div className="min-h-0 lg:self-start">
-            {showForm ? (
-              <CategoryFormPanel
-                editing={editing}
-                parentId={parentId}
-                parentLabel={parentLabel}
-                flatOptions={flatOptions}
-                name={name}
-                description={description}
-                appliesTo={appliesTo}
-                customFields={customFields}
-                imageUrl={imageUrl}
-                imageUploading={imageUploading}
-                isVisible={isVisible}
-                pending={createCategory.isPending || updateCategory.isPending}
-                onNameChange={setName}
-                onDescriptionChange={setDescription}
-                onAppliesToChange={setAppliesTo}
-                onParentIdChange={setParentId}
-                onCustomFieldsChange={setCustomFields}
-                onVisibleChange={setIsVisible}
-                onImageUrlClear={() => { clearLocalPreview(); setImageUrl(null) }}
-                onUploadImage={uploadCategoryImageFile}
-                onImageUrl={handleCategoryImageUrl}
-                onSubmit={handleSubmit}
-                onCancel={resetForm}
-              />
-            ) : (
-              <CategoryDetailPanel
-                cat={selectedCategory}
-                parentLabel={selectedCategory?.parent_id ? findInTree(data?.categories || [], selectedCategory.parent_id)?.name : null}
-                onEdit={openEdit}
-                onDelete={(id) => {
-                  deleteCategory.mutate(id)
-                  if (selectedId === id) setSelectedId(null)
-                }}
-                onViewCatalogue={(id) => setCatalogueId(id)}
-                onAddSub={(pid) => openCreate(pid)}
-                onToggleVisibility={handleToggleCategoryVisibility}
-              />
-            )}
+            <CategoryDetailPanel
+              cat={selectedCategory}
+              parentLabel={selectedCategory?.parent_id ? findInTree(data?.categories || [], selectedCategory.parent_id)?.name : null}
+              onEdit={openEdit}
+              onDelete={(id) => {
+                deleteCategory.mutate(id)
+                if (selectedId === id) setSelectedId(null)
+              }}
+              onViewCatalogue={(id) => setCatalogueId(id)}
+              onAddSub={(pid) => openCreate(pid)}
+              onToggleVisibility={handleToggleCategoryVisibility}
+            />
           </div>
         </div>
+      )}
+
+      {showForm && (
+        <CategoryFormPanel
+          editing={editing}
+          parentId={parentId}
+          parentLabel={parentLabel}
+          flatOptions={flatOptions}
+          name={name}
+          description={description}
+          appliesTo={appliesTo}
+          customFields={customFields}
+          imageUrl={imageUrl}
+          imageUploading={imageUploading}
+          isVisible={isVisible}
+          pending={createCategory.isPending || updateCategory.isPending}
+          onNameChange={setName}
+          onDescriptionChange={setDescription}
+          onAppliesToChange={setAppliesTo}
+          onParentIdChange={setParentId}
+          onCustomFieldsChange={setCustomFields}
+          onVisibleChange={setIsVisible}
+          onImageUrlClear={() => { clearLocalPreview(); setImageUrl(null) }}
+          onUploadImage={uploadCategoryImageFile}
+          onImageUrl={handleCategoryImageUrl}
+          onSubmit={handleSubmit}
+          onCancel={resetForm}
+        />
       )}
 
       {catalogueId && <CatalogueDrawer categoryId={catalogueId} onClose={() => setCatalogueId(null)} />}

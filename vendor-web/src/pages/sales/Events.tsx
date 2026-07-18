@@ -1,19 +1,20 @@
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Loader2, Ticket, ToggleLeft, ToggleRight, X, ImagePlus, Star } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Ticket, ToggleLeft, ToggleRight, ImagePlus, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
-import { formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { cn, formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { modalWidthLg } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -26,6 +27,7 @@ import {
 import { eventsApi } from '@/api/events'
 import type { VendorEvent, VendorEventCreate, VendorTicketTier } from '@/api/events'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 /** "2026-07-24" → "Fri, Jul 24, 2026" for display; falls back to the raw value for older free-text entries. */
 function formatEventDate(iso?: string | null): string {
   if (!iso) return ''
@@ -62,73 +64,76 @@ function TierEditor({
   const remove = (idx: number) => onChange(tiers.filter((_, i) => i !== idx))
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1.5">
       {tiers.length === 0 && (
-        <p className="text-xs text-muted-foreground">No ticket tiers yet. Add at least one so guests can buy tickets.</p>
+        <p className="text-[10px] text-muted-foreground">No tiers yet — add at least one so guests can buy tickets.</p>
       )}
       {tiers.map((t, idx) => (
-        <div key={idx} className="rounded-lg border border-border p-3 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="grid flex-1 grid-cols-2 gap-2">
-              <Input
-                value={t.name}
-                onChange={e => update(idx, { name: e.target.value })}
-                placeholder="Tier name (General Admission)"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={t.price}
-                  onChange={e => update(idx, { price: Number(e.target.value) || 0 })}
-                  placeholder="Price"
-                />
-                <Input
-                  value={t.currency}
-                  onChange={e => update(idx, { currency: e.target.value })}
-                  placeholder="USD"
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => remove(idx)}
-              className="mt-1 shrink-0 rounded p-1.5 text-destructive hover:bg-destructive/10"
-              title="Remove tier"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+        <div key={idx} className="space-y-1 rounded-md bg-muted/20 p-1.5">
+          <div className="grid grid-cols-[minmax(0,1.4fr)_4.5rem_3.5rem_4rem_auto_auto] gap-1 items-center">
             <Input
+              className="h-7 text-xs"
+              value={t.name}
+              onChange={e => update(idx, { name: e.target.value })}
+              placeholder="General Admission"
+            />
+            <Input
+              className="h-7 text-xs"
+              type="number"
+              min={0}
+              step="0.01"
+              value={t.price}
+              onChange={e => update(idx, { price: Number(e.target.value) || 0 })}
+              placeholder="Price"
+            />
+            <Input
+              className="h-7 text-xs"
+              value={t.currency}
+              onChange={e => update(idx, { currency: e.target.value })}
+              placeholder="USD"
+            />
+            <Input
+              className="h-7 text-xs"
               type="number"
               min={0}
               value={t.remaining}
               onChange={e => update(idx, { remaining: Number(e.target.value) || 0 })}
-              placeholder="Remaining"
+              placeholder="Left"
+              title="Remaining"
             />
             <button
               type="button"
               onClick={() => update(idx, { popular: !t.popular })}
-              className={`flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-semibold transition-colors ${
-                t.popular ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40'
-              }`}
+              title={t.popular ? 'Popular' : 'Mark popular'}
+              className={cn(
+                'flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
+                t.popular
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border bg-background text-muted-foreground hover:border-primary/40',
+              )}
             >
-              <Star className="h-3.5 w-3.5" /> Mark as popular
+              <Star className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onClick={() => remove(idx)}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-destructive hover:bg-destructive/10"
+              title="Remove tier"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
           <textarea
             value={(t.perks ?? []).join('\n')}
             onChange={e => update(idx, { perks: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
-            rows={2}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-            placeholder={'Perks, one per line\nReserved seat\nDrink ticket included'}
+            rows={1}
+            className="w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="Perks, one per line"
           />
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" onClick={() => onChange([...tiers, emptyTier()])} className="gap-2">
-        <Plus className="h-3.5 w-3.5" /> Add ticket tier
+      <Button type="button" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={() => onChange([...tiers, emptyTier()])}>
+        <Plus className="h-3 w-3" /> Add tier
       </Button>
     </div>
   )
@@ -145,7 +150,6 @@ function EventModal({
   onSave: (data: VendorEventCreate) => void
   saving: boolean
 }) {
-  useEscapeToClose(onClose)
   const [title, setTitle] = useState(initial?.title ?? '')
   const [tagline, setTagline] = useState(initial?.tagline ?? '')
   const [imageUrl, setImageUrl] = useState<string | null>(initial?.image_url ?? null)
@@ -238,158 +242,167 @@ function EventModal({
     })
   }
 
+  const labelCls = 'text-[10px] leading-none'
+  const fieldGap = 'space-y-0.5'
+  const inputCls = 'h-7 text-xs'
+  const checkoutOpen = !!ageNote.trim() || orderTitle !== 'Your order' || ctaLabel !== 'Continue to checkout' || maxPerOrder !== '8'
+  const tiersOpen = tiers.length > 0
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-xl max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">{initial ? 'Edit event' : 'New event'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
-          <div>
-            <Label>Event banner</Label>
-            <ImageSourcePicker
-              title="Event banner"
-              uploading={imageUploading}
-              onFile={handleImageFile}
-              onUrl={handleImageUrl}
-              className="mt-1"
-            >
-              {({ open, uploading }) => (
-                <button
-                  type="button"
-                  onClick={open}
-                  disabled={uploading}
-                  className="flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
-                >
-                  {imageUrl ? (
-                    <img
-                      src={
-                        imageUrl.startsWith('blob:')
-                          ? imageUrl
-                          : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
-                      }
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
-                      {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                      Add banner
-                    </span>
-                  )}
-                </button>
-              )}
-            </ImageSourcePicker>
-          </div>
-          <div>
-            <Label>Event title</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Field Notes — A Night of Ambient" />
-          </div>
-          <div>
-            <Label>Tagline</Label>
-            <Input value={tagline} onChange={e => setTagline(e.target.value)} placeholder="An intimate evening of live electronic & strings" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Date</Label>
-              <Input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
-            </div>
-            <div>
-              <Label>Doors</Label>
-              <Input type="time" value={doorsTime} onChange={e => setDoorsTime(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Start</Label>
-              <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
-            </div>
-            <div>
-              <Label>End time</Label>
-              <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Venue</Label>
-              <Input value={venue} onChange={e => setVenue(e.target.value)} placeholder="The Greene Room" />
-            </div>
-            <div>
-              <Label>Address</Label>
-              <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="418 Atlantic Ave, Brooklyn" />
-            </div>
-          </div>
-          <div>
-            <Label>Maximum seats (venue allotment)</Label>
-            <Input
-              type="number"
-              min={0}
-              value={venueCapacity}
-              onChange={e => setVenueCapacity(e.target.value)}
-              placeholder="e.g. 500"
-            />
-          </div>
-          <div>
-            <Label>Age / entry note</Label>
-            <Input value={ageNote} onChange={e => setAgeNote(e.target.value)} placeholder="21+ event · ID required at door" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Order panel title</Label>
-              <Input value={orderTitle} onChange={e => setOrderTitle(e.target.value)} />
-            </div>
-            <div>
-              <Label>Max tickets per order</Label>
-              <Input type="number" min={1} value={maxPerOrder} onChange={e => setMaxPerOrder(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Checkout button label</Label>
-              <Input value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
-            </div>
-            <div>
-              <Label>Sort order</Label>
-              <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
-            </div>
-          </div>
-          <div className="rounded-lg border border-border p-3">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={showSeating} onChange={e => setShowSeating(e.target.checked)} />
-              Show seating chart
-            </label>
-            {showSeating && (
-              <div className="mt-2">
-                <Label>Seating chart title</Label>
-                <Input value={seatingTitle} onChange={e => setSeatingTitle(e.target.value)} />
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-1.5">
+      <ModalPanel className={cn(modalWidthLg, 'max-h-[calc(100dvh-0.75rem)]')}>
+        <ModalHeader
+          title={initial ? 'Edit event' : 'New event'}
+          onClose={onClose}
+          className="border-0 px-3 py-2 [&>div>h2]:text-sm"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-1.5 overflow-y-auto px-3 pb-2 pt-0">
+            <div className="grid grid-cols-[3.75rem_minmax(0,1.3fr)_minmax(0,1fr)] gap-1.5 items-end">
+              <ImageSourcePicker
+                title="Event banner"
+                uploading={imageUploading}
+                onFile={handleImageFile}
+                onUrl={handleImageUrl}
+              >
+                {({ open, uploading }) => (
+                  <button
+                    type="button"
+                    onClick={open}
+                    disabled={uploading}
+                    aria-label="Add event banner"
+                    title="Event banner"
+                    className="flex h-7 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
+                  >
+                    {imageUrl ? (
+                      <img
+                        src={
+                          imageUrl.startsWith('blob:')
+                            ? imageUrl
+                            : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
+                        }
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <ImagePlus className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </button>
+                )}
+              </ImageSourcePicker>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Event title *</Label>
+                <Input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} required autoFocus placeholder="Field Notes — A Night of Ambient" />
               </div>
-            )}
-          </div>
-          <div>
-            <Label>Ticket tiers</Label>
-            <div className="mt-1">
-              <TierEditor tiers={tiers} onChange={setTiers} />
+              <div className={fieldGap}>
+                <Label className={labelCls}>Tagline</Label>
+                <Input className={inputCls} value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Live electronic & strings" />
+              </div>
             </div>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-            Active on storefront
-          </label>
-        </div>
-        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {initial ? 'Save' : 'Create'}
-            </Button>
-        </div>
+
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Date</Label>
+                <Input className={inputCls} type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Doors</Label>
+                <Input className={inputCls} type="time" value={doorsTime} onChange={e => setDoorsTime(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Start</Label>
+                <Input className={inputCls} type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>End</Label>
+                <Input className={inputCls} type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-[1fr_1fr_5rem_5rem]">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Venue</Label>
+                <Input className={inputCls} value={venue} onChange={e => setVenue(e.target.value)} placeholder="The Greene Room" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Address</Label>
+                <Input className={inputCls} value={address} onChange={e => setAddress(e.target.value)} placeholder="418 Atlantic Ave, Brooklyn" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Max seats</Label>
+                <Input className={inputCls} type="number" min={0} value={venueCapacity} onChange={e => setVenueCapacity(e.target.value)} placeholder="500" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Sort</Label>
+                <Input className={inputCls} type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+              </div>
+            </div>
+
+            <details className="rounded-md bg-muted/15 px-2 py-1" open={checkoutOpen}>
+              <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground hover:text-foreground">
+                Checkout &amp; seating {checkoutOpen ? '' : '· optional'}
+              </summary>
+              <div className="mt-1.5 space-y-1.5">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                  <div className={cn(fieldGap, 'sm:col-span-2')}>
+                    <Label className={labelCls}>Age / entry note</Label>
+                    <Input className={inputCls} value={ageNote} onChange={e => setAgeNote(e.target.value)} placeholder="21+ · ID required" />
+                  </div>
+                  <div className={fieldGap}>
+                    <Label className={labelCls}>Order title</Label>
+                    <Input className={inputCls} value={orderTitle} onChange={e => setOrderTitle(e.target.value)} />
+                  </div>
+                  <div className={fieldGap}>
+                    <Label className={labelCls}>Max / order</Label>
+                    <Input className={inputCls} type="number" min={1} value={maxPerOrder} onChange={e => setMaxPerOrder(e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[1fr_auto_1fr] items-end">
+                  <div className={fieldGap}>
+                    <Label className={labelCls}>Checkout button</Label>
+                    <Input className={inputCls} value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+                  </div>
+                  <CheckboxFieldLabel
+                    label="Show seating"
+                    checked={showSeating}
+                    onChange={setShowSeating}
+                    labelClassName="text-xs pb-1"
+                  />
+                  <div className={fieldGap}>
+                    <Label className={labelCls}>Seating title</Label>
+                    <Input className={inputCls} value={seatingTitle} onChange={e => setSeatingTitle(e.target.value)} disabled={!showSeating} />
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <details className="rounded-md bg-muted/15 px-2 py-1" open={tiersOpen}>
+              <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground hover:text-foreground">
+                Ticket tiers {tiersOpen ? `(${tiers.length})` : '· optional'}
+              </summary>
+              <div className="mt-1.5">
+                <TierEditor tiers={tiers} onChange={setTiers} />
+              </div>
+            </details>
+          </ModalBody>
+          <ModalFooter className="items-center justify-between gap-2 border-0 bg-transparent px-3 py-2">
+            <CheckboxFieldLabel
+              label="Active on storefront"
+              checked={isActive}
+              onChange={setIsActive}
+              labelClassName="text-xs"
+            />
+            <div className="flex gap-2">
+              <Button type="button" variant="cancel" className="h-7 px-2.5 text-xs" onClick={onClose}>Cancel</Button>
+              <Button type="submit" className="h-7 px-2.5 text-xs" disabled={saving || !title.trim()}>
+                {saving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                {initial ? 'Save' : 'Create'}
+              </Button>
+            </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -426,19 +439,19 @@ export default function SalesEventsPage() {
   const { isSaving, patchField } = useInlineFieldPatch(updateEvent)
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Ticket className="h-5 w-5 text-primary" />
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+            <Ticket className="h-4 w-4 shrink-0 text-primary" />
             Ticketed Events
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage events and ticket tiers shown on your storefront. Events sync automatically to the Ticket Picker section in the website builder.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Storefront events &amp; tiers · syncs to Website Builder
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
-          <Plus className="h-4 w-4" /> Add event
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="h-3.5 w-3.5" /> Add event
         </Button>
       </div>
 
@@ -584,9 +597,9 @@ export default function SalesEventsPage() {
                         <button
                           type="button"
                           title="Delete"
-                          onClick={e => {
+                          onClick={async e => {
                             e.stopPropagation()
-                            if (window.confirm(`Delete "${event.title}"?`)) deleteEvent.mutate(event.id)
+                            if (await askConfirm(`Delete "${event.title}"?`)) deleteEvent.mutate(event.id)
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >

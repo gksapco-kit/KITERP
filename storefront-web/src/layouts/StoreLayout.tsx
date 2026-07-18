@@ -37,6 +37,7 @@ import {
   collectBusinessContactPhones,
   resolveBusinessContactAddress,
 } from '@/lib/businessContact'
+import StoreRouteSeo from '@/components/seo/StoreRouteSeo'
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
@@ -742,6 +743,7 @@ export default function StoreLayout() {
           <StorefrontDisplayFieldsBridge>
             <ThemeProvider>
               <StorefrontBuAuthSync />
+              <StoreRouteSeo />
               <StoreContent />
             </ThemeProvider>
           </StorefrontDisplayFieldsBridge>

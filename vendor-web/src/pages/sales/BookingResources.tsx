@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Building2, ToggleLeft, ToggleRight, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Building2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
 import { formatCurrency } from '@/lib/utils'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
@@ -24,6 +24,7 @@ import {
 } from '@/hooks/useBookingResources'
 import type { VendorBookingResource, VendorBookingResourceCreate } from '@/api/bookingResources'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const RESOURCE_TYPES = ['room', 'table', 'court', 'equipment']
 
 function ResourceModal({
@@ -37,7 +38,6 @@ function ResourceModal({
   onSave: (data: VendorBookingResourceCreate) => void
   saving: boolean
 }) {
-  useEscapeToClose(onClose)
   const [name, setName] = useState(initial?.name ?? '')
   const [resourceType, setResourceType] = useState(initial?.resource_type ?? 'room')
   const [capacity, setCapacity] = useState(String(initial?.capacity ?? 1))
@@ -66,45 +66,64 @@ function ResourceModal({
     })
   }
 
+  const labelCls = 'text-xs leading-none'
+  const fieldGap = 'space-y-1'
+  const inputCls = 'h-8 text-sm'
+  const selectCls = 'h-8 w-full rounded-md border border-input bg-background px-2 text-sm'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">{initial ? 'Edit resource' : 'New resource'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
-            <div>
-              <Label>Name</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} required placeholder="Studio A — North light" />
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+        <ModalHeader
+          title={initial ? 'Edit resource' : 'New resource'}
+          onClose={onClose}
+          className="border-0 px-4 py-3 [&>div>h2]:text-base"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+            <div className={fieldGap}>
+              <Label className={labelCls}>Name *</Label>
+              <Input className={inputCls} value={name} onChange={e => setName(e.target.value)} required autoFocus placeholder="Studio A — North light" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Type</Label>
-                <select
-                  value={resourceType}
-                  onChange={e => setResourceType(e.target.value)}
-                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-                >
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Type</Label>
+                <select value={resourceType} onChange={e => setResourceType(e.target.value)} className={selectCls}>
                   {RESOURCE_TYPES.map(t => (
                     <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>
                   ))}
                 </select>
               </div>
-              <div>
-                <Label>Capacity</Label>
-                <Input type="number" min={1} value={capacity} onChange={e => setCapacity(e.target.value)} />
+              <div className={fieldGap}>
+                <Label className={labelCls}>Capacity</Label>
+                <Input className={inputCls} type="number" min={1} value={capacity} onChange={e => setCapacity(e.target.value)} />
               </div>
             </div>
-            <div>
-              <Label>Description</Label>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Price / hour</Label>
+                <Input className={inputCls} type="number" min={0} step="0.01" value={pricePerHour} onChange={e => setPricePerHour(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Currency</Label>
+                <Input className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)} placeholder="USD" />
+              </div>
+            </div>
+
+            <div className={fieldGap}>
+              <Label className={labelCls}>Sort order</Label>
+              <Input className={inputCls} type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+            </div>
+
+            <div className={fieldGap}>
+              <Label className={labelCls}>Description</Label>
               <AiDescriptionTextarea
                 value={description}
                 onChange={setDescription}
-                rows={2}
+                rows={4}
+                className="min-h-[6rem] w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
                 placeholder="Bright corner studio with 14ft ceilings…"
                 maxLength={1000}
                 context={{
@@ -115,44 +134,37 @@ function ResourceModal({
                 }}
               />
             </div>
-            <div>
-              <Label>Features</Label>
-              <Input value={features} onChange={e => setFeatures(e.target.value)} placeholder="Natural light, Sound system, Whiteboard" />
-              <p className="mt-1 text-[11px] text-muted-foreground">Comma-separated. Shown as tags on the storefront.</p>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Features (comma-separated)</Label>
+              <Input className={inputCls} value={features} onChange={e => setFeatures(e.target.value)} placeholder="Natural light, Sound system" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Price per hour</Label>
-                <Input type="number" min={0} step="0.01" value={pricePerHour} onChange={e => setPricePerHour(e.target.value)} />
-              </div>
-              <div>
-                <Label>Currency</Label>
-                <Input value={currency} onChange={e => setCurrency(e.target.value)} placeholder="USD" />
-              </div>
+          </ModalBody>
+          <ModalFooter className="flex-wrap items-center justify-between gap-2 border-0 bg-transparent px-4 py-3">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+              <CheckboxFieldLabel
+                label="Available now"
+                checked={isAvailable}
+                onChange={setIsAvailable}
+                labelClassName="text-xs"
+              />
+              <CheckboxFieldLabel
+                label="Active on storefront"
+                checked={isActive}
+                onChange={setIsActive}
+                labelClassName="text-xs"
+              />
             </div>
-            <div>
-              <Label>Sort order</Label>
-              <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+            <div className="flex gap-2">
+              <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={onClose}>Cancel</Button>
+              <Button type="submit" className="h-8 rounded-md px-3 text-sm" disabled={saving || !name.trim()}>
+                {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                {initial ? 'Save' : 'Add resource'}
+              </Button>
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={isAvailable} onChange={e => setIsAvailable(e.target.checked)} />
-              Available for booking right now
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-              Active on storefront
-            </label>
-          </div>
-          <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {initial ? 'Save' : 'Add resource'}
-            </Button>
-          </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -189,20 +201,19 @@ export default function SalesBookingResourcesPage() {
   const { isSaving, patchField } = useInlineFieldPatch(updateResource)
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-primary" />
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
             Resources
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage the rooms, tables, courts, or equipment guests can pick from in the Resource Picker section of
-            your website builder. Resources sync automatically — if none are added, demo resources are shown instead.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Rooms &amp; equipment · syncs to Website Builder
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
-          <Plus className="h-4 w-4" /> Add resource
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="h-3.5 w-3.5" /> Add resource
         </Button>
       </div>
 
@@ -371,9 +382,9 @@ export default function SalesBookingResourcesPage() {
                         <button
                           type="button"
                           title="Delete"
-                          onClick={e => {
+                          onClick={async e => {
                             e.stopPropagation()
-                            if (window.confirm(`Delete "${resource.name}"?`)) deleteResource.mutate(resource.id)
+                            if (await askConfirm(`Delete "${resource.name}"?`)) deleteResource.mutate(resource.id)
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >

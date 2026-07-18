@@ -5,16 +5,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
-import { formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { cn, formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { modalWidthLg } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -27,6 +28,7 @@ import {
 import { coursesApi } from '@/api/courses'
 import type { VendorCourse, VendorCourseCreate, CourseSyllabusWeek, CoursePerk } from '@/api/courses'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const COURSE_LEVELS = ['Beginner', 'Intermediate', 'Advanced']
 const PERK_ICONS = ['clock', 'video', 'award', 'users']
 
@@ -79,9 +81,9 @@ function SyllabusEditor({
         variant="outline"
         size="sm"
         onClick={() => onChange([...items, { week: items.length + 1, title: '', lessons: 0, duration: '' }])}
-        className="gap-1"
+        className="h-7 gap-1 px-2 text-xs"
       >
-        <Plus className="h-3.5 w-3.5" /> Add week
+        <Plus className="h-3 w-3" /> Add week
       </Button>
     </div>
   )
@@ -121,9 +123,9 @@ function PerksEditor({
         variant="outline"
         size="sm"
         onClick={() => onChange([...items, { icon: 'clock', text: '' }])}
-        className="gap-1"
+        className="h-7 gap-1 px-2 text-xs"
       >
-        <Plus className="h-3.5 w-3.5" /> Add perk
+        <Plus className="h-3 w-3" /> Add perk
       </Button>
     </div>
   )
@@ -140,7 +142,6 @@ function CourseModal({
   onSave: (data: VendorCourseCreate) => void
   saving: boolean
 }) {
-  useEscapeToClose(onClose)
   const [title, setTitle] = useState(initial?.title ?? '')
   const [instructor, setInstructor] = useState(initial?.instructor ?? '')
   const [level, setLevel] = useState(initial?.level ?? 'Beginner')
@@ -235,181 +236,184 @@ function CourseModal({
     })
   }
 
+  const labelCls = 'text-[10px] leading-none'
+  const fieldGap = 'space-y-0.5'
+  const selectCls = 'h-7 w-full rounded-md border border-input bg-background px-2 text-xs'
+  const inputCls = 'h-7 text-xs'
+  const moreOpen = syllabus.length > 0 || perks.length > 0 || !!outcomesText.trim()
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">{initial ? 'Edit course' : 'New course'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
-          <div>
-            <Label>Course cover image</Label>
-            <ImageSourcePicker
-              title="Course cover image"
-              uploading={imageUploading}
-              onFile={handleImageFile}
-              onUrl={handleImageUrl}
-              className="mt-1"
-            >
-              {({ open, uploading }) => (
-                <button
-                  type="button"
-                  onClick={open}
-                  disabled={uploading}
-                  className="flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
-                >
-                  {imageUrl ? (
-                    <img
-                      src={
-                        imageUrl.startsWith('blob:')
-                          ? imageUrl
-                          : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
-                      }
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
-                      {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                      Add photo
-                    </span>
-                  )}
-                </button>
-              )}
-            </ImageSourcePicker>
-          </div>
-          <div>
-            <Label>Title</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Foundations of Modern Ceramics" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Instructor</Label>
-              <Input value={instructor} onChange={e => setInstructor(e.target.value)} placeholder="Naomi Reyes" />
-            </div>
-            <div>
-              <Label>Category</Label>
-              <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="Craft" />
-            </div>
-          </div>
-          <div>
-            <Label>Description (optional)</Label>
-            <AiDescriptionTextarea
-              value={description}
-              onChange={setDescription}
-              rows={3}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              placeholder="Wheel throwing, hand-building, and your first three glazed pieces."
-              maxLength={2000}
-              context={{
-                field_kind: 'course_description',
-                name: title,
-                category,
-                extra_context: { instructor, level, duration },
-              }}
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label>Level</Label>
-              <select
-                value={level}
-                onChange={e => setLevel(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-1.5">
+      <ModalPanel className={cn(modalWidthLg, 'max-h-[calc(100dvh-0.75rem)]')}>
+        <ModalHeader
+          title={initial ? 'Edit course' : 'New course'}
+          onClose={onClose}
+          className="border-0 px-3 py-2 [&>div>h2]:text-sm"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-1.5 overflow-y-auto px-3 pb-2 pt-0">
+            <div className="grid grid-cols-[3.75rem_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] gap-1.5 items-end">
+              <ImageSourcePicker
+                title="Course cover image"
+                uploading={imageUploading}
+                onFile={handleImageFile}
+                onUrl={handleImageUrl}
               >
-                {COURSE_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
+                {({ open, uploading }) => (
+                  <button
+                    type="button"
+                    onClick={open}
+                    disabled={uploading}
+                    aria-label="Add cover photo"
+                    title="Cover photo"
+                    className="flex h-7 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
+                  >
+                    {imageUrl ? (
+                      <img
+                        src={
+                          imageUrl.startsWith('blob:')
+                            ? imageUrl
+                            : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
+                        }
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <ImagePlus className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </button>
+                )}
+              </ImageSourcePicker>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Title *</Label>
+                <Input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} required autoFocus placeholder="Foundations of Modern Ceramics" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Instructor</Label>
+                <Input className={inputCls} value={instructor} onChange={e => setInstructor(e.target.value)} placeholder="Naomi Reyes" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Category</Label>
+                <Input className={inputCls} value={category} onChange={e => setCategory(e.target.value)} placeholder="Craft" />
+              </div>
             </div>
-            <div>
-              <Label>Duration</Label>
-              <Input value={duration} onChange={e => setDuration(e.target.value)} placeholder="6 weeks" />
-            </div>
-            <div>
-              <Label>Lessons</Label>
-              <Input type="number" min={0} value={lessons} onChange={e => setLessons(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <Label>Price</Label>
-              <Input type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
-            </div>
-            <div>
-              <Label>Currency</Label>
-              <Input value={currency} onChange={e => setCurrency(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Rating</Label>
-              <Input type="number" min={0} max={5} step="0.1" value={rating} onChange={e => setRating(e.target.value)} />
-            </div>
-            <div>
-              <Label>Reviews</Label>
-              <Input type="number" min={0} value={reviews} onChange={e => setReviews(e.target.value)} />
-            </div>
-          </div>
 
-          <div>
-            <Label>Outcomes (one per line)</Label>
-            <textarea
-              value={outcomesText}
-              onChange={e => setOutcomesText(e.target.value)}
-              rows={3}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              placeholder={'Throw a balanced cylinder, bowl, and mug\nMix and apply two reliable glazes'}
+            <div className={fieldGap}>
+              <Label className={labelCls}>Description (optional)</Label>
+              <AiDescriptionTextarea
+                value={description}
+                onChange={setDescription}
+                rows={1}
+                className="min-h-[1.75rem] w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                placeholder="Wheel throwing, hand-building, and your first three glazed pieces."
+                maxLength={2000}
+                context={{
+                  field_kind: 'course_description',
+                  name: title,
+                  category,
+                  extra_context: { instructor, level, duration },
+                }}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Level</Label>
+                <select value={level} onChange={e => setLevel(e.target.value)} className={selectCls}>
+                  {COURSE_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Duration</Label>
+                <Input className={inputCls} value={duration} onChange={e => setDuration(e.target.value)} placeholder="6 weeks" />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Lessons</Label>
+                <Input className={inputCls} type="number" min={0} value={lessons} onChange={e => setLessons(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Price</Label>
+                <Input className={inputCls} type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Currency</Label>
+                <Input className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Sort</Label>
+                <Input className={inputCls} type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Rating</Label>
+                <Input className={inputCls} type="number" min={0} max={5} step="0.1" value={rating} onChange={e => setRating(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Reviews</Label>
+                <Input className={inputCls} type="number" min={0} value={reviews} onChange={e => setReviews(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Enroll button</Label>
+                <Input className={inputCls} value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Preview button</Label>
+                <Input className={inputCls} value={previewCtaLabel} onChange={e => setPreviewCtaLabel(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Enrolled note</Label>
+                <Input className={inputCls} value={enrolledLabel} onChange={e => setEnrolledLabel(e.target.value)} placeholder="2,400+ enrolled" />
+              </div>
+            </div>
+
+            <details className="rounded-md bg-muted/15 px-2 py-1" open={moreOpen}>
+              <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground hover:text-foreground">
+                Outcomes, syllabus &amp; perks {moreOpen ? '' : '· optional'}
+              </summary>
+              <div className="mt-1.5 space-y-1.5">
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Outcomes (one per line)</Label>
+                  <textarea
+                    value={outcomesText}
+                    onChange={e => setOutcomesText(e.target.value)}
+                    rows={2}
+                    className="w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder={'Throw a balanced cylinder, bowl, and mug\nMix and apply two reliable glazes'}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                  <div>
+                    <p className={cn(labelCls, 'mb-0.5 text-muted-foreground')}>Syllabus</p>
+                    <SyllabusEditor items={syllabus} onChange={setSyllabus} />
+                  </div>
+                  <div>
+                    <p className={cn(labelCls, 'mb-0.5 text-muted-foreground')}>What&apos;s included</p>
+                    <PerksEditor items={perks} onChange={setPerks} />
+                  </div>
+                </div>
+              </div>
+            </details>
+          </ModalBody>
+          <ModalFooter className="items-center justify-between gap-2 border-0 bg-transparent px-3 py-2">
+            <CheckboxFieldLabel
+              label="Active on storefront"
+              checked={isActive}
+              onChange={setIsActive}
+              labelClassName="text-xs"
             />
-          </div>
-
-          <div>
-            <Label>Syllabus</Label>
-            <SyllabusEditor items={syllabus} onChange={setSyllabus} />
-          </div>
-
-          <div>
-            <Label>What's included (perks)</Label>
-            <PerksEditor items={perks} onChange={setPerks} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Enroll button</Label>
-              <Input value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+            <div className="flex gap-2">
+              <Button type="button" variant="cancel" className="h-7 px-2.5 text-xs" onClick={onClose}>Cancel</Button>
+              <Button type="submit" className="h-7 px-2.5 text-xs" disabled={saving || !title.trim()}>
+                {saving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                {initial ? 'Save' : 'Create'}
+              </Button>
             </div>
-            <div>
-              <Label>Preview button</Label>
-              <Input value={previewCtaLabel} onChange={e => setPreviewCtaLabel(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>"Enrolled" note</Label>
-              <Input value={enrolledLabel} onChange={e => setEnrolledLabel(e.target.value)} placeholder="2,400+ enrolled" />
-            </div>
-            <div>
-              <Label>Sort order</Label>
-              <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
-            </div>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-            Active on storefront
-          </label>
-        </div>
-        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {initial ? 'Save' : 'Create'}
-            </Button>
-        </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -448,19 +452,19 @@ export default function SalesCoursesPage() {
   const { isSaving, patchField } = useInlineFieldPatch(updateCourse)
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <GraduationCap className="h-5 w-5 text-primary" />
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+            <GraduationCap className="h-4 w-4 shrink-0 text-primary" />
             Course Catalog
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage courses shown on your storefront. Courses sync automatically to Course Catalog and Course Detail sections in the website builder.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Storefront courses · syncs to Website Builder
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
-          <Plus className="h-4 w-4" /> Add course
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="h-3.5 w-3.5" /> Add course
         </Button>
       </div>
 
@@ -619,9 +623,9 @@ export default function SalesCoursesPage() {
                         <button
                           type="button"
                           title="Delete"
-                          onClick={e => {
+                          onClick={async e => {
                             e.stopPropagation()
-                            if (window.confirm(`Delete course "${course.title}"?`)) deleteCourse.mutate(course.id)
+                            if (await askConfirm(`Delete course "${course.title}"?`)) deleteCourse.mutate(course.id)
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >

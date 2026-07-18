@@ -17,6 +17,7 @@ import {
 } from '@/hooks/useVendor'
 import type { TrainingProgram, TrainingEnrollment, EmployeeProfile } from '@/types'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 type Tab = 'programs' | 'enrollments'
 
 const PROG_STATUS: Record<string, { label: string; color: string }> = {
@@ -115,7 +116,7 @@ function ProgramsTab() {
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button type="button"
-                        onClick={() => { if (confirm(`Delete program "${p.name}"?`)) del.mutate(p.id) }}
+                        onClick={async () => { if (await askConfirm(`Delete program "${p.name}"?`)) del.mutate(p.id) }}
                         className="p-1.5 text-muted-foreground hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </button>

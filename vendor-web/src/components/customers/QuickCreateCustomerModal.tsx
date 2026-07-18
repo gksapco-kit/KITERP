@@ -15,8 +15,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
+import { ModalOverlay } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -41,8 +41,6 @@ interface Props {
 
 export function QuickCreateCustomerModal({
  onSelect, onClose, returnTo }: Props) {
-  useEscapeToClose(onClose)
-
   const navigate = useNavigate()
   const createCustomerMut = useCreateCustomer({ silent: true })
 
@@ -150,10 +148,7 @@ export function QuickCreateCustomerModal({
   const visibleDups = dupDismissed ? [] : dupMatches
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 overflow-y-auto"
-      onClick={onClose}
-    >
+    <ModalOverlay onClose={onClose} className="z-[110] bg-black/60">
       <div
         className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
@@ -164,7 +159,7 @@ export function QuickCreateCustomerModal({
             <UserPlus className="w-5 h-5 text-primary" />
             Quick Create Customer
           </h3>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+          <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
             <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
@@ -251,6 +246,6 @@ export function QuickCreateCustomerModal({
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

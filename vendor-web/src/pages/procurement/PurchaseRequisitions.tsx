@@ -101,7 +101,7 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
   const showApprovalFooter = pr.status === 'submitted' && pendingStep && !membershipLoading
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
       <div
         className="flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900"
         onClick={e => e.stopPropagation()}
@@ -592,7 +592,7 @@ function PRFormModal({ editingPR, onClose }: { editingPR?: PurchaseRequisition |
   const handleSaveDraft = () => { void handleSave(false) }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
       <Card className="w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3.5 border-b shrink-0">
           <h2 className="text-lg font-semibold flex items-center gap-2">

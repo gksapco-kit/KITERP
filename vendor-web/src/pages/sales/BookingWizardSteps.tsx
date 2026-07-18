@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Workflow, ToggleLeft, ToggleRight, X, GripVertical } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, ToggleLeft, ToggleRight, GripVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -22,6 +22,7 @@ import {
 } from '@/hooks/useBookingWizardSteps'
 import type { VendorBookingWizardStep, VendorBookingWizardStepCreate } from '@/api/bookingWizardSteps'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 function StepModal({
   initial,
   nextSortOrder,
@@ -35,7 +36,6 @@ function StepModal({
   onSave: (data: VendorBookingWizardStepCreate) => void
   saving: boolean
 }) {
-  useEscapeToClose(onClose)
   const [label, setLabel] = useState(initial?.label ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [sortOrder, setSortOrder] = useState(String(initial?.sort_order ?? nextSortOrder))
@@ -53,43 +53,41 @@ function StepModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-md max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">{initial ? 'Edit step' : 'New step'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
-            <div>
-              <Label>Step label</Label>
-              <Input value={label} onChange={e => setLabel(e.target.value)} required placeholder="Service" />
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+        <ModalHeader
+          title={initial ? 'Edit step' : 'New step'}
+          onClose={onClose}
+          className="border-0 px-4 py-3 [&>div>h2]:text-base"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-2.5 px-4 pb-3 pt-0">
+            <div className="space-y-1">
+              <Label className="text-xs">Step label *</Label>
+              <Input className="h-8 text-sm" value={label} onChange={e => setLabel(e.target.value)} required autoFocus placeholder="Service" />
             </div>
-            <div>
-              <Label>Description</Label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="What are you booking?" />
+            <div className="space-y-1">
+              <Label className="text-xs">Description</Label>
+              <Textarea className="min-h-[3.5rem] resize-none px-2.5 py-1.5 text-sm" value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="What are you booking?" />
             </div>
-            <div>
-              <Label>Sort order</Label>
-              <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+            <div className="space-y-1">
+              <Label className="text-xs">Sort order</Label>
+              <Input className="h-8 text-sm" type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-              Active on storefront
-            </label>
-          </div>
-          <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {initial ? 'Save' : 'Add step'}
-            </Button>
-          </div>
+          </ModalBody>
+          <ModalFooter className="items-center justify-between gap-2 border-0 bg-transparent px-4 py-3">
+            <CheckboxFieldLabel label="Active on storefront" checked={isActive} onChange={setIsActive} labelClassName="text-xs" />
+            <div className="flex gap-2">
+              <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={onClose}>Cancel</Button>
+              <Button type="submit" className="h-8 rounded-md px-3 text-sm" disabled={saving || !label.trim()}>
+                {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                {initial ? 'Save' : 'Add step'}
+              </Button>
+            </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -126,21 +124,13 @@ export default function SalesBookingWizardStepsPage() {
   const nextSortOrder = (data?.items?.length ?? 0)
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Workflow className="h-5 w-5 text-primary" />
-            Booking Wizard
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Define the steps shown in the Booking Wizard section of your website builder. Steps sync automatically —
-            if none are added, a default Service → Date → Time → Details → Review flow is shown instead. Edit the
-            section title and subtitle directly in the website builder.
-          </p>
-        </div>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
-          <Plus className="h-4 w-4" /> Add step
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Steps for the storefront booking flow · syncs to Website Builder
+        </p>
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="h-3.5 w-3.5" /> Add step
         </Button>
       </div>
 
@@ -251,9 +241,9 @@ export default function SalesBookingWizardStepsPage() {
                         <button
                           type="button"
                           title="Delete"
-                          onClick={e => {
+                          onClick={async e => {
                             e.stopPropagation()
-                            if (window.confirm(`Delete step "${step.label}"?`)) deleteStep.mutate(step.id)
+                            if (await askConfirm(`Delete step "${step.label}"?`)) deleteStep.mutate(step.id)
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >

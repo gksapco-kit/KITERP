@@ -3,8 +3,8 @@ import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Button } from '@/components/ui/button'
 import { hrInputClass, hrSelectClass, hrTabActiveClass, hrTabInactiveClass, hrTableHeadClass, hrStatusBadge, hrLabelClass, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
 import { Label } from '@/components/ui/label'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { Plus, Briefcase, Users, Calendar, ExternalLink, Trash2, Pencil, X, Search } from 'lucide-react'
 import {
@@ -15,6 +15,14 @@ import {
 } from '@/hooks/useVendor'
 import type { JobPosting, Candidate, InterviewRound, HRDepartment, HRDesignation } from '@/types'
 import type { StoreRecord } from '@/api/vendor'
+
+import { askConfirm } from '@/components/common/ConfirmProvider'
+
+const denseFieldClass =
+  'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
+const denseLabelClass = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
+const denseTextareaClass =
+  'w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none [color-scheme:dark]'
 
 const JOB_STATUS: Record<string, { label: string; color: string }> = {
   draft:   { label: 'Draft',   color: hrStatusBadge.draft },
@@ -84,111 +92,116 @@ function JobModal({
   }
 
   return (
-    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
-      <div className={cn(dialogPanelClass, 'max-w-2xl')} onClick={e => e.stopPropagation()}>
-        <div className="shrink-0 flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-lg font-semibold text-foreground">{existing ? 'Edit Job' : 'New Job Posting'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-4 w-4" /></button>
-        </div>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-h-[calc(100dvh-1.5rem)] max-w-2xl !rounded-lg overflow-hidden">
+        <ModalHeader
+          title={existing ? 'Edit Job' : 'New Job Posting'}
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+        />
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4 p-5">
-          <div>
-            <Label className={hrLabelClass} required>Title</Label>
-            <input required value={form.title} onChange={e => set('title', e.target.value)}
-              className={cn(hrInputClass, 'mt-1')} placeholder="e.g. Senior Software Engineer" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className={hrLabelClass}>Department</Label>
-              <select value={form.department_id || ''} onChange={e => set('department_id', e.target.value)}
-                className={cn(hrInputClass, 'mt-1')}>
-                <option value="">— None —</option>
-                {(depts as HRDepartment[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+          <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
+            <div className="grid grid-cols-[1fr_8rem] gap-2">
+              <div>
+                <Label className={denseLabelClass} required>Title</Label>
+                <input required value={form.title} onChange={e => set('title', e.target.value)}
+                  className={denseFieldClass} placeholder="e.g. Senior Software Engineer" />
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Status</Label>
+                <select value={form.status} onChange={e => set('status', e.target.value as JobPosting['status'])}
+                  className={denseFieldClass}>
+                  <option value="draft">Draft</option>
+                  <option value="open">Open (live)</option>
+                  <option value="on_hold">On Hold</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <Label className={hrLabelClass}>Designation</Label>
-              <select value={form.designation_id || ''} onChange={e => set('designation_id', e.target.value)}
-                className={cn(hrInputClass, 'mt-1')}>
-                <option value="">— None —</option>
-                {(desigs as HRDesignation[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className={denseLabelClass}>Department</Label>
+                <select value={form.department_id || ''} onChange={e => set('department_id', e.target.value)}
+                  className={denseFieldClass}>
+                  <option value="">— None —</option>
+                  {(depts as HRDepartment[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Designation</Label>
+                <select value={form.designation_id || ''} onChange={e => set('designation_id', e.target.value)}
+                  className={denseFieldClass}>
+                  <option value="">— None —</option>
+                  {(desigs as HRDesignation[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Store</Label>
+                <select value={form.store_id || ''} onChange={e => set('store_id', e.target.value)}
+                  className={denseFieldClass}>
+                  <option value="">— Any —</option>
+                  {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Employment Type</Label>
+                <select value={form.employment_type} onChange={e => set('employment_type', e.target.value)}
+                  className={denseFieldClass}>
+                  <option value="full_time">Full-time</option>
+                  <option value="part_time">Part-time</option>
+                  <option value="contract">Contract</option>
+                  <option value="intern">Intern</option>
+                  <option value="temporary">Temporary</option>
+                </select>
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Openings</Label>
+                <input type="number" min={1} value={form.openings} onChange={e => set('openings', Number(e.target.value))}
+                  className={denseFieldClass} />
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Location</Label>
+                <input value={form.location} onChange={e => set('location', e.target.value)}
+                  className={denseFieldClass} placeholder="City, Remote, etc." />
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Salary Min</Label>
+                <input type="number" value={form.salary_min} onChange={e => set('salary_min', e.target.value)}
+                  className={denseFieldClass} />
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Salary Max</Label>
+                <input type="number" value={form.salary_max} onChange={e => set('salary_max', e.target.value)}
+                  className={denseFieldClass} />
+              </div>
             </div>
-            <div>
-              <Label className={hrLabelClass}>Store</Label>
-              <select value={form.store_id || ''} onChange={e => set('store_id', e.target.value)}
-                className={cn(hrInputClass, 'mt-1')}>
-                <option value="">— Any —</option>
-                {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label className={denseLabelClass}>Description</Label>
+                <textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)}
+                  className={denseTextareaClass} placeholder="Role overview…" />
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Requirements</Label>
+                <textarea rows={3} value={form.requirements} onChange={e => set('requirements', e.target.value)}
+                  className={denseTextareaClass} placeholder="Must-haves…" />
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Benefits</Label>
+                <textarea rows={3} value={form.benefits} onChange={e => set('benefits', e.target.value)}
+                  className={denseTextareaClass} placeholder="Perks…" />
+              </div>
             </div>
-            <div>
-              <Label className={hrLabelClass}>Employment Type</Label>
-              <select value={form.employment_type} onChange={e => set('employment_type', e.target.value)}
-                className={cn(hrInputClass, 'mt-1')}>
-                <option value="full_time">Full-time</option>
-                <option value="part_time">Part-time</option>
-                <option value="contract">Contract</option>
-                <option value="intern">Intern</option>
-                <option value="temporary">Temporary</option>
-              </select>
-            </div>
-            <div>
-              <Label className={hrLabelClass}>Openings</Label>
-              <input type="number" min={1} value={form.openings} onChange={e => set('openings', Number(e.target.value))}
-                className={cn(hrInputClass, 'mt-1')} />
-            </div>
-            <div>
-              <Label className={hrLabelClass}>Location</Label>
-              <input value={form.location} onChange={e => set('location', e.target.value)}
-                className={cn(hrInputClass, 'mt-1')} placeholder="City, Remote, etc." />
-            </div>
-            <div>
-              <Label className={hrLabelClass}>Salary Min</Label>
-              <input type="number" value={form.salary_min} onChange={e => set('salary_min', e.target.value)}
-                className={cn(hrInputClass, 'mt-1')} />
-            </div>
-            <div>
-              <Label className={hrLabelClass}>Salary Max</Label>
-              <input type="number" value={form.salary_max} onChange={e => set('salary_max', e.target.value)}
-                className={cn(hrInputClass, 'mt-1')} />
-            </div>
-          </div>
-          <div>
-            <Label className={hrLabelClass}>Description</Label>
-            <textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)}
-              className={cn(hrInputClass, 'mt-1 min-h-[5rem] resize-y')} />
-          </div>
-          <div>
-            <Label className={hrLabelClass}>Requirements</Label>
-            <textarea rows={3} value={form.requirements} onChange={e => set('requirements', e.target.value)}
-              className={cn(hrInputClass, 'mt-1 min-h-[5rem] resize-y')} />
-          </div>
-          <div>
-            <Label className={hrLabelClass}>Benefits</Label>
-            <textarea rows={2} value={form.benefits} onChange={e => set('benefits', e.target.value)}
-              className={cn(hrInputClass, 'mt-1 min-h-[4rem] resize-y')} />
-          </div>
-          <div>
-            <Label className={hrLabelClass}>Status</Label>
-            <select value={form.status} onChange={e => set('status', e.target.value as JobPosting['status'])}
-              className={cn(hrSelectClass, 'mt-1 w-full')}>
-              <option value="draft">Draft</option>
-              <option value="open">Open (live)</option>
-              <option value="on_hold">On Hold</option>
-              <option value="closed">Closed</option>
-            </select>
-          </div>
-          </div>
-          <div className="shrink-0 flex justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={create.isPending || update.isPending}>
+          </ModalBody>
+          <ModalFooter className="border-0 px-4 py-2.5">
+            <Button type="button" variant="outline" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
+            <Button type="submit" size="sm" className="h-8" disabled={create.isPending || update.isPending}>
               {create.isPending || update.isPending ? 'Saving…' : (existing ? 'Save changes' : 'Create job')}
             </Button>
-          </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -439,7 +452,7 @@ function JobsTab() {
                           className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary" title="Edit">
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => { if (confirm('Delete this job?')) deleteJob.mutate(job.id) }}
+                        <button onClick={async () => { if (await askConfirm('Delete this job?')) deleteJob.mutate(job.id) }}
                           className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Delete">
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -521,7 +534,7 @@ function CandidatesTab() {
                     <span className={cn('rounded-full px-2 py-0.5', hrStatusBadge.draft)}>{c.source ?? 'direct'}</span>
                   </td>
                   <td className="py-3 px-4">
-                    <button onClick={() => { if (confirm('Delete candidate?')) deleteCand.mutate(c.id) }}
+                    <button onClick={async () => { if (await askConfirm('Delete candidate?')) deleteCand.mutate(c.id) }}
                       className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Delete">
                       <Trash2 className="w-4 h-4" />
                     </button>

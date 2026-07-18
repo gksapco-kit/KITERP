@@ -24,6 +24,7 @@ import {
   commissionPaginationInactive,
 } from '@/pages/commission/commissionUi'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const LINK_TYPES = ['vendor_user', 'supplier', 'customer', 'external'] as const
@@ -309,7 +310,7 @@ export default function PayeesPage() {
     const isActive = p.status === 'active'
     const nextStatus = isActive ? 'inactive' : 'active'
     const label = isActive ? 'deactivate' : 'activate'
-    if (!confirm(`${isActive ? 'Deactivate' : 'Activate'} this payee?`)) return
+    if (!await askConfirm(`${isActive ? 'Deactivate' : 'Activate'} this payee?`)) return
     try {
       await update.mutateAsync({ id: p.id, data: { status: nextStatus } })
       toast.success(`Payee ${label}d`)
@@ -319,7 +320,7 @@ export default function PayeesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this payee permanently? This cannot be undone.')) return
+    if (!await askConfirm('Delete this payee permanently? This cannot be undone.')) return
     try {
       await remove.mutateAsync(id)
       toast.success('Payee deleted')
@@ -477,19 +478,18 @@ export default function PayeesPage() {
       {showForm && (
         <ModalOverlay onClose={closeForm}>
           <ModalPanel className="max-w-lg max-h-[90vh]">
-            <div className="shrink-0 border-b border-border px-5 py-3">
-              <ModalHeader
-                title={editing ? 'Edit Payee' : 'Add Payee'}
-                subtitle={
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Fields marked <span className="text-red-500">*</span> are required
-                  </p>
-                }
-                onClose={closeForm}
-              />
-            </div>
+            <ModalHeader
+              title={editing ? 'Edit Payee' : 'Add Payee'}
+              subtitle={
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Fields marked <span className="text-red-500">*</span> are required
+                </p>
+              }
+              onClose={closeForm}
+              className="border-0 px-5 py-3"
+            />
 
-            <ModalBody className="space-y-4 p-5">
+            <ModalBody className="space-y-4 px-5 pb-5 pt-0">
 
               {/* 1. Type selector */}
               <div>

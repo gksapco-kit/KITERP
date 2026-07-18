@@ -7,6 +7,7 @@ import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 
 import { router } from './routes'
+import { ConfirmProvider } from './components/common/ConfirmProvider'
 import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
 import { startSessionKeepAlive } from './lib/authSession'
 import './styles/globals.css'
@@ -20,8 +21,10 @@ attachAutoRefreshInterceptor(apiClient)
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster position="top-right" richColors closeButton />
+      <ConfirmProvider>
+        <RouterProvider router={router} />
+        <Toaster position="top-right" richColors closeButton />
+      </ConfirmProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 )

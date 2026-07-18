@@ -1,23 +1,16 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { SectionLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { ModalBody, ModalCloseButton, ModalFooter, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { toast } from 'sonner'
 import { useCustomers } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { extractApiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
-import {
-  dialogOverlayClass,
-  dialogPanelClass,
-  dialogHeaderClass,
-  dialogBodyClass,
-  dialogFooterClass,
-} from '@/lib/modalUi'
 import type { Customer as ApiCustomer } from '@/types'
 import {
   Heart, Plus, Search, Mail, MessageCircle, Phone,
@@ -275,35 +268,46 @@ function ComposeModal({
   const ChIcon = chMeta.icon
 
   return (
-    <div data-kiterp-modal className={dialogOverlayClass} onClick={onClose}>
-      <div className={cn(dialogPanelClass, 'max-w-2xl rounded-2xl')} onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className={cn(dialogHeaderClass, 'flex items-center justify-between px-6')}>
-          <div className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">{editing ? 'Edit Reminder' : 'New Care & Reminder'}</h2>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-xl max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+        {/* Header + steps — no dividers, tight vertical rhythm */}
+        <div className="flex shrink-0 flex-col gap-2 px-4 pt-3 pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                <Heart className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <h2 className="min-w-0 truncate text-base font-semibold leading-none text-foreground">
+                {editing ? 'Edit Reminder' : 'New Care & Reminder'}
+              </h2>
+            </div>
+            <ModalCloseButton onClose={onClose} className="!p-1" />
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"><X className="w-5 h-5 text-gray-500" /></button>
-        </div>
-
-        {/* Steps indicator */}
-        <div className="px-6 py-3 border-b bg-gray-50 shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1">
             {(['customer', 'compose', 'schedule'] as const).map((s, i) => (
-              <div key={s} className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full transition-colors ${step === s ? 'bg-primary/15 text-primary' : (
-                  (s === 'compose' && selectedCustomer) || (s === 'schedule' && message.trim()) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'
-                )}`}>
-                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold bg-white/50">{i + 1}</span>
-                  {s === 'customer' ? 'Select Customer' : s === 'compose' ? 'Compose Message' : 'Schedule'}
+              <div key={s} className="flex items-center gap-1">
+                <div
+                  className={cn(
+                    'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium leading-none transition-colors',
+                    step === s
+                      ? 'bg-primary/15 text-primary'
+                      : (s === 'compose' && selectedCustomer) || (s === 'schedule' && message.trim())
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-background/80 text-[9px] font-bold">
+                    {i + 1}
+                  </span>
+                  {s === 'customer' ? 'Customer' : s === 'compose' ? 'Message' : 'Schedule'}
                 </div>
-                {i < 2 && <ArrowRight className="w-3 h-3 text-gray-300" />}
+                {i < 2 ? <ArrowRight className="h-3 w-3 text-muted-foreground/40" /> : null}
               </div>
             ))}
           </div>
         </div>
 
-        <div className={cn(dialogBodyClass, 'p-6 space-y-5')}>
+        <ModalBody className="space-y-4 px-4 pb-3 pt-0">
 
           {/* ── Step 1: Customer ── */}
           {step === 'customer' && (
@@ -545,29 +549,39 @@ function ComposeModal({
               </div>
             </div>
           )}
-        </div>
 
-        {/* Footer */}
-        <div className={cn(dialogFooterClass, 'px-6 bg-gray-50 justify-between')}>
+        </ModalBody>
+        <ModalFooter className="justify-between gap-2 border-0 bg-transparent px-4 py-3">
           <Button
+            type="button"
             variant={step === 'customer' ? 'cancel' : 'ghost'}
+            className="h-8 rounded-md px-3 text-sm"
             onClick={step === 'customer' ? onClose : () => setStep(step === 'schedule' ? 'compose' : 'customer')}
           >
             {step === 'customer' ? 'Cancel' : '← Back'}
           </Button>
           {step !== 'schedule' ? (
-            <Button disabled={!canNext()} onClick={() => setStep(step === 'customer' ? 'compose' : 'schedule')}
-              className="bg-primary hover:bg-primary/90 gap-2">
-              Next <ArrowRight className="w-4 h-4" />
+            <Button
+              type="button"
+              disabled={!canNext()}
+              onClick={() => setStep(step === 'customer' ? 'compose' : 'schedule')}
+              className="h-8 gap-1.5 rounded-md px-3 text-sm bg-primary hover:bg-primary/90"
+            >
+              Next <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           ) : (
-            <Button disabled={!canNext()} onClick={handleSave} className="bg-primary hover:bg-primary/90 gap-2">
-              <Bell className="w-4 h-4" /> {editing ? 'Update Reminder' : 'Schedule Reminder'}
+            <Button
+              type="button"
+              disabled={!canNext()}
+              onClick={handleSave}
+              className="h-8 gap-1.5 rounded-md px-3 text-sm bg-primary hover:bg-primary/90"
+            >
+              <Bell className="h-3.5 w-3.5" /> {editing ? 'Update Reminder' : 'Schedule Reminder'}
             </Button>
           )}
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -906,18 +920,17 @@ export default function CareReminderPage() {
   }), [reminders])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 p-3 md:p-4">
       {/* Page Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <Heart className="w-5 h-5 text-primary" />
-            <h1 className="text-2xl font-bold text-gray-900">Care & Reminders</h1>
-          </div>
-          <p className="text-sm text-gray-500">Schedule personalised messages via Email, WhatsApp, SMS, or in-app Notification. Enable reach-back to auto-create CRM follow-up actions.</p>
-        </div>
-        <Button onClick={() => { setEditing(null); setShowCompose(true) }} className="bg-primary hover:bg-primary/90 gap-2">
-          <Plus className="w-4 h-4" /> New Reminder
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Schedule Email, WhatsApp, SMS, or in-app reminders · reach-back creates CRM follow-ups
+        </p>
+        <Button
+          onClick={() => { setEditing(null); setShowCompose(true) }}
+          className="h-8 shrink-0 gap-1.5 px-3 text-sm bg-primary hover:bg-primary/90"
+        >
+          <Plus className="h-3.5 w-3.5" /> New Reminder
         </Button>
       </div>
 

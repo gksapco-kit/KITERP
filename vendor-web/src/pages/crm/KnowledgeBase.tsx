@@ -46,6 +46,7 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
       title={article ? 'Edit article' : 'New article'}
       onClose={onClose}
       maxW="max-w-2xl"
+      bodyClassName="!flex-none !overflow-hidden px-5 py-3"
       footer={
         <>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -58,10 +59,11 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
         </>
       }
     >
-      <form id={formId} onSubmit={submit} className="space-y-3 pb-4">
-        <Field label="Title" required><Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Slug"><Input value={form.slug} onChange={e => setForm(p => ({ ...p, slug: e.target.value }))} placeholder="auto from title" /></Field>
+      <form id={formId} onSubmit={submit} className="grid gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_9.5rem]">
+          <Field label="Title" required>
+            <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
+          </Field>
           <Field label="Status">
             <Select
               value={form.status}
@@ -74,12 +76,29 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
             />
           </Field>
         </div>
-        <Field label="Summary"><Input value={form.summary} onChange={e => setForm(p => ({ ...p, summary: e.target.value }))} /></Field>
-        <Field label="Body (Markdown)">
-          <textarea value={form.body} onChange={e => setForm(p => ({ ...p, body: e.target.value }))}
-            className="flex min-h-[200px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono" />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Field label="Slug">
+            <Input value={form.slug} onChange={e => setForm(p => ({ ...p, slug: e.target.value }))} placeholder="auto from title" />
+          </Field>
+          <Field label="Tags">
+            <Input
+              value={form.tags}
+              onChange={e => setForm(p => ({ ...p, tags: e.target.value }))}
+              placeholder="comma separated"
+            />
+          </Field>
+        </div>
+        <Field label="Summary">
+          <Input value={form.summary} onChange={e => setForm(p => ({ ...p, summary: e.target.value }))} />
         </Field>
-        <Field label="Tags (comma separated)"><Input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} /></Field>
+        <Field label="Body (Markdown)">
+          <textarea
+            value={form.body}
+            onChange={e => setForm(p => ({ ...p, body: e.target.value }))}
+            rows={5}
+            className="block h-28 w-full resize-none overflow-y-auto rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+          />
+        </Field>
       </form>
     </CrmModal>
   )

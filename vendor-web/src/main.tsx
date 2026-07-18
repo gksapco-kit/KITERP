@@ -9,6 +9,7 @@ import { Toaster } from 'sonner'
 import { router } from './routes'
 import { ThemeSync } from './components/ThemeSync'
 import { RootErrorBoundary } from './components/RootErrorBoundary'
+import { ConfirmProvider } from './components/common/ConfirmProvider'
 import { useAuthStore } from './stores/authStore'
 import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
 import { resolveApiBaseUrl } from './lib/apiBase'
@@ -106,9 +107,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <RootErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ThemeSync />
-        <RouterProvider router={router} />
-        <Toaster position="top-right" richColors closeButton />
+        <ConfirmProvider>
+          <ThemeSync />
+          <RouterProvider router={router} />
+          <Toaster position="top-right" richColors closeButton />
+        </ConfirmProvider>
       </QueryClientProvider>
     </RootErrorBoundary>
   </React.StrictMode>,

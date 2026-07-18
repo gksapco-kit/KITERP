@@ -21,6 +21,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type FormSubmission = {
   id: string
@@ -212,7 +213,7 @@ function FormSubmissionsTab() {
   const totalPages = Math.ceil(total / limit)
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this submission? This action cannot be undone.')) return
+    if (!await askConfirm('Delete this submission? This action cannot be undone.')) return
     setDeletingId(id)
     try {
       await deleteSubmission.mutateAsync(id)

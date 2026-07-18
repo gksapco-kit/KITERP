@@ -10,6 +10,7 @@ import type { EmployeeProfile, ExpenseClaim } from '@/types'
 import ExpenseClaimDetailDrawer from './ExpenseClaimDetailDrawer'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 
 const STATUS: Record<string, { label: string; color: string }> = {
   draft:     { label: 'Draft',     color: 'bg-gray-100 text-gray-600' },
@@ -174,7 +175,7 @@ export default function ExpensesPage() {
                         )}
                         <button
                           type="button"
-                          onClick={() => { if (confirm('Delete claim?')) del.mutate(c.id) }}
+                          onClick={async () => { if (await askConfirm('Delete claim?')) del.mutate(c.id) }}
                           className="p-1.5 text-gray-400 hover:text-red-600 rounded"
                           title="Delete"
                         >

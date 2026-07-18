@@ -5,6 +5,7 @@ import { useHRDesignations, useDeleteHRDesignation } from '@/hooks/useVendor'
 import { DesigModal } from '@/components/hr/DesigModal'
 import type { HRDesignation } from '@/types'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 export default function DesignationsPage() {
   const { data: designations = [], isLoading } = useHRDesignations()
   const deleteDesig = useDeleteHRDesignation()
@@ -68,7 +69,7 @@ export default function DesignationsPage() {
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => { if (confirm(`Delete "${desig.name}"?`)) deleteDesig.mutate(desig.id) }}
+                        onClick={async () => { if (await askConfirm(`Delete "${desig.name}"?`)) deleteDesig.mutate(desig.id) }}
                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                       >
                         <Trash2 className="w-4 h-4" />

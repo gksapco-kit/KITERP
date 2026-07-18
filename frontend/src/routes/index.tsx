@@ -35,6 +35,7 @@ import PlatformTeamMemberDetail from '@/pages/dashboard/PlatformTeamMemberDetail
 import UserRoles from '@/pages/dashboard/UserRoles'
 import AccountActivity from '@/pages/dashboard/AccountActivity'
 import OrderDisputes from '@/pages/dashboard/OrderDisputes'
+import CareerApplications from '@/pages/dashboard/CareerApplications'
 import TableData from '@/pages/dashboard/TableData'
 import AllTemplates from '@/pages/dashboard/AllTemplates'
 import WebsiteAnalytics from '@/pages/dashboard/WebsiteAnalytics'
@@ -122,6 +123,7 @@ export const router = createBrowserRouter([
       { path: 'crm/contacts', element: <PlatformCrmContacts /> },
       { path: 'crm/pipeline', element: <PlatformCrmPipeline /> },
       { path: 'crm/activities', element: <PlatformCrmActivities /> },
+      { path: 'careers', element: <CareerApplications /> },
       { path: 'table-data', element: <TableData /> },
       { path: 'products', element: <Products /> },
       { path: 'services', element: <Services /> },

@@ -1,12 +1,10 @@
-import { onModalBackdropClick, cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { Button } from '@/components/ui/button'
 import {
   hrInputClass,
   hrSelectClass,
   hrInfoBannerClass,
-  hrTabActiveClass,
-  hrTabInactiveClass,
   hrTableHeadClass,
   hrStatIconClass,
   hrStatusBadge,
@@ -15,14 +13,13 @@ import {
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState, useCallback } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Plus, Search, Users, UserCheck, UserX, Clock, Eye, EyeOff,
-  ChevronDown, ChevronUp, Loader2, X, UserPlus, Building2, Award,
-  MapPin, Landmark, ShieldCheck, Lock, Briefcase, Heart, Tag, Trash2,
-  FileText, LogOut, LogIn, KeyRound, Upload, File, Paperclip,
+  ChevronDown, ChevronUp, Loader2, X, Building2, Trash2,
+  LogOut, LogIn, KeyRound, Upload, File,
 } from 'lucide-react'
 import {
   useHREmployees, useHRDepartments, useCreateHREmployee,
@@ -51,6 +48,11 @@ const DEFAULT_EMP_TYPES = [
   { value: 'contract', label: 'Contract' },
   { value: 'intern', label: 'Intern' },
 ]
+
+/** Dense controls so Add Employee Identity fits one viewport. */
+const denseFieldClass =
+  'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
+const denseLabelClass = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
 
 function getCustomEmpTypes(): { value: string; label: string }[] {
   try {
@@ -438,37 +440,16 @@ function AddEmployeeModal({
 
   return (
     <>
-      <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onModalBackdropClick(onClose)}>
-        <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-[960px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+      <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+        <ModalPanel className="max-h-[calc(100dvh-1.5rem)] w-full max-w-[960px] !rounded-lg overflow-hidden">
+          <ModalHeader
+            title="Add Employee"
+            onClose={onClose}
+            className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+          />
 
-          {/* Header */}
-          <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
-            <div className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-primary" />
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">Add Employee</h2>
-                <p className="text-xs text-muted-foreground">Create a full employee profile</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-              <Button
-                type="submit"
-                form="add-employee-form"
-                size="sm"
-                disabled={createEmployee.isPending || !employeeFullName.trim() || (!personalEmail.trim() && !personalPhone.trim())}
-              >
-                {createEmployee.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {createEmployee.isPending ? 'Creating…' : 'Create Profile'}
-              </Button>
-              <button type="button" aria-label="Close" onClick={onClose} className="ml-1 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Tab bar */}
-          <div className="flex shrink-0 border-b border-border">
+          {/* Compact tab bar */}
+          <div className="flex shrink-0 gap-0.5 overflow-x-auto px-3">
             {EMPLOYEE_MASTER_TABS.map(tab => {
               const isActive = activeTab === tab.id
               return (
@@ -477,64 +458,64 @@ function AddEmployeeModal({
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    'flex flex-1 flex-col items-center justify-center gap-1 border-b-2 py-2.5 text-xs font-medium transition-colors focus:outline-none',
-                    isActive ? hrTabActiveClass : hrTabInactiveClass,
+                    'flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors focus:outline-none',
+                    isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground',
                   )}
                 >
-                  <tab.icon className="h-4 w-4 shrink-0" />
+                  <tab.icon className="h-3.5 w-3.5 shrink-0" />
                   <span className="whitespace-nowrap">{tab.label}</span>
                 </button>
               )
             })}
           </div>
 
-          {/* Form — only active tab scrolls */}
-          <form id="add-employee-form" onSubmit={handleSubmit} className="overflow-y-auto p-6" style={{ height: '480px' }}>
+          <form id="add-employee-form" onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <ModalBody className="overflow-y-auto px-4 pb-1 pt-2">
 
             {/* Tab: Identity & Assignment */}
             {activeTab === 'identity' && (
-              <div className="space-y-4">
-                <div className={hrInfoBannerClass}>
-                  HR records payroll and employment data only. Grant portal login and roles from
-                  <strong className="mx-1">Staff Access Control</strong> when the employee needs system access.
+              <div className="space-y-2">
+                <div className="rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1.5 text-[11px] leading-snug text-foreground">
+                  HR records payroll and employment data only. Grant portal login from
+                  <strong className="mx-1">Staff Access Control</strong> when needed.
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
+                  <label className={denseLabelClass}>
                     Full Name <span className="text-destructive">*</span>
                   </label>
                   <input
                     required
-                    className={cn(hrInputClass, 'mt-1')}
+                    className={denseFieldClass}
                     placeholder="John Smith"
                     value={employeeFullName}
                     onChange={e => setEmployeeFullName(e.target.value)}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                      Personal Email <span className="font-normal text-muted-foreground/80">(email or phone required)</span>
+                    <label className={denseLabelClass}>
+                      Personal Email <span className="font-normal text-muted-foreground/80">(email or phone)</span>
                     </label>
                     <input
                       type="email"
-                      className={hrInputClass}
+                      className={denseFieldClass}
                       placeholder="personal@email.com"
                       value={personalEmail}
                       onChange={e => setPersonalEmail(e.target.value)}
                     />
                   </div>
                   <div>
-                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Personal Phone</Label>
-                    <PhoneInput value={personalPhone} onChange={setPersonalPhone} placeholder="Personal mobile" />
+                    <Label className={denseLabelClass}>Personal Phone</Label>
+                    <PhoneInput compact compactCountry value={personalPhone} onChange={setPersonalPhone} placeholder="Personal mobile" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground flex items-center gap-1">
-                      <Building2 className="w-3 h-3" /> Employer / Business Entity
+                    <label className={cn(denseLabelClass, 'flex items-center gap-1')}>
+                      <Building2 className="h-3 w-3" /> Employer / Business Entity
                     </label>
                     <select
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      className={denseFieldClass}
                       value={employerStoreId}
                       onChange={e => { setEmployerStoreId(e.target.value); setEmployeeIdManual(false); setEmployeeIdOverride('') }}
                     >
@@ -545,21 +526,20 @@ function AddEmployeeModal({
                     </select>
                   </div>
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium text-muted-foreground">Employee ID</label>
-                      {/* Toggle between auto and manual */}
-                      <div className="flex rounded-md bg-muted p-0.5 text-xs">
+                    <div className="mb-0.5 flex items-center justify-between">
+                      <label className="text-[11px] font-medium text-muted-foreground">Employee ID</label>
+                      <div className="flex rounded-md bg-muted p-0.5 text-[10px]">
                         <button
                           type="button"
                           onClick={() => { setEmployeeIdManual(false); setEmployeeIdOverride('') }}
-                          className={cn('rounded px-2 py-0.5 transition-colors', !employeeIdManual ? 'bg-background font-medium text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+                          className={cn('rounded px-1.5 py-0.5 transition-colors', !employeeIdManual ? 'bg-background font-medium text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}
                         >
                           Auto
                         </button>
                         <button
                           type="button"
                           onClick={() => setEmployeeIdManual(true)}
-                          className={cn('rounded px-2 py-0.5 transition-colors', employeeIdManual ? 'bg-background font-medium text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+                          className={cn('rounded px-1.5 py-0.5 transition-colors', employeeIdManual ? 'bg-background font-medium text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}
                         >
                           Manual
                         </button>
@@ -568,84 +548,88 @@ function AddEmployeeModal({
                     {employeeIdManual ? (
                       <input
                         autoFocus
-                        className={cn(hrInputClass, 'border-primary/40 font-mono')}
+                        className={cn(denseFieldClass, 'border-primary/40 font-mono')}
                         placeholder="e.g. Hyd001"
                         value={employeeIdOverride}
                         onChange={e => setEmployeeIdOverride(e.target.value)}
                       />
                     ) : (
-                      <div className="flex select-none items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 font-mono text-sm text-muted-foreground">
-                        <span className="text-xs text-muted-foreground/70">System</span>
+                      <div className="flex h-8 select-none items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 font-mono text-sm text-muted-foreground">
+                        <span className="text-[10px] text-muted-foreground/70">System</span>
                         <span className="font-medium text-foreground">{nextCodeData?.next_code ?? '—'}</span>
                       </div>
                     )}
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {employeeIdManual
-                        ? 'You are entering a custom ID. System will still assign an internal code.'
-                        : `Will auto-assign: ${nextCodeData?.next_code ?? '…'}`}
-                    </p>
+                    {employeeIdManual && (
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        Custom ID; system still assigns an internal code.
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Department</Label>
+                    <Label className={denseLabelClass}>Department</Label>
                     <div className="flex gap-1">
-                      <select className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={departmentId} onChange={e => setDepartmentId(e.target.value)}>
+                      <select className={cn(denseFieldClass, 'flex-1')} value={departmentId} onChange={e => setDepartmentId(e.target.value)}>
                         <option value="">— None —</option>
                         {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
-                      <button type="button" title="Create department" onClick={() => setShowDeptModal(true)} className="flex items-center rounded-lg border border-border px-2 text-primary hover:bg-primary/10">
-                        <Plus className="w-3.5 h-3.5" />
+                      <button type="button" title="Create department" onClick={() => setShowDeptModal(true)} className="flex h-8 items-center rounded-md border border-border px-2 text-primary hover:bg-primary/10">
+                        <Plus className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
                   <div>
-                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Designation</Label>
+                    <Label className={denseLabelClass}>Designation</Label>
                     <div className="flex gap-1">
-                      <select className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={designationId} onChange={e => setDesignationId(e.target.value)}>
+                      <select className={cn(denseFieldClass, 'flex-1')} value={designationId} onChange={e => setDesignationId(e.target.value)}>
                         <option value="">— None —</option>
                         {designations.map((d: HRDesignation) => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
-                      <button type="button" title="Create designation" onClick={() => setShowDesigModal(true)} className="flex items-center rounded-lg border border-border px-2 text-primary hover:bg-primary/10">
-                        <Plus className="w-3.5 h-3.5" />
+                      <button type="button" title="Create designation" onClick={() => setShowDesigModal(true)} className="flex h-8 items-center rounded-md border border-border px-2 text-primary hover:bg-primary/10">
+                        <Plus className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Employment Type</Label>
+                    <Label className={denseLabelClass}>Employment Type</Label>
                     {showNewEmpType ? (
                       <div className="flex gap-1">
                         <input
                           autoFocus
-                          className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                          placeholder="e.g. Freelancer, Consultant"
+                          className={cn(denseFieldClass, 'flex-1')}
+                          placeholder="e.g. Freelancer"
                           value={newEmpTypeLabel}
                           onChange={e => setNewEmpTypeLabel(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmpType() } if (e.key === 'Escape') setShowNewEmpType(false) }}
                         />
-                        <button type="button" onClick={addEmpType} className="px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Add</button>
-                        <button type="button" aria-label="Close" onClick={() => setShowNewEmpType(false)} className="rounded-lg border border-border px-2 py-2 hover:bg-muted">
-                <X className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                        <button type="button" onClick={addEmpType} className="h-8 rounded-md bg-primary px-2 text-xs text-white hover:bg-primary/90">Add</button>
+                        <button type="button" aria-label="Close" onClick={() => setShowNewEmpType(false)} className="flex h-8 items-center rounded-md border border-border px-1.5 hover:bg-muted">
+                          <X className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
                       </div>
                     ) : (
                       <div className="flex gap-1">
-                        <select className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={employmentType} onChange={e => setEmploymentType(e.target.value)}>
+                        <select className={cn(denseFieldClass, 'flex-1')} value={employmentType} onChange={e => setEmploymentType(e.target.value)}>
                           {empTypeOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                         </select>
-                        <button type="button" title="Add custom employment type" onClick={() => setShowNewEmpType(true)} className="flex items-center rounded-lg border border-border px-2 text-primary hover:bg-primary/10">
-                          <Plus className="w-3.5 h-3.5" />
+                        <button type="button" title="Add custom employment type" onClick={() => setShowNewEmpType(true)} className="flex h-8 items-center rounded-md border border-border px-2 text-primary hover:bg-primary/10">
+                          <Plus className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     )}
                   </div>
                   <div>
-                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Date of Joining</Label>
-                    <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={dateOfJoining} onChange={e => setDateOfJoining(e.target.value)} />
+                    <Label className={denseLabelClass}>Date of Joining</Label>
+                    <input type="date" className={denseFieldClass} value={dateOfJoining} onChange={e => setDateOfJoining(e.target.value)} />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Last Working Day <span className="font-normal text-muted-foreground/70">(LWD)</span></label>
-                    <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={lwd} onChange={e => setLwd(e.target.value)} />
+                    <label className={denseLabelClass}>Last Working Day <span className="font-normal text-muted-foreground/70">(LWD)</span></label>
+                    <input type="date" className={denseFieldClass} value={lwd} onChange={e => setLwd(e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -973,10 +957,10 @@ function AddEmployeeModal({
             {/* Tab: Notes */}
             {activeTab === 'notes' && (
               <div>
-                <Label className="mb-1 block text-xs font-medium text-muted-foreground">Internal Notes</Label>
+                <Label className={denseLabelClass}>Internal Notes</Label>
                 <textarea
-                  rows={6}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                  rows={5}
+                  className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="Any internal remarks, background context, hiring notes…"
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
@@ -984,9 +968,22 @@ function AddEmployeeModal({
               </div>
             )}
 
+            </ModalBody>
+            <ModalFooter className="border-0 px-4 py-2.5">
+              <Button type="button" variant="outline" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="h-8"
+                disabled={createEmployee.isPending || !employeeFullName.trim() || (!personalEmail.trim() && !personalPhone.trim())}
+              >
+                {createEmployee.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {createEmployee.isPending ? 'Creating…' : 'Create Profile'}
+              </Button>
+            </ModalFooter>
           </form>
-        </div>
-      </div>
+        </ModalPanel>
+      </ModalOverlay>
 
       {/* Inline Dept creation — z-[60] stacks above this modal */}
       {showDeptModal && (

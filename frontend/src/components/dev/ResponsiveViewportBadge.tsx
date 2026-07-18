@@ -21,7 +21,7 @@ export default function ResponsiveViewportBadge() {
 
   return (
     <div
-      className="pointer-events-none fixed bottom-2 left-2 z-[200] rounded-md border border-gray-200 bg-white/95 px-2 py-1 font-mono text-[10px] text-gray-500 shadow-sm backdrop-blur-sm"
+      className="pointer-events-none fixed bottom-2 right-2 z-[200] rounded-md border border-gray-200 bg-white/95 px-2 py-1 font-mono text-[10px] text-gray-500 shadow-sm backdrop-blur-sm"
       aria-hidden
     >
       {size.w}×{size.h} · {viewportBreakpointLabel(size.w)}

@@ -26,6 +26,7 @@ import { processRows, type SortDir } from '@/lib/tableList'
 import { vendorApi } from '@/api/vendor'
 import { AddPartyModal } from '@/components/parties/AddPartyModal'
 import { PhoneInput } from '@/components/ui/PhoneInput'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 
 const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
 const GST_STATES: Record<string, string> = {
@@ -282,7 +283,7 @@ export default function SuppliersPage() {
                             size="sm"
                             title="Deactivate"
                             className="text-red-600 hover:text-red-700"
-                            onClick={() => { if (confirm('Deactivate this supplier?')) deleteMut.mutate(s.id) }}
+                            onClick={async () => { if (await askConfirm('Deactivate this supplier?')) deleteMut.mutate(s.id) }}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

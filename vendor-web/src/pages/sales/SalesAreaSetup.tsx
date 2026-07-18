@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 type TabId = 'divisions' | 'distribution' | 'delivery' | 'sales-areas'
 
 const TABS: { id: TabId; label: string; icon: typeof Layers; hint: string }[] = [
@@ -53,23 +54,25 @@ function DefaultBadge() {
   )
 }
 
+/** Native checkbox — brand accent instead of solid black fill; stays clickable. */
+const defaultCheckboxClass = 'h-4 w-4 shrink-0 cursor-pointer accent-primary'
+
 export default function SalesAreaSetupPage() {
   const [tab, setTab] = useState<TabId>('divisions')
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Grid3x3 className="w-7 h-7 text-indigo-600" />
+    <div className="space-y-3">
+      <div className="min-w-0">
+        <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+          <Grid3x3 className="h-4 w-4 shrink-0 text-primary" />
           Sales Area
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Configure Sales Divisions, Distribution Channels, and Delivery Channels, then combine them into Sales Areas
-          scoped to a Business Unit. Sales Organization reuses your existing Business Units.
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Divisions, channels &amp; sales areas · scoped to business units
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-border pb-1">
+      <div className="flex flex-wrap gap-1">
         {TABS.map((t) => {
           const Icon = t.icon
           const isActive = tab === t.id
@@ -79,13 +82,13 @@ export default function SalesAreaSetupPage() {
               type="button"
               onClick={() => setTab(t.id)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors',
+                'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
                 isActive
-                  ? 'border-primary text-primary bg-primary/5'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40',
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
               )}
             >
-              <Icon className="w-4 h-4" /> {t.label}
+              <Icon className="h-3.5 w-3.5" /> {t.label}
             </button>
           )
         })}
@@ -169,7 +172,7 @@ function DivisionsTab() {
                         <Button variant="ghost" size="sm" onClick={() => openEdit(d)}><Pencil className="w-4 h-4" /></Button>
                         <Button
                           variant="ghost" size="sm" className="text-red-500"
-                          onClick={() => { if (confirm(`Delete sales division "${d.name}"?`)) deleteMut.mutate(d.id) }}
+                          onClick={async () => { if (await askConfirm(`Delete sales division "${d.name}"?`)) deleteMut.mutate(d.id) }}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -184,7 +187,7 @@ function DivisionsTab() {
       </Card>
 
       {showForm && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={resetForm}>
           <div className="w-full max-w-md bg-card border border-border text-foreground rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <h2 className="text-lg font-semibold">{editing ? 'Edit Sales Division' : 'New Sales Division'}</h2>
@@ -198,7 +201,7 @@ function DivisionsTab() {
                 </div>
                 <div className="space-y-1.5 flex flex-col justify-end">
                   <label className="flex items-center gap-2 text-sm h-10">
-                    <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
+                    <input type="checkbox" className={defaultCheckboxClass} checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
                   </label>
                 </div>
               </div>
@@ -309,7 +312,7 @@ function DistributionChannelsTab() {
                         <Button variant="ghost" size="sm" onClick={() => openEdit(c)}><Pencil className="w-4 h-4" /></Button>
                         <Button
                           variant="ghost" size="sm" className="text-red-500"
-                          onClick={() => { if (confirm(`Delete distribution channel "${c.name}"?`)) deleteMut.mutate(c.id) }}
+                          onClick={async () => { if (await askConfirm(`Delete distribution channel "${c.name}"?`)) deleteMut.mutate(c.id) }}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -324,7 +327,7 @@ function DistributionChannelsTab() {
       </Card>
 
       {showForm && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={resetForm}>
           <div className="w-full max-w-md bg-card border border-border text-foreground rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <h2 className="text-lg font-semibold">{editing ? 'Edit Distribution Channel' : 'New Distribution Channel'}</h2>
@@ -350,7 +353,7 @@ function DistributionChannelsTab() {
                 <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional notes" />
               </div>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
+                <input type="checkbox" className={defaultCheckboxClass} checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
               </label>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
@@ -465,7 +468,7 @@ function DeliveryChannelsTab() {
                         <Button variant="ghost" size="sm" onClick={() => openEdit(c)}><Pencil className="w-4 h-4" /></Button>
                         <Button
                           variant="ghost" size="sm" className="text-red-500"
-                          onClick={() => { if (confirm(`Delete delivery channel "${c.name}"?`)) deleteMut.mutate(c.id) }}
+                          onClick={async () => { if (await askConfirm(`Delete delivery channel "${c.name}"?`)) deleteMut.mutate(c.id) }}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -480,7 +483,7 @@ function DeliveryChannelsTab() {
       </Card>
 
       {showForm && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={resetForm}>
           <div className="w-full max-w-md bg-card border border-border text-foreground rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <h2 className="text-lg font-semibold">{editing ? 'Edit Delivery Channel' : 'New Delivery Channel'}</h2>
@@ -516,7 +519,7 @@ function DeliveryChannelsTab() {
                 <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional notes" />
               </div>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
+                <input type="checkbox" className={defaultCheckboxClass} checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
               </label>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
@@ -644,7 +647,7 @@ function SalesAreasTab() {
                   <tr><td colSpan={7} className="px-3 py-12 text-center text-sm text-gray-400">
                     No sales areas yet. Combine a Business Unit (optionally a Branch), Distribution Channel, and Sales Division above.
                   </td></tr>
-                ) : areas.map((a) => {
+                ) : areas.mapasync ((a) => {
                   const buLabel = formatBusinessUnitLabel(a)
                   const branchLabel = formatBranchLabel(a)
                   return (
@@ -680,7 +683,7 @@ function SalesAreasTab() {
                         <Button
                           variant="ghost" size="icon" className="h-8 w-8 text-red-500 shrink-0"
                           aria-label="Delete sales area"
-                          onClick={() => { if (confirm('Delete this sales area?')) deleteMut.mutate(a.id) }}
+                          onClick={async () => { if (await askConfirm('Delete this sales area?')) deleteMut.mutate(a.id) }}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -695,7 +698,7 @@ function SalesAreasTab() {
       </Card>
 
       {showForm && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={resetForm}>
           <div className="w-full max-w-md bg-card border border-border text-foreground rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <h2 className="text-lg font-semibold">New Sales Area</h2>
@@ -737,7 +740,7 @@ function SalesAreasTab() {
                 />
               </div>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
+                <input type="checkbox" className={defaultCheckboxClass} checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
               </label>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>

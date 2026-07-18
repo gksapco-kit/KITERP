@@ -107,7 +107,7 @@ export function CollapsibleSection({
         </button>
         {headerAction ? (
           <div
-            className="flex shrink-0 items-center self-stretch border-l border-border/40 px-2 sm:px-3"
+            className="flex shrink-0 items-center self-stretch px-2 sm:px-3"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
           >

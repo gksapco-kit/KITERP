@@ -102,7 +102,7 @@ function InfoRecordForm({
   const busy = create.isPending || update.isPending
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
       <Card className="w-full max-w-lg shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="font-semibold">{initial ? 'Edit Info Record' : 'New Purchasing Info Record'}</h2>
@@ -208,7 +208,7 @@ function SourceListForm({ initial, onClose }: { initial?: SourceList; onClose: (
   const busy = create.isPending || update.isPending
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
       <Card className="w-full max-w-lg shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="font-semibold">{initial ? 'Edit Source List Entry' : 'New Source List Entry'}</h2>

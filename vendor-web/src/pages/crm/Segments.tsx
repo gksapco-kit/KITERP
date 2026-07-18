@@ -16,6 +16,7 @@ import {
 } from './crmMarketingForms'
 import { contactDisplayName } from './crmContactsShared'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 function SegmentForm({ seg, onClose }: { seg?: Segment; onClose: () => void }) {
   const qc = useQueryClient()
   const save = useSaveSegment()
@@ -123,7 +124,7 @@ export default function SegmentsPage() {
     qc.invalidateQueries({ queryKey: ['crm', 'segments'] })
   }
   const remove = async (id: string) => {
-    if (!confirm('Delete this segment?')) return
+    if (!await askConfirm('Delete this segment?')) return
     await crmApi.deleteSegment(id)
     qc.invalidateQueries({ queryKey: ['crm', 'segments'] })
   }

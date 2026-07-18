@@ -522,14 +522,14 @@ export default function Register() {
                   </div>
                 </form>
 
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-border pt-3">
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 pt-3">
                   <span className="text-[0.8625rem] font-semibold text-muted-foreground">Already have an account?</span>
                   <Link
                     to="/login"
                     className={cn(
                       'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                       'border border-primary/30 bg-primary/10 text-primary',
-                      'hover:border-primary/45 hover:bg-primary/15 hover:underline',
+                      'hover:border-primary/45 hover:bg-primary/15',
                       'dark:border-primary/35 dark:bg-primary/15 dark:hover:bg-primary/20',
                       'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
                     )}
@@ -541,12 +541,12 @@ export default function Register() {
 
                 <p className="mt-2 text-center text-[11px] leading-snug text-slate-500">
                   By signing up, you agree to our{' '}
-                  <a href="#" className="font-medium hover:underline" style={{ color: SIGNUP_BRAND }}>Terms</a>
+                  <a href="#" className="font-medium no-underline hover:no-underline" style={{ color: SIGNUP_BRAND }}>Terms</a>
                   {' '}and{' '}
-                  <a href="#" className="font-medium hover:underline" style={{ color: SIGNUP_BRAND }}>Privacy Policy</a>.
+                  <a href="#" className="font-medium no-underline hover:no-underline" style={{ color: SIGNUP_BRAND }}>Privacy Policy</a>.
                 </p>
 
-                <div className="mt-2 border-t border-slate-100 pt-2">
+                <div className="mt-2 pt-2">
                   <HelpAccordion />
                 </div>
               </div>

@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { useFormSubmissions, useDeleteFormSubmission, useSite } from '@/hooks/useWebsites'
 import type { FormSubmission } from '@/types/websites'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const FORM_TYPE_LABELS: Record<string, string> = {
   contact: 'Contact Form',
   newsletter: 'Newsletter',
@@ -161,7 +162,7 @@ export default function WebsiteSubmissions() {
   const totalPages = Math.ceil(total / limit)
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this submission? This action cannot be undone.')) return
+    if (!await askConfirm('Delete this submission? This action cannot be undone.')) return
     setDeletingId(id)
     try {
       await deleteSubmission.mutateAsync(id)

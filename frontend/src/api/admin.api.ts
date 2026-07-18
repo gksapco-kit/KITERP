@@ -461,6 +461,23 @@ export const adminApi = {
     return response.data
   },
 
+  listCareerApplications: async (params?: {
+    status?: string
+    page?: number
+    size?: number
+  }): Promise<CareerApplicationListResponse> => {
+    const response = await apiClient.get('/admin/career-applications', { params })
+    return response.data
+  },
+
+  updateCareerApplication: async (
+    applicationId: string,
+    data: { status: string },
+  ): Promise<{ ok: boolean; id: string; status: string }> => {
+    const response = await apiClient.patch(`/admin/career-applications/${applicationId}`, data)
+    return response.data
+  },
+
   listWebsiteTemplates: async (params?: {
     view?: 'assigned' | 'draft' | 'all'
     search?: string
@@ -595,6 +612,31 @@ export interface ContactQueryItem {
 
 export interface ContactQueryListResponse {
   items: ContactQueryItem[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
+export interface CareerApplicationItem {
+  id: string
+  full_name: string
+  email: string
+  phone?: string | null
+  company?: string | null
+  experience_years?: number | null
+  city?: string | null
+  cover_note?: string | null
+  cv_url: string
+  cv_filename?: string | null
+  photo_url?: string | null
+  photo_filename?: string | null
+  status: string
+  created_at: string | null
+}
+
+export interface CareerApplicationListResponse {
+  items: CareerApplicationItem[]
   total: number
   page: number
   size: number

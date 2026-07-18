@@ -8,6 +8,7 @@ import { authApi } from '@/api/auth'
 import { authKeys } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { SmartLoginInput } from '@/components/ui/SmartLoginInput'
 import { Label } from '@/components/ui/label'
@@ -29,7 +30,7 @@ const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE as string | undefined
 const SUPPORT_CHAT_URL = import.meta.env.VITE_SUPPORT_CHAT_URL as string | undefined
 /** Hyperlink color on vendor login — follows theme primary. */
 const LOGIN_LINK_COLOR =
-  'text-primary underline-offset-2 hover:underline hover:opacity-90'
+  'text-primary hover:opacity-90'
 const LOGIN_LINK_TOGGLE = cn(
   'text-primary',
   'hover:bg-primary/10 dark:hover:bg-primary/15',
@@ -424,14 +425,14 @@ export default function Login() {
           </Button>
 
           <div className="flex justify-center">
-            <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg pr-1">
-              <input
-                type="checkbox"
+            <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg px-1 py-0.5">
+              <Checkbox
                 checked={rememberEmail}
-                onChange={e => setRememberEmail(e.target.checked)}
-                className="h-3.5 w-3.5 shrink-0 rounded border-input text-primary focus:ring-ring sm:h-4 sm:w-4"
+                onCheckedChange={(checked) => setRememberEmail(checked)}
+                className="h-3.5 w-3.5 sm:h-4 sm:w-4"
+                aria-label="Remember my email on this device"
               />
-              <span className="text-xs leading-snug text-foreground">Remember my email on this device</span>
+              <span className="text-xs leading-snug text-muted-foreground">Remember my email on this device</span>
             </label>
           </div>
         </form>
@@ -529,7 +530,7 @@ export default function Login() {
           )}
         </div>
 
-        <div className="space-y-[0.748125rem] border-t border-border pt-[0.9975rem]">
+        <div className="space-y-[0.748125rem] pt-[0.9975rem]">
           <div className="flex flex-wrap items-center justify-center gap-2">
             <span className="text-[0.8625rem] font-semibold text-muted-foreground">No account yet?</span>
             <Link
@@ -537,7 +538,7 @@ export default function Login() {
               className={cn(
                 'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                 'border border-primary/30 bg-primary/10 text-primary',
-                'hover:border-primary/45 hover:bg-primary/15 hover:underline',
+                'hover:border-primary/45 hover:bg-primary/15',
                 'dark:border-primary/35 dark:bg-primary/15 dark:hover:bg-primary/20',
                 focusRingClassName,
               )}

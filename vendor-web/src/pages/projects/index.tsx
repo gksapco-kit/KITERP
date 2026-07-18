@@ -20,7 +20,8 @@ import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/CatalogItemPicker'
 import { useCreateProject, useProjects, useProjectsOverview, useUpdateProject } from '@/hooks/useProjects'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
+import { modalWidthMd } from '@/lib/modalUi'
 import {
   FolderKanban, Plus, Loader2, CheckCircle2, AlertTriangle,
   ListTodo, Activity,
@@ -120,29 +121,34 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
     )
   }
 
+  const labelCls = 'text-xs'
+  const fieldGap = 'space-y-1'
+
   return (
-    <ModalOverlay onClose={onClose}>
-      <ModalPanel className="max-w-lg">
-        <div className="shrink-0 border-b border-border px-5 py-3">
-          <ModalHeader title="New Project" onClose={onClose} />
-        </div>
+    <ModalOverlay onClose={onClose} className="p-2">
+      <ModalPanel className={cn(modalWidthMd, 'max-h-[calc(100dvh-1rem)]')}>
+        <ModalHeader
+          title="New Project"
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base"
+        />
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-4 p-5">
-            <div className="space-y-1.5">
-              <Label>Sales scope</Label>
-              <div className="flex flex-wrap gap-2">
+          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+            <div className={fieldGap}>
+              <Label className={labelCls}>Sales scope</Label>
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                 <BusinessUnitSelect
                   value={storeId}
                   onChange={(id) => { setStoreId(id); setBranchId(''); setSalesAreaId(''); setItems([]) }}
                   allowAll
-                  className="flex-1 min-w-[10rem]"
+                  className="min-w-0"
                 />
                 <BranchSelect
                   businessUnitId={storeId || null}
                   value={branchId}
                   onChange={(id) => { setBranchId(id); setSalesAreaId(''); setItems([]) }}
                   allowAll
-                  className="flex-1 min-w-[10rem]"
+                  className="min-w-0"
                 />
                 <SalesAreaSelect
                   businessUnitId={storeId || null}
@@ -150,63 +156,25 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
                   value={salesAreaId}
                   onChange={setSalesAreaId}
                   allowAll={false}
-                  className="flex-1 min-w-[10rem]"
+                  className="min-w-0"
                 />
               </div>
-              <p className="text-[11px] text-muted-foreground">Scopes the products & services you can attach below.</p>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="proj-name">Name *</Label>
-              <Input
-                id="proj-name"
-                value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="Website redesign"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="proj-desc">Description</Label>
-              <textarea
-                id="proj-desc"
-                value={form.description}
-                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Brief scope or goals"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="proj-start">Start date</Label>
+
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[1fr_8.5rem]">
+              <div className={fieldGap}>
+                <Label htmlFor="proj-name" className={labelCls}>Name *</Label>
                 <Input
-                  id="proj-start"
-                  type="date"
-                  value={form.start_date}
-                  onChange={(e) => setForm((p) => ({ ...p, start_date: e.target.value }))}
+                  id="proj-name"
+                  className="h-8 text-sm"
+                  value={form.name}
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="Website redesign"
+                  autoFocus
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="proj-end">End date</Label>
-                <Input
-                  id="proj-end"
-                  type="date"
-                  value={form.end_date}
-                  onChange={(e) => setForm((p) => ({ ...p, end_date: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="proj-due">Due date</Label>
-                <Input
-                  id="proj-due"
-                  type="date"
-                  value={form.due_date}
-                  onChange={(e) => setForm((p) => ({ ...p, due_date: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="proj-priority">Priority</Label>
+              <div className={fieldGap}>
+                <Label htmlFor="proj-priority" className={labelCls}>Priority</Label>
                 <Select
                   id="proj-priority"
                   value={form.priority}
@@ -217,26 +185,76 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
                   }))}
                   aria-label="Priority"
                   className="w-full"
+                  triggerClassName="h-8 text-sm"
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Customer (optional)</Label>
-              <CustomerPicker selected={customer} onSelect={setCustomer} />
+
+            <div className={fieldGap}>
+              <Label htmlFor="proj-desc" className={labelCls}>Description</Label>
+              <textarea
+                id="proj-desc"
+                rows={2}
+                value={form.description}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Brief scope or goals"
+              />
             </div>
-            <div className="space-y-1.5">
-              <Label>Project owner (optional)</Label>
-              <StaffPicker selected={owner} onSelect={setOwner} />
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div className={fieldGap}>
+                <Label htmlFor="proj-start" className={labelCls}>Start date</Label>
+                <Input
+                  id="proj-start"
+                  type="date"
+                  className="h-8 text-sm"
+                  value={form.start_date}
+                  onChange={(e) => setForm((p) => ({ ...p, start_date: e.target.value }))}
+                />
+              </div>
+              <div className={fieldGap}>
+                <Label htmlFor="proj-end" className={labelCls}>End date</Label>
+                <Input
+                  id="proj-end"
+                  type="date"
+                  className="h-8 text-sm"
+                  value={form.end_date}
+                  onChange={(e) => setForm((p) => ({ ...p, end_date: e.target.value }))}
+                />
+              </div>
+              <div className={fieldGap}>
+                <Label htmlFor="proj-due" className={labelCls}>Due date</Label>
+                <Input
+                  id="proj-due"
+                  type="date"
+                  className="h-8 text-sm"
+                  value={form.due_date}
+                  onChange={(e) => setForm((p) => ({ ...p, due_date: e.target.value }))}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Products & services (optional)</Label>
+
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Customer (optional)</Label>
+                <CustomerPicker selected={customer} onSelect={setCustomer} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Project owner (optional)</Label>
+                <StaffPicker selected={owner} onSelect={setOwner} />
+              </div>
+            </div>
+
+            <div className={fieldGap}>
+              <Label className={labelCls}>Products & services (optional)</Label>
               <CatalogItemPicker storeId={effectiveStoreId} value={items} onChange={setItems} />
             </div>
           </ModalBody>
-          <ModalFooter className="flex justify-end gap-3 border-t border-border bg-card px-4 py-4">
-            <Button type="button" variant="cancel" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={create.isPending || !form.name.trim()}>
-              {create.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-2.5">
+            <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
+            <Button type="submit" className="h-8 px-3 text-sm" disabled={create.isPending || !form.name.trim()}>
+              {create.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
               Create
             </Button>
           </ModalFooter>

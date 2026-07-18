@@ -29,6 +29,7 @@ from app.models.lead import Lead, Quote
 from app.models.rental import RentalAsset, RentalBooking
 from app.models.order_dispute import OrderDispute
 from app.models.storefront_contact_query import StorefrontContactQuery
+from app.models.platform_career_application import PlatformCareerApplication
 from app.models.booking import Booking
 from app.models.project import Project, ProjectTask
 from app.models.notification import Notification
@@ -195,6 +196,8 @@ __all__ = [
     "CouponUsage",
     "Lead",
     "Quote",
+    "StorefrontContactQuery",
+    "PlatformCareerApplication",
     "Booking",
     "Project",
     "ProjectTask",

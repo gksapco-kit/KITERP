@@ -743,7 +743,7 @@ function SettingsPageBody() {
               onSave={updateVendor}
             />
           </div>
-          <div className="border-t border-border pt-4 flex justify-end">
+          <div className="pt-4 flex justify-end">
             <Link
               to="/about"
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"

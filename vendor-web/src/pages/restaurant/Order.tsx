@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 
 const KOT_STATUS_COLOR: Record<string, string> = {
@@ -383,7 +384,7 @@ export default function RestaurantOrderPage() {
               size="sm"
               className="text-red-500 hover:text-red-700"
               disabled={voidOrder.isPending}
-              onClick={() => { if (confirm('Void this order?')) voidOrder.mutate() }}
+              onClick={async () => { if (await askConfirm('Void this order?')) voidOrder.mutate() }}
             >
               <XCircle className="w-4 h-4 mr-1" /> Void
             </Button>

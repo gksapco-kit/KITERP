@@ -7,6 +7,7 @@ import { useMyVendor } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 
@@ -395,7 +396,7 @@ export default function RestaurantSetupPage() {
                 <button
                   type="button"
                   className="text-gray-400 hover:text-red-500 p-1"
-                  onClick={() => { if (confirm(`Delete zone "${z.name}"? All tables in it will lose their zone.`)) delZone.mutate(z.id) }}
+                  onClick={async () => { if (await askConfirm(`Delete zone "${z.name}"? All tables in it will lose their zone.`)) delZone.mutate(z.id) }}
                   title="Delete zone"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -460,7 +461,7 @@ export default function RestaurantSetupPage() {
                 table={t as TableRow}
                 zones={zones}
                 vendorSlug={vendorSlug}
-                onDelete={() => { if (confirm(`Delete table "${t.label}"?`)) delTable.mutate(t.id) }}
+                onDelete={async () => { if (await askConfirm(`Delete table "${t.label}"?`)) delTable.mutate(t.id) }}
               />
             ))}
             {!tables.length && (

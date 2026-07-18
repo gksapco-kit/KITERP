@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import axios from '@/lib/axios'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const BASE = '/vendors/me/finance/basic-transactions'
 
 export type TxnType = 'income' | 'expense' | 'salary' | 'transfer'
@@ -107,7 +108,7 @@ function TransactionModal({
   const selectedMeta = getTxnMeta(form.txn_type)
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm backdrop-blur-sm overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm backdrop-blur-sm overflow-y-auto" onClick={onClose}>
       <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className={cn('px-6 py-4 flex items-center justify-between', selectedMeta.bg)}>
@@ -476,8 +477,8 @@ export default function BasicFinancePage() {
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm('Delete this transaction?')) deleteMutation.mutate(txn.id)
+                      onClick={async () => {
+                        if (await askConfirm('Delete this transaction?')) deleteMutation.mutate(txn.id)
                       }}
                       className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
                       title="Delete"

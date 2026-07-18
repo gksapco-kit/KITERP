@@ -12,30 +12,25 @@ const OPTIONS = [
   {
     id: 'shared' as const,
     label: 'Common Social & Web Links for All BUs / Stores',
-    shortLabel: 'Common links',
+    shortLabel: 'All units',
+    mediumLabel: 'Common · all units',
     description:
       'Every business unit uses the same website and social profiles. Per-unit links are kept but hidden.',
-    selectedClass:
-      'cursor-default border-amber-200 bg-amber-50 text-amber-900 shadow-sm ring-1 ring-amber-300/80 dark:border-amber-900/50 dark:bg-amber-950/50 dark:text-amber-100 dark:ring-amber-800/60',
-    idleClass: 'text-muted-foreground hover:bg-amber-50/60 hover:text-amber-800 dark:hover:bg-amber-950/30',
   },
   {
     id: 'per_unit' as const,
     label: 'Unique Social & Web Links Per BU / Store',
-    shortLabel: 'Unique per BU',
+    shortLabel: 'Per unit',
+    mediumLabel: 'Unique · per unit',
     description:
       'Each business unit manages its own website and social profiles, falling back to the shared links when not set.',
-    selectedClass:
-      'cursor-default border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-300/80 dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-100 dark:ring-emerald-800/60',
-    idleClass: 'text-muted-foreground hover:bg-emerald-50/60 hover:text-emerald-800 dark:hover:bg-emerald-950/30',
   },
 ] satisfies {
   id: SocialLinksMode
   label: string
   shortLabel: string
+  mediumLabel: string
   description: string
-  selectedClass: string
-  idleClass: string
 }[]
 
 type Props = {
@@ -163,17 +158,15 @@ export function SocialLinksModeToggle({
 
   return (
     <>
-      <div className={cn('flex shrink-0 flex-col items-start gap-1 lg:items-end', className)}>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Link scope
-        </span>
+      <div className={cn('flex min-w-0 flex-wrap items-center gap-2', className)}>
+        <span className="shrink-0 text-xs font-medium text-muted-foreground">Link scope</span>
         {showHelper && (
-          <p className="max-w-md text-xs leading-relaxed text-muted-foreground lg:text-right">
-            Choose whether all units share one set of links, or each unit has its own.
+          <p className="hidden min-w-0 text-xs text-muted-foreground xl:block">
+            Shared links for every unit, or separate links per business unit.
           </p>
         )}
         <div
-          className="inline-flex max-w-full flex-wrap rounded-lg border border-border bg-muted/40 p-0.5"
+          className="inline-flex max-w-full rounded-lg border border-border bg-background p-0.5 shadow-sm"
           role="group"
           aria-label="Social links scope"
         >
@@ -190,12 +183,14 @@ export function SocialLinksModeToggle({
                 aria-pressed={isSelected}
                 title={opt.label}
                 className={cn(
-                  'max-w-[11rem] rounded-md border border-transparent px-2 py-1.5 text-left text-[10px] font-semibold leading-snug transition-colors disabled:opacity-60 sm:max-w-none sm:px-2.5 sm:text-xs',
-                  isSelected ? opt.selectedClass : opt.idleClass,
+                  'rounded-md border border-transparent px-2.5 py-1.5 text-xs font-medium leading-none transition-colors disabled:opacity-60',
+                  isSelected
+                    ? 'cursor-default bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
                 )}
               >
-                <span className="hidden sm:inline">{opt.label}</span>
-                <span className="sm:hidden">{opt.shortLabel}</span>
+                <span className="hidden md:inline">{opt.mediumLabel}</span>
+                <span className="md:hidden">{opt.shortLabel}</span>
               </button>
             )
           })}

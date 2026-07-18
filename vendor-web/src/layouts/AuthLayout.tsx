@@ -1,10 +1,10 @@
 import { Outlet, Navigate, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useAuthHydrated } from '@/hooks/useAuthHydrated'
 import { marketingHomeUrl } from '@/lib/appUrls'
 import { PageLoading } from '@/components/common/Loading'
 import { KitErpBrandMark } from '@/components/KitErpBrandMark'
+import { useDocumentSeo, vendorAppPageTitle } from '@/lib/documentSeo'
 
 export default function AuthLayout() {
   const hydrated = useAuthHydrated()
@@ -19,12 +19,18 @@ export default function AuthLayout() {
   const narrowLoginColumn = location.pathname.replace(/\/+$/, '') === '/login'
   const authPath = location.pathname.replace(/\/+$/, '') || '/'
 
-  useEffect(() => {
-    if (authPath === '/login') document.title = 'Login — KITERP'
-    else if (authPath === '/forgot-password') document.title = 'Forgot Password — KITERP'
-    else if (authPath === '/auth/handoff') document.title = 'Sign In — KITERP'
-    else document.title = 'KITERP'
-  }, [authPath])
+  const authTitle =
+    authPath === '/login' ? 'Login'
+      : authPath === '/forgot-password' ? 'Forgot Password'
+        : authPath === '/auth/handoff' ? 'Sign In'
+          : authPath === '/register' || authPath === '/signup' ? 'Register'
+            : 'KITERP'
+
+  useDocumentSeo({
+    title: authTitle === 'KITERP' ? 'KITERP — Vendor Business Dashboard' : vendorAppPageTitle(authTitle),
+    description: 'Sign in to manage your KITERP business — products, orders, website builder, and operations.',
+    noindex: true,
+  })
 
   // Require a real access token so stale `isAuthenticated` from persisted state alone cannot
   // bounce /login ↔ / with ProtectedRoute (blank thrash after localStorage was cleared elsewhere).

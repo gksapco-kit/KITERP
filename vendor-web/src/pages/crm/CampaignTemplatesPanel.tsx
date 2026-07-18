@@ -26,6 +26,7 @@ import {
   resolveEmailBodyHtml,
 } from './marketingTemplateRich'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 type TemplateFormState = {
   name: string
   subject: string
@@ -539,7 +540,7 @@ export default function CampaignTemplatesPanel({
   }
 
   const remove = async (id: string) => {
-    if (!confirm('Delete this template?')) return
+    if (!await askConfirm('Delete this template?')) return
     try {
       await crmApi.deleteTemplate(id)
       await qc.invalidateQueries({ queryKey: ['crm', 'templates'] })

@@ -13,7 +13,7 @@ import { vendorApi } from '@/api/vendor'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useInvoiceSettings, useProducts, useServices, useUpdateInvoice } from '@/hooks/useVendor'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { toast } from 'sonner'
@@ -508,13 +508,14 @@ interface CatalogueItem {
 }
 
 function ItemSearchRow({
-  item, index, onUpdate, onRemove, catalogue,
+  item, index, onUpdate, onRemove, catalogue, compact = false,
 }: {
   item: { name: string; hsn_sac: string; qty: number; rate: number; discount: number; tax_rate: number }
   index: number
   onUpdate: (field: string, value: string | number) => void
   onRemove: () => void
   catalogue: CatalogueItem[]
+  compact?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'all' | 'product' | 'service'>('all')
@@ -545,14 +546,18 @@ function ItemSearchRow({
     setOpen(false)
   }
 
+  const fieldClass = compact
+    ? 'w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400'
+    : 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400'
+
   return (
-    <div className="flex gap-2 items-start">
+    <div className={cn('flex items-start', compact ? 'gap-1.5' : 'gap-2')}>
       {/* Item name with dropdown */}
-      <div className="flex-1 relative" ref={wrapRef}>
+      <div className="relative min-w-0 flex-1" ref={wrapRef}>
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+          <Search className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-2 h-3 w-3' : 'left-2.5 h-3.5 w-3.5')} />
           <input
-            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+            className={cn(fieldClass, 'bg-white', compact ? 'pl-7' : 'pl-8')}
             placeholder="Search product or service…"
             value={item.name}
             onChange={e => { onUpdate('name', e.target.value); setOpen(true) }}
@@ -611,28 +616,28 @@ function ItemSearchRow({
       </div>
 
       {/* HSN */}
-      <div className="w-32 shrink-0">
-        <input className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+      <div className={cn('shrink-0', compact ? 'w-24' : 'w-32')}>
+        <input className={fieldClass}
           placeholder="HSN" value={item.hsn_sac} onChange={e => onUpdate('hsn_sac', e.target.value)} />
       </div>
       {/* Qty */}
-      <div className="w-28 shrink-0">
-        <input type="number" min={1} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-center"
+      <div className={cn('shrink-0', compact ? 'w-16' : 'w-28')}>
+        <input type="number" min={1} className={cn(fieldClass, 'text-center')}
           value={item.qty} onChange={e => onUpdate('qty', Number(e.target.value))} />
       </div>
       {/* Rate */}
-      <div className="w-36 shrink-0">
-        <input type="number" min={0} placeholder="Rate" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+      <div className={cn('shrink-0', compact ? 'w-24' : 'w-36')}>
+        <input type="number" min={0} placeholder="Rate" className={fieldClass}
           value={item.rate} onChange={e => onUpdate('rate', Number(e.target.value))} />
       </div>
       {/* Tax % */}
-      <div className="w-24 shrink-0">
-        <input type="number" min={0} max={100} placeholder="Tax%" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-center"
+      <div className={cn('shrink-0', compact ? 'w-16' : 'w-24')}>
+        <input type="number" min={0} max={100} placeholder="Tax%" className={cn(fieldClass, 'text-center')}
           value={item.tax_rate} onChange={e => onUpdate('tax_rate', Number(e.target.value))} />
       </div>
       {/* Remove */}
-      <button onClick={onRemove} className="p-2 mt-0.5 rounded-lg hover:bg-red-50 transition-colors shrink-0">
-        <Trash2 className="w-4 h-4 text-red-400" />
+      <button onClick={onRemove} className={cn('shrink-0 rounded-lg transition-colors hover:bg-red-50', compact ? 'p-1' : 'mt-0.5 p-2')}>
+        <Trash2 className={cn('text-red-400', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
       </button>
     </div>
   )
@@ -773,8 +778,7 @@ export function CreateInvoiceModal({
     <div
       data-kiterp-modal
       role="presentation"
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto overscroll-none bg-black/50 py-8"
-      // Full-screen dimmer: blocks all clicks to chrome behind; does not close the dialog.
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden overscroll-none bg-black/60 p-2"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
@@ -782,36 +786,35 @@ export function CreateInvoiceModal({
         role="dialog"
         aria-modal="true"
         aria-label={defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
-        className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full mx-4 max-w-3xl max-h-[90vh] overflow-y-auto"
+        className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full mx-4 max-w-4xl max-h-[calc(100dvh-1rem)] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
         onPointerDown={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">
+        <div className="flex items-center justify-between shrink-0 px-5 py-2.5">
+          <h2 className="text-base font-semibold">
             {defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
           </h2>
           <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
-        <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 space-y-2.5">
           {/* Business unit — scopes the product/service catalog */}
           <div>
-            <Label>Business unit</Label>
-            <div className="mt-1 flex flex-wrap gap-2">
+            <Label className="text-xs">Business unit</Label>
+            <div className="mt-0.5 flex flex-wrap gap-2">
               <BusinessUnitSelect value={storeId} onChange={(id) => { setStoreId(id); setBranchId('') }} className="flex-1 min-w-[10rem]" />
               <BranchSelect businessUnitId={storeId || null} value={branchId} onChange={setBranchId} allowAll className="flex-1 min-w-[10rem]" />
             </div>
-            <p className="text-[11px] text-gray-400 mt-1">Only products & services available at this business unit can be added.</p>
           </div>
 
           {/* Customer picker */}
           <div className="relative">
-            <Label>Select Customer (optional)</Label>
-            <div className="flex gap-2 mt-1">
+            <Label className="text-xs">Select Customer (optional)</Label>
+            <div className="mt-0.5 flex gap-2">
               <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                 <Input
                   placeholder="Search existing customers…"
-                  className="pl-9"
+                  className="pl-9 h-8 text-sm"
                   value={custSearch}
                   onFocus={() => setCustOpen(true)}
                   onChange={e => { setCustSearch(e.target.value); setCustOpen(true) }}
@@ -820,25 +823,25 @@ export function CreateInvoiceModal({
               <Button
                 type="button"
                 variant="outline"
-                className="gap-1.5 shrink-0"
+                className="h-8 gap-1.5 px-2.5 text-xs shrink-0"
                 onClick={() => setShowQuickCreate(true)}
               >
-                <UserPlus className="w-4 h-4" /> Create Customer
+                <UserPlus className="w-3.5 h-3.5" /> Create Customer
               </Button>
             </div>
             {form.customer_name && (
-              <p className="text-xs text-gray-500 mt-1.5">
+              <p className="text-[11px] text-gray-500 mt-1">
                 Selected: <span className="font-medium text-gray-700">{form.customer_name}</span>
                 {form.customer_phone ? ` · ${form.customer_phone}` : ''}
               </p>
             )}
             {custOpen && (
-              <div className="absolute z-30 left-0 right-0 sm:right-auto sm:pr-[9.5rem] bg-white border rounded-lg shadow-lg mt-1 max-h-52 overflow-y-auto">
+              <div className="absolute z-30 left-0 right-0 sm:right-auto sm:pr-[9.5rem] bg-white border rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
                 {customers.length === 0 ? (
                   <p className="px-4 py-3 text-sm text-gray-400">No customers found</p>
                 ) : customers.map(c => (
                   <button key={c.id} type="button"
-                    className="w-full text-left px-4 py-2.5 hover:bg-indigo-50 transition-colors border-b last:border-0"
+                    className="w-full text-left px-4 py-2 hover:bg-indigo-50 transition-colors border-b last:border-0"
                     onClick={() => applyCustomer(c)}
                   >
                     <p className="text-sm font-medium text-gray-900">{c.full_name}</p>
@@ -852,10 +855,34 @@ export function CreateInvoiceModal({
             )}
           </div>
 
-          <div className={`grid grid-cols-1 gap-4 ${isQuotation ? 'sm:grid-cols-2' : 'sm:grid-cols-12'}`}>
-            {defaultType === 'invoice' ? (
-              <div className="sm:col-span-3">
-                <Label>Type</Label>
+          {isQuotation ? (
+            <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end">
+              <div>
+                <Label className="text-xs">Valid Until</Label>
+                <Input
+                  type="date"
+                  className="mt-0.5 h-8 text-sm"
+                  value={form.due_date}
+                  onChange={e => setForm({ ...form, due_date: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
+                <Input className="mt-0.5 h-8 text-sm" value={form.customer_gstin} onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })} maxLength={15} />
+              </div>
+              <CheckboxFieldLabel
+                label="Inter-state (IGST)"
+                checked={form.is_inter_state}
+                onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
+                helpKey="inter-state supply (igst)"
+                className="pb-1.5 whitespace-nowrap"
+                labelClassName="text-xs"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-12 items-end">
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Type</Label>
                 <Select
                   value={form.invoice_type}
                   onChange={v => setForm({ ...form, invoice_type: v as 'invoice' | 'estimate' | 'credit_note' })}
@@ -864,67 +891,56 @@ export function CreateInvoiceModal({
                     { value: 'invoice', label: 'Invoice' },
                     { value: 'credit_note', label: 'Credit Note' },
                   ]}
+                  triggerClassName="h-8 text-sm"
                 />
               </div>
-            ) : (
-              <div>
-                <Label>Valid Until</Label>
-                <Input
-                  type="date"
-                  className="mt-1"
-                  value={form.due_date}
-                  onChange={e => setForm({ ...form, due_date: e.target.value })}
+              <div className="sm:col-span-2">
+                <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
+                <Input className="mt-0.5 h-8 text-sm" value={form.customer_gstin} onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })} maxLength={15} />
+              </div>
+              <div className="sm:col-span-3">
+                <Label className="text-xs">Customer Name</Label>
+                <Input className="mt-0.5 h-8 text-sm" value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} />
+              </div>
+              <div className="sm:col-span-3">
+                <Label className="text-xs">Phone</Label>
+                <PhoneInput
+                  className="mt-0.5"
+                  compactCountry
+                  value={form.customer_phone}
+                  onChange={(v) => setForm({ ...form, customer_phone: v })}
+                  defaultCountryIso="IN"
                 />
               </div>
-            )}
-            <div className={isQuotation ? undefined : 'sm:col-span-3'}>
-              <Label helpKey="invoice customer gstin">GSTIN</Label>
-              <Input className="mt-1" value={form.customer_gstin} onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })} maxLength={15} />
+              <div className="sm:col-span-2 pb-1.5">
+                <CheckboxFieldLabel
+                  label="Inter-state (IGST)"
+                  checked={form.is_inter_state}
+                  onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
+                  helpKey="inter-state supply (igst)"
+                  className="whitespace-nowrap"
+                  labelClassName="text-xs"
+                />
+              </div>
             </div>
-            {!isQuotation && (
-              <>
-                <div className="sm:col-span-4">
-                  <Label>Customer Name</Label>
-                  <Input className="mt-1" value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} />
-                </div>
-                <div className="sm:col-span-5">
-                  <Label>Phone</Label>
-                  <PhoneInput
-                    className="mt-1"
-                    compactCountry
-                    value={form.customer_phone}
-                    onChange={(v) => setForm({ ...form, customer_phone: v })}
-                    defaultCountryIso="IN"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-          <CheckboxFieldLabel
-            label="Inter-state supply (IGST)"
-            checked={form.is_inter_state}
-            onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
-            helpKey="inter-state supply (igst)"
-          />
+          )}
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <Label>Line Items</Label>
-                <p className="text-xs text-gray-400 mt-0.5">Type to search your products &amp; services — select to auto-fill details</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={addLine}><Plus className="w-3 h-3 mr-1" />Add Line</Button>
+            <div className="mb-1 flex items-center justify-between">
+              <Label className="text-xs">Line Items</Label>
+              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addLine}>
+                <Plus className="w-3 h-3 mr-1" />Add Line
+              </Button>
             </div>
-            {/* Column headers */}
-            <div className="flex gap-2 mb-1 px-0.5">
-              <FormColumnLabel className="flex-1 min-w-0">Item</FormColumnLabel>
-              <FormColumnLabel className="w-32 shrink-0">HSN/SAC</FormColumnLabel>
-              <FormColumnLabel className="w-28 shrink-0 text-center">Qty</FormColumnLabel>
-              <FormColumnLabel className="w-36 shrink-0">Rate (₹)</FormColumnLabel>
-              <FormColumnLabel className="w-24 shrink-0 text-center">Tax %</FormColumnLabel>
-              <div className="w-10 shrink-0" />
+            <div className="mb-1 flex gap-1.5 px-0.5">
+              <FormColumnLabel className="flex-1 min-w-0 text-[10px]">Item</FormColumnLabel>
+              <FormColumnLabel className="w-24 shrink-0 text-[10px]">HSN/SAC</FormColumnLabel>
+              <FormColumnLabel className="w-16 shrink-0 text-center text-[10px]">Qty</FormColumnLabel>
+              <FormColumnLabel className="w-24 shrink-0 text-[10px]">Rate (₹)</FormColumnLabel>
+              <FormColumnLabel className="w-16 shrink-0 text-center text-[10px]">Tax %</FormColumnLabel>
+              <div className="w-7 shrink-0" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {items.map((item, i) => (
                 <ItemSearchRow
                   key={i}
@@ -933,37 +949,61 @@ export function CreateInvoiceModal({
                   onUpdate={(field, value) => updateLine(i, field, value)}
                   onRemove={() => removeLine(i)}
                   catalogue={catalogue}
+                  compact
                 />
               ))}
             </div>
           </div>
 
-          <div className="flex justify-end"><div className="text-right space-y-1">
-            <p className="text-sm text-gray-500">Subtotal: {formatCurrency(subtotal)}</p>
-            <p className="text-sm text-gray-500">Tax: {formatCurrency(totalTax)}</p>
-            <p className="text-lg font-bold">Total: {formatCurrency(Math.round(subtotal + totalTax))}</p>
-          </div></div>
-
-          <div><Label>Notes</Label><textarea className="w-full mt-1 text-sm border rounded-lg px-3 py-2 min-h-[60px]" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
-          {defaultType === 'estimate' && (
-            <>
-              <QuotationExtraFieldsEditor fields={extraFields} onChange={setExtraFields} />
+          {isQuotation ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <Label>Terms &amp; Conditions</Label>
+                <Label className="text-xs">Notes</Label>
                 <textarea
-                  className="w-full mt-1 text-sm border rounded-lg px-3 py-2 min-h-[60px]"
+                  rows={2}
+                  className="w-full mt-0.5 text-xs border rounded-md px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  value={form.notes}
+                  onChange={e => setForm({ ...form, notes: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Terms &amp; Conditions</Label>
+                <textarea
+                  rows={2}
+                  className="w-full mt-0.5 text-xs border rounded-md px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
                   value={form.terms_and_conditions}
                   onChange={e => setForm({ ...form, terms_and_conditions: e.target.value })}
                 />
               </div>
-            </>
+            </div>
+          ) : (
+            <div>
+              <Label className="text-xs">Notes</Label>
+              <textarea
+                rows={2}
+                className="w-full mt-0.5 text-xs border rounded-md px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+                value={form.notes}
+                onChange={e => setForm({ ...form, notes: e.target.value })}
+              />
+            </div>
+          )}
+
+          {defaultType === 'estimate' && (
+            <QuotationExtraFieldsEditor fields={extraFields} onChange={setExtraFields} compact />
           )}
         </div>
-        <div className="px-6 py-4 border-t flex justify-end gap-3">
-          <Button variant="cancel" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleCreate} disabled={loading || !items.some(i => i.name && i.rate > 0)} className="gap-2">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}Create
-          </Button>
+        <div className="shrink-0 flex items-center gap-3 px-5 py-2.5">
+          <div className="mr-auto flex items-baseline gap-3 text-xs">
+            <span className="text-gray-500">Subtotal: <span className="font-medium text-gray-700">{formatCurrency(subtotal)}</span></span>
+            <span className="text-gray-500">Tax: <span className="font-medium text-gray-700">{formatCurrency(totalTax)}</span></span>
+            <span className="text-sm font-bold text-gray-900">Total: {formatCurrency(Math.round(subtotal + totalTax))}</span>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button variant="cancel" onClick={onClose} className="h-8 px-3 text-sm">Cancel</Button>
+            <Button onClick={handleCreate} disabled={loading || !items.some(i => i.name && i.rate > 0)} className="h-8 gap-2 px-3 text-sm">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}Create
+            </Button>
+          </div>
         </div>
       </div>
 

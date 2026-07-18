@@ -495,7 +495,7 @@ export function UniversalSearch({
 
   return (
     <div data-kiterp-modal
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] px-4"
+      className="fixed inset-0 z-[100] flex items-start justify-center pt-[8vh] px-4"
       onKeyDown={onKeyDown}
     >
       {/* Backdrop */}

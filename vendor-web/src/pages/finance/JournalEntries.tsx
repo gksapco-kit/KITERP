@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useQuery } from '@tanstack/react-query'
 import {
   useJournalEntries, usePostJournalEntry, useVoidJournalEntry,
@@ -20,7 +20,7 @@ import { DOC_TYPES, REF_DOC_TYPES } from '@/types/finance'
 import {
   Plus, CheckCircle, XCircle, Pencil, X, Trash2, Search,
   ChevronDown, ChevronRight, AlertTriangle, Clock, Building2,
-  User, FileText, Info, Save, SendHorizonal, Layers,
+  User, Info, Save, SendHorizonal, Layers,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -207,8 +207,6 @@ interface JEDrawerProps {
 
 function JEDrawer({
  mode, initialData, onClose, onSaved }: JEDrawerProps) {
-  useEscapeToClose(onClose)
-
   const { user } = useAuthStore()
   const { data: companies = [] } = useCompanies()
   const { data: fiscalYears = [] } = useFiscalYears()
@@ -419,40 +417,31 @@ function JEDrawer({
 
   return (
     <>
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-full max-w-5xl bg-gray-50 h-full shadow-2xl flex flex-col overflow-hidden">
-
-        {/* ── Drawer header bar ── */}
-        <div className="flex items-center justify-between px-6 py-4 bg-white border-b">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-gray-900">
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-5xl max-h-[calc(100dvh-1.5rem)] !rounded-lg bg-background">
+        <ModalHeader
+          title={
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h2 className="text-base font-semibold text-foreground">
                 {mode === 'edit' ? `Edit Journal Entry ${initialData?.entry_no}` : 'New Journal Entry'}
               </h2>
-              <p className="text-xs text-gray-500">General Ledger · Manual Posting</p>
+              {needsApproval && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                  <AlertTriangle className="h-3 w-3" />
+                  Approval ≥ {fmt(jePolicy.threshold_amount ?? 0)}
+                </span>
+              )}
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {needsApproval && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 font-medium">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Requires approval ≥ {fmt(jePolicy.threshold_amount ?? 0)}
-              </div>
-            )}
-            <button type="button" aria-label="Close" onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+          }
+          onClose={onClose}
+          className="border-0 px-4 py-3"
+        />
 
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        <ModalBody className="flex min-h-0 flex-1 overflow-hidden p-0">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
 
           {/* ── Main content ── */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="flex-1 space-y-3 overflow-y-auto p-4">
 
             {/* ── Document Header card ── */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -975,38 +964,37 @@ function JEDrawer({
             </div>
           </div>
         </div>
+        </ModalBody>
 
-        {/* ── Footer actions ── */}
-        <div className="px-6 py-4 border-t bg-white flex items-center justify-between">
-          <button onClick={onClose} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600">Cancel</button>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={save}
-              disabled={!isBalanced || isSaving}
-              className={cn(
-                'flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold transition-all',
-                isBalanced
-                  ? needsApproval
-                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                    : 'bg-primary hover:bg-primary/90 text-white'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              )}
-            >
-              {isSaving
-                ? 'Saving…'
-                : needsApproval
-                  ? <><SendHorizonal className="w-4 h-4" /> Submit for Approval</>
-                  : <><Save className="w-4 h-4" /> Save Entry</>}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+        <ModalFooter className="border-0 px-4 py-3 justify-between">
+          <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600">Cancel</button>
+          <button
+            type="button"
+            onClick={save}
+            disabled={!isBalanced || isSaving}
+            className={cn(
+              'flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold transition-all',
+              isBalanced
+                ? needsApproval
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                  : 'bg-primary hover:bg-primary/90 text-white'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            )}
+          >
+            {isSaving
+              ? 'Saving…'
+              : needsApproval
+                ? <><SendHorizonal className="w-4 h-4" /> Submit for Approval</>
+                : <><Save className="w-4 h-4" /> Save Entry</>}
+          </button>
+        </ModalFooter>
+      </ModalPanel>
+    </ModalOverlay>
 
     {savePreview && (
-      <div data-kiterp-modal className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onSaved}>
+      <div data-kiterp-modal className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={onSaved}>
         <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-          <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-3">
+          <div className="px-4 py-3 flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-emerald-600" />
@@ -1104,7 +1092,7 @@ function JEDetail({
   const { data: je, isLoading } = useJournalEntry(jeId)
 
   if (isLoading) return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto">
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto">
       <div className="bg-card border border-border text-foreground rounded-xl p-8 text-muted-foreground text-sm">Loading…</div>
     </div>
   )
@@ -1113,7 +1101,7 @@ function JEDetail({
   const jed = je as unknown as JournalEntry
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex">
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
       <div className="w-full max-w-3xl bg-card border-l border-border text-foreground h-full shadow-2xl flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b">

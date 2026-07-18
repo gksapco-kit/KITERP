@@ -515,7 +515,7 @@ function CreateSiteModal({
   const stepLabels = ['Basics', 'Structure', 'Colors'] as const
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
         className={cn(
           'flex w-full max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl transition-[max-width] duration-300',
@@ -989,7 +989,7 @@ function RenameSiteModal({
   if (!open) return null
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-2xl bg-card text-foreground shadow-2xl border border-border overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -1054,7 +1054,7 @@ function DeleteSiteConfirmModal({
   if (!open) return null
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={() => !deleting && onClose()} />
       <div className="relative w-full max-w-md rounded-2xl bg-card text-foreground shadow-2xl border border-border overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -1122,7 +1122,7 @@ function CopySiteSaveAsModal({
   if (!open) return null
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-2xl bg-card text-foreground shadow-2xl border border-border overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">

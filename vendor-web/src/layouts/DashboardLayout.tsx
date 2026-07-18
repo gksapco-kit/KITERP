@@ -131,6 +131,7 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { Select } from '@/components/ui/select'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
+import { applyDocumentSeo, vendorAppPageTitle } from '@/lib/documentSeo'
 import { useESSProfile } from '@/hooks/useVendor'
 import { useMyVendor, useMyPlan, useStores, useOrderStats } from '@/hooks/useVendor'
 import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
@@ -365,25 +366,23 @@ const SETTINGS_SECTION_TITLES: Record<string, string> = {
   about: 'About',
 }
 
-function UniversalSaveToolbarButton() {
+function UniversalSaveToolbarButton({ className }: { className?: string }) {
   return (
     <button
       type="button"
       onClick={dispatchAppSaveRequest}
       title="Save changes on this page"
       aria-label="Save changes"
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-emerald-600 transition-colors hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+      className={className}
     >
-      <Save className="h-4 w-4" />
+      <Save className="h-3.5 w-3.5" />
     </button>
   )
 }
 
 /** Shared pill styling for top-bar controls (matches sidebar section row corners). */
 const headerBarPillClass =
-  'flex h-8 shrink-0 items-center rounded-lg border border-border bg-muted text-xs font-medium text-muted-foreground'
-
-const headerBarPillInteractiveClass = cn(headerBarPillClass, 'hover:bg-muted/80 hover:border-primary/30')
+  'flex h-8 shrink-0 items-center rounded-lg border border-border/60 bg-muted/40 text-[11px] font-medium text-muted-foreground'
 
 type HeaderQuickActionButtonsProps = {
   helpRef: React.Ref<HTMLDivElement>
@@ -408,103 +407,119 @@ function HeaderQuickActionButtons({
   onNavigateNotifications,
   onNavigateSettings,
 }: HeaderQuickActionButtonsProps) {
-  const menuClass = 'absolute left-0 top-full z-[100] mt-1 w-52 rounded-xl border border-border bg-card shadow-xl py-1'
+  const menuClass =
+    'absolute right-0 top-full z-[100] mt-1.5 w-52 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg'
   const iconBtn =
-    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors'
+    'flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground'
 
   return (
     <div
-      className={cn(headerBarPillClass, 'w-[10rem] justify-between px-1')}
+      className={cn(headerBarPillClass, 'gap-0.5 p-0.5')}
       aria-label="Page actions"
     >
-      <button
-        type="button"
-        onClick={() => window.history.back()}
-        title="Go back"
-        aria-label="Go back"
-        className={cn(iconBtn, 'text-primary hover:bg-primary/10')}
-      >
-        <ArrowLeft className="h-4 w-4" />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => window.history.forward()}
-        title="Go forward"
-        aria-label="Go forward"
-        className={cn(iconBtn, 'text-primary hover:bg-primary/10')}
-      >
-        <ArrowRight className="h-4 w-4" />
-      </button>
-
-      <UniversalSaveToolbarButton />
-
-      <div ref={helpRef} className="relative shrink-0">
+      <div className="flex items-center gap-0.5" role="group" aria-label="Navigation">
         <button
           type="button"
-          title="Help & support"
-          aria-label="Help"
-          onClick={() => { setHelpOpen(v => !v); setMoreOpen(false) }}
-          className={cn(iconBtn, 'text-amber-500 hover:bg-amber-50', helpOpen && 'bg-amber-50')}
+          onClick={() => window.history.back()}
+          title="Go back"
+          aria-label="Go back"
+          className={iconBtn}
         >
-          <HelpCircle className="h-4 w-4" />
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
         </button>
-        {helpOpen && (
-          <div className={menuClass}>
-            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Help & Support</p>
-            <a href="https://docs.kiterp.com" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-              onClick={() => setHelpOpen(false)}>
-              <BookOpen className="h-4 w-4 shrink-0 text-blue-500" /> Documentation
-            </a>
-            <a href="mailto:support@kiterp.com"
-              className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-              onClick={() => setHelpOpen(false)}>
-              <Mail className="h-4 w-4 shrink-0 text-muted-foreground" /> Email support
-            </a>
-            <a href="https://wa.me/918000000000" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-              onClick={() => setHelpOpen(false)}>
-              <MessageCircle className="h-4 w-4 shrink-0 text-green-500" /> WhatsApp chat
-            </a>
-          </div>
-        )}
-      </div>
 
-      <div ref={moreRef} className="relative shrink-0">
         <button
           type="button"
-          title="More options"
-          aria-label="More options"
-          onClick={() => { setMoreOpen(v => !v); setHelpOpen(false) }}
-          className={cn(iconBtn, 'text-blue-500 hover:bg-blue-50', moreOpen && 'bg-blue-50')}
+          onClick={() => window.history.forward()}
+          title="Go forward"
+          aria-label="Go forward"
+          className={iconBtn}
         >
-          <MoreHorizontal className="h-4 w-4" />
+          <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
         </button>
-        {moreOpen && (
-          <div className={menuClass}>
-            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</p>
-            <button type="button"
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-              onClick={() => { onOpenSearch(); setMoreOpen(false) }}>
-              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="flex-1 text-left">Search</span>
-              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">⌘K</kbd>
-            </button>
-            <button type="button"
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-              onClick={() => { onNavigateNotifications(); setMoreOpen(false) }}>
-              <Bell className="h-4 w-4 shrink-0 text-muted-foreground" /> Notifications
-            </button>
-            <div className="mx-3 my-1 border-t border-border" />
-            <button type="button"
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-              onClick={() => { onNavigateSettings(); setMoreOpen(false) }}>
-              <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
-            </button>
-          </div>
-        )}
+
+        <UniversalSaveToolbarButton className={iconBtn} />
+
+        <div ref={helpRef} className="relative shrink-0">
+          <button
+            type="button"
+            title="Help & support"
+            aria-label="Help"
+            onClick={() => { setHelpOpen(v => !v); setMoreOpen(false) }}
+            className={cn(iconBtn, helpOpen && 'bg-background text-foreground shadow-sm')}
+          >
+            <HelpCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+          {helpOpen && (
+            <div className={menuClass}>
+              <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Help & Support</p>
+              <a href="https://docs.kiterp.com" target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                onClick={() => setHelpOpen(false)}>
+                <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" /> Documentation
+              </a>
+              <a href="mailto:support@kiterp.com"
+                className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                onClick={() => setHelpOpen(false)}>
+                <Mail className="h-4 w-4 shrink-0 text-muted-foreground" /> Email support
+              </a>
+              <a href="https://wa.me/918000000000" target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                onClick={() => setHelpOpen(false)}>
+                <MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground" /> WhatsApp chat
+              </a>
+            </div>
+          )}
+        </div>
+
+        <div ref={moreRef} className="relative shrink-0">
+          <button
+            type="button"
+            title="More options"
+            aria-label="More options"
+            onClick={() => { setMoreOpen(v => !v); setHelpOpen(false) }}
+            className={cn(iconBtn, moreOpen && 'bg-background text-foreground shadow-sm')}
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+          {moreOpen && (
+            <div className={menuClass}>
+              <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</p>
+              <button type="button"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                onClick={() => { onOpenSearch(); setMoreOpen(false) }}>
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="flex-1 text-left">Search</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
+              </button>
+              <button type="button"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                onClick={() => { onNavigateNotifications(); setMoreOpen(false) }}>
+                <Bell className="h-4 w-4 shrink-0 text-muted-foreground" /> Notifications
+              </button>
+              <div className="mx-3 my-1 border-t border-border" />
+              <button type="button"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+                onClick={() => { onNavigateSettings(); setMoreOpen(false) }}>
+                <Settings className="h-4 w-4 shrink-0 text-muted-foreground" /> Settings
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      <div className="mx-0.5 h-4 w-px shrink-0 bg-border/80" aria-hidden />
+
+      <button
+        type="button"
+        onClick={() => { setHelpOpen(false); setMoreOpen(false); onOpenSearch() }}
+        className="flex h-7 min-w-[7.5rem] items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+        aria-label="Search"
+      >
+        <Search className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+        <span className="min-w-0 flex-1 truncate text-left text-[11px]">Search…</span>
+        <kbd className="hidden rounded border border-border/80 bg-background/80 px-1 py-px font-mono text-[9px] text-muted-foreground/80 sm:inline">⌘K</kbd>
+      </button>
     </div>
   )
 }
@@ -2495,7 +2510,14 @@ export default function DashboardLayout() {
          'Dashboard')
 
   useEffect(() => {
-    document.title = pageTitle === 'Dashboard' ? 'KITERP' : `${pageTitle} — KITERP`
+    const title = vendorAppPageTitle(pageTitle)
+    applyDocumentSeo({
+      title,
+      description: pageTitle === 'Dashboard'
+        ? 'KITERP vendor dashboard for products, orders, websites, CRM, finance, HR, and business operations.'
+        : `${pageTitle} — KITERP vendor business dashboard.`,
+      noindex: true,
+    })
   }, [pageTitle])
 
   const storePickerMenu =
@@ -3715,10 +3737,10 @@ export default function DashboardLayout() {
       </DndContext>
       </div>
 
-      {/* Logout — separated from primary nav */}
+      {/* Logout — clear footer action */}
       <div
         className={cn(
-          'shrink-0 border-t border-border/15 bg-muted/10 px-2 py-1 dark:bg-muted/5',
+          'shrink-0 px-2 py-2',
           showIconOnlyNav && 'lg:px-1.5',
         )}
       >
@@ -3727,19 +3749,21 @@ export default function DashboardLayout() {
           onClick={logout}
           title="Logout"
           className={cn(
-            'flex w-full items-center gap-1.5 rounded-md px-1 text-sm text-sidebar-foreground',
+            'flex w-full items-center gap-1.5 rounded-lg border border-border bg-background px-2 text-sm font-medium text-foreground shadow-none',
             NAV_ROW_MIN_H,
             NAV_ROW_PAD_Y,
             NAV_FONT_SECTION,
             navRowTransition,
-            showIconOnlyNav && 'lg:justify-center',
-            'hover:bg-red-500/10 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-0 dark:hover:bg-red-950/30 dark:hover:text-red-300',
+            showIconOnlyNav && 'lg:justify-center lg:px-1',
+            'hover:border-red-300 hover:bg-red-50 hover:text-red-700',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 focus-visible:ring-offset-0',
+            'dark:hover:border-red-800 dark:hover:bg-red-950/40 dark:hover:text-red-300',
           )}
         >
           <span
             className={cn(
               NAV_ICON_COL,
-              'text-muted-foreground',
+              'text-red-600 dark:text-red-400',
               showIconOnlyNav && 'lg:h-[1.875rem] lg:w-[1.875rem]',
             )}
           >
@@ -3769,13 +3793,17 @@ export default function DashboardLayout() {
       {/* Sidebar — single instance so nav scroll ref targets the visible panel */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 min-w-0 border-r border-sidebar-border bg-sidebar font-sans text-sidebar-foreground text-sm shadow-sm lg:z-30',
+          'fixed inset-y-0 left-0 min-w-0 border-r border-sidebar-border bg-sidebar font-sans text-sidebar-foreground text-sm shadow-sm',
           'max-lg:w-[min(17.5rem,100vw)] max-lg:max-w-[min(100vw,18rem)]',
-          'transition-[transform] duration-200 ease-out motion-reduce:transition-none',
+          'transition-[transform,filter] duration-200 ease-out motion-reduce:transition-none',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
           sidebarMode === 'hidden' ? 'lg:-translate-x-full' : 'lg:translate-x-0',
           isSidebarResizing && 'transition-none will-change-[width]',
+          kiterpModalOpen
+            ? 'z-0 pointer-events-none'
+            : 'z-50 lg:z-30',
         )}
+        aria-hidden={kiterpModalOpen || undefined}
         style={
           sidebarMode !== 'hidden'
             ? {
@@ -3857,21 +3885,34 @@ export default function DashboardLayout() {
       >
         {/* Top bar — title left; toolbar packed at the right end */}
         {/* z-[80]: keep header actions (bell, profile) above rail-flyout dismiss layer (z-[69]). */}
-        <header className="sticky top-0 z-[80] overflow-visible border-b border-sidebar-border bg-card/80 backdrop-blur-md">
-          <div className="flex h-14 w-full min-w-0 items-center gap-3 px-4">
+        {/* When a [data-kiterp-modal] is open, drop below the overlay (z-[100]) and inert the bar. */}
+        <header
+          className={cn(
+            'sticky top-0 overflow-visible bg-card/95 backdrop-blur-md',
+            'shadow-[0_1px_0_0_hsl(var(--border)),0_4px_12px_-2px_rgba(15,23,42,0.08)]',
+            'dark:shadow-[0_1px_0_0_hsl(var(--border)),0_4px_14px_-2px_rgba(0,0,0,0.35)]',
+            'transition-[box-shadow,z-index] duration-150 ease-out motion-reduce:transition-none',
+            kiterpModalOpen
+              ? 'z-0 pointer-events-none select-none shadow-none backdrop-blur-none bg-card'
+              : 'z-[80]',
+          )}
+          aria-hidden={kiterpModalOpen || undefined}
+        >
+          <div className="flex h-14 w-full min-w-0 items-center gap-2 px-3">
             {/* Title — fixed width on the left */}
-            <div className="flex h-8 w-[13rem] shrink-0 items-center gap-2">
+            <div className="flex h-8 min-w-0 max-w-[14rem] shrink-0 items-center gap-1.5">
               <button
                 type="button"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted lg:hidden"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted lg:hidden"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open menu"
+                tabIndex={kiterpModalOpen ? -1 : undefined}
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-4 w-4" />
               </button>
 
               <h1
-                className="min-w-0 flex-1 truncate text-sm font-semibold leading-none text-foreground lg:w-full"
+                className="min-w-0 flex-1 truncate text-base font-semibold leading-none text-foreground"
                 title={pageTitle}
               >
                 {location.pathname === '/settings'
@@ -3885,13 +3926,13 @@ export default function DashboardLayout() {
             <div className="min-h-px min-w-0 flex-1" aria-hidden />
 
             {/* Toolbar — pinned to the right end */}
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1.5">
               {showRmSupportAudit ? (
                 <Link
                   to="/settings/support-activity"
-                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-blue-200/80 bg-blue-50/60 px-2.5 text-xs font-medium text-blue-800 transition-colors hover:bg-blue-100/80 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200 dark:hover:bg-blue-950/50"
+                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
                 >
-                  <HelpCircle className="h-3.5 w-3.5 shrink-0" />
+                  <HelpCircle className="h-3 w-3 shrink-0" />
                   Support audit
                 </Link>
               ) : null}
@@ -3906,14 +3947,6 @@ export default function DashboardLayout() {
                 onNavigateNotifications={() => navigate('/notifications')}
                 onNavigateSettings={() => navigate('/settings')}
               />
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                className={cn(headerBarPillInteractiveClass, 'w-36 gap-1.5 px-2.5')}
-              >
-                <Search className="h-3.5 w-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-left text-xs">Search…</span>
-              </button>
 
               <div ref={storePickerRef} className="relative shrink-0">
                 <button
@@ -3924,10 +3957,10 @@ export default function DashboardLayout() {
                   title={storeHeaderName}
                   className={cn(
                     headerBarPillClass,
-                    'w-[min(14rem,32vw)] min-w-[10.5rem] gap-1.5 px-2.5',
+                    'w-[min(12rem,28vw)] min-w-[9rem] gap-1 px-2',
                     storePillActive
-                      ? 'border-primary bg-primary text-white shadow-sm shadow-primary/20 hover:bg-primary/90 hover:border-primary'
-                      : 'hover:bg-muted/80',
+                      ? 'border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/15 hover:bg-primary/90 hover:border-primary'
+                      : 'transition-colors hover:bg-muted hover:text-foreground',
                   )}
                 >
                   {rowForHeader ? (
@@ -3935,20 +3968,20 @@ export default function DashboardLayout() {
                       store={rowForHeader}
                       vendor={vendor}
                       variant={storePillActive ? 'onPrimary' : 'default'}
-                      className="h-6 w-6"
-                      iconClassName={cn('h-3.5 w-3.5 shrink-0', storePillActive ? 'text-white' : 'text-current')}
+                      className="h-5 w-5"
+                      iconClassName={cn('h-3 w-3 shrink-0', storePillActive ? 'text-white' : 'text-current')}
                     />
                   ) : (
                     <span
                       className={cn(
-                        'flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1 ring-inset',
+                        'flex h-5 w-5 shrink-0 items-center justify-center rounded',
                         storePillActive
-                          ? 'bg-white/15 text-white ring-white/25'
-                          : 'bg-muted text-muted-foreground ring-border/45',
+                          ? 'bg-white/15 text-white'
+                          : 'bg-muted text-muted-foreground',
                       )}
                       aria-hidden
                     >
-                      <Store className="h-3.5 w-3.5 shrink-0" />
+                      <Store className="h-3 w-3 shrink-0" />
                     </span>
                   )}
                   <span className="min-w-0 flex-1 truncate" title={storeHeaderName}>
@@ -3976,9 +4009,9 @@ export default function DashboardLayout() {
                   setMoreOpen(false)
                   navigate('/notifications')
                 }}
-                className="relative z-[81] flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:border-primary/30"
+                className="relative z-[81] flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/40 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <Bell className="h-5 w-5" />
+                <Bell className="h-3.5 w-3.5" />
                 {unreadCount > 0 && (
                   <span className={cn(headerNotificationBadgeClass(unreadCount), 'pointer-events-none')}>
                     {formatBadgeCount(unreadCount)}
@@ -3986,42 +4019,24 @@ export default function DashboardLayout() {
                 )}
               </button>
 
-              <span
-                className="mx-0.5 shrink-0 select-none text-sm font-light leading-none text-muted-foreground/55"
-                aria-hidden
-              >
-                |
-              </span>
-
-              <div ref={profileMenuRef} className="relative flex h-8 w-[7.25rem] shrink-0 items-center">
+              <div ref={profileMenuRef} className="relative flex shrink-0 items-center">
                 <button
                   type="button"
                   onClick={() => setProfileOpen(v => !v)}
                   title={profileHoverTitle}
                   aria-label={profileHoverTitle ?? 'Open profile menu'}
                   className={cn(
-                    'flex h-8 w-full min-w-0 items-center gap-1 rounded-full py-0.5 pl-0.5 pr-1',
-                    profileOpen ? 'bg-muted ring-1 ring-border' : 'hover:bg-muted',
+                    'flex h-8 max-w-[9.5rem] min-w-0 items-center gap-1 rounded-md py-0.5 pl-0.5 pr-1',
+                    profileOpen ? 'bg-muted ring-1 ring-border/60' : 'hover:bg-muted/70',
                   )}
                 >
                   <ProfileAvatar
                     user={user}
-                    className="h-6 w-6 shrink-0 shadow-sm ring-1 ring-black/15"
+                    className="h-5 w-5 shrink-0 ring-1 ring-primary/20"
                   />
-                  <span className="flex min-w-0 flex-1 flex-col items-start leading-none">
-                    <span
-                      className="w-full truncate text-xs font-medium text-foreground"
-                      title={profileName || undefined}
-                    >
-                      {profileDisplayName}
-                    </span>
-                    <span
-                      className="mt-0.5 inline-flex max-w-full items-center gap-0.5 truncate rounded px-0.5 py-px text-[10px] font-medium leading-none bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary-foreground/90"
-                      title={roleBadge}
-                    >
-                      <ShieldCheck className="h-1.5 w-1.5 shrink-0" aria-hidden />
-                      <span className="truncate">{roleBadge}</span>
-                    </span>
+                  <span className="hidden min-w-0 flex-1 truncate text-left text-[11px] leading-tight sm:block" title={profileHoverTitle}>
+                    <span className="font-medium text-foreground">{profileDisplayName}</span>
+                    <span className="text-muted-foreground"> · {roleBadge}</span>
                   </span>
                   <ChevronDown className={cn('h-3 w-3 shrink-0 text-muted-foreground', profileOpen && 'rotate-180')} />
                 </button>
@@ -4238,13 +4253,13 @@ export default function DashboardLayout() {
                       </div>
 
                       {/* Logout — always visible at bottom */}
-                      <div className="shrink-0 border-t border-border bg-card py-1">
+                      <div className="shrink-0 px-2 py-2">
                         <button
                           type="button"
                           onClick={() => { setProfileOpen(false); logout() }}
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                          className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-medium text-foreground hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:hover:border-red-800 dark:hover:bg-red-950/40 dark:hover:text-red-300"
                         >
-                          <LogOut className="h-4 w-4" />
+                          <LogOut className="h-4 w-4 text-red-600 dark:text-red-400" />
                           <span className="flex-1 text-left">Logout</span>
                         </button>
                       </div>

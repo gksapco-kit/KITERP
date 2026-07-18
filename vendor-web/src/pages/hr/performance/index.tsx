@@ -1,8 +1,8 @@
 import { onModalBackdropClick, cn } from '@/lib/utils'
 import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { Plus, Trash2, X, Pencil, Rocket, Target, ClipboardList, Lock, ExternalLink } from 'lucide-react'
 import {
@@ -11,6 +11,12 @@ import {
   useHRReviews, useHREmployees,
 } from '@/hooks/useVendor'
 import type { ReviewCycle, KPITemplateItem, PerformanceGoal, PerformanceReview, EmployeeProfile } from '@/types'
+
+import { askConfirm } from '@/components/common/ConfirmProvider'
+
+const denseFieldClass =
+  'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
+const denseLabelClass = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
 
 type Tab = 'cycles' | 'goals' | 'reviews'
 
@@ -123,20 +129,20 @@ function CyclesTab() {
                               className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
                               <Pencil className="w-4 h-4" />
                             </button>
-                            <button onClick={() => { if (confirm('Launch this cycle? Reviews will be created for all employees.')) launch.mutate(c.id) }}
+                            <button onClick={async () => { if (await askConfirm('Launch this cycle? Reviews will be created for all employees.')) launch.mutate(c.id) }}
                               className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Launch">
                               <Rocket className="w-4 h-4" />
                             </button>
                           </>
                         )}
                         {c.status === 'launched' && (
-                          <button onClick={() => { if (confirm('Close this cycle?')) close.mutate(c.id) }}
+                          <button onClick={async () => { if (await askConfirm('Close this cycle?')) close.mutate(c.id) }}
                             className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg" title="Close">
                             <Lock className="w-4 h-4" />
                           </button>
                         )}
                         {c.status === 'draft' && (
-                          <button onClick={() => { if (confirm('Delete this draft cycle?')) del.mutate(c.id) }}
+                          <button onClick={async () => { if (await askConfirm('Delete this draft cycle?')) del.mutate(c.id) }}
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -196,113 +202,117 @@ function CycleModal({
     onClose()
   }
 
+  const kpiWeightTotal = kpis.reduce((s, k) => s + (Number(k.weight) || 0), 0)
+
   return (
-    <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
-      <div className={cn(dialogPanelClass, 'max-w-2xl')}>
-        <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b">
-          <h2 className="text-lg font-semibold">{existing ? 'Edit Cycle' : 'New Review Cycle'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
-        </div>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-h-[calc(100dvh-1.5rem)] max-w-2xl !rounded-lg overflow-hidden">
+        <ModalHeader
+          title={existing ? 'Edit Cycle' : 'New Review Cycle'}
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+        />
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4 p-5">
-          <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase" required>Cycle Name</Label>
-            <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. Annual Review 2026" />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-gray-600 uppercase">Description</Label>
-            <textarea rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase" required>Period Start</Label>
-              <input type="date" required value={form.period_start} onChange={e => setForm({ ...form, period_start: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
-            </div>
-            <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase" required>Period End</Label>
-              <input type="date" required value={form.period_end} onChange={e => setForm({ ...form, period_end: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
-            </div>
-            <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Type</Label>
-              <select value={form.review_type} onChange={e => setForm({ ...form, review_type: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-                <option value="annual">Annual</option>
-                <option value="semi_annual">Semi-Annual</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="probation">Probation</option>
-              </select>
-            </div>
-            <div>
-              <Label className="text-xs font-medium text-gray-600 uppercase">Rating Scale Max</Label>
-              <input type="number" value={form.rating_scale_max}
-                onChange={e => setForm({ ...form, rating_scale_max: Number(e.target.value) })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.self_review_required}
-                onChange={e => setForm({ ...form, self_review_required: e.target.checked })} />
-              Self review
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.manager_review_required}
-                onChange={e => setForm({ ...form, manager_review_required: e.target.checked })} />
-              Manager review
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.enable_kpi_scoring}
-                onChange={e => setForm({ ...form, enable_kpi_scoring: e.target.checked })} />
-              KPI scoring
-            </label>
-          </div>
-
-          {form.enable_kpi_scoring && (
-            <div className="border-t pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-gray-700">KPI Template ({kpis.length})</h3>
-                <button type="button" onClick={addKpi}
-                  className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded">
-                  <Plus className="w-3 h-3" /> Add KPI
-                </button>
+          <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className={denseLabelClass} required>Cycle Name</Label>
+                <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  className={denseFieldClass} placeholder="e.g. Annual Review 2026" />
               </div>
-              <div className="space-y-2">
-                {kpis.map((k, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2">
-                    <input value={k.key} onChange={e => setKpi(i, 'key', e.target.value)}
-                      placeholder="key" className="col-span-3 px-2 py-1.5 border rounded text-sm" />
-                    <input value={k.label} onChange={e => setKpi(i, 'label', e.target.value)}
-                      placeholder="Label" className="col-span-6 px-2 py-1.5 border rounded text-sm" />
-                    <input type="number" value={k.weight} onChange={e => setKpi(i, 'weight', Number(e.target.value))}
-                      placeholder="Weight" className="col-span-2 px-2 py-1.5 border rounded text-sm" />
-                    <button type="button" onClick={() => rmKpi(i)}
-                      className="col-span-1 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-                <p className="text-xs text-gray-500">
-                  Total weight: {kpis.reduce((s, k) => s + (Number(k.weight) || 0), 0)}%
-                </p>
+              <div>
+                <Label className={denseLabelClass}>Description</Label>
+                <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+                  className={denseFieldClass} placeholder="Optional summary" />
               </div>
             </div>
-          )}
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <Label className={denseLabelClass} required>Period Start</Label>
+                <input type="date" required value={form.period_start} onChange={e => setForm({ ...form, period_start: e.target.value })}
+                  className={denseFieldClass} />
+              </div>
+              <div>
+                <Label className={denseLabelClass} required>Period End</Label>
+                <input type="date" required value={form.period_end} onChange={e => setForm({ ...form, period_end: e.target.value })}
+                  className={denseFieldClass} />
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Type</Label>
+                <select value={form.review_type} onChange={e => setForm({ ...form, review_type: e.target.value })}
+                  className={denseFieldClass}>
+                  <option value="annual">Annual</option>
+                  <option value="semi_annual">Semi-Annual</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="probation">Probation</option>
+                </select>
+              </div>
+              <div>
+                <Label className={denseLabelClass}>Rating Max</Label>
+                <input type="number" value={form.rating_scale_max}
+                  onChange={e => setForm({ ...form, rating_scale_max: Number(e.target.value) })}
+                  className={denseFieldClass} />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground">
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={form.self_review_required}
+                  onChange={e => setForm({ ...form, self_review_required: e.target.checked })} />
+                Self review
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={form.manager_review_required}
+                  onChange={e => setForm({ ...form, manager_review_required: e.target.checked })} />
+                Manager review
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={form.enable_kpi_scoring}
+                  onChange={e => setForm({ ...form, enable_kpi_scoring: e.target.checked })} />
+                KPI scoring
+              </label>
+            </div>
 
-          </div>
-          <div className="shrink-0 flex justify-end gap-2 border-t px-5 py-3">
-            <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
+            {form.enable_kpi_scoring && (
+              <div className="space-y-1.5 border-t border-border pt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-semibold text-foreground">
+                    KPI Template ({kpis.length})
+                    <span className="ml-2 font-normal text-muted-foreground">· {kpiWeightTotal}%</span>
+                  </h3>
+                  <button type="button" onClick={addKpi}
+                    className="flex h-7 items-center gap-1 rounded-md bg-muted px-2 text-[11px] font-medium text-foreground hover:bg-muted/80">
+                    <Plus className="h-3 w-3" /> Add KPI
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  {kpis.map((k, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-1.5">
+                      <input value={k.key} onChange={e => setKpi(i, 'key', e.target.value)}
+                        placeholder="key" className="col-span-3 h-7 rounded-md border border-input bg-background px-2 text-xs" />
+                      <input value={k.label} onChange={e => setKpi(i, 'label', e.target.value)}
+                        placeholder="Label" className="col-span-6 h-7 rounded-md border border-input bg-background px-2 text-xs" />
+                      <input type="number" value={k.weight} onChange={e => setKpi(i, 'weight', Number(e.target.value))}
+                        placeholder="Wt" className="col-span-2 h-7 rounded-md border border-input bg-background px-2 text-xs" />
+                      <button type="button" onClick={() => rmKpi(i)}
+                        className="col-span-1 flex h-7 items-center justify-center rounded-md text-red-400 hover:bg-red-50 hover:text-red-600">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter className="border-0 px-4 py-2.5">
+            <button type="button" onClick={onClose} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
-              className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+              className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50">
               {create.isPending || update.isPending ? 'Saving…' : (existing ? 'Save changes' : 'Create cycle')}
             </button>
-          </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -378,7 +388,7 @@ function GoalsTab() {
                         className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
                         <Pencil className="w-4 h-4" />
                       </button>
-                      <button onClick={() => { if (confirm('Delete this goal?')) del.mutate(g.id) }}
+                      <button onClick={async () => { if (await askConfirm('Delete this goal?')) del.mutate(g.id) }}
                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
                         <Trash2 className="w-4 h-4" />
                       </button>

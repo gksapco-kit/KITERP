@@ -13,13 +13,13 @@ import { formatDateTime } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
-import { inputCls } from './crmContactsShared'
 import {
   WorkflowStepBuilder, WORKFLOW_TRIGGERS,
   parseWorkflowSteps, serializeWorkflowSteps, parseWorkflowTrigger,
   type WorkflowStep,
 } from './crmMarketingForms'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 function WorkflowForm({ wf, onClose }: { wf?: Workflow; onClose: () => void }) {
   const qc = useQueryClient()
   const save = useSaveWorkflow()
@@ -71,19 +71,52 @@ function WorkflowForm({ wf, onClose }: { wf?: Workflow; onClose: () => void }) {
     }
   }
 
+  const formId = wf ? `workflow-form-${wf.id}` : 'workflow-form-new'
+  const inputClsLocal = 'h-8 text-sm'
+
   return (
-    <CrmModal title={wf ? 'Edit workflow' : 'New workflow'} onClose={onClose} maxW="max-w-2xl">
-      <form onSubmit={submit} className="space-y-3">
+    <CrmModal
+      title={wf ? 'Edit workflow' : 'New workflow'}
+      onClose={onClose}
+      maxW="w-full max-w-md"
+      footer={
+        <>
+          {!form.steps.length && (
+            <p className="mr-auto text-[11px] text-amber-600">Add at least one step to save.</p>
+          )}
+          <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} className="h-8 rounded-md px-3 text-sm" disabled={save.isPending || !form.steps.length}>
+            {save.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
+            Save
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-2.5">
         <Field label="Name" required>
-          <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Welcome new lead" />
+          <Input
+            className={inputClsLocal}
+            value={form.name}
+            onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+            placeholder="e.g. Welcome new lead"
+            autoFocus
+          />
         </Field>
         <Field label="Description">
-          <Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="What does this automate?" />
+          <Input
+            className={inputClsLocal}
+            value={form.description}
+            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+            placeholder="What does this automate?"
+          />
         </Field>
         <Field label="When to run" required>
           <Select
             value={form.trigger}
             onChange={v => setForm(p => ({ ...p, trigger: v }))}
+            triggerClassName={inputClsLocal}
             options={WORKFLOW_TRIGGERS.map(t => ({ value: t.id, label: t.label }))}
           />
         </Field>
@@ -95,11 +128,12 @@ function WorkflowForm({ wf, onClose }: { wf?: Workflow; onClose: () => void }) {
             teamOptions={teamOptions}
           />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Status">
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Status" className="min-w-[7.5rem] flex-1">
             <Select
               value={form.status}
               onChange={v => setForm(p => ({ ...p, status: v }))}
+              triggerClassName={inputClsLocal}
               options={[
                 { value: 'draft', label: 'Draft' },
                 { value: 'active', label: 'Active' },
@@ -107,20 +141,15 @@ function WorkflowForm({ wf, onClose }: { wf?: Workflow; onClose: () => void }) {
               ]}
             />
           </Field>
-          <label className="flex items-center gap-2 mt-7 text-sm">
-            <input type="checkbox" checked={form.requires_approval} onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))} />
-            Require approval before run
+          <label className="mb-0.5 flex items-center gap-1.5 text-xs text-foreground">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 accent-primary"
+              checked={form.requires_approval}
+              onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
+            />
+            Require approval
           </label>
-        </div>
-        {!form.steps.length && (
-          <p className="text-xs text-amber-600">Add at least one step to save.</p>
-        )}
-        <div className="flex gap-3 pt-2">
-          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={save.isPending || !form.steps.length}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            Save workflow
-          </Button>
         </div>
       </form>
     </CrmModal>
@@ -134,7 +163,7 @@ export default function WorkflowsPage() {
   const [showCreate, setShowCreate] = useState(false)
 
   const remove = async (id: string) => {
-    if (!confirm('Delete this workflow?')) return
+    if (!await askConfirm('Delete this workflow?')) return
     await crmApi.deleteWorkflow(id)
     qc.invalidateQueries({ queryKey: ['crm', 'workflows'] })
   }
@@ -143,14 +172,13 @@ export default function WorkflowsPage() {
     WORKFLOW_TRIGGERS.find(t => t.id === trigger?.event)?.label || String(trigger?.event || '—')
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
-          <h1 className="text-2xl font-bold text-gray-900">Workflow Automation</h1>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-2" /> New workflow
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Automate follow-ups with triggers and step sequences
+        </p>
+        <Button className="h-8 gap-1.5 px-3 text-sm" onClick={() => setShowCreate(true)}>
+          <Plus className="h-3.5 w-3.5" /> New workflow
         </Button>
       </div>
 

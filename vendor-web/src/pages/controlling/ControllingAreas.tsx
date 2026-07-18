@@ -14,6 +14,7 @@ import type { ControllingArea } from '@/api/controlling'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const fieldClass =
   'h-10 rounded-lg border border-input bg-background px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
 const labelClass = 'flex flex-col gap-1 text-xs text-muted-foreground'
@@ -72,7 +73,7 @@ export default function ControllingAreasPage() {
   }
 
   const removeArea = async (area: ControllingArea) => {
-    if (!window.confirm(`Delete controlling area "${area.name}"?`)) return
+    if (!await askConfirm(`Delete controlling area "${area.name}"?`)) return
     try {
       await deleteArea.mutateAsync(area.id)
       toast.success('Controlling area deleted')

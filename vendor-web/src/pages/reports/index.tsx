@@ -2596,7 +2596,7 @@ export default function ReportsPage() {
 
       {/* ── Purchase Order Modal (enhanced) ─────────────────────────────── */}
       {poModal && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm backdrop-blur-sm overflow-y-auto" onClick={() => setPoModal(false)}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm backdrop-blur-sm overflow-y-auto" onClick={() => setPoModal(false)}>
           <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 px-6 py-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div className="p-2 bg-blue-100 rounded-xl"><Truck className="w-5 h-5 text-blue-600" /></div>
@@ -2740,7 +2740,7 @@ export default function ReportsPage() {
 
       {/* ── Production Plan Modal ─────────────────────────────────────────── */}
       {prodModal && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm backdrop-blur-sm overflow-y-auto" onClick={() => setProdModal(false)}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm backdrop-blur-sm overflow-y-auto" onClick={() => setProdModal(false)}>
           <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 border-b bg-gradient-to-r from-accent to-primary/10 sticky top-0 z-10">

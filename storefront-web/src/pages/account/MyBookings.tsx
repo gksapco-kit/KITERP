@@ -9,6 +9,7 @@ import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { TableSkeleton, EmptyBookings } from '@/kit/states/StateScreens'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   pending: { bg: 'bg-yellow-50', text: 'text-yellow-700', label: 'Pending' },
   confirmed: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Confirmed' },
@@ -58,8 +59,8 @@ export default function MyBookings() {
     [rawBookings, search, sortKey, sortDir],
   )
 
-  const handleCancel = (id: string) => {
-    if (!confirm('Are you sure you want to cancel this booking?')) return
+  const handleCancel = async (id: string) => {
+    if (!await askConfirm('Are you sure you want to cancel this booking?')) return
     setCancellingId(id)
     cancelBooking.mutate({ id, reason: 'Cancelled by customer' }, {
       onSettled: () => setCancellingId(null),

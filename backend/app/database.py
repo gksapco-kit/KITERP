@@ -2650,3 +2650,43 @@ async def ensure_platform_job_role_table() -> None:
     async with engine.begin() as conn:
         for s in stmts:
             await conn.execute(text(s))
+
+
+async def ensure_platform_career_application_table() -> None:
+    """Careers page applications (details + CV + passport photo)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        """
+        CREATE TABLE IF NOT EXISTS platform_career_application (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            full_name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL,
+            phone VARCHAR(40),
+            college VARCHAR(255),
+            course VARCHAR(255),
+            graduation_year INTEGER,
+            city VARCHAR(120),
+            linkedin_url VARCHAR(500),
+            cover_note TEXT,
+            cv_url VARCHAR(500) NOT NULL,
+            cv_filename VARCHAR(255),
+            photo_url VARCHAR(500),
+            photo_filename VARCHAR(255),
+            status VARCHAR(20) NOT NULL DEFAULT 'new',
+            ip_address VARCHAR(64),
+            user_agent TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """,
+        "ALTER TABLE platform_career_application ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500)",
+        "ALTER TABLE platform_career_application ADD COLUMN IF NOT EXISTS photo_filename VARCHAR(255)",
+        "CREATE INDEX IF NOT EXISTS ix_platform_career_application_status ON platform_career_application(status)",
+        "CREATE INDEX IF NOT EXISTS ix_platform_career_application_created ON platform_career_application(created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS ix_platform_career_application_email ON platform_career_application(email)",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+    logger.info("ensure_platform_career_application_table: ready")

@@ -36,6 +36,7 @@ import { TableToolbar } from '@/components/table/TableToolbar'
 import { DeleteBusinessAccountModal } from '@/components/admin/DeleteBusinessAccountModal'
 import type { AdminVendor } from '@/api/admin.api'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const statusStyles: Record<string, string> = {
   approved: 'bg-green-100 text-green-700',
   pending: 'bg-yellow-100 text-yellow-700',
@@ -115,8 +116,8 @@ export default function Vendors() {
     setPage(1)
   }
 
-  const handleApprove = (vendorId: string) => {
-    if (confirm('Are you sure you want to approve this business account?')) {
+  const handleApprove = async (vendorId: string) => {
+    if (await askConfirm('Are you sure you want to approve this business account?')) {
       approveVendor.mutate(vendorId)
     }
   }

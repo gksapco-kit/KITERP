@@ -48,8 +48,14 @@ function Start-DockerDesktopIfNeeded {
 
 function Stop-DockerWebContainers {
     $webContainers = @("kiterp-admin", "kiterp-vendor", "kiterp-storefront")
-    foreach ($name in $webContainers) {
-        docker stop $name 2>$null | Out-Null
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        foreach ($name in $webContainers) {
+            docker stop $name 2>&1 | Out-Null
+        }
+    } finally {
+        $ErrorActionPreference = $prev
     }
 }
 

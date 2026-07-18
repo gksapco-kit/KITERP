@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import {
   useAssets, useAsset, useCreateAsset, useUpdateAsset, useRunDepreciation, useDisposeAsset,
   useAssetCategories, useCreateAssetCategory, useUpdateAssetCategory,
@@ -50,17 +51,17 @@ function TruncCell({ value, className = '' }: { value: string; className?: strin
   )
 }
 
-function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
+function DialogChromeHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <div className="flex items-start justify-between gap-3 mb-4">
-      <h2 className="font-semibold text-lg">{title}</h2>
+    <div className="mb-4 flex items-start justify-between gap-3">
+      <h2 className="text-lg font-semibold">{title}</h2>
       <button
         type="button"
         onClick={onClose}
-        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+        className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         aria-label="Close"
       >
-        <X className="w-5 h-5" />
+        <X className="h-5 w-5" />
       </button>
     </div>
   )
@@ -120,9 +121,9 @@ function CategoryFormModal({ category, onClose }: { category?: any; onClose: () 
   ]
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <ModalHeader title={isEdit ? 'Edit Category' : 'Add Asset Category'} onClose={onClose} />
+        <DialogChromeHeader title={isEdit ? 'Edit Category' : 'Add Asset Category'} onClose={onClose} />
 
         <div>
           <Label className="block text-xs font-medium text-gray-600 mb-1">Category Name</Label>
@@ -218,7 +219,6 @@ function AssetFormModal({ asset, categories, storeNameById, onClose }: {
   })
   const [buId, setBuId] = useState('')
   const [branchId, setBranchId] = useState('')
-  useEscapeToClose(onClose, true)
 
   const pending = createMut.isPending || updateMut.isPending
 
@@ -282,31 +282,25 @@ function AssetFormModal({ asset, categories, storeNameById, onClose }: {
     }
   }
 
-  const fieldClass = 'w-full h-9 border border-gray-300 rounded-lg px-2.5 text-sm'
-  const labelClass = 'block text-xs font-medium text-gray-600 mb-0.5'
+  const fieldClass = 'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm'
+  const labelClass = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl p-4 space-y-2.5" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 mb-1">
-          <h2 className="font-semibold text-base">{isEdit ? 'Edit Asset' : 'Register New Asset'}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-2xl max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
+        <ModalHeader
+          title={isEdit ? 'Edit Asset' : 'Register New Asset'}
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+        />
+        <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
         {isEdit && (
-          <p className="text-xs text-gray-400 -mt-1">
+          <p className="text-[11px] text-muted-foreground">
             Currently: {asset.store_id ? (storeNameById.get(asset.store_id) || 'Unknown') : 'Unassigned'} — leave BU/Branch blank to keep unchanged.
           </p>
         )}
 
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+        <div className="grid grid-cols-2 gap-x-2 gap-y-2">
           <div>
             <Label className={labelClass}>Business Unit</Label>
             <BusinessUnitSelect
@@ -314,7 +308,7 @@ function AssetFormModal({ asset, categories, storeNameById, onClose }: {
               onChange={id => { setBuId(id); setBranchId('') }}
               allowAll={isEdit}
               autoSelectDefault={false}
-              className="h-9"
+              className="h-8"
             />
           </div>
           <div>
@@ -324,7 +318,7 @@ function AssetFormModal({ asset, categories, storeNameById, onClose }: {
               value={branchId}
               onChange={setBranchId}
               allowAll
-              className="h-9"
+              className="h-8"
             />
           </div>
           <div>
@@ -332,13 +326,13 @@ function AssetFormModal({ asset, categories, storeNameById, onClose }: {
             <Select
               value={form.category_id}
               onChange={applyCategoryDefaults}
-              className="h-9"
+              className="h-8"
               options={[{ value: '', label: '— No category —' }, ...categories.map(c => ({ value: c.id, label: c.name }))]}
             />
           </div>
           <div>
             <Label className={labelClass}>Depreciation Method</Label>
-            <Select value={form.depreciation_method} onChange={v => setForm(f => ({ ...f, depreciation_method: v }))} className="h-9" options={DEP_METHOD_OPTIONS} />
+            <Select value={form.depreciation_method} onChange={v => setForm(f => ({ ...f, depreciation_method: v }))} className="h-8" options={DEP_METHOD_OPTIONS} />
           </div>
           {form.depreciation_method === 'units_of_production' && (
             <div>
@@ -438,20 +432,20 @@ function AssetFormModal({ asset, categories, storeNameById, onClose }: {
             />
           </div>
         </div>
-
-        <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
+        </ModalBody>
+        <ModalFooter className="border-0 px-4 py-2.5">
+          <button type="button" onClick={onClose} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
           <button
             type="button"
             onClick={handleSave}
             disabled={pending}
-            className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
+            className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
           >
             {pending ? 'Saving…' : isEdit ? 'Save Changes' : 'Register Asset'}
           </button>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -478,9 +472,9 @@ function DepreciationUnitsModal({ asset, onClose }: { asset: any; onClose: () =>
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-sm p-4 space-y-3" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="Run Depreciation (Units of Production)" onClose={onClose} />
+        <DialogChromeHeader title="Run Depreciation (Units of Production)" onClose={onClose} />
         <p className="text-xs text-gray-500 -mt-2">
           Lifetime capacity {capacity.toLocaleString('en-IN')} · consumed to date {consumed.toLocaleString('en-IN')} · remaining {remaining.toLocaleString('en-IN')}
         </p>
@@ -541,9 +535,9 @@ function DisposeModal({ asset, onClose }: { asset: any; onClose: () => void }) {
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
-        <ModalHeader title="Dispose Asset" onClose={onClose} />
+        <DialogChromeHeader title="Dispose Asset" onClose={onClose} />
         <p className="text-sm text-gray-600 -mt-2">{asset.name} <span className="text-gray-400">({asset.asset_code})</span></p>
 
         <div className="grid grid-cols-2 gap-3">
@@ -758,7 +752,7 @@ function AssetDetailDrawer({ assetId, storeNameById, onClose, onEdit, onDispose 
   useEscapeToClose(onClose, true)
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex justify-end bg-black/40" onClick={onClose}>
       <div className="bg-card text-foreground h-full w-full max-w-xl shadow-2xl overflow-y-auto p-6 space-y-4" onClick={e => e.stopPropagation()}>
         {isLoading || !asset ? (
           <div className="flex items-center justify-between">
@@ -942,16 +936,26 @@ export default function FixedAssets() {
   const openEdit = (asset: any) => { setEditingAsset(asset); setDetailAssetId(null); setShowNew(true) }
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Fixed Assets</h1>
+    <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Register assets, categories, depreciation, and maintenance
+        </p>
         {tab === 'assets' ? (
-          <button onClick={openNew} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
-            <Plus className="w-4 h-4" /> Add Asset
+          <button
+            type="button"
+            onClick={openNew}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Asset
           </button>
         ) : tab === 'categories' ? (
-          <button onClick={() => { setEditingCategory(null); setShowCatModal(true) }} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
-            <Plus className="w-4 h-4" /> Add Category
+          <button
+            type="button"
+            onClick={() => { setEditingCategory(null); setShowCatModal(true) }}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Category
           </button>
         ) : null}
       </div>

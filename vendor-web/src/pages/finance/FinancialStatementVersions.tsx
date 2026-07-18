@@ -10,6 +10,9 @@ import {
 } from '@/hooks/useFinance'
 import type { FsvVersion, FsvNode, FsvResultRow } from '@/api/finance'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
+
 const fmtAmt = (n: number) =>
   new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(n))
 
@@ -164,8 +167,8 @@ export default function FinancialStatementVersions() {
     })
   }
 
-  const handleDelete = (v: FsvVersion) => {
-    if (!confirm(`Delete FSV "${v.name}"? This will also delete all its nodes.`)) return
+  const handleDelete = async (v: FsvVersion) => {
+    if (!await askConfirm(`Delete FSV "${v.name}"? This will also delete all its nodes.`)) return
     deleteMut.mutate(v.id, {
       onSuccess: () => { if (selectedId === v.id) setSelectedId('') },
     })
@@ -174,28 +177,27 @@ export default function FinancialStatementVersions() {
   const STMT_ICON = { income_statement: TrendingUp, balance_sheet: BarChart2 }
 
   return (
-    <div className="p-6 space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Financial Statement Versions</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Define customisable P&L and Balance Sheet layouts.
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
+      {/* Header — title already shown in the top bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Define customisable P&L and Balance Sheet layouts.
+        </p>
+        <div className="flex shrink-0 gap-1.5">
           <button
+            type="button"
             onClick={() => seedMut.mutate()}
             disabled={seedMut.isPending}
-            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg text-sm text-foreground hover:bg-muted/30 disabled:opacity-50"
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-sm text-foreground hover:bg-muted/30 disabled:opacity-50"
           >
-            {seedMut.isPending ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Seeding…</> : 'Seed Defaults'}
+            {seedMut.isPending ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Seeding…</> : 'Seed Defaults'}
           </button>
           <button
+            type="button"
             onClick={() => setShowNewForm(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 font-medium"
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
           >
-            <Plus className="w-4 h-4" /> New FSV
+            <Plus className="h-3.5 w-3.5" /> New FSV
           </button>
         </div>
       </div>
@@ -305,44 +307,65 @@ export default function FinancialStatementVersions() {
 
       {/* New FSV form modal */}
       {showNewForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-lg">New Financial Statement Version</h2>
-              <button onClick={() => setShowNewForm(false)} className="p-1 text-muted-foreground hover:text-foreground">
-                <X className="w-4 h-4" />
+        <ModalOverlay onClose={() => setShowNewForm(false)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-sm max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+            <ModalHeader
+              title="New FSV"
+              onClose={() => setShowNewForm(false)}
+              className="border-0 px-4 py-3 [&>div>h2]:text-base [&>div>h2]:leading-none"
+            />
+            <ModalBody className="space-y-3 px-4 pb-1 pt-0">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Name</label>
+                <input
+                  value={newForm.name}
+                  onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Management P&L"
+                  autoFocus
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Statement Type</label>
+                <select
+                  value={newForm.statement_type}
+                  onChange={e => setNewForm(f => ({ ...f, statement_type: e.target.value }))}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="income_statement">Income Statement (P&L)</option>
+                  <option value="balance_sheet">Balance Sheet</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Description</label>
+                <input
+                  value={newForm.description}
+                  onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Optional description"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </ModalBody>
+            <ModalFooter className="border-0 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setShowNewForm(false)}
+                className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground"
+              >
+                Cancel
               </button>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Name</label>
-              <input value={newForm.name} onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Management P&L"
-                className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Statement Type</label>
-              <select value={newForm.statement_type} onChange={e => setNewForm(f => ({ ...f, statement_type: e.target.value }))}
-                className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                <option value="income_statement">Income Statement (P&L)</option>
-                <option value="balance_sheet">Balance Sheet</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
-              <input value={newForm.description} onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Optional description"
-                className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-            <div className="flex gap-2 justify-end pt-1">
-              <button onClick={() => setShowNewForm(false)} className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg">Cancel</button>
-              <button onClick={handleCreate} disabled={!newForm.name || createMut.isPending}
-                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium">
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={!newForm.name || createMut.isPending}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+              >
                 {createMut.isPending ? 'Creating…' : 'Create'}
               </button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

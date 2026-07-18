@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { BranchSelect } from '@/components/common/BranchSelect'
+import { createPortal } from 'react-dom'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { ModalEscHint } from '@/components/ui/Modal'
+import { ModalEscHint, ModalOverlay, useModalScrollLock } from '@/components/ui/Modal'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,7 +15,7 @@ import { apiClient } from '@/api/client'
 import { vendorApi } from '@/api/vendor'
 import type { Customer } from '@/types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { formatDate, formatCurrency } from '@/lib/utils'
+import { formatDate, formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { TablePagination } from '@/components/table/TablePagination'
@@ -210,6 +211,7 @@ const SLOT_STEP  = 30       // minutes per grid cell
 function SlotPickerPopup({
   date, slots, staffId, duration, selectedStart, selectedEnd, onPick, onClose }: SlotPickerProps) {
   useEscapeToClose(onClose)
+  useModalScrollLock()
   // Active (non-cancelled) slots split by staff relevance
   const activeSlots = slots.filter((s: any) =>
     !['cancelled', 'no_show'].includes(s.status) && s.start_time && s.end_time,
@@ -258,11 +260,22 @@ function SlotPickerPopup({
     past:      bm.slotGridPast,
   }
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
-      onClick={onClose}>
-      <div className={bm.slotPickerShell}
-        onClick={e => e.stopPropagation()}>
+  return createPortal(
+    <div
+      data-kiterp-modal
+      role="presentation"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4 overflow-hidden overscroll-none"
+      onClick={onClose}
+      onPointerDown={e => e.stopPropagation()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Select time slot"
+        className={bm.slotPickerShell}
+        onClick={e => e.stopPropagation()}
+        onPointerDown={e => e.stopPropagation()}
+      >
 
         {/* Header */}
         <div className="bg-gradient-to-r from-primary to-emerald-700 px-4 py-3 flex items-center justify-between">
@@ -272,7 +285,7 @@ function SlotPickerPopup({
               {date} {staffId ? '· Filtered by staff' : '· All staff'}{duration > 0 ? ` · ${fmtDur(duration)} slots` : ''}
             </p>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors">
+          <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors">
             <X className="w-4 h-4 text-white" />
           </button>
         </div>
@@ -319,10 +332,11 @@ function SlotPickerPopup({
           <p className={bm.hint}>
             {cells.filter(c => c.state === 'available').length} slots available
           </p>
-          <button onClick={onClose} className={`text-xs ${bm.hint} hover:text-foreground font-medium transition-colors`}>Close</button>
+          <button type="button" onClick={onClose} className={`text-xs ${bm.hint} hover:text-foreground font-medium transition-colors`}>Close</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -341,7 +355,7 @@ export default function BookingsPage() {
   // Resizable modal columns — persisted to localStorage
   const { widths: modalWidths, startResize: startModalResize, resetWidths: resetModalWidths } = usePanelResize(
     'booking-modal-cols',
-    [260, 240],
+    [240, 220],
     { min: [160, 160], max: [440, 380] },
   )
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -603,6 +617,14 @@ export default function BookingsPage() {
   const [showCustDropdown, setShowCustDropdown] = useState(false)
   const [showAllSlots, setShowAllSlots] = useState(false)
 
+  const readyChecks = useMemo(() => [
+    { label: 'Customer', ok: !!selectedCustomer },
+    { label: 'Service', ok: !!selectedService },
+    { label: 'Date', ok: !!bookingDate },
+    { label: 'Time', ok: !!(startTime && endTime) },
+    { label: 'No conflict', ok: !hasConflict },
+  ], [selectedCustomer, selectedService, bookingDate, startTime, endTime, hasConflict])
+
   // Filtered view: show only slots matching the current customer/service/staff selection,
   // unless "View All" is toggled on.
   const filteredSlots = useMemo(() => {
@@ -657,11 +679,8 @@ export default function BookingsPage() {
     setRescheduleTime('')
   }, [])
 
-  useEscapeToClose(closeCancelModal, !!cancelTarget && !showCreate)
-  useEscapeToClose(closeRescheduleModal, !!rescheduleTarget && !showCreate)
-  useEscapeToClose(closeCreateModal, showCreate)
+  // Create / cancel / reschedule Esc handled by ModalOverlay; slot picker by SlotPickerPopup
   useEscapeToClose(() => setShowQuickCreate(false), showQuickCreate)
-  useEscapeToClose(() => setShowSlotPicker(false), showSlotPicker)
 
   const handleCreate = async () => {
     if (!selectedService || !bookingDate || !selectedCustomer) {
@@ -771,35 +790,33 @@ export default function BookingsPage() {
         </Button>
       </div>
 
-      {/* ── Create Booking Modal ─────────────────────────────────────────────── */}
+      {/* ── Create Booking Modal (portaled above sidebar/header) ─────────────── */}
       {showCreate && (
-        <div
-          data-kiterp-modal
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto"
-          onClick={closeCreateModal}
-        >
+        <ModalOverlay onClose={closeCreateModal} className="z-[100] bg-black/60 p-2">
           <div
-            className={`${bm.shell} w-full max-w-5xl max-h-[94vh] flex flex-col overflow-hidden`}
+            role="dialog"
+            aria-modal="true"
+            aria-label="New Booking"
+            className={`${bm.shell} w-full max-w-6xl max-h-[calc(100dvh-1rem)] flex flex-col overflow-hidden`}
             onClick={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
           >
             {/* ── Header ── */}
-            <div className="bg-gradient-to-r from-primary via-primary/90 to-emerald-800 px-6 py-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
-                  <CalendarCheck2 className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-white leading-tight">New Booking</h2>
-                  <p className="text-primary-foreground/85 text-xs">Fill in the details and pick a time slot</p>
+            <div className="bg-gradient-to-r from-primary to-emerald-700 px-4 py-2 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <CalendarCheck2 className="w-4 h-4 text-white shrink-0" />
+                <div className="min-w-0">
+                  <h2 className="text-sm font-bold text-white leading-tight">New Booking</h2>
+                  <p className="text-primary-foreground/80 text-[10px] truncate">Fill in details and pick a time slot</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <ModalEscHint className="border-white/30 bg-white/10 text-white/90" />
+              <div className="flex items-center gap-1 shrink-0">
+                <ModalEscHint className="border-white/30 bg-white/10 text-white/90 text-[10px] py-0.5" />
                 <button type="button" data-escape-close aria-label="Close"
                   onClick={closeCreateModal}
-                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/25 transition-colors"
+                  className="p-1 rounded-md bg-white/10 hover:bg-white/25 transition-colors"
                 >
-                  <X className="w-4 h-4 text-white" />
+                  <X className="w-3.5 h-3.5 text-white" />
                 </button>
               </div>
             </div>
@@ -810,11 +827,11 @@ export default function BookingsPage() {
               {/* COL 1 — Who & What (narrow) */}
               <div className={`shrink-0 flex flex-col overflow-y-auto ${bm.colMuted}`}
                 style={{ width: modalWidths[0], minWidth: 160 }}>
-                <div className="px-5 pt-5 pb-2">
+                <div className="px-3 pt-3 pb-2 space-y-2.5">
                   <p className={bm.sectionTitle}>Who &amp; What</p>
 
                   {/* Customer */}
-                  <div className="mb-4">
+                  <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <Label className={bm.fieldLabel} required>Customer</Label>
                       {!selectedCustomer && (
@@ -882,7 +899,7 @@ export default function BookingsPage() {
                   </div>
 
                   {/* Service */}
-                  <div className="mb-4">
+                  <div>
                     <Label className={`${bm.fieldLabel} block mb-1.5`} required>Service</Label>
                     <Select
                       value={selectedService}
@@ -919,7 +936,7 @@ export default function BookingsPage() {
 
                   {/* Service Provider */}
                   {serviceProviders.length > 0 && (
-                    <div className="mb-4">
+                    <div>
                       <label className={`${bm.fieldLabel} block mb-1.5`}>
                         <Users className="w-3 h-3 inline mr-1 text-primary/70" />Service Provider (optional)
                       </label>
@@ -959,7 +976,7 @@ export default function BookingsPage() {
 
                   {/* Store / Location */}
                   {stores.length > 1 && (
-                    <div className="mb-4">
+                    <div>
                       <label className={`${bm.fieldLabel} block mb-1.5`}>
                         <Building2 className="w-3 h-3 inline mr-1 text-primary/70" />Location
                       </label>
@@ -977,7 +994,7 @@ export default function BookingsPage() {
                     </div>
                   )}
                   {selectedStore && (
-                    <div className="mb-4">
+                    <div>
                       <label className={`${bm.fieldLabel} block mb-1.5`}>
                         <Building2 className="w-3 h-3 inline mr-1 text-primary/70" />Branch
                       </label>
@@ -992,7 +1009,7 @@ export default function BookingsPage() {
                   )}
 
                   {/* Payment */}
-                  <div className="mb-4">
+                  <div>
                     <Label className={`${bm.fieldLabel} block mb-1.5`}>Payment</Label>
                     <Select
                       value={paymentMethod}
@@ -1014,7 +1031,7 @@ export default function BookingsPage() {
                     <Label className={`${bm.fieldLabel} block mb-1.5`}>Notes</Label>
                     <textarea
                       className={bm.textarea}
-                      rows={3}
+                      rows={2}
                       value={notes}
                       onChange={e => setNotes(e.target.value)}
                       placeholder="Any special instructions…"
@@ -1027,13 +1044,13 @@ export default function BookingsPage() {
 
               {/* COL 2 — When (scheduling) */}
               <div className={`shrink-0 flex flex-col overflow-y-auto ${bm.colMain}`}
-                style={{ width: modalWidths[1], minWidth: 160 }}>
-                <div className="px-5 pt-5 pb-3">
+                style={{ width: modalWidths[1], minWidth: 150 }}>
+                <div className="px-3 pt-3 pb-2 space-y-2.5">
                   <p className={bm.sectionTitle}>When</p>
 
                   {/* Date */}
-                  <div className="mb-4">
-                    <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
+                  <div>
+                    <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1`}>
                       <CalendarDays className="w-3 h-3 text-primary/70" /> Date *
                     </label>
                     <input type="date" value={bookingDate} min={today}
@@ -1042,17 +1059,16 @@ export default function BookingsPage() {
                   </div>
 
                   {/* Time Slot — Picker button + manual inputs */}
-                  <div className="mb-3">
-                    <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1.5`}>
+                  <div>
+                    <label className={`${bm.fieldLabel} flex items-center gap-1 mb-1`}>
                       <Clock className="w-3 h-3 text-primary/70" /> Time Slot
                     </label>
 
-                    {/* Slot picker trigger */}
                     <button
                       type="button"
                       disabled={!bookingDate}
                       onClick={() => setShowSlotPicker(true)}
-                      className={`w-full h-10 flex items-center justify-between px-3 rounded-xl border-2 font-semibold text-xs transition-all mb-2 ${
+                      className={`w-full h-8 flex items-center justify-between px-2.5 rounded-lg border font-semibold text-xs transition-all mb-1.5 ${
                         startTime
                           ? hasConflict
                             ? bm.slotTriggerConflict
@@ -1062,24 +1078,23 @@ export default function BookingsPage() {
                             : bm.slotTriggerDisabled
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Grid3X3 className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Grid3X3 className="w-3 h-3 shrink-0" />
                         {startTime
-                          ? <span>{fmtTime12(startTime)}{endTime ? ` → ${fmtTime12(endTime)}` : ''}</span>
-                          : <span>{bookingDate ? 'Pick a slot from grid…' : 'Select date first'}</span>
+                          ? <span className="truncate">{fmtTime12(startTime)}{endTime ? ` → ${fmtTime12(endTime)}` : ''}{hasConflict ? ' · Conflict' : selectedDuration > 0 ? ` · ${fmtDur(selectedDuration)}` : ''}</span>
+                          : <span>{bookingDate ? 'Pick a slot…' : 'Select date first'}</span>
                         }
                       </div>
-                      {startTime && <X className="w-3.5 h-3.5 opacity-60 hover:opacity-100"
+                      {startTime && <X className="w-3 h-3 opacity-60 hover:opacity-100 shrink-0"
                         onClick={e => { e.stopPropagation(); setStartTime(''); setEndTime('') }} />}
                     </button>
 
-                    {/* Manual override inputs */}
                     <details className="group">
                       <summary className={`${bm.hint} cursor-pointer select-none hover:text-primary font-medium list-none flex items-center gap-1`}>
                         <span className="group-open:hidden">▸</span><span className="hidden group-open:inline">▾</span>
                         Manual entry
                       </summary>
-                      <div className="mt-2 space-y-1.5">
+                      <div className="mt-1.5 space-y-1">
                         <div className="flex items-center gap-2">
                           <span className={`${bm.hint} w-8 shrink-0`}>Start</span>
                           <input type="time" value={startTime} onChange={e => handleStartTimeChange(e.target.value)}
@@ -1092,53 +1107,12 @@ export default function BookingsPage() {
                         </div>
                         {svcDuration > 0 && startTime && (
                           <button type="button" onClick={applyStandardDuration}
-                            className="flex items-center gap-1 text-xs text-primary hover:text-primary font-semibold transition-colors">
+                            className="flex items-center gap-1 text-[10px] text-primary font-semibold transition-colors">
                             <Zap className="w-3 h-3" /> Auto-fill {fmtDur(svcDuration)}
                           </button>
                         )}
                       </div>
                     </details>
-                  </div>
-
-                  {/* Slot status badge */}
-                  {selectedDuration > 0 && startTime && endTime && (
-                    <div className={`rounded-xl border px-3 py-2.5 flex items-start gap-2.5 mb-3 ${
-                      hasConflict ? bm.conflictAlert : bm.availableAlert
-                    }`}>
-                      {hasConflict
-                        ? <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                        : <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />}
-                      <div>
-                        <p className={`text-xs font-bold uppercase tracking-wide ${hasConflict ? bm.conflictTitle : bm.availableTitle}`}>
-                          {hasConflict ? 'Time Conflict' : 'Slot Available'}
-                        </p>
-                        <p className={`text-xs font-medium ${hasConflict ? bm.conflictBody : bm.availableBody}`}>
-                          {fmtTime12(startTime)} – {fmtTime12(endTime)}
-                        </p>
-                        <p className={`text-xs ${hasConflict ? bm.conflictHint : bm.availableHint}`}>
-                          {hasConflict ? 'Overlaps an existing booking' : fmtDur(selectedDuration)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Completion checklist */}
-                  <div className={bm.checklist}>
-                    <p className={bm.checklistTitle}>Ready?</p>
-                    {[
-                      { label: 'Customer selected', ok: !!selectedCustomer },
-                      { label: 'Service selected', ok: !!selectedService },
-                      { label: 'Date set', ok: !!bookingDate },
-                      { label: 'Time slot set', ok: !!(startTime && endTime) },
-                      { label: 'No conflicts', ok: !hasConflict },
-                    ].map(item => (
-                      <div key={item.label} className="flex items-center gap-2">
-                        <div className={item.ok ? bm.checklistDone : bm.checklistPending}>
-                          {item.ok && <Check className="w-2 h-2 text-white" />}
-                        </div>
-                        <span className={item.ok ? bm.checklistTextDone : bm.checklistTextPending}>{item.label}</span>
-                      </div>
-                    ))}
                   </div>
                 </div>
               </div>
@@ -1147,7 +1121,7 @@ export default function BookingsPage() {
 
               {/* COL 3 — Availability panel */}
               <div className={`flex-1 min-w-0 flex flex-col overflow-y-auto ${bm.colMain}`}>
-                <div className="px-5 pt-5 pb-3 space-y-4">
+                <div className="px-3 pt-3 pb-2 space-y-2.5">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <p className={`${bm.sectionTitle} mb-0`}>Availability</p>
@@ -1236,10 +1210,10 @@ export default function BookingsPage() {
                       </div>
 
                       {/* Slot cards — filtered by customer/service/staff unless "All" is on */}
-                      <div className="space-y-1 max-h-72 overflow-y-auto pr-0.5">
+                      <div className="space-y-1 max-h-48 overflow-y-auto pr-0.5">
                         {dateSlotsLoading && <div className="flex justify-center py-6"><Loader2 className={`w-5 h-5 animate-spin ${bm.iconMuted}`} /></div>}
                         {!dateSlotsLoading && filteredSlots.length === 0 && (
-                          <div className="flex flex-col items-center py-8 text-center">
+                          <div className="flex flex-col items-center py-4 text-center">
                             {activeSlots.length > 0 && !showAllSlots ? (
                               <>
                                 <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mb-2">
@@ -1250,7 +1224,7 @@ export default function BookingsPage() {
                                   {activeSlots.length} booking{activeSlots.length > 1 ? 's' : ''} exist on this date
                                 </p>
                                 <button type="button" onClick={() => setShowAllSlots(true)}
-                                  className="mt-2 text-xs text-primary font-semibold hover:underline">
+                                  className="mt-1.5 text-[10px] text-primary font-semibold hover:text-primary/80">
                                   View all bookings →
                                 </button>
                               </>
@@ -1316,49 +1290,57 @@ export default function BookingsPage() {
 
             {/* ── Footer ── */}
             <div className={bm.footer}>
-              {/* Summary pill */}
-              <div className="flex items-center gap-3 flex-1">
+              <div className="flex items-center gap-1.5 shrink-0" title={readyChecks.filter(c => !c.ok).map(c => c.label).join(', ') || 'All set'}>
+                {readyChecks.map(item => (
+                  <span
+                    key={item.label}
+                    title={item.label}
+                    className={item.ok ? bm.readyDotDone : bm.readyDotPending}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
                 {selectedCustomer && (
-                  <span className={bm.summaryPill}>
-                    <User className="w-3 h-3 text-primary/80" />
+                  <span className={cn(bm.summaryPill, 'truncate max-w-[8rem]')}>
+                    <User className="w-2.5 h-2.5 text-primary/80 shrink-0" />
                     {selectedCustomer.full_name}
                   </span>
                 )}
                 {selectedSvc && (
-                  <span className={bm.summaryPill}>
-                    <Hourglass className="w-3 h-3 text-primary/80" />
+                  <span className={cn(bm.summaryPill, 'truncate max-w-[7rem] hidden sm:flex')}>
+                    <Hourglass className="w-2.5 h-2.5 text-primary/80 shrink-0" />
                     {selectedSvc.name as string}
                   </span>
                 )}
                 {bookingDate && startTime && (
-                  <span className={bm.summaryPill}>
-                    <Clock className="w-3 h-3 text-primary/80" />
+                  <span className={cn(bm.summaryPill, 'hidden md:flex')}>
+                    <Clock className="w-2.5 h-2.5 text-primary/80 shrink-0" />
                     {bookingDate} · {fmtTime12(startTime)}
                   </span>
                 )}
               </div>
               <button type="button" title="Reset column widths" onClick={resetModalWidths}
-                className={`text-xs ${bm.hint} hover:text-primary font-medium transition-colors px-1`}>
-                ⊟ Reset layout
+                className={`text-[10px] ${bm.hint} hover:text-primary px-1 shrink-0`}>
+                ⊟
               </button>
-              <Button variant="cancel" className="h-9 px-4 text-sm" onClick={closeCreateModal}>Cancel</Button>
+              <Button variant="cancel" className="h-8 px-3 text-xs shrink-0" onClick={closeCreateModal}>Cancel</Button>
               <Button
-                className="h-9 px-5 gap-2 bg-primary hover:bg-primary/90 font-semibold text-sm"
+                className="h-8 px-4 gap-1.5 bg-primary hover:bg-primary/90 font-semibold text-xs shrink-0"
                 onClick={handleCreate}
                 disabled={creating || !selectedService || !bookingDate || !selectedCustomer}
               >
-                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarCheck2 className="w-4 h-4" />}
+                {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarCheck2 className="w-3.5 h-3.5" />}
                 Create Booking
               </Button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Reschedule Modal */}
       {rescheduleTarget && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto">
-          <div className={`${bm.shell} w-full max-w-xs mx-4 p-5 space-y-4 max-h-[90vh] overflow-y-auto`}>
+        <ModalOverlay onClose={closeRescheduleModal} className="z-[100] bg-black/60">
+          <div className={`${bm.shell} w-full max-w-xs mx-4 p-5 space-y-4 max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-foreground flex items-center gap-2">
                 <RotateCcw className="w-4 h-4 text-primary" />
@@ -1400,17 +1382,17 @@ export default function BookingsPage() {
               </Button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Cancel Reason Modal */}
       {cancelTarget && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto">
-          <Card className="w-full max-w-md mx-4">
+        <ModalOverlay onClose={closeCancelModal} className="z-[100] bg-black/60">
+          <Card className="w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <CardContent className="pt-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Cancel Booking #{cancelTarget.number}</h2>
-                <Button variant="ghost" size="sm" onClick={() => { setCancelTarget(null); setCancelReason('') }}>
+                <Button variant="ghost" size="sm" data-escape-close onClick={closeCancelModal}>
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -1425,7 +1407,7 @@ export default function BookingsPage() {
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => { setCancelTarget(null); setCancelReason('') }}>
+                <Button variant="outline" onClick={closeCancelModal}>
                   Go Back
                 </Button>
                 <Button variant="destructive" onClick={handleCancelConfirm} disabled={updateStatus.isPending}>
@@ -1435,7 +1417,7 @@ export default function BookingsPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </ModalOverlay>
       )}
 
       <div className="flex flex-wrap gap-2 items-center">

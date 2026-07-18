@@ -14,6 +14,7 @@ import type {
   HRDepartment, HRDesignation, EmployeeProfile,
 } from '@/types'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 type Tab = 'active' | 'templates'
 
 export default function OnboardingPage() {
@@ -277,7 +278,7 @@ function TemplatesTab() {
                         className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
                         <Pencil className="w-4 h-4" />
                       </button>
-                      <button onClick={() => { if (confirm('Delete this template?')) deleteTpl.mutate(t.id) }}
+                      <button onClick={async () => { if (await askConfirm('Delete this template?')) deleteTpl.mutate(t.id) }}
                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
                         <Trash2 className="w-4 h-4" />
                       </button>

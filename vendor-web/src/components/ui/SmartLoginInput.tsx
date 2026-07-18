@@ -3,12 +3,12 @@
  * a phone number and renders the appropriate input (PhoneInput or a plain
  * email input). Includes an explicit toggle link to switch modes.
  */
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, type MouseEvent } from 'react'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Mail, Phone } from 'lucide-react'
-import { cn, focusRingClassName } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { prefetchInferredPhoneCountry } from '@/lib/inferPhoneCountryIso'
 import { inferLoginUiPhoneMode } from '@/lib/loginIdentifier'
 
@@ -70,9 +70,11 @@ export function SmartLoginInput({
     return inferLoginUiPhoneMode(value)
   }, [value, modeOverride])
 
-  const handleToggle = () => {
+  const handleToggle = (e: MouseEvent<HTMLButtonElement>) => {
     setModeOverride(isPhone ? 'email' : 'phone')
     onChange('')
+    // Drop focus chrome so the toggle does not keep a bordered/underlined look after click.
+    e.currentTarget.blur()
   }
 
   return (
@@ -85,7 +87,7 @@ export function SmartLoginInput({
     >
       <div
         className={cn(
-          'flex gap-2',
+          'flex gap-2 border-0',
           comfortable && dense ? 'min-h-[1.6625rem]' : 'min-h-8',
           fieldLabel ? 'items-center justify-between' : 'justify-end',
         )}
@@ -107,8 +109,10 @@ export function SmartLoginInput({
         <button
           type="button"
           className={cn(
-            'inline-flex shrink-0 items-center gap-1.5 rounded-lg transition-colors hover:underline',
-            focusRingClassName,
+            'inline-flex shrink-0 items-center gap-1.5 rounded-lg border-0 bg-transparent shadow-none',
+            'no-underline hover:no-underline focus:no-underline focus-visible:no-underline',
+            'transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+            'focus-visible:bg-primary/10',
             hyperlinkClassName ?? 'text-primary hover:bg-primary/10',
             comfortable
               ? (dense ? 'min-h-[1.6625rem] px-1.5 py-0 text-xs font-medium' : 'min-h-8 px-2 py-1 text-[0.95rem] font-semibold')

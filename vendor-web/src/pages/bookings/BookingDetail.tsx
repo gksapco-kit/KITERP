@@ -39,6 +39,7 @@ import {
   urlsToLightboxItems,
 } from '@/components/common/ImageAttachmentLightbox'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 function downloadInvoicePdf(invoice: Record<string, unknown>, bookingNumber: string) {
   const fmt = (n: unknown) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
   const items: Array<Record<string, unknown>> = (invoice.items as Array<Record<string, unknown>>) || []
@@ -281,7 +282,7 @@ export default function BookingDetail() {
 
   const handleDeleteAttachment = async (attachmentId: string) => {
     if (!booking) return
-    if (!confirm('Delete this attachment?')) return
+    if (!await askConfirm('Delete this attachment?')) return
     try {
       await vendorApi.deleteBookingAttachment(booking.id, attachmentId)
       toast.success('Attachment removed')

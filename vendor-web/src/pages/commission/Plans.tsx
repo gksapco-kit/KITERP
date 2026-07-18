@@ -13,6 +13,7 @@ import type { CommissionPlan, CommissionRule } from '@/types/commission'
 import { extractApiError } from '@/lib/errorMessages'
 import { commissionTableIconBtn } from '@/pages/commission/commissionUi'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const PAYEE_SCOPES = ['any', 'employee', 'vendor', 'contractor', 'agent', 'customer']
 const STATUS_COLORS: Record<string, string> = {
   active: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
@@ -129,7 +130,7 @@ export default function PlansPage() {
   }
 
   const handleDelete = async (plan: CommissionPlan) => {
-    if (!confirm(`Delete plan "${plan.name}" permanently? This cannot be undone.`)) return
+    if (!await askConfirm(`Delete plan "${plan.name}" permanently? This cannot be undone.`)) return
     try {
       await deletePlan.mutateAsync(plan.id)
       if (expanded === plan.id) setExpanded(null)
@@ -244,7 +245,7 @@ export default function PlansPage() {
       {showForm && (
         <div
           data-kiterp-modal
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto"
           onClick={closeForm}
         >
           <div

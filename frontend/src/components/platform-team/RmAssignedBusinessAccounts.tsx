@@ -6,6 +6,7 @@ import { AssignRmToAccountsModal } from '@/components/platform-team/AssignRmToAc
 import { useAdminVendors, useApproveVendor, useRejectVendor } from '@/hooks/useAdmin'
 import { Check, ChevronLeft, ChevronRight, Eye, Loader2, Store, UserPlus, X } from 'lucide-react'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const statusStyles: Record<string, string> = {
   approved: 'bg-green-100 text-green-700',
   pending: 'bg-yellow-100 text-yellow-700',
@@ -39,8 +40,8 @@ export function RmAssignedBusinessAccounts({ relationshipManagerUserId, rmName }
   const approveVendor = useApproveVendor()
   const rejectVendor = useRejectVendor()
 
-  const handleApprove = (vendorId: string) => {
-    if (confirm('Approve this business account?')) {
+  const handleApprove = async (vendorId: string) => {
+    if (await askConfirm('Approve this business account?')) {
       approveVendor.mutate(vendorId)
     }
   }

@@ -10,6 +10,7 @@ import type { ServiceCreate, ServiceUpdate, Service } from '@/api/service.api'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const UOM_OPTIONS = [
   { value: 'fixed', label: 'Fixed Price' },
   { value: 'hourly', label: 'Hourly' },
@@ -87,8 +88,8 @@ export default function Services() {
     }
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Delete this service?')) deleteService.mutate(id)
+  const handleDelete = async (id: string) => {
+    if (await askConfirm('Delete this service?')) deleteService.mutate(id)
   }
 
   const isSaving = createService.isPending || updateService.isPending

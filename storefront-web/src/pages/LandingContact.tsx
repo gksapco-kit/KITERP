@@ -6,6 +6,7 @@ import { apiClient } from '@/api/client'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
+import { useDocumentSeo } from '@/lib/documentSeo'
 import '@/styles/kiterp-landing.css'
 
 type PlatformContact = {
@@ -23,6 +24,15 @@ export default function LandingContact() {
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' })
   const [sending, setSending] = useState(false)
+
+  useDocumentSeo({
+    title: 'Contact KITERP — Support & Sales',
+    description:
+      'Contact the KITERP team for platform support, partnerships, pricing questions, and business onboarding help.',
+    keywords: 'KITERP contact, KIT ERP support, business platform help',
+    canonicalPath: '/contact',
+    ogImage: '/favicon-192.png',
+  })
 
   useEffect(() => {
     let cancelled = false

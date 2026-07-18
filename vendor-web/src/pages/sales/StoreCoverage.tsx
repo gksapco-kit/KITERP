@@ -17,14 +17,7 @@ import { useStores, useBranches } from '@/hooks/useVendor'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { BRANCH_LABEL } from '@/lib/businessUnitLabels'
 import { toast } from 'sonner'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
 import { CoverageRadiusMap } from '@/components/maps/CoverageRadiusMap'
 import { COUNTRIES, POPULAR_COUNTRIES } from '@/data/countries'
@@ -1380,7 +1373,7 @@ interface CoverageScope {
 }
 
 const modalNativeSelectClass =
-  'h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50'
+  'h-8 w-full rounded border border-input bg-background px-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50'
 
 function scopeDedupeKey(buId: string, branchId: string) {
   return `${buId}::${branchId || 'bu'}`
@@ -1490,8 +1483,6 @@ export default function StoreCoveragePage() {
     setCreateModalOpen(true)
   }, [availableCombos])
 
-  useEscapeToClose(() => setCreateModalOpen(false), createModalOpen)
-
   const handleCreateBuChange = (id: string) => {
     setCreateBuId(id)
     setCreateBranchId('')
@@ -1563,125 +1554,140 @@ export default function StoreCoveragePage() {
   )
 
   return (
-    <div className="max-w-5xl mx-auto space-y-5 pb-16">
-      {/* Page header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary shrink-0" />
-            <h1 className="text-xl font-bold text-foreground">Store Coverage</h1>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Define service zones per business unit or branch — each location has its own coverage mode and rules.
+    <div className="mx-auto max-w-5xl space-y-3 pb-12">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight text-foreground">
+            <MapPin className="h-4 w-4 shrink-0 text-primary" />
+            Store Coverage
+          </h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Service zones per business unit or branch
           </p>
         </div>
 
-        {/* BU + Branch selectors */}
         {!storesLoading && buStores.length > 0 && (
-          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             {totalActiveRules > 0 && (
-              <Badge variant="warning" className="gap-1">
-                {totalActiveRules} rule{totalActiveRules !== 1 ? 's' : ''} total
+              <Badge variant="warning" className="gap-1 text-[10px]">
+                {totalActiveRules} rule{totalActiveRules !== 1 ? 's' : ''}
               </Badge>
             )}
             <Button
               type="button"
               size="sm"
-              className="h-9 shrink-0 gap-1.5"
+              className="h-8 shrink-0 gap-1.5 px-3 text-sm"
               disabled={availableCombos.length === 0 && coverageScopes.length > 0}
               onClick={openCreateModal}
             >
-              <Plus className="h-4 w-4" />
-              Add BU / Branch coverage
+              <Plus className="h-3.5 w-3.5" />
+              Add coverage
             </Button>
           </div>
         )}
       </div>
 
-      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>New coverage profile</DialogTitle>
-            <DialogDescription>
-              Choose a business unit and optional branch. Each combination can have its own coverage rules.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-1">
-            <div className="space-y-1.5">
-              <Label htmlFor="coverage-create-bu" className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                Business Unit
-              </Label>
-              <select
-                id="coverage-create-bu"
-                value={createBuId}
-                onChange={(e) => handleCreateBuChange(e.target.value)}
-                className={modalNativeSelectClass}
-              >
-                <option value="">— Select business unit —</option>
-                {buStores.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.code ? `${s.code} — ${s.name}` : s.name}
-                    {s.is_default ? ' (default)' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="coverage-create-branch" className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                {BRANCH_LABEL}
-              </Label>
-              <select
-                id="coverage-create-branch"
-                value={createBranchId}
-                onChange={(e) => setCreateBranchId(e.target.value)}
-                disabled={!createBuId || createBranchesLoading}
-                className={modalNativeSelectClass}
-              >
-                {createBranchesLoading ? (
-                  <option value="">Loading branches…</option>
-                ) : (
-                  <>
-                    <option value="">All branches</option>
-                    {createBranches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.code ? `${b.code} — ${b.name}` : b.name}
-                        {b.is_default ? ' (default)' : ''}
+      {createModalOpen && (
+        <ModalOverlay onClose={() => setCreateModalOpen(false)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+            <ModalHeader
+              title="New coverage profile"
+              onClose={() => setCreateModalOpen(false)}
+              className="border-0 px-4 py-3 [&>div>h2]:text-base"
+            />
+            <ModalBody className="space-y-3 px-4 pb-3 pt-0">
+              <p className="text-xs text-muted-foreground">
+                Choose a business unit and optional branch. Each combination can have its own coverage rules.
+              </p>
+              <div className="space-y-2.5">
+                <div className="space-y-1">
+                  <Label htmlFor="coverage-create-bu" className="text-xs">
+                    Business unit
+                  </Label>
+                  <select
+                    id="coverage-create-bu"
+                    value={createBuId}
+                    onChange={(e) => handleCreateBuChange(e.target.value)}
+                    className={modalNativeSelectClass}
+                    autoFocus
+                  >
+                    <option value="">— Select business unit —</option>
+                    {buStores.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.code ? `${s.code} — ${s.name}` : s.name}
+                        {s.is_default ? ' (default)' : ''}
                       </option>
                     ))}
-                  </>
-                )}
-              </select>
-            </div>
-            {createBuId ? (
-              <p className="text-xs text-muted-foreground">
-                {createComboTaken ? (
-                  <span className="text-amber-700 dark:text-amber-400">
-                    A profile already exists for this combination — pick a different business unit or branch.
-                  </span>
-                ) : (
-                  <>
-                    Creating coverage for{' '}
-                    <strong className="text-foreground">
-                      {comboLabel(createBuId, createBranchId, buStores, storeById)}
-                    </strong>
-                    {availableCombos.length > 1 ? (
-                      <span> · {availableCombos.length - (createComboTaken ? 0 : 1)} more available</span>
-                    ) : null}
-                  </>
-                )}
-              </p>
-            ) : null}
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => setCreateModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" disabled={!canCreateCoverage} onClick={confirmCreateCoverage}>
-              Create profile
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="coverage-create-branch" className="text-xs">
+                    {BRANCH_LABEL}
+                  </Label>
+                  <select
+                    id="coverage-create-branch"
+                    value={createBranchId}
+                    onChange={(e) => setCreateBranchId(e.target.value)}
+                    disabled={!createBuId || createBranchesLoading}
+                    className={modalNativeSelectClass}
+                  >
+                    {createBranchesLoading ? (
+                      <option value="">Loading branches…</option>
+                    ) : (
+                      <>
+                        <option value="">All branches</option>
+                        {createBranches.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.code ? `${b.code} — ${b.name}` : b.name}
+                            {b.is_default ? ' (default)' : ''}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+              </div>
+              {createBuId ? (
+                <p className="text-xs text-muted-foreground">
+                  {createComboTaken ? (
+                    <span className="text-amber-700 dark:text-amber-400">
+                      A profile already exists for this combination — pick another.
+                    </span>
+                  ) : (
+                    <>
+                      Creating coverage for{' '}
+                      <strong className="text-foreground">
+                        {comboLabel(createBuId, createBranchId, buStores, storeById)}
+                      </strong>
+                      {availableCombos.length > 1 ? (
+                        <span> · {availableCombos.length - (createComboTaken ? 0 : 1)} more available</span>
+                      ) : null}
+                    </>
+                  )}
+                </p>
+              ) : null}
+            </ModalBody>
+            <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-3">
+              <Button
+                type="button"
+                variant="cancel"
+                className="h-8 rounded-md px-3 text-sm"
+                onClick={() => setCreateModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="h-8 rounded-md px-3 text-sm"
+                disabled={!canCreateCoverage}
+                onClick={confirmCreateCoverage}
+              >
+                Create profile
+              </Button>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
+      )}
 
       {/* Loading */}
       {storesLoading && (

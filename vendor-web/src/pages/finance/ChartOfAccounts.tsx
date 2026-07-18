@@ -274,7 +274,7 @@ function AccountDetailDrawer({
   )
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex">
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex">
       <div className="flex-1 bg-black/25" onClick={onClose} />
       <div className="w-full max-w-2xl bg-card border-l border-border text-foreground h-full shadow-2xl flex flex-col overflow-hidden">
 
@@ -740,7 +740,7 @@ function ConfigPanel({
   const handleReset = () => { setLocal(JSON.parse(JSON.stringify(DEFAULT_CONFIG))) }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex">
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex">
       {/* Backdrop */}
       <div className="flex-1 bg-black/30" onClick={onClose} />
 
@@ -1254,7 +1254,7 @@ export default function ChartOfAccounts() {
 
       {/* ── Add / Edit modal ── */}
       {showModal && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={() => setShowModal(false)}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={() => setShowModal(false)}>
           <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-lg">{editing ? 'Edit Account' : 'New Account'}</h2>

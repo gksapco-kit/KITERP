@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useVendorStore } from '@/stores/vendorStore'
 import { toast } from 'sonner'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 import {
   IdChip, VerifiedBadge, formatStoreCode,
   vendorVerificationLevel as deriveVendorLevel,
@@ -674,9 +675,9 @@ export function BranchesPanel({ businessUnit }: { businessUnit: StoreRecord }) {
                   </Button>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
                     title="Delete" disabled={b.is_default}
-                    onClick={() => {
+                    onClick={async () => {
                       const msg = `Delete branch "${b.name}"? This cannot be undone.`
-                      if (window.confirm(msg)) deleteMutation.mutate(b.id)
+                      if (await askConfirm(msg)) deleteMutation.mutate(b.id)
                     }}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -915,16 +916,16 @@ export default function StoresPage({
               showScopeToggle={stores.length > 1}
               onSelect={() => handleSelectStore(store)}
               onEdit={() => { setEditingStore(store); setModal('edit') }}
-              onDelete={() => {
+              onDelete={async () => {
                 if (store.is_default) {
                   toast.error('Set another branch as default before deleting this one.')
                   return
                 }
                 const msg = `Delete business unit "${store.name}"? This cannot be undone. Inventory and staff links for this branch will be removed.`
-                if (window.confirm(msg)) deleteMutation.mutate(store.id)
+                if (await askConfirm(msg)) deleteMutation.mutate(store.id)
               }}
-              onSetDefault={() => {
-                if (window.confirm(`Use "${store.name}" as the default branch?`)) setDefaultMutation.mutate(store.id)
+              onSetDefault={async () => {
+                if (await askConfirm(`Use "${store.name}" as the default branch?`)) setDefaultMutation.mutate(store.id)
               }}
               onView={() => handleViewStore(store)}
             />

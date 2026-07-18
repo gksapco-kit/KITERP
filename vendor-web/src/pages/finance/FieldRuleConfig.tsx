@@ -12,6 +12,7 @@ import { ListChecks, Plus, Trash2, Building2, User, LayoutGrid, Loader2, Info, X
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 type RuleRow = {
   id: string
   scope: string
@@ -177,8 +178,8 @@ export default function FieldRuleConfig() {
               <div className="col-span-2 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!confirm('Delete this rule?')) return
+                  onClick={async () => {
+                    if (!await askConfirm('Delete this rule?')) return
                     delMut.mutate(r.id, {
                       onSuccess: () => { toast.success('Removed'); refetch() },
                       onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed'),
@@ -198,7 +199,7 @@ export default function FieldRuleConfig() {
       </div>
 
       {showAdd && (
-        <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={() => setShowAdd(false)}>
+        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={() => setShowAdd(false)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
             <div className="flex items-start justify-between gap-3 mb-4">

@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useBankAccounts, useCreateBankAccount, useStatements, useUploadStatementCSV, useReconciliations, useCreateReconciliation, useAutoMatch } from '@/hooks/useFinance'
-import { Plus, Upload, Shuffle, X } from 'lucide-react'
+import { Plus, Upload, Shuffle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 function fmt(n: number) {
@@ -37,23 +37,31 @@ export default function BankCash() {
 
   const closeNewAccount = () => setShowNewAccount(false)
 
-  useEscapeToClose(closeNewAccount, showNewAccount)
-
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Bank & Cash</h1>
+    <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Bank accounts, statement import, and reconciliation
+        </p>
         {tab === 'Accounts' && (
-          <button onClick={() => setShowNewAccount(true)} className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90">
-            <Plus className="w-4 h-4" /> Add Account
+          <button
+            type="button"
+            onClick={() => setShowNewAccount(true)}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Account
           </button>
         )}
         {tab === 'Statements' && selectedBankId && (
           <>
             <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleUpload} />
-            <button onClick={() => fileRef.current?.click()} disabled={uploadMut.isPending}
-              className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50">
-              <Upload className="w-4 h-4" /> {uploadMut.isPending ? 'Uploading…' : 'Upload CSV'}
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploadMut.isPending}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+            >
+              <Upload className="h-3.5 w-3.5" /> {uploadMut.isPending ? 'Uploading…' : 'Upload CSV'}
             </button>
           </>
         )}
@@ -184,57 +192,55 @@ export default function BankCash() {
       )}
 
       {showNewAccount && (
-        <div data-kiterp-modal
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
-          onClick={closeNewAccount}
-        >
-          <div
-            className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="font-semibold text-lg">Add Bank Account</h2>
+        <ModalOverlay onClose={closeNewAccount} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
+            <ModalHeader
+              title="Add Bank Account"
+              onClose={closeNewAccount}
+              className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+            />
+            <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Account Name', key: 'name', span: 'col-span-2' },
+                  { label: 'Bank Name', key: 'bank_name', span: 'col-span-2' },
+                  { label: 'Account Number', key: 'account_number' },
+                  { label: 'IFSC Code', key: 'ifsc_code' },
+                  { label: 'Opening Balance', key: 'opening_balance', type: 'number', span: 'col-span-2' },
+                ].map(({ label, key, type, span }) => (
+                  <div key={key} className={span}>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">{label}</Label>
+                    <input
+                      type={type || 'text'}
+                      value={(accountForm as any)[key]}
+                      onChange={e => setAccountForm(f => ({ ...f, [key]: e.target.value }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                ))}
+                <div className="col-span-2">
+                  <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Type</Label>
+                  <Select
+                    value={accountForm.account_type}
+                    onChange={v => setAccountForm(f => ({ ...f, account_type: v }))}
+                    options={['bank', 'cash', 'credit_card', 'wallet'].map(t => ({ value: t, label: t }))}
+                  />
+                </div>
+              </div>
+            </ModalBody>
+            <ModalFooter className="border-0 px-4 py-2.5">
+              <button type="button" onClick={closeNewAccount} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
               <button
                 type="button"
-                onClick={closeNewAccount}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            {[
-              { label: 'Account Name', key: 'name' },
-              { label: 'Bank Name', key: 'bank_name' },
-              { label: 'Account Number', key: 'account_number' },
-              { label: 'IFSC Code', key: 'ifsc_code' },
-              { label: 'Opening Balance', key: 'opening_balance', type: 'number' },
-            ].map(({ label, key, type }) => (
-              <div key={key}>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">{label}</Label>
-                <input type={type || 'text'} value={(accountForm as any)[key]}
-                  onChange={e => setAccountForm(f => ({ ...f, [key]: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-              </div>
-            ))}
-            <div>
-              <Label className="block text-xs font-medium text-gray-600 mb-1">Type</Label>
-              <Select
-                value={accountForm.account_type}
-                onChange={v => setAccountForm(f => ({ ...f, account_type: v }))}
-                options={['bank', 'cash', 'credit_card', 'wallet'].map(t => ({ value: t, label: t }))}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={closeNewAccount} className="btn-cancel px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
-              <button onClick={() => createAccountMut.mutate(accountForm, { onSuccess: closeNewAccount })}
+                onClick={() => createAccountMut.mutate(accountForm, { onSuccess: closeNewAccount })}
                 disabled={createAccountMut.isPending}
-                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+                className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+              >
                 {createAccountMut.isPending ? 'Saving…' : 'Save'}
               </button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

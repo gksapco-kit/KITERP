@@ -18,11 +18,11 @@
  * - 409 duplicate error banner
  */
 import { useState, useCallback, useRef, useEffect, KeyboardEvent } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { vendorApi } from '@/api/vendor'
 import { useCreateCustomer, useCreateSupplier, useUpdateCustomer, useUpdateSupplier, useCreateBusinessPartner } from '@/hooks/useVendor'
 import type { PartyType, Customer, Supplier } from '@/types'
@@ -476,76 +476,18 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
     : allGroups.filter(g => !selected.includes(g))
 
   return (
-    <div ref={ref}>
-      <Label className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-500 mb-1.5">
-        <Tag className="w-3 h-3" /> Groups / Segments
-        <span className="text-gray-400 font-normal normal-case tracking-normal">(optional)</span>
+    <div ref={ref} className="space-y-1">
+      <Label className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        <Tag className="h-3 w-3" /> Groups
+        <span className="font-normal normal-case tracking-normal text-muted-foreground/70">(optional)</span>
       </Label>
 
       <div className="relative">
-        <input
-          ref={inputRef}
-          value={inputVal}
-          onChange={e => { setInputVal(e.target.value); setOpen(true) }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={handleKeyDown}
-          placeholder="Select or type a group…"
-          className="w-full border rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-primary focus:border-primary/60"
-        />
-
-        {/* Dropdown */}
-        {open && (
-          <div className="absolute z-40 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-52 overflow-y-auto">
-            {filtered.length === 0 && !inputVal.trim() ? (
-              <p className="text-xs text-gray-400 text-center py-3">All groups already selected</p>
-            ) : filtered.length === 0 && inputVal.trim() ? (
-              <button
-                type="button"
-                onClick={() => addNew(inputVal)}
-                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-primary hover:bg-primary/10"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Create group &ldquo;<strong>{inputVal.trim()}</strong>&rdquo;
-              </button>
-            ) : (
-              <>
-                {!inputVal && (
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400 px-3 pt-2 pb-1">
-                    Available groups
-                  </p>
-                )}
-                {filtered.map(g => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => { toggle(g); setInputVal(''); inputRef.current?.focus() }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 text-left"
-                  >
-                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full border ${groupColor(g)}`}>{g}</span>
-                  </button>
-                ))}
-                {inputVal.trim() && !allGroups.some(g => g.toLowerCase() === inputVal.toLowerCase()) && (
-                  <button
-                    type="button"
-                    onClick={() => addNew(inputVal)}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-primary hover:bg-primary/10 border-t"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Create &ldquo;<strong>{inputVal.trim()}</strong>&rdquo;
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {selected.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="flex min-h-7 flex-wrap items-center gap-1 rounded-md border border-input bg-background px-1.5 py-0.5 focus-within:ring-2 focus-within:ring-ring">
           {selected.map(g => (
             <span
               key={g}
-              className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${groupColor(g)}`}
+              className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${groupColor(g)}`}
             >
               {g}
               <button
@@ -554,16 +496,61 @@ function GroupTagInput({ selected, onChange }: GroupTagInputProps) {
                 className="hover:opacity-70 transition-opacity"
                 aria-label={`Remove ${g}`}
               >
-                <X className="w-2.5 h-2.5" />
+                <X className="h-2.5 w-2.5" />
               </button>
             </span>
           ))}
+          <input
+            ref={inputRef}
+            value={inputVal}
+            onChange={e => { setInputVal(e.target.value); setOpen(true) }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={selected.length ? 'Add…' : 'Select or type a group…'}
+            className="min-w-[7rem] flex-1 bg-transparent px-1 py-0.5 text-xs outline-none"
+          />
         </div>
-      )}
 
-      <p className="text-xs text-gray-400 mt-1">
-        Press Enter or comma to create a new group. Groups persist for future records.
-      </p>
+        {open && (
+          <div className="absolute z-40 left-0 right-0 mt-0.5 max-h-40 overflow-y-auto rounded-lg border border-border bg-popover text-popover-foreground shadow-lg">
+            {filtered.length === 0 && !inputVal.trim() ? (
+              <p className="py-2 text-center text-[10px] text-muted-foreground">All groups selected</p>
+            ) : filtered.length === 0 && inputVal.trim() ? (
+              <button
+                type="button"
+                onClick={() => addNew(inputVal)}
+                className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-xs text-primary hover:bg-primary/10"
+              >
+                <Plus className="h-3 w-3" />
+                Create &ldquo;<strong>{inputVal.trim()}</strong>&rdquo;
+              </button>
+            ) : (
+              <>
+                {filtered.map(g => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => { toggle(g); setInputVal(''); inputRef.current?.focus() }}
+                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left hover:bg-muted/60"
+                  >
+                    <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${groupColor(g)}`}>{g}</span>
+                  </button>
+                ))}
+                {inputVal.trim() && !allGroups.some(g => g.toLowerCase() === inputVal.toLowerCase()) && (
+                  <button
+                    type="button"
+                    onClick={() => addNew(inputVal)}
+                    className="flex w-full items-center gap-1.5 border-t px-2.5 py-1.5 text-xs text-primary hover:bg-primary/10"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Create &ldquo;<strong>{inputVal.trim()}</strong>&rdquo;
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -675,14 +662,14 @@ function CountryPicker({ value, onChange, mode, className = '' }: CountryPickerP
         type="button"
         onClick={() => setOpen(v => !v)}
         className={cn(
-          'inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-muted px-2.5 text-xs text-foreground transition-colors whitespace-nowrap hover:bg-muted/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'inline-flex h-7 w-full items-center justify-center gap-1 rounded-md border border-input bg-muted px-2 text-xs text-foreground transition-colors whitespace-nowrap hover:bg-muted/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           className,
         )}
       >
-        <span className="inline-flex h-4 shrink-0 items-center justify-center text-sm leading-none">{currentEntry?.flag}</span>
-        {mode === 'dialCode' && <span className="font-mono text-xs font-medium leading-none tabular-nums">{currentEntry?.dialCode}</span>}
-        {mode === 'name' && <span className="max-w-[90px] truncate text-xs font-medium leading-none">{currentEntry?.name}</span>}
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 self-center text-muted-foreground" aria-hidden />
+        <span className="inline-flex h-3.5 shrink-0 items-center justify-center text-sm leading-none">{currentEntry?.flag}</span>
+        {mode === 'dialCode' && <span className="font-mono text-[11px] font-medium leading-none tabular-nums">{currentEntry?.dialCode}</span>}
+        {mode === 'name' && <span className="max-w-[5.5rem] truncate text-[11px] font-medium leading-none">{currentEntry?.name}</span>}
+        <ChevronDown className="h-3 w-3 shrink-0 self-center text-muted-foreground" aria-hidden />
       </button>
       {open && (
         <div className="absolute z-50 mt-1 w-64 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
@@ -799,8 +786,6 @@ interface AddPartyModalProps {
 
 export function AddPartyModal({
  onClose, defaultType, onCreated, editRecord }: AddPartyModalProps) {
-  useEscapeToClose(onClose)
-
   const isEditMode = !!editRecord
   const stored = localStorage.getItem('lastPartyType')
   const [partyType, setPartyType] = useState<string>(() => {
@@ -1496,58 +1481,45 @@ export function AddPartyModal({
 
   return (
     <>
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-hidden" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-[720px] max-h-[min(92dvh,calc(100vh-1.5rem))] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10 shrink-0">
-          <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-primary" />
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                {isEditMode ? `Edit — ${name || 'Record'}` : 'Master Data'}
-              </h2>
-              <p className="text-xs text-gray-400">
-                {isEditMode ? 'Update master data record' : 'Add new party record'}
-              </p>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2 sm:p-3">
+      <ModalPanel className="max-w-md min-h-[min(36rem,calc(100dvh-1rem))] max-h-[calc(100dvh-0.75rem)] !rounded-lg">
+        <ModalHeader
+          title={
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                <User className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold text-foreground">
+                  {isEditMode ? `Edit — ${name || 'Record'}` : 'Master Data'}
+                </h2>
+                <p className="truncate text-xs text-muted-foreground">
+                  {isEditMode ? 'Update master data record' : 'Add new party record'}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="cancel" size="sm" onClick={onClose} className="h-8 text-xs">
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="add-party-form"
-              size="sm"
-              disabled={isLoading}
-              className="h-8 text-xs bg-primary hover:bg-primary/90"
-            >
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
-              {submitLabel}
-            </Button>
-            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors ml-1">
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
-        </div>
+          }
+          onClose={onClose}
+          className="border-0 px-4 py-3"
+        />
 
-        <form id="add-party-form" onSubmit={handleSubmit} className="p-6 space-y-5 flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <form id="add-party-form" onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
 
           {/* Error / warning banner */}
           {duplicateError && (() => {
             const isWarn = errorKind === 'warning'
             const hasFieldErrs = Object.keys(errors).length > 0
             return (
-              <div id="add-party-error-banner" className={`flex items-start gap-3 border rounded-xl px-4 py-3 ${
+              <div id="add-party-error-banner" className={`flex items-start gap-2 rounded-md border px-2.5 py-1.5 ${
                 isWarn ? 'bg-amber-50 border-amber-300' : 'bg-red-50 border-red-300'
               }`}>
-                <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${isWarn ? 'text-amber-500' : 'text-red-500'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${isWarn ? 'text-amber-800' : 'text-red-800'}`}>
+                <AlertTriangle className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isWarn ? 'text-amber-500' : 'text-red-500'}`} />
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs font-semibold ${isWarn ? 'text-amber-800' : 'text-red-800'}`}>
                     {isWarn ? 'Duplicate Record' : hasFieldErrs ? 'Validation Failed' : 'Could Not Save'}
                   </p>
-                  <p className={`text-xs mt-0.5 leading-relaxed ${isWarn ? 'text-amber-700' : 'text-red-700'}`}>
+                  <p className={`mt-0.5 text-[10px] leading-snug ${isWarn ? 'text-amber-700' : 'text-red-700'}`}>
                     {duplicateError}
                   </p>
                   {hasFieldErrs && (
@@ -1573,12 +1545,10 @@ export function AddPartyModal({
             )
           })()}
 
-          {/* TOP ROW: Profile picture + Smart Lookup + Party Country */}
-          <div className="flex items-start gap-3">
-
-            {/* Profile picture — compact, top-left */}
-            <div className="relative shrink-0">
-              <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-indigo-100 to-blue-100 border-2 border-primary/30 flex items-center justify-center overflow-hidden select-none">
+          {/* TOP ROW: Profile + Smart Lookup + Country */}
+          <div className="flex items-start gap-2">
+            <div className="relative shrink-0 pt-4">
+              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-primary/30 bg-gradient-to-br from-indigo-100 to-blue-100 select-none">
                 {profilePreview ? (
                   <SingleImagePreview
                     url={profilePreview}
@@ -1590,17 +1560,16 @@ export function AddPartyModal({
                     imgClassName="h-full w-full object-cover"
                   />
                 ) : name.trim()
-                  ? <span className="text-xl font-bold text-primary leading-none">{name.trim()[0].toUpperCase()}</span>
-                  : <User className="w-6 h-6 text-primary/60" />}
+                  ? <span className="text-base font-bold leading-none text-primary">{name.trim()[0].toUpperCase()}</span>
+                  : <User className="h-5 w-5 text-primary/60" />}
               </div>
-              {/* Camera badge — only this triggers file picker */}
               <button
                 type="button"
                 onClick={openProfilePicker}
                 title="Upload profile picture"
-                className="absolute -bottom-0.5 -right-0.5 w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow hover:bg-primary/90 transition-colors"
+                className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary shadow transition-colors hover:bg-primary/90"
               >
-                <Camera className="w-3.5 h-3.5 text-white" />
+                <Camera className="h-2.5 w-2.5 text-white" />
               </button>
               {profilePickerModal}
               {profilePreview && (
@@ -1609,196 +1578,170 @@ export function AddPartyModal({
                   aria-label="Remove photo"
                   onClick={() => { setProfilePreview(null); setProfileFile(null) }}
                   title="Remove photo"
-                  className="absolute -top-1 -left-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                  className="absolute -left-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 transition-colors hover:bg-red-600"
                 >
-                <X className="w-3 h-3 text-white" />
+                  <X className="h-2 w-2 text-white" />
                 </button>
               )}
             </div>
 
-            {/* Smart Lookup */}
-            <div ref={lookupContainerRef} className="relative flex-1 min-w-0">
-              <Label className="flex items-center gap-1.5 mb-1">
-                <Search className="w-3.5 h-3.5" />
-                Smart Lookup
-                <span className="text-gray-400 font-normal text-xs">
-                  {partyCountry.iso === 'IN'
-                    ? '(Name, Phone, Email, GSTIN, PAN…)'
-                    : `(Name, Phone, Email, ${activeTaxFields.map(f => f.label).join(', ')}…)`}
-                </span>
-              </Label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    value={lookup}
-                    onChange={e => handleLookupChange(e.target.value)}
-                    onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                    placeholder={partyCountry.iso === 'IN'
-                      ? 'Search records or enter GSTIN, PAN, CIN, phone, email…'
-                      : `Search records or enter ${activeTaxFields.map(f => f.label).join(', ')}, phone, email…`}
-                    className={`pr-28 text-sm ${
-                      gstStatus === 'invalid' ? 'border-red-400' :
-                      gstStatus === 'fetched' ? 'border-green-400' : ''
-                    }`}
-                    autoComplete="off"
-                  />
-                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    {suggestionsLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />}
-                    {!suggestionsLoading && gstStatus === 'fetched' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                    {!suggestionsLoading && gstStatus === 'invalid' && <AlertCircle className="w-4 h-4 text-red-500" />}
-                    {badge.label && (
-                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${badge.color}`}>{badge.label}</span>
-                    )}
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div ref={lookupContainerRef} className="relative min-w-0 space-y-0.5">
+                <Label className="flex items-center gap-1 text-[10px] leading-none text-muted-foreground">
+                  <Search className="h-3 w-3" /> Smart Lookup
+                </Label>
+                <div className="flex gap-1">
+                  <div className="relative min-w-0 flex-1">
+                    <Input
+                      value={lookup}
+                      onChange={e => handleLookupChange(e.target.value)}
+                      onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                      placeholder={partyCountry.iso === 'IN'
+                        ? 'GSTIN, PAN, phone, email…'
+                        : `Search or enter ${activeTaxFields.map(f => f.label).join(', ')}…`}
+                      className={cn(
+                        'h-8 pr-20 text-sm',
+                        gstStatus === 'invalid' && 'border-red-400',
+                        gstStatus === 'fetched' && 'border-green-400',
+                      )}
+                      autoComplete="off"
+                    />
+                    <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                      {suggestionsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                      {!suggestionsLoading && gstStatus === 'fetched' && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
+                      {!suggestionsLoading && gstStatus === 'invalid' && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
+                      {badge.label && (
+                        <span className={`rounded px-1 py-px text-[9px] font-bold ${badge.color}`}>{badge.label}</span>
+                      )}
+                    </div>
                   </div>
+                  {showFetchBtn && (
+                    <Button type="button" variant="outline" size="sm" onClick={fetchGstDetails} disabled={fetching} className="h-8 shrink-0 px-2 text-xs">
+                      {fetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Fetch'}
+                    </Button>
+                  )}
                 </div>
-                {showFetchBtn && (
-                  <Button type="button" variant="outline" size="sm" onClick={fetchGstDetails} disabled={fetching} className="whitespace-nowrap">
-                    {fetching ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
-                    Fetch Details
-                  </Button>
+                {(suggestionsLoading || gstStatus === 'fetched' || gstStatus === 'invalid' || (lookupType === 'gstin' && lookup.length > 0 && lookup.length < 15) || (!suggestionsLoading && lookup.trim().length >= 2 && !showSuggestions && suggestions.length === 0 && lookupType === 'unknown')) && (
+                  <p className={cn(
+                    'text-[10px] leading-none',
+                    gstStatus === 'invalid' ? 'text-red-500' : gstStatus === 'fetched' ? 'text-green-600' : 'text-muted-foreground',
+                  )}>
+                    {suggestionsLoading && 'Searching…'}
+                    {!suggestionsLoading && gstStatus === 'fetched' && 'GST details fetched'}
+                    {!suggestionsLoading && gstStatus === 'invalid' && 'Invalid GSTIN'}
+                    {!suggestionsLoading && gstStatus !== 'fetched' && gstStatus !== 'invalid' && lookupType === 'gstin' && lookup.length > 0 && lookup.length < 15 && `${lookup.length}/15`}
+                    {!suggestionsLoading && gstStatus !== 'fetched' && gstStatus !== 'invalid' && !(lookupType === 'gstin' && lookup.length > 0 && lookup.length < 15) && 'No matching records'}
+                  </p>
                 )}
               </div>
 
-              {/* Inline status hints (no results / loading) */}
-              {suggestionsLoading && (
-                <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Searching master data…
-                </p>
-              )}
-              {!suggestionsLoading && lookup.trim().length >= 2 && !showSuggestions && suggestions.length === 0 && lookupType === 'unknown' && (
-                <p className="text-xs text-gray-400 mt-1">No matching records found</p>
-              )}
-
-              {partyCountry.iso === 'IN' && gstStatus === 'fetched' && (
-                <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Details fetched from GST portal
-                </p>
-              )}
-              {partyCountry.iso === 'IN' && gstStatus === 'invalid' && (
-                <p className="text-xs text-red-500 mt-1">Invalid GSTIN format</p>
-              )}
-              {partyCountry.iso === 'IN' && lookupType === 'gstin' && lookup.length > 0 && lookup.length < 15 && (
-                <p className="text-xs text-gray-400 mt-1">{lookup.length}/15 characters</p>
-              )}
-            </div>
-
-            {/* Party / business country — drives which tax ID fields appear */}
-            <div className="shrink-0 w-44">
-              <Label className="flex items-center gap-1 text-xs mb-1">
-                <Globe className="w-3 h-3 text-gray-500" /> Country
-              </Label>
-              <CountryPicker
-                value={partyCountry.name}
-                onChange={c => { setPartyCountry(c); setGstin(''); setPan(''); setCin(''); setTaxId('') }}
-                mode="name"
-                className="w-full"
-              />
-              {partyCountry.iso !== 'IN' && (
-                <p className="text-xs text-gray-400 mt-1 leading-tight">
-                  Tax fields adapt to {partyCountry.name}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Phone + Email */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="ap-phone" className="text-xs font-medium text-gray-600">Phone</Label>
-              <PhoneInput
-                value={phone}
-                onChange={(v) => { setPhone(v); setDuplicateError(null); clearFieldErr('phone') }}
-                error={errors.phone}
-                defaultCountryIso="IN"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="ap-email" className="text-xs font-medium text-gray-600">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                <Input
-                  id="ap-email" type="email" value={email}
-                  onChange={e => { setEmail(e.target.value); setDuplicateError(null); clearFieldErr('email') }}
-                  placeholder="contact@example.com"
-                  className={`pl-9 ${errors.email ? 'border-red-400' : ''}`}
+              <div className="min-w-0 space-y-0.5">
+                <Label className="flex items-center gap-1 text-[10px] leading-none text-muted-foreground">
+                  <Globe className="h-3 w-3" /> Country
+                </Label>
+                <CountryPicker
+                  value={partyCountry.name}
+                  onChange={c => { setPartyCountry(c); setGstin(''); setPan(''); setCin(''); setTaxId('') }}
+                  mode="name"
+                  className="h-8 w-full"
                 />
               </div>
-              {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
             </div>
           </div>
 
-          {/* Merged Name field */}
+          {/* Name, then Phone + Email */}
+          <div className="space-y-1.5">
+            <div className="space-y-0.5">
+              <Label htmlFor="ap-name" className="text-[10px] leading-none text-muted-foreground">
+                Name <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <Users className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="ap-name"
+                  value={name}
+                  onChange={e => { setName(e.target.value); setDuplicateError(null); clearFieldErr('name') }}
+                  placeholder="Name / Company / Trade…"
+                  className={cn('h-8 pl-8 text-sm', errors.name && 'border-red-400')}
+                />
+              </div>
+              {errors.name && <p className="text-[10px] text-red-500">{errors.name}</p>}
+            </div>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="ap-phone" className="text-[10px] leading-none text-muted-foreground">Phone</Label>
+                <PhoneInput
+                  value={phone}
+                  onChange={(v) => { setPhone(v); setDuplicateError(null); clearFieldErr('phone') }}
+                  error={errors.phone}
+                  defaultCountryIso="IN"
+                  compact
+                  compactCountry
+                  subtleFeedback
+                />
+              </div>
+              <div className="space-y-0.5">
+                <Label htmlFor="ap-email" className="text-[10px] leading-none text-muted-foreground">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="ap-email" type="email" value={email}
+                    onChange={e => { setEmail(e.target.value); setDuplicateError(null); clearFieldErr('email') }}
+                    placeholder="email@example.com"
+                    className={cn('h-8 pl-8 text-sm', errors.email && 'border-red-400')}
+                  />
+                </div>
+                {errors.email && <p className="text-[10px] text-red-500">{errors.email}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Roles */}
           <div className="space-y-1">
-            <Label htmlFor="ap-name" className="text-xs font-medium text-gray-600">
-              Name <span className="text-red-500">*</span>
-            </Label>
-            <div className="relative">
-              <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <Input
-                id="ap-name"
-                value={name}
-                onChange={e => { setName(e.target.value); setDuplicateError(null); clearFieldErr('name') }}
-                placeholder="Name / Company / Trade Name / Organisation…"
-                className={`pl-9 ${errors.name ? 'border-red-400' : ''}`}
-              />
-            </div>
-            <p className="text-xs text-gray-400">
-              Enter the individual's full name, company name, or trade name
-            </p>
-            {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
-          </div>
-
-          {/* Party Type / Roles */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium uppercase tracking-wide text-gray-500 block">
+            <Label className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               {isEditMode ? 'Party Type' : (
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1">
                   Roles
-                  <span className="text-gray-400 font-normal normal-case">
-                    {selectedRoles.length > 1 ? `(${selectedRoles.length} selected — saves as Business Partner)` : '(select one or more)'}
+                  <span className="font-normal normal-case text-muted-foreground/70">
+                    {selectedRoles.length > 1 ? `(${selectedRoles.length} · Business Partner)` : '(one or more)'}
                   </span>
                 </span>
               )}
             </Label>
-            <div className="flex flex-wrap gap-2 items-center">
-
-              {/* Built-in types */}
+            <div className="flex flex-wrap items-center gap-1">
               {PARTY_TYPES.map(({ value, label }) => {
                 const isActive = isEditMode ? partyType === value : selectedRoles.includes(value)
                 return (
                   <button
                     key={value} type="button"
                     onClick={() => isEditMode ? handlePartyType(value) : toggleRole(value)}
-                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all',
                       isActive
-                        ? 'bg-primary text-white border-primary shadow-sm'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary/60 hover:text-primary'
-                    }`}
+                        ? 'border-primary bg-primary text-white shadow-sm'
+                        : 'border-border bg-background text-foreground hover:border-primary/60 hover:text-primary',
+                    )}
                   >
                     {label}
-                    {!isEditMode && isActive && selectedRoles.length > 1 && selectedRoles[0] === value && (
-                      <span className="ml-1 text-[10px] opacity-70">primary</span>
-                    )}
                   </button>
                 )
               })}
-
-              {/* User-created custom types */}
               {customPartyTypes.map(ct => {
                 const isActive = isEditMode ? partyType === ct : selectedRoles.includes(ct)
                 return (
                 <span
                   key={ct}
-                  className={`inline-flex items-center rounded-full border text-sm font-medium transition-all ${
+                  className={cn(
+                    'inline-flex items-center rounded-full border text-[11px] font-medium transition-all',
                     isActive
-                      ? 'bg-primary border-primary text-white shadow-sm'
-                      : 'bg-white border-primary/40 text-primary hover:border-primary'
-                  }`}
+                      ? 'border-primary bg-primary text-white shadow-sm'
+                      : 'border-primary/40 bg-background text-primary hover:border-primary',
+                  )}
                 >
                   <button
                     type="button"
                     onClick={() => isEditMode ? handlePartyType(ct) : toggleRole(ct)}
-                    className="pl-3.5 pr-1.5 py-1.5 leading-none"
+                    className="py-0.5 pl-2 pr-1 leading-none"
                   >
                     {ct}
                   </button>
@@ -1807,25 +1750,23 @@ export function AddPartyModal({
                     aria-label={`Remove ${ct}`}
                     onClick={() => removeCustomPartyType(ct)}
                     title={`Remove ${ct}`}
-                    className={`pr-2 py-1.5 opacity-60 hover:opacity-100 transition-opacity`}
+                    className="py-0.5 pr-1.5 opacity-60 transition-opacity hover:opacity-100"
                   >
-                <X className="w-3 h-3" />
+                    <X className="h-2.5 w-2.5" />
                   </button>
                 </span>
                 )
               })}
-
-              {/* + Custom type — button or inline input */}
               {!showCustomTypeInput ? (
                 <button
                   type="button"
                   onClick={() => setShowCustomTypeInput(true)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium border border-dashed border-primary/40 text-primary/70 hover:border-primary hover:bg-primary/10 transition-all"
+                  className="flex items-center gap-0.5 rounded-full border border-dashed border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary/70 transition-all hover:border-primary hover:bg-primary/10"
                 >
-                  <Plus className="w-3 h-3" /> Custom
+                  <Plus className="h-3 w-3" /> Custom
                 </button>
               ) : (
-                <div className="flex items-center gap-1 bg-primary/10 border border-primary/40 rounded-full px-2 py-1">
+                <div className="flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5">
                   <input
                     autoFocus
                     value={customTypeInput}
@@ -1834,14 +1775,14 @@ export function AddPartyModal({
                       if (e.key === 'Enter') { e.preventDefault(); addCustomPartyType() }
                       if (e.key === 'Escape') { setShowCustomTypeInput(false); setCustomTypeInput('') }
                     }}
-                    placeholder="Type name…"
-                    className="text-sm bg-transparent outline-none text-gray-800 w-28 min-w-0"
+                    placeholder="Type…"
+                    className="w-24 min-w-0 bg-transparent text-[11px] text-foreground outline-none"
                   />
                   <button
                     type="button"
                     onMouseDown={e => e.preventDefault()}
                     onClick={addCustomPartyType}
-                    className="text-xs font-medium bg-primary text-white px-2.5 py-0.5 rounded-full hover:bg-primary/90 transition-colors whitespace-nowrap"
+                    className="rounded-full bg-primary px-1.5 py-px text-[10px] font-medium text-white hover:bg-primary/90"
                   >
                     Add
                   </button>
@@ -1849,110 +1790,100 @@ export function AddPartyModal({
                     type="button"
                     onMouseDown={e => e.preventDefault()}
                     onClick={() => { setShowCustomTypeInput(false); setCustomTypeInput('') }}
-                    className="p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="p-0.5 text-muted-foreground hover:text-foreground"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Groups / Segments */}
           <GroupTagInput selected={groups} onChange={handleGroupsChange} />
 
-          {/* Status & Access Controls */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium uppercase tracking-wide text-gray-500 block">
-              Status
-            </Label>
-            <div className="flex flex-wrap gap-2">
+          {/* Status + Payment Blocked */}
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-1.5">
+              <Label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Status</Label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={paymentBlocked}
+                onClick={() => setPaymentBlocked(v => !v)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                  paymentBlocked
+                    ? 'border-red-300 bg-red-50 text-red-700'
+                    : 'border-border bg-muted/40 text-muted-foreground hover:border-border hover:text-foreground',
+                )}
+              >
+                <Ban className={cn('h-3 w-3', paymentBlocked ? 'text-red-600' : 'text-muted-foreground')} />
+                Payment blocked
+                <span className={cn(
+                  'relative inline-flex h-3.5 w-6 items-center rounded-full transition-colors',
+                  paymentBlocked ? 'bg-red-500' : 'bg-muted-foreground/30',
+                )}>
+                  <span className={cn(
+                    'inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow transition-transform',
+                    paymentBlocked ? 'translate-x-[11px]' : 'translate-x-[2px]',
+                  )} />
+                </span>
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1">
               {PARTY_STATUS_OPTS.map(opt => (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => setPartyStatus(opt.value)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all',
                     partyStatus === opt.value
                       ? opt.activeClass
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                  }`}
+                      : 'border-border bg-background text-foreground hover:border-muted-foreground/40',
+                  )}
                 >
                   {opt.icon}{opt.label}
                 </button>
               ))}
             </div>
 
-            {/* Hold Until — shown only when On Hold */}
             {partyStatus === 'on_hold' && (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span className="text-xs text-amber-700 whitespace-nowrap">Hold Until</span>
-                <div className="flex gap-1.5 flex-1">
-                  <button
-                    type="button"
-                    onClick={() => setHoldUntil(addDays(7))}
-                    className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition-colors"
-                  >
-                    +7d
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setHoldUntil(addDays(14))}
-                    className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition-colors"
-                  >
-                    +14d
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setHoldUntil(addDays(30))}
-                    className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition-colors"
-                  >
-                    +30d
-                  </button>
+              <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1">
+                <Clock className="h-3 w-3 shrink-0 text-amber-600" />
+                <span className="whitespace-nowrap text-[10px] text-amber-700">Hold until</span>
+                <div className="flex flex-1 flex-wrap gap-1">
+                  {[7, 14, 30].map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setHoldUntil(addDays(d))}
+                      className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 hover:bg-amber-200"
+                    >
+                      +{d}d
+                    </button>
+                  ))}
                   <input
                     type="date"
                     value={holdUntil}
                     min={new Date().toISOString().split('T')[0]}
                     onChange={e => setHoldUntil(e.target.value)}
-                    className="flex-1 text-xs border border-amber-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    className="min-w-0 flex-1 rounded border border-amber-200 bg-white px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-amber-300"
                   />
                 </div>
               </div>
             )}
-
-            {/* Payment Blocked toggle */}
-            <button
-              type="button"
-              role="switch"
-              aria-checked={paymentBlocked}
-              onClick={() => setPaymentBlocked(v => !v)}
-              className={`w-full flex items-center justify-between rounded-lg px-3 py-2.5 border transition-colors ${
-                paymentBlocked
-                  ? 'bg-red-50 border-red-300'
-                  : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <span className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
-                <Ban className={`w-3.5 h-3.5 ${paymentBlocked ? 'text-red-600' : 'text-gray-400'}`} />
-                Payment Blocked
-                <span className="text-gray-400 font-normal">(prevents payment processing)</span>
-              </span>
-              <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${paymentBlocked ? 'bg-red-500' : 'bg-gray-300'}`}>
-                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${paymentBlocked ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
-              </span>
-            </button>
           </div>
 
           {/* More Details — collapsible */}
-          <div className="border rounded-xl overflow-hidden">
+          <div className="overflow-hidden rounded-md border border-border">
             <button
               type="button"
               onClick={() => setExpanded(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
+              className="flex w-full items-center justify-between bg-muted/40 px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/60"
             >
               <span>{expanded ? 'Fewer details' : 'More details'}</span>
-              {expanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+              {expanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
             </button>
 
             {expanded && (
@@ -2408,17 +2339,19 @@ export function AddPartyModal({
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-1">
-            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90" disabled={isLoading}>
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+          </ModalBody>
+          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-3">
+            <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" className="h-8 rounded-md px-3 text-sm bg-primary hover:bg-primary/90" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
               {submitLabel}
             </Button>
-          </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
 
     {/* ── Suggestions dropdown — portalled to <body> to escape modal overflow clipping ── */}
     {showSuggestions && suggestions.length > 0 && dropdownRect && createPortal(

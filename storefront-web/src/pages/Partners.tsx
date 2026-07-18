@@ -17,6 +17,7 @@ import {
   type PartnerVendor,
 } from '@/lib/partnerDirectory'
 import { mediaUrl } from '@/lib/utils'
+import { useDocumentSeo } from '@/lib/documentSeo'
 import '@/styles/kiterp-landing.css'
 
 const FAV_KEY = 'kiterp_partner_favorites'
@@ -54,6 +55,15 @@ export default function Partners() {
   const [query, setQuery] = useState('')
   const [favorites, setFavorites] = useState<Set<string>>(() => readFavorites())
   const [reloadKey, setReloadKey] = useState(0)
+
+  useDocumentSeo({
+    title: 'Our Partners — KITERP Business Directory',
+    description:
+      'Explore KITERP partner businesses. Find local stores, services, and brands running on the KITERP business front platform.',
+    keywords: 'KITERP partners, business directory, multi-vendor stores',
+    canonicalPath: '/partners',
+    ogImage: '/favicon-192.png',
+  })
 
   useEffect(() => {
     let cancelled = false

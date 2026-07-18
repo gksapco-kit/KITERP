@@ -53,6 +53,7 @@ import {
 } from '@/lib/mediaAdjustPreview'
 import type { WebsiteBlock, WebsiteMedia } from '@/types/websites'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 /** In-flight upload row before the API returns a full `WebsiteMedia`. */
 type MediaStudioRow =
   | WebsiteMedia
@@ -669,10 +670,10 @@ export function MediaStudioPanel({
     requestAnimationFrame(() => renameInputRef.current?.select())
   }, [selectedMediaObj])
 
-  const handleDeleteSelectedMedia = useCallback(async () => {
+  const handleDeleteSelectedMedia = useCallbackasync (async () => {
     if (!selectedMediaObj) return
     const label = selectedMediaObj.filename || 'this file'
-    if (!window.confirm(`Delete "${label}" from your media library? This cannot be undone.`)) return
+    if (!await askConfirm(`Delete "${label}" from your media library? This cannot be undone.`)) return
 
     const deletedId = selectedMediaObj.id
     const currentIndex = selectedMediaIndex

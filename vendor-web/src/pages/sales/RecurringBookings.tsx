@@ -1,17 +1,18 @@
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Loader2, RefreshCw, ToggleLeft, ToggleRight, X, ImagePlus } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, RefreshCw, ToggleLeft, ToggleRight, ImagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
+import { cn, formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
+import { modalWidthLg } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -24,6 +25,7 @@ import {
 import { recurringPlansApi } from '@/api/recurringPlans'
 import type { VendorRecurringPlan, VendorRecurringPlanCreate, VendorRecurringPreset } from '@/api/recurringPlans'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 /** "2026-05-04" → "Mon, May 4, 2026" for display; falls back to the raw value for older free-text entries. */
 function formatPlanDate(iso?: string | null): string {
   if (!iso) return ''
@@ -60,50 +62,49 @@ function PresetEditor({
   const remove = (idx: number) => onChange(presets.filter((_, i) => i !== idx))
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1.5">
       {presets.length === 0 && (
-        <p className="text-xs text-muted-foreground">No frequency options yet. Add at least one (e.g. Weekly) so guests can choose how often to book.</p>
+        <p className="text-[11px] text-muted-foreground italic">Optional — add Weekly / Monthly options for guests.</p>
       )}
       {presets.map((p, idx) => (
-        <div key={idx} className="rounded-lg border border-border p-3 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="grid flex-1 grid-cols-2 gap-2">
-              <Input
-                value={p.name}
-                onChange={e => update(idx, { name: e.target.value })}
-                placeholder="Frequency name (Weekly)"
-              />
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="1"
-                  value={p.discount_pct}
-                  onChange={e => update(idx, { discount_pct: Number(e.target.value) || 0 })}
-                  placeholder="Discount %"
-                />
-                <span className="text-xs text-muted-foreground shrink-0">% off</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => remove(idx)}
-              className="mt-1 shrink-0 rounded p-1.5 text-destructive hover:bg-destructive/10"
-              title="Remove frequency option"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+        <div key={idx} className="grid grid-cols-[1fr_4.5rem_1fr_auto] items-center gap-1.5">
+          <Input
+            className="h-8 text-sm"
+            value={p.name}
+            onChange={e => update(idx, { name: e.target.value })}
+            placeholder="Weekly"
+          />
+          <div className="flex items-center gap-1">
+            <Input
+              className="h-8 text-sm"
+              type="number"
+              min={0}
+              max={100}
+              step="1"
+              value={p.discount_pct}
+              onChange={e => update(idx, { discount_pct: Number(e.target.value) || 0 })}
+              placeholder="%"
+            />
+            <span className="text-[10px] text-muted-foreground shrink-0">%</span>
           </div>
           <Input
+            className="h-8 text-sm"
             value={p.description ?? ''}
             onChange={e => update(idx, { description: e.target.value })}
-            placeholder="Description (Every week, same day)"
+            placeholder="Every week, same day"
           />
+          <button
+            type="button"
+            onClick={() => remove(idx)}
+            className="shrink-0 rounded-md p-1 text-destructive hover:bg-destructive/10"
+            title="Remove"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" onClick={() => onChange([...presets, emptyPreset()])} className="gap-2">
-        <Plus className="h-3.5 w-3.5" /> Add frequency option
+      <Button type="button" variant="outline" size="sm" onClick={() => onChange([...presets, emptyPreset()])} className="h-7 gap-1 px-2 text-xs">
+        <Plus className="h-3 w-3" /> Add frequency
       </Button>
     </div>
   )
@@ -120,7 +121,6 @@ function RecurringPlanModal({
   onSave: (data: VendorRecurringPlanCreate) => void
   saving: boolean
 }) {
-  useEscapeToClose(onClose)
   const [title, setTitle] = useState(initial?.title ?? '')
   const [imageUrl, setImageUrl] = useState<string | null>(initial?.image_url ?? null)
   const [imageUploading, setImageUploading] = useState(false)
@@ -198,116 +198,131 @@ function RecurringPlanModal({
     })
   }
 
+  const labelCls = 'text-xs'
+  const fieldGap = 'space-y-1'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-xl max-h-[90vh] flex-col rounded-xl border border-border bg-card shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">{initial ? 'Edit recurring plan' : 'New recurring plan'}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 p-5">
-          <div>
-            <Label>Plan banner</Label>
-            <label className="mt-1 flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted/40 hover:bg-muted/60">
-              {imageUrl ? (
-                <img src={imageUrl.startsWith('blob:') ? imageUrl : mediaUrl(imageUrl)} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
-                  {imageUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                  Upload banner
-                </span>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={e => {
-                  const file = e.target.files?.[0]
-                  if (file) void handleImageFile(file)
-                }}
-              />
-            </label>
-          </div>
-          <div>
-            <Label>Service name</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Weekly Yoga · Vinyasa Flow" />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label>Start date</Label>
-              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2">
+      <ModalPanel className={cn(modalWidthLg, 'max-h-[calc(100dvh-1rem)]')}>
+        <ModalHeader
+          title={initial ? 'Edit recurring plan' : 'New recurring plan'}
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+            <div className="grid grid-cols-[5.5rem_1fr] gap-2.5 items-start">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Banner</Label>
+                <label className="relative flex h-14 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60">
+                  {imageUrl ? (
+                    <img src={imageUrl.startsWith('blob:') ? imageUrl : mediaUrl(imageUrl)} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="flex flex-col items-center gap-0.5 text-[10px] text-muted-foreground">
+                      {imageUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                      Upload
+                    </span>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) void handleImageFile(file)
+                    }}
+                  />
+                </label>
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Service name *</Label>
+                <Input
+                  className="h-8 text-sm"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  required
+                  autoFocus
+                  placeholder="Weekly Yoga · Vinyasa Flow"
+                />
+              </div>
             </div>
-            <div>
-              <Label>Time</Label>
-              <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Start date</Label>
+                <Input className="h-8 text-sm" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Time</Label>
+                <Input className="h-8 text-sm" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Duration (min)</Label>
+                <Input className="h-8 text-sm" type="number" min={0} value={durationMinutes} onChange={e => setDurationMinutes(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Price / session</Label>
+                <Input className="h-8 text-sm" type="number" min={0} step="0.01" value={pricePerSession} onChange={e => setPricePerSession(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Currency</Label>
+                <Input className="h-8 text-sm" value={currency} onChange={e => setCurrency(e.target.value)} placeholder="USD" />
+              </div>
             </div>
-            <div>
-              <Label>Duration (min)</Label>
-              <Input type="number" min={0} value={durationMinutes} onChange={e => setDurationMinutes(e.target.value)} />
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <div className={fieldGap}>
+                <Label className={labelCls}>Default sessions</Label>
+                <Input className="h-8 text-sm" type="number" min={1} value={defaultSessionCount} onChange={e => setDefaultSessionCount(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Min</Label>
+                <Input className="h-8 text-sm" type="number" min={1} value={minSessions} onChange={e => setMinSessions(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Max</Label>
+                <Input className="h-8 text-sm" type="number" min={1} value={maxSessions} onChange={e => setMaxSessions(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Confirm label</Label>
+                <Input className="h-8 text-sm" value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>Sort order</Label>
+                <Input className="h-8 text-sm" type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Price per session</Label>
-              <Input type="number" min={0} step="0.01" value={pricePerSession} onChange={e => setPricePerSession(e.target.value)} />
-            </div>
-            <div>
-              <Label>Currency</Label>
-              <Input value={currency} onChange={e => setCurrency(e.target.value)} placeholder="USD" />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label>Default sessions</Label>
-              <Input type="number" min={1} value={defaultSessionCount} onChange={e => setDefaultSessionCount(e.target.value)} />
-            </div>
-            <div>
-              <Label>Min sessions</Label>
-              <Input type="number" min={1} value={minSessions} onChange={e => setMinSessions(e.target.value)} />
-            </div>
-            <div>
-              <Label>Max sessions</Label>
-              <Input type="number" min={1} value={maxSessions} onChange={e => setMaxSessions(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Confirm button label</Label>
-              <Input value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
-            </div>
-            <div>
-              <Label>Sort order</Label>
-              <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
-            </div>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={showUpcoming} onChange={e => setShowUpcoming(e.target.checked)} />
-            Show upcoming sessions list
-          </label>
-          <div>
-            <Label>Frequency options</Label>
-            <div className="mt-1">
+
+            <div className={fieldGap}>
+              <Label className={labelCls}>Frequency options</Label>
               <PresetEditor presets={presets} onChange={setPresets} />
             </div>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-            Active on storefront
-          </label>
-        </div>
-        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-3">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <CheckboxFieldLabel
+                label="Show upcoming sessions"
+                checked={showUpcoming}
+                onChange={setShowUpcoming}
+                labelClassName="text-xs"
+              />
+              <CheckboxFieldLabel
+                label="Active on storefront"
+                checked={isActive}
+                onChange={setIsActive}
+                labelClassName="text-xs"
+              />
+            </div>
+          </ModalBody>
+          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-2.5">
+            <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
+            <Button type="submit" className="h-8 px-3 text-sm" disabled={saving || !title.trim()}>
+              {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               {initial ? 'Save' : 'Create'}
             </Button>
-        </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 
@@ -344,19 +359,19 @@ export default function SalesRecurringBookingsPage() {
   const { isSaving, patchField } = useInlineFieldPatch(updatePlan)
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <RefreshCw className="h-5 w-5 text-primary" />
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
+            <RefreshCw className="h-4 w-4 shrink-0 text-primary" />
             Recurring Bookings
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage weekly / bi-weekly / monthly session plans shown on your storefront. Plans sync automatically to the Recurring Booking section in the website builder.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Weekly / monthly session plans · syncs to Website Builder
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: 'create' })} className="gap-2">
-          <Plus className="h-4 w-4" /> Add plan
+        <Button onClick={() => setModal({ mode: 'create' })} className="h-8 gap-1.5 px-3 text-sm shrink-0">
+          <Plus className="h-3.5 w-3.5" /> Add plan
         </Button>
       </div>
 
@@ -381,16 +396,16 @@ export default function SalesRecurringBookingsPage() {
           <div className="overflow-x-auto">
             <ResizableTable tableId="sales-recurring-plans-v1" defaultWidths={[64, 240, 200, 140, 90, 120]}>
               <thead>
-                <tr className="border-b bg-muted/40">
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Order</TableColumnLabel></th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Service</TableColumnLabel></th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Starts</TableColumnLabel></th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Price / session</TableColumnLabel></th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Active</TableColumnLabel></th>
-                  <th className="text-right px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+                <tr className="bg-muted/30">
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Order</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Service</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Starts</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Price / session</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Active</TableColumnLabel></th>
+                  <th className="text-right px-3 py-2 text-[10px] font-medium uppercase tracking-wide"><TableColumnLabel>Actions</TableColumnLabel></th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody>
                 {isLoading ? (
                   <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></td></tr>
                 ) : rows.length === 0 ? (
@@ -401,12 +416,12 @@ export default function SalesRecurringBookingsPage() {
                     className="hover:bg-muted/30 cursor-pointer"
                     onClick={onClickableTableRow(() => setModal({ mode: 'edit', plan }))}
                   >
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-sm">
                       <InlineEditCell type="number" value={plan.sort_order} readOnly readOnlyMessage="Use the full editor to change sort order" title="Order">
                         {plan.sort_order}
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium">
+                    <td className="px-3 py-2 text-sm font-medium">
                       <div className="flex items-center gap-2">
                         {plan.image_url ? (
                           <img src={mediaUrl(plan.image_url)} alt="" className="h-8 w-10 rounded object-cover shrink-0" />
@@ -425,7 +440,7 @@ export default function SalesRecurringBookingsPage() {
                         </InlineEditCell>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                    <td className="px-3 py-2 text-sm text-muted-foreground">
                       <div className="space-y-0.5">
                         <InlineEditCell
                           value={plan.start_date || ''}
@@ -445,7 +460,7 @@ export default function SalesRecurringBookingsPage() {
                         </InlineEditCell>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-sm">
                       <InlineEditCell
                         type="number"
                         value={plan.price_per_session}
@@ -459,7 +474,7 @@ export default function SalesRecurringBookingsPage() {
                         {formatCurrency(plan.price_per_session, plan.currency)}
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-sm">
                       <InlineEditCell
                         type="select"
                         value={plan.is_active ? 'true' : 'false'}
@@ -474,7 +489,7 @@ export default function SalesRecurringBookingsPage() {
                         {plan.is_active ? <span className="text-green-700 font-medium">Active</span> : <span className="text-muted-foreground">Hidden</span>}
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <div className="flex items-center justify-end gap-1">
                         <button
                           type="button"
@@ -498,9 +513,9 @@ export default function SalesRecurringBookingsPage() {
                         <button
                           type="button"
                           title="Delete"
-                          onClick={e => {
+                          onClick={async e => {
                             e.stopPropagation()
-                            if (window.confirm(`Delete "${plan.title}"?`)) deletePlan.mutate(plan.id)
+                            if (await askConfirm(`Delete "${plan.title}"?`)) deletePlan.mutate(plan.id)
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >

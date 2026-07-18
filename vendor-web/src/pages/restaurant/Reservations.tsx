@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { cn } from '@/lib/utils'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const STATUS_CONFIG: Record<string, { label: string; badge: string }> = {
   pending:   { label: 'Pending',   badge: 'bg-yellow-100 text-yellow-800' },
   confirmed: { label: 'Confirmed', badge: 'bg-blue-100 text-blue-700' },
@@ -158,7 +159,7 @@ export default function RestaurantReservationsPage() {
             onStatusChange={(status) => updateReservationStatus.mutate({ id: r.id, status })}
             onSeat={(tableId, covers) => seatGuest.mutate({ id: r.id, table_id: tableId, covers })}
             onSaveEdit={(body) => updateReservation.mutate({ id: r.id, body })}
-            onDelete={() => { if (confirm('Delete this reservation?')) deleteRes.mutate(r.id) }}
+            onDelete={async () => { if (await askConfirm('Delete this reservation?')) deleteRes.mutate(r.id) }}
             isPending={updateReservation.isPending || updateReservationStatus.isPending || deleteRes.isPending || seatGuest.isPending}
           />
         ))}

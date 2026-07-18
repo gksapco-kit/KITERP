@@ -1,5 +1,5 @@
 # app/api/v1/catalog.py
-from fastapi import APIRouter, Body, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, status, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,9 @@ from app.schemas.vendor_product import ProductResponse, ProductListResponse
 from app.schemas.vendor_service import ServiceResponse, ServiceListResponse
 from app.schemas.storefront_contact_query import StorefrontContactQueryCreate
 from app.models.storefront_contact_query import StorefrontContactQuery
+from app.models.platform_career_application import PlatformCareerApplication
 from app.services.vendor_service import VendorService
+from app.services.file_service import FileService
 from app.repositories.vendor_repo import VendorRepository
 from app.repositories.product_repo import ProductRepository
 from app.repositories.service_repo import ServiceRepository
@@ -27,6 +29,18 @@ from app.utils.vendor_storefront import vendor_live_on_storefront
 from app.services.storefront_theme_config import normalize_theme_config, theme_config_needs_migration
 from app.utils.social_link_normalize import normalize_social_links
 from app.utils.view_dedupe import claim_unique_view, visitor_key_from_request
+
+_CAREER_CV_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+_CAREER_CV_EXTENSIONS = {".pdf", ".doc", ".docx"}
+_MAX_CAREER_CV_BYTES = 10 * 1024 * 1024
+_CAREER_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
+_CAREER_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+_MAX_CAREER_PHOTO_BYTES = 5 * 1024 * 1024
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 router = APIRouter()
 
@@ -609,6 +623,119 @@ async def submit_platform_contact_query(
         "ok": True,
         "id": str(row.id),
         "message": "Thanks — we received your message and will get back to you soon.",
+    }
+
+
+@router.post("/career-applications", status_code=status.HTTP_201_CREATED)
+async def submit_career_application(
+    request: Request,
+    full_name: str = Form(...),
+    email: str = Form(...),
+    phone: Optional[str] = Form(None),
+    college: Optional[str] = Form(None),
+    course: Optional[str] = Form(None),
+    graduation_year: Optional[str] = Form(None),
+    city: Optional[str] = Form(None),
+    linkedin_url: Optional[str] = Form(None),
+    cover_note: Optional[str] = Form(None),
+    cv: UploadFile = File(...),
+    photo: Optional[UploadFile] = File(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Public Careers page: applicant details + CV + optional passport photo."""
+    name = (full_name or "").strip()
+    email_clean = (email or "").strip().lower()
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="Please enter your full name")
+    if not email_clean or not _EMAIL_RE.match(email_clean):
+        raise HTTPException(status_code=400, detail="Please enter a valid email address")
+
+    phone_clean = (phone or "").strip() or None
+    college_clean = (college or "").strip() or None
+    course_clean = (course or "").strip() or None
+    city_clean = (city or "").strip() or None
+    linkedin_clean = (linkedin_url or "").strip() or None
+    note_clean = (cover_note or "").strip() or None
+
+    year_val: Optional[int] = None
+    year_raw = (graduation_year or "").strip()
+    if year_raw:
+        try:
+            year_val = int(year_raw)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Years of experience must be a number")
+        # Field stores years of experience (0–80) from the Careers form.
+        if year_val < 0 or year_val > 80:
+            raise HTTPException(status_code=400, detail="Years of experience looks invalid")
+
+    if linkedin_clean and not linkedin_clean.startswith(("http://", "https://")):
+        linkedin_clean = f"https://{linkedin_clean}"
+
+    ct = (cv.content_type or "").split(";")[0].strip().lower()
+    filename = (cv.filename or "cv.pdf").strip().replace("\\", "/").split("/")[-1]
+    ext = ("." + filename.rsplit(".", 1)[-1].lower()) if "." in filename else ""
+    if ct not in _CAREER_CV_TYPES and ext not in _CAREER_CV_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="CV must be a PDF or Word document (.pdf, .doc, .docx)",
+        )
+
+    contents = await cv.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="CV file is empty")
+    if len(contents) > _MAX_CAREER_CV_BYTES:
+        raise HTTPException(status_code=400, detail="CV file is too large (max 10 MB)")
+
+    files = FileService()
+    cv_url = await files.upload_file(cv, "career-cvs", content=contents)
+
+    photo_url: Optional[str] = None
+    photo_filename: Optional[str] = None
+    if photo is not None and (photo.filename or "").strip():
+        pct = (photo.content_type or "").split(";")[0].strip().lower()
+        photo_filename = (photo.filename or "photo.jpg").strip().replace("\\", "/").split("/")[-1]
+        pext = ("." + photo_filename.rsplit(".", 1)[-1].lower()) if "." in photo_filename else ""
+        if pct not in _CAREER_PHOTO_TYPES and pext not in _CAREER_PHOTO_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail="Passport photo must be JPG, PNG, or WebP",
+            )
+        photo_bytes = await photo.read()
+        if not photo_bytes:
+            raise HTTPException(status_code=400, detail="Passport photo file is empty")
+        if len(photo_bytes) > _MAX_CAREER_PHOTO_BYTES:
+            raise HTTPException(status_code=400, detail="Passport photo is too large (max 5 MB)")
+        photo_url = await files.upload_file(photo, "career-photos", content=photo_bytes)
+
+    fwd = request.headers.get("x-forwarded-for") or ""
+    ip = (fwd.split(",")[0].strip() if fwd else None) or (request.client.host if request.client else None)
+    ua = (request.headers.get("user-agent") or "")[:1000] or None
+
+    row = PlatformCareerApplication(
+        full_name=name[:255],
+        email=email_clean[:255],
+        phone=phone_clean[:40] if phone_clean else None,
+        college=college_clean[:255] if college_clean else None,
+        course=course_clean[:255] if course_clean else None,
+        graduation_year=year_val,
+        city=city_clean[:120] if city_clean else None,
+        linkedin_url=linkedin_clean[:500] if linkedin_clean else None,
+        cover_note=note_clean[:4000] if note_clean else None,
+        cv_url=cv_url,
+        cv_filename=filename[:255] if filename else None,
+        photo_url=photo_url,
+        photo_filename=photo_filename[:255] if photo_filename else None,
+        status="new",
+        ip_address=ip,
+        user_agent=ua,
+    )
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return {
+        "ok": True,
+        "id": str(row.id),
+        "message": "Thanks — your application was received. Our team will review it soon.",
     }
 
 

@@ -76,6 +76,7 @@ import { CatalogItemLink } from '@/components/common/CatalogItemLink'
 import { normalizeCatalogAddons, serializeCatalogAddons, type CatalogAddon } from '@/lib/catalogAddons'
 import { UOM_OPTIONS, UOM_GROUPS, formatUomDisplay } from '@/lib/uomOptions'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 // ── Zod schema ──────────────────────────────────────────────────
 
 const optStr = z.string().optional().or(z.literal(''))
@@ -4509,7 +4510,7 @@ export default function ProductForm() {
               </div>
 
               {/* Existing rules table */}
-              {(() => {
+              {async (() => {
                 const tabRules = (priceRules as ProductPriceRule[]).filter(r => r.rule_type === priceRuleTab)
                 const symbol = watch('currency') === 'USD' ? '$' : watch('currency') === 'EUR' ? '€' : watch('currency') === 'GBP' ? '£' : '₹'
                 return (
@@ -4559,7 +4560,7 @@ export default function ProductForm() {
                                   </button>
                                 </td>
                                 <td className="px-3 py-2 text-right">
-                                  <button type="button" onClick={() => { if (confirm('Delete this price rule?')) deletePriceRule.mutate({ productId: id!, ruleId: rule.id }) }}
+                                  <button type="button" onClick={async () => { if (await askConfirm('Delete this price rule?')) deletePriceRule.mutate({ productId: id!, ruleId: rule.id }) }}
                                     className="text-red-500 hover:text-red-700 p-1">
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>

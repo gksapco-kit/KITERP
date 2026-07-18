@@ -6,6 +6,7 @@ import { attachAutoRefreshInterceptor, createAppQueryClient } from '@/lib/queryC
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { router } from './routes'
+import { ConfirmProvider } from './components/common/ConfirmProvider'
 import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
 import './styles/globals.css'
 import './checkout/theme.css'
@@ -38,8 +39,10 @@ console.log('Open http://localhost:3002 — if it fails on Windows Docker, run s
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster position="top-right" richColors closeButton />
+      <ConfirmProvider>
+        <RouterProvider router={router} />
+        <Toaster position="top-right" richColors closeButton />
+      </ConfirmProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 )

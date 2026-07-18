@@ -1,19 +1,20 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
+import { modalWidthMd } from '@/lib/modalUi'
 import {
   usePurchaseOrders, useCreatePurchaseOrder, useSuppliers, useProducts, useServices,
   useCreateSupplier, useUpdatePurchaseOrder,
 } from '@/hooks/useVendor'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
-import { formatDate, formatCurrency } from '@/lib/utils'
+import { cn, formatDate, formatCurrency } from '@/lib/utils'
 import { dedupeSuppliers, findExistingSupplier } from '@/lib/supplierUtils'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -159,21 +160,23 @@ export default function PurchaseOrdersPage() {
   useBarcodeScanner({ enabled: !showScanner && !showCreate, onScan: handleBarcodeScan })
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">Purchase Orders</h1>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" className="gap-2" onClick={() => navigate('/purchase-orders/templates')}>
-            <Palette className="w-4 h-4" /> Templates
+    <div className="space-y-3 p-3 md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          Draft, send, and receive supplier purchase orders
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="h-8 gap-1.5 px-3 text-sm" onClick={() => navigate('/purchase-orders/templates')}>
+            <Palette className="h-3.5 w-3.5" /> Templates
           </Button>
-          <Button variant="outline" className="gap-2" onClick={() => setShowScanner(true)} disabled={scanLoading}>
+          <Button variant="outline" className="h-8 gap-1.5 px-3 text-sm" onClick={() => setShowScanner(true)} disabled={scanLoading}>
             {scanLoading
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <ScanLine className="w-4 h-4" />}
-            Scan Barcode
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <ScanLine className="h-3.5 w-3.5" />}
+            Scan
           </Button>
-          <Button className="gap-2" onClick={() => { setBarcodePrefill(undefined); setShowCreate(true) }}>
-            <Plus className="w-4 h-4" /> New Purchase Order
+          <Button className="h-8 gap-1.5 px-3 text-sm" onClick={() => { setBarcodePrefill(undefined); setShowCreate(true) }}>
+            <Plus className="h-3.5 w-3.5" /> New Purchase Order
           </Button>
         </div>
       </div>
@@ -384,8 +387,6 @@ function CreatePOModal({
   pendingSupplier?: { id: string; name: string }
   onClose: () => void
 }) {
-  useEscapeToClose(onClose)
-
   const createMut = useCreatePurchaseOrder()
   const createSupplierMut = useCreateSupplier()
   const { data: suppliersData, refetch: refetchSuppliers } = useSuppliers({ is_active: true })
@@ -551,27 +552,27 @@ function CreatePOModal({
   }, [canSubmit, supplierId, items, expectedDate, notes, createMut, onClose, navigate])
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div>
-            <h2 className="text-lg font-semibold">New Purchase Order</h2>
-            {barcodePrefill && (
-              <p className="text-xs text-blue-600 mt-0.5 flex items-center gap-1">
-                <ScanLine className="w-3.5 h-3.5" />
-                Pre-filled from barcode scan: {barcodePrefill.variantName
-                  ? `${barcodePrefill.productName} — ${barcodePrefill.variantName}`
-                  : barcodePrefill.productName}
-              </p>
-            )}
-          </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-          <div className="grid grid-cols-2 gap-4">
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className={cn(modalWidthMd, 'max-h-[calc(100dvh-1.5rem)] !rounded-lg')}>
+        <ModalHeader
+          title="New Purchase Order"
+          subtitle={barcodePrefill ? (
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-blue-600">
+              <ScanLine className="h-3.5 w-3.5" />
+              Pre-filled from barcode: {barcodePrefill.variantName
+                ? `${barcodePrefill.productName} — ${barcodePrefill.variantName}`
+                : barcodePrefill.productName}
+            </p>
+          ) : undefined}
+          onClose={onClose}
+          className="border-0 px-4 py-3 [&>div>h2]:text-base"
+        />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalBody className="space-y-4 px-4 pb-3 pt-0">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label>Supplier *</Label>
+                <Label className="text-xs">Supplier *</Label>
                 <button
                   type="button"
                   onClick={() => setShowQuickSupplier(v => !v)}
@@ -643,16 +644,16 @@ function CreatePOModal({
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Expected Delivery</Label>
-              <Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
+              <Label className="text-xs">Expected Delivery</Label>
+              <Input type="date" className="h-8 text-sm" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <Label>Items *</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addItem} className="gap-1">
-                <Plus className="w-3.5 h-3.5" /> Add Item
+              <Label className="text-xs">Items *</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addItem} className="h-7 gap-1 px-2 text-xs">
+                <Plus className="h-3.5 w-3.5" /> Add Item
               </Button>
             </div>
 
@@ -780,25 +781,25 @@ function CreatePOModal({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Notes</Label>
+          <div className="space-y-1">
+            <Label className="text-xs">Notes</Label>
             <textarea
-              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none"
+              className="flex min-h-[3.5rem] w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Internal notes..."
             />
           </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="cancel" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={createMut.isPending || !canSubmit}>
-              {createMut.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+          </ModalBody>
+          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-3">
+            <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={onClose}>Cancel</Button>
+            <Button type="submit" className="h-8 rounded-md px-3 text-sm" disabled={createMut.isPending || !canSubmit}>
+              {createMut.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               Create Draft PO
             </Button>
-          </div>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }

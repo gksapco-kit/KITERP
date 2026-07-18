@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { useDocumentSeo, adminPageTitle } from '@/lib/documentSeo'
 import {
   LayoutDashboard,
   Package,
@@ -19,6 +20,7 @@ import {
   BarChart3,
   UsersRound,
   ShieldCheck,
+  Briefcase,
   X,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
@@ -47,6 +49,7 @@ const adminNavItemsSuperuser = [
   { to: '/dashboard/user-roles', icon: ShieldCheck, label: 'User Roles' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: '/dashboard/crm', icon: UsersRound, label: 'CRM' },
+  { to: '/dashboard/careers', icon: Briefcase, label: 'Careers' },
   { to: '/dashboard/disputes', icon: AlertTriangle, label: 'Disputes' },
   { to: '/dashboard/table-data', icon: Table2, label: 'Table Data' },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
@@ -58,6 +61,7 @@ const adminNavItemsSupport = [
   { to: '/dashboard/website-analytics', icon: BarChart3, label: 'Website Analytics' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: '/dashboard/crm', icon: UsersRound, label: 'CRM' },
+  { to: '/dashboard/careers', icon: Briefcase, label: 'Careers' },
 ]
 
 function ProfileAvatar({
@@ -90,10 +94,30 @@ function ProfileAvatar({
   )
 }
 
+const adminPageTitles: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/dashboard/vendors': 'Business Accounts',
+  '/dashboard/plans': 'Plans',
+  '/dashboard/templates': 'All Templates',
+  '/dashboard/website-analytics': 'Website Analytics',
+  '/dashboard/platform-team': 'Support Team',
+  '/dashboard/user-roles': 'User Roles',
+  '/dashboard/account-activity': 'Account Activity',
+  '/dashboard/crm': 'CRM',
+  '/dashboard/careers': 'Careers',
+  '/dashboard/disputes': 'Disputes',
+  '/dashboard/table-data': 'Table Data',
+  '/dashboard/settings': 'Settings',
+  '/dashboard/products': 'Products',
+  '/dashboard/services': 'Services',
+  '/dashboard/inventory': 'Inventory',
+}
+
 export default function DashboardLayout() {
   const logout = useLogout()
   const { user } = useAuthStore()
   const { vendor } = useVendorStore()
+  const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isAdmin = isPlatformStaff(user)
@@ -104,6 +128,18 @@ export default function DashboardLayout() {
     : vendorNavItems
   const displayName = isAdmin ? 'KIT ERP' : vendor?.display_name || 'KIT ERP'
   const roleLabel = getDashboardUserRoleLabel(user)
+
+  const pageLabel =
+    adminPageTitles[location.pathname]
+    || (location.pathname.startsWith('/dashboard/vendors/') ? 'Business Account'
+      : location.pathname.startsWith('/dashboard/platform-team/') ? 'Team Member'
+      : 'Dashboard')
+
+  useDocumentSeo({
+    title: adminPageTitle(pageLabel),
+    description: 'KIT ERP admin console for platform operations and business management.',
+    noindex: true,
+  })
 
   const closeSidebar = () => setSidebarOpen(false)
 
@@ -179,13 +215,18 @@ export default function DashboardLayout() {
           </nav>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 px-3 py-4 sm:px-4">
+          <div className="px-3 py-3 sm:px-4">
             <Button
-              variant="ghost"
-              className="w-full justify-start gap-3 text-gray-600"
+              type="button"
+              variant="outline"
+              className={cn(
+                'h-11 w-full justify-start gap-3 rounded-lg border-border bg-background font-medium text-foreground shadow-none',
+                'hover:border-red-300 hover:bg-red-50 hover:text-red-700',
+                'focus-visible:ring-red-200',
+              )}
               onClick={logout}
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-5 w-5 shrink-0 text-red-600" />
               Logout
             </Button>
           </div>

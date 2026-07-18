@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useSearchParams, Link } from 'react-router-dom'
 import {
   ShieldCheck, Plus, Pencil, Trash2, X, Check, ChevronDown, ChevronRight,
-  Lock, Shield, ArrowLeft,
+  Lock, Shield,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import {
   useRoles, useAllPermissions, useDefaultRoles, useCreateRole, useUpdateRole, useDeleteRole,
 } from '@/hooks/useVendor'
@@ -14,6 +14,7 @@ import type { VendorRole } from '@/types'
 import { cn } from '@/lib/utils'
 import { PERMISSION_MODULE_ICONS, PERMISSION_MODULE_LABELS } from '@/lib/permissionModules'
 
+import { askConfirm } from '@/components/common/ConfirmProvider'
 const BUILTIN_ROLE_STYLES: Record<string, { container: string; header: string }> = {
   owner: {
     container: 'border-primary/30 bg-accent dark:bg-primary/10',
@@ -68,8 +69,6 @@ export default function RolesPage() {
   const [editRole, setEditRole] = useState<VendorRole | null>(null)
   const [expandedRole, setExpandedRole] = useState<string | null>(null)
   const [expandedBuiltIn, setExpandedBuiltIn] = useState<string | null>(null)
-
-  useEscapeToClose(() => setShowForm(false), showForm)
 
   // Auto-expand built-in roles — runs whenever the URL params change (handles
   // navigating from team page to the same /roles route without remounting).
@@ -143,39 +142,28 @@ export default function RolesPage() {
     }
   }
 
-  const handleDelete = (roleId: string) => {
-    if (confirm('Delete this role? Team members using it will lose their custom permissions.')) {
+  const handleDelete = async (roleId: string) => {
+    if (await askConfirm('Delete this role? Team members using it will lose their custom permissions.')) {
       deleteMutation.mutate(roleId)
     }
   }
 
   return (
-    <div className="space-y-6">
-      {/* Back button when arriving from Staff Access Control */}
-      {fromTeam && (
-        <Link
-          to="/team"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Staff Access Control
-        </Link>
-      )}
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <ShieldCheck className="w-7 h-7 text-primary" />
-            Roles & Permissions
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Define Custom Roles To Control Team Member Access
-          </p>
-        </div>
+    <div className="mx-auto max-w-6xl space-y-3 p-3 md:p-4">
+      {/* Page header — title already shown in the top bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground">
+          {fromTeam && (
+            <>
+              <Link to="/team" className="text-primary hover:underline">Staff Access Control</Link>
+              {' · '}
+            </>
+          )}
+          Define custom roles to control team member access
+        </p>
         {canManageRoles && (
-          <Button onClick={openCreateForm} className="gap-2">
-            <Plus className="w-4 h-4" />
+          <Button type="button" size="sm" className="h-8 gap-1.5" onClick={openCreateForm}>
+            <Plus className="h-3.5 w-3.5" />
             Create Role
           </Button>
         )}
@@ -356,31 +344,28 @@ export default function RolesPage() {
 
       {/* Create/Edit Role Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowForm(false)}>
-          <div className="bg-card rounded-xl shadow-xl border border-border w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editRole ? 'Edit Role' : 'Create New Role'}
-              </h2>
-              <button type="button" aria-label="Close" onClick={() => setShowForm(false)} className="p-1 rounded hover:bg-muted text-muted-foreground">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-5 overflow-y-auto flex-1">
+        <ModalOverlay onClose={() => setShowForm(false)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-h-[calc(100dvh-1.5rem)] max-w-2xl !rounded-lg overflow-hidden">
+            <ModalHeader
+              title={editRole ? 'Edit Role' : 'Create New Role'}
+              onClose={() => setShowForm(false)}
+              className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+            />
+            <ModalBody className="space-y-3 overflow-y-auto px-4 pb-1 pt-0">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Role Name</label>
+                <label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Role Name</label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="e.g. Warehouse Manager"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Description (optional)</label>
+                <label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Description (optional)</label>
                 <textarea
-                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
                   placeholder="What can this role do?"
@@ -390,8 +375,8 @@ export default function RolesPage() {
 
               {/* Permissions */}
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="text-sm font-medium text-foreground">Permissions</label>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-xs font-medium text-foreground">Permissions</label>
                   <div className="flex gap-2">
                     <button
                       className="text-xs text-primary hover:underline"
@@ -449,14 +434,17 @@ export default function RolesPage() {
                   })}
                 </div>
 
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="mt-2 text-xs text-muted-foreground">
                   {formPerms.length} of {allPermsList.length} permissions selected
                 </p>
               </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/30 rounded-b-xl shrink-0">
-              <Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+            </ModalBody>
+            <ModalFooter className="border-0 px-4 py-2.5">
+              <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setShowForm(false)}>Cancel</Button>
               <Button
+                type="button"
+                size="sm"
+                className="h-8"
                 onClick={handleSave}
                 disabled={!formName || createMutation.isPending || updateMutation.isPending}
               >
@@ -464,9 +452,9 @@ export default function RolesPage() {
                   ? 'Saving...'
                   : editRole ? 'Update Role' : 'Create Role'}
               </Button>
-            </div>
-          </div>
-        </div>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )
