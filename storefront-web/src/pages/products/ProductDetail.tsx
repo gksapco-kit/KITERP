@@ -375,6 +375,8 @@ export default function ProductDetail() {
     subscriptionSetupFee: selectedVariant?.subscription_setup_fee ?? product.subscription_setup_fee,
     subscriptionBillingCycles: selectedVariant?.subscription_billing_cycles ?? product.subscription_billing_cycles,
     subscriptionScheduleModes: selectedVariant?.subscription_schedule_modes,
+    isTaxable: selectedVariant?.is_taxable ?? product.is_taxable,
+    taxRate: selectedVariant?.gst_rate ?? selectedVariant?.tax_rate ?? product.gst_rate ?? product.tax_rate,
     canQuote: !!product.allow_quote_request && sf.quote_request !== false,
     quoteFormConfig: product.quote_form_config,
     showQuote, setShowQuote,

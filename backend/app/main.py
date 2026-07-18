@@ -20,6 +20,8 @@ from app.database import (
     ensure_vendor_order_acceptance_columns,
     ensure_vendor_external_domain_columns,
     ensure_product_uom_column,
+    ensure_service_booking_label_column,
+    ensure_service_storefront_label_columns,
     ensure_variant_pricing_columns,
     ensure_goods_movement_codes,
     ensure_merchandising_tables,
@@ -46,6 +48,7 @@ from app.database import (
     ensure_production_routing_tables,
     ensure_user_contact_change_request_table,
     ensure_storefront_contact_query_table,
+    ensure_platform_job_role_table,
 )
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import CrmAuditMiddleware
@@ -74,6 +77,8 @@ async def lifespan(app: FastAPI):
     await ensure_vendor_order_acceptance_columns()
     await ensure_vendor_external_domain_columns()
     await ensure_product_uom_column()
+    await ensure_service_booking_label_column()
+    await ensure_service_storefront_label_columns()
     await ensure_variant_pricing_columns()
     await ensure_goods_movement_codes()
     await ensure_merchandising_tables()
@@ -100,6 +105,7 @@ async def lifespan(app: FastAPI):
     await ensure_production_routing_tables()
     await ensure_user_contact_change_request_table()
     await ensure_storefront_contact_query_table()
+    await ensure_platform_job_role_table()
     await connect_redis()
     from app.services.email_service import email_is_configured, sendgrid_api_key
 

@@ -929,7 +929,9 @@ export function useCreateSubscription() {
     mutationFn: storeApi.createSubscription,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: storeKeys.subscriptions })
-      toast.success('Subscription started')
+      toast.success('Subscription started', {
+        description: 'You can manage it anytime from Account → Subscriptions.',
+      })
     },
     onError: apiError('Could not start subscription'),
   })

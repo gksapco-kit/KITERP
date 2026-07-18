@@ -32,12 +32,17 @@ import Inventory from '@/pages/dashboard/Inventory'
 import Settings from '@/pages/dashboard/Settings'
 import PlatformTeam from '@/pages/dashboard/PlatformTeam'
 import PlatformTeamMemberDetail from '@/pages/dashboard/PlatformTeamMemberDetail'
+import UserRoles from '@/pages/dashboard/UserRoles'
 import AccountActivity from '@/pages/dashboard/AccountActivity'
 import OrderDisputes from '@/pages/dashboard/OrderDisputes'
-import ContactQueries from '@/pages/dashboard/ContactQueries'
 import TableData from '@/pages/dashboard/TableData'
 import AllTemplates from '@/pages/dashboard/AllTemplates'
 import WebsiteAnalytics from '@/pages/dashboard/WebsiteAnalytics'
+import PlatformCrmDashboard from '@/pages/crm/index'
+import PlatformCrmLeads from '@/pages/crm/Leads'
+import PlatformCrmContacts from '@/pages/crm/Contacts'
+import PlatformCrmPipeline from '@/pages/crm/Pipeline'
+import PlatformCrmActivities from '@/pages/crm/Activities'
 
 // Business Front Pages
 import StorefrontHome from '@/pages/storefront/Home'
@@ -109,9 +114,14 @@ export const router = createBrowserRouter([
       { path: 'website-analytics', element: <WebsiteAnalytics /> },
       { path: 'platform-team', element: <PlatformTeam /> },
       { path: 'platform-team/:userId', element: <PlatformTeamMemberDetail /> },
+      { path: 'user-roles', element: <UserRoles /> },
       { path: 'account-activity', element: <AccountActivity /> },
       { path: 'disputes', element: <OrderDisputes /> },
-      { path: 'queries', element: <ContactQueries /> },
+      { path: 'crm', element: <PlatformCrmDashboard /> },
+      { path: 'crm/leads', element: <PlatformCrmLeads /> },
+      { path: 'crm/contacts', element: <PlatformCrmContacts /> },
+      { path: 'crm/pipeline', element: <PlatformCrmPipeline /> },
+      { path: 'crm/activities', element: <PlatformCrmActivities /> },
       { path: 'table-data', element: <TableData /> },
       { path: 'products', element: <Products /> },
       { path: 'services', element: <Services /> },

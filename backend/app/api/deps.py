@@ -160,7 +160,7 @@ async def resolve_dashboard_vendor(
     if preferred_vendor_id is not None and has_platform_staff_access(current_user):
         vendor = await service.get_by_id(preferred_vendor_id)
         if vendor:
-            await ensure_vendor_visible_to_platform_staff(current_user, vendor)
+            await ensure_vendor_visible_to_platform_staff(current_user, vendor, db)
             return vendor
 
     raise HTTPException(

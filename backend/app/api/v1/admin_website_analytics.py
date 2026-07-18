@@ -26,7 +26,7 @@ from app.services.website_analytics import (
 )
 from app.utils.platform_vendor_access import (
     ensure_vendor_visible_to_platform_staff,
-    relationship_manager_list_scope,
+    relationship_manager_list_scope_async,
 )
 
 router = APIRouter()
@@ -41,7 +41,7 @@ async def _load_visible_vendor(
     ).scalar_one_or_none()
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-    await ensure_vendor_visible_to_platform_staff(current_user, vendor)
+    await ensure_vendor_visible_to_platform_staff(current_user, vendor, db)
     return vendor
 
 
@@ -117,7 +117,7 @@ async def admin_website_analytics(
         await _load_visible_vendor(db, current_user, vendor_id)
         vendor_ids: List[UUID] = [vendor_id]
     else:
-        rm_scope = relationship_manager_list_scope(current_user)
+        rm_scope = await relationship_manager_list_scope_async(db, current_user)
         q = select(Vendor.id)
         if rm_scope is not None:
             q = q.where(Vendor.relationship_manager_user_id == rm_scope)

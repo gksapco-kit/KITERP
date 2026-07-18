@@ -207,6 +207,45 @@ export interface PlatformStaffAuditListResponse {
   pages: number
 }
 
+export interface PlatformJobRolePermission {
+  key: string
+  label: string
+}
+
+export interface PlatformJobRole {
+  id?: string | null
+  slug: string
+  name: string
+  description?: string | null
+  permissions: string[]
+  is_builtin: boolean
+  is_active: boolean
+  assigned_count?: number
+}
+
+export interface PlatformJobRoleListResponse {
+  roles: PlatformJobRole[]
+  builtin_slugs: string[]
+}
+
+export interface PlatformJobRolePermissionsResponse {
+  permissions: Record<string, PlatformJobRolePermission[]>
+  all: string[]
+}
+
+export interface PlatformJobRoleCreatePayload {
+  name: string
+  description?: string | null
+  permissions: string[]
+}
+
+export interface PlatformJobRoleUpdatePayload {
+  name?: string
+  description?: string | null
+  permissions?: string[]
+  is_active?: boolean
+}
+
 export interface VendorDashboardHandoffResponse {
   handoff_token: string
   vendor_id: string
@@ -311,6 +350,35 @@ export const adminApi = {
     return response.data
   },
 
+  listPlatformJobRoles: async (params?: {
+    include_inactive?: boolean
+  }): Promise<PlatformJobRoleListResponse> => {
+    const response = await apiClient.get('/admin/platform-job-roles', { params })
+    return response.data
+  },
+
+  listPlatformJobRolePermissions: async (): Promise<PlatformJobRolePermissionsResponse> => {
+    const response = await apiClient.get('/admin/platform-job-roles/permissions')
+    return response.data
+  },
+
+  createPlatformJobRole: async (data: PlatformJobRoleCreatePayload): Promise<PlatformJobRole> => {
+    const response = await apiClient.post('/admin/platform-job-roles', data)
+    return response.data
+  },
+
+  updatePlatformJobRole: async (
+    roleId: string,
+    data: PlatformJobRoleUpdatePayload,
+  ): Promise<PlatformJobRole> => {
+    const response = await apiClient.patch(`/admin/platform-job-roles/${roleId}`, data)
+    return response.data
+  },
+
+  deletePlatformJobRole: async (roleId: string): Promise<void> => {
+    await apiClient.delete(`/admin/platform-job-roles/${roleId}`)
+  },
+
   createPlatformStaff: async (data: PlatformStaffCreatePayload): Promise<PlatformStaffMember> => {
     const response = await apiClient.post('/admin/platform-staff', data)
     return response.data
@@ -376,6 +444,8 @@ export const adminApi = {
   listContactQueries: async (params?: {
     status?: string
     vendor_id?: string
+    /** Only KIT ERP Platform Contact Us (no vendor store). */
+    platform_only?: boolean
     page?: number
     size?: number
   }): Promise<ContactQueryListResponse> => {
@@ -513,7 +583,7 @@ export interface AdminWebsiteTemplatePreview {
 
 export interface ContactQueryItem {
   id: string
-  vendor_id: string
+  vendor_id: string | null
   vendor_display_name?: string | null
   name: string
   email?: string | null

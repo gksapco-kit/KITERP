@@ -18,8 +18,9 @@ import { cn } from '@/lib/utils'
 import { resolveServicePrice, resolveServiceDuration } from '@/lib/servicePricing'
 
 const SERVICE_MODE_ICON: Record<string, string> = {
-  home_visit: 'Home Visit', on_site: 'On-Site', remote: 'Remote', online: 'Online',
-  in_store: 'In-Store', clinic: 'Clinic', hybrid: 'Hybrid',
+  home_visit: 'Home Visit', on_site: 'On-Site', field: 'Field', remote: 'Remote', online: 'Online',
+  in_store: 'In Store', shop: 'Shop', clinic: 'Clinic', hybrid: 'Hybrid',
+  salon: 'Salon', spa: 'Spa', lab: 'Lab', gym: 'Gym',
 }
 
 function CategoryTreeItem({ cat, level, selected, onSelect }: {
@@ -212,6 +213,7 @@ export default function ServiceList() {
                 features: s.features || [],
                 allowQuoteRequest: !!s.allow_quote_request,
                 requiresBooking: s.requires_booking,
+                bookingLabel: s.booking_label,
               }))}
               linkTo={(svc) => storePath(`/services/${svc.slug}`)}
               onBook={(svc) => navigate(storePath(`/services/${svc.slug}/book`))}

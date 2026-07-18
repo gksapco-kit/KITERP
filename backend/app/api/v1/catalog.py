@@ -547,7 +547,7 @@ async def submit_platform_contact_query(
     body: StorefrontContactQueryCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    """Landing-page Contact form → admin Queries inbox (no vendor)."""
+    """Landing-page Contact form → admin Queries inbox + platform CRM lead."""
     fwd = request.headers.get("x-forwarded-for") or ""
     ip = (fwd.split(",")[0].strip() if fwd else None) or (request.client.host if request.client else None)
     ua = (request.headers.get("user-agent") or "")[:1000] or None
@@ -563,6 +563,46 @@ async def submit_platform_contact_query(
         user_agent=ua,
     )
     db.add(row)
+    await db.flush()
+
+    # Best-effort: also create a lead in platform CRM for the sales pipeline.
+    try:
+        from app.schemas.crm.schemas import LeadCreate
+        from app.services.crm.services import LeadService
+        from app.services.platform_crm_tenant import get_platform_crm_vendor_id
+
+        parts = (body.name or "").strip().split(None, 1)
+        first = parts[0] if parts else "Contact"
+        last = parts[1] if len(parts) > 1 else None
+        vid = await get_platform_crm_vendor_id(db)
+        await LeadService(db).create(
+            vid,
+            LeadCreate(
+                first_name=first,
+                last_name=last,
+                email=str(body.email) if body.email else None,
+                phone=body.phone,
+                source="platform_contact",
+                status="new",
+                notes=body.message,
+                custom_fields={"contact_query_id": str(row.id)},
+                intake_payload={
+                    "contact_query_id": str(row.id),
+                    "name": body.name,
+                    "email": str(body.email) if body.email else None,
+                    "phone": body.phone,
+                    "message": body.message,
+                },
+            ),
+            request=request,
+        )
+    except Exception:
+        # Inbox row is already persisted; CRM lead is secondary.
+        import logging
+        logging.getLogger(__name__).exception(
+            "Failed to create platform CRM lead from contact query %s", row.id,
+        )
+
     await db.commit()
     await db.refresh(row)
     return {

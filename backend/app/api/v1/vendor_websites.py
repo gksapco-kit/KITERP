@@ -4132,7 +4132,10 @@ async def _fetch_live_resource_items(
                     "price_max": float(s.price_max) if s.price_max is not None else None,
                     "currency": s.currency,
                     "requires_booking": bool(s.requires_booking),
+                    "booking_label": (s.booking_label or "Booking").strip() or "Booking",
                     "allow_quote_request": bool(s.allow_quote_request),
+                    "subscription_label": (getattr(s, "subscription_label", None) or "Subscription").strip() or "Subscription",
+                    "quote_request_label": (getattr(s, "quote_request_label", None) or "Quote Requests").strip() or "Quote Requests",
                 },
             ))
 

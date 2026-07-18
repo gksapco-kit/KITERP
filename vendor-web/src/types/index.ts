@@ -477,6 +477,9 @@ export interface Service {
   subscription_schedule_modes: string[]
   // Booking & Quotes
   requires_booking: boolean
+  booking_label?: string
+  subscription_label?: string
+  quote_request_label?: string
   allow_quote_request: boolean
   quote_form_config: QuoteFormField[]
   max_bookings_per_slot: number

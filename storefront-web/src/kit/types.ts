@@ -77,6 +77,7 @@ export interface Service {
   features?: string[];
   allowQuoteRequest?: boolean;
   requiresBooking?: boolean;
+  bookingLabel?: string;
   staff?: { id: ID; name: string; avatarUrl?: string }[];
 }
 

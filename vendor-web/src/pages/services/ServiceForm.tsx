@@ -99,8 +99,11 @@ const optStr = z.string().optional().or(z.literal(''))
 const optNum = z.coerce.number().optional().or(z.literal('').transform(() => undefined))
 const optInt = z.coerce.number().int().optional().or(z.literal('').transform(() => undefined))
 
+const SERVICE_NAME_MAX = 255
+const SERVICE_NAME_MAX_MSG = 'Service name cannot exceed 255 characters'
+
 const schema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(255, 'Service name cannot exceed 255 characters'),
+  name: z.string().min(2, 'Name must be at least 2 characters').max(SERVICE_NAME_MAX, SERVICE_NAME_MAX_MSG),
   slug: z.string().max(255).regex(/^[a-z0-9-]*$/, 'Slug: lowercase, numbers, hyphens only').optional().or(z.literal('')),
   material_code: z.string().max(40).optional().or(z.literal('')),
   description: optStr,
@@ -143,6 +146,9 @@ const schema = z.object({
   subscription_billing_cycles: optInt,
   // Booking & Quotes
   requires_booking: z.boolean().default(true),
+  booking_label: z.string().max(100).default('Booking'),
+  subscription_label: z.string().max(100).default('Subscription'),
+  quote_request_label: z.string().max(100).default('Quote Requests'),
   allow_quote_request: z.boolean().default(false),
   quote_form_config: z.any().optional(),
   max_bookings_per_slot: z.coerce.number().int().min(1).default(1),
@@ -743,6 +749,13 @@ export default function ServiceForm() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [pendingPreviews, setPendingPreviews] = useState<string[]>([])
   const [pendingPrimaryIndex, setPendingPrimaryIndex] = useState(0)
+  const nameMaxToastAt = useRef(0)
+  const notifyServiceNameMax = useCallback(() => {
+    const now = Date.now()
+    if (now - nameMaxToastAt.current < 1200) return
+    nameMaxToastAt.current = now
+    toast.error(SERVICE_NAME_MAX_MSG)
+  }, [])
 
   const formMethods = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -750,7 +763,7 @@ export default function ServiceForm() {
       status: 'active', price_type: 'fixed', currency: 'INR', uom: 'per_session',
       material_code: '',
       service_mode: 'in_store', service_type: 'one_time', is_taxable: true,
-      requires_booking: true, is_visible: true, buffer_minutes: 0,
+      requires_booking: true, booking_label: 'Booking', subscription_label: 'Subscription', quote_request_label: 'Quote Requests', is_visible: true, buffer_minutes: 0,
       service_capacity: 1, max_bookings_per_slot: 1, advance_booking_days: 30,
       is_on_sale: false, is_subscription: false, allow_quote_request: false,
       quote_form_config: [],
@@ -841,6 +854,9 @@ export default function ServiceForm() {
       duration_minutes: service.duration_minutes ?? undefined,
       buffer_minutes: service.buffer_minutes ?? 0, service_capacity: service.service_capacity ?? 1,
       requires_booking: service.requires_booking,
+      booking_label: service.booking_label || 'Booking',
+      subscription_label: service.subscription_label || 'Subscription',
+      quote_request_label: service.quote_request_label || 'Quote Requests',
       allow_quote_request: service.allow_quote_request ?? false,
       quote_form_config: service.quote_form_config || [],
       max_bookings_per_slot: service.max_bookings_per_slot ?? 1,
@@ -1000,6 +1016,9 @@ export default function ServiceForm() {
     setIsSaving(true)
     try {
       const data: Record<string, unknown> = { ...raw }
+      data.booking_label = (typeof raw.booking_label === 'string' ? raw.booking_label.trim() : '') || 'Booking'
+      data.subscription_label = (typeof raw.subscription_label === 'string' ? raw.subscription_label.trim() : '') || 'Subscription'
+      data.quote_request_label = (typeof raw.quote_request_label === 'string' ? raw.quote_request_label.trim() : '') || 'Quote Requests'
       // Convert lead time value + unit to hours
       if (raw.booking_lead_time_hours != null) {
         data.booking_lead_time_hours = leadTimeToHours(String(raw.booking_lead_time_hours), leadTimeUnit)
@@ -1464,7 +1483,7 @@ export default function ServiceForm() {
               <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-2">
                   <CalendarClock className="w-4 h-4 text-blue-600" />
-                  <p className="text-sm text-gray-700 font-medium">Booking</p>
+                  <p className="text-sm text-gray-700 font-medium">{service.booking_label || 'Booking'}</p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.requires_booking ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                   {service.requires_booking ? 'Enabled' : 'Disabled'}
@@ -1473,7 +1492,7 @@ export default function ServiceForm() {
               <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-2">
                   <Repeat className="w-4 h-4 text-primary" />
-                  <p className="text-sm text-gray-700 font-medium">Subscription</p>
+                  <p className="text-sm text-gray-700 font-medium">{service.subscription_label || 'Subscription'}</p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(service as any).is_subscription ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-500'}`}>
                   {(service as any).is_subscription ? 'Enabled' : 'Disabled'}
@@ -1482,7 +1501,7 @@ export default function ServiceForm() {
               <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="w-4 h-4 text-amber-600" />
-                  <p className="text-sm text-gray-700 font-medium">Quote Requests</p>
+                  <p className="text-sm text-gray-700 font-medium">{service.quote_request_label || 'Quote Requests'}</p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.allow_quote_request ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                   {service.allow_quote_request ? 'Enabled' : 'Disabled'}
@@ -1990,7 +2009,33 @@ export default function ServiceForm() {
           <div className={formEditLayout.sectionBody}>
             <div className={formEditLayout.fieldGridWide}>
               <FormField label="Service Name" name="name" required>
-                <Input {...register('name')} placeholder="e.g. AC Repair & Service" />
+                <Input
+                  {...register('name')}
+                  placeholder="e.g. AC Repair & Service"
+                  maxLength={SERVICE_NAME_MAX}
+                  onKeyDown={(e) => {
+                    const el = e.currentTarget
+                    const selLen = (el.selectionEnd ?? 0) - (el.selectionStart ?? 0)
+                    const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
+                    if (isPrintable && el.value.length >= SERVICE_NAME_MAX && selLen === 0) {
+                      e.preventDefault()
+                      notifyServiceNameMax()
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const el = e.currentTarget
+                    const paste = e.clipboardData.getData('text')
+                    const start = el.selectionStart ?? el.value.length
+                    const end = el.selectionEnd ?? el.value.length
+                    const next = el.value.slice(0, start) + paste + el.value.slice(end)
+                    if (next.length > SERVICE_NAME_MAX) {
+                      e.preventDefault()
+                      const truncated = next.slice(0, SERVICE_NAME_MAX)
+                      setValue('name', truncated, { shouldDirty: true, shouldValidate: true })
+                      notifyServiceNameMax()
+                    }
+                  }}
+                />
               </FormField>
               <FormField label="Service Code">
                 <div className="space-y-1">
@@ -2115,36 +2160,48 @@ export default function ServiceForm() {
           <div className="pt-2">
             <p className="mb-2 text-xs text-gray-500">Control how customers interact with this service on the business front.</p>
             <div className="divide-y rounded-lg border">
-              <div className="flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <CalendarClock className="w-4 h-4 text-blue-600" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">Booking</p>
-                    <p className="text-xs text-gray-400">Customers can book appointments or schedule sessions</p>
+              <div className="flex items-center justify-between px-3 py-2 gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <CalendarClock className="w-4 h-4 text-blue-600 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      {...register('booking_label')}
+                      placeholder="Booking"
+                      className="h-7 text-sm font-medium text-gray-800 border-transparent bg-transparent px-1 -mx-1 hover:border-input focus:border-input focus:bg-background shadow-none"
+                    />
+                    <p className="text-xs text-gray-400">Customers can book appointments or schedule sessions. This name appears on the business front.</p>
                   </div>
                 </div>
                 <Controller name="requires_booking" control={control} render={({ field }) => (
                   <Toggle checked={field.value} onChange={field.onChange} small />
                 )} />
               </div>
-              <div className="flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <Repeat className="w-4 h-4 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">Subscription</p>
-                    <p className="text-xs text-gray-400">Offer recurring plans with billing intervals</p>
+              <div className="flex items-center justify-between px-3 py-2 gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <Repeat className="w-4 h-4 text-primary shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      {...register('subscription_label')}
+                      placeholder="Subscription"
+                      className="h-7 text-sm font-medium text-gray-800 border-transparent bg-transparent px-1 -mx-1 hover:border-input focus:border-input focus:bg-background shadow-none"
+                    />
+                    <p className="text-xs text-gray-400">Offer recurring plans with billing intervals. This name appears on the business front.</p>
                   </div>
                 </div>
                 <Controller name="is_subscription" control={control} render={({ field }) => (
                   <Toggle checked={field.value} onChange={field.onChange} small />
                 )} />
               </div>
-              <div className="flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <MessageSquare className="w-4 h-4 text-amber-600" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">Quote Requests</p>
-                    <p className="text-xs text-gray-400">Allow customers to request pricing quotes</p>
+              <div className="flex items-center justify-between px-3 py-2 gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <MessageSquare className="w-4 h-4 text-amber-600 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      {...register('quote_request_label')}
+                      placeholder="Quote Requests"
+                      className="h-7 text-sm font-medium text-gray-800 border-transparent bg-transparent px-1 -mx-1 hover:border-input focus:border-input focus:bg-background shadow-none"
+                    />
+                    <p className="text-xs text-gray-400">Allow customers to request pricing quotes. This name appears on the business front.</p>
                   </div>
                 </div>
                 <Controller name="allow_quote_request" control={control} render={({ field }) => (

@@ -191,11 +191,15 @@ class PipelineRepo(_VendorScopedRepo):
         return list(rows.scalars().all())
 
     async def get_default(self, vendor_id: UUID):
+        # Prefer a single default; tolerate historical duplicates (race on ensure_default).
         row = await self.db.execute(
             select(CrmPipeline).where(
                 CrmPipeline.vendor_id == vendor_id,
                 CrmPipeline.is_default.is_(True),
-            ).options(selectinload(CrmPipeline.stages))
+            )
+            .options(selectinload(CrmPipeline.stages))
+            .order_by(CrmPipeline.created_at.asc())
+            .limit(1)
         )
         return row.scalar_one_or_none()
 

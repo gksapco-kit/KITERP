@@ -167,6 +167,7 @@ def _service_to_dict(s) -> dict:
         "service_capacity": s.service_capacity or 1,
         # Subscription
         "is_subscription": s.is_subscription or False,
+        "subscription_label": (getattr(s, "subscription_label", None) or "Subscription").strip() or "Subscription",
         "subscription_interval": s.subscription_interval,
         "subscription_price": _num(s.subscription_price),
         "subscription_price_type": s.subscription_price_type or "per_cycle",
@@ -176,6 +177,7 @@ def _service_to_dict(s) -> dict:
         "subscription_schedule_modes": s.subscription_schedule_modes or [],
         # Booking
         "requires_booking": s.requires_booking if s.requires_booking is not None else True,
+        "booking_label": (s.booking_label or "Booking").strip() or "Booking",
         "max_bookings_per_slot": s.max_bookings_per_slot or 1,
         "advance_booking_days": s.advance_booking_days or 30,
         "booking_lead_time_hours": s.booking_lead_time_hours,
@@ -195,6 +197,7 @@ def _service_to_dict(s) -> dict:
         "is_new_service": s.is_new_service or False,
         "is_on_sale": s.is_on_sale or False,
         "allow_quote_request": s.allow_quote_request or False,
+        "quote_request_label": (getattr(s, "quote_request_label", None) or "Quote Requests").strip() or "Quote Requests",
         "quote_form_config": s.quote_form_config or [],
         "store_scope": s.store_scope or "all",
         "store_ids": [str(a.store_id) for a in (getattr(s, "store_assignments", None) or [])],

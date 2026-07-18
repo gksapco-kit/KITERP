@@ -3,7 +3,7 @@ import { Clock, CalendarDays, Check, Wrench } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useVendor } from "@/contexts/VendorContext";
-import { shouldShowServiceBookCta } from "@/lib/serviceStorefrontCta";
+import { shouldShowServiceBookCta, serviceBookingListCtaLabel } from "@/lib/serviceStorefrontCta";
 import { readCatalogCardLayout } from "@/lib/catalogCardLayout";
 import {
   resolveCatalogAddButtonPresentation,
@@ -122,7 +122,7 @@ export function ServiceCard({
               type="button"
               className={cn(addBtn.className, !addBtn.iconOnly && "w-full", "hover:opacity-90")}
               style={addBtn.style}
-              aria-label={addBtn.iconOnly ? "Book" : undefined}
+              aria-label={addBtn.iconOnly ? serviceBookingListCtaLabel(service.bookingLabel) : undefined}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -130,7 +130,7 @@ export function ServiceCard({
               }}
             >
               <CalendarDays className={addBtn.iconClassName} />
-              {addBtn.showLabel ? "Book" : null}
+              {addBtn.showLabel ? serviceBookingListCtaLabel(service.bookingLabel) : null}
             </button>
           </div>
         )}

@@ -2,41 +2,42 @@ import { useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { PhoneInput } from '@/components/ui/PhoneInput'
-import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { isSuperuserAdmin } from '@/lib/platformAccess'
 import {
   usePlatformStaffList,
-  useCreatePlatformStaff,
   useUpdatePlatformStaff,
 } from '@/hooks/usePlatformStaff'
+import { AddSupportUserModal } from '@/components/platform-team/AddSupportUserModal'
 import { ResetPasswordModal } from '@/components/platform-team/ResetPasswordModal'
-import { PLATFORM_JOB_ROLES, formatPlatformJobRole, platformTeamSelectClassName } from '@/lib/platformTeam'
+import { formatPlatformJobRole, isTeamManagerRole } from '@/lib/platformTeam'
+import { usePlatformJobRoles } from '@/hooks/usePlatformJobRoles'
 import type { PlatformStaffMember } from '@/api/admin.api'
-import { Headphones, KeyRound, Loader2, Pencil, UserMinus, UserX } from 'lucide-react'
+import { Headphones, KeyRound, Loader2, Pencil, Plus, UserMinus, UserX } from 'lucide-react'
 
 export default function PlatformTeam() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { data: members, isLoading, isError } = usePlatformStaffList()
-  const createStaff = useCreatePlatformStaff()
+  const { data: rolesData } = usePlatformJobRoles()
   const updateStaff = useUpdatePlatformStaff()
 
-  const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [password, setPassword] = useState('')
-  const [jobRole, setJobRole] = useState<string>('consulting')
-  const [managerIdForCreate, setManagerIdForCreate] = useState<string>('')
-
+  const [addOpen, setAddOpen] = useState(false)
   const [resetForMember, setResetForMember] = useState<PlatformStaffMember | null>(null)
 
+  const roleOptions = useMemo(
+    () =>
+      (rolesData?.roles ?? []).map((r) => ({
+        value: r.slug,
+        label: r.name,
+        permissions: r.permissions,
+      })),
+    [rolesData?.roles],
+  )
+
   const teamManagers = useMemo(
-    () => (members ?? []).filter((m) => m.job_role === 'team_manager'),
-    [members],
+    () => (members ?? []).filter((m) => isTeamManagerRole(m.job_role, roleOptions)),
+    [members, roleOptions],
   )
 
   if (!isSuperuserAdmin(user)) {
@@ -47,174 +48,26 @@ export default function PlatformTeam() {
     navigate(`/dashboard/platform-team/${id}`)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const em = email.trim()
-    const ph = phone.trim()
-    if (!em && !ph) {
-      return
-    }
-    createStaff.mutate(
-      {
-        full_name: fullName.trim(),
-        password,
-        email: em || undefined,
-        phone: ph || undefined,
-        job_role: jobRole,
-        manager_id:
-          jobRole === 'team_manager'
-            ? null
-            : managerIdForCreate
-              ? managerIdForCreate
-              : null,
-      },
-      {
-        onSuccess: () => {
-          setFullName('')
-          setEmail('')
-          setPhone('')
-          setPassword('')
-          setJobRole('consulting')
-          setManagerIdForCreate('')
-        },
-      },
-    )
-  }
-
   const busy = updateStaff.isPending
 
   return (
-    <div className="space-y-8 w-full max-w-none">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Headphones className="w-7 h-7 text-primary" />
-          Platform support team
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Add users by email and/or phone so they can sign in here and help vendors (read-only vendor
-          directory; no approvals or global settings). Click a row to open their profile page.
-        </p>
+    <div className="space-y-5 w-full max-w-none">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Headphones className="w-7 h-7 text-primary" />
+            Platform support team
+          </h1>
+          <p className="text-gray-600 mt-1 text-sm">
+            Add users by email and/or phone so they can sign in here and help vendors (read-only vendor
+            directory; no approvals or global settings). Click a row to open their profile page.
+          </p>
+        </div>
+        <Button type="button" size="sm" className="shrink-0" onClick={() => setAddOpen(true)}>
+          <Plus className="w-4 h-4 mr-1.5" />
+          Add support user
+        </Button>
       </div>
-
-      <Card className="w-full max-w-7xl">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Add support user</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0 pb-4">
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3 items-start">
-              <div className="min-w-0">
-                <Label htmlFor="ps-name">Full name</Label>
-                <Input
-                  id="ps-name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  minLength={2}
-                  className="mt-1 w-full"
-                  autoComplete="name"
-                />
-              </div>
-              <div className="min-w-0">
-                <Label htmlFor="ps-job-role">Job role</Label>
-                <select
-                  id="ps-job-role"
-                  className={cn(platformTeamSelectClassName, 'mt-1 w-full')}
-                  value={jobRole}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setJobRole(v)
-                    if (v === 'team_manager') setManagerIdForCreate('')
-                  }}
-                >
-                  {PLATFORM_JOB_ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="min-w-0">
-                <Label htmlFor="ps-manager">Reports to (team manager)</Label>
-                <select
-                  id="ps-manager"
-                  className={cn(platformTeamSelectClassName, 'mt-1 w-full')}
-                  value={managerIdForCreate}
-                  onChange={(e) => setManagerIdForCreate(e.target.value)}
-                  disabled={jobRole === 'team_manager'}
-                >
-                  <option value="">— None —</option>
-                  {teamManagers.map((tm) => (
-                    <option key={tm.id} value={tm.id}>
-                      {tm.full_name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                  Optional until you have team managers. Only users with role Team manager appear here.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-3 items-start">
-              <div className="min-w-0">
-                <Label htmlFor="ps-email">Email (optional if phone set)</Label>
-                <Input
-                  id="ps-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full"
-                  autoComplete="off"
-                />
-              </div>
-              <div className="min-w-0">
-                <Label htmlFor="ps-phone">Phone (optional if email set)</Label>
-                <div className="mt-1 min-w-0">
-                  <PhoneInput
-                    id="ps-phone"
-                    value={phone}
-                    onChange={setPhone}
-                    defaultCountryIso="IN"
-                    autoComplete="tel-national"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                  Pick country code, then enter the local number (stored as E.164).
-                </p>
-              </div>
-              <div className="min-w-0">
-                <Label htmlFor="ps-password">Initial password</Label>
-                <Input
-                  id="ps-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="mt-1 w-full"
-                  autoComplete="new-password"
-                />
-              </div>
-            </div>
-            <div className="mt-3 flex justify-start md:justify-end">
-              <Button
-                type="submit"
-                disabled={createStaff.isPending || (!email.trim() && !phone.trim())}
-              >
-                {createStaff.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Saving…
-                  </>
-                ) : (
-                  'Add support user'
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -269,7 +122,9 @@ export default function PlatformTeam() {
                       <td className="px-4 py-3 font-medium">{m.full_name}</td>
                       <td className="px-4 py-3 text-gray-600">{m.email || '—'}</td>
                       <td className="px-4 py-3 text-gray-600">{m.phone || '—'}</td>
-                      <td className="px-4 py-3 text-gray-600">{formatPlatformJobRole(m.job_role)}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {formatPlatformJobRole(m.job_role, roleOptions)}
+                      </td>
                       <td className="px-4 py-3 text-gray-800 text-right tabular-nums font-medium">
                         {m.assigned_business_account_count ?? 0}
                       </td>
@@ -359,6 +214,11 @@ export default function PlatformTeam() {
         </CardContent>
       </Card>
 
+      <AddSupportUserModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        teamManagers={teamManagers}
+      />
       <ResetPasswordModal member={resetForMember} onClose={() => setResetForMember(null)} />
     </div>
   )

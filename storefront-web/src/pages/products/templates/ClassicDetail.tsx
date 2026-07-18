@@ -12,6 +12,7 @@ import type { QuoteFormField } from '@/types'
 import { QuoteFormFieldInput } from '@/components/quote/QuoteFormFieldInput'
 import { isQuoteFieldEmpty } from '@/components/quote/quoteFieldHelpers'
 import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
+import { subscriptionBillingFootnote } from '@/lib/serviceStorefrontCta'
 import StarRating from '@/components/StarRating'
 import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
@@ -157,6 +158,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
     subscriptionPriceType, subscriptionUom,
     subscriptionTrialDays, subscriptionSetupFee, subscriptionBillingCycles,
     subscriptionScheduleModes,
+    isTaxable, taxRate,
     canQuote, quoteFormConfig, showQuote, setShowQuote,
     requestQuote, customerInfo,
   } = props
@@ -278,9 +280,13 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
               )}
             </div>
             <p className="text-sm text-gray-500 mt-1">
-              {isSubscription && subscriptionInterval
-                ? `Billed ${intervalLabel[subscriptionInterval] || subscriptionInterval} · Inclusive of all taxes`
-                : 'Inclusive of all taxes'}
+              {subscriptionBillingFootnote({
+                interval: isSubscription ? (intervalLabel[subscriptionInterval!] || subscriptionInterval) : null,
+                priceType: isSubscription ? subscriptionPriceType : null,
+                uom: isSubscription ? subscriptionUom : null,
+                isTaxable,
+                taxRate,
+              })}
             </p>
 
             {/* Subscription Configurator */}
@@ -297,6 +303,8 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                   setupFee={subscriptionSetupFee}
                   maxCycles={subscriptionBillingCycles}
                   allowedModes={subscriptionScheduleModes}
+                  isTaxable={isTaxable}
+                  taxRate={taxRate}
                   onSubscribe={(config) => (handleSubscribe ? handleSubscribe(config) : handleBuyNow())}
                   subscribePending={subscribePending ?? addToCartPending}
                   disabled={displayStock === 'out_of_stock'}

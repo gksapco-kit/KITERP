@@ -45,12 +45,15 @@ from app.services.platform_staff_audit_service import (
 )
 from app.utils.platform_staff import (
     PLATFORM_SUPPORT_ROLE,
-    PLATFORM_JOB_ROLES,
-    PLATFORM_JOB_ROLE_TEAM_MANAGER,
     PLATFORM_JOB_ROLE_RELATIONSHIP_MANAGER,
+    is_relationship_manager_job_role,
+    is_team_manager_job_role,
+    is_valid_platform_job_role,
+    list_assignable_job_roles,
+    count_users_by_job_roles,
 )
 from app.utils.platform_vendor_access import (
-    relationship_manager_list_scope,
+    relationship_manager_list_scope_async,
     ensure_vendor_visible_to_platform_staff,
 )
 
@@ -75,10 +78,12 @@ async def _validate_relationship_manager_assignee(db: AsyncSession, user_id: Opt
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Assigned user must be platform staff",
         )
-    if getattr(assignee, "platform_staff_job_role", None) != PLATFORM_JOB_ROLE_RELATIONSHIP_MANAGER:
+    if not await is_relationship_manager_job_role(
+        db, getattr(assignee, "platform_staff_job_role", None)
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Assigned user must have job role relationship_manager (or be a superuser)",
+            detail="Assigned user must have a relationship-manager (or assigned-store) job role",
         )
 
 
@@ -333,7 +338,7 @@ async def list_vendors(
     """List vendors; relationship managers only see vendors assigned to them."""
     repo = VendorRepository(db)
     skip = (page - 1) * size
-    rm_scope = relationship_manager_list_scope(current_user)
+    rm_scope = await relationship_manager_list_scope_async(db, current_user)
     effective_rm_filter = rm_scope if rm_scope is not None else relationship_manager_user_id
 
     items, total = await repo.list_vendors(
@@ -418,6 +423,14 @@ async def list_relationship_manager_options(
     db: AsyncSession = Depends(get_db),
 ):
     """Eligible relationship managers (superusers + support RMs) for directory filters."""
+    assignable = await list_assignable_job_roles(db)
+    rm_slugs = {
+        r["slug"] for r in assignable if "vendors.scope_assigned" in (r.get("permissions") or [])
+    }
+    support_rm_clause = and_(
+        User.platform_staff_role == PLATFORM_SUPPORT_ROLE,
+        User.platform_staff_job_role.in_(list(rm_slugs)),
+    ) if rm_slugs else False
     stmt = (
         select(
             User.id,
@@ -431,10 +444,7 @@ async def list_relationship_manager_options(
             User.is_active.is_(True),
             or_(
                 User.is_superuser.is_(True),
-                and_(
-                    User.platform_staff_role == PLATFORM_SUPPORT_ROLE,
-                    User.platform_staff_job_role == PLATFORM_JOB_ROLE_RELATIONSHIP_MANAGER,
-                ),
+                support_rm_clause,
             ),
         )
         .order_by(User.full_name)
@@ -476,7 +486,7 @@ async def get_vendor(
             detail="Vendor not found"
         )
 
-    await ensure_vendor_visible_to_platform_staff(current_user, vendor)
+    await ensure_vendor_visible_to_platform_staff(current_user, vendor, db)
 
     return serialize_vendor_admin(vendor)
 
@@ -504,7 +514,7 @@ async def create_vendor_dashboard_handoff(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Vendor not found",
         )
-    await ensure_vendor_visible_to_platform_staff(current_user, vendor)
+    await ensure_vendor_visible_to_platform_staff(current_user, vendor, db)
     token = create_vendor_handoff_token(current_user.id, vendor_id)
     await log_platform_staff_audit(
         db,
@@ -666,7 +676,7 @@ async def list_vendor_rm_queries(
     db: AsyncSession = Depends(get_db),
 ):
     """List vendor questions to their relationship manager (scoped for RM staff)."""
-    rm_scope = relationship_manager_list_scope(current_user)
+    rm_scope = await relationship_manager_list_scope_async(db, current_user)
 
     filters = []
     if rm_scope is not None:
@@ -744,7 +754,7 @@ async def patch_vendor_rm_query_status(
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
-    await ensure_vendor_visible_to_platform_staff(current_user, vendor)
+    await ensure_vendor_visible_to_platform_staff(current_user, vendor, db)
 
     row.status = body.status
     await db.commit()
@@ -802,7 +812,7 @@ async def list_user_contact_change_requests(
     current_user: User = Depends(get_current_platform_staff),
     db: AsyncSession = Depends(get_db),
 ):
-    rm_scope = relationship_manager_list_scope(current_user)
+    rm_scope = await relationship_manager_list_scope_async(db, current_user)
     filters = []
     if rm_scope is not None:
         filters.append(Vendor.relationship_manager_user_id == rm_scope)
@@ -895,7 +905,7 @@ async def review_user_contact_change_request(
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
-    await ensure_vendor_visible_to_platform_staff(current_user, vendor)
+    await ensure_vendor_visible_to_platform_staff(current_user, vendor, db)
 
     row = await apply_contact_change_request(
         db,
@@ -1037,7 +1047,7 @@ async def get_vendor_owner(
     vendor = await repo.get_by_id(vendor_id)
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
-    await ensure_vendor_visible_to_platform_staff(current_user, vendor)
+    await ensure_vendor_visible_to_platform_staff(current_user, vendor, db)
 
     result = await db.execute(
         select(VendorOwner).where(
@@ -1095,6 +1105,19 @@ async def delete_vendor(
     db: AsyncSession = Depends(get_db),
 ):
     """Permanently delete a business account and its owner login when they have no other stores."""
+    from app.services.platform_crm_tenant import PLATFORM_CRM_VENDOR_ID, is_platform_crm_vendor
+
+    if vendor_id == PLATFORM_CRM_VENDOR_ID:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The platform CRM tenant cannot be deleted.",
+        )
+    existing = await VendorRepository(db).get_by_id(vendor_id)
+    if existing and is_platform_crm_vendor(existing):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The platform CRM tenant cannot be deleted.",
+        )
     service = VendorService(db)
     await service.delete_vendor(vendor_id, current_user.id)
 
@@ -1371,6 +1394,226 @@ async def update_platform_settings(
     return {row.key: row.value for row in rows}
 
 
+# ── Platform job roles (built-in + user-defined) ──
+
+
+class PlatformJobRoleCreateRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = Field(None, max_length=2000)
+    permissions: List[str] = Field(default_factory=list)
+
+
+class PlatformJobRoleUpdateRequest(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    description: Optional[str] = Field(None, max_length=2000)
+    permissions: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+
+
+def _normalize_platform_role_permissions(perms: List[str]) -> List[str]:
+    from app.models.platform_job_role import PLATFORM_ROLE_PERMISSIONS
+
+    allowed = set(PLATFORM_ROLE_PERMISSIONS)
+    cleaned: List[str] = []
+    seen: set[str] = set()
+    for p in perms:
+        key = (p or "").strip()
+        if not key or key not in allowed or key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(key)
+    return cleaned
+
+
+def _platform_job_role_response(item: dict, assigned_count: int = 0) -> dict:
+    return {
+        "id": item.get("id"),
+        "slug": item["slug"],
+        "name": item["name"],
+        "description": item.get("description"),
+        "permissions": item.get("permissions") or [],
+        "is_builtin": bool(item.get("is_builtin")),
+        "is_active": bool(item.get("is_active", True)),
+        "assigned_count": assigned_count,
+    }
+
+
+@router.get("/platform-job-roles/permissions")
+async def list_platform_job_role_permissions(
+    current_user: User = Depends(get_current_platform_staff),
+):
+    from app.models.platform_job_role import (
+        PLATFORM_ROLE_PERMISSIONS,
+        PLATFORM_ROLE_PERMISSION_LABELS,
+    )
+
+    grouped: dict[str, list] = {"admin": [], "vendors": [], "staff": []}
+    for key in PLATFORM_ROLE_PERMISSIONS:
+        module = key.split(".", 1)[0]
+        bucket = grouped.get(module, grouped.setdefault(module, []))
+        bucket.append({"key": key, "label": PLATFORM_ROLE_PERMISSION_LABELS.get(key, key)})
+    return {"permissions": grouped, "all": PLATFORM_ROLE_PERMISSIONS}
+
+
+@router.get("/platform-job-roles")
+async def list_platform_job_roles(
+    include_inactive: bool = Query(False),
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.platform_job_role import BUILTIN_PLATFORM_JOB_ROLE_DEFS, PlatformJobRole
+
+    # Only superusers may inspect inactive custom roles.
+    if include_inactive and not getattr(current_user, "is_superuser", False):
+        include_inactive = False
+
+    items = await list_assignable_job_roles(db)
+    if include_inactive:
+        result = await db.execute(
+            select(PlatformJobRole)
+            .where(PlatformJobRole.is_active.is_(False))
+            .order_by(PlatformJobRole.name)
+        )
+        for row in result.scalars().all():
+            items.append(
+                {
+                    "slug": row.slug,
+                    "name": row.name,
+                    "description": row.description,
+                    "permissions": list(row.permissions or []),
+                    "is_builtin": False,
+                    "is_active": False,
+                    "id": str(row.id),
+                }
+            )
+
+    slugs = [i["slug"] for i in items]
+    counts = await count_users_by_job_roles(db, slugs)
+    return {
+        "roles": [_platform_job_role_response(i, counts.get(i["slug"], 0)) for i in items],
+        "builtin_slugs": list(BUILTIN_PLATFORM_JOB_ROLE_DEFS.keys()),
+    }
+
+
+@router.post("/platform-job-roles", status_code=201)
+async def create_platform_job_role(
+    body: PlatformJobRoleCreateRequest,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    from slugify import slugify
+    from app.models.platform_job_role import BUILTIN_PLATFORM_JOB_ROLE_DEFS, PlatformJobRole
+
+    name = body.name.strip()
+    slug = slugify(name, lowercase=True, separator="_")[:64]
+    if len(slug) < 3:
+        raise HTTPException(status_code=422, detail="Role name must produce a valid slug.")
+    if slug in BUILTIN_PLATFORM_JOB_ROLE_DEFS:
+        raise HTTPException(
+            status_code=422,
+            detail="That name conflicts with a built-in role. Choose a different name.",
+        )
+
+    existing = await db.execute(select(PlatformJobRole).where(PlatformJobRole.slug == slug))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="A role with this name already exists.")
+
+    permissions = _normalize_platform_role_permissions(body.permissions)
+    if not permissions:
+        raise HTTPException(status_code=422, detail="Select at least one permission.")
+
+    role = PlatformJobRole(
+        name=name,
+        slug=slug,
+        description=(body.description or "").strip() or None,
+        permissions=permissions,
+        is_active=True,
+    )
+    db.add(role)
+    await db.commit()
+    await db.refresh(role)
+    return _platform_job_role_response(
+        {
+            "id": str(role.id),
+            "slug": role.slug,
+            "name": role.name,
+            "description": role.description,
+            "permissions": list(role.permissions or []),
+            "is_builtin": False,
+            "is_active": True,
+        },
+        0,
+    )
+
+
+@router.patch("/platform-job-roles/{role_id}")
+async def update_platform_job_role(
+    role_id: UUID,
+    body: PlatformJobRoleUpdateRequest,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.platform_job_role import PlatformJobRole
+
+    role = await db.get(PlatformJobRole, role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found.")
+
+    data = body.model_dump(exclude_unset=True)
+    if "name" in data and data["name"] is not None:
+        role.name = data["name"].strip()
+    if "description" in data:
+        desc = data["description"]
+        role.description = (desc or "").strip() or None
+    if "permissions" in data and data["permissions"] is not None:
+        permissions = _normalize_platform_role_permissions(data["permissions"])
+        if not permissions:
+            raise HTTPException(status_code=422, detail="Select at least one permission.")
+        role.permissions = permissions
+    if "is_active" in data and data["is_active"] is not None:
+        role.is_active = bool(data["is_active"])
+
+    await db.commit()
+    await db.refresh(role)
+    counts = await count_users_by_job_roles(db, [role.slug])
+    return _platform_job_role_response(
+        {
+            "id": str(role.id),
+            "slug": role.slug,
+            "name": role.name,
+            "description": role.description,
+            "permissions": list(role.permissions or []),
+            "is_builtin": False,
+            "is_active": bool(role.is_active),
+        },
+        counts.get(role.slug, 0),
+    )
+
+
+@router.delete("/platform-job-roles/{role_id}", status_code=204)
+async def delete_platform_job_role(
+    role_id: UUID,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.platform_job_role import PlatformJobRole
+
+    role = await db.get(PlatformJobRole, role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found.")
+
+    counts = await count_users_by_job_roles(db, [role.slug])
+    if counts.get(role.slug, 0) > 0:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete a role that is still assigned to support users. Reassign them first.",
+        )
+
+    await db.delete(role)
+    await db.commit()
+    return None
+
+
 # ── Platform support staff (superuser manages; support can sign in to admin app) ──
 
 
@@ -1381,9 +1624,9 @@ async def _validate_platform_staff_manager_assignment(
     manager_id: Optional[UUID],
     subject_user_id: Optional[UUID],
 ) -> None:
-    if job_role not in PLATFORM_JOB_ROLES:
+    if not await is_valid_platform_job_role(db, job_role):
         raise HTTPException(status_code=422, detail="Invalid job_role.")
-    if job_role == PLATFORM_JOB_ROLE_TEAM_MANAGER:
+    if await is_team_manager_job_role(db, job_role):
         if manager_id is not None:
             raise HTTPException(
                 status_code=422,
@@ -1397,7 +1640,7 @@ async def _validate_platform_staff_manager_assignment(
     mgr = await db.get(User, manager_id)
     if not mgr or mgr.platform_staff_role != PLATFORM_SUPPORT_ROLE:
         raise HTTPException(status_code=422, detail="Manager must be an active platform support user.")
-    if getattr(mgr, "platform_staff_job_role", None) != PLATFORM_JOB_ROLE_TEAM_MANAGER:
+    if not await is_team_manager_job_role(db, getattr(mgr, "platform_staff_job_role", None)):
         raise HTTPException(status_code=422, detail="Manager must have the team manager job role.")
 
 
@@ -1467,7 +1710,7 @@ class PlatformStaffCreateRequest(BaseModel):
     password: str = Field(..., min_length=6, max_length=128)
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, max_length=24)
-    job_role: str = Field(..., min_length=3, max_length=32)
+    job_role: str = Field(..., min_length=3, max_length=64)
     manager_id: Optional[UUID] = None
 
     @model_validator(mode="after")
@@ -1485,7 +1728,7 @@ class PlatformStaffUpdateRequest(BaseModel):
     full_name: Optional[str] = Field(None, min_length=2, max_length=255)
     email: Optional[str] = Field(None, max_length=255)
     phone: Optional[str] = Field(None, max_length=24)
-    job_role: Optional[str] = Field(None, min_length=3, max_length=32)
+    job_role: Optional[str] = Field(None, min_length=3, max_length=64)
     manager_id: Optional[UUID] = None
 
 
@@ -1637,10 +1880,10 @@ async def create_platform_staff_member(
     phone_norm = (body.phone or "").strip() or None
 
     job_role = body.job_role.strip().lower()
-    if job_role not in PLATFORM_JOB_ROLES:
+    if not await is_valid_platform_job_role(db, job_role):
         raise HTTPException(status_code=422, detail="Invalid job_role.")
     mgr_id: Optional[UUID] = body.manager_id
-    if job_role == PLATFORM_JOB_ROLE_TEAM_MANAGER:
+    if await is_team_manager_job_role(db, job_role):
         mgr_id = None
 
     existing: Optional[User] = None
@@ -1843,9 +2086,9 @@ async def update_platform_staff_member(
                     status_code=422,
                     detail="Support user has no job_role; set job_role first.",
                 )
-            if role not in PLATFORM_JOB_ROLES:
+            if not await is_valid_platform_job_role(db, role):
                 raise HTTPException(status_code=422, detail="Invalid job_role.")
-            if role == PLATFORM_JOB_ROLE_TEAM_MANAGER:
+            if await is_team_manager_job_role(db, role):
                 mgr_id = None
             await _validate_platform_staff_manager_assignment(
                 db,
@@ -1855,7 +2098,9 @@ async def update_platform_staff_member(
             )
             if "job_role" in data:
                 u.platform_staff_job_role = role
-            if "manager_id" in data or ("job_role" in data and role == PLATFORM_JOB_ROLE_TEAM_MANAGER):
+            if "manager_id" in data or (
+                "job_role" in data and await is_team_manager_job_role(db, role)
+            ):
                 u.platform_staff_manager_id = mgr_id
 
     if body.remove_access:
@@ -1923,6 +2168,10 @@ class DisputeUpdate(BaseModel):
 async def list_storefront_contact_queries(
     status: Optional[str] = Query(None),
     vendor_id: Optional[UUID] = Query(None),
+    platform_only: bool = Query(
+        False,
+        description="When true, only KIT ERP Platform Contact Us rows (vendor_id is null).",
+    ),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_platform_staff),
@@ -1934,7 +2183,9 @@ async def list_storefront_contact_queries(
     filters = []
     if status:
         filters.append(StorefrontContactQuery.status == status)
-    if vendor_id:
+    if platform_only:
+        filters.append(StorefrontContactQuery.vendor_id.is_(None))
+    elif vendor_id:
         filters.append(StorefrontContactQuery.vendor_id == vendor_id)
 
     count_stmt = select(func.count(StorefrontContactQuery.id))

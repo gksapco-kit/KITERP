@@ -163,6 +163,8 @@ export interface PhoneInputProps {
   id?: string
   name?: string
   autoComplete?: string
+  /** Shorter control; hides success/hint lines under the field. */
+  compact?: boolean
 }
 
 export function PhoneInput({
@@ -176,6 +178,7 @@ export function PhoneInput({
   id,
   name = 'username',
   autoComplete = 'username',
+  compact = false,
 }: PhoneInputProps) {
   const defaultCountry =
     COUNTRIES.find(c => c.iso === defaultCountryIso) ??
@@ -257,24 +260,40 @@ export function PhoneInput({
   const isOverLimit = localNumber.length > maxDigits
   const isFull = localNumber.length === maxDigits && maxDigits <= 12
 
+  const controlH = compact ? 'h-9' : 'h-11'
+
   return (
-    <div className={cn('space-y-1', className)}>
+    <div className={cn(!compact && 'space-y-1', className)}>
       <div ref={wrapRef} className="relative flex items-stretch">
         {/* Country trigger */}
         <button
           type="button"
           disabled={disabled}
           onClick={() => setDropOpen(v => !v)}
+          title={`${country.name} (${country.iso})`}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-0 rounded-l-lg border border-r-0 bg-gray-50 hover:bg-gray-100 transition-colors shrink-0 text-sm h-11',
+            'inline-flex items-center rounded-l-lg border border-r-0 bg-gray-50 hover:bg-gray-100 transition-colors shrink-0 text-sm',
+            controlH,
+            compact ? 'gap-0.5 px-1.5' : 'gap-1 px-2',
             dropOpen ? 'border-blue-500 ring-1 ring-blue-400 z-10' : 'border-gray-300',
             error && 'border-red-400',
             disabled && 'opacity-50 cursor-not-allowed',
           )}
         >
-          <span className="text-lg leading-none">{country.flag}</span>
-          <span className="font-mono text-xs text-gray-700 min-w-[32px]">{country.dialCode}</span>
-          <ChevronDown className={cn('w-3.5 h-3.5 text-gray-400 transition-transform', dropOpen && 'rotate-180')} />
+          {/* Skip flag in compact mode — on Windows, 🇮🇳 often renders as the letters "IN". */}
+          {!compact && (
+            <span className="text-base leading-none" aria-hidden>
+              {country.flag}
+            </span>
+          )}
+          <span className="font-mono text-xs text-gray-700 tabular-nums">{country.dialCode}</span>
+          <ChevronDown
+            className={cn(
+              'text-gray-400 transition-transform shrink-0',
+              compact ? 'w-3 h-3' : 'w-3.5 h-3.5',
+              dropOpen && 'rotate-180',
+            )}
+          />
         </button>
 
         {/* Number input */}
@@ -292,7 +311,8 @@ export function PhoneInput({
             onBlur={handleBlur}
             placeholder={placeholder ?? (country.iso === 'IN' ? '98765 43210' : 'Phone number')}
             className={cn(
-              'w-full h-11 rounded-r-lg border px-3 text-sm outline-none transition-all',
+              'w-full rounded-r-lg border px-3 text-sm outline-none transition-all',
+              controlH,
               'focus:ring-0 focus:ring-offset-0 focus:border-primary',
               error
                 ? 'border-red-400 bg-red-50/30 focus:border-red-500'
@@ -327,15 +347,15 @@ export function PhoneInput({
         )}
       </div>
 
-      {/* Error / hint */}
+      {/* Error / hint — compact mode only surfaces hard errors */}
       {error ? (
-        <p className="text-xs text-red-500">{error}</p>
-      ) : isOverLimit ? (
+        <p className="text-xs text-red-500 mt-1">{error}</p>
+      ) : !compact && isOverLimit ? (
         <p className="text-xs text-amber-600">
           Will save last {maxDigits} digits:{' '}
           <span className="font-mono font-semibold">{localNumber.slice(-maxDigits)}</span>
         </p>
-      ) : isFull ? (
+      ) : !compact && isFull ? (
         <p className="text-xs text-green-600">✓ Valid {maxDigits}-digit number</p>
       ) : null}
     </div>

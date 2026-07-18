@@ -178,7 +178,8 @@ async def ensure_user_platform_staff_role_column() -> None:
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS email_change_expires_at TIMESTAMPTZ',
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS account_delete_code VARCHAR(64)',
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS account_delete_expires_at TIMESTAMPTZ',
-        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_job_role VARCHAR(32)',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_job_role VARCHAR(64)',
+        'ALTER TABLE "user" ALTER COLUMN platform_staff_job_role TYPE VARCHAR(64)',
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_manager_id UUID',
         'CREATE INDEX IF NOT EXISTS ix_user_platform_staff_job_role ON "user" (platform_staff_job_role)',
         'CREATE INDEX IF NOT EXISTS ix_user_platform_staff_manager_id ON "user" (platform_staff_manager_id)',
@@ -230,6 +231,37 @@ async def ensure_product_uom_column() -> None:
                 "ALTER TABLE product ADD COLUMN IF NOT EXISTS uom_quantity NUMERIC(12,4);"
             )
         )
+
+
+async def ensure_service_booking_label_column() -> None:
+    """Ensure service.booking_label exists (Business Front Options rename)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE service ADD COLUMN IF NOT EXISTS booking_label VARCHAR(100) DEFAULT 'Booking';"
+            )
+        )
+    logger.info("ensure_service_booking_label_column: service.booking_label ready")
+
+
+async def ensure_service_storefront_label_columns() -> None:
+    """Ensure subscription_label and quote_request_label exist on service."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE service ADD COLUMN IF NOT EXISTS subscription_label VARCHAR(100) DEFAULT 'Subscription';"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE service ADD COLUMN IF NOT EXISTS quote_request_label VARCHAR(100) DEFAULT 'Quote Requests';"
+            )
+        )
+    logger.info("ensure_service_storefront_label_columns: subscription/quote labels ready")
 
 
 async def ensure_variant_pricing_columns() -> None:
@@ -2589,6 +2621,31 @@ async def ensure_storefront_contact_query_table() -> None:
         "CREATE INDEX IF NOT EXISTS ix_storefront_contact_query_vendor ON storefront_contact_query(vendor_id)",
         "CREATE INDEX IF NOT EXISTS ix_storefront_contact_query_status ON storefront_contact_query(status)",
         "CREATE INDEX IF NOT EXISTS ix_storefront_contact_query_created ON storefront_contact_query(created_at DESC)",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+
+
+async def ensure_platform_job_role_table() -> None:
+    """Custom platform support job roles (User Roles screen)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        """
+        CREATE TABLE IF NOT EXISTS platform_job_role (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            name VARCHAR(100) NOT NULL,
+            slug VARCHAR(64) NOT NULL,
+            description TEXT,
+            permissions JSONB NOT NULL DEFAULT '[]'::jsonb,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_platform_job_role_slug ON platform_job_role(slug)",
+        "CREATE INDEX IF NOT EXISTS ix_platform_job_role_active ON platform_job_role(is_active)",
     ]
     async with engine.begin() as conn:
         for s in stmts:

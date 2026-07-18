@@ -228,8 +228,18 @@ class VendorRepository(BaseRepository[Vendor]):
         relationship_manager_user_id: Optional[UUID] = None,
     ) -> tuple[List[Vendor], int]:
         """List vendors with filters and pagination."""
+        from app.services.platform_crm_tenant import PLATFORM_CRM_VENDOR_ID, PLATFORM_CRM_SLUG
+
         query = select(Vendor).options(selectinload(Vendor.relationship_manager))
         count_query = select(func.count()).select_from(Vendor)
+
+        # Hide internal platform CRM tenant from Business Accounts directory
+        platform_filter = and_(
+            Vendor.id != PLATFORM_CRM_VENDOR_ID,
+            Vendor.slug != PLATFORM_CRM_SLUG,
+        )
+        query = query.where(platform_filter)
+        count_query = count_query.where(platform_filter)
 
         if relationship_manager_user_id is not None:
             query = query.where(Vendor.relationship_manager_user_id == relationship_manager_user_id)
@@ -266,19 +276,32 @@ class VendorRepository(BaseRepository[Vendor]):
 
     async def get_admin_dashboard_stats(self) -> dict:
         """Counts only (no full Vendor row load). Works even when ORM row shape is wide."""
+        from app.services.platform_crm_tenant import PLATFORM_CRM_VENDOR_ID, PLATFORM_CRM_SLUG
+
+        not_platform = and_(
+            Vendor.id != PLATFORM_CRM_VENDOR_ID,
+            Vendor.slug != PLATFORM_CRM_SLUG,
+        )
         total = (
-            await self.db.execute(select(func.count()).select_from(Vendor))
+            await self.db.execute(
+                select(func.count()).select_from(Vendor).where(not_platform)
+            )
         ).scalar_one()
         approved = (
             await self.db.execute(
-                select(func.count()).select_from(Vendor).where(Vendor.status == "approved")
+                select(func.count())
+                .select_from(Vendor)
+                .where(Vendor.status == "approved", not_platform)
             )
         ).scalar_one()
         pending_review = (
             await self.db.execute(
                 select(func.count())
                 .select_from(Vendor)
-                .where(Vendor.status.in_(["pending", "under_review"]))
+                .where(
+                    Vendor.status.in_(["pending", "under_review"]),
+                    not_platform,
+                )
             )
         ).scalar_one()
         return {

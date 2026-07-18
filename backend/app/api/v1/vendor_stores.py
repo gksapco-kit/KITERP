@@ -9,14 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.user import User
 from app.models.store import Store, StoreInventory
 from app.models.storage_location import StorageLocation
 from app.models.vendor import Vendor
 from app.models.vendor_user import VendorUser
 from app.models.vendor_product import Product
-from app.api.deps import get_current_active_user
-from app.services.vendor_service import VendorService
+from app.api.deps import get_current_vendor_id
 from app.utils.store_codes import (
     allocate_default_business_store_code,
     allocate_unique_branch_code,
@@ -30,17 +28,6 @@ router = APIRouter()
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
-
-async def _get_vendor_id(
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-) -> UUID:
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(status_code=404, detail="Vendor not found")
-    return vendor.id
-
 
 async def _get_store_or_404(store_id: UUID, vendor_id: UUID, db: AsyncSession) -> Store:
     result = await db.execute(
@@ -165,7 +152,7 @@ class AssignStaffStore(BaseModel):
 
 @router.get("/stores")
 async def list_stores(
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
     is_active: Optional[bool] = Query(None),
     parent_id: Optional[str] = Query(None, description="Return branches of this business unit"),
@@ -227,7 +214,7 @@ async def list_stores(
 @router.get("/stores/{bu_id}/branches")
 async def list_branches(
     bu_id: UUID,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
     is_active: Optional[bool] = Query(None),
 ):
@@ -247,7 +234,7 @@ async def list_branches(
 @router.post("/stores", status_code=201)
 async def create_store(
     data: StoreCreate,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     parent: Optional[Store] = None
@@ -315,7 +302,7 @@ async def create_store(
 @router.get("/stores/{store_id}")
 async def get_store(
     store_id: UUID,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     store = await _get_store_or_404(store_id, vendor_id, db)
@@ -326,7 +313,7 @@ async def get_store(
 async def update_store(
     store_id: UUID,
     data: StoreUpdate,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     store = await _get_store_or_404(store_id, vendor_id, db)
@@ -388,7 +375,7 @@ async def update_store(
 @router.delete("/stores/{store_id}", status_code=204)
 async def delete_store(
     store_id: UUID,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     store = await _get_store_or_404(store_id, vendor_id, db)
@@ -412,7 +399,7 @@ async def delete_store(
 @router.get("/stores/{store_id}/inventory")
 async def get_store_inventory(
     store_id: UUID,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
     search: Optional[str] = Query(None),
     low_stock_only: bool = Query(False),
@@ -459,7 +446,7 @@ async def set_store_inventory(
     store_id: UUID,
     product_id: UUID,
     data: StoreInventoryUpdate,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     await _get_store_or_404(store_id, vendor_id, db)
@@ -513,7 +500,7 @@ async def set_store_inventory(
 @router.post("/stores/transfer")
 async def transfer_stock(
     data: StockTransferCreate,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     from_id = UUID(data.from_store_id)
@@ -575,7 +562,7 @@ async def transfer_stock(
 @router.post("/stores/assign-staff")
 async def assign_staff_to_store(
     data: AssignStaffStore,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     vu = (await db.execute(
@@ -601,7 +588,7 @@ async def assign_staff_to_store(
 @router.get("/stores/{store_id}/staff")
 async def get_store_staff(
     store_id: UUID,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     await _get_store_or_404(store_id, vendor_id, db)

@@ -20,7 +20,7 @@ interface MediaItem {
   media_type?: MediaType
 }
 
-export type MediaViewerLayout = 'detail' | 'square' | 'fit'
+export type MediaViewerLayout = 'detail' | 'square' | 'fit' | 'fill'
 export type MediaViewerThumbnailPosition = 'bottom' | 'left'
 
 interface MediaViewerProps {
@@ -31,10 +31,11 @@ interface MediaViewerProps {
   badges?: React.ReactNode
   /** e.g. wishlist — pinned to the top-right of the main stage */
   topRightOverlay?: React.ReactNode
-  /** `detail` — square hero (default). `square` — full-width square. `fit` — 4:3, fills frame. */
+  /** `detail` — square hero (default). `square` — full-width square. `fit` — 4:3, fills frame. `fill` — stretches to parent height. */
   layout?: MediaViewerLayout
   /** Vertical thumbnails on the left when multiple images exist. */
   thumbnailPosition?: MediaViewerThumbnailPosition
+  className?: string
 }
 
 const STAGE_LAYOUT: Record<MediaViewerLayout, { stage: string; image: string; video: string }> = {
@@ -50,6 +51,11 @@ const STAGE_LAYOUT: Record<MediaViewerLayout, { stage: string; image: string; vi
   },
   fit: {
     stage: 'aspect-[4/3] w-full max-w-[640px] mx-auto lg:mx-0',
+    image: 'object-cover',
+    video: 'object-cover',
+  },
+  fill: {
+    stage: 'h-full min-h-[240px] w-full',
     image: 'object-cover',
     video: 'object-cover',
   },
@@ -242,11 +248,13 @@ export default function MediaViewer({
   topRightOverlay,
   layout = 'detail',
   thumbnailPosition = 'bottom',
+  className,
 }: MediaViewerProps) {
   const selected = items[selectedIndex]
   const mt = selected?.media_type || 'image'
   const firstImage = items.find(i => (i.media_type || 'image') === 'image')
   const stage = STAGE_LAYOUT[layout]
+  const fillHeight = layout === 'fill'
   const modelMinHeight = layout === 'detail' ? 320 : 300
   const useLeftThumbs = items.length > 1 && thumbnailPosition === 'left'
 
@@ -348,10 +356,20 @@ export default function MediaViewer({
   ) : null
 
   return (
-    <div className={cn(useLeftThumbs ? 'flex flex-col gap-3 md:flex-row md:items-start' : 'space-y-3')}>
+    <div
+      className={cn(
+        useLeftThumbs
+          ? 'flex flex-col gap-3 md:flex-row md:items-stretch'
+          : fillHeight
+            ? 'flex min-h-0 flex-col gap-3'
+            : 'space-y-3',
+        fillHeight && 'h-full',
+        className,
+      )}
+    >
       {useLeftThumbs ? thumbnailRail : null}
-      <div className={cn('min-w-0', useLeftThumbs ? 'flex-1' : 'w-full')}>
-      <div className={cn('bg-gray-50 rounded-xl overflow-hidden border relative group/stage', stage.stage)}>
+      <div className={cn('min-w-0', useLeftThumbs ? 'flex-1' : 'w-full', fillHeight && 'flex min-h-0 flex-1 flex-col')}>
+      <div className={cn('bg-gray-50 rounded-xl overflow-hidden border relative group/stage', stage.stage, fillHeight && 'min-h-0 flex-1')}>
         {!selected || (mt === 'image' && mainImageFailed) ? (
           <div className="absolute inset-0">
             <ProductImagePlaceholder size="lg" />

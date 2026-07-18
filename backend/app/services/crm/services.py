@@ -536,7 +536,9 @@ class PipelineService:
     async def ensure_default(self, vendor_id: UUID) -> CrmPipeline:
         existing = await self.repo.get_default(vendor_id)
         if existing:
-            return existing
+            # Collapse duplicate defaults left by concurrent seed races.
+            await self._dedupe_defaults(vendor_id, keep_id=existing.id)
+            return await self.repo.with_stages(vendor_id, existing.id) or existing
         pipeline = CrmPipeline(
             vendor_id=vendor_id, name="Sales Pipeline",
             description="Default sales pipeline", is_default=True, sort_order=0,
@@ -551,7 +553,22 @@ class PipelineService:
                 color=color,
             ))
         await self.db.commit()
+        await self._dedupe_defaults(vendor_id, keep_id=pipeline.id)
         return await self.repo.with_stages(vendor_id, pipeline.id)
+
+    async def _dedupe_defaults(self, vendor_id: UUID, *, keep_id: UUID) -> None:
+        """Ensure only one pipeline is marked default for the vendor."""
+        from sqlalchemy import update
+        await self.db.execute(
+            update(CrmPipeline)
+            .where(
+                CrmPipeline.vendor_id == vendor_id,
+                CrmPipeline.is_default.is_(True),
+                CrmPipeline.id != keep_id,
+            )
+            .values(is_default=False)
+        )
+        await self.db.commit()
 
     async def create(self, vendor_id: UUID, data, *, actor_id: Optional[UUID] = None):
         pipeline = CrmPipeline(

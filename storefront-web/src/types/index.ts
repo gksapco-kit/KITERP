@@ -67,6 +67,7 @@ export interface Product {
   price: number; compare_at_price?: number; cost_price?: number
   currency?: string; discount_percentage?: number; discount_amount?: number
   offer_label?: string; is_on_sale?: boolean
+  is_taxable?: boolean; tax_rate?: number; hsn_code?: string; gst_rate?: number
   sku?: string; barcode?: string; stock_status?: string; quantity?: number
   low_stock_threshold?: number
   specifications?: Record<string, string>
@@ -118,6 +119,10 @@ export interface ServicePlan {
   cancellation_hours?: number
   rescheduling_policy?: string
   no_show_policy?: string
+  is_taxable?: boolean
+  tax_rate?: number
+  gst_rate?: number
+  sac_code?: string
   availability?: { day_of_week: number; start_time: string; end_time: string; is_available: boolean }[]
   is_active: boolean; sort_order: number
   created_at?: string
@@ -158,6 +163,7 @@ export interface Service {
   price_type: string; price?: number; price_min?: number; price_max?: number
   currency?: string; discount_percentage?: number; discount_amount?: number
   offer_label?: string
+  is_taxable?: boolean; tax_rate?: number; gst_rate?: number; sac_code?: string
   service_mode?: string; duration_minutes?: number; buffer_minutes?: number
   service_capacity?: number
   // Subscription
@@ -171,6 +177,9 @@ export interface Service {
   subscription_schedule_modes?: string[]
   // Booking & Quotes
   requires_booking?: boolean
+  booking_label?: string
+  subscription_label?: string
+  quote_request_label?: string
   allow_quote_request?: boolean
   quote_form_config?: QuoteFormField[]
   max_bookings_per_slot?: number

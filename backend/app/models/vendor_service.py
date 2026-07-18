@@ -60,6 +60,8 @@ class Service(Base):
 
     # ── Booking & Scheduling ──────────────────────────────────────
     requires_booking = Column(Boolean, default=True)
+    # Customer-facing label for the booking option (Business Front)
+    booking_label = Column(String(100), default="Booking")
     max_bookings_per_slot = Column(Integer, default=1)
     advance_booking_days = Column(Integer, default=30)
     booking_lead_time_hours = Column(Float)
@@ -81,6 +83,8 @@ class Service(Base):
     is_new_service = Column(Boolean, default=False)
     is_on_sale = Column(Boolean, default=False)
     allow_quote_request = Column(Boolean, default=False)
+    # Customer-facing label for quote requests (Business Front)
+    quote_request_label = Column(String(100), default="Quote Requests")
     quote_form_config = Column(JSONB, default=[])
     store_scope = Column(String(20), default="all", nullable=False)  # all | selected
 
@@ -96,6 +100,8 @@ class Service(Base):
 
     # ── Subscription ──────────────────────────────────────────────
     is_subscription = Column(Boolean, default=False)
+    # Customer-facing label for the subscription option (Business Front)
+    subscription_label = Column(String(100), default="Subscription")
     subscription_interval = Column(String(30))
     subscription_price = Column(Numeric(12, 2))
     subscription_price_type = Column(String(20), default="per_cycle")

@@ -23,8 +23,8 @@ class User(Base):
     is_superuser = Column(Boolean, default=False)
     # Platform admin app (port 3000): "support" = help desk; full control uses is_superuser.
     platform_staff_role = Column(String(20), nullable=True, index=True)
-    # Job function for support staff: sales | crm | consulting | relationship_manager | team_manager
-    platform_staff_job_role = Column(String(32), nullable=True, index=True)
+    # Job function for support staff (built-in or custom platform_job_role.slug)
+    platform_staff_job_role = Column(String(64), nullable=True, index=True)
     platform_staff_manager_id = Column(
         UUID(as_uuid=True),
         ForeignKey("user.id", ondelete="SET NULL"),

@@ -946,7 +946,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
           settings,
         })
         qc.setQueryData(
-          vendorKeys.stores(),
+          vendorKeys.stores(vendor?.id),
           (old: { stores: StoreRecord[]; total: number } | undefined) => {
             if (!old?.stores) return old
             return {
@@ -955,7 +955,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
             }
           },
         )
-        void qc.invalidateQueries({ queryKey: vendorKeys.stores() })
+        void qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'stores'] })
         setSelectedStore({
           id: store.id,
           name: store.name,
@@ -1056,7 +1056,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
     const settings = { ...storeSettings, ...patch }
     const { store } = await vendorApi.updateStore(activeStore.id, { settings })
     qc.setQueryData(
-      vendorKeys.stores(),
+      vendorKeys.stores(vendor?.id),
       (old: { stores: StoreRecord[]; total: number } | undefined) => {
         if (!old?.stores) return old
         return {
@@ -1065,7 +1065,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
         }
       },
     )
-    void qc.invalidateQueries({ queryKey: vendorKeys.stores() })
+    void qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'stores'] })
     return store
   }
 

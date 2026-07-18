@@ -54,7 +54,8 @@ export const vendorKeys = {
   serviceCostSummary: (serviceId: string) => [...vendorKeys.all, 'service-cost-summary', serviceId] as const,
   reservations: (orderType: string, orderId: string) => [...vendorKeys.all, 'reservations', orderType, orderId] as const,
   /** Business units / outlets — use with useStores; invalidate `[...vendorKeys.all, 'stores']` after mutations. */
-  stores: (params?: Record<string, unknown>) => [...vendorKeys.all, 'stores', params] as const,
+  stores: (vendorId?: string | null, params?: Record<string, unknown>) =>
+    [...vendorKeys.all, 'stores', vendorId ?? '', params] as const,
   /** Branches under a given business unit — use with useBranches. */
   branches: (businessUnitId?: string | null) => [...vendorKeys.all, 'stores', 'branches', businessUnitId] as const,
   plants: (storeId?: string) => [...vendorKeys.all, 'plants', storeId] as const,
@@ -1923,9 +1924,11 @@ export function useReleaseAllReservations() {
 // ─────────────────────────────────────────────────────────────────
 
 export function useStores(params?: Record<string, unknown>) {
+  const vendorId = useVendorStore((s) => s.vendor?.id)
   return useQuery({
-    queryKey: vendorKeys.stores(params),
+    queryKey: vendorKeys.stores(vendorId, params),
     queryFn: () => vendorApi.listStores(params),
+    enabled: Boolean(vendorId),
     staleTime: 60_000,
   })
 }
@@ -1988,7 +1991,7 @@ export function useUpdateStoreMessageConfig(storeId: string) {
       vendorApi.updateStoreMessageConfig(storeId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: vendorKeys.messageConfig(storeId) })
-      qc.invalidateQueries({ queryKey: vendorKeys.stores() })
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'stores'] })
       toast.success('Message configuration saved')
     },
     onError: apiError('Could not save message configuration'),

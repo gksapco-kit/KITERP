@@ -51,6 +51,7 @@ from app.models.merchandising import Bundle, BundleItem, UpsellMapping
 from app.models.loyalty import LoyaltyProgram, LoyaltyAccount, LoyaltyTransaction
 from app.models.platform_setting import PlatformSetting
 from app.models.platform_staff_audit import PlatformStaffAuditLog
+from app.models.platform_job_role import PlatformJobRole
 from app.models.vendor_platform_audit import VendorPlatformAuditLog
 from app.models.platform_website_analytics import PlatformWebsitePageView
 from app.models.mrp import ProductBOMItem, StockReservation
@@ -234,6 +235,7 @@ __all__ = [
     "LoyaltyTransaction",
     "PlatformSetting",
     "PlatformStaffAuditLog",
+    "PlatformJobRole",
     "VendorPlatformAuditLog",
     "ProductBOMItem",
     "StockReservation",

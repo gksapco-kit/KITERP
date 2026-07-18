@@ -377,7 +377,7 @@ async def redeem_vendor_handoff(
     vendor = await db.get(Vendor, vendor_id)
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-    await ensure_vendor_visible_to_platform_staff(user, vendor)
+    await ensure_vendor_visible_to_platform_staff(user, vendor, db)
 
     vu_repo = VendorUserRepository(db)
     existing_rows = await vu_repo.list_all_for_vendor_and_user(vendor_id, user_id)
@@ -444,6 +444,20 @@ async def refresh_token(
 async def _build_me_payload(user: User, db: AsyncSession) -> dict:
     """Build the same /me response payload (user dict + vendor_role) used by GET and PATCH."""
     data = user_to_dict(user)
+
+    from app.utils.platform_staff import has_platform_staff_access, resolve_platform_job_role_permissions
+
+    if has_platform_staff_access(user):
+        if getattr(user, "is_superuser", False):
+            from app.models.platform_job_role import PLATFORM_ROLE_PERMISSIONS
+
+            data["platform_staff_permissions"] = list(PLATFORM_ROLE_PERMISSIONS)
+        else:
+            data["platform_staff_permissions"] = await resolve_platform_job_role_permissions(
+                db, getattr(user, "platform_staff_job_role", None)
+            )
+    else:
+        data["platform_staff_permissions"] = []
 
     from app.repositories.vendor_user_repo import VendorUserRepository
     from app.repositories.vendor_repo import VendorRepository

@@ -15,9 +15,10 @@ import {
   AlertTriangle,
   Menu,
   Table2,
-  MessageSquareText,
   LayoutTemplate,
   BarChart3,
+  UsersRound,
+  ShieldCheck,
   X,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
@@ -43,8 +44,9 @@ const adminNavItemsSuperuser = [
   { to: '/dashboard/templates', icon: LayoutTemplate, label: 'All Templates' },
   { to: '/dashboard/website-analytics', icon: BarChart3, label: 'Website Analytics' },
   { to: '/dashboard/platform-team', icon: Headphones, label: 'Support team' },
+  { to: '/dashboard/user-roles', icon: ShieldCheck, label: 'User Roles' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
-  { to: '/dashboard/queries', icon: MessageSquareText, label: 'Queries' },
+  { to: '/dashboard/crm', icon: UsersRound, label: 'CRM' },
   { to: '/dashboard/disputes', icon: AlertTriangle, label: 'Disputes' },
   { to: '/dashboard/table-data', icon: Table2, label: 'Table Data' },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
@@ -55,7 +57,7 @@ const adminNavItemsSupport = [
   { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts' },
   { to: '/dashboard/website-analytics', icon: BarChart3, label: 'Website Analytics' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
-  { to: '/dashboard/queries', icon: MessageSquareText, label: 'Queries' },
+  { to: '/dashboard/crm', icon: UsersRound, label: 'CRM' },
 ]
 
 function ProfileAvatar({
@@ -171,7 +173,7 @@ export default function DashboardLayout() {
                 }
               >
                 <item.icon className="h-5 w-5 shrink-0" />
-                {item.label}
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
               </NavLink>
             ))}
           </nav>

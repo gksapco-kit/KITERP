@@ -142,6 +142,7 @@ import { toast } from 'sonner'
 import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
 import { useInboxUnreadCount } from '@/hooks/useCrm'
+import { useNewContactQueryCount } from '@/hooks/useContactQueries'
 import { UniversalSearch } from '@/components/UniversalSearch'
 import { KitErpThemePickerModal } from '@/components/KitErpThemePickerModal'
 import { SidebarAppsPickerModal } from '@/components/SidebarAppsPickerModal'
@@ -1895,6 +1896,7 @@ export default function DashboardLayout() {
   const financeNavVisible = useMemo(() => isFinanceNavVisible(vendorSettings), [vendorSettings])
   const crmNavVisible = useMemo(() => isCrmNavVisible(vendorSettings), [vendorSettings])
   const { data: inboxCount = 0 } = useInboxUnreadCount(crmNavVisible)
+  const { data: newQueryCount = 0 } = useNewContactQueryCount()
   const commissionNavVisible = useMemo(() => isCommissionNavVisible(vendorSettings), [vendorSettings])
   const controllingNavVisible = useMemo(() => isControllingNavVisible(vendorSettings), [vendorSettings])
   const productionNavVisible = useMemo(
@@ -1911,9 +1913,10 @@ export default function DashboardLayout() {
       if (to === '/notifications') return unreadCount
       if (to === '/crm/inbox') return inboxCount
       if (to === '/orders') return pendingOrderCount
+      if (to === '/queries') return newQueryCount
       return 0
     },
-    [unreadCount, inboxCount, pendingOrderCount],
+    [unreadCount, inboxCount, pendingOrderCount, newQueryCount],
   )
 
   const filterItem = useCallback(

@@ -43,6 +43,7 @@ from app.api.v1 import (
     vendor_rentals,
     admin_schema_catalog,
     admin_website_analytics,
+    admin_crm,
     vendor_procurement_sourcing,
     vendor_procurement_requisition,
     vendor_procurement_invoice,
@@ -72,6 +73,7 @@ api_router.include_router(
     tags=["Platform Analytics Public"],
 )
 api_router.include_router(admin_schema_catalog.router, prefix="/admin/schema", tags=["Admin Schema"])
+api_router.include_router(admin_crm.router, prefix="/admin/crm", tags=["Admin Platform CRM"])
 
 # ── Vendor Management ────────────────────────────────────────────
 api_router.include_router(vendors.router, prefix="/vendors", tags=["Vendors"])

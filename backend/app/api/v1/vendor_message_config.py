@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.vendor_stores import _get_store_or_404, _get_vendor_id, _store_to_dict
+from app.api.deps import get_current_vendor_id
+from app.api.v1.vendor_stores import _get_store_or_404, _store_to_dict
 from app.database import get_db
 from app.services.message_config_service import (
     default_message_config,
@@ -41,7 +42,7 @@ class DeliveryStatusResponse(BaseModel):
 
 @router.get("/message-delivery-status", response_model=DeliveryStatusResponse)
 async def get_message_delivery_status(
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Which delivery channels are configured (integrations + platform .env)."""
@@ -52,7 +53,7 @@ async def get_message_delivery_status(
 @router.get("/stores/{store_id}/message-config")
 async def get_store_message_config(
     store_id: UUID,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Return BU-level notification recipients and customer channel preferences."""
@@ -69,7 +70,7 @@ async def get_store_message_config(
 async def update_store_message_config(
     store_id: UUID,
     data: MessageConfigUpdate,
-    vendor_id: UUID = Depends(_get_vendor_id),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Save BU-level notification recipients and customer channel preferences."""

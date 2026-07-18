@@ -100,24 +100,34 @@ class UnitOfMeasurement(str, Enum):
 
 class ServiceMode(str, Enum):
     IN_STORE = "in_store"
+    SHOP = "shop"
     HOME_VISIT = "home_visit"
     BOTH = "both"
     ONLINE = "online"
+    REMOTE = "remote"
     CLINIC = "clinic"
     OFFICE = "office"
     WAREHOUSE = "warehouse"
     SALON = "salon"
+    SPA = "spa"
     STUDIO = "studio"
     LAB = "lab"
+    DIAGNOSTIC_CENTER = "diagnostic_center"
     GYM = "gym"
+    FITNESS_CENTER = "fitness_center"
     RESTAURANT = "restaurant"
+    KITCHEN = "kitchen"
     WORKSHOP = "workshop"
+    GARAGE = "garage"
+    ON_SITE = "on_site"
     FIELD = "field"
     COWORKING = "coworking"
     EVENT_VENUE = "event_venue"
+    HALL = "hall"
     HOSPITAL = "hospital"
     PHARMACY = "pharmacy"
     SCHOOL = "school"
+    TRAINING_CENTER = "training_center"
     OTHER = "other"
 
 
@@ -318,6 +328,7 @@ class ServiceCreate(BaseModel):
     offer_label: Optional[str] = Field(None, max_length=100)
     is_on_sale: bool = False
     allow_quote_request: bool = False
+    quote_request_label: Optional[str] = Field("Quote Requests", max_length=100)
     quote_form_config: Optional[list] = []
 
     # Tax
@@ -335,6 +346,7 @@ class ServiceCreate(BaseModel):
 
     # Subscription
     is_subscription: bool = False
+    subscription_label: Optional[str] = Field("Subscription", max_length=100)
     subscription_interval: Optional[str] = None
     subscription_price: Optional[float] = None
     subscription_price_type: Optional[str] = "per_cycle"
@@ -345,6 +357,7 @@ class ServiceCreate(BaseModel):
 
     # Booking
     requires_booking: bool = True
+    booking_label: Optional[str] = Field("Booking", max_length=100)
     max_bookings_per_slot: int = 1
     advance_booking_days: int = 30
     booking_lead_time_hours: Optional[float] = None
@@ -418,6 +431,7 @@ class ServiceUpdate(BaseModel):
     offer_label: Optional[str] = Field(None, max_length=100)
     is_on_sale: Optional[bool] = None
     allow_quote_request: Optional[bool] = None
+    quote_request_label: Optional[str] = Field(None, max_length=100)
     quote_form_config: Optional[list] = None
 
     # Tax
@@ -435,6 +449,7 @@ class ServiceUpdate(BaseModel):
 
     # Subscription
     is_subscription: Optional[bool] = None
+    subscription_label: Optional[str] = Field(None, max_length=100)
     subscription_interval: Optional[str] = None
     subscription_price: Optional[float] = None
     subscription_price_type: Optional[str] = None
@@ -445,6 +460,7 @@ class ServiceUpdate(BaseModel):
 
     # Booking
     requires_booking: Optional[bool] = None
+    booking_label: Optional[str] = Field(None, max_length=100)
     max_bookings_per_slot: Optional[int] = None
     advance_booking_days: Optional[int] = None
     booking_lead_time_hours: Optional[float] = None
@@ -536,6 +552,7 @@ class ServiceResponse(BaseModel):
 
     # Subscription
     is_subscription: bool = False
+    subscription_label: str = "Subscription"
     subscription_interval: Optional[str] = None
     subscription_price: Optional[float] = None
     subscription_price_type: str = "per_cycle"
@@ -546,6 +563,8 @@ class ServiceResponse(BaseModel):
 
     # Booking
     requires_booking: bool = True
+    booking_label: str = "Booking"
+    quote_request_label: str = "Quote Requests"
     max_bookings_per_slot: int = 1
     advance_booking_days: int = 30
     booking_lead_time_hours: Optional[float] = None

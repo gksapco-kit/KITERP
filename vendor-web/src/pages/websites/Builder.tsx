@@ -559,7 +559,6 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'spacer', label: 'Spacer', icon: Minus, desc: 'Blank vertical spacer', category: 'layout', defaultProps: { height: 80 } },
   { type: 'social_links', label: 'Social Links', icon: Globe, desc: 'Social media icon links', category: 'social', defaultProps: { title: 'Follow Us', social_links: { twitter: 'https://twitter.com', instagram: 'https://instagram.com', linkedin: 'https://linkedin.com' } } },
   { type: 'countdown', label: 'Countdown Timer', icon: Clock, desc: 'Countdown to a date/event', category: 'conversion', get defaultProps() { return { title: 'Launch In', target_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } } },
-  { type: 'product_grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Display products from your catalog', category: 'ecommerce', defaultProps: { title: 'Featured Products', columns: 4, show_badges: true } },
   { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Shop-by-category grid — synced from Categories', category: 'ecommerce', defaultProps: CATEGORY_CARDS_DEFAULTS },
   { type: 'menu_grid', label: 'Menu / Catalog', icon: List, desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] } },
   { type: 'services_cards', label: 'Services Cards', icon: Briefcase, desc: 'Service offering cards', category: 'content', defaultProps: { title: 'Our services', columns: 3, features: [{ icon: 'Zap', title: 'Consultation', desc: 'Expert advice tailored to your needs.' }, { icon: 'Shield', title: 'Installation', desc: 'Professional setup you can rely on.' }, { icon: 'Star', title: 'Support', desc: 'Friendly help after you buy.' }] } },
@@ -577,7 +576,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'personalization_block', label: 'Personalization Block', icon: Users, desc: 'Show different content by device / location / referral', category: 'advanced', defaultProps: { default_content: 'Default message for all visitors', mobile_content: 'Tap to get started on mobile!', rule: 'device' } },
 
   // Commerce ? P1 business front blocks (must mirror business front BlockRenderer)
-  { type: 'product_detail', label: 'Product Detail', icon: ShoppingBag, desc: 'Gallery, variants, and add-to-cart for a single product', category: 'ecommerce', defaultProps: { show_variants: true, show_reviews: true } },
+  // product_detail / product_reviews omitted from Add Section — use commerce product.detail / product.reviews
   { type: 'cart_drawer', label: 'Cart Drawer', icon: ShoppingCart, desc: 'Slide-out cart panel with upsells', category: 'erp', defaultProps: { title: 'Your Cart', show_upsells: true } },
   { type: 'checkout_form', label: 'Checkout Form', icon: ShoppingCart, desc: 'Address, shipping, payment fields', category: 'erp', defaultProps: { allow_cod: true, show_tip: false } },
   { type: 'search_bar', label: 'Search Bar', icon: Search, desc: 'Autosuggest product/service search', category: 'ecommerce', defaultProps: { placeholder: 'Search products & services...', show_filters: true } },
@@ -586,7 +585,6 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'recently_viewed', label: 'Recently Viewed', icon: Clock, desc: 'Client-side recently viewed items', category: 'ecommerce', defaultProps: { title: 'Recently Viewed', max: 6 } },
   { type: 'coupon_banner', label: 'Coupon Banner', icon: Hash, desc: 'Promotional coupon code display', category: 'erp', defaultProps: { title: 'Use code SAVE10 for 10% off!', show_copy_button: true } },
   { type: 'payment_methods_strip', label: 'Payment Methods', icon: Hash, desc: 'Payment provider logo strip', category: 'erp', defaultProps: { title: 'Secure Payments', methods: [{ method: 'visa' }, { method: 'mastercard' }, { method: 'upi' }, { method: 'google_pay' }, { method: 'cod' }] } },
-  { type: 'product_reviews', label: 'Product Reviews', icon: Star, desc: 'Star ratings and review grid', category: 'social', defaultProps: { title: 'Customer Reviews', show_summary: true } },
   { type: 'cookie_consent', label: 'Cookie Consent', icon: Shield, desc: 'GDPR/CCPA cookie consent banner', category: 'advanced', defaultProps: { message: 'We use cookies to improve your experience.', accept_label: 'Accept', decline_label: 'Decline' } },
 ]
 
@@ -595,7 +593,7 @@ const BLOCK_CATALOG: BlockDef[] = [
 const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
   { type: 'product.grid', label: 'Product Grid', icon: ShoppingBag, desc: 'Responsive product listing with grid, list, and carousel layouts.', category: 'ecommerce', defaultProps: { variant: 'default' } },
   { type: 'product.featured', label: 'Featured Product', icon: ShoppingBag, desc: 'Hero spotlight for a single product with image and CTA.', category: 'ecommerce', defaultProps: { variant: 'default' } },
-  { type: 'product.detail', label: 'Product Detail', icon: ShoppingBag, desc: 'Full product page with gallery, options, and trust badges.', category: 'ecommerce', defaultProps: { variant: 'default' } },
+  // product.detail omitted from Add Section — native /products/:slug PDP covers this
   { type: 'product.cart', label: 'Mini Cart', icon: ShoppingBag, desc: 'Cart with quantity controls, totals, and shipping summary.', category: 'erp', defaultProps: { variant: 'default' } },
   { type: 'product.categories', label: 'Category Showcase', icon: ShoppingBag, desc: 'Shop-by-category grid — synced from Categories', category: 'ecommerce', defaultProps: { variant: 'grid', layout: 'grid', title: 'Shop by category', columns: 4, data_source: { type: 'categories', auto: true } } },
   { type: 'product.carousel', label: 'Product Carousel', icon: ShoppingBag, desc: 'Horizontally scrolling product showcase.', category: 'ecommerce', defaultProps: { variant: 'default' } },

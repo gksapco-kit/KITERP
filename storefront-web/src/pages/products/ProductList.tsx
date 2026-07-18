@@ -28,7 +28,7 @@ import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
 import { variantColorCss, variantDisplayLabel } from '@/lib/variantOptions'
 import { assertCanAddToCart, canPurchaseProduct } from '@/lib/stockValidation'
 import { CatalogAddOrQtyControl } from '@/components/catalog/CatalogAddOrQtyControl'
-import { shouldShowServiceBookCta } from '@/lib/serviceStorefrontCta'
+import { shouldShowServiceBookCta, serviceBookingListCtaLabel } from '@/lib/serviceStorefrontCta'
 import { resolveServiceDuration } from '@/lib/servicePricing'
 import { ServiceCard } from '@/kit/services/ServiceBlocks'
 import { toast } from 'sonner'
@@ -761,6 +761,7 @@ export default function ProductList() {
                           features: item.features || [],
                           allowQuoteRequest: !!item.allow_quote_request,
                           requiresBooking: item.requires_booking,
+                          bookingLabel: (item as Service).booking_label,
                         }}
                         linkTo={storePath(`/services/${item.slug}`)}
                         onBook={(svc) => navigate(storePath(`/services/${svc.slug}/book`))}
@@ -826,6 +827,7 @@ export default function ProductList() {
                         features: item.features || [],
                         allowQuoteRequest: !!item.allow_quote_request,
                         requiresBooking: item.requires_booking,
+                        bookingLabel: (item as Service).booking_label,
                       }}
                       linkTo={storePath(`/services/${item.slug}`)}
                       onBook={(svc) => navigate(storePath(`/services/${svc.slug}/book`))}
@@ -1027,7 +1029,7 @@ export default function ProductList() {
                       ) : showServiceBook ? (
                         <Button size="sm" className="gap-1.5" asChild>
                           <Link to={storePath(`/services/${item.slug}/book`)}>
-                            Book <ArrowRight className="w-4 h-4" />
+                            {serviceBookingListCtaLabel((item as Service).booking_label)} <ArrowRight className="w-4 h-4" />
                           </Link>
                         </Button>
                       ) : (

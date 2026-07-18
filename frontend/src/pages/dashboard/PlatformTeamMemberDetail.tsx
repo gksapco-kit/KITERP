@@ -10,7 +10,8 @@ import { PlatformStaffEditForm } from '@/components/platform-team/PlatformStaffE
 import { RmAssignedBusinessAccounts } from '@/components/platform-team/RmAssignedBusinessAccounts'
 import { ResetPasswordModal } from '@/components/platform-team/ResetPasswordModal'
 import { PlatformStaffAuditSection } from '@/components/platform-team/PlatformStaffAuditSection'
-import { formatPlatformJobRole } from '@/lib/platformTeam'
+import { formatPlatformJobRole, isRelationshipManagerRole, isTeamManagerRole } from '@/lib/platformTeam'
+import { usePlatformJobRoles } from '@/hooks/usePlatformJobRoles'
 import { ArrowLeft, KeyRound, Loader2, UserMinus, UserX } from 'lucide-react'
 
 export default function PlatformTeamMemberDetail() {
@@ -18,8 +19,19 @@ export default function PlatformTeamMemberDetail() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { data: members, isLoading, isError } = usePlatformStaffList()
+  const { data: rolesData } = usePlatformJobRoles()
   const updateStaff = useUpdatePlatformStaff()
   const [resetForMember, setResetForMember] = useState<PlatformStaffMember | null>(null)
+
+  const roleOptions = useMemo(
+    () =>
+      (rolesData?.roles ?? []).map((r) => ({
+        value: r.slug,
+        label: r.name,
+        permissions: r.permissions,
+      })),
+    [rolesData?.roles],
+  )
 
   const member = useMemo(
     () => (members ?? []).find((m) => m.id === userId) ?? null,
@@ -27,8 +39,8 @@ export default function PlatformTeamMemberDetail() {
   )
 
   const teamManagers = useMemo(
-    () => (members ?? []).filter((m) => m.job_role === 'team_manager'),
-    [members],
+    () => (members ?? []).filter((m) => isTeamManagerRole(m.job_role, roleOptions)),
+    [members, roleOptions],
   )
 
   if (!isSuperuserAdmin(user)) {
@@ -66,137 +78,121 @@ export default function PlatformTeamMemberDetail() {
   }
 
   const busy = updateStaff.isPending
+  const isRm = isRelationshipManagerRole(member.job_role, roleOptions)
 
   return (
-    <div className="space-y-6 w-full max-w-none">
-      <Link
-        to="/dashboard/platform-team"
-        className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+    <div className="flex flex-col gap-3 w-full max-w-none lg:h-[calc(100vh-5.5rem)] lg:min-h-0 lg:overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div className="min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Link
+            to="/dashboard/platform-team"
+            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Support team
+          </Link>
+          <span className="text-muted-foreground hidden sm:inline">/</span>
+          <h1 className="text-xl font-bold text-gray-900 truncate">{member.full_name}</h1>
+          <span
+            className={
+              member.is_active
+                ? 'text-green-700 bg-green-50 px-2 py-0.5 rounded-full text-xs shrink-0'
+                : 'text-red-700 bg-red-50 px-2 py-0.5 rounded-full text-xs shrink-0'
+            }
+          >
+            {member.is_active ? 'Active' : 'Inactive'}
+          </span>
+          <span className="text-xs text-muted-foreground shrink-0">
+            {formatPlatformJobRole(member.job_role, roleOptions)}
+            {member.created_at ? ` · Added ${member.created_at.slice(0, 10)}` : ''}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8"
+            disabled={busy}
+            onClick={() => setResetForMember(member)}
+          >
+            <KeyRound className="w-3.5 h-3.5 mr-1.5" />
+            Reset password
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8"
+            disabled={busy}
+            onClick={() =>
+              updateStaff.mutate({
+                userId: member.id,
+                data: { is_active: !member.is_active },
+              })
+            }
+          >
+            <UserMinus className="w-3.5 h-3.5 mr-1.5" />
+            {member.is_active ? 'Deactivate' : 'Reactivate'}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="h-8"
+            disabled={busy}
+            onClick={() => {
+              if (
+                confirm(
+                  'Remove platform access? They will no longer be able to open this admin app.',
+                )
+              ) {
+                updateStaff.mutate(
+                  { userId: member.id, data: { remove_access: true } },
+                  { onSuccess: () => navigate('/dashboard/platform-team') },
+                )
+              }
+            }}
+          >
+            <UserX className="w-3.5 h-3.5 mr-1.5" />
+            Remove access
+          </Button>
+        </div>
+      </div>
+
+      <div
+        className={
+          isRm
+            ? 'grid gap-3 lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:flex-1 lg:min-h-0'
+            : 'grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:flex-1 lg:min-h-0'
+        }
       >
-        <ArrowLeft className="w-4 h-4" />
-        Back to support team
-      </Link>
+        <div className="min-w-0 shrink-0">
+          <PlatformStaffEditForm member={member} teamManagers={teamManagers} compact />
+        </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_280px] lg:items-start">
-        <div className="space-y-6 min-w-0">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{member.full_name}</h1>
-            <p className="text-sm text-muted-foreground mt-1">Support team member</p>
-          </div>
+        <Card className="min-w-0 lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
+          <CardHeader className="px-4 py-2.5 space-y-0 shrink-0">
+            <CardTitle className="text-base">Audit history</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-3 pt-0 lg:flex-1 lg:min-h-0 lg:overflow-hidden lg:flex lg:flex-col">
+            <PlatformStaffAuditSection
+              scope="member"
+              memberUserId={member.id}
+              compact
+              embedded
+            />
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                <div>
-                  <dt className="text-muted-foreground">Email</dt>
-                  <dd className="font-medium">{member.email || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Phone</dt>
-                  <dd className="font-medium">{member.phone || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Role</dt>
-                  <dd className="font-medium">{formatPlatformJobRole(member.job_role)}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Manager</dt>
-                  <dd className="font-medium">{member.manager_name || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Status</dt>
-                  <dd>
-                    <span
-                      className={
-                        member.is_active
-                          ? 'text-green-700 bg-green-50 px-2 py-0.5 rounded-full text-xs'
-                          : 'text-red-700 bg-red-50 px-2 py-0.5 rounded-full text-xs'
-                      }
-                    >
-                      {member.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Added</dt>
-                  <dd className="font-medium">{member.created_at ? member.created_at.slice(0, 10) : '—'}</dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
-
-          <PlatformStaffEditForm member={member} teamManagers={teamManagers} />
-
-          <PlatformStaffAuditSection scope="member" memberUserId={member.id} />
-
-          {member.job_role === 'relationship_manager' && (
+        {isRm && (
+          <div className="min-w-0 lg:col-span-2 lg:min-h-0 lg:overflow-auto">
             <RmAssignedBusinessAccounts
               relationshipManagerUserId={member.id}
               rmName={member.full_name}
             />
-          )}
-        </div>
-
-        <aside className="lg:sticky lg:top-4 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="justify-start"
-                disabled={busy}
-                onClick={() => setResetForMember(member)}
-              >
-                <KeyRound className="w-4 h-4 mr-2 shrink-0" />
-                Reset password
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="justify-start"
-                disabled={busy}
-                onClick={() =>
-                  updateStaff.mutate({
-                    userId: member.id,
-                    data: { is_active: !member.is_active },
-                  })
-                }
-              >
-                <UserMinus className="w-4 h-4 mr-2 shrink-0" />
-                {member.is_active ? 'Deactivate login' : 'Reactivate login'}
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                className="justify-start"
-                disabled={busy}
-                onClick={() => {
-                  if (
-                    confirm(
-                      'Remove platform access? They will no longer be able to open this admin app.',
-                    )
-                  ) {
-                    updateStaff.mutate(
-                      { userId: member.id, data: { remove_access: true } },
-                      {
-                        onSuccess: () => navigate('/dashboard/platform-team'),
-                      },
-                    )
-                  }
-                }}
-              >
-                <UserX className="w-4 h-4 mr-2 shrink-0" />
-                Remove platform access
-              </Button>
-            </CardContent>
-          </Card>
-        </aside>
+          </div>
+        )}
       </div>
 
       <ResetPasswordModal member={resetForMember} onClose={() => setResetForMember(null)} />

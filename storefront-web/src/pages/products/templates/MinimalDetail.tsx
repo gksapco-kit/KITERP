@@ -7,6 +7,7 @@ import {
   Award, Zap, Check, Repeat, MessageSquare,
 } from 'lucide-react'
 import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
+import { subscriptionBillingFootnote } from '@/lib/serviceStorefrontCta'
 import StarRating from '@/components/StarRating'
 import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
@@ -36,6 +37,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
     subscriptionPriceType, subscriptionUom,
     subscriptionTrialDays, subscriptionSetupFee, subscriptionBillingCycles,
     subscriptionScheduleModes,
+    isTaxable, taxRate,
     canQuote, setShowQuote,
   } = props
   const qtyMax = maxAddQty ?? 99
@@ -157,9 +159,13 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
           <span className="inline-block mt-2 text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full">{displayOfferLabel}</span>
         )}
         <p className="text-xs text-gray-400 mt-1">
-          {isSubscription && subscriptionInterval
-            ? `Billed ${intervalLabel[subscriptionInterval] || subscriptionInterval} · Inclusive of all taxes`
-            : 'Inclusive of all taxes'}
+          {subscriptionBillingFootnote({
+            interval: isSubscription ? (intervalLabel[subscriptionInterval!] || subscriptionInterval) : null,
+            priceType: isSubscription ? subscriptionPriceType : null,
+            uom: isSubscription ? subscriptionUom : null,
+            isTaxable,
+            taxRate,
+          })}
         </p>
       </div>
 
@@ -177,6 +183,8 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
             setupFee={subscriptionSetupFee}
             maxCycles={subscriptionBillingCycles}
             allowedModes={subscriptionScheduleModes}
+            isTaxable={isTaxable}
+            taxRate={taxRate}
             onSubscribe={() => handleBuyNow()}
             subscribePending={addToCartPending}
             disabled={displayStock === 'out_of_stock'}

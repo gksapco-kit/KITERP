@@ -14,6 +14,8 @@ import {
   useRejectDomainRequest,
 } from '@/hooks/useAdmin'
 import { usePlatformStaffList } from '@/hooks/usePlatformStaff'
+import { usePlatformJobRoles } from '@/hooks/usePlatformJobRoles'
+import { isRelationshipManagerRole } from '@/lib/platformTeam'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
 import { usePlans, useVendorPlan, useAssignPlan } from '@/hooks/usePlans'
@@ -228,8 +230,14 @@ export default function VendorDetail() {
   const assignPlan = useAssignPlan()
   const [showPlanPicker, setShowPlanPicker] = useState(false)
   const { data: platformStaff } = usePlatformStaffList()
+  const { data: rolesData } = usePlatformJobRoles()
+  const roleOptions = (rolesData?.roles ?? []).map((r) => ({
+    value: r.slug,
+    label: r.name,
+    permissions: r.permissions,
+  }))
   const relationshipManagers = (platformStaff ?? []).filter(
-    (m) => m.is_active && m.job_role === 'relationship_manager',
+    (m) => m.is_active && isRelationshipManagerRole(m.job_role, roleOptions),
   )
   const { data: rmQueriesData } = useVendorRmQueriesForVendor(id, staffCanViewQueries && !!id)
   const patchRmQuery = usePatchVendorRmQueryStatus(id)

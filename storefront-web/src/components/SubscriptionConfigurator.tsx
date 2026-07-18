@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import { themeUi } from '@/lib/themeColors'
 import { Repeat, Clock, IndianRupee, Check, Calendar, Plus, X, CalendarDays, RotateCcw } from 'lucide-react'
+import { subscriptionTaxNote } from '@/lib/serviceStorefrontCta'
 
 const inputFocus = `rounded-lg border border-gray-200 outline-none ${themeUi.focusRingInput}`
 
@@ -35,11 +36,18 @@ function addCyclesToDate(start: Date, interval: string, cycles: number): Date {
 }
 
 function cycleBetweenDates(start: Date, end: Date, interval: string): number {
-  const diffMs = end.getTime() - start.getTime()
-  if (diffMs <= 0) return 0
-  const meta = INTERVAL_META[interval]
-  if (!meta) return 0
-  return Math.max(1, Math.ceil(diffMs / (meta.daysPerCycle * 86400000)))
+  if (end.getTime() <= start.getTime()) return 0
+  // Count complete billing cycles using the same calendar rules as addCyclesToDate
+  // (e.g. 18 Jul → 18 Aug monthly = 1 cycle, not 2 from a 30-day ceil).
+  let cycles = 0
+  let cursor = new Date(start)
+  while (cycles < 999) {
+    const next = addCyclesToDate(cursor, interval, 1)
+    if (next.getTime() > end.getTime()) break
+    cycles += 1
+    cursor = next
+  }
+  return Math.max(1, cycles)
 }
 
 function toInputDate(d: Date): string {
@@ -152,6 +160,15 @@ interface Props {
   }) => void
   subscribePending?: boolean
   disabled?: boolean
+  /** Customer-facing label from Business Front Options (header + CTA). */
+  subscribeLabel?: string
+  /** Tax settings from the service/plan — drives the billing footnote. */
+  isTaxable?: boolean
+  taxRate?: number | null
+  /** `wide` puts schedule on the left and pricing/CTA on the right (desktop). */
+  layout?: 'stack' | 'wide'
+  /** Hide outer card chrome when nested in a modal (avoids duplicate headers). */
+  embedded?: boolean
 }
 
 const ALL_MODES: Mode[] = ['dates', 'cycles', 'pick_dates', 'weekly', 'recurring']
@@ -160,10 +177,16 @@ export default function SubscriptionConfigurator({
   interval, pricePerCycle, currency, priceType, uom,
   trialDays, setupFee, maxCycles, allowedModes,
   onSubscribe, subscribePending, disabled,
+  subscribeLabel,
+  isTaxable,
+  taxRate,
+  layout = 'stack',
+  embedded = false,
 }: Props) {
+  const ctaLabel = (subscribeLabel || '').trim() || 'Subscribe'
   const meta = INTERVAL_META[interval]
   const isPerUom = priceType === 'per_unit'
-  const uomLabel = uom || 'unit'
+  const uomLabel = (uom || 'unit').replace(/^per_/, '').replace(/_/g, ' ')
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -314,24 +337,30 @@ export default function SubscriptionConfigurator({
     : computedCycles
 
   const totalAmount = pricePerCycle * effectiveCycles + fee
-  const yearlyEquivalent = meta ? pricePerCycle * meta.yearly : pricePerCycle * 12
+  // Yearly estimate only for open-ended per-cycle plans (not per-unit, not yearly, no cycle cap).
+  const showYearlyEquivalent =
+    !isPerUom && !!meta && interval !== 'yearly' && !(maxCycles && maxCycles > 0)
+  const yearlyEquivalent = showYearlyEquivalent && meta ? pricePerCycle * meta.yearly : null
   const firstCharge = fee + (hasTrial ? 0 : pricePerCycle)
   const firstChargeDate = hasTrial
     ? new Date(today.getTime() + trialDays! * 86400000)
     : today
 
+  const taxNote = subscriptionTaxNote({ isTaxable, taxRate })
+
   if (!meta) return null
 
   const minStartDate = toInputDate(today)
 
-  const allModeConfig: { id: Mode; label: string; shortLabel: string; icon: typeof Calendar }[] = [
-    { id: 'dates',      label: 'Date range',  shortLabel: 'Range',     icon: Calendar },
-    { id: 'cycles',     label: 'Billing cycles', shortLabel: 'Cycles',    icon: Clock },
-    { id: 'pick_dates', label: 'Pick dates',  shortLabel: 'Pick',      icon: CalendarDays },
-    { id: 'weekly',     label: 'Weekly',      shortLabel: 'Weekly',    icon: Repeat },
-    { id: 'recurring',  label: 'Recurring',   shortLabel: 'Repeat',    icon: RotateCcw },
+  const allModeConfig: { id: Mode; label: string; shortLabel: string; hint: string; icon: typeof Calendar }[] = [
+    { id: 'dates',      label: 'Date range',     shortLabel: 'Range',   hint: 'Set a start and end date — billed for complete cycles in that period.', icon: Calendar },
+    { id: 'cycles',     label: 'Billing cycles', shortLabel: 'Cycles',  hint: 'Choose how many billing cycles you want.', icon: Clock },
+    { id: 'pick_dates', label: 'Pick dates',     shortLabel: 'Pick',    hint: 'Select specific dates one by one.', icon: CalendarDays },
+    { id: 'weekly',     label: 'Weekly',         shortLabel: 'Weekly',  hint: 'Repeat on the same weekday between two dates.', icon: Repeat },
+    { id: 'recurring',  label: 'Recurring',      shortLabel: 'Repeat',  hint: 'Custom repeat pattern (every N days, weeks, or months).', icon: RotateCcw },
   ]
   const modeConfig = allModeConfig.filter(m => enabledModes.includes(m.id))
+  const activeModeMeta = modeConfig.find(m => m.id === mode) ?? modeConfig[0]
 
   const recurSummary = useMemo(() => {
     if (recurUnit === 'week' && recurWeekdays.length > 0) {
@@ -376,9 +405,20 @@ export default function SubscriptionConfigurator({
     }
   }
 
-  // Renders the date-preview chip list (reused for weekly + recurring)
+  // Compact summary — no chip lists that force scroll in the popup
   const renderDateChips = (dates: string[], maxShow: number = 12, totalCount?: number) => {
     const total = totalCount ?? dates.length
+    if (embedded) {
+      const first = dates[0] ? formatDateShort(parseInputDate(dates[0])) : null
+      const last = dates.length > 1 ? formatDateShort(parseInputDate(dates[dates.length - 1])) : null
+      return (
+        <div className="rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-2 text-xs text-gray-600">
+          <span className="font-semibold text-gray-800">{total}</span>
+          {' '}occurrence{total !== 1 ? 's' : ''}
+          {first && last ? <> · {first} → {last}</> : first ? <> · {first}</> : null}
+        </div>
+      )
+    }
     return (
     <div className="bg-white rounded-lg border border-gray-100 p-3">
       <p className="text-xs font-medium text-gray-500 mb-1.5">
@@ -400,111 +440,110 @@ export default function SubscriptionConfigurator({
     )
   }
 
-  // Price-line label varies by mode
+  // Price-line label varies by mode / price basis
   const priceLine = mode === 'pick_dates' ? 'Price per selected date'
     : mode === 'weekly' ? `Price per ${WEEKDAYS[weeklyDay]}`
     : mode === 'recurring' ? 'Price per occurrence'
+    : isPerUom ? `Price per ${uomLabel}`
     : `Price per ${meta.label.toLowerCase()} cycle`
 
   const countUnit = mode === 'pick_dates' ? 'date'
     : mode === 'weekly' || mode === 'recurring' ? 'occurrence'
+    : isPerUom ? uomLabel
     : 'cycle'
 
-  return (
-    <div className={`rounded-xl border overflow-hidden ${themeUi.borderPrimarySoft} ${themeUi.gradientHeroBr}`}>
-      {/* Header */}
-      <div className={`px-4 py-2.5 flex items-center justify-between gap-2 ${themeUi.btnSolid}`}>
-        <span className="flex items-center gap-2 text-white font-bold text-sm">
-          <Repeat className="w-4 h-4 text-white/85 shrink-0" />
-          Subscribe
-        </span>
-        {hasTrial && (
-          <span className="text-[10px] font-bold uppercase tracking-wide text-white/90 bg-white/15 px-2 py-0.5 rounded-full">
-            {trialDays}d trial
-          </span>
-        )}
-      </div>
+  const isWide = layout === 'wide'
+  const hasSchedule = effectiveCycles > 0
+  const showPeriod = !(mode === 'pick_dates' && pickedDates.length === 0)
 
-      <div className="px-3.5 py-3 space-y-3.5 sm:px-4 sm:py-3.5">
-        {/* Price hero */}
-        <div>
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <p className="text-xl sm:text-2xl font-extrabold text-gray-900 tabular-nums">
+  const priceHero = (
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <p className="text-base font-bold text-gray-900 tabular-nums leading-tight break-all">
               {formatCurrency(pricePerCycle, currency)}
             </p>
-            <span className="text-sm font-medium text-gray-500">
+            <span className="text-[11px] font-medium text-gray-500">
               {isPerUom ? `per ${uomLabel}` : meta.short}
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Billed {meta.label.toLowerCase()}
-            {isPerUom ? ` per ${uomLabel}` : ''}
-            · Inclusive of all taxes
+          <p className="text-[11px] text-gray-500 leading-snug mt-0.5">
+            {[
+              isPerUom ? `per ${uomLabel}` : `Billed ${meta.label.toLowerCase()}`,
+              taxNote,
+            ].filter(Boolean).join(' · ')}
           </p>
-          <p className="text-[11px] text-gray-400 mt-0.5 tabular-nums">
-            ≈ {formatCurrency(yearlyEquivalent, currency)}/year
-          </p>
+          {yearlyEquivalent != null && (
+            <p className="text-[10px] text-gray-400 leading-snug tabular-nums">
+              ≈ {formatCurrency(yearlyEquivalent, currency)}/year
+            </p>
+          )}
         </div>
+  )
 
-        {/* Setup fee — trial moved to header */}
-        {hasSetup && (
-          <div className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-full px-3 py-1 text-xs font-medium">
+  const setupBadge = hasSetup ? (
+        <div className="flex flex-wrap gap-1.5">
+            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-full px-2.5 py-0.5 text-xs font-medium">
               <IndianRupee className="w-3.5 h-3.5 shrink-0" />
               {formatCurrency(fee, currency)} one-time setup
             </div>
           </div>
-        )}
+  ) : null
 
-        {/* Schedule mode — grid fits all options without horizontal scroll in wider sidebar */}
+  const scheduleBlock = (
+        <>
         {modeConfig.length > 1 && (
         <div>
           <p className="text-xs font-medium text-gray-500 mb-1.5">How do you want to schedule?</p>
-          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
-            {modeConfig.map(m => (
+          <div className="inline-flex flex-wrap gap-1 p-1 rounded-xl bg-gray-100/90 ring-1 ring-gray-200/80">
+            {modeConfig.map(m => {
+              const selected = mode === m.id
+              return (
               <button
                 key={m.id}
                 type="button"
                 title={m.label}
+                aria-pressed={selected}
                 onClick={() => setMode(m.id)}
-                className={`flex min-w-0 items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                  mode === m.id
-                    ? `${themeUi.toggleActive} shadow-sm`
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200/80 hover:text-gray-800'
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  selected
+                    ? 'bg-[color:var(--color-primary)] text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-white/80 hover:text-gray-900'
                 }`}
               >
                 <m.icon className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{m.shortLabel}</span>
+                <span>{m.shortLabel}</span>
               </button>
-            ))}
+              )
+            })}
           </div>
+          {activeModeMeta && !embedded && (
+            <p className="text-[11px] text-gray-500 mt-1.5 leading-snug">{activeModeMeta.hint}</p>
+          )}
         </div>
         )}
 
-        {/* ── Mode: Date Range ── */}
         {mode === 'dates' && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Start date</label>
               <input type="date" value={startDate} min={minStartDate} onChange={e => handleStartDateChange(e.target.value)}
-                className={`w-full px-3 py-2.5 text-sm ${inputFocus}`} />
+                className={`w-full px-2.5 py-2 text-sm ${inputFocus}`} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">End date</label>
               <input type="date" value={endDate} min={startDate} onChange={e => handleEndDateChange(e.target.value)}
-                className={`w-full px-3 py-2.5 text-sm ${inputFocus}`} />
+                className={`w-full px-2.5 py-2 text-sm ${inputFocus}`} />
             </div>
           </div>
         )}
 
-        {/* ── Mode: Cycles ── */}
         {mode === 'cycles' && (
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-2">Number of Billing Cycles</label>
-            <div className="flex items-center gap-3">
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Number of billing cycles</label>
+            <div className="flex items-center gap-2.5">
               <input type="number" min="1" max={maxCycles && maxCycles > 0 ? maxCycles : 999}
                 value={selectedCycles} onChange={e => handleCycleChange(Math.max(1, parseInt(e.target.value) || 1))}
-                className={`w-24 px-3 py-2.5 text-sm font-bold text-center ${inputFocus}`} />
+                className={`w-20 px-2.5 py-2 text-sm font-bold text-center ${inputFocus}`} />
               <span className="text-sm text-gray-500">
                 {meta.label.toLowerCase()} cycle{selectedCycles !== 1 ? 's' : ''}
               </span>
@@ -515,14 +554,13 @@ export default function SubscriptionConfigurator({
           </div>
         )}
 
-        {/* ── Mode: Pick Dates ── */}
         {mode === 'pick_dates' && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <label className="block text-xs font-medium text-gray-600">Select specific dates</label>
             <div className="flex gap-2">
               <input type="date" value={pickInput} min={minStartDate} onChange={e => setPickInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPickDate() } }}
-                className={`flex-1 px-3 py-2 text-sm ${inputFocus}`} />
+                className={`flex-1 px-2.5 py-2 text-sm ${inputFocus}`} />
               <button type="button" onClick={addPickDate} disabled={!pickInput || pickedDates.includes(pickInput)}
                 className={`px-3 py-2 rounded-lg disabled:opacity-40 text-white text-sm font-medium flex items-center gap-1 transition-colors ${themeUi.btnSolid}`}>
                 <Plus className="w-4 h-4" /> Add
@@ -532,6 +570,17 @@ export default function SubscriptionConfigurator({
               <p className="text-xs text-amber-600">Max {maxCycles} dates allowed</p>
             )}
             {pickedDates.length > 0 ? (
+              embedded ? (
+                <div className="rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-2 text-xs text-gray-600">
+                  <span className="font-semibold text-gray-800">{pickedDates.length}</span>
+                  {' '}date{pickedDates.length !== 1 ? 's' : ''} selected
+                  {' · '}
+                  {formatDateShort(parseInputDate([...pickedDates].sort()[0]))}
+                  {pickedDates.length > 1 && (
+                    <> → {formatDateShort(parseInputDate([...pickedDates].sort()[pickedDates.length - 1]))}</>
+                  )}
+                </div>
+              ) : (
               <div className="flex flex-wrap gap-1.5">
                 {pickedDates.map(d => (
                   <span key={d} className={`inline-flex items-center gap-1 text-xs font-medium pl-2.5 pr-1 py-1 rounded-full ${themeUi.pillPrimary}`}>
@@ -543,13 +592,15 @@ export default function SubscriptionConfigurator({
                   </span>
                 ))}
               </div>
+              )
             ) : (
-              <p className="text-xs text-gray-400 italic text-center py-2">No dates selected yet</p>
+              <p className="text-xs text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2.5 text-center">
+                Add at least one date to continue
+              </p>
             )}
           </div>
         )}
 
-        {/* ── Mode: Weekly ── */}
         {mode === 'weekly' && (
           <div className="space-y-3">
             <div>
@@ -583,10 +634,8 @@ export default function SubscriptionConfigurator({
           </div>
         )}
 
-        {/* ── Mode: Recurring ── */}
         {mode === 'recurring' && (
           <div className="space-y-3">
-            {/* Frequency row */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Repeat every</label>
               <div className="flex items-center gap-2">
@@ -608,7 +657,6 @@ export default function SubscriptionConfigurator({
               </div>
             </div>
 
-            {/* Weekday multi-select — only for "week" unit */}
             {recurUnit === 'week' && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-2">On these days</label>
@@ -630,7 +678,6 @@ export default function SubscriptionConfigurator({
               </div>
             )}
 
-            {/* Date range */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Start</label>
@@ -644,49 +691,46 @@ export default function SubscriptionConfigurator({
               </div>
             </div>
 
-            {/* Summary badge */}
             <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${themeUi.bgSoftPanel} ${themeUi.borderPrimaryMuted}`}>
               <RotateCcw className={`w-4 h-4 shrink-0 ${themeUi.iconPrimary}`} />
               <p className={`text-xs font-medium ${themeUi.textOnPrimaryMuted}`}>{recurSummary}</p>
               <span className={`ml-auto text-xs font-bold ${themeUi.textPrimaryStrong}`}>{recurOccurrenceCount} dates</span>
             </div>
 
-            {/* Generated dates preview */}
-            {recurOccurrenceCount > 0 && renderDateChips(recurDatePreview, RECURRING_PREVIEW_CHIP_LIMIT, recurOccurrenceCount)}
+            {!embedded && recurOccurrenceCount > 0 && renderDateChips(recurDatePreview, RECURRING_PREVIEW_CHIP_LIMIT, recurOccurrenceCount)}
           </div>
         )}
 
-        {/* Timeline visual — for dates/cycles modes */}
-        {(mode === 'dates' || mode === 'cycles') && (
-          <div className="bg-white rounded-xl border border-gray-100 p-3 sm:p-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Timeline</p>
-            <div className="relative">
+        {(mode === 'dates' || mode === 'cycles') && !embedded && (
+          <div className="bg-white rounded-lg border border-gray-100 px-2.5 py-2">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Timeline</p>
+            <div>
               <div className="flex items-center gap-0">
                 {hasTrial && (
                   <div className="flex-shrink-0 text-center min-w-[3.5rem]">
-                    <div className="h-2 bg-green-400 rounded-l-full w-14" />
-                    <p className="text-[10px] text-green-700 font-medium mt-1 leading-tight">Trial</p>
+                    <div className="h-1.5 bg-green-400 rounded-l-full w-14" />
+                    <p className="text-[10px] text-green-700 font-medium mt-0.5 leading-tight">Trial</p>
                     <p className="text-[10px] text-gray-400">{trialDays}d</p>
                   </div>
                 )}
                 <div className="flex-1 text-center min-w-0">
-                  <div className={`h-2 bg-[color:var(--color-primary)] ${hasTrial ? '' : 'rounded-l-full'} rounded-r-full`} />
-                  <p className={`text-[10px] font-medium mt-1 leading-tight ${themeUi.textPrimaryStrong}`}>Active</p>
+                  <div className={`h-1.5 bg-[color:var(--color-primary)] ${hasTrial ? '' : 'rounded-l-full'} rounded-r-full`} />
+                  <p className={`text-[10px] font-medium mt-0.5 leading-tight ${themeUi.textPrimaryStrong}`}>Active</p>
                   <p className="text-[10px] text-gray-400">{effectiveCycles} cycle{effectiveCycles !== 1 ? 's' : ''}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-2 mt-3 text-[11px] sm:text-xs">
+              <div className="flex justify-between gap-2 mt-1.5 text-[10px] sm:text-[11px]">
                 <div>
                   <p className="font-semibold text-gray-700">{hasTrial ? 'Trial starts' : 'Starts'}</p>
                   <p className="text-gray-500">{formatDateShort(today)}</p>
                 </div>
                 {hasTrial && (
-                  <div className="text-center sm:text-left">
+                  <div className="text-center">
                     <p className={`font-semibold ${themeUi.textPrimaryStrong}`}>Billing starts</p>
                     <p className="text-gray-500">{formatDateShort(firstChargeDate)}</p>
                   </div>
                 )}
-                <div className={hasTrial ? 'text-right' : 'text-right sm:col-start-3'}>
+                <div className="text-right">
                   <p className="font-semibold text-gray-700">Ends</p>
                   <p className="text-gray-500">{formatDateShort(computedEndDate)}</p>
                 </div>
@@ -694,85 +738,145 @@ export default function SubscriptionConfigurator({
             </div>
           </div>
         )}
+        </>
+  )
 
-        {/* Pricing breakdown */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-100">
-          <div className="flex justify-between px-4 py-2.5 text-sm">
-            <span className="text-gray-600">{priceLine}</span>
-            <span className="font-semibold text-gray-900">{formatCurrency(pricePerCycle, currency)}</span>
+  const pricingBlock = (
+        <div className="space-y-2">
+        <div className="rounded-lg border border-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
+          <div className="flex justify-between gap-2 px-2.5 py-1.5 text-xs">
+            <span className="text-gray-600 shrink-0">{priceLine}</span>
+            <span className="font-semibold text-gray-900 text-right tabular-nums break-all">{formatCurrency(pricePerCycle, currency)}</span>
           </div>
-          <div className="flex justify-between px-4 py-2.5 text-sm">
-            <span className="text-gray-600">× {effectiveCycles} {countUnit}{effectiveCycles !== 1 ? 's' : ''}</span>
-            <span className="font-semibold text-gray-900">{formatCurrency(pricePerCycle * effectiveCycles, currency)}</span>
+          <div className="flex justify-between gap-2 px-2.5 py-1.5 text-xs">
+            <span className="text-gray-600 shrink-0">
+              × {effectiveCycles} {countUnit}{effectiveCycles !== 1 ? 's' : ''}
+            </span>
+            <span className="font-semibold text-gray-900 text-right tabular-nums break-all">
+              {formatCurrency(pricePerCycle * effectiveCycles, currency)}
+            </span>
           </div>
           {hasSetup && (
-            <div className="flex justify-between px-4 py-2.5 text-sm">
-              <span className="text-gray-600">One-time setup fee</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(fee, currency)}</span>
+            <div className="flex justify-between gap-2 px-2.5 py-1.5 text-xs">
+              <span className="text-gray-600 shrink-0">One-time setup</span>
+              <span className="font-semibold text-gray-900 text-right tabular-nums break-all">{formatCurrency(fee, currency)}</span>
             </div>
           )}
           {hasTrial && (
-            <div className="flex justify-between px-4 py-2.5 text-sm">
-              <span className="text-green-700 font-medium">Free trial</span>
-              <span className="font-semibold text-green-700">{trialDays} days ({formatCurrency(0, currency)})</span>
+            <div className="flex justify-between gap-2 px-2.5 py-1.5 text-xs">
+              <span className="text-green-700 font-medium shrink-0">Free trial</span>
+              <span className="font-semibold text-green-700 text-right">{trialDays} days</span>
             </div>
           )}
-          <div className="flex justify-between px-4 py-2.5 text-sm">
-            <span className="text-gray-600">Period</span>
-            <span className="font-medium text-gray-700">
-              {formatDateShort(computedStartDate)} → {formatDateShort(computedEndDate)}
-            </span>
-          </div>
-          <div className={`flex justify-between px-4 py-3 text-sm ${themeUi.bgSoftPanel}`}>
-            <span className="font-bold text-gray-900">Total to pay</span>
-            <span className={`font-extrabold text-lg ${themeUi.textPrimaryStrong}`}>
+          {showPeriod && (
+            <div className="flex justify-between gap-2 px-2.5 py-1.5 text-xs">
+              <span className="text-gray-600 shrink-0">Period</span>
+              <span className="font-medium text-gray-700 text-right">
+                {formatDateShort(computedStartDate)} → {formatDateShort(computedEndDate)}
+              </span>
+            </div>
+          )}
+          <div className={`flex justify-between gap-2 px-2.5 py-2 text-xs ${themeUi.bgSoftPanel}`}>
+            <span className="font-bold text-gray-900 shrink-0">Total to pay</span>
+            <span className={`font-extrabold text-sm text-right tabular-nums break-all ${themeUi.textPrimaryStrong}`}>
               {formatCurrency(totalAmount, currency)}
             </span>
           </div>
-          {hasTrial && (
-            <div className="flex justify-between px-4 py-2 text-xs bg-green-50/50">
-              <span className="text-green-700">First charge (after {trialDays}d trial)</span>
-              <span className="font-semibold text-green-700">{formatCurrency(firstCharge, currency)}</span>
+          {hasTrial && hasSchedule && (
+            <div className="flex justify-between gap-2 px-2.5 py-1.5 text-[11px] bg-green-50/50">
+              <span className="text-green-700 shrink-0">First charge (after {trialDays}d trial)</span>
+              <span className="font-semibold text-green-700 text-right tabular-nums break-all">{formatCurrency(firstCharge, currency)}</span>
             </div>
           )}
         </div>
 
-        {/* Subscribe CTA */}
         <button
           type="button"
           onClick={handleSubscribe}
-          disabled={subscribePending || disabled || effectiveCycles < 1}
-          className={`w-full h-12 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm flex items-center justify-center gap-2 transition-colors ${themeUi.btnSolid} ${themeUi.shadowPrimarySoft}`}
+          disabled={subscribePending || disabled || !hasSchedule}
+          className={`w-full h-10 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm flex items-center justify-center gap-2 px-3 transition-colors ${themeUi.btnSolid} ${themeUi.shadowPrimarySoft}`}
         >
           {subscribePending ? (
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
-            <Repeat className="w-5 h-5" />
+            <Repeat className="w-4 h-4 shrink-0" />
           )}
+          <span className="truncate">
           {disabled
             ? 'Out of Stock'
-            : hasTrial
-              ? `Start ${trialDays}-Day Free Trial`
-              : mode === 'recurring'
-                ? 'Confirm recurring booking'
-                : `Subscribe — ${formatCurrency(totalAmount, currency)}`
+            : !hasSchedule
+              ? (mode === 'pick_dates' ? 'Add dates to continue' : 'Complete schedule to continue')
+              : hasTrial
+                ? `Start ${trialDays}-Day Free Trial`
+                : mode === 'recurring'
+                  ? 'Confirm recurring booking'
+                  : `${ctaLabel} — ${formatCurrency(totalAmount, currency)}`
           }
+          </span>
         </button>
 
-        <p className="text-xs text-center text-gray-400">
-          {mode === 'pick_dates'
-            ? `You selected ${effectiveCycles} date${effectiveCycles !== 1 ? 's' : ''}.`
-            : mode === 'weekly'
-              ? `Every ${WEEKDAYS[weeklyDay]} — ${effectiveCycles} occurrence${effectiveCycles !== 1 ? 's' : ''}.`
-              : mode === 'recurring'
-                ? `${recurSummary} — ${effectiveCycles} occurrence${effectiveCycles !== 1 ? 's' : ''}.`
-                : hasTrial
-                  ? `Your free trial starts today. First charge of ${formatCurrency(firstCharge, currency)} on ${formatDateShort(firstChargeDate)}.`
-                  : `You will be charged ${formatCurrency(totalAmount, currency)} for ${effectiveCycles} cycle${effectiveCycles !== 1 ? 's' : ''}.`
-          }
-          {' '}Total: {formatCurrency(totalAmount, currency)}. Cancel anytime.
+        <p className="text-[10px] text-center text-gray-400 leading-snug">
+          {hasSchedule ? (
+            <>
+              {mode === 'pick_dates'
+                ? `${effectiveCycles} date${effectiveCycles !== 1 ? 's' : ''} selected.`
+                : mode === 'weekly'
+                  ? `Every ${WEEKDAYS[weeklyDay]} — ${effectiveCycles} occurrence${effectiveCycles !== 1 ? 's' : ''}.`
+                  : mode === 'recurring'
+                    ? `${recurSummary} — ${effectiveCycles} occurrence${effectiveCycles !== 1 ? 's' : ''}.`
+                    : hasTrial
+                      ? `Trial starts today. First charge ${formatCurrency(firstCharge, currency)} on ${formatDateShort(firstChargeDate)}.`
+                      : `Charged ${formatCurrency(totalAmount, currency)} for ${effectiveCycles} ${countUnit}${effectiveCycles !== 1 ? 's' : ''}.`
+              }
+              {' '}Cancel anytime.
+            </>
+          ) : (
+            'Choose a schedule, then confirm.'
+          )}
         </p>
+        </div>
+  )
+
+  const body = isWide ? (
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 lg:items-start ${embedded ? '' : 'px-2.5 py-2 sm:px-3'}`}>
+          <div className="space-y-2 min-w-0 order-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Schedule</p>
+            {scheduleBlock}
+          </div>
+          <div className={`space-y-2 min-w-0 order-2 ${embedded ? '' : 'lg:sticky lg:top-2'} self-start`}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Summary</p>
+            {priceHero}
+            {setupBadge}
+            {pricingBlock}
+          </div>
+        </div>
+      ) : (
+        <div className={`space-y-2.5 ${embedded ? '' : 'px-2.5 py-2 sm:px-3'}`}>
+          {priceHero}
+          {setupBadge}
+          {scheduleBlock}
+          {pricingBlock}
+        </div>
+      )
+
+  if (embedded) {
+    return <div className="min-w-0">{body}</div>
+  }
+
+  return (
+    <div className={`rounded-xl border overflow-hidden ${themeUi.borderPrimarySoft} ${themeUi.gradientHeroBr}`}>
+      <div className={`px-3 py-2 flex items-center justify-between gap-2 ${themeUi.btnSolid}`}>
+        <span className="flex items-center gap-2 text-white font-bold text-sm">
+          <Repeat className="w-4 h-4 text-white/85 shrink-0" />
+          {ctaLabel}
+        </span>
+        {hasTrial && (
+          <span className="text-[10px] font-bold uppercase tracking-wide text-white/90 bg-white/15 px-2 py-0.5 rounded-full">
+            {trialDays}d trial
+          </span>
+        )}
       </div>
+      {body}
     </div>
   )
 }

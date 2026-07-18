@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, MessageSquareText, Mail, Phone } from 'lucide-react'
 import apiClient from '@/api/client'
 import { Button } from '@/components/ui/button'
+import { contactQueryKeys, CONTACT_QUERY_POLL_MS } from '@/hooks/useContactQueries'
 
 const STATUSES = ['', 'new', 'read', 'resolved'] as const
 
@@ -21,19 +22,23 @@ export default function ContactQueries() {
   const [statusFilter, setStatusFilter] = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['vendor-contact-queries', statusFilter],
+    queryKey: contactQueryKeys.list(statusFilter),
     queryFn: async () => {
       const res = await apiClient.get('/vendors/me/contact-queries', {
         params: { status: statusFilter || undefined, size: 50 },
       })
       return res.data as { items: ContactQuery[]; total: number }
     },
+    staleTime: 0,
+    refetchInterval: CONTACT_QUERY_POLL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   const updateMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       apiClient.patch(`/vendors/me/contact-queries/${id}`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-contact-queries'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: contactQueryKeys.all }),
   })
 
   const items = data?.items ?? []

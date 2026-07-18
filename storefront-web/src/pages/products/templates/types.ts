@@ -68,6 +68,8 @@ export interface ProductDetailTemplateProps {
   subscriptionSetupFee?: number
   subscriptionBillingCycles?: number
   subscriptionScheduleModes?: string[]
+  isTaxable?: boolean
+  taxRate?: number | null
   // Quote Request
   canQuote: boolean
   quoteFormConfig?: QuoteFormField[]

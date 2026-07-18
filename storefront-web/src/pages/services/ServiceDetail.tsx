@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useService, useCreateBooking, useRequestQuote, useCreateSubscription } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -6,7 +6,7 @@ import { storeApi } from '@/api/store'
 import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
 import { formatCurrency, imgUrl } from '@/lib/utils'
 import {
-  Clock, Wrench, Loader2, ChevronRight, CheckCircle, XCircle,
+  Clock, Wrench, Loader2, ChevronLeft, ChevronRight, CheckCircle, XCircle,
   Phone, Mail, Tag, MapPin, AlertTriangle, Monitor, CalendarDays, X,
   Repeat, Calendar, Shield, Info, Sparkles, Users, Star, MessageSquare, Send,
 } from 'lucide-react'
@@ -20,6 +20,7 @@ import MediaViewer from '@/components/MediaViewer'
 import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
 import type { ServicePlan, ServiceAvailability } from '@/types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
+import { serviceBookingLabel, serviceBookingCtaLabel, serviceSubscriptionLabel, serviceSubscriptionCtaLabel, serviceQuoteCtaLabel } from '@/lib/serviceStorefrontCta'
 
 const SERVICE_MODE_LABELS: Record<string, string> = {
   in_store: 'In-Store', on_site: 'On-Site', remote: 'Remote',
@@ -42,10 +43,6 @@ const intervalShort: Record<string, string> = {
   daily: '/day', weekly: '/wk', biweekly: '/2wk', monthly: '/mo',
   quarterly: '/qtr', biannual: '/6mo', yearly: '/yr',
 }
-const intervalLabel: Record<string, string> = {
-  daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly',
-  quarterly: 'Quarterly', biannual: 'Half-Yearly', yearly: 'Yearly',
-}
 
 /** Pluralize duration units for clearer labels (e.g. "2 months", "1 month"). */
 function pluralizeDurationUnit(unit: string, value: number) {
@@ -62,36 +59,6 @@ function formatDurationLabel(value: number, uom?: string | null) {
     return `${value} ${pluralizeDurationUnit(unit, value)}`
   }
   return value === 1 ? '1 min' : `${value} mins`
-}
-
-function isIntervalRedundantWithUom(interval: string, uom?: string | null) {
-  if (!uom) return false
-  const unit = (UOM_LABELS[uom] || uom).toLowerCase()
-  const pairs: Record<string, string[]> = {
-    daily: ['day', 'daily'],
-    weekly: ['week', 'weekly'],
-    biweekly: ['week', 'weekly'],
-    monthly: ['month', 'monthly'],
-    quarterly: ['month', 'monthly'],
-    biannual: ['month', 'monthly', 'year', 'yearly'],
-    yearly: ['year', 'yearly'],
-  }
-  return (pairs[interval] || []).includes(unit)
-}
-
-/** Subtitle: interval only when duration is shown in the badge (avoids "Monthly · per week"). */
-function formatPlanBillingSubtitle(plan: ServicePlan) {
-  const vInterval = plan.subscription_interval || 'monthly'
-  const interval = intervalLabel[vInterval] || vInterval
-  if (plan.duration_minutes) return interval
-  const vPriceType = plan.price_type || 'per_cycle'
-  if (
-    vPriceType === 'per_unit'
-    && !isIntervalRedundantWithUom(vInterval, plan.uom)
-  ) {
-    return `${interval} · per ${UOM_LABELS[plan.uom!] || plan.uom || 'unit'}`
-  }
-  return interval
 }
 
 type AvailSlot = { id?: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean }
@@ -160,104 +127,172 @@ export function PlanSelector({
   compact?: boolean
 }) {
   const activePlans = plans.filter(p => p.is_active)
-  if (activePlans.length === 0) return null
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
   const isCompact = compact || hidePrice
+
+  const updateScrollState = useCallback(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    const maxScroll = el.scrollWidth - el.clientWidth
+    setCanScrollLeft(el.scrollLeft > 2)
+    setCanScrollRight(maxScroll > 2 && el.scrollLeft < maxScroll - 2)
+  }, [])
+
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    updateScrollState()
+    el.addEventListener('scroll', updateScrollState, { passive: true })
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateScrollState) : null
+    ro?.observe(el)
+    return () => {
+      el.removeEventListener('scroll', updateScrollState)
+      ro?.disconnect()
+    }
+  }, [activePlans.length, updateScrollState])
+
+  const scrollByCard = (dir: -1 | 1) => {
+    const el = scrollerRef.current
+    if (!el) return
+    const card = el.querySelector<HTMLElement>('[data-plan-card]')
+    const step = card ? card.offsetWidth + 8 : Math.max(160, el.clientWidth * 0.7)
+    el.scrollBy({ left: dir * step, behavior: 'smooth' })
+  }
+
+  if (activePlans.length === 0) return null
+
+  const showArrows = canScrollLeft || canScrollRight
 
   return (
     <div>
       <p className={`font-bold uppercase tracking-wider flex items-center gap-1.5 ${themeUi.textPrimary} ${
-        isCompact ? 'text-[10px] mb-2' : 'text-xs mb-3'
+        isCompact ? 'text-[10px] mb-2' : 'text-xs mb-2'
       }`}>
-        <Repeat className={isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} /> Choose a Plan
+        <Repeat className="w-3 h-3" /> Choose
       </p>
-      <div className={isCompact ? 'space-y-1.5' : 'space-y-2.5'}>
-        {activePlans.map(plan => {
-          const isSelected = selectedId === plan.id
-          const vInterval = plan.subscription_interval || 'monthly'
-          const vPriceType = plan.price_type || 'per_cycle'
-          const vShort = vPriceType === 'per_unit'
-            ? `/${UOM_LABELS[plan.uom] || plan.uom || 'unit'}`
-            : (intervalShort[vInterval] || '/mo')
-          const hasTrial = plan.subscription_trial_days && plan.subscription_trial_days > 0
-          const hasSetup = plan.subscription_setup_fee && plan.subscription_setup_fee > 0
+      <div className="relative flex items-center gap-1">
+        {showArrows && (
+          <button
+            type="button"
+            aria-label="Previous plans"
+            disabled={!canScrollLeft}
+            onClick={() => scrollByCard(-1)}
+            className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full border bg-white shadow-sm transition-opacity ${
+              canScrollLeft
+                ? 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                : 'border-gray-100 text-gray-300 cursor-default opacity-40'
+            }`}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        )}
+        <div
+          ref={scrollerRef}
+          className="flex min-w-0 flex-1 gap-2 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          role="radiogroup"
+          aria-label="Choose a plan"
+        >
+          {activePlans.map(plan => {
+            const isSelected = selectedId === plan.id
+            const vInterval = plan.subscription_interval || 'monthly'
+            const vPriceType = plan.price_type || 'per_cycle'
+            const vShort = vPriceType === 'per_unit'
+              ? `/${UOM_LABELS[plan.uom] || plan.uom || 'unit'}`
+              : (intervalShort[vInterval] || '/mo')
+            const hasTrial = plan.subscription_trial_days && plan.subscription_trial_days > 0
+            const hasSetup = plan.subscription_setup_fee && plan.subscription_setup_fee > 0
 
-          return (
-            <button key={plan.id} type="button" onClick={() => onSelect(plan.id)}
-              className={`w-fit max-w-full rounded-xl border-2 text-left transition-all duration-200 ${
-                isCompact ? 'p-2.5' : hidePrice ? 'p-3.5 sm:p-4' : 'p-3.5 sm:p-4'
-              } ${
-                isSelected
-                  ? 'border-[color:var(--color-secondary)] bg-white shadow-md ring-1 ring-[color:var(--color-secondary)]/20'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 bg-white'
-              }`}>
-              <div className="flex items-start gap-2.5">
-                <div
-                  className={`mt-0.5 flex shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                    isCompact ? 'h-4 w-4' : 'h-5 w-5'
-                  } ${
-                    isSelected
-                      ? 'border-[color:var(--color-secondary)] bg-[color:var(--color-secondary)]'
-                      : 'border-gray-300 bg-white'
-                  }`}
-                  aria-hidden
-                >
-                  {isSelected ? <CheckCircle className={`${isCompact ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} text-white`} strokeWidth={2.5} /> : null}
-                </div>
-                <div className={`flex min-w-0 ${hidePrice ? 'items-center gap-2' : 'items-start gap-5'}`}>
-                  <div className="min-w-0">
-                    <p className={`font-bold text-gray-900 truncate ${isCompact ? 'text-sm' : 'text-base'}`}>{plan.name}</p>
-                    <p className={`text-gray-600 ${isCompact ? 'text-xs mt-0' : 'text-sm mt-0.5'}`}>
-                      {formatPlanBillingSubtitle(plan)}
-                    </p>
-                    {plan.description && !isCompact && (
-                      <p className="text-sm text-gray-500 mt-1 line-clamp-2 max-w-xs">{plan.description}</p>
+            return (
+              <button
+                key={plan.id}
+                type="button"
+                data-plan-card
+                onClick={() => onSelect(plan.id)}
+                className={`w-52 shrink-0 overflow-hidden rounded-lg border-2 text-left transition-all duration-200 p-2.5 ${
+                  isSelected
+                    ? 'border-[color:var(--color-secondary)] bg-white shadow-sm ring-1 ring-[color:var(--color-secondary)]/20'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 bg-white'
+                }`}
+              >
+                <div className="flex items-start gap-1.5 min-w-0">
+                  <div
+                    className={`mt-0.5 flex shrink-0 items-center justify-center rounded-full border-2 transition-colors h-3.5 w-3.5 ${
+                      isSelected
+                        ? 'border-[color:var(--color-secondary)] bg-[color:var(--color-secondary)]'
+                        : 'border-gray-300 bg-white'
+                    }`}
+                    aria-hidden
+                  >
+                    {isSelected ? <CheckCircle className="w-2 h-2 text-white" strokeWidth={2.5} /> : null}
+                  </div>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="font-bold text-gray-900 truncate text-xs leading-tight">{plan.name}</p>
+                    {!hidePrice && (
+                      <div className="mt-0.5 min-w-0">
+                        {plan.price != null ? (
+                          <div className="min-w-0">
+                            <p className="text-sm font-extrabold text-gray-900 tabular-nums leading-snug break-all">
+                              {formatCurrency(plan.price, currency)}
+                            </p>
+                            <p className="text-[10px] font-normal text-gray-500 leading-tight">{vShort}</p>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded inline-block">
+                            Quote
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {hidePrice && plan.price == null && (
+                      <span className="mt-0.5 inline-block text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                        Quote
+                      </span>
+                    )}
+                    {plan.description && (
+                      <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-2 leading-snug break-words">{plan.description}</p>
                     )}
                   </div>
-                  {!hidePrice && (
-                    <div className="text-right shrink-0">
-                      {plan.price != null ? (
-                        <>
-                          <p className="text-lg font-extrabold text-gray-900 tabular-nums">
-                            {formatCurrency(plan.price, currency)}
-                          </p>
-                          <p className="text-sm text-gray-500">{vShort}</p>
-                        </>
-                      ) : (
-                        <p className="text-base font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-                          Quote
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {hidePrice && plan.price == null && (
-                    <span className="shrink-0 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                      Quote
-                    </span>
-                  )}
                 </div>
-              </div>
-              {(hasTrial || hasSetup || plan.duration_minutes) && (
-                <div className={`flex flex-wrap gap-1 ${isCompact ? 'mt-1.5 ml-6' : 'mt-2.5 ml-8'}`}>
-                  {hasTrial && (
-                    <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                      {plan.subscription_trial_days}d free trial
-                    </span>
-                  )}
-                  {hasSetup && (
-                    <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                      {formatCurrency(plan.subscription_setup_fee!, currency)} setup
-                    </span>
-                  )}
-                  {plan.duration_minutes ? (
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-0.5 ${themeUi.pillDuration}`}>
-                      <Clock className="w-2.5 h-2.5" />{formatDurationLabel(plan.duration_minutes, plan.uom)}
-                    </span>
-                  ) : null}
-                </div>
-              )}
-            </button>
-          )
-        })}
+                {(hasTrial || hasSetup || plan.duration_minutes) && (
+                  <div className="flex flex-wrap gap-1 mt-1.5 ml-5 min-w-0">
+                    {hasTrial && (
+                      <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                        {plan.subscription_trial_days}d trial
+                      </span>
+                    )}
+                    {hasSetup && (
+                      <span className="max-w-full text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full truncate">
+                        {formatCurrency(plan.subscription_setup_fee!, currency)} setup
+                      </span>
+                    )}
+                    {plan.duration_minutes ? (
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${themeUi.pillDuration}`}>
+                        <Clock className="w-2 h-2 shrink-0" />{formatDurationLabel(plan.duration_minutes, plan.uom)}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+              </button>
+            )
+          })}
+        </div>
+        {showArrows && (
+          <button
+            type="button"
+            aria-label="Next plans"
+            disabled={!canScrollRight}
+            onClick={() => scrollByCard(1)}
+            className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full border bg-white shadow-sm transition-opacity ${
+              canScrollRight
+                ? 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                : 'border-gray-100 text-gray-300 cursor-default opacity-40'
+            }`}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -408,14 +443,16 @@ const FALLBACK_QUOTE_FIELDS: QuoteFormField[] = [
 ]
 
 function QuoteRequestModal({
-  serviceId, serviceName, formConfig, customerInfo, onClose,
+  serviceId, serviceName, formConfig, customerInfo, title, onClose,
 }: {
   serviceId: string; serviceName: string; formConfig?: QuoteFormField[]
   customerInfo?: { name?: string; email?: string; phone?: string }
+  title?: string
   onClose: () => void
 }) {
   const requestQuote = useRequestQuote()
   const fields = (formConfig && formConfig.length > 0) ? formConfig.filter(f => f.enabled) : FALLBACK_QUOTE_FIELDS
+  const modalTitle = title || 'Request a Quote'
 
   const initialData: Record<string, string> = {}
   if (customerInfo?.name) initialData.name = customerInfo.name
@@ -475,7 +512,7 @@ function QuoteRequestModal({
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white rounded-t-2xl z-10">
           <div className="flex items-center gap-2">
             <MessageSquare className={`w-5 h-5 ${themeUi.iconPrimary}`} />
-            <h2 className="text-lg font-bold text-gray-900">Request a Quote</h2>
+            <h2 className="text-lg font-bold text-gray-900">{modalTitle}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="w-5 h-5 text-gray-400" />
@@ -539,12 +576,14 @@ export default function ServiceDetail() {
   const createSubscription = useCreateSubscription()
   const [showBooking, setShowBooking] = useState(false)
   const [showQuote, setShowQuote] = useState(false)
+  const [showSubscription, setShowSubscription] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
   const [sidebarMode, setSidebarMode] = useState<'booking' | 'subscription'>('subscription')
 
   useEffect(() => {
     if (sidebarMode === 'subscription') setShowBooking(false)
+    if (sidebarMode === 'booking') setShowSubscription(false)
   }, [sidebarMode])
 
   // Unique service view (once per browser session; 24h server-side dedupe)
@@ -562,6 +601,11 @@ export default function ServiceDetail() {
 
   const isSubscription = !!service?.is_subscription
   const canBook = !!service?.requires_booking
+  const bookingLabel = serviceBookingLabel(service?.booking_label)
+  const bookingCtaLabel = serviceBookingCtaLabel(service?.booking_label)
+  const subscriptionLabel = serviceSubscriptionLabel(service?.subscription_label)
+  const subscriptionCtaLabel = serviceSubscriptionCtaLabel(service?.subscription_label)
+  const quoteCtaLabel = serviceQuoteCtaLabel(service?.quote_request_label)
   const canQuote = !!service?.allow_quote_request && sf.quote_request !== false
   const hasBothModes = isSubscription && canBook
   const currency = service?.currency || 'INR'
@@ -574,6 +618,8 @@ export default function ServiceDetail() {
   const subscriptionSetupFee = selectedPlan?.subscription_setup_fee ?? service?.subscription_setup_fee
   const subscriptionBillingCycles = selectedPlan?.subscription_billing_cycles ?? service?.subscription_billing_cycles
   const subscriptionScheduleModes = selectedPlan?.subscription_schedule_modes ?? service?.subscription_schedule_modes ?? []
+  const subscriptionIsTaxable = selectedPlan?.is_taxable ?? service?.is_taxable
+  const subscriptionTaxRate = selectedPlan?.gst_rate ?? selectedPlan?.tax_rate ?? service?.gst_rate ?? service?.tax_rate
 
   // Build media items for MediaViewer
   const displayMedia = useMemo(() => {
@@ -611,109 +657,136 @@ export default function ServiceDetail() {
   const hasWhatsIncluded = sf.whats_included && service.whats_included && service.whats_included.length > 0
   const hasWhatsNotIncluded = sf.whats_not_included && service.whats_not_included && service.whats_not_included.length > 0
   const unitPrice = selectedPlan?.price ?? service.price
+  const showSubscriptionPanel =
+    isDisplayFieldEnabled(sf, 'subscription_details')
+    && ((hasBothModes && sidebarMode === 'subscription') || (isSubscription && !canBook))
+    && subscriptionPrice > 0
+
+  const handleSubscribe = (config: {
+    interval: string; cycles: number; total: number
+    startDate: string; endDate: string
+    selectedDates?: string[]; weeklyDay?: number
+    recurrence?: { every: number; unit: 'day' | 'week' | 'month'; weekdays?: number[] }
+  }) => {
+    if (!isAuthenticated) {
+      navigate(storePath('/login'), { state: { from: storePath(`/services/${service.slug}`) } })
+      return
+    }
+    const planPart =
+      selectedPlan &&
+      selectedPlan.name.trim().toLowerCase() !== service.name.trim().toLowerCase()
+        ? ` — ${selectedPlan.name}`
+        : ''
+    const name = `${service.name}${planPart} (Subscription, ${config.cycles} cycle${config.cycles !== 1 ? 's' : ''})`
+    createSubscription.mutate(
+      {
+        item_type: 'service',
+        service_id: service.id,
+        item_name: name,
+        interval: config.interval || subscriptionInterval,
+        price_per_cycle: subscriptionPrice,
+        qty: 1,
+        schedule_config: config,
+      },
+      {
+        onSuccess: () => {
+          setShowSubscription(false)
+        },
+      },
+    )
+  }
 
   return (
     <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-      {/* Breadcrumb */}
-      <nav className={`text-sm mb-5 flex items-center gap-1 flex-wrap ${themeUi.pageTextMuted}`}>
+      {/* Breadcrumb — stop before the service name (title is shown in the hero) */}
+      <nav className={`text-sm mb-5 flex items-center gap-1.5 flex-wrap ${themeUi.pageTextMuted}`}>
         <Link to={storePath('/')} className={themeUi.linkOnPage}>Home</Link>
-        <ChevronRight className="w-3 h-3" />
+        <ChevronRight className="w-3 h-3 shrink-0" />
         <Link to={storePath('/services')} className={themeUi.linkOnPage}>Services</Link>
         {isDisplayFieldEnabled(sf, 'category') && service.category && (
           <>
-            <ChevronRight className="w-3 h-3" />
+            <ChevronRight className="w-3 h-3 shrink-0" />
             <Link to={storePath(`/services?category=${encodeURIComponent(service.category)}`)} className={themeUi.linkOnPage}>{service.category}</Link>
           </>
         )}
-        <ChevronRight className="w-3 h-3" />
-        <span className={`font-medium ${themeUi.pageText}`}>{service.name}</span>
       </nav>
 
+      {/* Hero — gallery, summary, pricing */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-        {/* Left — Media Gallery (sticky) */}
-        <div className="lg:col-span-4 xl:col-span-4">
-          <div className="lg:sticky lg:top-4">
-            {displayMedia.length > 0 ? (
-              <MediaViewer
-                items={displayMedia}
-                selectedIndex={selectedImage}
-                onSelect={setSelectedImage}
-                productName={service.name}
-                layout="fit"
-                badges={
-                  <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                    {isSubscription && (
-                      <span className="text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow flex items-center gap-1 bg-[color:var(--color-primary)]">
-                        <Repeat className="w-3 h-3" /> Subscription
-                      </span>
-                    )}
-                    {sf.offer_label && service.offer_label && (
-                      <span className="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" /> {service.offer_label}
-                      </span>
-                    )}
+        <div className="lg:col-span-8 xl:col-span-8 min-w-0 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-start">
+            {/* Media Gallery */}
+            <div>
+                {displayMedia.length > 0 ? (
+                  <MediaViewer
+                    items={displayMedia}
+                    selectedIndex={selectedImage}
+                    onSelect={setSelectedImage}
+                    productName={service.name}
+                    layout="fit"
+                    badges={
+                      <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                        {isSubscription && (
+                          <span className="text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow flex items-center gap-1 bg-[color:var(--color-primary)]">
+                            <Repeat className="w-3 h-3" /> {subscriptionLabel}
+                          </span>
+                        )}
+                        {sf.offer_label && service.offer_label && (
+                          <span className="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" /> {service.offer_label}
+                          </span>
+                        )}
+                      </div>
+                    }
+                  />
+                ) : (
+                  <div className={`aspect-[4/3] w-full max-w-[640px] mx-auto lg:mx-0 rounded-2xl border border-gray-200/80 flex flex-col items-center justify-center ${themeUi.gradientHeroBr}`}>
+                    <Wrench className={`w-14 h-14 mb-2 ${themeUi.iconPlaceholder}`} />
+                    <p className="text-sm text-gray-400">No media available</p>
                   </div>
-                }
-              />
-            ) : (
-              <div className={`aspect-[4/3] w-full max-w-[640px] mx-auto lg:mx-0 rounded-2xl border border-gray-200/80 flex flex-col items-center justify-center ${themeUi.gradientHeroBr}`}>
-                <Wrench className={`w-14 h-14 mb-2 ${themeUi.iconPlaceholder}`} />
-                <p className="text-sm text-gray-400">No media available</p>
+                )}
+            </div>
+
+            {/* Service header */}
+            <div className="space-y-4">
+              <header className="space-y-3">
+              {/* Badges */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {isDisplayFieldEnabled(sf, 'category') && service.category && (
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider ${themeUi.pillSecondary}`}>
+                    {service.category}
+                  </span>
+                )}
+                {isDisplayFieldEnabled(sf, 'subcategory') && service.subcategory && (
+                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">{service.subcategory}</span>
+                )}
+                {sf.brand && service.brand && (
+                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">{service.brand}</span>
+                )}
+                {sf.service_mode && service.service_mode && (
+                  <span className={`text-xs font-medium px-2 py-1 rounded-lg flex items-center gap-1 ${themeUi.pillPrimary}`}>
+                    <Monitor className="w-3 h-3" /> {SERVICE_MODE_LABELS[service.service_mode] || service.service_mode.replace(/_/g, ' ')}
+                  </span>
+                )}
+                {isSubscription && (
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 bg-[color:var(--color-primary)] text-white">
+                    <Repeat className="w-3 h-3" /> {subscriptionLabel}
+                  </span>
+                )}
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Center — Service Info */}
-        <div className="lg:col-span-4 xl:col-span-4 space-y-6">
-          <header className="space-y-3">
-          {/* Badges */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {isDisplayFieldEnabled(sf, 'category') && service.category && (
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider ${themeUi.pillSecondary}`}>
-                {service.category}
-              </span>
-            )}
-            {isDisplayFieldEnabled(sf, 'subcategory') && service.subcategory && (
-              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">{service.subcategory}</span>
-            )}
-            {sf.brand && service.brand && (
-              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">{service.brand}</span>
-            )}
-            {sf.service_mode && service.service_mode && (
-              <span className={`text-xs font-medium px-2 py-1 rounded-lg flex items-center gap-1 ${themeUi.pillPrimary}`}>
-                <Monitor className="w-3 h-3" /> {SERVICE_MODE_LABELS[service.service_mode] || service.service_mode.replace(/_/g, ' ')}
-              </span>
-            )}
-            {isSubscription && (
-              <span className="text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 bg-[color:var(--color-primary)] text-white">
-                <Repeat className="w-3 h-3" /> Subscription
-              </span>
-            )}
-          </div>
+              {/* Title */}
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900 leading-snug break-words">{service.name}</h1>
 
-          {/* Title */}
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">{service.name}</h1>
-
-          {/* Rating */}
-          {isDisplayFieldEnabled(sf, 'reviews') && (service.avg_rating ?? 0) > 0 && (
-            <StarRating rating={service.avg_rating!} showValue reviewCount={service.review_count} />
-          )}
-          </header>
-
-          {/* Pricing — one-time / booking only (subscription price lives in sidebar) */}
-          {!isSubscription && (
-            <div className="flex items-center gap-3 flex-wrap">
-              {unitPrice != null && (
-                <span className="text-2xl sm:text-3xl font-extrabold text-gray-900">
-                  {formatCurrency(unitPrice, currency)}
-                  {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
-                    <span className="text-sm font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>
-                  )}
-                </span>
+              {/* Rating */}
+              {isDisplayFieldEnabled(sf, 'reviews') && (service.avg_rating ?? 0) > 0 && (
+                <StarRating rating={service.avg_rating!} showValue reviewCount={service.review_count} />
               )}
-              {isDisplayFieldEnabled(sf, 'duration') && (selectedPlan?.duration_minutes ?? service.duration_minutes) ? (
-                <span className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
+              </header>
+
+              {/* Duration only here — price lives in the right sidebar to avoid doubling */}
+              {!isSubscription && isDisplayFieldEnabled(sf, 'duration') && (selectedPlan?.duration_minutes ?? service.duration_minutes) ? (
+                <span className="inline-flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full w-fit">
                   <Clock className={`w-4 h-4 ${themeUi.iconPrimary}`} />{' '}
                   {formatDurationLabel(
                     selectedPlan?.duration_minutes ?? service.duration_minutes!,
@@ -721,136 +794,17 @@ export default function ServiceDetail() {
                   )}
                 </span>
               ) : null}
+
+              {sf.short_description && service.short_description && (
+                <p className="text-sm text-gray-600 leading-relaxed">{service.short_description}</p>
+              )}
             </div>
-          )}
-
-          {isSubscription && subscriptionPrice > 0 && (
-            <p className="text-sm text-gray-500">
-              Choose a plan below — price and billing options are in the panel on the right.
-            </p>
-          )}
-
-          {sf.short_description && service.short_description && (
-            <p className="text-sm text-gray-600 leading-relaxed">{service.short_description}</p>
-          )}
-
-          {/* Plan Selector — always shown when plans exist */}
-          {isDisplayFieldEnabled(sf, 'service_plans') && activePlans.length > 0 && (
-            <div className="pt-1">
-              <PlanSelector
-                plans={activePlans}
-                currency={currency}
-                selectedId={selectedPlanId ?? activePlans[0]?.id ?? null}
-                onSelect={setSelectedPlanId}
-                hidePrice={isSubscription && subscriptionPrice > 0}
-                compact={isSubscription && subscriptionPrice > 0}
-              />
-            </div>
-          )}
-
-          {/* Description */}
-          {isDisplayFieldEnabled(sf, 'description') && service.description && (
-            <div className="pt-4 border-t border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
-                <Info className="w-4 h-4 text-gray-400" /> About This Service
-              </h3>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{service.description}</p>
-            </div>
-          )}
-
-          {/* Tags */}
-          {sf.tags && service.tags && service.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {service.tags.map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
-                  <Tag className="w-3 h-3" />{tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* What's Included */}
-          {hasWhatsIncluded && (
-            <div className="pt-4 border-t border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-3 text-sm">What's Included</h3>
-              <div className="grid gap-2">
-                {service.whats_included!.map((item) => (
-                  <div key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /> {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {hasWhatsNotIncluded && (
-            <div className="pt-4 border-t border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-3 text-sm">What's Not Included</h3>
-              <div className="grid gap-2">
-                {service.whats_not_included!.map((item) => (
-                  <div key={item} className="flex items-center gap-2.5 text-sm text-gray-500">
-                    <XCircle className="w-4 h-4 text-red-400 shrink-0" /> {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {sf.prerequisites && service.prerequisites && (
-            <div className="pt-4 border-t border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-3 text-sm">Prerequisites</h3>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{service.prerequisites}</p>
-            </div>
-          )}
-
-          {sf.service_areas && service.service_areas && service.service_areas.length > 0 && (
-            <div className="pt-4 border-t border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-3 text-sm flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-gray-400" /> Service Areas
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {service.service_areas.map((area) => (
-                  <span key={area} className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full">{area}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {isDisplayFieldEnabled(sf, 'features') && service.features && service.features.length > 0 && (
-            <div className="pt-4 border-t border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-3 text-sm">Features</h3>
-              <div className="grid gap-2">
-                {service.features.map((item) => (
-                  <div key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /> {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {((isDisplayFieldEnabled(sf, 'cancellation_policy') && service.cancellation_policy)
-            || (isDisplayFieldEnabled(sf, 'rescheduling_policy') && service.rescheduling_policy)) && (
-            <div className="pt-4 border-t border-gray-100">
-              <h3 className="font-bold text-gray-900 mb-3 text-sm flex items-center gap-2">
-                <Shield className="w-4 h-4 text-gray-400" /> Policies
-              </h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                {isDisplayFieldEnabled(sf, 'cancellation_policy') && service.cancellation_policy && (
-                  <p><span className="font-semibold text-gray-700">Cancellation:</span> {service.cancellation_policy}
-                    {service.cancellation_hours ? ` (${service.cancellation_hours}h notice)` : ''}</p>
-                )}
-                {isDisplayFieldEnabled(sf, 'rescheduling_policy') && service.rescheduling_policy && (
-                  <p><span className="font-semibold text-gray-700">Rescheduling:</span> {service.rescheduling_policy}</p>
-                )}
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
-        {/* Right — Sidebar */}
-        <div className="lg:col-span-4 xl:col-span-4 min-w-0">
-          <div className={`rounded-2xl border p-4 sm:p-5 sticky top-4 space-y-4 shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
+        {/* Right — pricing card (content height) */}
+        <div className="lg:col-span-4 xl:col-span-4 min-w-0 lg:sticky lg:top-4">
+          <div className={`rounded-2xl border p-3.5 sm:p-4 space-y-3 shadow-sm ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             {/* Mode toggle — shown when vendor enabled both booking & subscription */}
             {hasBothModes && (
               <div className="flex rounded-xl bg-gray-100/90 p-1 gap-1 ring-1 ring-gray-200/70">
@@ -863,7 +817,7 @@ export default function ServiceDetail() {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  <CalendarDays className="w-4 h-4" /> Booking
+                  <CalendarDays className="w-4 h-4" /> {bookingLabel}
                 </button>
                 <button
                   type="button"
@@ -874,55 +828,43 @@ export default function ServiceDetail() {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  <Repeat className="w-4 h-4" /> Subscription
+                  <Repeat className="w-4 h-4" /> {subscriptionLabel}
                 </button>
               </div>
             )}
 
-            {/* Subscription panel */}
-            {isDisplayFieldEnabled(sf, 'subscription_details') && ((hasBothModes && sidebarMode === 'subscription') || (isSubscription && !canBook)) && subscriptionPrice > 0 && (
+            {/* Subscription summary — configurator opens in a popup on proceed */}
+            {showSubscriptionPanel && (
               <>
-                <SubscriptionConfigurator
-                  key={`${selectedPlanId || 'default'}-${subscriptionInterval}`}
-                  interval={subscriptionInterval}
-                  pricePerCycle={subscriptionPrice}
-                  currency={currency}
-                  priceType={subscriptionPriceType}
-                  uom={UOM_LABELS[subscriptionUom] || subscriptionUom}
-                  trialDays={subscriptionTrialDays}
-                  setupFee={subscriptionSetupFee}
-                  maxCycles={subscriptionBillingCycles}
-                  allowedModes={subscriptionScheduleModes}
-                  onSubscribe={(config) => {
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight truncate">
+                    {subscriptionLabel}
+                  </p>
+                  <p className="text-base sm:text-lg font-bold text-gray-900 mt-0.5 tabular-nums leading-tight break-all">
+                    {formatCurrency(subscriptionPrice, currency)}
+                    <span className="ml-1 text-xs font-medium text-gray-500">
+                      {subscriptionPriceType === 'per_unit'
+                        ? `per ${UOM_LABELS[subscriptionUom] || subscriptionUom}`
+                        : (intervalShort[subscriptionInterval] || `/${subscriptionInterval}`)}
+                    </span>
+                  </p>
+                </div>
+                <Button
+                  className={`w-full h-10 font-bold rounded-xl shadow-sm text-sm ${themeUi.btnSolid}`}
+                  onClick={() => {
                     if (!isAuthenticated) {
                       navigate(storePath('/login'), { state: { from: storePath(`/services/${service.slug}`) } })
                       return
                     }
-                    const planPart =
-                      selectedPlan &&
-                      selectedPlan.name.trim().toLowerCase() !== service.name.trim().toLowerCase()
-                        ? ` — ${selectedPlan.name}`
-                        : ''
-                    const name = `${service.name}${planPart} (Subscription, ${config.cycles} cycle${config.cycles !== 1 ? 's' : ''})`
-                    createSubscription.mutate(
-                      {
-                        item_type: 'service',
-                        service_id: service.id,
-                        item_name: name,
-                        interval: config.interval || subscriptionInterval,
-                        price_per_cycle: subscriptionPrice,
-                        qty: 1,
-                        schedule_config: config,
-                      },
-                      { onSuccess: () => navigate(storePath('/account/subscriptions')) },
-                    )
+                    setShowSubscription(true)
                   }}
-                  subscribePending={createSubscription.isPending}
-                />
+                >
+                  <Repeat className="w-4 h-4 mr-1.5" /> {subscriptionCtaLabel}
+                </Button>
                 {canQuote && (
-                  <Button variant="outline" className="w-full h-12 font-bold rounded-xl" size="lg"
+                  <Button variant="outline" className="w-full h-9 font-semibold rounded-lg text-sm"
                     onClick={() => { if (!isAuthenticated) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
-                    <MessageSquare className="w-5 h-5 mr-2" /> Request a Quote
+                    <MessageSquare className="w-4 h-4 mr-1.5" /> {quoteCtaLabel}
                   </Button>
                 )}
               </>
@@ -967,12 +909,12 @@ export default function ServiceDetail() {
 
                 <Button className={`w-full h-12 font-bold rounded-xl shadow-sm ${themeUi.btnSolid}`} size="lg"
                   onClick={() => { if (!isAuthenticated) { navigate(storePath('/login')); return }; setShowBooking(true) }}>
-                  <CalendarDays className="w-5 h-5 mr-2" /> Book This Service
+                  <CalendarDays className="w-5 h-5 mr-2" /> {bookingCtaLabel}
                 </Button>
                 {canQuote && (
                   <Button variant="outline" className="w-full h-12 font-bold rounded-xl" size="lg"
                     onClick={() => { if (!isAuthenticated) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
-                    <MessageSquare className="w-5 h-5 mr-2" /> Request a Quote
+                    <MessageSquare className="w-5 h-5 mr-2" /> {quoteCtaLabel}
                   </Button>
                 )}
               </>
@@ -997,7 +939,7 @@ export default function ServiceDetail() {
                 {canQuote && (
                   <Button className={`w-full h-12 font-bold rounded-xl shadow-sm ${themeUi.btnSolid}`} size="lg"
                     onClick={() => { if (!isAuthenticated) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
-                    <MessageSquare className="w-5 h-5 mr-2" /> Request a Quote
+                    <MessageSquare className="w-5 h-5 mr-2" /> {quoteCtaLabel}
                   </Button>
                 )}
               </>
@@ -1031,7 +973,120 @@ export default function ServiceDetail() {
         </div>
       </div>
 
-      {/* Weekly Availability — hidden while subscription flow is active (no parallel booking) */}
+      {/* Details */}
+      <div className="mt-6 space-y-6">
+          {/* Plan Selector — above About */}
+          {isDisplayFieldEnabled(sf, 'service_plans') && activePlans.length > 0 && (
+            <PlanSelector
+              plans={activePlans}
+              currency={currency}
+              selectedId={selectedPlanId ?? activePlans[0]?.id ?? null}
+              onSelect={setSelectedPlanId}
+              hidePrice={isSubscription && subscriptionPrice > 0}
+              compact={isSubscription && subscriptionPrice > 0}
+            />
+          )}
+
+          {/* Description */}
+          {isDisplayFieldEnabled(sf, 'description') && service.description && (
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2 text-sm">
+                <Info className="w-4 h-4 text-gray-400" /> About This Service
+              </h3>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{service.description}</p>
+            </div>
+          )}
+
+          {/* Tags */}
+          {sf.tags && service.tags && service.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {service.tags.map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
+                  <Tag className="w-3 h-3" />{tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* What's Included */}
+          {hasWhatsIncluded && (
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="font-bold text-gray-900 mb-3 text-sm">What's Included</h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {service.whats_included!.map((item) => (
+                  <div key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /> {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {hasWhatsNotIncluded && (
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="font-bold text-gray-900 mb-3 text-sm">What's Not Included</h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {service.whats_not_included!.map((item) => (
+                  <div key={item} className="flex items-center gap-2.5 text-sm text-gray-500">
+                    <XCircle className="w-4 h-4 text-red-400 shrink-0" /> {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {sf.prerequisites && service.prerequisites && (
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="font-bold text-gray-900 mb-3 text-sm">Prerequisites</h3>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap">{service.prerequisites}</p>
+            </div>
+          )}
+
+          {sf.service_areas && service.service_areas && service.service_areas.length > 0 && (
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="font-bold text-gray-900 mb-3 text-sm flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-gray-400" /> Service Areas
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {service.service_areas.map((area) => (
+                  <span key={area} className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full">{area}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isDisplayFieldEnabled(sf, 'features') && service.features && service.features.length > 0 && (
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="font-bold text-gray-900 mb-3 text-sm">Features</h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {service.features.map((item) => (
+                  <div key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /> {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {((isDisplayFieldEnabled(sf, 'cancellation_policy') && service.cancellation_policy)
+            || (isDisplayFieldEnabled(sf, 'rescheduling_policy') && service.rescheduling_policy)) && (
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="font-bold text-gray-900 mb-3 text-sm flex items-center gap-2">
+                <Shield className="w-4 h-4 text-gray-400" /> Policies
+              </h3>
+              <div className="space-y-2 text-sm text-gray-600">
+                {isDisplayFieldEnabled(sf, 'cancellation_policy') && service.cancellation_policy && (
+                  <p><span className="font-semibold text-gray-700">Cancellation:</span> {service.cancellation_policy}
+                    {service.cancellation_hours ? ` (${service.cancellation_hours}h notice)` : ''}</p>
+                )}
+                {isDisplayFieldEnabled(sf, 'rescheduling_policy') && service.rescheduling_policy && (
+                  <p><span className="font-semibold text-gray-700">Rescheduling:</span> {service.rescheduling_policy}</p>
+                )}
+              </div>
+            </div>
+          )}
+      </div>
+
       {(() => {
         const planAvail = selectedPlan?.availability && selectedPlan.availability.length > 0
           ? selectedPlan.availability
@@ -1068,11 +1123,60 @@ export default function ServiceDetail() {
         />
       )}
 
+      {showSubscription && service && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4"
+          onClick={() => setShowSubscription(false)}
+        >
+          <div
+            className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 fade-in-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b bg-white">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Subscription</p>
+                <h2 className="text-sm sm:text-base font-bold text-gray-900 truncate leading-snug">{subscriptionCtaLabel}</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSubscription(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-3 sm:p-4">
+              <SubscriptionConfigurator
+                key={`${selectedPlanId || 'default'}-${subscriptionInterval}-modal`}
+                layout="wide"
+                embedded
+                interval={subscriptionInterval}
+                pricePerCycle={subscriptionPrice}
+                currency={currency}
+                priceType={subscriptionPriceType}
+                uom={UOM_LABELS[subscriptionUom] || subscriptionUom}
+                trialDays={subscriptionTrialDays}
+                setupFee={subscriptionSetupFee}
+                maxCycles={subscriptionBillingCycles}
+                allowedModes={subscriptionScheduleModes}
+                subscribeLabel={subscriptionCtaLabel}
+                isTaxable={subscriptionIsTaxable}
+                taxRate={subscriptionTaxRate}
+                onSubscribe={handleSubscribe}
+                subscribePending={createSubscription.isPending}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {showQuote && service && (
         <QuoteRequestModal
           serviceId={service.id}
           serviceName={selectedPlan ? `${service.name} — ${selectedPlan.name}` : service.name}
           formConfig={service.quote_form_config}
+          title={quoteCtaLabel}
           customerInfo={customer ? { name: customer.full_name, email: customer.email, phone: customer.phone } : undefined}
           onClose={() => setShowQuote(false)}
         />

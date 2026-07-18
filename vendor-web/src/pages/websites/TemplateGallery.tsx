@@ -1346,7 +1346,7 @@ export default function WebsiteTemplateGalleryPage() {
   const perStoreBannerRef = useRef<HTMLDivElement>(null)
   const { data: sites = [], isLoading: sitesLoading } = useSiteList()
   const storesQueryParams = useMemo(() => ({ limit: 200 }), [])
-  const storesQueryKey = vendorKeys.stores(storesQueryParams)
+  const storesQueryKey = vendorKeys.stores(vendor?.id, storesQueryParams)
   const { data: storesData, isLoading: storesLoading } = useStores(storesQueryParams)
   const stores = storesData?.stores ?? []
   const sortedStores = useMemo(() => sortStoresByCode(stores), [stores])
