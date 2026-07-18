@@ -13,23 +13,54 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
 import { useCompletePendingBuyNow } from '@/hooks/useCompletePendingBuyNow'
-import { useAuthStore } from '@/stores/authStore'
+import { useCompletePendingCheckoutIntent } from '@/hooks/useCompletePendingCheckoutIntent'
 import { isSignInMandatory } from '@/lib/deliveryConditions'
+import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
+import { peekPendingCheckoutIntent } from '@/lib/pendingCheckoutIntent'
+import { useCartStore } from '@/stores/cartStore'
 import type { StyleConfig } from '@/blocks/registry'
+
+/** Stable shell so auth/cart hydration does not flash a blank spinner. */
+function CheckoutPageSkeleton() {
+  return (
+    <div className="checkout-root mx-auto grid max-w-6xl grid-cols-1 gap-6 px-3 py-6 sm:px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:items-start lg:gap-8 animate-in fade-in duration-200">
+      <div className="order-2 space-y-4 lg:order-1">
+        <div className="ck-surface ck-border ck-radius-md h-14 animate-pulse bg-gray-100/80" />
+        <div className="ck-surface ck-border ck-radius-md h-36 animate-pulse bg-gray-100/80" />
+        <div className="ck-surface ck-border ck-radius-md h-52 animate-pulse bg-gray-100/80" />
+        <div className="ck-surface ck-border ck-radius-md h-40 animate-pulse bg-gray-100/80" />
+      </div>
+      <div className="order-1 lg:order-2">
+        <div className="ck-surface ck-border ck-radius-md h-72 animate-pulse bg-gray-100/80 lg:sticky lg:top-20" />
+      </div>
+    </div>
+  )
+}
 
 export default function Checkout() {
   const { storePath } = useBranch()
-  const { vendor } = useVendor()
+  const { vendor, vendorSlug } = useVendor()
   const location = useLocation()
-  const { isAuthenticated } = useAuthStore()
+  const { ready: authReady, isLoggedIn } = useIsCustomerLoggedIn()
   const { completing: completingBuyNow } = useCompletePendingBuyNow()
+  const { completing: completingCheckoutIntent } = useCompletePendingCheckoutIntent()
   const { data: cart, isLoading: cartLoading } = useCart()
   const { data: storeInfo } = useStoreInfo()
   const { builderSite } = useBuilderSite()
   const [params] = useSearchParams()
 
-  const hasCartItems = (cart?.items?.length ?? 0) > 0
-  const waitingForCart = cartLoading && !hasCartItems
+  const localCart = useCartStore((s) => s.cart)
+  const pendingIntent = vendorSlug ? peekPendingCheckoutIntent(vendorSlug) : null
+  const hasCartItems =
+    (cart?.items?.length ?? 0) > 0
+    || (localCart?.items?.length ?? 0) > 0
+    || !!pendingIntent?.cartItem
+
+  const smoothEntry = !!(location.state as { smoothCheckoutEntry?: boolean } | null)?.smoothCheckoutEntry
+  const waitingForCart =
+    !hasCartItems
+    && (cartLoading || completingBuyNow || completingCheckoutIntent)
+
   const requireSignIn = isSignInMandatory(
     (vendor?.settings ?? {}) as Record<string, unknown>,
   )
@@ -45,7 +76,16 @@ export default function Checkout() {
 
   const checkoutTheme = useBuilderSiteCheckoutTheme()
 
-  if (requireSignIn && !isAuthenticated) {
+  // Wait for auth rehydrate so a logged-in user is not bounced to login/signup
+  if (!authReady) {
+    return (
+      <div className="checkout-root relative min-h-[70vh]" style={checkoutTheme}>
+        <CheckoutPageSkeleton />
+      </div>
+    )
+  }
+
+  if (requireSignIn && !isLoggedIn) {
     return (
       <Navigate
         to={storePath('/login')}
@@ -55,15 +95,21 @@ export default function Checkout() {
     )
   }
 
-  if (waitingForCart || (completingBuyNow && !hasCartItems)) {
+  if (waitingForCart) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      <div className="checkout-root relative min-h-[70vh]" style={checkoutTheme}>
+        {smoothEntry ? (
+          <CheckoutPageSkeleton />
+        ) : (
+          <div className="flex justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+          </div>
+        )}
       </div>
     )
   }
 
-  if (!cart?.items?.length) {
+  if (!cart?.items?.length && !localCart?.items?.length && !pendingIntent?.cartItem) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-lg font-medium text-gray-600">Your cart is empty</p>
@@ -117,12 +163,19 @@ function Inner({
         storeName,
         connectedPayments: checkout.state.connectedPayments,
         codEnabled: checkout.state.codEnabled,
-        paymentMode: checkout.state.connectedPayments.length > 0 ? 'providers' : 'tabs',
+        paymentMode:
+          checkout.state.connectedPayments.length > 0 || checkout.state.previewLoading
+            ? 'providers'
+            : 'tabs',
         manualUpi: checkout.state.manualUpi ?? null,
         logoUrl: (storeInfo as { logo_url?: string } | undefined)?.logo_url,
+        paymentsLoading: !!checkout.state.previewLoading,
       }}
     >
-      <div className="checkout-root relative" style={checkoutTheme}>
+      <div
+        className="checkout-root relative min-h-[70vh] animate-in fade-in duration-300"
+        style={checkoutTheme}
+      >
         {checkout.state.processingMessage ? (
           <CheckoutProcessingOverlay message={checkout.state.processingMessage} />
         ) : null}
@@ -142,4 +195,3 @@ function Inner({
     </CheckoutConfigProvider>
   )
 }
-

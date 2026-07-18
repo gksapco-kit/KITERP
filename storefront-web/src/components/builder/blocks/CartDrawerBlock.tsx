@@ -80,12 +80,14 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
     () =>
       rawItems.map((item, i) => {
         const variantLabel = item.variant_label ? String(item.variant_label) : undefined
-        const productId = String(item.product_id ?? i)
+        const productId = item.product_id ? String(item.product_id) : ''
+        const serviceId = item.service_id ? String(item.service_id) : ''
         const variantId = item.variant_id ? String(item.variant_id) : undefined
         return {
           id: String(i),
-          productId,
-          variantId: variantId ?? productId,
+          productId: productId || serviceId || String(i),
+          serviceId: serviceId || undefined,
+          variantId,
           name: String(item.name ?? ''),
           variantLabel,
           imageUrl: item.image_url ? String(item.image_url) : undefined,
@@ -186,10 +188,7 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
                             const index = Number(id)
                             if (Number.isNaN(index)) return
                             if (q <= 0) {
-                              removeItem.mutate({
-                                productId: lineItem.productId,
-                                variantId: lineItem.variantId,
-                              })
+                              removeItem.mutate(index)
                               return
                             }
                             const stockCheck = validateCartLineQtyChange({
@@ -206,10 +205,7 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
                             updateItem.mutate({ index, qty: q })
                           }}
                           onRemove={() => {
-                            removeItem.mutate({
-                              productId: lineItem.productId,
-                              variantId: lineItem.variantId,
-                            })
+                            removeItem.mutate(i)
                           }}
                           onVariantChange={(variant: ProductVariant) => {
                             if (variant.id === lineItem.variantId) return

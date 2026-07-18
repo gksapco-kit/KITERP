@@ -11,6 +11,7 @@ import {
   Phone,
 } from 'lucide-react'
 import { adminApi } from '@/api/admin.api'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
 import { mediaUrl } from '@/lib/utils'
@@ -35,6 +36,25 @@ export default function CareerApplications() {
       adminApi.updateCareerApplication(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-career-applications'] }),
   })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => adminApi.deleteCareerApplication(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-career-applications'] }),
+  })
+
+  const handleDelete = async (id: string, name: string) => {
+    if (
+      !(await askConfirm({
+        title: `Delete application from ${name}?`,
+        description: 'This permanently removes the application, CV, and photo.',
+        confirmLabel: 'Delete',
+        variant: 'danger',
+      }))
+    ) {
+      return
+    }
+    deleteMut.mutate(id)
+  }
 
   if (!allowed) {
     return <Navigate to="/dashboard" replace />
@@ -166,34 +186,46 @@ export default function CareerApplications() {
                 )}
               </div>
 
-              {isSuperuserAdmin(user) && app.status !== 'rejected' && (
+              {isSuperuserAdmin(user) && (
                 <div className="flex flex-wrap gap-2">
-                  {app.status === 'new' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={updateMut.isPending}
-                      onClick={() => updateMut.mutate({ id: app.id, status: 'reviewed' })}
-                    >
-                      Mark reviewed
-                    </Button>
-                  )}
-                  {(app.status === 'new' || app.status === 'reviewed') && (
-                    <Button
-                      size="sm"
-                      disabled={updateMut.isPending}
-                      onClick={() => updateMut.mutate({ id: app.id, status: 'shortlisted' })}
-                    >
-                      Shortlist
-                    </Button>
+                  {app.status !== 'rejected' && (
+                    <>
+                      {app.status === 'new' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={updateMut.isPending || deleteMut.isPending}
+                          onClick={() => updateMut.mutate({ id: app.id, status: 'reviewed' })}
+                        >
+                          Mark reviewed
+                        </Button>
+                      )}
+                      {(app.status === 'new' || app.status === 'reviewed') && (
+                        <Button
+                          size="sm"
+                          disabled={updateMut.isPending || deleteMut.isPending}
+                          onClick={() => updateMut.mutate({ id: app.id, status: 'shortlisted' })}
+                        >
+                          Shortlist
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={updateMut.isPending || deleteMut.isPending}
+                        onClick={() => updateMut.mutate({ id: app.id, status: 'rejected' })}
+                      >
+                        Reject
+                      </Button>
+                    </>
                   )}
                   <Button
                     size="sm"
-                    variant="outline"
-                    disabled={updateMut.isPending}
-                    onClick={() => updateMut.mutate({ id: app.id, status: 'rejected' })}
+                    variant="destructive"
+                    disabled={updateMut.isPending || deleteMut.isPending}
+                    onClick={() => handleDelete(app.id, app.full_name)}
                   >
-                    Reject
+                    Delete
                   </Button>
                 </div>
               )}

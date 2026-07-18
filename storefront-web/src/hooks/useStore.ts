@@ -8,6 +8,7 @@ import { useGuestCartStore, type GuestCartItem } from '@/stores/guestCartStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { apiError, extractApiError, formatCustomerAuthError } from '@/lib/errorMessages'
 import { clearPendingBuyNow, peekPendingBuyNow } from '@/lib/pendingBuyNow'
+import { readScopedCustomerTokens } from '@/lib/customerAuthStorage'
 import { getCartQtyForVariant } from '@/lib/stockValidation'
 import type { Cart, Product } from '@/types'
 
@@ -53,17 +54,24 @@ export function buildGuestCart(items: GuestCartItem[]): Cart {
 
 export type RemoveCartItemInput =
   | number
-  | { productId: string; variantId?: string }
+  | { productId?: string; serviceId?: string; variantId?: string }
 
 type CartLineRef = {
   product_id?: string
+  service_id?: string
   variant_id?: string | null
   productId?: string
+  serviceId?: string
   variantId?: string | null
+  item_type?: string
 }
 
 function lineProductId(line: CartLineRef): string {
   return String(line.product_id ?? line.productId ?? '')
+}
+
+function lineServiceId(line: CartLineRef): string {
+  return String(line.service_id ?? line.serviceId ?? '')
 }
 
 function lineVariantId(line: CartLineRef): string {
@@ -79,10 +87,30 @@ export function resolveCartLineIndex(
     return input >= 0 && input < items.length ? input : -1
   }
   const productId = String(input.productId ?? '')
+  const serviceId = String(input.serviceId ?? '')
   const variantId = String(input.variantId ?? '')
-  return items.findIndex(
-    (line) => lineProductId(line) === productId && lineVariantId(line) === variantId,
-  )
+
+  // Service / booking / subscription lines (no product_id)
+  if (serviceId && !productId) {
+    return items.findIndex((line) => lineServiceId(line) === serviceId && !lineProductId(line))
+  }
+
+  if (productId) {
+    const exact = items.findIndex(
+      (line) => lineProductId(line) === productId && lineVariantId(line) === variantId,
+    )
+    if (exact >= 0) return exact
+  }
+
+  // Fallback: UI sometimes uses service_id as productId for display
+  if (productId) {
+    const asService = items.findIndex(
+      (line) => !lineProductId(line) && lineServiceId(line) === productId,
+    )
+    if (asService >= 0) return asService
+  }
+
+  return -1
 }
 
 export function useStoreInfo() {
@@ -214,8 +242,15 @@ export function useCart() {
 
   const resolvedCart = useMemo(() => {
     if (!isAuthenticated) return guestCart
-    if (server.isFetched && server.data !== undefined) return server.data
-    return cartFromStore ?? server.data
+    // Prefer a locally seeded cart (e.g. subscription line) over an empty server refetch
+    const cached = cartFromStore ?? server.data
+    const cachedCount = cached?.items?.length ?? 0
+    const serverCount = server.data?.items?.length ?? 0
+    if (cachedCount > 0 && serverCount === 0 && server.isFetched) {
+      return cached
+    }
+    if (server.isFetched && server.data !== undefined && serverCount > 0) return server.data
+    return cached ?? server.data
   }, [isAuthenticated, guestCart, server.isFetched, server.data, cartFromStore])
 
   if (!isAuthenticated) {
@@ -283,17 +318,40 @@ export function useCartProductQtyMap(): Map<string, number> {
   }, [cart])
 }
 
+function hasActiveCustomerSession(): boolean {
+  const { isAuthenticated, accessToken } = useAuthStore.getState()
+  if (isAuthenticated && accessToken) return true
+  const { access } = readScopedCustomerTokens()
+  if (access) {
+    useAuthStore.setState({
+      accessToken: access,
+      isAuthenticated: true,
+      customer: useAuthStore.getState().customer,
+    })
+    return true
+  }
+  return !!isAuthenticated
+}
+
 export function useAddToCart() {
   const qc = useQueryClient()
   const { vendorSlug } = useVendor()
   return useMutation({
     mutationFn: async (item: GuestCartItem) => {
-      if (!useAuthStore.getState().isAuthenticated) {
+      if (!hasActiveCustomerSession()) {
         useGuestCartStore.getState().addItem(vendorSlug, item)
         return buildGuestCart(useGuestCartStore.getState().getItems(vendorSlug))
       }
-      const { variant_label: _vl, slug: _slug, ...apiItem } = item
-      return storeApi.addToCart(apiItem)
+      return storeApi.addToCart({
+        product_id: item.product_id,
+        service_id: item.service_id,
+        item_type: item.item_type,
+        variant_id: item.variant_id,
+        name: item.name,
+        qty: item.qty,
+        price: item.price,
+        image_url: item.image_url,
+      })
     },
     onSuccess: (cart) => {
       applyCartMutation(qc, cart)
@@ -830,7 +888,7 @@ export function useCreateBooking() {
   return useMutation({
     mutationFn: (data: {
       service_id: string; plan_id?: string; booking_date: string; start_time?: string
-      notes?: string; payment_method?: string
+      notes?: string; payment_method?: string; order_id?: string
     }) => storeApi.createBooking(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['bookings'] })

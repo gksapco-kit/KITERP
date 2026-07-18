@@ -48,7 +48,7 @@ async def main() -> None:
                 city VARCHAR(120),
                 linkedin_url VARCHAR(500),
                 cover_note TEXT,
-                cv_url VARCHAR(500) NOT NULL,
+                cv_url VARCHAR(500),
                 cv_filename VARCHAR(255),
                 photo_url VARCHAR(500),
                 photo_filename VARCHAR(255),
@@ -65,6 +65,9 @@ async def main() -> None:
         )
         await conn.execute(
             "ALTER TABLE platform_career_application ADD COLUMN IF NOT EXISTS photo_filename VARCHAR(255)"
+        )
+        await conn.execute(
+            "ALTER TABLE platform_career_application ALTER COLUMN cv_url DROP NOT NULL"
         )
         await conn.execute(
             "CREATE INDEX IF NOT EXISTS ix_platform_career_application_status ON platform_career_application(status)"

@@ -17,6 +17,7 @@ import {
   AlertCircle, ChevronLeft,
 } from 'lucide-react'
 import { useAuthStoreTheme } from './authStoreTheme'
+import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 
 function customerLoginStorageKey(vendorId: string | undefined): string {
   return vendorId ? `kiterp_customer_login_${vendorId}` : ''
@@ -46,10 +47,18 @@ export default function Login() {
   const navigate = useNavigate()
   const routeLocation = useLocation()
   const [showPw, setShowPw] = useState(false)
+  const { ready: authReady, isLoggedIn } = useIsCustomerLoggedIn()
 
   const from = (routeLocation.state as { from?: string } | null)?.from
     ?? new URLSearchParams(routeLocation.search).get('from')
     ?? storePath('/')
+
+  // Already signed in — skip login/signup and continue to checkout (or home)
+  useEffect(() => {
+    if (authReady && isLoggedIn) {
+      navigate(from, { replace: true })
+    }
+  }, [authReady, isLoggedIn, from, navigate])
 
   const savedForVendor = useMemo(() => readCustomerSavedLogin(vendor?.id), [vendor?.id])
   const [rememberEmail, setRememberEmail] = useState(() => !!savedForVendor)

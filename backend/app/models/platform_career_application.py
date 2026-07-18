@@ -20,7 +20,7 @@ class PlatformCareerApplication(Base):
     city = Column(String(120), nullable=True)
     linkedin_url = Column(String(500), nullable=True)
     cover_note = Column(Text, nullable=True)
-    cv_url = Column(String(500), nullable=False)
+    cv_url = Column(String(500), nullable=True)
     cv_filename = Column(String(255), nullable=True)
     photo_url = Column(String(500), nullable=True)
     photo_filename = Column(String(255), nullable=True)

@@ -21,6 +21,14 @@ import {
   validateCheckoutPaymentMethod,
 } from '@/lib/checkoutPayment'
 import { validateCheckoutFields, scrollToFirstCheckoutField, type CheckoutFieldErrors } from '@/checkout/validateCheckout'
+import {
+  buildCheckoutNotesFromIntent,
+  cartHasIntentLine,
+  formatBookingCheckoutSummary,
+  formatSubscriptionCheckoutSummary,
+  peekPendingCheckoutIntent,
+} from '@/lib/pendingCheckoutIntent'
+import { fulfillPendingCheckoutIntent } from '@/lib/fulfillCheckoutIntent'
 import type { Address, Cart, Customer, PaymentSelection, PaymentProvider, ShippingMethod } from '@/checkout/types'
 
 const FALLBACK_SHIPPING: ShippingMethod[] = [
@@ -95,6 +103,47 @@ export function useStoreBridgeCheckout() {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const [processingMessage, setProcessingMessage] = useState<string | null>(null)
   const [serverPreview, setServerPreview] = useState<Awaited<ReturnType<typeof storeApi.checkoutPreview>> | null>(null)
+  const [notesPrefillDone, setNotesPrefillDone] = useState(false)
+
+  // Stabilize intent for the session so the banner does not flash in/out on cart refetch.
+  const [pendingIntent, setPendingIntent] = useState(
+    () => (vendorSlug ? peekPendingCheckoutIntent(vendorSlug) : null),
+  )
+  useEffect(() => {
+    if (!vendorSlug) return
+    const next = peekPendingCheckoutIntent(vendorSlug)
+    if (next) setPendingIntent(next)
+  }, [vendorSlug, cart?.items?.length, cart?.item_count])
+  const checkoutIntentKind = pendingIntent?.kind ?? null
+  const checkoutIntentSummary = useMemo(() => {
+    if (!pendingIntent) return null
+    if (pendingIntent.kind === 'subscription') return formatSubscriptionCheckoutSummary(pendingIntent)
+    return formatBookingCheckoutSummary(pendingIntent)
+  }, [pendingIntent])
+  const placeOrderLabel = checkoutIntentKind === 'subscription'
+    ? 'Subscribe & pay'
+    : checkoutIntentKind === 'booking'
+      ? 'Confirm booking & pay'
+      : 'Place order'
+
+  useEffect(() => {
+    if (notesPrefillDone || !pendingIntent) return
+    setNotes((prev) => (prev.trim() ? prev : buildCheckoutNotesFromIntent(pendingIntent)))
+    setNotesPrefillDone(true)
+  }, [pendingIntent, notesPrefillDone])
+
+  // Keep contact fields in sync when the logged-in customer profile is available
+  useEffect(() => {
+    if (!customer || isGuest) return
+    setCustomerInfo((prev) => ({
+      ...prev,
+      email: customer.email ?? prev.email ?? '',
+      firstName: customer.full_name?.split(' ')[0] || prev.firstName,
+      lastName: customer.full_name?.split(' ').slice(1).join(' ') || prev.lastName,
+      phone: customer.phone ?? prev.phone,
+      isGuest: false,
+    }))
+  }, [customer, isGuest])
 
   const clearFieldErrors = useCallback((keys: string[]) => {
     setFieldErrors(prev => {
@@ -112,7 +161,10 @@ export function useStoreBridgeCheckout() {
 
   const cartItemsPayload = useMemo(
     () => ((cart?.items ?? []) as Record<string, unknown>[]).map(item => ({
-      product_id: String(item.product_id ?? ''),
+      product_id: item.product_id ? String(item.product_id) : undefined,
+      service_id: item.service_id ? String(item.service_id) : undefined,
+      item_type: (item.item_type as string | undefined)
+        || (item.service_id && !item.product_id ? 'service' : 'product'),
       variant_id: item.variant_id ? String(item.variant_id) : undefined,
       name: String(item.name ?? ''),
       qty: Number(item.qty),
@@ -151,9 +203,18 @@ export function useStoreBridgeCheckout() {
       const connected = data.connected_payments ?? []
       const codOk = (data.payment_methods ?? []).includes('cod')
       const manualUpi = data.manual_upi ?? null
+      const preferUpi = !!peekPendingCheckoutIntent(vendorSlug)
       if (connected.length > 0 || codOk || manualUpi?.enabled) {
         setPayment(prev => {
           if (prev) return prev
+          // Subscriptions / bookings: prefer UPI when available
+          if (preferUpi && manualUpi?.enabled) {
+            return { kind: 'tab', tab: 'upi' }
+          }
+          const razorpay = connected.find(p => p.provider === 'razorpay')
+          if (preferUpi && razorpay) {
+            return { kind: 'provider', provider: 'razorpay' }
+          }
           if (connected.length > 0) {
             return { kind: 'provider', provider: connected[0].provider as PaymentProvider }
           }
@@ -168,7 +229,7 @@ export function useStoreBridgeCheckout() {
     } finally {
       setPreviewLoading(false)
     }
-  }, [cartItemsPayload, shippingMethodId, couponCode, resolvedAddress?.region, isGuest, selectedBranch, branches, branchCode])
+  }, [cartItemsPayload, shippingMethodId, couponCode, resolvedAddress?.region, isGuest, selectedBranch, branches, branchCode, vendorSlug])
 
   useEffect(() => {
     void refreshPreview()
@@ -189,38 +250,56 @@ export function useStoreBridgeCheckout() {
     }))
   }, [serverPreview, currency])
 
-  const subtotalAmount = Math.round((serverPreview?.subtotal ?? 0) * 100)
+  // Prefer server preview; fall back to cart line totals so summary does not jump from ₹0.
+  const localSubtotal = useMemo(
+    () => (cart?.items ?? []).reduce((s, i) => s + Number(i.price) * Number(i.qty), 0),
+    [cart?.items],
+  )
+  const subtotalAmount = Math.round((serverPreview?.subtotal ?? localSubtotal) * 100)
   const shippingAmount = Math.round((serverPreview?.shipping_amount ?? 0) * 100)
   const taxAmount = Math.round((serverPreview?.tax_amount ?? 0) * 100)
   const discountAmount = Math.round((serverPreview?.discount_amount ?? 0) * 100)
+  const totalAmount = Math.round(
+    (serverPreview?.total ?? Math.max(0, localSubtotal + (serverPreview?.shipping_amount ?? 0) - (serverPreview?.discount_amount ?? 0))) * 100,
+  )
 
   const checkoutCart: Cart = useMemo(() => ({
     id: 'store_cart',
-    items: ((cart?.items ?? []) as Record<string, unknown>[]).map((item, i) => ({
+    items: ((cart?.items ?? []) as Record<string, unknown>[]).map((item, i) => {
+      const isIntentLine = pendingIntent && (
+        (pendingIntent.kind === 'subscription' && (
+          (pendingIntent.payload.service_id && String(item.service_id ?? '') === pendingIntent.payload.service_id)
+          || (pendingIntent.payload.product_id && String(item.product_id ?? '') === pendingIntent.payload.product_id)
+        ))
+        || (pendingIntent.kind === 'booking' && String(item.service_id ?? '') === pendingIntent.payload.service_id)
+      )
+      const intentLabel = isIntentLine ? checkoutIntentSummary : null
+      return {
       id: String(i),
-      productId: String(item.product_id ?? i),
+      productId: String(item.product_id ?? item.service_id ?? i),
       variantId: item.variant_id ? String(item.variant_id) : undefined,
       name: String(item.name ?? ''),
-      variantLabel: item.variant_label ? String(item.variant_label) : undefined,
+      variantLabel: intentLabel
+        || (item.variant_label ? String(item.variant_label) : undefined),
       imageUrl: item.image_url ? String(item.image_url) : undefined,
       unitPrice: { amount: Math.round(Number(item.price) * 100), currency },
       quantity: Number(item.qty),
       inStock: true,
-    })),
+    }}),
     subtotal: { amount: subtotalAmount, currency },
     shipping: { amount: shippingAmount, currency },
     discounts: discountAmount > 0 && couponCode
       ? [{ code: couponCode, label: couponCode, amount: { amount: discountAmount, currency } }]
       : [],
-    taxes: (serverPreview?.tax_lines ?? [{ label: 'GST', amount: serverPreview?.tax_amount ?? 0 }]).map(t => ({
+    taxes: (serverPreview?.tax_lines ?? (taxAmount > 0 ? [{ label: 'GST', amount: taxAmount / 100 }] : [])).map(t => ({
       label: t.label,
       amount: { amount: Math.round((typeof t.amount === 'number' ? t.amount : 0) * 100), currency },
     })),
     total: {
-      amount: Math.round((serverPreview?.total ?? 0) * 100),
+      amount: totalAmount,
       currency,
     },
-  }), [cart, subtotalAmount, shippingAmount, taxAmount, discountAmount, couponCode, serverPreview, currency])
+  }), [cart, subtotalAmount, shippingAmount, taxAmount, discountAmount, totalAmount, couponCode, serverPreview, currency, pendingIntent, checkoutIntentSummary])
 
   const prefetchOrderConfirmation = useCallback(async (orderId: string) => {
     setProcessingMessage('Loading order confirmation…')
@@ -234,7 +313,7 @@ export function useStoreBridgeCheckout() {
     }
   }, [qc])
 
-  const completeOnlinePayment = useCallback(async (orderId: string) => {
+  const completeOnlinePayment = useCallback(async (orderId: string, paymentMethod: string) => {
     const rzp = await storeApi.createRazorpayOrder(orderId)
 
     const finish = async (payment: {
@@ -247,6 +326,11 @@ export function useStoreBridgeCheckout() {
         order_id: orderId,
         ...payment,
       })
+      const pending = vendorSlug ? peekPendingCheckoutIntent(vendorSlug) : null
+      setProcessingMessage(
+        pending?.kind === 'booking' ? 'Confirming your booking…' : 'Activating your subscription…',
+      )
+      await fulfillPendingCheckoutIntent(vendorSlug, orderId, paymentMethod)
       await prefetchOrderConfirmation(orderId)
       await resetCartAfterOrder(qc, vendorSlug)
       navigate(storePath(`/order/${orderId}/confirmation`))
@@ -407,6 +491,23 @@ export function useStoreBridgeCheckout() {
       setProcessingMessage('Placing your order…')
       let leavingForConfirmation = false
       try {
+        // Ensure subscription/booking line is on the server cart before authenticated checkout.
+        const intent = vendorSlug ? peekPendingCheckoutIntent(vendorSlug) : null
+        if (!isGuest && intent?.cartItem && !cartHasIntentLine(cart?.items, intent.cartItem)) {
+          setProcessingMessage('Preparing your cart…')
+          const synced = await storeApi.addToCart({
+            product_id: intent.cartItem.product_id,
+            service_id: intent.cartItem.service_id,
+            item_type: intent.cartItem.item_type,
+            variant_id: intent.cartItem.variant_id,
+            name: intent.cartItem.name,
+            qty: intent.cartItem.qty,
+            price: intent.cartItem.price,
+            image_url: intent.cartItem.image_url,
+          })
+          qc.setQueryData(storeKeys.cart, synced)
+        }
+
         let orderId: string
 
         if (isGuest) {
@@ -457,7 +558,7 @@ export function useStoreBridgeCheckout() {
                 }
               }
               setProcessingMessage('Preparing payment…')
-              await completeOnlinePayment(orderId)
+              await completeOnlinePayment(orderId, paymentMethod)
             } else {
               navigate(storePath(`/order/${orderId}/status`))
               return {
@@ -487,11 +588,20 @@ export function useStoreBridgeCheckout() {
             }
           }
         } else if (isManualProofPayment(payment)) {
-          // Keep cart until the customer submits UPI payment proof
+          // Fulfill after UPI proof is submitted (see UpiPaymentProofPage)
           leavingForConfirmation = true
           navigate(storePath(`/order/${orderId}/payment`))
           return { ok: true, orderId }
         } else {
+          // COD / offline — activate subscription/booking with the order
+          setProcessingMessage(
+            intent?.kind === 'subscription'
+              ? 'Activating your subscription…'
+              : intent?.kind === 'booking'
+                ? 'Confirming your booking…'
+                : 'Confirming your order…',
+          )
+          await fulfillPendingCheckoutIntent(vendorSlug, orderId, paymentMethod)
           await prefetchOrderConfirmation(orderId)
           await resetCartAfterOrder(qc, vendorSlug)
           leavingForConfirmation = true
@@ -515,9 +625,9 @@ export function useStoreBridgeCheckout() {
     resolvedAddress, payment, notes, couponCode, shippingMethodId,
     checkoutMutation, navigate, storePath, removeItem, updateItem,
     completeOnlinePayment, refreshPreview, isGuest, customerInfo,
-    cartItemsPayload, setTokens, setCustomer, vendorSlug, qc,
+    cartItemsPayload, cart?.items, setTokens, setCustomer, vendorSlug, qc,
     branchCode, isBranchClosed, branches, clearFieldErrors, selectedSavedAddressId, savedAddresses, isPlacingOrder,
-    setPaymentSelection, setNotesValue, setGiftMessageValue,
+    setPaymentSelection, setNotesValue, setGiftMessageValue, customer?.phone,
   ])
 
   return {
@@ -538,12 +648,16 @@ export function useStoreBridgeCheckout() {
       giftMessage,
       isPlacing: isPlacingOrder || checkoutMutation.isPending,
       processingMessage,
+      previewLoading,
       error: previewError,
       fieldErrors,
       isBranchClosed,
       connectedPayments: serverPreview?.connected_payments ?? [],
       codEnabled: (serverPreview?.payment_methods ?? []).includes('cod'),
       manualUpi: serverPreview?.manual_upi ?? null,
+      checkoutIntentKind,
+      checkoutIntentSummary,
+      placeOrderLabel,
     },
     actions,
   }

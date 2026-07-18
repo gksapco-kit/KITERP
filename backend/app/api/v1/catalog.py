@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from uuid import UUID
+import logging
 import math
 import re
 
@@ -29,6 +30,8 @@ from app.utils.vendor_storefront import vendor_live_on_storefront
 from app.services.storefront_theme_config import normalize_theme_config, theme_config_needs_migration
 from app.utils.social_link_normalize import normalize_social_links
 from app.utils.view_dedupe import claim_unique_view, visitor_key_from_request
+
+logger = logging.getLogger(__name__)
 
 _CAREER_CV_TYPES = {
     "application/pdf",
@@ -638,11 +641,11 @@ async def submit_career_application(
     city: Optional[str] = Form(None),
     linkedin_url: Optional[str] = Form(None),
     cover_note: Optional[str] = Form(None),
-    cv: UploadFile = File(...),
+    cv: Optional[UploadFile] = File(None),
     photo: Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Public Careers page: applicant details + CV + optional passport photo."""
+    """Public Careers page: applicant details + optional CV and passport photo."""
     name = (full_name or "").strip()
     email_clean = (email or "").strip().lower()
     if len(name) < 2:
@@ -671,23 +674,26 @@ async def submit_career_application(
     if linkedin_clean and not linkedin_clean.startswith(("http://", "https://")):
         linkedin_clean = f"https://{linkedin_clean}"
 
-    ct = (cv.content_type or "").split(";")[0].strip().lower()
-    filename = (cv.filename or "cv.pdf").strip().replace("\\", "/").split("/")[-1]
-    ext = ("." + filename.rsplit(".", 1)[-1].lower()) if "." in filename else ""
-    if ct not in _CAREER_CV_TYPES and ext not in _CAREER_CV_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail="CV must be a PDF or Word document (.pdf, .doc, .docx)",
-        )
-
-    contents = await cv.read()
-    if not contents:
-        raise HTTPException(status_code=400, detail="CV file is empty")
-    if len(contents) > _MAX_CAREER_CV_BYTES:
-        raise HTTPException(status_code=400, detail="CV file is too large (max 10 MB)")
-
     files = FileService()
-    cv_url = await files.upload_file(cv, "career-cvs", content=contents)
+    cv_url: Optional[str] = None
+    filename: Optional[str] = None
+    if cv is not None and (cv.filename or "").strip():
+        ct = (cv.content_type or "").split(";")[0].strip().lower()
+        filename = (cv.filename or "cv.pdf").strip().replace("\\", "/").split("/")[-1]
+        ext = ("." + filename.rsplit(".", 1)[-1].lower()) if "." in filename else ""
+        if ct not in _CAREER_CV_TYPES and ext not in _CAREER_CV_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail="CV must be a PDF or Word document (.pdf, .doc, .docx)",
+            )
+
+        contents = await cv.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="CV file is empty")
+        if len(contents) > _MAX_CAREER_CV_BYTES:
+            raise HTTPException(status_code=400, detail="CV file is too large (max 10 MB)")
+
+        cv_url = await files.upload_file(cv, "career-cvs", content=contents)
 
     photo_url: Optional[str] = None
     photo_filename: Optional[str] = None
@@ -721,7 +727,8 @@ async def submit_career_application(
         city=city_clean[:120] if city_clean else None,
         linkedin_url=linkedin_clean[:500] if linkedin_clean else None,
         cover_note=note_clean[:4000] if note_clean else None,
-        cv_url=cv_url,
+        # Empty string keeps older DBs with NOT NULL cv_url working until ALTER runs.
+        cv_url=cv_url or "",
         cv_filename=filename[:255] if filename else None,
         photo_url=photo_url,
         photo_filename=photo_filename[:255] if photo_filename else None,
@@ -730,8 +737,16 @@ async def submit_career_application(
         user_agent=ua,
     )
     db.add(row)
-    await db.commit()
-    await db.refresh(row)
+    try:
+        await db.commit()
+        await db.refresh(row)
+    except Exception:
+        await db.rollback()
+        logger.exception("career application submit failed")
+        raise HTTPException(
+            status_code=500,
+            detail="Could not save your application. Please try again in a moment.",
+        )
     return {
         "ok": True,
         "id": str(row.id),

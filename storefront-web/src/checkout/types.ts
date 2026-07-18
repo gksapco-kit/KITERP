@@ -14,6 +14,8 @@ export type Money = {
 export type CartItem = {
   id: string;
   productId: string;
+  /** Present for service / booking / subscription cart lines */
+  serviceId?: string;
   variantId?: string;
   name: string;
   variantLabel?: string; // e.g. "Black / Large"

@@ -113,7 +113,9 @@ export const storeApi = {
     const res = await apiClient.get('/store/cart'); return res.data
   },
   addToCart: async (item: {
-    product_id: string
+    product_id?: string
+    service_id?: string
+    item_type?: 'product' | 'service'
     variant_id?: string
     name: string
     qty: number
@@ -167,6 +169,7 @@ export const storeApi = {
     price_per_cycle: number
     qty?: number
     schedule_config?: Record<string, unknown>
+    payment_method?: string
   }) => {
     const res = await apiClient.post('/store/subscriptions', data); return res.data
   },
@@ -206,7 +209,16 @@ export const storeApi = {
 
   // Checkout preview & payments
   guestCheckoutPreview: async (data: {
-    items: Array<{ product_id: string; variant_id?: string; name: string; qty: number; price: number; image_url?: string }>
+    items: Array<{
+      product_id?: string
+      service_id?: string
+      item_type?: string
+      variant_id?: string
+      name: string
+      qty: number
+      price: number
+      image_url?: string
+    }>
     shipping_method_id?: string
     coupon_code?: string
     shipping_state?: string
@@ -218,7 +230,16 @@ export const storeApi = {
   },
   guestCheckout: async (data: {
     customer: { full_name: string; email: string; phone?: string }
-    items: Array<{ product_id: string; variant_id?: string; name: string; qty: number; price: number; image_url?: string }>
+    items: Array<{
+      product_id?: string
+      service_id?: string
+      item_type?: string
+      variant_id?: string
+      name: string
+      qty: number
+      price: number
+      image_url?: string
+    }>
     shipping_address: Record<string, string>
     payment_method: string
     shipping_method_id?: string
@@ -423,7 +444,7 @@ export const storeApi = {
   },
   createBooking: async (data: {
     service_id: string; plan_id?: string; booking_date: string; start_time?: string
-    notes?: string; payment_method?: string
+    notes?: string; payment_method?: string; order_id?: string
   }): Promise<Booking> => {
     const res = await apiClient.post('/store/bookings', data); return res.data
   },

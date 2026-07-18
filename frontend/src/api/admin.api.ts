@@ -478,6 +478,10 @@ export const adminApi = {
     return response.data
   },
 
+  deleteCareerApplication: async (applicationId: string): Promise<void> => {
+    await apiClient.delete(`/admin/career-applications/${applicationId}`)
+  },
+
   listWebsiteTemplates: async (params?: {
     view?: 'assigned' | 'draft' | 'all'
     search?: string

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStoreTheme } from './authStoreTheme'
+import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 
 const phoneRegex = /^\+?\d{10,15}$/
 
@@ -46,7 +47,18 @@ export default function Register() {
   const location = useLocation()
   const [showPw, setShowPw] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const { ready: authReady, isLoggedIn } = useIsCustomerLoggedIn()
   const { register, control, handleSubmit, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) })
+
+  const from = (location.state as { from?: string } | null)?.from
+    ?? new URLSearchParams(location.search).get('from')
+    ?? storePath('/')
+
+  useEffect(() => {
+    if (authReady && isLoggedIn) {
+      navigate(from, { replace: true })
+    }
+  }, [authReady, isLoggedIn, from, navigate])
 
   const [otpOpen, setOtpOpen] = useState(false)
   const [otpChannel, setOtpChannel] = useState<OtpChannel>('email')

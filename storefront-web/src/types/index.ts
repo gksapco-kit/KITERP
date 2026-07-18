@@ -225,7 +225,14 @@ export interface ReviewsResponse {
 }
 
 export interface CartItem {
-  product_id: string; variant_id?: string; name: string; qty: number; price: number; image_url?: string
+  product_id?: string
+  service_id?: string
+  item_type?: 'product' | 'service'
+  variant_id?: string
+  name: string
+  qty: number
+  price: number
+  image_url?: string
 }
 
 export interface Cart {

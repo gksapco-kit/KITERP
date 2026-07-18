@@ -25,6 +25,7 @@ class BookingCreate(BaseModel):
     start_time: Optional[str] = None
     notes: Optional[str] = None
     payment_method: str = Field(default="cod")
+    order_id: Optional[str] = None
 
 
 class BookingCancelRequest(BaseModel):
@@ -87,50 +88,79 @@ async def create_booking(
         },
     )
 
-    # Create a linked Order so the booking appears in vendor orders (source=booking)
-    try:
-        order_repo = OrderRepository(db)
-        order_number = await order_repo.get_next_order_number(vendor_id)
-        slot_label = booking.booking_date.strftime("%d %b %Y")
-        if booking.start_time:
-            slot_label += f" {booking.start_time.strftime('%H:%M')}"
-        from app.services.store_resolver import resolve_store_id as _resolve_txn_store_id
-        bk_store_id = await _resolve_txn_store_id(db, vendor_id)
-        order = Order(
-            order_number=order_number,
-            vendor_id=vendor_id,
-            customer_id=customer.id,
-            store_id=bk_store_id,
-            items=[{
-                "service_id": str(booking.service_id) if booking.service_id else None,
-                "name": booking.service_name or "Service",
-                "qty": 1,
-                "price": float(booking.total or 0),
-                "item_type": "service",
-                "booking_id": str(booking.id),
-                "booking_number": booking.booking_number,
-                "booking_date": slot_label,
-            }],
-            item_count=1,
-            subtotal=booking.subtotal or 0,
-            tax_amount=booking.tax_amount or 0,
-            discount_amount=booking.discount_amount or 0,
-            shipping_amount=0,
-            total=booking.total or 0,
-            status="confirmed",
-            payment_status=booking.payment_status or "pending",
-            payment_method=booking.payment_method,
-            source="booking",
-            notes=data.notes,
-        )
-        db.add(order)
-        await db.flush()
-        booking.order_id = order.id
-        await db.commit()
-        await db.refresh(booking)
-    except Exception:
-        # If order creation fails, still return the booking
-        await db.commit()
+    # Link to an existing checkout order when provided; otherwise create one
+    if data.order_id:
+        try:
+            linked_id = UUID(data.order_id)
+            order_repo = OrderRepository(db)
+            order = await order_repo.get_by_vendor_and_id(vendor_id, linked_id)
+            if order and order.customer_id == customer.id:
+                booking.order_id = order.id
+                booking.payment_method = order.payment_method or booking.payment_method
+                booking.payment_status = order.payment_status or booking.payment_status
+                # Annotate order line with booking refs when possible
+                items = list(order.items or [])
+                for line in items:
+                    if (
+                        isinstance(line, dict)
+                        and str(line.get("service_id") or "") == str(booking.service_id or "")
+                        and not line.get("booking_id")
+                    ):
+                        line["booking_id"] = str(booking.id)
+                        line["booking_number"] = booking.booking_number
+                if items:
+                    order.items = items
+                    order.source = order.source or "booking"
+                await db.commit()
+                await db.refresh(booking)
+            else:
+                await db.commit()
+        except Exception:
+            await db.commit()
+    else:
+        try:
+            order_repo = OrderRepository(db)
+            order_number = await order_repo.get_next_order_number(vendor_id)
+            slot_label = booking.booking_date.strftime("%d %b %Y")
+            if booking.start_time:
+                slot_label += f" {booking.start_time.strftime('%H:%M')}"
+            from app.services.store_resolver import resolve_store_id as _resolve_txn_store_id
+            bk_store_id = await _resolve_txn_store_id(db, vendor_id)
+            order = Order(
+                order_number=order_number,
+                vendor_id=vendor_id,
+                customer_id=customer.id,
+                store_id=bk_store_id,
+                items=[{
+                    "service_id": str(booking.service_id) if booking.service_id else None,
+                    "name": booking.service_name or "Service",
+                    "qty": 1,
+                    "price": float(booking.total or 0),
+                    "item_type": "service",
+                    "booking_id": str(booking.id),
+                    "booking_number": booking.booking_number,
+                    "booking_date": slot_label,
+                }],
+                item_count=1,
+                subtotal=booking.subtotal or 0,
+                tax_amount=booking.tax_amount or 0,
+                discount_amount=booking.discount_amount or 0,
+                shipping_amount=0,
+                total=booking.total or 0,
+                status="pending",
+                payment_status=booking.payment_status or "pending",
+                payment_method=booking.payment_method,
+                source="booking",
+                notes=data.notes,
+            )
+            db.add(order)
+            await db.flush()
+            booking.order_id = order.id
+            await db.commit()
+            await db.refresh(booking)
+        except Exception:
+            # If order creation fails, still return the booking
+            await db.commit()
 
     return JSONResponse(content=_booking_to_dict(booking), status_code=201)
 

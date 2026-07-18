@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useService, useCreateBooking, useRequestQuote, useCreateSubscription } from '@/hooks/useStore'
+import { useService, useRequestQuote } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 import { storeApi } from '@/api/store'
 import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
 import { formatCurrency, imgUrl } from '@/lib/utils'
@@ -21,6 +22,8 @@ import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
 import type { ServicePlan, ServiceAvailability } from '@/types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 import { serviceBookingLabel, serviceBookingCtaLabel, serviceSubscriptionLabel, serviceSubscriptionCtaLabel, serviceQuoteCtaLabel } from '@/lib/serviceStorefrontCta'
+import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
+import { useQueryClient } from '@tanstack/react-query'
 
 const SERVICE_MODE_LABELS: Record<string, string> = {
   in_store: 'In-Store', on_site: 'On-Site', remote: 'Remote',
@@ -300,13 +303,23 @@ export function PlanSelector({
 
 // ── Booking Modal ─────────────────────────────────────────────────
 
+function clampTimeToBounds(time: string, bounds: { start: string; end: string } | null): string {
+  if (!time || !bounds) return time
+  if (time < bounds.start) return bounds.start
+  if (time > bounds.end) return bounds.end
+  return time
+}
+
 function BookingModal({
-  serviceId, planId, serviceName, price, duration, availability, onClose,
+  serviceId, planId, serviceName, price, duration, availability, imageUrl, onClose,
 }: {
   serviceId: string; planId?: string | null; serviceName: string; price: number; duration?: number
-  availability?: AvailSlot[]; onClose: () => void
+  availability?: AvailSlot[]; imageUrl?: string; onClose: () => void
 }) {
-  const createBooking = useCreateBooking()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const { storePath, vendorSlug } = useVendor()
+  const [bookingPending, setBookingPending] = useState(false)
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
   const nextSlotTime = useMemo(() => {
     const now = new Date()
@@ -338,47 +351,96 @@ function BookingModal({
     return !availableDays.has(modelDay)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!timeBoundsForDate) return
+    setStartTime((prev) => clampTimeToBounds(prev || nextSlotTime, timeBoundsForDate))
+  }, [bookingDate, timeBoundsForDate, nextSlotTime])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!bookingDate) return
-    createBooking.mutate(
-      { service_id: serviceId, plan_id: planId || undefined, booking_date: bookingDate, start_time: startTime || undefined, notes: notes || undefined, payment_method: 'cod' },
-      { onSuccess: () => onClose() },
-    )
+    if (!bookingDate || bookingPending) return
+    const effectiveTime = startTime
+      ? clampTimeToBounds(startTime, timeBoundsForDate)
+      : undefined
+    const slotLabel = effectiveTime ? `${bookingDate} ${effectiveTime}` : bookingDate
+    const cartItem = {
+      service_id: serviceId,
+      item_type: 'service' as const,
+      name: `${serviceName} (Booking · ${slotLabel})`,
+      qty: 1,
+      price,
+      image_url: imageUrl,
+    }
+    setBookingPending(true)
+    try {
+      await proceedSubscribeToCheckout({
+        intent: {
+          kind: 'booking',
+          vendorSlug,
+          cartItem,
+          payload: {
+            service_id: serviceId,
+            plan_id: planId || undefined,
+            booking_date: bookingDate,
+            start_time: effectiveTime,
+            notes: notes || undefined,
+          },
+        },
+        cartItem,
+        vendorSlug,
+        navigate,
+        storePath,
+        qc,
+        onBeforeNavigate: onClose,
+      })
+    } finally {
+      setBookingPending(false)
+    }
   }
 
+  const openSlots = useMemo(
+    () => [...(availability || [])].filter(s => s.is_available).sort((a, b) => a.day_of_week - b.day_of_week),
+    [availability],
+  )
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 fade-in-0 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div className="flex items-center gap-2">
-            <CalendarDays className={`w-5 h-5 ${themeUi.iconPrimary}`} />
-            <h2 className="text-lg font-bold text-gray-900">Book Service</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 fade-in-0 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-2.5 border-b">
+          <div className="flex items-center gap-2 min-w-0">
+            <CalendarDays className={`w-4 h-4 shrink-0 ${themeUi.iconPrimary}`} />
+            <h2 className="text-base font-bold text-gray-900 truncate">Book Service</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-gray-400" />
+          <button type="button" onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors shrink-0">
+            <X className="w-4 h-4 text-gray-400" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          <div className={`rounded-xl p-4 border ${themeUi.gradientHero} ${themeUi.borderPrimaryMuted}`}>
-            <p className="font-bold text-gray-900">{serviceName}</p>
-            <div className="flex items-center gap-3 mt-1.5 text-sm text-gray-600">
-              <span className="text-xl font-extrabold text-gray-900">{formatCurrency(price)}</span>
-              {duration && (
-                <span className="flex items-center gap-1 bg-white/80 px-2 py-0.5 rounded-full text-xs">
-                  <Clock className="w-3 h-3" /> {duration} min
+        <form onSubmit={handleSubmit} className="px-4 py-3 space-y-2.5">
+          <div className={`rounded-lg px-3 py-2 border flex items-center justify-between gap-3 ${themeUi.gradientHero} ${themeUi.borderPrimaryMuted}`}>
+            <p className="font-semibold text-sm text-gray-900 truncate min-w-0">{serviceName}</p>
+            <div className="flex items-center gap-2 shrink-0 text-sm text-gray-600">
+              <span className="text-base font-extrabold text-gray-900 tabular-nums">{formatCurrency(price)}</span>
+              {duration != null && duration > 0 && (
+                <span className="flex items-center gap-0.5 bg-white/80 px-1.5 py-0.5 rounded-full text-[11px]">
+                  <Clock className="w-2.5 h-2.5" /> {duration} min
                 </span>
               )}
             </div>
           </div>
 
-          {availability && availability.some(s => s.is_available) && (
-            <div className={`rounded-xl p-3 border ${themeUi.bgSoftPanel} ${themeUi.borderPrimarySoft}`}>
-              <p className={`text-xs font-bold mb-1.5 uppercase tracking-wider ${themeUi.textPrimary}`}>Available days</p>
-              <div className="flex gap-1.5 flex-wrap">
-                {[...availability].filter(s => s.is_available).sort((a, b) => a.day_of_week - b.day_of_week).map(s => (
-                  <span key={s.id ?? `${s.day_of_week}-${s.start_time}-${s.end_time}`} className={`text-xs font-medium px-2 py-0.5 rounded-full ${themeUi.dayChip}`}>
+          {openSlots.length > 0 && (
+            <div className={`rounded-lg px-2.5 py-1.5 border ${themeUi.bgSoftPanel} ${themeUi.borderPrimarySoft}`}>
+              <p className={`text-[10px] font-bold mb-1 uppercase tracking-wider ${themeUi.textPrimary}`}>Available days</p>
+              <div className="flex gap-1 flex-wrap">
+                {openSlots.map(s => (
+                  <span
+                    key={s.id ?? `${s.day_of_week}-${s.start_time}-${s.end_time}`}
+                    className={`text-[10px] font-medium leading-tight px-1.5 py-0.5 rounded-md ${themeUi.dayChip}`}
+                  >
                     {DAYS[s.day_of_week]} {s.start_time}–{s.end_time}
                   </span>
                 ))}
@@ -386,40 +448,63 @@ function BookingModal({
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Preferred Date *</label>
-            <Input type="date" min={today} value={bookingDate}
-              onChange={(e) => { setBookingDate(e.target.value); setStartTime('') }} required
-              className={`h-11 ${bookingDate && isDateUnavailable(bookingDate) ? 'border-amber-400 bg-amber-50' : ''}`} />
-            {bookingDate && isDateUnavailable(bookingDate) && (
-              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" /> This day may not be available.
-              </p>
-            )}
-            {timeBoundsForDate && (
-              <p className={`text-xs mt-1 font-medium ${themeUi.textPrimary}`}>Available: {timeBoundsForDate.start} – {timeBoundsForDate.end}</p>
-            )}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="min-w-0">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Preferred Date *</label>
+              <Input
+                type="date"
+                min={today}
+                value={bookingDate}
+                onChange={(e) => setBookingDate(e.target.value)}
+                required
+                className={`h-9 text-sm ${bookingDate && isDateUnavailable(bookingDate) ? 'border-amber-400 bg-amber-50' : ''}`}
+              />
+              {bookingDate && isDateUnavailable(bookingDate) ? (
+                <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-0.5">
+                  <AlertTriangle className="w-2.5 h-2.5 shrink-0" /> May be unavailable
+                </p>
+              ) : timeBoundsForDate ? (
+                <p className={`text-[10px] mt-0.5 font-medium truncate ${themeUi.textPrimary}`}>
+                  {timeBoundsForDate.start}–{timeBoundsForDate.end}
+                </p>
+              ) : null}
+            </div>
+            <div className="min-w-0">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Preferred Time</label>
+              <Input
+                type="time"
+                value={startTime}
+                min={timeBoundsForDate?.start}
+                max={timeBoundsForDate?.end}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="h-9 text-sm"
+              />
+              <p className="text-[10px] text-gray-400 mt-0.5">Optional</p>
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Preferred Time</label>
-            <Input type="time" value={startTime} min={timeBoundsForDate?.start} max={timeBoundsForDate?.end}
-              onChange={(e) => setStartTime(e.target.value)} className="h-11" />
-            <p className="text-xs text-gray-400 mt-1">Leave blank if no preference</p>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Notes</label>
+            <textarea
+              rows={2}
+              className={`flex w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm resize-none transition-shadow ${themeUi.focusRingInput}`}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any special instructions..."
+            />
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Notes</label>
-            <textarea className={`flex w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm min-h-[60px] resize-none transition-shadow ${themeUi.focusRingInput}`}
-              value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any special instructions..." />
-          </div>
-
-          <div className="flex gap-3 pt-1">
-            <Button type="button" variant="cancel" className="flex-1 h-11 rounded-xl" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className={`flex-1 h-11 rounded-xl font-bold ${themeUi.btnSolid}`}
-              disabled={!bookingDate || createBooking.isPending}>
-              {createBooking.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CalendarDays className="w-4 h-4 mr-2" />}
-              Confirm Booking
+          <div className="flex gap-2 pt-0.5">
+            <Button type="button" variant="cancel" className="flex-1 h-9 rounded-xl text-sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className={`flex-1 h-9 rounded-xl font-bold text-sm ${themeUi.btnSolid}`}
+              disabled={!bookingDate || bookingPending}
+            >
+              {bookingPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <CalendarDays className="w-3.5 h-3.5 mr-1.5" />}
+              Continue to checkout
             </Button>
           </div>
         </form>
@@ -567,13 +652,15 @@ function QuoteRequestModal({
 // ── Main ServiceDetail ────────────────────────────────────────────
 
 export default function ServiceDetail() {
-  const { storePath, vendor, displayFields } = useVendor()
+  const { storePath, vendorSlug, vendor, displayFields } = useVendor()
   const sf = displayFields.service
   const { slug } = useParams<{ slug: string }>()
   const { data: service, isLoading } = useService(slug!)
-  const { isAuthenticated, customer } = useAuthStore()
+  const { customer } = useAuthStore()
+  const { isLoggedIn } = useIsCustomerLoggedIn()
   const navigate = useNavigate()
-  const createSubscription = useCreateSubscription()
+  const qc = useQueryClient()
+  const [subscribePending, setSubscribePending] = useState(false)
   const [showBooking, setShowBooking] = useState(false)
   const [showQuote, setShowQuote] = useState(false)
   const [showSubscription, setShowSubscription] = useState(false)
@@ -657,43 +744,65 @@ export default function ServiceDetail() {
   const hasWhatsIncluded = sf.whats_included && service.whats_included && service.whats_included.length > 0
   const hasWhatsNotIncluded = sf.whats_not_included && service.whats_not_included && service.whats_not_included.length > 0
   const unitPrice = selectedPlan?.price ?? service.price
+  // Show subscribe CTA whenever the service is a subscription with a price.
+  // Do not hide behind display-field toggles — customers need a working pay path.
   const showSubscriptionPanel =
-    isDisplayFieldEnabled(sf, 'subscription_details')
-    && ((hasBothModes && sidebarMode === 'subscription') || (isSubscription && !canBook))
+    ((hasBothModes && sidebarMode === 'subscription') || (isSubscription && !canBook))
     && subscriptionPrice > 0
 
-  const handleSubscribe = (config: {
+  const handleSubscribe = async (config: {
     interval: string; cycles: number; total: number
     startDate: string; endDate: string
     selectedDates?: string[]; weeklyDay?: number
     recurrence?: { every: number; unit: 'day' | 'week' | 'month'; weekdays?: number[] }
   }) => {
-    if (!isAuthenticated) {
-      navigate(storePath('/login'), { state: { from: storePath(`/services/${service.slug}`) } })
-      return
-    }
+    if (subscribePending) return
     const planPart =
       selectedPlan &&
       selectedPlan.name.trim().toLowerCase() !== service.name.trim().toLowerCase()
         ? ` — ${selectedPlan.name}`
         : ''
     const name = `${service.name}${planPart} (Subscription, ${config.cycles} cycle${config.cycles !== 1 ? 's' : ''})`
-    createSubscription.mutate(
-      {
-        item_type: 'service',
-        service_id: service.id,
-        item_name: name,
-        interval: config.interval || subscriptionInterval,
-        price_per_cycle: subscriptionPrice,
-        qty: 1,
-        schedule_config: config,
-      },
-      {
-        onSuccess: () => {
-          setShowSubscription(false)
+    const imageUrl = displayMedia[0]?.url || service.image_url || undefined
+    const cartItem = {
+      service_id: service.id,
+      item_type: 'service' as const,
+      name,
+      qty: 1,
+      price: config.total > 0 ? config.total : subscriptionPrice,
+      image_url: imageUrl,
+      variant_label: `${config.cycles} ${config.interval || subscriptionInterval} cycle${config.cycles !== 1 ? 's' : ''}`,
+    }
+    setSubscribePending(true)
+    try {
+      await proceedSubscribeToCheckout({
+        intent: {
+          kind: 'subscription',
+          vendorSlug,
+          cartItem,
+          payload: {
+            item_type: 'service',
+            service_id: service.id,
+            item_name: name,
+            interval: config.interval || subscriptionInterval,
+            price_per_cycle: subscriptionPrice,
+            qty: 1,
+            schedule_config: {
+              ...config,
+              ...(selectedPlan?.id ? { plan_id: selectedPlan.id, plan_name: selectedPlan.name } : {}),
+            },
+          },
         },
-      },
-    )
+        cartItem,
+        vendorSlug,
+        navigate,
+        storePath,
+        qc,
+        onBeforeNavigate: () => setShowSubscription(false),
+      })
+    } finally {
+      setSubscribePending(false)
+    }
   }
 
   return (
@@ -851,19 +960,13 @@ export default function ServiceDetail() {
                 </div>
                 <Button
                   className={`w-full h-10 font-bold rounded-xl shadow-sm text-sm ${themeUi.btnSolid}`}
-                  onClick={() => {
-                    if (!isAuthenticated) {
-                      navigate(storePath('/login'), { state: { from: storePath(`/services/${service.slug}`) } })
-                      return
-                    }
-                    setShowSubscription(true)
-                  }}
+                  onClick={() => setShowSubscription(true)}
                 >
                   <Repeat className="w-4 h-4 mr-1.5" /> {subscriptionCtaLabel}
                 </Button>
                 {canQuote && (
                   <Button variant="outline" className="w-full h-9 font-semibold rounded-lg text-sm"
-                    onClick={() => { if (!isAuthenticated) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
+                    onClick={() => { if (!isLoggedIn) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
                     <MessageSquare className="w-4 h-4 mr-1.5" /> {quoteCtaLabel}
                   </Button>
                 )}
@@ -908,12 +1011,12 @@ export default function ServiceDetail() {
                 ) : null}
 
                 <Button className={`w-full h-12 font-bold rounded-xl shadow-sm ${themeUi.btnSolid}`} size="lg"
-                  onClick={() => { if (!isAuthenticated) { navigate(storePath('/login')); return }; setShowBooking(true) }}>
+                  onClick={() => setShowBooking(true)}>
                   <CalendarDays className="w-5 h-5 mr-2" /> {bookingCtaLabel}
                 </Button>
                 {canQuote && (
                   <Button variant="outline" className="w-full h-12 font-bold rounded-xl" size="lg"
-                    onClick={() => { if (!isAuthenticated) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
+                    onClick={() => { if (!isLoggedIn) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
                     <MessageSquare className="w-5 h-5 mr-2" /> {quoteCtaLabel}
                   </Button>
                 )}
@@ -938,7 +1041,7 @@ export default function ServiceDetail() {
                 </div>
                 {canQuote && (
                   <Button className={`w-full h-12 font-bold rounded-xl shadow-sm ${themeUi.btnSolid}`} size="lg"
-                    onClick={() => { if (!isAuthenticated) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
+                    onClick={() => { if (!isLoggedIn) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
                     <MessageSquare className="w-5 h-5 mr-2" /> {quoteCtaLabel}
                   </Button>
                 )}
@@ -1119,6 +1222,7 @@ export default function ServiceDetail() {
               ? selectedPlan.availability
               : service.availability
           }
+          imageUrl={displayMedia[0]?.url || service.image_url || undefined}
           onClose={() => setShowBooking(false)}
         />
       )}
@@ -1164,7 +1268,7 @@ export default function ServiceDetail() {
                 isTaxable={subscriptionIsTaxable}
                 taxRate={subscriptionTaxRate}
                 onSubscribe={handleSubscribe}
-                subscribePending={createSubscription.isPending}
+                subscribePending={subscribePending}
               />
             </div>
           </div>

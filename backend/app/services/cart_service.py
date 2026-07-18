@@ -33,21 +33,30 @@ class CartService:
         cart = await self.repo.get_or_create(vendor_id, customer_id)
         items = _clone_cart_items(cart.items)
 
-        # Check if item already exists (same product_id + variant_id)
+        # Match existing line: product+variant, or service
         for i, existing in enumerate(items):
-            if (
-                existing.get("product_id") == item.product_id
+            same_product = (
+                item.product_id
+                and existing.get("product_id") == item.product_id
                 and existing.get("variant_id") == item.variant_id
-            ):
+            )
+            same_service = (
+                item.service_id
+                and existing.get("service_id") == item.service_id
+                and not item.product_id
+            )
+            if same_product or same_service:
                 items[i]["qty"] += item.qty
-                items[i]["price"] = item.price  # Update price
+                items[i]["price"] = item.price
+                if item.item_type:
+                    items[i]["item_type"] = item.item_type
                 _persist_cart_items(cart, items)
                 await self.db.commit()
                 await self.db.refresh(cart)
                 return cart
 
         # Add new item
-        items.append(item.model_dump())
+        items.append(item.model_dump(exclude_none=True))
         _persist_cart_items(cart, items)
         await self.db.commit()
         await self.db.refresh(cart)

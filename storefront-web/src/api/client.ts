@@ -100,6 +100,8 @@ export function setBranchQueryParam(branch: string | null) {
 /**
  * Active business unit for customer auth + catalog.
  * When the BU changes, swap the in-memory/local customer session to the bag for that BU.
+ * If the new BU has no saved bag yet, carry forward the previous vendor session
+ * (do not force logout — that was bouncing logged-in users back to signup/login).
  */
 export function setStorefrontBuContext(storeId: string | null, branch: string | null) {
   const nextStore = storeId?.trim() || null
@@ -113,16 +115,38 @@ export function setStorefrontBuContext(storeId: string | null, branch: string | 
   if (prevScope === nextScope) return
 
   // Persist current global bag under the previous scope (if any), then load the next.
+  let carriedBag: string | null = null
   try {
-    const currentBag = localStorage.getItem('customer-auth-storage')
-    if (currentBag) localStorage.setItem(authBagKey(prevScope), currentBag)
+    carriedBag = localStorage.getItem('customer-auth-storage')
+    if (carriedBag) localStorage.setItem(authBagKey(prevScope), carriedBag)
   } catch {
     // ignore
   }
 
-  const nextAccess = localStorage.getItem(`customer_access_token:${nextScope}`)
-  const nextRefresh = localStorage.getItem(`customer_refresh_token:${nextScope}`)
-  const nextBag = localStorage.getItem(authBagKey(nextScope))
+  const prevAccess =
+    localStorage.getItem(`customer_access_token:${prevScope}`)
+    || localStorage.getItem('customer_access_token')
+  const prevRefresh =
+    localStorage.getItem(`customer_refresh_token:${prevScope}`)
+    || localStorage.getItem('customer_refresh_token')
+
+  let nextAccess = localStorage.getItem(`customer_access_token:${nextScope}`)
+  let nextRefresh = localStorage.getItem(`customer_refresh_token:${nextScope}`)
+  let nextBag = localStorage.getItem(authBagKey(nextScope))
+
+  // No BU-specific session yet — reuse the vendor-wide / previous session.
+  if (!nextBag && !nextAccess && (carriedBag || prevAccess)) {
+    nextBag = carriedBag || localStorage.getItem(authBagKey(prevScope))
+    nextAccess = prevAccess
+    nextRefresh = prevRefresh
+    try {
+      if (nextBag) localStorage.setItem(authBagKey(nextScope), nextBag)
+      if (nextAccess) localStorage.setItem(`customer_access_token:${nextScope}`, nextAccess)
+      if (nextRefresh) localStorage.setItem(`customer_refresh_token:${nextScope}`, nextRefresh)
+    } catch {
+      // ignore
+    }
+  }
 
   if (nextAccess) localStorage.setItem('customer_access_token', nextAccess)
   else localStorage.removeItem('customer_access_token')
@@ -140,11 +164,20 @@ export function setStorefrontBuContext(storeId: string | null, branch: string | 
         isAuthenticated: !!(state?.isAuthenticated || nextAccess),
       })
     } catch {
-      useAuthStore.getState().logout()
       if (nextAccess) {
-        useAuthStore.setState({ accessToken: nextAccess, isAuthenticated: true })
+        useAuthStore.setState({
+          accessToken: nextAccess,
+          isAuthenticated: true,
+        })
+      } else {
+        useAuthStore.getState().logout()
       }
     }
+  } else if (nextAccess) {
+    useAuthStore.setState({
+      accessToken: nextAccess,
+      isAuthenticated: true,
+    })
   } else {
     useAuthStore.getState().logout()
   }
@@ -154,7 +187,12 @@ export const apiClient = axios.create({ baseURL: API_URL, headers: { 'Content-Ty
 
 apiClient.interceptors.request.use((config) => {
   if (config.data instanceof FormData) {
-    delete config.headers['Content-Type']
+    const headers = config.headers
+    if (headers && typeof (headers as { delete?: (key: string) => void }).delete === 'function') {
+      ;(headers as { delete: (key: string) => void }).delete('Content-Type')
+    } else if (headers) {
+      delete (headers as Record<string, unknown>)['Content-Type']
+    }
   }
   return config
 })

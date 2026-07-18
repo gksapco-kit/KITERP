@@ -27,7 +27,17 @@ class CustomerSubscriptionService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    def _to_dict(self, sub: CustomerSubscription, customer_name: str | None = None) -> dict:
+    def _to_dict(
+        self,
+        sub: CustomerSubscription,
+        customer_name: str | None = None,
+        *,
+        order_id: str | None = None,
+        payment_status: str | None = None,
+        total: float | None = None,
+    ) -> dict:
+        cfg = sub.schedule_config or {}
+        linked_order = order_id or cfg.get("order_id")
         return {
             "id": str(sub.id),
             "vendor_id": str(sub.vendor_id),
@@ -42,7 +52,7 @@ class CustomerSubscriptionService:
             "qty": sub.qty,
             "currency": sub.currency,
             "status": sub.status,
-            "schedule_config": sub.schedule_config or {},
+            "schedule_config": cfg,
             "trial_ends_at": sub.trial_ends_at,
             "current_period_start": sub.current_period_start,
             "current_period_end": sub.current_period_end,
@@ -50,12 +60,15 @@ class CustomerSubscriptionService:
             "cancelled_at": sub.cancelled_at,
             "created_at": sub.created_at,
             "customer_name": customer_name,
+            "order_id": str(linked_order) if linked_order else None,
+            "payment_status": payment_status,
+            "total": total,
         }
 
     async def create(self, vendor_id: UUID, customer: Customer, data: SubscriptionCreate) -> dict:
         await self._validate_item(vendor_id, data)
         now = datetime.now(timezone.utc)
-        cfg = data.schedule_config or {}
+        cfg = dict(data.schedule_config or {})
         start_raw = cfg.get("startDate") or cfg.get("start_date")
         try:
             period_start = datetime.fromisoformat(start_raw.replace("Z", "+00:00")) if start_raw else now

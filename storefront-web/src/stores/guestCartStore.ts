@@ -2,7 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type GuestCartItem = {
-  product_id: string
+  product_id?: string
+  service_id?: string
+  item_type?: 'product' | 'service'
   variant_id?: string
   variant_label?: string
   slug?: string
@@ -28,9 +30,12 @@ export const useGuestCartStore = create<GuestCartState>()(
       getItems: (vendorSlug) => get().byVendor[vendorSlug] ?? [],
       addItem: (vendorSlug, item) => {
         const items = [...(get().byVendor[vendorSlug] ?? [])]
-        const idx = items.findIndex(
-          i => i.product_id === item.product_id && i.variant_id === item.variant_id,
-        )
+        const idx = items.findIndex((i) => {
+          if (item.service_id && !item.product_id) {
+            return i.service_id === item.service_id && !i.product_id
+          }
+          return i.product_id === item.product_id && i.variant_id === item.variant_id
+        })
         if (idx >= 0) {
           items[idx] = { ...items[idx], qty: items[idx].qty + item.qty, price: item.price }
         } else {

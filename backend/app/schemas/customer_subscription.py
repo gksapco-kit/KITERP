@@ -16,6 +16,7 @@ class SubscriptionCreate(BaseModel):
     price_per_cycle: float = Field(..., ge=0)
     qty: int = Field(1, ge=1, le=100)
     schedule_config: dict[str, Any] = {}
+    payment_method: str = "upi"
 
 
 class SubscriptionStatusUpdate(BaseModel):
@@ -46,6 +47,9 @@ class SubscriptionResponse(BaseModel):
     cancelled_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     customer_name: Optional[str] = None
+    order_id: Optional[str] = None
+    payment_status: Optional[str] = None
+    total: Optional[float] = None
 
     @field_validator(
         "id", "vendor_id", "customer_id", "product_id", "variant_id", "service_id",
@@ -60,6 +64,13 @@ class SubscriptionResponse(BaseModel):
     @field_validator("price_per_cycle", mode="before")
     @classmethod
     def coerce_price(cls, v):
+        return float(v) if isinstance(v, Decimal) else v
+
+    @field_validator("total", mode="before")
+    @classmethod
+    def coerce_total(cls, v):
+        if v is None:
+            return None
         return float(v) if isinstance(v, Decimal) else v
 
     @field_validator("schedule_config", mode="before")

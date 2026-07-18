@@ -16,9 +16,33 @@ type Props = {
   total?: Money;
 };
 
+function PaymentMethodsSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading payment methods">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-12 animate-pulse rounded-lg bg-gray-100" />
+        ))}
+      </div>
+      <div className="h-16 animate-pulse rounded-lg bg-gray-100" />
+    </div>
+  );
+}
+
 export function PaymentSection({ onChange, value, total }: Props) {
-  const { paymentMode, enabledProviders, connectedPayments = [], codEnabled = true } = useCheckoutConfig();
+  const {
+    paymentMode,
+    enabledProviders,
+    connectedPayments = [],
+    codEnabled = true,
+    paymentsLoading = false,
+  } = useCheckoutConfig();
   const hasConnected = connectedPayments.length > 0;
+
+  // Keep height stable while preview loads — avoids payment block "jumbling" in.
+  if (paymentsLoading && !hasConnected) {
+    return <PaymentMethodsSkeleton />;
+  }
 
   if (hasConnected) {
     return (

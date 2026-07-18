@@ -28,6 +28,8 @@ export type CheckoutConfig = {
   enabledProviders: Array<"stripe" | "paypal" | "apple_pay" | "google_pay" | "klarna" | "afterpay">;
   /** Connected payment gateways from CRM integrations */
   connectedPayments?: ConnectedPayment[];
+  /** True while checkout preview (payment methods / totals) is loading */
+  paymentsLoading?: boolean;
   /** Whether cash on delivery is available */
   codEnabled?: boolean;
   /** Vendor-uploaded UPI QR for manual payments */

@@ -1,5 +1,5 @@
 # app/schemas/order.py
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import Optional, List, Literal
 from datetime import datetime
 from uuid import UUID
@@ -104,12 +104,22 @@ class GuestCustomerInfo(BaseModel):
 
 
 class GuestCartItem(BaseModel):
-    product_id: str
+    product_id: Optional[str] = None
+    service_id: Optional[str] = None
+    item_type: Optional[str] = None
     variant_id: Optional[str] = None
     name: str
     qty: int = Field(..., ge=1, le=100)
     price: float = Field(..., ge=0)
     image_url: Optional[str] = None
+
+    @model_validator(mode="after")
+    def require_item_ref(self):
+        if not self.product_id and not self.service_id:
+            raise ValueError("product_id or service_id is required")
+        if not self.item_type:
+            self.item_type = "service" if self.service_id and not self.product_id else "product"
+        return self
 
 
 class GuestCheckoutRequest(BaseModel):

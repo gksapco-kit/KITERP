@@ -5,9 +5,12 @@ import {
   Camera,
   CheckCircle2,
   FileText,
+  Heart,
+  Lightbulb,
   Loader2,
-  Sparkles,
+  TrendingUp,
   Upload,
+  Users,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,7 +23,7 @@ const ACCEPTED_CV = '.pdf,.doc,.docx,application/pdf,application/msword,applicat
 const ACCEPTED_PHOTO = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
 const MAX_CV_BYTES = 10 * 1024 * 1024
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
-const HERO_IMAGE = '/images/careers-hero.png?v=4'
+const HERO_IMAGE = '/images/careers-hero.png?v=8'
 
 type FormState = {
   first_name: string
@@ -33,6 +36,29 @@ type FormState = {
   cover_note: string
 }
 
+const CAREER_VALUES = [
+  {
+    title: 'People First',
+    description: 'We value people, ideas and collaboration.',
+    Icon: Users,
+  },
+  {
+    title: 'Grow Together',
+    description: 'Learn, grow and achieve more every day.',
+    Icon: TrendingUp,
+  },
+  {
+    title: 'Make an Impact',
+    description: 'Solve real problems and create lasting impact.',
+    Icon: Lightbulb,
+  },
+  {
+    title: 'Work & Wellbeing',
+    description: 'We support balance, wellness and flexibility.',
+    Icon: Heart,
+  },
+] as const
+
 const EMPTY_FORM: FormState = {
   first_name: '',
   last_name: '',
@@ -42,17 +68,6 @@ const EMPTY_FORM: FormState = {
   experience_years: '',
   city: '',
   cover_note: '',
-}
-
-const fieldClass =
-  'w-full rounded-md border border-[#1e3d34]/10 bg-[#fafbfb] px-2 py-1 text-[12.5px] text-[#1e3d34] placeholder:text-[#1e3d34]/35 outline-none transition focus:border-[#64C3A0] focus:bg-white focus:ring-2 focus:ring-[#64C3A0]/12'
-
-const labelClass = 'mb-0.5 block text-[9px] font-semibold uppercase tracking-wide text-[#1e3d34]/40'
-
-function formatBytes(n: number) {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`
 }
 
 export default function Careers() {
@@ -129,14 +144,6 @@ export default function Careers() {
       toast.error('Please enter a valid email')
       return
     }
-    if (!cv) {
-      toast.error('Please upload your CV')
-      return
-    }
-    if (!photo) {
-      toast.error('Please upload a passport size photo')
-      return
-    }
 
     const body = new FormData()
     body.append('full_name', `${first} ${last}`)
@@ -146,8 +153,8 @@ export default function Careers() {
     if (form.experience_years.trim()) body.append('graduation_year', form.experience_years.trim())
     if (form.city.trim()) body.append('city', form.city.trim())
     if (form.cover_note.trim()) body.append('cover_note', form.cover_note.trim())
-    body.append('cv', cv)
-    body.append('photo', photo)
+    if (cv) body.append('cv', cv)
+    if (photo) body.append('photo', photo)
 
     setSending(true)
     try {
@@ -161,120 +168,135 @@ export default function Careers() {
       if (photoRef.current) photoRef.current.value = ''
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : 'Failed to submit application')
+      let message = 'Failed to submit application'
+      if (typeof detail === 'string') {
+        message = detail
+      } else if (Array.isArray(detail)) {
+        message = detail
+          .map((item) => {
+            if (item && typeof item === 'object' && 'msg' in item) return String((item as { msg: unknown }).msg)
+            return String(item)
+          })
+          .filter(Boolean)
+          .join(' · ')
+      }
+      toast.error(message || 'Failed to submit application')
     } finally {
       setSending(false)
     }
   }
 
-  const dropZone = (active: boolean, filled: boolean) =>
-    `flex h-10 cursor-pointer items-center gap-2 rounded-md border border-dashed px-2 transition ${
-      active
-        ? 'border-[#64C3A0] bg-[#eef9f4]'
-        : filled
-          ? 'border-[#64C3A0]/45 bg-[#f3faf7]'
-          : 'border-[#1e3d34]/12 bg-[#fafbfb] hover:border-[#64C3A0]/45 hover:bg-[#f3faf7]'
-    }`
+  const dropClass = (active: boolean, filled: boolean) =>
+    `kiterp-careers-drop${active ? ' kiterp-careers-drop--active' : ''}${filled ? ' kiterp-careers-drop--filled' : ''}`
 
   return (
-    <div className="kiterp-landing font-kiterp-body h-dvh overflow-hidden flex flex-col bg-white">
+    <div className="kiterp-landing kiterp-careers-page font-kiterp-body">
       <PlatformAnalyticsBeacon />
+      <div className="kiterp-careers-glow" aria-hidden />
       <LandingHeader />
 
-      <main className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-stretch overflow-hidden">
-        {/* Smaller image panel — banner on small screens, ~40% width on lg+ */}
-        <aside
-          className="relative w-full shrink-0 overflow-hidden bg-[#dfe8e4]
-            aspect-[2.4/1] max-h-[22svh] sm:aspect-[2.6/1] sm:max-h-[24svh] md:max-h-[26svh]
-            lg:aspect-auto lg:max-h-none lg:h-full lg:min-h-0
-            lg:rounded-br-[clamp(2rem,6vw,4rem)]"
-          aria-label="Team collaboration at KIT ERP"
-        >
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: `url(${HERO_IMAGE})` }}
-            role="img"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white via-white/50 to-transparent lg:hidden"
-            aria-hidden
-          />
-        </aside>
-
-        <section className="flex-1 min-h-0 overflow-hidden flex flex-col justify-center px-4 py-2.5 sm:px-7 sm:py-3 lg:px-8 xl:px-12 bg-white">
-          <div className="flex items-center justify-between gap-2 mb-1.5 sm:mb-2">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-[#1e3d34]/40 hover:text-[#1e3d34] transition"
-            >
-              <ArrowLeft className="w-3 h-3" />
-              Home
-            </Link>
-            <p className="inline-flex items-center gap-1 rounded-full bg-[#eef9f4] px-2 py-0.5 text-[9px] font-semibold tracking-wide text-[#3d9a7a] uppercase">
-              <Sparkles className="w-3 h-3" />
-              Careers
-            </p>
-          </div>
-
-          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-[#1e3d34] leading-tight">
-            Join the KIT ERP team
-          </h1>
-          <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-[12px] text-[#1e3d34]/50 leading-snug">
-            Details, passport photo, and CV — open to everyone.
-          </p>
-
-          <div className="mt-2 sm:mt-3">
-            {submitted ? (
-              <div className="flex flex-col items-center text-center py-6">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef9f4] text-[#3d9a7a]">
-                  <CheckCircle2 className="w-5 h-5" />
+      <main className="kiterp-careers-main">
+        <div className="kiterp-careers-shell kiterp-reveal">
+          <aside className="kiterp-careers-brand" aria-label="KIT ERP careers">
+            <div className="kiterp-careers-brand-top">
+              <h1 className="kiterp-careers-brand-title">
+                Join the team, shape the{' '}
+                <span className="kiterp-careers-brand-accent">
+                  future.
+                  <svg className="kiterp-careers-brand-underline" viewBox="0 0 120 12" aria-hidden>
+                    <path
+                      d="M2 8c18-4 36-5 56-3 18 2 36 3 50 1"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </span>
-                <h3 className="mt-2.5 text-base font-bold text-[#1e3d34]">Application received</h3>
-                <p className="mt-1 max-w-xs text-[12px] text-[#1e3d34]/55">
+              </h1>
+              <p className="kiterp-careers-brand-lead">
+                Passionate about excellence? Join a global family that&apos;s building smarter
+                solutions for tomorrow.
+              </p>
+
+              <ul className="kiterp-careers-values">
+                {CAREER_VALUES.map(({ title, description, Icon }) => (
+                  <li key={title} className="kiterp-careers-value">
+                    <span className="kiterp-careers-value-icon" aria-hidden>
+                      <Icon className="w-3.5 h-3.5" strokeWidth={2.25} />
+                    </span>
+                    <span>
+                      <span className="kiterp-careers-value-title">{title}</span>
+                      <span className="kiterp-careers-value-desc">{description}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="kiterp-careers-visual">
+              <div className="kiterp-careers-visual-frame">
+                <img src={HERO_IMAGE} alt="KIT ERP team partnership" />
+              </div>
+            </div>
+          </aside>
+
+          <section className="kiterp-careers-form" aria-labelledby="careers-form-title">
+            {submitted ? (
+              <div className="kiterp-careers-success">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--kiterp-mint-bg)] text-[var(--kiterp-primary-deeper)]">
+                  <CheckCircle2 className="w-6 h-6" />
+                </span>
+                <h2 className="mt-3 text-lg font-bold text-[var(--kiterp-ink)]">Application received</h2>
+                <p className="mt-1.5 max-w-sm text-sm text-[color-mix(in_srgb,var(--kiterp-ink)_55%,transparent)]">
                   Thanks — we will review your profile and get in touch if there is a fit.
                 </p>
                 <button
                   type="button"
                   onClick={() => setSubmitted(false)}
-                  className="mt-3 inline-flex items-center justify-center rounded-md bg-[#64C3A0] px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#52b38f] transition"
+                  className="kiterp-btn-primary mt-4 inline-flex items-center justify-center rounded-full px-5 py-2 text-sm"
                 >
                   Submit another
                 </button>
               </div>
             ) : (
               <form onSubmit={onSubmit} noValidate>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1.5">
-                  <div className="col-span-2 sm:col-span-3 grid grid-cols-2 gap-x-2">
-                    <label className="block">
-                      <span className={labelClass}>First name *</span>
-                      <input
-                        className={fieldClass}
-                        value={form.first_name}
-                        onChange={(e) => setField('first_name', e.target.value)}
-                        placeholder="First name"
-                        autoComplete="given-name"
-                        required
-                      />
-                    </label>
-                    <label className="block">
-                      <span className={labelClass}>Last name *</span>
-                      <input
-                        className={fieldClass}
-                        value={form.last_name}
-                        onChange={(e) => setField('last_name', e.target.value)}
-                        placeholder="Last name"
-                        autoComplete="family-name"
-                        required
-                      />
-                    </label>
-                  </div>
+                <div className="kiterp-careers-form-head">
+                  <Link to="/" className="kiterp-careers-back">
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Home
+                  </Link>
+                  <h2 id="careers-form-title" className="kiterp-careers-form-title">
+                    Application
+                  </h2>
+                </div>
 
-                  <label className="block col-span-2 sm:col-span-1">
-                    <span className={labelClass}>Email *</span>
+                <div className="kiterp-careers-fields">
+                  <label className="kiterp-careers-field">
+                    <span>First name *</span>
+                    <input
+                      value={form.first_name}
+                      onChange={(e) => setField('first_name', e.target.value)}
+                      placeholder="First name"
+                      autoComplete="given-name"
+                      required
+                    />
+                  </label>
+                  <label className="kiterp-careers-field">
+                    <span>Last name *</span>
+                    <input
+                      value={form.last_name}
+                      onChange={(e) => setField('last_name', e.target.value)}
+                      placeholder="Last name"
+                      autoComplete="family-name"
+                      required
+                    />
+                  </label>
+
+                  <label className="kiterp-careers-field">
+                    <span>Email *</span>
                     <input
                       type="email"
-                      className={fieldClass}
                       value={form.email}
                       onChange={(e) => setField('email', e.target.value)}
                       placeholder="you@email.com"
@@ -282,11 +304,9 @@ export default function Careers() {
                       required
                     />
                   </label>
-
-                  <label className="block">
-                    <span className={labelClass}>Phone</span>
+                  <label className="kiterp-careers-field">
+                    <span>Phone</span>
                     <input
-                      className={fieldClass}
                       value={form.phone}
                       onChange={(e) => setField('phone', e.target.value)}
                       placeholder="Mobile"
@@ -294,31 +314,18 @@ export default function Careers() {
                     />
                   </label>
 
-                  <label className="block">
-                    <span className={labelClass}>City</span>
+                  <label className="kiterp-careers-field">
+                    <span>City</span>
                     <input
-                      className={fieldClass}
                       value={form.city}
                       onChange={(e) => setField('city', e.target.value)}
                       placeholder="Your city"
                       autoComplete="address-level2"
                     />
                   </label>
-
-                  <label className="block col-span-2">
-                    <span className={labelClass}>Company / Organization</span>
+                  <label className="kiterp-careers-field">
+                    <span>Experience (yrs)</span>
                     <input
-                      className={fieldClass}
-                      value={form.company}
-                      onChange={(e) => setField('company', e.target.value)}
-                      placeholder="Current or previous"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className={labelClass}>Experience (yrs)</span>
-                    <input
-                      className={fieldClass}
                       value={form.experience_years}
                       onChange={(e) => setField('experience_years', e.target.value.replace(/\D/g, '').slice(0, 2))}
                       placeholder="e.g. 3"
@@ -326,10 +333,18 @@ export default function Careers() {
                     />
                   </label>
 
-                  <label className="block col-span-2 sm:col-span-3">
-                    <span className={labelClass}>About you</span>
+                  <label className="kiterp-careers-field kiterp-careers-field--full">
+                    <span>Company / Organization</span>
                     <input
-                      className={fieldClass}
+                      value={form.company}
+                      onChange={(e) => setField('company', e.target.value)}
+                      placeholder="Current or previous"
+                    />
+                  </label>
+
+                  <label className="kiterp-careers-field kiterp-careers-field--full">
+                    <span>About you</span>
+                    <input
                       value={form.cover_note}
                       onChange={(e) => setField('cover_note', e.target.value)}
                       placeholder="Why would you like to join KIT ERP?"
@@ -337,128 +352,133 @@ export default function Careers() {
                     />
                   </label>
 
-                  <div className="block col-span-1">
-                    <span className={labelClass}>Passport photo *</span>
-                    <input
-                      ref={photoRef}
-                      type="file"
-                      accept={ACCEPTED_PHOTO}
-                      className="sr-only"
-                      onChange={(e) => pickPhoto(e.target.files?.[0])}
-                    />
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => photoRef.current?.click()}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
+                  <div className="kiterp-careers-uploads">
+                    <div className="kiterp-careers-field">
+                      <span>Passport photo</span>
+                      <input
+                        ref={photoRef}
+                        type="file"
+                        accept={ACCEPTED_PHOTO}
+                        className="sr-only"
+                        onChange={(e) => pickPhoto(e.target.files?.[0])}
+                      />
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => photoRef.current?.click()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            photoRef.current?.click()
+                          }
+                        }}
+                        onDragOver={(e) => {
                           e.preventDefault()
-                          photoRef.current?.click()
-                        }
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault()
-                        setPhotoDrag(true)
-                      }}
-                      onDragLeave={() => setPhotoDrag(false)}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        setPhotoDrag(false)
-                        pickPhoto(e.dataTransfer.files?.[0])
-                      }}
-                      className={dropZone(photoDrag, Boolean(photo))}
-                    >
-                      {photo && photoPreview ? (
-                        <>
-                          <img
-                            src={photoPreview}
-                            alt="Passport preview"
-                            className="h-7 w-6 shrink-0 rounded object-cover ring-1 ring-[#1e3d34]/10"
-                          />
-                          <span className="min-w-0 flex-1 text-left">
-                            <span className="block text-[11px] font-semibold text-[#1e3d34] truncate">{photo.name}</span>
-                          </span>
-                          <button
-                            type="button"
-                            className="shrink-0 p-0.5 text-[#1e3d34]/35 hover:text-red-600"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setPhoto(null)
-                              if (photoRef.current) photoRef.current.value = ''
-                            }}
-                            aria-label="Remove photo"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <Camera className="w-3.5 h-3.5 shrink-0 text-[#64C3A0]" />
-                          <span className="text-[11px] font-semibold text-[#1e3d34]">Photo</span>
-                        </>
-                      )}
+                          setPhotoDrag(true)
+                        }}
+                        onDragLeave={() => setPhotoDrag(false)}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          setPhotoDrag(false)
+                          pickPhoto(e.dataTransfer.files?.[0])
+                        }}
+                        className={dropClass(photoDrag, Boolean(photo))}
+                      >
+                        {photo && photoPreview ? (
+                          <>
+                            <img
+                              src={photoPreview}
+                              alt="Passport preview"
+                              className="h-8 w-7 shrink-0 rounded object-cover ring-1 ring-[color-mix(in_srgb,var(--kiterp-ink)_12%,transparent)]"
+                            />
+                            <span className="min-w-0 flex-1 text-left">
+                              <span className="block text-[12px] font-semibold text-[var(--kiterp-ink)] truncate">
+                                {photo.name}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              className="shrink-0 p-0.5 text-[color-mix(in_srgb,var(--kiterp-ink)_35%,transparent)] hover:text-red-600"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setPhoto(null)
+                                if (photoRef.current) photoRef.current.value = ''
+                              }}
+                              aria-label="Remove photo"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="w-4 h-4 shrink-0 text-[var(--kiterp-primary)]" />
+                            <span className="text-[12px] font-semibold text-[var(--kiterp-ink)]">Photo</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="block col-span-1 sm:col-span-2">
-                    <span className={labelClass}>Upload CV *</span>
-                    <input
-                      ref={cvRef}
-                      type="file"
-                      accept={ACCEPTED_CV}
-                      className="sr-only"
-                      onChange={(e) => pickCv(e.target.files?.[0])}
-                    />
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => cvRef.current?.click()}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
+                    <div className="kiterp-careers-field">
+                      <span>Upload CV</span>
+                      <input
+                        ref={cvRef}
+                        type="file"
+                        accept={ACCEPTED_CV}
+                        className="sr-only"
+                        onChange={(e) => pickCv(e.target.files?.[0])}
+                      />
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => cvRef.current?.click()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            cvRef.current?.click()
+                          }
+                        }}
+                        onDragOver={(e) => {
                           e.preventDefault()
-                          cvRef.current?.click()
-                        }
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault()
-                        setCvDrag(true)
-                      }}
-                      onDragLeave={() => setCvDrag(false)}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        setCvDrag(false)
-                        pickCv(e.dataTransfer.files?.[0])
-                      }}
-                      className={dropZone(cvDrag, Boolean(cv))}
-                    >
-                      {cv ? (
-                        <>
-                          <FileText className="w-3.5 h-3.5 shrink-0 text-[#3d9a7a]" />
-                          <span className="min-w-0 flex-1 text-left">
-                            <span className="block text-[11px] font-semibold text-[#1e3d34] truncate">{cv.name}</span>
-                          </span>
-                          <button
-                            type="button"
-                            className="shrink-0 p-0.5 text-[#1e3d34]/35 hover:text-red-600"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setCv(null)
-                              if (cvRef.current) cvRef.current.value = ''
-                            }}
-                            aria-label="Remove CV"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-3.5 h-3.5 shrink-0 text-[#64C3A0]" />
-                          <span className="text-left min-w-0">
-                            <span className="block text-[11px] font-semibold text-[#1e3d34]">Drop CV or browse</span>
-                            <span className="block text-[10px] text-[#1e3d34]/40">PDF, DOC, DOCX</span>
-                          </span>
-                        </>
-                      )}
+                          setCvDrag(true)
+                        }}
+                        onDragLeave={() => setCvDrag(false)}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          setCvDrag(false)
+                          pickCv(e.dataTransfer.files?.[0])
+                        }}
+                        className={dropClass(cvDrag, Boolean(cv))}
+                      >
+                        {cv ? (
+                          <>
+                            <FileText className="w-4 h-4 shrink-0 text-[var(--kiterp-primary-deeper)]" />
+                            <span className="min-w-0 flex-1 text-left">
+                              <span className="block text-[12px] font-semibold text-[var(--kiterp-ink)] truncate">
+                                {cv.name}
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              className="shrink-0 p-0.5 text-[color-mix(in_srgb,var(--kiterp-ink)_35%,transparent)] hover:text-red-600"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setCv(null)
+                                if (cvRef.current) cvRef.current.value = ''
+                              }}
+                              aria-label="Remove CV"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 shrink-0 text-[var(--kiterp-primary)]" />
+                            <span className="min-w-0 truncate text-[12px] font-semibold text-[var(--kiterp-ink)]">
+                              Drop CV or browse · PDF, DOC, DOCX
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -466,15 +486,15 @@ export default function Careers() {
                 <button
                   type="submit"
                   disabled={sending}
-                  className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-[#64C3A0] px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#52b38f] disabled:opacity-60 transition"
+                  className="kiterp-btn-primary kiterp-careers-submit"
                 >
-                  {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                   {sending ? 'Submitting…' : 'Submit application'}
                 </button>
               </form>
             )}
-          </div>
-        </section>
+          </section>
+        </div>
       </main>
     </div>
   )

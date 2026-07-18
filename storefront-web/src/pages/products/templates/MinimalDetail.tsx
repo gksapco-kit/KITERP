@@ -29,7 +29,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
     optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
     selectedImage, setSelectedImage, displayMedia,
     selectedVariantId,
-    handleAddToCart, handleBuyNow, isAuthenticated, signInMandatory, addToCartPending,
+    handleAddToCart, handleBuyNow, handleSubscribe, subscribePending, isAuthenticated, signInMandatory, addToCartPending,
     storePath, warrantyDays, returnDays, isReturnable, specs,
     warrantyType, returnPolicy, returnConditions, refundPolicy,
     crossSellProducts, upsellProducts,
@@ -185,8 +185,8 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
             allowedModes={subscriptionScheduleModes}
             isTaxable={isTaxable}
             taxRate={taxRate}
-            onSubscribe={() => handleBuyNow()}
-            subscribePending={addToCartPending}
+            onSubscribe={(config) => (handleSubscribe ? handleSubscribe(config) : handleBuyNow())}
+            subscribePending={subscribePending ?? addToCartPending}
             disabled={displayStock === 'out_of_stock'}
           />
         </div>

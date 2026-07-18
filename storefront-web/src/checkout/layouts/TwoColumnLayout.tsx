@@ -9,7 +9,7 @@ import { useCheckoutConfig } from "../config";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckoutActions, CheckoutState } from "../hooks/useCheckoutDemo";
-import { Lock } from "lucide-react";
+import { Lock, Repeat, CalendarDays } from "lucide-react";
 
 type Props = { state: CheckoutState; actions: CheckoutActions };
 
@@ -18,10 +18,30 @@ export function TwoColumnLayout({ state, actions }: Props) {
   const [addingNew, setAddingNew] = useState(false);
   const hasSaved = showSavedAddresses && (state.customer.savedAddresses?.length ?? 0) > 0;
   const selectedShippingLabel = state.shippingMethods.find((m) => m.id === state.shippingMethodId)?.label;
+  const isSubscription = state.checkoutIntentKind === "subscription";
+  const isBooking = state.checkoutIntentKind === "booking";
+  const addressTitle = isSubscription || isBooking ? "Delivery / billing address" : "Shipping address";
 
   return (
     <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-3 py-6 sm:px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:items-start lg:gap-8">
       <div className="order-2 min-w-0 space-y-4 lg:order-1">
+        {(isSubscription || isBooking) && (
+          <div className="ck-surface ck-border ck-radius-md flex gap-3 p-4 transition-opacity duration-200">
+            <div className="mt-0.5 shrink-0 text-[var(--ck-primary,#0d9488)]">
+              {isSubscription ? <Repeat size={18} /> : <CalendarDays size={18} />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">
+                {isSubscription ? "Complete your subscription" : "Complete your booking"}
+              </p>
+              <p className="ck-text-muted mt-0.5 text-xs">
+                Confirm your address and payment below
+                {state.checkoutIntentSummary ? <> · {state.checkoutIntentSummary}</> : null}.
+              </p>
+            </div>
+          </div>
+        )}
+
         <Section step={1} title="Contact">
           <ContactStep
             customer={state.customer}
@@ -32,7 +52,7 @@ export function TwoColumnLayout({ state, actions }: Props) {
 
         <Section
           step={2}
-          title="Shipping address"
+          title={addressTitle}
           action={
             hasSaved && !addingNew ? (
               <button type="button" className="ck-btn-ghost" onClick={() => setAddingNew(true)}>
@@ -87,7 +107,13 @@ export function TwoColumnLayout({ state, actions }: Props) {
                   style={{ height: 80, padding: 12 }}
                   value={state.notes}
                   onChange={(e) => actions.setNotes(e.target.value)}
-                  placeholder="Delivery instructions, gate code, etc."
+                  placeholder={
+                    isSubscription
+                      ? "Anything we should know about your subscription…"
+                      : isBooking
+                        ? "Special instructions for your booking…"
+                        : "Delivery instructions, gate code, etc."
+                  }
                 />
               </label>
             )}
@@ -136,10 +162,10 @@ export function PlaceOrderBar({ state, actions }: Props) {
       <p className="ck-text-muted flex items-center gap-2 text-xs">
         <Lock size={12} /> By placing this order you agree to our terms and privacy policy.
       </p>
-      <button type="button" className="ck-btn-primary sm:w-auto sm:px-8" disabled={state.isPlacing} onClick={handleClick}>
+        <button type="button" className="ck-btn-primary sm:w-auto sm:px-8" disabled={state.isPlacing} onClick={handleClick}>
         {state.isPlacing
           ? (state.processingMessage ?? 'Placing order…')
-          : 'Place order'}
+          : (state.placeOrderLabel ?? 'Place order')}
       </button>
     </div>
   );

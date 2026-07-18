@@ -2342,6 +2342,33 @@ async def update_career_application(
     return {"ok": True, "id": str(row.id), "status": row.status}
 
 
+@router.delete("/career-applications/{application_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_career_application(
+    application_id: UUID,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently remove a Careers application and its uploaded files."""
+    from app.models.platform_career_application import PlatformCareerApplication
+    from app.services.file_service import FileService
+
+    result = await db.execute(
+        select(PlatformCareerApplication).where(PlatformCareerApplication.id == application_id)
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Application not found")
+
+    files = FileService()
+    for url in (row.cv_url, row.photo_url):
+        if url:
+            await files.delete_file(url)
+
+    await db.delete(row)
+    await db.commit()
+    return None
+
+
 @router.get("/disputes")
 async def list_order_disputes(
     status: Optional[str] = Query(None),

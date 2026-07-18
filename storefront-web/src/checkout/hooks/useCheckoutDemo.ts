@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Address, Cart, Customer, PaymentSelection, ShippingMethod } from "../types";
 import { mockCart, mockCustomer, mockSavedAddresses, mockShippingMethods } from "../mock/data";
 
+export type CheckoutIntentKind = 'subscription' | 'booking' | null;
+
 export type CheckoutState = {
   cart: Cart;
   customer: Partial<Customer>;
@@ -14,8 +16,13 @@ export type CheckoutState = {
   giftMessage: string;
   isPlacing: boolean;
   processingMessage?: string | null;
+  previewLoading?: boolean;
   error?: string;
   fieldErrors?: Record<string, string>;
+  /** When set, checkout is completing a subscription or booking (not a normal cart). */
+  checkoutIntentKind?: CheckoutIntentKind;
+  checkoutIntentSummary?: string | null;
+  placeOrderLabel?: string;
 };
 
 export type CheckoutActions = {

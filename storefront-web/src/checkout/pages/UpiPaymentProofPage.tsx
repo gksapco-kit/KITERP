@@ -11,6 +11,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { UpiPaymentPanel } from "@/checkout/components/UpiPaymentPanel";
 import { Confetti } from "@/checkout/components/Confetti";
 import { CheckoutHeader, CheckoutFooter } from "@/checkout/components/Header";
+import { fulfillPendingCheckoutIntent } from "@/lib/fulfillCheckoutIntent";
 import type { ManualUpiConfig } from "@/checkout/config";
 
 function manualUpiFromStoreInfo(storeInfo: unknown): ManualUpiConfig | null {
@@ -60,16 +61,23 @@ export default function UpiPaymentProofPage() {
     }
   }, [order?.payment_method, orderId, navigate, storePath]);
 
-  // If proof was already submitted (e.g. refresh), ensure local cart is cleared
+  // If proof was already submitted (e.g. refresh), fulfill intent + clear cart
   useEffect(() => {
     if (
-      order?.payment_proof?.status === "submitted"
-      || order?.payment_status === "paid"
-      || order?.payment_status === "pending_verification"
+      !orderId
+      || !(
+        order?.payment_proof?.status === "submitted"
+        || order?.payment_status === "paid"
+        || order?.payment_status === "pending_verification"
+      )
     ) {
-      void resetCartAfterOrder(qc, vendorSlug);
+      return;
     }
-  }, [order?.payment_proof?.status, order?.payment_status, qc, vendorSlug]);
+    void (async () => {
+      await fulfillPendingCheckoutIntent(vendorSlug, orderId, order?.payment_method || "upi");
+      await resetCartAfterOrder(qc, vendorSlug);
+    })();
+  }, [orderId, order?.payment_proof?.status, order?.payment_status, order?.payment_method, qc, vendorSlug]);
 
   const totalMoney = order
     ? { amount: Math.round(Number(order.total) * 100), currency: "INR" }
@@ -101,6 +109,7 @@ export default function UpiPaymentProofPage() {
         utr: utr.trim(),
         screenshot_url: screenshotUrl,
       });
+      await fulfillPendingCheckoutIntent(vendorSlug, orderId, order?.payment_method || "upi");
       await resetCartAfterOrder(qc, vendorSlug);
       await qc.invalidateQueries({ queryKey: storeKeys.order(orderId) });
       setDone(true);

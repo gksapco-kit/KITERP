@@ -1,8 +1,10 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useService, useCreateBooking, useBookingSlots } from '@/hooks/useStore'
+import { useService, useBookingSlots } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
+import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
+import { useQueryClient } from '@tanstack/react-query'
 import { AvailabilityCalendar, TimeSlotPicker } from '@/kit/bookings/AvailabilityCalendar'
 import { GroupBookingFlow, RecurringBookingFlow, WaitlistFlow } from '@/kit/bookings/BookingFlows'
 import { PlanSelector } from './ServiceDetail'
@@ -17,10 +19,11 @@ import { toast } from 'sonner'
 
 export default function ServiceBookingPage() {
   const { slug } = useParams<{ slug: string }>()
-  const { storePath } = useVendor()
+  const { storePath, vendorSlug } = useVendor()
   const navigate = useNavigate()
-  const { isAuthenticated, customer } = useAuthStore()
-  const createBooking = useCreateBooking()
+  const { customer } = useAuthStore()
+  const qc = useQueryClient()
+  const [checkoutPending, setCheckoutPending] = useState(false)
 
   const { data: service, isLoading } = useService(slug!)
 
@@ -128,22 +131,44 @@ export default function ServiceBookingPage() {
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedDate || !selectedSlot) {
-      toast.error('Please select a date and time slot')
+    if (!selectedDate || !selectedSlot || checkoutPending) {
+      if (!selectedDate || !selectedSlot) toast.error('Please select a date and time slot')
       return
     }
+    const slot = slots.find(s => s.start === selectedSlot)
+    const startTime = slot?.start_time ?? new Date(selectedSlot).toTimeString().slice(0, 5)
+    const label = selectedPlan ? `${service.name} — ${selectedPlan.name}` : service.name
+    const cartItem = {
+      service_id: service.id,
+      item_type: 'service' as const,
+      name: `${label} (Booking · ${dateStr} ${startTime})`,
+      qty: 1,
+      price: planPrice,
+      image_url: kitService.image,
+    }
+    setCheckoutPending(true)
     try {
-      const slot = slots.find(s => s.start === selectedSlot)
-      await createBooking.mutateAsync({
-        service_id: service.id,
-        plan_id: selectedPlan?.id,
-        booking_date: dateStr!,
-        start_time: slot?.start_time ?? new Date(selectedSlot).toTimeString().slice(0, 5),
-        notes: notes || undefined,
+      await proceedSubscribeToCheckout({
+        intent: {
+          kind: 'booking',
+          vendorSlug,
+          cartItem,
+          payload: {
+            service_id: service.id,
+            plan_id: selectedPlan?.id,
+            booking_date: dateStr!,
+            start_time: startTime,
+            notes: notes || undefined,
+          },
+        },
+        cartItem,
+        vendorSlug,
+        navigate,
+        storePath,
+        qc,
       })
-      setConfirmed(true)
-    } catch {
-      /* mutation shows error toast */
+    } finally {
+      setCheckoutPending(false)
     }
   }
 
@@ -220,8 +245,8 @@ export default function ServiceBookingPage() {
                         <div className="sm:col-span-2"><Label>Phone</Label><Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1" /></div>
                         <div className="sm:col-span-2"><Label>Notes (optional)</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" /></div>
                       </div>
-                      <Button type="submit" className="w-full" disabled={createBooking.isPending}>
-                        {createBooking.isPending ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Booking...</> : 'Confirm booking'}
+                      <Button type="submit" className="w-full" disabled={checkoutPending}>
+                        {checkoutPending ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Continuing...</> : 'Continue to checkout'}
                       </Button>
                     </form>
                   </CardContent>

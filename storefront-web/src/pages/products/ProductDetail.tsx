@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useProduct, useAddToCart, useRequestQuote, useCreateSubscription } from '@/hooks/useStore'
+import { useProduct, useAddToCart, useRequestQuote } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 import { useVendor } from '@/contexts/VendorContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { Loader2, ShoppingBag } from 'lucide-react'
@@ -23,6 +24,8 @@ import { trackView } from '@/lib/recentlyViewed'
 import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
 import { assertCanAddToCart, getMaxAddQuantity, getMinAddQuantity, getOnHandQuantity } from '@/lib/stockValidation'
 import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
+import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
+import { useQueryClient } from '@tanstack/react-query'
 import { setPendingBuyNow } from '@/lib/pendingBuyNow'
 import { isSignInMandatory } from '@/lib/deliveryConditions'
 import { storeApi } from '@/api/store'
@@ -37,8 +40,10 @@ export default function ProductDetail() {
   const addToCart = useAddToCart()
   const navigate = useNavigate()
   const { isAuthenticated, customer } = useAuthStore()
+  const { isLoggedIn } = useIsCustomerLoggedIn()
+  const qc = useQueryClient()
+  const [subscribePending, setSubscribePending] = useState(false)
   const requestQuote = useRequestQuote()
-  const createSubscription = useCreateSubscription()
   const signInMandatory = isSignInMandatory(
     (vendor?.settings ?? {}) as Record<string, unknown>,
   )
@@ -296,7 +301,7 @@ export default function ProductDetail() {
       image_url: img,
     }
 
-    if (!isAuthenticated && signInMandatory) {
+    if (!isLoggedIn && signInMandatory) {
       setPendingBuyNow({ vendorSlug, productId: product.id, item: cartItem })
       toast.info('Please sign in to continue to checkout')
       navigate(storePath('/login'), { state: { from: storePath('/checkout') } })
@@ -306,30 +311,60 @@ export default function ProductDetail() {
     addToCart.mutate(cartItem, { onSuccess: () => navigate(storePath('/checkout')) })
   }
 
-  const handleSubscribe = (config: {
+  const handleSubscribe = async (config: {
     interval: string; cycles: number; total: number
     startDate: string; endDate: string
     selectedDates?: string[]; weeklyDay?: number
     recurrence?: { every: number; unit: string; weekdays?: number[] }
   }) => {
-    if (!isAuthenticated) {
-      navigate(storePath('/login'), { state: { from: storePath(`/products/${product.slug}`) } })
-      return
-    }
+    if (subscribePending || !product) return
     const cartName = selectedVariant ? `${product.name} - ${selectedVariant.name}` : product.name
-    createSubscription.mutate(
-      {
-        item_type: 'product',
-        product_id: product.id,
-        variant_id: selectedVariant?.id,
-        item_name: cartName,
-        interval: config.interval || selectedVariant?.subscription_interval || product.subscription_interval || 'monthly',
-        price_per_cycle: displayPrice,
-        qty,
-        schedule_config: config,
-      },
-      { onSuccess: () => navigate(storePath('/account/subscriptions')) },
-    )
+    const img = displayMedia?.[0]?.url
+      || resolveProductThumbnailUrl({ images: product.images, variants: activeVariants })
+      || ''
+    const interval = config.interval || selectedVariant?.subscription_interval || product.subscription_interval || 'monthly'
+    const scheduleLabel = `${config.cycles} ${interval} cycle${config.cycles !== 1 ? 's' : ''}`
+    const cartItem = {
+      product_id: product.id,
+      variant_id: stockVariant?.id,
+      variant_label: [
+        stockVariant ? variantDisplayLabel(stockVariant) || stockVariant.name : null,
+        scheduleLabel,
+      ].filter(Boolean).join(' · '),
+      item_type: 'product' as const,
+      slug: product.slug,
+      name: `${cartName} (Subscription)`,
+      qty,
+      price: config.total > 0 ? config.total / Math.max(qty, 1) : displayPrice,
+      image_url: img,
+    }
+    setSubscribePending(true)
+    try {
+      await proceedSubscribeToCheckout({
+        intent: {
+          kind: 'subscription',
+          vendorSlug,
+          cartItem,
+          payload: {
+            item_type: 'product',
+            product_id: product.id,
+            variant_id: selectedVariant?.id,
+            item_name: cartName,
+            interval,
+            price_per_cycle: displayPrice,
+            qty,
+            schedule_config: config,
+          },
+        },
+        cartItem,
+        vendorSlug,
+        navigate,
+        storePath,
+        qc,
+      })
+    } finally {
+      setSubscribePending(false)
+    }
   }
 
   const discount = displayCompare && displayCompare > displayPrice
@@ -358,7 +393,7 @@ export default function ProductDetail() {
     selectedImage, setSelectedImage,
     displayMedia,
     handleAddToCart, handleBuyNow, handleSubscribe,
-    subscribePending: createSubscription.isPending,
+    subscribePending,
     isAuthenticated,
     signInMandatory,
     addToCartPending: addToCart.isPending,

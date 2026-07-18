@@ -11,6 +11,7 @@ import {
   useChangeCartVariant,
 } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 import { useBranch } from '@/contexts/BranchContext'
 import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
@@ -31,6 +32,7 @@ export default function CartPage() {
   const { vendorSlug, vendor } = useVendor()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
+  const { isLoggedIn } = useIsCustomerLoggedIn()
   const { data: storeInfo } = useStoreInfo()
   const { data: cart, isLoading } = useCart()
   const updateItem = useUpdateCartItem()
@@ -41,7 +43,7 @@ export default function CartPage() {
   const requireSignIn = isSignInMandatory(vendorSettings)
 
   const handleProceedToCheckout = () => {
-    if (requireSignIn && !isAuthenticated) {
+    if (requireSignIn && !isLoggedIn) {
       toast.info('Please sign in to continue to checkout')
       navigate(storePath('/login'), { state: { from: storePath('/checkout') } })
       return
@@ -64,11 +66,13 @@ export default function CartPage() {
     const variantLabel = item.variant_label
       ? String(item.variant_label)
       : undefined
-    const productId = String(item.product_id ?? i)
+    const productId = item.product_id ? String(item.product_id) : ''
+    const serviceId = item.service_id ? String(item.service_id) : ''
     const variantId = item.variant_id ? String(item.variant_id) : undefined
     return {
       id: String(i),
-      productId,
+      productId: productId || serviceId || String(i),
+      serviceId: serviceId || undefined,
       variantId: variantId ?? undefined,
       name: String(item.name ?? ''),
       variantLabel,
@@ -161,10 +165,8 @@ export default function CartPage() {
                         const index = Number(id)
                         if (Number.isNaN(index)) return
                         if (q <= 0) {
-                          removeItem.mutate({
-                            productId: item.productId,
-                            variantId: item.variantId,
-                          })
+                          // Prefer index — service/subscription lines have no product_id
+                          removeItem.mutate(index)
                           return
                         }
                         const stockCheck = validateCartLineQtyChange({
@@ -181,10 +183,7 @@ export default function CartPage() {
                         updateItem.mutate({ index, qty: q })
                       }}
                       onRemove={() => {
-                        removeItem.mutate({
-                          productId: item.productId,
-                          variantId: item.variantId,
-                        })
+                        removeItem.mutate(i)
                       }}
                       onVariantChange={(variant: ProductVariant) => {
                         const raw = rawItems[i]
@@ -231,7 +230,7 @@ export default function CartPage() {
                 >
                   Proceed to checkout <ChevronRight size={16} />
                 </button>
-                {requireSignIn && !isAuthenticated && (
+                {requireSignIn && !isLoggedIn && (
                   <p className="mt-2 text-center text-xs text-muted-foreground">
                     <Link to={storePath('/login')} state={{ from: storePath('/checkout') }} className="font-medium text-primary hover:underline">
                       Sign in

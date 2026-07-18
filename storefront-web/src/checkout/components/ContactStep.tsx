@@ -2,7 +2,7 @@ import { Mail, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useCheckoutConfig } from "../config";
 import { Customer } from "../types";
-import { useAuthStore } from "@/stores/authStore";
+import { useIsCustomerLoggedIn } from "@/hooks/useAuthHydrated";
 
 type Props = {
   customer: Partial<Customer>;
@@ -13,8 +13,8 @@ type Props = {
 
 export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {} }: Props) {
   const { allowGuest } = useCheckoutConfig();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const showNameFields = customer.isGuest !== false;
+  const { isLoggedIn } = useIsCustomerLoggedIn();
+  const showNameFields = !isLoggedIn && customer.isGuest !== false;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -28,30 +28,35 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
 
   return (
     <div className="space-y-3">
-      {allowGuest && (
+      {isLoggedIn ? (
+        <div className="ck-text-muted flex flex-wrap items-center gap-2 text-sm">
+          <User size={14} />
+          <span>
+            Signed in{customer.email ? <> as <strong className="text-foreground font-medium">{customer.email}</strong></> : null}
+          </span>
+        </div>
+      ) : allowGuest ? (
         <div className="ck-text-muted flex flex-wrap items-center justify-between gap-2 text-sm">
           <span className="flex items-center gap-2">
             <User size={14} /> Checking out as guest
           </span>
-          {!isAuthenticated && (
-            <span className="flex flex-wrap items-center gap-2">
-              <button type="button" className="ck-btn-ghost" onClick={handleSignIn}>
-                Have an account? Sign in
-              </button>
-              <button
-                type="button"
-                className="ck-btn-ghost"
-                onClick={() => {
-                  const registerPath = location.pathname.replace(/\/[^/]*$/, "/register")
-                  navigate(registerPath, { state: { from: location.pathname + location.search } })
-                }}
-              >
-                Create account
-              </button>
-            </span>
-          )}
+          <span className="flex flex-wrap items-center gap-2">
+            <button type="button" className="ck-btn-ghost" onClick={handleSignIn}>
+              Have an account? Sign in
+            </button>
+            <button
+              type="button"
+              className="ck-btn-ghost"
+              onClick={() => {
+                const registerPath = location.pathname.replace(/\/[^/]*$/, "/register")
+                navigate(registerPath, { state: { from: location.pathname + location.search } })
+              }}
+            >
+              Create account
+            </button>
+          </span>
         </div>
-      )}
+      ) : null}
 
       {showNameFields && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
