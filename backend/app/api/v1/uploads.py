@@ -925,7 +925,8 @@ async def upload_service_media(
     current_media.append(media_item)
     svc.media = current_media
 
-    if is_primary:
+    # Keep listing/builder thumbnails in sync — not only when this is the first upload.
+    if media_type == "image" and (is_primary or not (svc.image_url or "").strip()):
         svc.image_url = url
 
     from sqlalchemy.orm.attributes import flag_modified

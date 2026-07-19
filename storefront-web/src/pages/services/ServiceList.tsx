@@ -16,6 +16,7 @@ import type { Service as KitService } from '@/kit/types'
 import { themeUi } from '@/lib/themeColors'
 import { cn } from '@/lib/utils'
 import { resolveServicePrice, resolveServiceDuration } from '@/lib/servicePricing'
+import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 
 const SERVICE_MODE_ICON: Record<string, string> = {
   home_visit: 'Home Visit', on_site: 'On-Site', field: 'Field', remote: 'Remote', online: 'Online',
@@ -206,7 +207,11 @@ export default function ServiceList() {
                 name: s.name,
                 shortDescription: s.short_description || s.description || '',
                 description: s.description || '',
-                image: s.image_url || s.media?.find((m: any) => m.is_primary)?.url,
+                image: resolveServiceThumbnailUrl({
+                  image_url: s.image_url,
+                  media: s.media,
+                  gallery: s.gallery,
+                }) || undefined,
                 durationMinutes: resolveServiceDuration(s),
                 price: resolveServicePrice(s),
                 currency: s.currency || 'INR',

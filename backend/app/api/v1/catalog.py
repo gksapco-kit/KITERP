@@ -1253,9 +1253,11 @@ async def list_services(
         total = len(all_items)
 
     review_repo = ReviewRepository(db)
+    from app.services.service_media import resolve_service_thumbnail_url
     service_dicts = []
     for s in items:
         d = _service_to_dict(s)
+        d["image_url"] = resolve_service_thumbnail_url(s) or d.get("image_url")
         stats = await review_repo.get_avg_rating("service", service_id=s.id)
         d["avg_rating"] = stats["avg_rating"]
         d["review_count"] = stats["review_count"]
@@ -1287,7 +1289,9 @@ async def get_service(
         )
 
     review_repo = ReviewRepository(db)
+    from app.services.service_media import resolve_service_thumbnail_url
     d = _service_to_dict(svc)
+    d["image_url"] = resolve_service_thumbnail_url(svc) or d.get("image_url")
     stats = await review_repo.get_avg_rating("service", service_id=svc.id)
     d["avg_rating"] = stats["avg_rating"]
     d["review_count"] = stats["review_count"]

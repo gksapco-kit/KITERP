@@ -148,7 +148,7 @@ export function RecentlyDeletedTemplatesModal({ onClose }: { onClose: () => void
     }
   }, [restoreSite])
 
-  const handlePermanentDelete = useCallbackasync (async (id: string, name: string) => {
+  const handlePermanentDelete = useCallback (async (id: string, name: string) => {
     if (!await askConfirm(`Permanently delete "${name}"? This cannot be undone.`)) return
     try {
       await permanentlyDeleteSite.mutateAsync(id)

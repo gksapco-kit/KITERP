@@ -5,6 +5,7 @@
 import { storeApi } from '@/api/store'
 import type { Product as StoreProduct, Cart as StoreCart, CartItem, Service as StoreService } from '@/types'
 import { resolveServicePrice, resolveServiceDuration } from '@/lib/servicePricing'
+import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 import type {
   Cart,
   CartLine,
@@ -185,20 +186,23 @@ export const vendorCatalogAdapter: StorefrontDataAdapter = {
   async listServices(): Promise<ServiceItem[]> {
     try {
       const res = await storeApi.listServices({ limit: 48 })
-      return (res.items || []).map((s: StoreService) => ({
-        id: s.id,
-        slug: s.slug,
-        name: s.name,
-        description: s.short_description || s.description || '',
-        durationMinutes: resolveServiceDuration(s),
-        price: toMinor(resolveServicePrice(s), s.currency || 'INR'),
-        image: s.image_url
-          ? { url: s.image_url, alt: s.name }
-          : s.media?.[0]
-            ? { url: s.media[0].url, alt: s.media[0].alt_text || s.name }
-            : undefined,
-        providerIds: [],
-      }))
+      return (res.items || []).map((s: StoreService) => {
+        const thumb = resolveServiceThumbnailUrl({
+          image_url: s.image_url,
+          media: s.media,
+          gallery: s.gallery,
+        })
+        return {
+          id: s.id,
+          slug: s.slug,
+          name: s.name,
+          description: s.short_description || s.description || '',
+          durationMinutes: resolveServiceDuration(s),
+          price: toMinor(resolveServicePrice(s), s.currency || 'INR'),
+          image: thumb ? { url: thumb, alt: s.name } : undefined,
+          providerIds: [],
+        }
+      })
     } catch {
       return []
     }

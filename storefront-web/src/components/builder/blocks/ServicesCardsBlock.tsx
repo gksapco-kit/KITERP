@@ -19,6 +19,7 @@ import {
   readCatalogCardLayout,
 } from '@/lib/catalogCardLayout'
 import { imgUrl, cn } from '@/lib/utils'
+import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 import {
   arrayImageDeleteFieldKey,
   isBlockFieldHidden,
@@ -207,7 +208,16 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
             const mediaNode = !useLive && staticFeature && staticIndex != null
               ? renderStaticImage(staticFeature, staticIndex, isList)
               : (() => {
-                  const imageUrl = item.image_url || staticFeature?.image_url
+                  const meta = (item.meta || {}) as {
+                    icon?: string
+                    media?: { url: string; is_primary?: boolean; media_type?: string }[]
+                    gallery?: string[]
+                  }
+                  const imageUrl = resolveServiceThumbnailUrl({
+                    image_url: item.image_url || staticFeature?.image_url,
+                    media: meta.media,
+                    gallery: meta.gallery,
+                  })
                   if (imageUrl) {
                     if (isList) {
                       return (

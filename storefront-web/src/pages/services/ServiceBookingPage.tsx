@@ -9,6 +9,7 @@ import { AvailabilityCalendar, TimeSlotPicker } from '@/kit/bookings/Availabilit
 import { GroupBookingFlow, RecurringBookingFlow, WaitlistFlow } from '@/kit/bookings/BookingFlows'
 import { PlanSelector } from './ServiceDetail'
 import { resolveServicePrice, resolveServiceDuration } from '@/lib/servicePricing'
+import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,7 +48,11 @@ export default function ServiceBookingPage() {
     name: service.name,
     shortDescription: service.short_description || service.description || '',
     description: service.description || '',
-    image: service.image_url || service.media?.find((m: any) => m.is_primary)?.url,
+    image: resolveServiceThumbnailUrl({
+      image_url: service.image_url,
+      media: service.media,
+      gallery: service.gallery,
+    }) || undefined,
     durationMinutes: planDuration,
     price: planPrice,
     currency: service.currency || 'INR',

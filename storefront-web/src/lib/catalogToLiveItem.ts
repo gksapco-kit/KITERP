@@ -1,13 +1,7 @@
 import type { LiveItem } from '@/blocks/registry'
 import type { Product, Service } from '@/types'
 import { formatLiveProductPrice } from '@/lib/liveProductUtils'
-import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
-
-function primaryImageUrl(images: { url: string; is_primary?: boolean }[] | undefined): string | null {
-  if (!images?.length) return null
-  const primary = images.find(img => img.is_primary) || images[0]
-  return primary?.url || null
-}
+import { resolveProductThumbnailUrl, resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 
 export function catalogProductToLiveItem(product: Product): LiveItem {
   const currency = product.currency || 'INR'
@@ -50,10 +44,11 @@ export function catalogProductToLiveItem(product: Product): LiveItem {
 export function catalogServiceToLiveItem(service: Service): LiveItem {
   const currency = service.currency || 'INR'
   const price = service.price ?? service.price_min ?? 0
-  const imageUrl = service.image_url
-    || primaryImageUrl(service.media)
-    || service.gallery?.[0]
-    || null
+  const imageUrl = resolveServiceThumbnailUrl({
+    image_url: service.image_url,
+    media: service.media,
+    gallery: service.gallery,
+  })
   return {
     id: service.id,
     title: service.name,

@@ -23,6 +23,7 @@ import type { ServicePlan, ServiceAvailability } from '@/types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 import { serviceBookingLabel, serviceBookingCtaLabel, serviceSubscriptionLabel, serviceSubscriptionCtaLabel, serviceQuoteCtaLabel } from '@/lib/serviceStorefrontCta'
 import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
+import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 import { useQueryClient } from '@tanstack/react-query'
 
 const SERVICE_MODE_LABELS: Record<string, string> = {
@@ -763,7 +764,11 @@ export default function ServiceDetail() {
         ? ` — ${selectedPlan.name}`
         : ''
     const name = `${service.name}${planPart} (Subscription, ${config.cycles} cycle${config.cycles !== 1 ? 's' : ''})`
-    const imageUrl = displayMedia[0]?.url || service.image_url || undefined
+    const imageUrl = resolveServiceThumbnailUrl({
+      image_url: service.image_url,
+      media: service.media,
+      gallery: service.gallery,
+    }) || undefined
     const cartItem = {
       service_id: service.id,
       item_type: 'service' as const,
@@ -1222,7 +1227,11 @@ export default function ServiceDetail() {
               ? selectedPlan.availability
               : service.availability
           }
-          imageUrl={displayMedia[0]?.url || service.image_url || undefined}
+          imageUrl={resolveServiceThumbnailUrl({
+            image_url: service.image_url,
+            media: service.media,
+            gallery: service.gallery,
+          }) || undefined}
           onClose={() => setShowBooking(false)}
         />
       )}

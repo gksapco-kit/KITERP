@@ -597,7 +597,7 @@ export default function CreditDebitMemos() {
     }
   }, [])
 
-  const voidMemo = useCallbackasync (
+  const voidMemo = useCallback (
     async (id: string, label: string) => {
       if (
         !await askConfirm(

@@ -25,7 +25,6 @@ function pickImageFromList(items: ProductImageLike[]): ProductImageLike | undefi
   return (
     items.find((i) => i.url && isImageMedia(i) && i.is_primary)
     ?? items.find((i) => i.url && isImageMedia(i))
-    ?? items.find((i) => i.url)
   )
 }
 
@@ -44,6 +43,21 @@ export function resolveProductThumbnailUrl(input: {
   }
 
   return null
+}
+
+/** Cart/listing thumbnail for services — prefer media (like vendor list), never video/3D. */
+export function resolveServiceThumbnailUrl(input: {
+  image_url?: string | null
+  media?: ProductImageLike[]
+  gallery?: string[]
+}): string | null {
+  const fromMedia = pickImageFromList(input.media ?? [])
+  if (fromMedia?.url) return fromMedia.url
+
+  if (input.image_url) return input.image_url
+
+  const firstGallery = (input.gallery ?? []).find((url) => Boolean(url))
+  return firstGallery ?? null
 }
 
 /** Gallery for cards: product images plus variant media, deduped by URL. */

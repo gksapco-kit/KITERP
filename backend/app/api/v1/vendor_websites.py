@@ -4106,6 +4106,7 @@ async def _fetch_live_resource_items(
 
     elif resource == "services":
         from app.models.vendor_service import Service
+        from app.services.service_media import resolve_service_thumbnail_url
         q = (
             select(Service)
             .where(Service.vendor_id == vendor.id)
@@ -4119,7 +4120,7 @@ async def _fetch_live_resource_items(
                 title=s.name or "",
                 subtitle=s.category,
                 description=s.short_description or s.description,
-                image_url=None,
+                image_url=resolve_service_thumbnail_url(s),
                 price=float(s.price) if s.price is not None else None,
                 price_formatted=(f"{s.currency or 'INR'} {float(s.price):,.0f}" if s.price is not None else None),
                 url=f"/services/{s.slug}" if s.slug else None,

@@ -10,6 +10,7 @@ import { applyBranchToVendor } from '@storefront/lib/branchStorefrontIdentity'
 import type { ActiveCanvasImageTarget } from '@storefront/lib/canvasImageTarget'
 import type { LiveResource } from '@storefront/blocks/registry'
 import { websiteApi } from '@/api/websites'
+import { enrichLiveServiceImages } from '@/lib/enrichLiveServiceImages'
 
 import {
   createAllEnabledProductDisplayFields,
@@ -231,7 +232,9 @@ export function BuilderCanvasProviders({
   const liveFetcher = useMemo<LiveDataFetcher>(() => {
     return async (sid: string, resource: LiveResource, limit: number) => {
       const r = await websiteApi.getLive(sid, resource, { limit })
-      return r.items ?? []
+      const items = r.items ?? []
+      if (resource === 'services') return enrichLiveServiceImages(items)
+      return items
     }
   }, [])
 

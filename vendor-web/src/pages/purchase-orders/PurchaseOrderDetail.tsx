@@ -157,7 +157,7 @@ export default function PurchaseOrderDetail() {
     })
   }, [po, updateMut])
 
-  const deleteItem = useCallbackasync (async (item: POItem) => {
+  const deleteItem = useCallback (async (item: POItem) => {
     if (!po || !await askConfirm(`Remove "${item.product_name || 'this item'}" from the PO?`)) return
     const remaining = po.items
       .filter(i => i.id !== item.id)

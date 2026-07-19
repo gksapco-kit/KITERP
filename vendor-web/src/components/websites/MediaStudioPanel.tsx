@@ -670,7 +670,7 @@ export function MediaStudioPanel({
     requestAnimationFrame(() => renameInputRef.current?.select())
   }, [selectedMediaObj])
 
-  const handleDeleteSelectedMedia = useCallbackasync (async () => {
+  const handleDeleteSelectedMedia = useCallback (async () => {
     if (!selectedMediaObj) return
     const label = selectedMediaObj.filename || 'this file'
     if (!await askConfirm(`Delete "${label}" from your media library? This cannot be undone.`)) return

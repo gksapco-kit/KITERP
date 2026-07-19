@@ -8,6 +8,7 @@ import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, imgUrl } from '@/lib/utils'
+import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 import { linkOnLight, textOnSolid } from '@/lib/themeColors'
 import {
   ArrowRight, ShoppingBag, Wrench, Loader2, Star, Truck, ShieldCheck,
@@ -222,11 +223,18 @@ function FeaturedServicesSection({ props, theme, storePath, services }: {
               className="group flex gap-4 rounded-xl p-5 border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all shadow-sm" style={{ backgroundColor: theme.colors.background }}>
               {show('card_image') && (
                 <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-lg bg-white border-2 border-gray-200 overflow-hidden shrink-0">
-                  {(s.image_url || s.gallery?.[0]) ? (
-                    <img src={imgUrl(s.image_url || s.gallery?.[0])} alt={s.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center"><Wrench className="w-8 h-8" style={{ color: linkOnLight(c.primary, c.secondary) + '99' }} /></div>
-                  )}
+                  {(() => {
+                    const thumb = resolveServiceThumbnailUrl({
+                      image_url: s.image_url,
+                      media: s.media,
+                      gallery: s.gallery,
+                    })
+                    return thumb ? (
+                      <img src={imgUrl(thumb)} alt={s.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><Wrench className="w-8 h-8" style={{ color: linkOnLight(c.primary, c.secondary) + '99' }} /></div>
+                    )
+                  })()}
                 </div>
               )}
               <div className="flex-1 min-w-0">

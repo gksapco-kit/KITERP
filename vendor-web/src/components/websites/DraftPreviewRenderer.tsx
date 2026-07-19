@@ -10,6 +10,7 @@ import type { PublicPreviewSite } from '@/lib/publicSitePreview'
 import { findPublicPreviewPage } from '@/lib/publicSitePreview'
 import { applyPreviewDocumentSeo } from '@/lib/applyPreviewDocumentSeo'
 import { websiteApi } from '@/api/websites'
+import { enrichLiveServiceImages } from '@/lib/enrichLiveServiceImages'
 import { useVendorStore } from '@/stores/vendorStore'
 import type { LiveResource } from '@/types/websites'
 
@@ -66,7 +67,9 @@ export function DraftPreviewRenderer({
   const liveFetcher = useMemo<LiveDataFetcher>(() => {
     return async (siteId, resource, limit) => {
       const r = await websiteApi.getLive(siteId, resource as LiveResource, { limit })
-      return r.items ?? []
+      const items = r.items ?? []
+      if (resource === 'services') return enrichLiveServiceImages(items)
+      return items
     }
   }, [])
 

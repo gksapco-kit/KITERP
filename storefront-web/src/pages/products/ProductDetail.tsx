@@ -262,7 +262,7 @@ export default function ProductDetail() {
       toast.error(stockCheck.message)
       return
     }
-    const img = displayMedia?.[0]?.url
+    const img = resolveProductThumbnailUrl({ images: displayMedia, variants: [] })
       || resolveProductThumbnailUrl({ images: product.images, variants: activeVariants })
       || ''
     addToCart.mutate(
@@ -287,7 +287,7 @@ export default function ProductDetail() {
       toast.error(stockCheck.message)
       return
     }
-    const img = displayMedia?.[0]?.url
+    const img = resolveProductThumbnailUrl({ images: displayMedia, variants: [] })
       || resolveProductThumbnailUrl({ images: product.images, variants: activeVariants })
       || ''
     const cartItem = {
@@ -319,7 +319,7 @@ export default function ProductDetail() {
   }) => {
     if (subscribePending || !product) return
     const cartName = selectedVariant ? `${product.name} - ${selectedVariant.name}` : product.name
-    const img = displayMedia?.[0]?.url
+    const img = resolveProductThumbnailUrl({ images: displayMedia, variants: [] })
       || resolveProductThumbnailUrl({ images: product.images, variants: activeVariants })
       || ''
     const interval = config.interval || selectedVariant?.subscription_interval || product.subscription_interval || 'monthly'
