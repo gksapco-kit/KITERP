@@ -72,11 +72,12 @@ export function catalogGridColClassForBreakpoint(
   return 'grid-cols-4'
 }
 
-export type CatalogImageAspect = 'auto' | 'square' | 'tall' | 'wide'
+export type CatalogImageAspect = 'auto' | 'square' | 'tall' | 'wide' | 'full'
 export type CatalogImageObjectFit = 'cover' | 'contain'
 
 export const CATALOG_IMAGE_ASPECT_OPTIONS: { value: CatalogImageAspect; label: string }[] = [
   { value: 'auto', label: 'Custom height' },
+  { value: 'full', label: 'Full image' },
   { value: 'square', label: 'Square' },
   { value: 'tall', label: 'Tall 3:4' },
   { value: 'wide', label: 'Wide 4:3' },
@@ -89,6 +90,7 @@ export const CATALOG_IMAGE_OBJECT_FIT_OPTIONS: { value: CatalogImageObjectFit; l
 
 export const CATALOG_IMAGE_ASPECT_CLASS: Record<CatalogImageAspect, string | null> = {
   auto: null,
+  full: null,
   square: 'aspect-square',
   tall: 'aspect-[3/4]',
   wide: 'aspect-[4/3]',
@@ -98,6 +100,8 @@ export interface CatalogCardLayout {
   columns: number
   itemGap: number
   imageHeightPct: number
+  /** Image frame width as % of the card (40–100). */
+  imageWidthPct: number
   cardPadding: number
   cardStyle: string
   isCompactCard: boolean
@@ -117,6 +121,8 @@ export interface CatalogImageShell {
   wrapperClassName: string
   wrapperStyle?: CSSProperties
   imageClassName: string
+  /** When true, the image is in-flow (natural height) — not absolutely positioned. */
+  intrinsic?: boolean
 }
 
 export function catalogImageObjectFitClass(fit?: string | null): string {
@@ -139,8 +145,20 @@ export function parseCardBorderRadius(raw: unknown): number | null {
   return Math.min(Math.max(Math.round(n), 0), 32)
 }
 
+function catalogImageWidthStyle(imageWidthPct: number): CSSProperties | undefined {
+  const pct = clampNumber(imageWidthPct, 100, 40, 100)
+  if (pct >= 100) return undefined
+  return {
+    width: `${pct}%`,
+    maxWidth: '100%',
+    marginLeft: 'auto',
+    marginRight: 'auto',
+  }
+}
+
 export function buildCatalogImageShell(options: {
   imageHeightPct: number
+  imageWidthPct?: number
   imageAspect: CatalogImageAspect
   imageObjectFit: CatalogImageObjectFit
   productTileWrap: string
@@ -153,8 +171,8 @@ export function buildCatalogImageShell(options: {
     options.hoverScale !== false
       ? 'group-hover:scale-105 transition-transform duration-300'
       : ''
-  const imageClassName = cn('absolute inset-0 w-full h-full', objectFit, hover)
   const bg = options.bgClass ?? 'bg-gray-50'
+  const widthStyle = catalogImageWidthStyle(options.imageWidthPct ?? 100)
 
   if (options.isCircle) {
     return {
@@ -164,21 +182,34 @@ export function buildCatalogImageShell(options: {
         options.productTileWrap,
         'aspect-square max-w-[min(100%,240px)] mx-auto',
       ),
-      imageClassName,
+      wrapperStyle: widthStyle,
+      imageClassName: cn('absolute inset-0 w-full h-full', objectFit, hover),
+    }
+  }
+
+  // Full image: natural aspect — no crop, frame height follows the asset.
+  if (options.imageAspect === 'full') {
+    return {
+      wrapperClassName: cn('relative w-full overflow-hidden', bg, options.productTileWrap),
+      wrapperStyle: widthStyle,
+      imageClassName: cn('relative block h-auto w-full', hover),
+      intrinsic: true,
     }
   }
 
   const aspectClass = CATALOG_IMAGE_ASPECT_CLASS[options.imageAspect]
+  const imageClassName = cn('absolute inset-0 w-full h-full', objectFit, hover)
   if (aspectClass) {
     return {
       wrapperClassName: cn('relative w-full overflow-hidden', bg, options.productTileWrap, aspectClass),
+      wrapperStyle: widthStyle,
       imageClassName,
     }
   }
 
   return {
     wrapperClassName: cn('relative w-full overflow-hidden', bg, options.productTileWrap),
-    wrapperStyle: { paddingBottom: `${options.imageHeightPct}%` },
+    wrapperStyle: { ...widthStyle, paddingBottom: `${options.imageHeightPct}%` },
     imageClassName,
   }
 }
@@ -215,6 +246,7 @@ export function readCatalogCardLayout(
       40,
       100,
     ),
+    imageWidthPct: clampNumber(props.image_width_pct, 100, 40, 100),
     cardPadding: clampNumber(
       props.card_padding,
       isMinimalCard ? 8 : isCompactCard ? 10 : 16,

@@ -1231,6 +1231,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   const isCircleProductTile = productImageShape === 'circle'
   const {
     imageHeightPct,
+    imageWidthPct,
     cardPadding,
     cardRadius,
     cardBorderRadius,
@@ -1245,6 +1246,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     addButtonStyle,
   } = {
     imageHeightPct: cardLayout.imageHeightPct,
+    imageWidthPct: cardLayout.imageWidthPct,
     cardPadding: cardLayout.cardPadding,
     cardRadius: cardLayout.cardRadius,
     cardBorderRadius: cardLayout.cardBorderRadius,
@@ -1297,6 +1299,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
             const views = productViewCount(item)
             const imageShell = buildCatalogImageShell({
               imageHeightPct,
+              imageWidthPct,
               imageAspect,
               imageObjectFit,
               productTileWrap,

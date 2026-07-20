@@ -134,6 +134,7 @@ export default function CategoryExpandedProducts({
   const textColor = style.text_color || '#111827'
   const {
     imageHeightPct,
+    imageWidthPct,
     cardPadding,
     cardRadius,
     cardBorderRadius,
@@ -146,6 +147,7 @@ export default function CategoryExpandedProducts({
     addButtonStyle,
   } = {
     imageHeightPct: cardLayout.imageHeightPct,
+    imageWidthPct: cardLayout.imageWidthPct,
     cardPadding: cardLayout.cardPadding,
     cardRadius: cardLayout.cardRadius,
     cardBorderRadius: cardLayout.cardBorderRadius,
@@ -207,6 +209,7 @@ export default function CategoryExpandedProducts({
             const outOfStock = item.meta?.stock_status === 'out_of_stock'
             const imageShell = buildCatalogImageShell({
               imageHeightPct,
+              imageWidthPct,
               imageAspect,
               imageObjectFit,
               productTileWrap,

@@ -251,7 +251,7 @@ function EditableColumnFooter({
 
   return (
     <footer className={cn('w-full min-w-0 border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
-      <div className={builderSectionContainerClass('py-12')}>
+      <div className={builderSectionContainerClass('pt-7 pb-5')}>
         <div className="grid w-full min-w-0 gap-10 md:grid-cols-12">
           <div className="min-w-0 md:col-span-4">
             {showBrand && (
@@ -349,7 +349,7 @@ function EditableColumnFooter({
         </div>
 
         {(showCopyright || poweredByText) && (
-        <div className="relative mt-10 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 border-t border-gray-200 pt-6 sm:flex-row sm:justify-between">
+        <div className="relative mt-6 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 border-t border-gray-200 pt-4 sm:flex-row sm:justify-between">
           {showCopyright ? (
             <BuilderTextField
               fieldKey="copyright"
@@ -498,7 +498,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   if (isEditor && (isMinimal || isSimple)) {
     return (
       <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
-        <div className={builderSectionContainerClass('py-8 text-center', isCompact && 'py-6')}>
+        <div className={builderSectionContainerClass('pt-5 pb-3 text-center', isCompact && 'pt-4 pb-2')}>
           <BuilderTextField
             fieldKey="brand"
             blockId={blockId}
@@ -553,7 +553,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   if (isMinimal || isSimple) {
     return (
       <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
-        <div className={builderSectionContainerClass('py-8 text-center', isCompact && 'py-6')}>
+        <div className={builderSectionContainerClass('pt-5 pb-3 text-center', isCompact && 'pt-4 pb-2')}>
           <p className={cn('font-bold mb-3', isBrand || isDark ? 'text-white' : '')} style={!isBrand && !isDark ? { color: style.primary_color } : undefined}>
             {brand}
           </p>
@@ -588,8 +588,8 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
   if (isEditor) {
     return (
       <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
-        <div className={builderSectionContainerClass('py-12')}>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className={builderSectionContainerClass('pt-7 pb-5')}>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-5">
             <div className={cn('md:col-span-2', isCompact && 'md:col-span-1')}>
               <BuilderTextField
                 fieldKey="brand"
@@ -640,7 +640,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
               </div>
             )}
           </div>
-          <div className="relative border-t border-gray-200 pt-6 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 sm:flex-row sm:justify-between">
+          <div className="relative border-t border-gray-200 pt-4 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 sm:flex-row sm:justify-between">
             <BuilderTextField
               fieldKey="copyright"
               blockId={blockId}
@@ -665,8 +665,8 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
 
   return (
     <footer className={cn('border-t mt-8', footerClass)} style={{ backgroundColor: footerBg }}>
-      <div className={builderSectionContainerClass('py-12')}>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+      <div className={builderSectionContainerClass('pt-7 pb-5')}>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-5">
           <div className={cn('md:col-span-2', isCompact && 'md:col-span-1')}>
             {logoUrl ? (
               <img src={imgUrl(logoUrl)} alt={brand} className="h-11 w-auto max-w-[200px] object-contain mb-3" />
@@ -702,7 +702,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
             </ul>
           </div>
         </div>
-        <div className="relative border-t border-gray-200 pt-6 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 sm:flex-row sm:justify-between">
+        <div className="relative border-t border-gray-200 pt-4 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 sm:flex-row sm:justify-between">
           <p className="text-xs text-gray-400">{copyright}</p>
           <FooterBarPoweredBy
             text={poweredByText}

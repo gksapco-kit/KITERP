@@ -89,7 +89,7 @@ export function ColumnFooter({
 
   return (
     <footer className={cn("w-full min-w-0 border-t bg-muted/30", className)} style={style}>
-      <div className={builderSectionContainerClass("py-12")}>
+      <div className={builderSectionContainerClass("pt-7 pb-5")}>
         <div className="grid w-full min-w-0 gap-10 md:grid-cols-12">
           {variant !== "simple" && (
             <div className="min-w-0 md:col-span-4">
@@ -176,7 +176,7 @@ export function ColumnFooter({
           </div>
         )}
 
-        <div className="relative mt-10 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 border-t pt-6 sm:flex-row sm:justify-between">
+        <div className="relative mt-6 flex min-h-[1.25rem] flex-col items-center justify-center gap-2 border-t pt-4 sm:flex-row sm:justify-between">
           <p className="text-xs text-muted-foreground">{copyright}</p>
           {poweredByText ? (
             poweredByLink ? (

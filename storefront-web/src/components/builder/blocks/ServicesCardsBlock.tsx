@@ -17,6 +17,7 @@ import {
   catalogGridColClassForBreakpoint,
   clampCatalogColumns,
   readCatalogCardLayout,
+  buildCatalogImageShell,
 } from '@/lib/catalogCardLayout'
 import { imgUrl, cn } from '@/lib/utils'
 import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
@@ -76,6 +77,17 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
       } as LiveItem & { _staticIndex: number }))
 
   const iconBox = Math.max(40, Math.round(cardLayout.cardPadding * 2.5))
+  const isCircleTile = imageShape === 'circle'
+  const gridImageShell = () =>
+    buildCatalogImageShell({
+      imageHeightPct: cardLayout.imageHeightPct,
+      imageWidthPct: cardLayout.imageWidthPct,
+      imageAspect: cardLayout.imageAspect,
+      imageObjectFit: cardLayout.imageObjectFit,
+      productTileWrap: '',
+      isCircle: isCircleTile,
+      hoverScale: false,
+    })
 
   const renderStaticImage = (feature: FeatureItem, index: number, listMode: boolean) => {
     const imageHidden = isBlockFieldHidden(props, arrayImageDeleteFieldKey('features', index, 'image_url'))
@@ -85,30 +97,39 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
     if (imageUrl || (isEditorCanvas && !imageHidden)) {
       const src = imageUrl ? imgUrl(imageUrl) : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
       if (blockId && !imageHidden) {
-        const imgNode = (
-          <BuilderSectionImage
-            blockId={blockId}
-            field="image_url"
-            arrayKey="features"
-            index={index}
-            itemField="image_url"
-            blockProps={props}
-            src={src}
-            alt=""
-            empty={!imageUrl}
-            className={listMode ? 'absolute inset-0 w-full h-full object-cover' : 'absolute inset-0 w-full h-full object-cover'}
-          />
-        )
         if (listMode) {
           return (
             <div className={cn('relative overflow-hidden shrink-0', thumbnailShapeClass(imageShape))} style={{ width: iconBox, height: iconBox }}>
-              {imgNode}
+              <BuilderSectionImage
+                blockId={blockId}
+                field="image_url"
+                arrayKey="features"
+                index={index}
+                itemField="image_url"
+                blockProps={props}
+                src={src}
+                alt=""
+                empty={!imageUrl}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
             </div>
           )
         }
+        const shell = gridImageShell()
         return (
-          <div className="relative w-full overflow-hidden bg-gray-50 shrink-0" style={{ paddingBottom: `${cardLayout.imageHeightPct}%` }}>
-            {imgNode}
+          <div className={cn(shell.wrapperClassName, 'shrink-0')} style={shell.wrapperStyle}>
+            <BuilderSectionImage
+              blockId={blockId}
+              field="image_url"
+              arrayKey="features"
+              index={index}
+              itemField="image_url"
+              blockProps={props}
+              src={src}
+              alt=""
+              empty={!imageUrl}
+              className={shell.imageClassName}
+            />
           </div>
         )
       }
@@ -124,9 +145,10 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
           />
         )
       }
+      const shell = gridImageShell()
       return (
-        <div className="relative w-full overflow-hidden bg-gray-50 shrink-0" style={{ paddingBottom: `${cardLayout.imageHeightPct}%` }}>
-          <img src={imgUrl(imageUrl)} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+        <div className={cn(shell.wrapperClassName, 'shrink-0')} style={shell.wrapperStyle}>
+          <img src={imgUrl(imageUrl)} alt="" className={shell.imageClassName} loading="lazy" />
         </div>
       )
     }
@@ -146,12 +168,13 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
         </div>
       )
     }
+    const shell = gridImageShell()
     return (
       <div
-        className="relative w-full overflow-hidden shrink-0"
-        style={{ paddingBottom: `${cardLayout.imageHeightPct}%`, backgroundColor: `${style.primary_color}12` }}
+        className={cn(shell.wrapperClassName, 'shrink-0')}
+        style={{ ...shell.wrapperStyle, backgroundColor: `${style.primary_color}12` }}
       >
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className={shell.intrinsic ? 'flex items-center justify-center py-10' : 'absolute inset-0 flex items-center justify-center'}>
           {feature.icon ? (
             <span style={{ fontSize: Math.round(iconBox * 0.9) }}>{renderFeatureIcon(feature.icon, '🛠️')}</span>
           ) : (
@@ -230,9 +253,10 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
                         />
                       )
                     }
+                    const shell = gridImageShell()
                     return (
-                      <div className="relative w-full overflow-hidden bg-gray-50 shrink-0" style={{ paddingBottom: `${cardLayout.imageHeightPct}%` }}>
-                        <img src={imgUrl(imageUrl)} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                      <div className={cn(shell.wrapperClassName, 'shrink-0')} style={shell.wrapperStyle}>
+                        <img src={imgUrl(imageUrl)} alt="" className={shell.imageClassName} loading="lazy" />
                       </div>
                     )
                   }
@@ -246,9 +270,13 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
                       </div>
                     )
                   }
+                  const emptyShell = gridImageShell()
                   return (
-                    <div className="relative w-full overflow-hidden shrink-0" style={{ paddingBottom: `${cardLayout.imageHeightPct}%`, backgroundColor: `${style.primary_color}12` }}>
-                      <div className="absolute inset-0 flex items-center justify-center">
+                    <div
+                      className={cn(emptyShell.wrapperClassName, 'shrink-0')}
+                      style={{ ...emptyShell.wrapperStyle, backgroundColor: `${style.primary_color}12` }}
+                    >
+                      <div className={emptyShell.intrinsic ? 'flex items-center justify-center py-10' : 'absolute inset-0 flex items-center justify-center'}>
                         {staticIcon ? (
                           <span style={{ fontSize: Math.round(iconBox * 0.9) }}>{renderFeatureIcon(staticIcon, '🛠️')}</span>
                         ) : (

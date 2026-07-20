@@ -5019,7 +5019,7 @@ function CatalogGridLayoutControls({
   const patch = (next: Record<string, unknown>) => {
     const merged = { ...next }
     if (blockType === 'category_cards' && p.layout === 'wellness') {
-      const layoutKeys = ['image_height_pct', 'card_padding', 'item_gap', 'card_style', 'columns', 'compact']
+      const layoutKeys = ['image_height_pct', 'image_width_pct', 'image_aspect', 'image_object_fit', 'card_padding', 'item_gap', 'card_style', 'columns', 'compact']
       if (Object.keys(next).some(k => layoutKeys.includes(k))) {
         merged.layout = 'grid'
       }
@@ -5034,6 +5034,7 @@ function CatalogGridLayoutControls({
   const columns = Math.min(colMax, Math.max(colMin, Number(p.columns ?? config.defaultColumns) || colMin))
   const gap = Math.min(80, Math.max(0, Number(p.item_gap ?? 24) || 0))
   const imageHeightPct = Math.min(100, Math.max(40, Number(p.image_height_pct ?? 100) || 100))
+  const imageWidthPct = Math.min(100, Math.max(40, Number(p.image_width_pct ?? 100) || 100))
   const cardPadding = Math.min(32, Math.max(4, Number(p.card_padding ?? 16) || 16))
   const showCount = Math.min(CATALOG_GRID_COUNT_MAX, Math.max(1, Number(
     config.itemCountKeys.map(k => p[k]).find(v => v != null && v !== '') ?? 12,
@@ -5090,7 +5091,7 @@ function CatalogGridLayoutControls({
       </div>
       )}
 
-      {config.showImageHeight && (
+      {config.showImageHeight && imageAspect === 'auto' && (
       <CatalogGridSliderField
         label="Image height"
         value={imageHeightPct}
@@ -5109,26 +5110,33 @@ function CatalogGridLayoutControls({
             <PanelChip
               key={opt.value}
               active={imageAspect === opt.value}
-              onClick={() => patch({ image_aspect: opt.value })}
+              onClick={() => patch({
+                image_aspect: opt.value,
+                ...(opt.value === 'full' ? { image_object_fit: 'contain' } : {}),
+              })}
             >
               {opt.label}
             </PanelChip>
           ))}
         </PanelChipWrap>
+        {imageAspect === 'full' && (
+          <p className="text-[10px] leading-snug text-muted-foreground">
+            Shows the complete image at its natural size — nothing is cropped.
+          </p>
+        )}
       </div>
 
-      {config.showImageHeight && imageAspect === 'auto' && (
       <CatalogGridSliderField
-        label="Image height"
-        value={imageHeightPct}
+        label="Image width"
+        value={imageWidthPct}
         min={40}
         max={100}
         step={2}
         suffix="%"
-        onChange={n => patch({ image_height_pct: n })}
+        onChange={n => patch({ image_width_pct: n })}
       />
-      )}
 
+      {imageAspect !== 'full' && (
       <div className="space-y-1">
         <PanelFieldLabel>Image fit</PanelFieldLabel>
         <PanelChipWrap>
@@ -5143,6 +5151,7 @@ function CatalogGridLayoutControls({
           ))}
         </PanelChipWrap>
       </div>
+      )}
 
       <div className="space-y-1">
         <PanelFieldLabel>Card corner radius</PanelFieldLabel>
@@ -8043,7 +8052,7 @@ function PropsEditor({
     if (!isCatalogGridBlock) return ''
     const cfg = getCatalogGridBlockConfig(block.block_type)
     const cols = Math.min(CATALOG_GRID_COLUMN_MAX, Math.max(cfg.columnMin, Number((p as any).columns ?? cfg.defaultColumns) || cfg.defaultColumns))
-    return cfg.showColumns ? `${cols} col · ${Number((p as any).image_height_pct ?? 100)}% img` : `${Number((p as any).show_count ?? 12)} items`
+    return cfg.showColumns ? `${cols} col · ${Number((p as any).image_width_pct ?? 100)}%w · ${String((p as any).image_aspect ?? 'auto') === 'full' ? 'full' : `${Number((p as any).image_height_pct ?? 100)}%`} img` : `${Number((p as any).show_count ?? 12)} items`
   })()
 
   const ribbonTabs = useMemo(() => ([
