@@ -24,25 +24,35 @@ def _is_placeholder_email(email: str) -> bool:
     return is_phone_signup_placeholder_email(email)
 
 
+def _is_placeholder_contact(value: str) -> bool:
+    """Dashes / n/a placeholders should not appear on the public contact panel."""
+    if not value:
+        return True
+    if all(ch in "-–—._ \t" for ch in value):
+        return True
+    return value.lower() in {"n/a", "na", "none", "null", "undefined"}
+
+
 def resolve_public_support_email(vendor, store=None) -> Optional[str]:
+    """Business support email only (BU → vendor defaults). No account primary_email fallback."""
     branch_email = _str(getattr(store, "email", None)) if store else ""
-    if branch_email and not _is_placeholder_email(branch_email):
+    if branch_email and not _is_placeholder_email(branch_email) and not _is_placeholder_contact(branch_email):
         return branch_email
     primary = _str(getattr(vendor, "support_email", None))
-    if primary and not _is_placeholder_email(primary):
+    if primary and not _is_placeholder_email(primary) and not _is_placeholder_contact(primary):
         return primary
-    fallback = _str(getattr(vendor, "primary_email", None))
-    if fallback and not _is_placeholder_email(fallback):
-        return fallback
     return None
 
 
 def resolve_public_support_phone(vendor, store=None) -> Optional[str]:
+    """Business support phone only (BU → vendor defaults). No account primary_phone fallback."""
     branch_phone = _str(getattr(store, "phone", None)) if store else ""
-    if branch_phone:
+    if branch_phone and not _is_placeholder_contact(branch_phone):
         return branch_phone
     primary = _str(getattr(vendor, "support_phone", None))
-    return primary or _str(getattr(vendor, "primary_phone", None)) or None
+    if primary and not _is_placeholder_contact(primary):
+        return primary
+    return None
 
 
 def resolve_public_address_parts(vendor, store=None) -> dict[str, Optional[str]]:

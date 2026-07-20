@@ -6,12 +6,21 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { storefrontApi, type StorefrontVendor } from '@/api/storefront.api'
 
+function meaningfulContact(value: string | null | undefined): string {
+  const trimmed = (value || '').trim()
+  if (!trimmed) return ''
+  if (/^[-–—._\s]+$/.test(trimmed)) return ''
+  if (/^(n\/?a|none|null|undefined)$/i.test(trimmed)) return ''
+  return trimmed
+}
+
+/** Business support fields only — do not fall back to account primary contact. */
 function contactEmail(vendor: StorefrontVendor) {
-  return (vendor.support_email || vendor.primary_email || '').trim()
+  return meaningfulContact(vendor.support_email)
 }
 
 function contactPhone(vendor: StorefrontVendor) {
-  return (vendor.support_phone || vendor.primary_phone || '').trim()
+  return meaningfulContact(vendor.support_phone)
 }
 
 function contactAddress(vendor: StorefrontVendor) {

@@ -10,6 +10,7 @@ import {
   FOOTER_SOCIAL_PLATFORMS,
   type FooterSocialPlatform,
 } from "@/kit/footer/footerSocial";
+import { formatKiterpBrandText } from "@/kit/footer/kiterpBrandText";
 import { builderSectionContainerClass } from "@/lib/builderSectionLayout";
 
 export interface FooterColumn {
@@ -188,7 +189,7 @@ export function ColumnFooter({
                   className={cn(poweredByClassName, "cursor-pointer no-underline hover:no-underline")}
                   style={{ textDecoration: "none" }}
                 >
-                  {poweredByText}
+                  {formatKiterpBrandText(poweredByText)}
                 </a>
               ) : (
                 <Link
@@ -196,11 +197,11 @@ export function ColumnFooter({
                   className={cn(poweredByClassName, "cursor-pointer no-underline hover:no-underline")}
                   style={{ textDecoration: "none" }}
                 >
-                  {poweredByText}
+                  {formatKiterpBrandText(poweredByText)}
                 </Link>
               )
             ) : (
-              <p className={poweredByClassName}>{poweredByText}</p>
+              <p className={poweredByClassName}>{formatKiterpBrandText(poweredByText)}</p>
             )
           ) : null}
         </div>

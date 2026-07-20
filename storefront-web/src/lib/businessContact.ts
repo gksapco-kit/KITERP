@@ -1,9 +1,18 @@
 import type { LiveItem } from '@/blocks/registry'
 import type { VendorData } from '@/contexts/VendorContext'
 
+/** Treat dashes / n/a as empty so placeholder rows are not shown on the contact page. */
+function meaningfulContactValue(value: string | null | undefined): string {
+  const trimmed = typeof value === 'string' ? value.trim() : ''
+  if (!trimmed) return ''
+  if (/^[-–—._\s]+$/.test(trimmed)) return ''
+  if (/^(n\/?a|none|null|undefined)$/i.test(trimmed)) return ''
+  return trimmed
+}
+
 function firstNonEmpty(...values: Array<string | null | undefined>): string {
   for (const value of values) {
-    const trimmed = typeof value === 'string' ? value.trim() : ''
+    const trimmed = meaningfulContactValue(value)
     if (trimmed) return trimmed
   }
   return ''
@@ -13,7 +22,7 @@ function uniqueStrings(values: string[]): string[] {
   const out: string[] = []
   const seen = new Set<string>()
   for (const value of values) {
-    const trimmed = value.trim()
+    const trimmed = meaningfulContactValue(value)
     if (!trimmed) continue
     const key = trimmed.toLowerCase()
     if (seen.has(key)) continue
@@ -28,7 +37,7 @@ function supportEmailsFromVendor(vendor: VendorData | null | undefined): string[
   const extra = Array.isArray(settings.support_emails)
     ? (settings.support_emails as string[]).filter((e) => typeof e === 'string' && e.trim())
     : []
-  const primary = vendor?.support_email?.trim() || ''
+  const primary = meaningfulContactValue(vendor?.support_email)
   if (primary) {
     return uniqueStrings([primary, ...extra.filter((e) => e.trim().toLowerCase() !== primary.toLowerCase())])
   }
@@ -40,14 +49,17 @@ function supportPhonesFromVendor(vendor: VendorData | null | undefined): string[
   const extra = Array.isArray(settings.support_phones)
     ? (settings.support_phones as string[]).filter((p) => typeof p === 'string' && p.trim())
     : []
-  const primary = vendor?.support_phone?.trim() || ''
+  const primary = meaningfulContactValue(vendor?.support_phone)
   if (primary) {
     return uniqueStrings([primary, ...extra.filter((p) => p.trim() !== primary)])
   }
   return uniqueStrings(extra)
 }
 
-/** All public-facing support emails (Business Settings), with account primary as fallback. */
+/**
+ * Public-facing support emails from Business Settings / active business unit only.
+ * Does not fall back to account primary_email (vendor storefront only).
+ */
 export function collectBusinessContactEmails(
   profile: LiveItem | undefined,
   vendor: VendorData | null | undefined,
@@ -57,13 +69,13 @@ export function collectBusinessContactEmails(
   if (fromSettings.length > 0) return fromSettings
 
   const fromProfile = firstNonEmpty(meta?.support_email as string, meta?.email as string)
-  if (fromProfile) return [fromProfile]
-
-  const fallback = vendor?.primary_email?.trim()
-  return fallback ? [fallback] : []
+  return fromProfile ? [fromProfile] : []
 }
 
-/** All public-facing support phones (Business Settings), with account primary as fallback. */
+/**
+ * Public-facing support phones from Business Settings / active business unit only.
+ * Does not fall back to account primary_phone (vendor storefront only).
+ */
 export function collectBusinessContactPhones(
   profile: LiveItem | undefined,
   vendor: VendorData | null | undefined,
@@ -73,31 +85,30 @@ export function collectBusinessContactPhones(
   if (fromSettings.length > 0) return fromSettings
 
   const fromProfile = firstNonEmpty(meta?.support_phone as string, meta?.phone as string)
-  if (fromProfile) return [fromProfile]
-
-  const fallback = vendor?.primary_phone?.trim()
-  return fallback ? [fallback] : []
+  return fromProfile ? [fromProfile] : []
 }
 
-/** Public-facing contact email: Business Settings support email, then account primary. */
+/**
+ * Public-facing contact email from Business Settings / active BU only.
+ * Empty when support email is not configured (row should be hidden).
+ */
 export function resolveBusinessContactEmail(
-  propsEmail: string | undefined,
+  _propsEmail: string | undefined,
   profile: LiveItem | undefined,
   vendor: VendorData | null | undefined,
 ): string {
-  const fromProps = propsEmail?.trim()
-  if (fromProps) return fromProps
   return collectBusinessContactEmails(profile, vendor)[0] ?? ''
 }
 
-/** Public-facing contact phone: Business Settings support phone, then account primary. */
+/**
+ * Public-facing contact phone from Business Settings / active BU only.
+ * Empty when support phone is not configured (row should be hidden).
+ */
 export function resolveBusinessContactPhone(
-  propsPhone: string | undefined,
+  _propsPhone: string | undefined,
   profile: LiveItem | undefined,
   vendor: VendorData | null | undefined,
 ): string {
-  const fromProps = propsPhone?.trim()
-  if (fromProps) return fromProps
   return collectBusinessContactPhones(profile, vendor)[0] ?? ''
 }
 
@@ -107,16 +118,17 @@ export function resolveBusinessContactAddress(
   profile: LiveItem | undefined,
   vendor: VendorData | null | undefined,
 ): string {
-  const fromProps = propsAddress?.trim()
-  if (fromProps) return fromProps
-
   const fromVendor = [vendor?.street_address, vendor?.city, vendor?.state, vendor?.postal_code]
-    .filter((part) => typeof part === 'string' && part.trim())
+    .map((part) => meaningfulContactValue(part))
+    .filter(Boolean)
     .join(', ')
   if (fromVendor) return fromVendor
 
   const meta = profile?.meta as Record<string, unknown> | undefined
-  return typeof meta?.address === 'string' ? meta.address.trim() : ''
+  const fromProfile = meaningfulContactValue(typeof meta?.address === 'string' ? meta.address : undefined)
+  if (fromProfile) return fromProfile
+
+  return meaningfulContactValue(propsAddress)
 }
 
 export function isFooterContactColumn(title: string): boolean {

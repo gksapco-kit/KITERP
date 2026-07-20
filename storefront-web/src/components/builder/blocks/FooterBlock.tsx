@@ -16,6 +16,7 @@ import {
   resolveFooterSocialLinks,
   type FooterSocialPlatform,
 } from '@/kit/footer/footerSocial'
+import { formatKiterpBrandText } from '@/kit/footer/kiterpBrandText'
 import {
   buildFooterContactLinks,
   isFooterContactColumn,
@@ -88,9 +89,10 @@ function FooterBarPoweredBy({
   InternalLink?: (props: { href: string; className?: string; children: ReactNode }) => ReactNode
 }) {
   if (!text) return null
+  const label = formatKiterpBrandText(text)
   const linkHref = (asLink && href?.trim()) || ''
   if (!linkHref) {
-    return <p className={cn('text-xs text-center', className)}>{text}</p>
+    return <p className={cn('text-xs text-center', className)}>{label}</p>
   }
   const external = isExternalHref(linkHref)
   // Never underline — same look in preview and after publish.
@@ -105,16 +107,16 @@ function FooterBarPoweredBy({
         className={linkClass}
         style={linkStyle}
       >
-        {text}
+        {label}
       </a>
     )
   }
   if (InternalLink) {
-    return <InternalLink href={linkHref} className={linkClass}>{text}</InternalLink>
+    return <InternalLink href={linkHref} className={linkClass}>{label}</InternalLink>
   }
   return (
     <Link to={linkHref} className={linkClass} style={linkStyle}>
-      {text}
+      {label}
     </Link>
   )
 }

@@ -88,15 +88,29 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
   const imageOnRight = imagePosition === 'right'
 
   const profile = liveItems?.[0]
+  const phoneFromBusiness = resolveBusinessContactPhone(undefined, profile, vendor)
+  const emailFromBusiness = resolveBusinessContactEmail(undefined, profile, vendor)
+  const addressFromBusiness = resolveBusinessContactAddress(
+    undefined,
+    profile,
+    vendor,
+  )
+  // Live storefront: Business Settings / BU only. Editor may preview block props when unset.
   const phone = isBlockFieldHidden(props, 'phone')
     ? null
-    : resolveBusinessContactPhone(props.phone as string | undefined, profile, vendor)
+    : phoneFromBusiness
+      || (isEditorCanvas ? String(props.phone ?? '').trim() : '')
+      || null
   const emailAddr = isBlockFieldHidden(props, 'email')
     ? null
-    : resolveBusinessContactEmail(props.email as string | undefined, profile, vendor)
+    : emailFromBusiness
+      || (isEditorCanvas ? String(props.email ?? '').trim() : '')
+      || null
   const address = isBlockFieldHidden(props, 'address')
     ? null
-    : resolveBusinessContactAddress(props.address as string | undefined, profile, vendor)
+    : addressFromBusiness
+      || (isEditorCanvas ? String(props.address ?? '').trim() : '')
+      || null
 
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
 

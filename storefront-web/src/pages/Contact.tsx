@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useVendor } from '@/contexts/VendorContext'
-import { useStoreInfo } from '@/hooks/useStore'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { storeApi } from '@/api/store'
 import {
   resolveBusinessContactAddress,
@@ -15,9 +15,8 @@ import {
 } from '@/lib/businessContact'
 
 export default function ContactPage() {
-  const { storePath, vendor: ctxVendor } = useVendor()
-  const { data: store } = useStoreInfo()
-  const vendor = (ctxVendor || store) as Parameters<typeof resolveBusinessContactEmail>[2]
+  const { storePath } = useVendor()
+  const vendor = useEffectiveVendor()
 
   const email = resolveBusinessContactEmail(undefined, undefined, vendor)
   const phone = resolveBusinessContactPhone(undefined, undefined, vendor)
