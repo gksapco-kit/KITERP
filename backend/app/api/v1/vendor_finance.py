@@ -526,8 +526,10 @@ async def create_journal_entry(
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     await db.commit()
+    # Reload with eager-loaded lines — avoid AsyncSession lazy-load / greenlet error
+    je = await FinJournalRepo(db).get_entry(je.id, vu.vendor_id)
     result = _d(je)
-    result["lines"] = [_d(ln) for ln in je.lines]
+    result["lines"] = [_d(ln) for ln in (je.lines or [])]
     return result
 
 
@@ -541,7 +543,7 @@ async def get_journal_entry(
     if not je:
         raise HTTPException(404, "Journal entry not found")
     result = _d(je)
-    result["lines"] = [_d(ln) for ln in je.lines]
+    result["lines"] = [_d(ln) for ln in (je.lines or [])]
     return result
 
 
@@ -561,8 +563,10 @@ async def update_journal_entry(
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     await db.commit()
+    # Reload with eager-loaded lines — avoid AsyncSession lazy-load / greenlet error
+    je = await FinJournalRepo(db).get_entry(je.id, vu.vendor_id)
     result = _d(je)
-    result["lines"] = [_d(ln) for ln in je.lines]
+    result["lines"] = [_d(ln) for ln in (je.lines or [])]
     return result
 
 

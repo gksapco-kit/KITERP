@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -6,12 +7,22 @@ import { useAccounts, useCreateAccount, useUpdateAccount, useSeedCOA, useAccount
 import {
   Plus, ChevronRight, ChevronDown, Pencil, Settings2, X,
   GripVertical, Trash2, PlusCircle, Info, ChevronUp,
-  Filter, BarChart2, BookOpen, Tag, Activity, ArrowRight,
-  CheckCircle2, XCircle, Shield, TrendingUp, TrendingDown,
+  Filter, BarChart2, BookOpen, Activity, ArrowRight,
+  CheckCircle2, Shield,
   SlidersHorizontal, Eye, List, Download, RefreshCw,
   ArrowUpRight, ArrowDownLeft, CalendarDays,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import {
+  dialogOverlayClass,
+  dialogPanelClass,
+  dialogHeaderClass,
+  dialogBodyClass,
+  dialogFooterClass,
+  modalTitleClass,
+  modalCloseBtnClass,
+  modalWidthSm,
+} from '@/lib/modalUi'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Account = {
@@ -266,73 +277,117 @@ function AccountDetailDrawer({
     opening: 'Opening', closing: 'Closing',
   }
 
+  useEscapeToClose(onClose, true)
+
+  const rangePct = cfg && !isNaN(Number(account.code))
+    ? Math.max(0, Math.min(100, Math.round(
+        ((Number(account.code) - cfg.codeRangeStart) / (cfg.codeRangeEnd - cfg.codeRangeStart)) * 100
+      )))
+    : null
+
   const DetailRow = ({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) => (
-    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-border/50 last:border-0">
-      <span className="text-xs text-muted-foreground shrink-0 w-40">{label}</span>
-      <span className={`text-xs text-right font-medium text-foreground ${mono ? 'font-mono' : ''}`}>{value ?? '—'}</span>
+    <div className="grid grid-cols-[7.25rem_1fr] gap-x-3 items-baseline px-3.5 py-2 border-b border-border/40 last:border-0">
+      <span className="text-[11px] leading-snug text-muted-foreground">{label}</span>
+      <span className={`text-sm leading-snug text-foreground ${mono ? 'font-mono text-xs' : ''}`}>{value ?? '—'}</span>
     </div>
   )
 
-  return (
+  const SectionTitle = ({ icon: Icon, children }: { icon: typeof BookOpen; children: React.ReactNode }) => (
+    <div className="flex items-center gap-2 mb-2">
+      <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+      <h3 className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">{children}</h3>
+    </div>
+  )
+
+  const statementShort = statLabel === 'Income Statement (P&L)' ? 'P&L' : statLabel
+
+  /* Portal to body so fixed inset-0 covers the full viewport (layout overflow clips in-page fixed). */
+  return createPortal(
     <div data-kiterp-modal className="fixed inset-0 z-[100] flex">
-      <div className="flex-1 bg-black/25" onClick={onClose} />
-      <div className="w-full max-w-2xl bg-card border-l border-border text-foreground h-full shadow-2xl flex flex-col overflow-hidden">
+      <div className="absolute inset-0 bg-black/25" onClick={onClose} aria-hidden />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${account.code} ${account.name}`}
+        className={`relative ml-auto w-full bg-card border-l border-border text-foreground h-full shadow-xl flex flex-col overflow-hidden transition-[max-width] duration-200 ${
+          tab === 'transactions' ? 'max-w-2xl' : 'max-w-md'
+        }`}
+      >
 
         {/* ── Drawer header ── */}
-        <div className="px-6 py-4 border-b bg-card flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${badgeClass}`}>
-                {account.account_type}
-              </span>
-              {account.account_subtype && (
-                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                  {account.account_subtype}
-                </span>
-              )}
-              {account.is_system && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                  <Shield className="w-2.5 h-2.5" /> System
-                </span>
-              )}
+        <div className="shrink-0 border-b border-border bg-card">
+          {/* Title row — code/name left, actions right on one baseline */}
+          <div className="flex items-center gap-3 px-4 h-12">
+            <div className="flex-1 min-w-0 flex items-baseline gap-2">
+              <span className="font-mono text-xs text-muted-foreground shrink-0 tabular-nums">{account.code}</span>
+              <h2 className="font-semibold text-base text-foreground truncate leading-none">{account.name}</h2>
             </div>
-            <div className="flex items-baseline gap-2 mt-1.5">
-              <span className="font-mono text-sm text-muted-foreground shrink-0">{account.code}</span>
-              <h2 className="font-bold text-xl text-foreground leading-tight">{account.name}</h2>
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              {account.is_active
-                ? <span className="flex items-center gap-1 text-xs text-green-600"><CheckCircle2 className="w-3 h-3" /> Active</span>
-                : <span className="flex items-center gap-1 text-xs text-red-500"><XCircle className="w-3 h-3" /> Inactive</span>}
-              <span className="text-muted-foreground/50">·</span>
-              <span className="text-xs text-muted-foreground">{account.currency || 'INR'}</span>
-              <span className="text-muted-foreground/50">·</span>
-              <span className="text-xs text-muted-foreground">{normBal} Normal</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => { onEdit(account); onClose() }}
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background text-xs font-medium text-foreground hover:bg-muted/60"
+              >
+                <Pencil className="w-3.5 h-3.5 text-muted-foreground" /> Edit
+              </button>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={onClose}
+                className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
-          <div className="flex gap-1.5 shrink-0">
-            <button
-              onClick={() => { onEdit(account); onClose() }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90"
-            >
-              <Pencil className="w-3 h-3" /> Edit
-            </button>
-            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 text-muted-foreground hover:text-muted-foreground rounded-lg hover:bg-muted/50">
-                <X className="w-4 h-4" />
-            </button>
+
+          {/* Meta row — type + status as quiet text, not stacked badge blocks */}
+          <div className="flex items-center gap-x-2 gap-y-1 flex-wrap px-4 pb-3 text-xs text-muted-foreground">
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${badgeClass}`}>
+              {account.account_type}
+            </span>
+            {account.account_subtype && (
+              <>
+                <span className="text-border/80" aria-hidden>·</span>
+                <span>{account.account_subtype}</span>
+              </>
+            )}
+            {account.is_system && (
+              <>
+                <span className="text-border/80" aria-hidden>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Shield className="w-3 h-3" /> System
+                </span>
+              </>
+            )}
+            <span className="text-border/80" aria-hidden>·</span>
+            {account.is_active
+              ? <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Active
+                </span>
+              : <span className="inline-flex items-center gap-1 text-red-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Inactive
+                </span>}
+            <span className="text-border/80" aria-hidden>·</span>
+            <span>{account.currency || 'INR'}</span>
+            <span className="text-border/80" aria-hidden>·</span>
+            <span>{normBal} normal</span>
+            <span className="text-border/80" aria-hidden>·</span>
+            <span>{statementShort}</span>
           </div>
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex border-b border-border px-6 bg-card shrink-0">
+        <div className="flex border-b border-border px-4 bg-card shrink-0">
           {[
-            { id: 'details', label: 'Account Details', icon: BookOpen },
-            { id: 'transactions', label: 'Ledger / Transactions', icon: List },
+            { id: 'details', label: 'Details', icon: BookOpen },
+            { id: 'transactions', label: 'Ledger', icon: List },
           ].map(t => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id as any)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              type="button"
+              onClick={() => setTab(t.id as 'details' | 'transactions')}
+              className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
                 tab === t.id
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -349,137 +404,76 @@ function AccountDetailDrawer({
 
           {/* ══ DETAILS TAB ══ */}
           {tab === 'details' && (
-            <div className="space-y-1 pb-6">
+            <div className="pb-6">
               {account.description && (
-                <div className="px-6 py-3 bg-muted/30 border-b border-border">
-                  <p className="text-xs text-muted-foreground leading-relaxed">{account.description}</p>
+                <div className="px-5 py-3 bg-muted/25 border-b border-border">
+                  <p className="text-sm text-muted-foreground leading-relaxed">{account.description}</p>
                 </div>
               )}
 
-              {/* Account Details */}
-              <div className="px-6 pt-4 pb-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Account Details</h3>
-                </div>
-                <div className="rounded-xl border border-border overflow-hidden bg-card">
-                  <DetailRow label="Account Code" value={account.code} mono />
-                  <DetailRow label="Account Name" value={account.name} />
-                  <DetailRow label="Type" value={
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>{account.account_type}</span>
-                  } />
-                  <DetailRow label="Subtype" value={account.account_subtype} />
-                  <DetailRow label="Currency" value={account.currency || 'INR'} mono />
+              {/* Properties — only fields not already in the header */}
+              <div className="px-5 pt-4">
+                <SectionTitle icon={BookOpen}>Properties</SectionTitle>
+                <div className="rounded-lg border border-border overflow-hidden bg-card">
                   <DetailRow label="Opening Balance" value={
-                    <span className="font-mono">{fmtCcy(account.opening_balance ?? 0, account.currency)}</span>
+                    <span className="font-mono text-xs">{fmtCcy(account.opening_balance ?? 0, account.currency)}</span>
+                  } />
+                  <DetailRow label="Parent" value={
+                    parent
+                      ? <span className="inline-flex items-baseline gap-1.5 min-w-0">
+                          <span className="font-mono text-xs text-muted-foreground shrink-0">{parent.code}</span>
+                          <span className="truncate">{parent.name}</span>
+                        </span>
+                      : <span className="text-muted-foreground">Root account</span>
                   } />
                   <DetailRow label="Reconcilable" value={
                     account.is_reconcilable
-                      ? <span className="text-green-600 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Yes</span>
-                      : <span className="text-muted-foreground">No</span>
+                      ? <span className="text-green-600 dark:text-green-400 inline-flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Yes</span>
+                      : 'No'
                   } />
-                  <DetailRow label="Reconciliation Account" value={
+                  <DetailRow label="Recon Account" value={
                     account.is_reconciliation_account
-                      ? (
-                        <span className="flex items-center gap-1.5">
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 font-semibold">
-                            Yes — {account.reconciliation_subledger ?? 'subledger'} control
-                          </span>
+                      ? <span className="text-violet-700 dark:text-violet-300">
+                          Yes — {account.reconciliation_subledger ?? 'subledger'} control
                         </span>
-                      )
-                      : <span className="text-muted-foreground">No</span>
-                  } />
-                  <DetailRow label="Parent Account" value={
-                    parent
-                      ? <span className="flex items-center gap-1.5">
-                          <span className="font-mono text-muted-foreground text-xs">{parent.code}</span>
-                          <span>{parent.name}</span>
-                        </span>
-                      : <span className="text-muted-foreground italic">Root account</span>
+                      : 'No'
                   } />
                 </div>
               </div>
 
               {/* Reporting */}
-              <div className="px-6 pt-3 pb-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <BarChart2 className="w-3.5 h-3.5 text-indigo-500" />
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Reporting</h3>
-                </div>
-                <div className="rounded-xl border border-border overflow-hidden bg-card">
-                  <DetailRow label="Financial Statement" value={
-                    <span className="flex items-center gap-1.5">
-                      {cfg?.statement === 'Balance Sheet'
-                        ? <Activity className="w-3 h-3 text-blue-500" />
-                        : <TrendingUp className="w-3 h-3 text-green-500" />}
-                      {statLabel}
-                    </span>
-                  } />
-                  <DetailRow label="Normal Balance" value={
-                    <span className="flex items-center gap-1.5">
-                      {normBal === 'Debit'
-                        ? <TrendingDown className="w-3 h-3 text-orange-500" />
-                        : <TrendingUp className="w-3 h-3 text-blue-500" />}
-                      {normBal}
-                    </span>
-                  } />
+              <div className="px-5 pt-5">
+                <SectionTitle icon={BarChart2}>Reporting</SectionTitle>
+                <div className="rounded-lg border border-border overflow-hidden bg-card">
+                  <DetailRow label="Statement" value={statLabel} />
+                  <DetailRow label="Normal Balance" value={normBal} />
                   <DetailRow label="Code Range" value={cfg ? `${cfg.codeRangeStart} – ${cfg.codeRangeEnd}` : '—'} mono />
-                  <DetailRow label="Position in Range" value={
-                    cfg && !isNaN(Number(account.code))
-                      ? `${Math.round(((Number(account.code) - cfg.codeRangeStart) / (cfg.codeRangeEnd - cfg.codeRangeStart)) * 100)}% of range`
-                      : '—'
+                  <DetailRow label="In Range" value={
+                    rangePct != null ? (
+                      <span className="inline-flex items-center gap-2 w-full min-w-0">
+                        <span className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden max-w-[7rem]">
+                          <span className="block h-full rounded-full bg-primary/70" style={{ width: `${rangePct}%` }} />
+                        </span>
+                        <span className="text-xs text-muted-foreground tabular-nums">{rangePct}%</span>
+                      </span>
+                    ) : '—'
                   } />
-                  <DetailRow label="Accounts in Type" value={`${sameTypeAccounts} total`} />
-                  <DetailRow label="Direct Sub-accounts" value={String(childAccounts.length)} />
-                </div>
-              </div>
-
-              {/* Classification tags */}
-              <div className="px-6 pt-3 pb-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <Tag className="w-3.5 h-3.5 text-indigo-500" />
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Classification</h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${badgeClass}`}>{account.account_type}</span>
-                  {account.account_subtype && (
-                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-muted text-muted-foreground">{account.account_subtype}</span>
-                  )}
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${normBal === 'Debit' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>
-                    {normBal} Normal
-                  </span>
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                    cfg?.statement === 'Balance Sheet' ? 'bg-accent text-primary'
-                      : cfg?.statement === 'Income Statement' ? 'bg-green-50 text-green-700'
-                      : 'bg-muted/30 text-muted-foreground'
-                  }`}>
-                    {cfg?.statement === 'Balance Sheet' ? 'Balance Sheet' : cfg?.statement === 'Income Statement' ? 'P&L' : 'None'}
-                  </span>
-                  {account.is_reconcilable && <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-teal-50 text-teal-700">Reconcilable</span>}
-                  {account.is_reconciliation_account && (
-                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
-                      Recon – {account.reconciliation_subledger ?? 'control'}
-                    </span>
-                  )}
-                  {account.is_system && <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-muted text-muted-foreground">System</span>}
+                  <DetailRow label="Same Type" value={`${sameTypeAccounts} accounts`} />
                 </div>
               </div>
 
               {/* Sub-accounts */}
               {childAccounts.length > 0 && (
-                <div className="px-6 pt-3 pb-1">
-                  <div className="flex items-center gap-2 mb-3">
-                    <ChevronRight className="w-3.5 h-3.5 text-indigo-500" />
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Sub-Accounts ({childAccounts.length})</h3>
-                  </div>
-                  <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+                <div className="px-5 pt-5">
+                  <SectionTitle icon={ChevronRight}>Sub-accounts ({childAccounts.length})</SectionTitle>
+                  <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
                     {childAccounts.map(ch => {
                       const chCfg = config.find(c => c.type === ch.account_type)
                       return (
-                        <div key={ch.id} className="flex items-center gap-3 px-4 py-2 hover:bg-muted/30">
-                          <span className="font-mono text-xs text-muted-foreground w-14">{ch.code}</span>
-                          <span className="flex-1 text-xs text-foreground">{ch.name}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${chCfg?.color ?? 'bg-muted text-muted-foreground'}`}>
+                        <div key={ch.id} className="flex items-center gap-2.5 px-3.5 py-2 hover:bg-muted/30">
+                          <span className="font-mono text-xs text-muted-foreground w-12 shrink-0">{ch.code}</span>
+                          <span className="flex-1 text-sm text-foreground truncate">{ch.name}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-md shrink-0 ${chCfg?.color ?? 'bg-muted text-muted-foreground'}`}>
                             {ch.account_subtype || ch.account_type}
                           </span>
                         </div>
@@ -491,19 +485,18 @@ function AccountDetailDrawer({
 
               {/* Sibling accounts */}
               {siblings.length > 0 && (
-                <div className="px-6 pt-3 pb-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Activity className="w-3.5 h-3.5 text-indigo-500" />
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Related Accounts</h3>
-                  </div>
-                  <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+                <div className="px-5 pt-5 pb-1">
+                  <SectionTitle icon={Activity}>Related accounts</SectionTitle>
+                  <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
                     {siblings.map(sib => (
-                      <div key={sib.id} className="flex items-center gap-3 px-4 py-2 text-xs text-muted-foreground">
-                        <span className="font-mono text-muted-foreground w-14">{sib.code}</span>
-                        <span className="flex-1">{sib.name}</span>
+                      <div key={sib.id} className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground">
+                        <span className="font-mono text-xs w-12 shrink-0">{sib.code}</span>
+                        <span className="flex-1 truncate">{sib.name}</span>
                       </div>
                     ))}
-                    {siblings.length === 5 && <p className="px-4 py-1.5 text-xs text-muted-foreground italic">…and more</p>}
+                    {siblings.length === 5 && (
+                      <p className="px-3.5 py-1.5 text-xs text-muted-foreground">…and more</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -514,35 +507,37 @@ function AccountDetailDrawer({
           {tab === 'transactions' && (
             <div className="flex flex-col h-full">
               {/* Date range + actions bar */}
-              <div className="px-6 py-3 bg-muted/30 border-b border-border flex items-center gap-3 flex-wrap shrink-0">
+              <div className="px-5 py-2.5 bg-muted/25 border-b border-border flex items-center gap-2.5 flex-wrap shrink-0">
                 <CalendarDays className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-muted-foreground">From</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[11px] text-muted-foreground">From</label>
                   <input
                     type="date" value={fromDate}
                     onChange={e => setFromDate(e.target.value)}
-                    className="border border-input rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    className="border border-input rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-muted-foreground">To</label>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[11px] text-muted-foreground">To</label>
                   <input
                     type="date" value={toDate}
                     onChange={e => setToDate(e.target.value)}
-                    className="border border-input rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                    className="border border-input rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                   />
                 </div>
                 <button
+                  type="button"
                   onClick={() => refetchLedger()}
-                  className="flex items-center gap-1 px-2.5 py-1.5 border border-border rounded-lg text-xs text-muted-foreground hover:bg-card"
+                  className="flex items-center gap-1 px-2 py-1 border border-border rounded-md text-xs text-muted-foreground hover:bg-card"
                 >
                   <RefreshCw className="w-3 h-3" /> Refresh
                 </button>
                 <div className="flex-1" />
                 <button
+                  type="button"
                   onClick={exportCSV}
                   disabled={ledger.length === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-lg text-xs text-muted-foreground hover:bg-muted/30 disabled:opacity-40"
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-card border border-border rounded-md text-xs text-muted-foreground hover:bg-muted/30 disabled:opacity-40"
                 >
                   <Download className="w-3 h-3" /> Export CSV
                 </button>
@@ -550,33 +545,33 @@ function AccountDetailDrawer({
 
               {/* Summary KPI row */}
               {ledger.length > 0 && (
-                <div className="px-6 py-3 grid grid-cols-3 gap-3 border-b border-border shrink-0">
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <ArrowUpRight className="w-3.5 h-3.5 text-indigo-500" />
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Total Debit</span>
+                <div className="px-5 py-3 grid grid-cols-3 gap-2.5 border-b border-border shrink-0">
+                  <div className="rounded-lg border border-border bg-card p-2.5">
+                    <div className="flex items-center gap-1 mb-1">
+                      <ArrowUpRight className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Debit</span>
                     </div>
-                    <p className="font-mono font-bold text-sm text-foreground">{fmtCcy(totalDebit)}</p>
-                    <p className="text-xs text-muted-foreground">{ledger.filter(r => r.debit > 0).length} entries</p>
+                    <p className="font-mono font-semibold text-sm text-foreground">{fmtCcy(totalDebit)}</p>
+                    <p className="text-[11px] text-muted-foreground">{ledger.filter(r => r.debit > 0).length} entries</p>
                   </div>
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <ArrowDownLeft className="w-3.5 h-3.5 text-primary/80" />
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Total Credit</span>
+                  <div className="rounded-lg border border-border bg-card p-2.5">
+                    <div className="flex items-center gap-1 mb-1">
+                      <ArrowDownLeft className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Credit</span>
                     </div>
-                    <p className="font-mono font-bold text-sm text-foreground">{fmtCcy(totalCredit)}</p>
-                    <p className="text-xs text-muted-foreground">{ledger.filter(r => r.credit > 0).length} entries</p>
+                    <p className="font-mono font-semibold text-sm text-foreground">{fmtCcy(totalCredit)}</p>
+                    <p className="text-[11px] text-muted-foreground">{ledger.filter(r => r.credit > 0).length} entries</p>
                   </div>
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Activity className="w-3.5 h-3.5 text-green-500" />
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Closing Bal.</span>
+                  <div className="rounded-lg border border-border bg-card p-2.5">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Activity className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Closing</span>
                     </div>
-                    <p className={`font-mono font-bold text-sm ${closingBalance >= 0 ? 'text-foreground' : 'text-red-600'}`}>
+                    <p className={`font-mono font-semibold text-sm ${closingBalance >= 0 ? 'text-foreground' : 'text-red-600'}`}>
                       {fmtCcy(Math.abs(closingBalance))}
-                      {closingBalance < 0 && <span className="text-xs ml-1 text-red-400">Cr</span>}
+                      {closingBalance < 0 && <span className="text-[10px] ml-1 text-red-400">Cr</span>}
                     </p>
-                    <p className="text-xs text-muted-foreground">{ledger.length} transactions</p>
+                    <p className="text-[11px] text-muted-foreground">{ledger.length} txns</p>
                   </div>
                 </div>
               )}
@@ -661,7 +656,8 @@ function AccountDetailDrawer({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -739,13 +735,13 @@ function ConfigPanel({
   }
   const handleReset = () => { setLocal(JSON.parse(JSON.stringify(DEFAULT_CONFIG))) }
 
-  return (
+  return createPortal(
     <div data-kiterp-modal className="fixed inset-0 z-[100] flex">
       {/* Backdrop */}
-      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
 
       {/* Drawer */}
-      <div className="w-full max-w-xl bg-card border-l border-border text-foreground h-full shadow-2xl flex flex-col overflow-hidden">
+      <div className="relative ml-auto w-full max-w-xl bg-card border-l border-border text-foreground h-full shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/30">
           <div className="flex items-center gap-2">
@@ -964,7 +960,8 @@ function ConfigPanel({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -1253,132 +1250,155 @@ export default function ChartOfAccounts() {
       </div>
 
       {/* ── Add / Edit modal ── */}
-      {showModal && (
-        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto" onClick={() => setShowModal(false)}>
-          <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-lg">{editing ? 'Edit Account' : 'New Account'}</h2>
-              <button type="button" aria-label="Close" onClick={() => setShowModal(false)} className="p-1 text-muted-foreground hover:text-muted-foreground">
+      {showModal && createPortal(
+        <div
+          data-kiterp-modal
+          className={dialogOverlayClass}
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className={`${dialogPanelClass} ${modalWidthSm}`}
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={editing ? 'Edit Account' : 'New Account'}
+          >
+            {/* Header — pinned */}
+            <div className={`${dialogHeaderClass} flex items-center justify-between gap-3`}>
+              <h2 className={modalTitleClass}>{editing ? 'Edit Account' : 'New Account'}</h2>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setShowModal(false)}
+                className={modalCloseBtnClass}
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Type first — drives subtype list */}
-            <div>
-              <Label className="block text-xs font-medium text-muted-foreground mb-1">Type</Label>
-              <div className="grid grid-cols-5 gap-1">
-                {config.map(c => (
+            {/* Body — single scroll region (avoids per-field scrollbars on large screens) */}
+            <div className={`${dialogBodyClass} space-y-4`}>
+              <div>
+                <Label className="block text-xs font-medium text-muted-foreground mb-1.5">Type</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {config.map(c => (
+                    <button
+                      key={c.type}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, account_type: c.type, account_subtype: '' }))}
+                      className={`py-2 px-2 rounded-lg text-xs font-medium border-2 transition-all truncate ${c.color} ${
+                        form.account_type === c.type ? 'border-foreground' : 'border-transparent'
+                      }`}
+                    >
+                      {c.type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <Label className="block text-xs font-medium text-muted-foreground mb-1.5">Subtype</Label>
+                <select
+                  value={form.account_subtype}
+                  onChange={e => setForm(f => ({ ...f, account_subtype: e.target.value }))}
+                  className="form-select w-full h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none"
+                >
+                  <option value="">— None —</option>
+                  {activeSubtypes.map(st => <option key={st} value={st}>{st}</option>)}
+                </select>
+              </div>
+
+              {[
+                { label: 'Code', key: 'code', placeholder: `e.g. ${config.find(c => c.type === form.account_type)?.codeRangeStart ?? 1000}` },
+                { label: 'Name', key: 'name', placeholder: 'Account name' },
+                { label: 'Description', key: 'description', placeholder: 'Optional description' },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key} className="min-w-0">
+                  <Label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</Label>
+                  <Input
+                    value={(form as Record<string, string>)[key]}
+                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                  />
+                </div>
+              ))}
+
+              {(() => {
+                const c = config.find(cc => cc.type === form.account_type)
+                return c ? (
+                  <p className="text-xs text-muted-foreground">
+                    Suggested range for <strong>{c.type}</strong>: {c.codeRangeStart}–{c.codeRangeEnd} · Normal balance: {c.normalBalance}
+                  </p>
+                ) : null
+              })()}
+
+              <div className="rounded-xl border border-border p-3 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground">Reconciliation (Control) Account</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      When enabled, manual journal entries cannot post to this account.
+                      Only subledger auto-posting (AR, AP, Assets) may write to it.
+                    </p>
+                  </div>
                   <button
-                    key={c.type}
-                    onClick={() => setForm(f => ({ ...f, account_type: c.type, account_subtype: '' }))}
-                    className={`py-1.5 rounded-lg text-xs font-medium border-2 transition-all ${c.color} ${
-                      form.account_type === c.type ? 'border-foreground' : 'border-transparent'
+                    type="button"
+                    role="switch"
+                    aria-checked={!!(form as any).is_reconciliation_account}
+                    onClick={() => setForm(f => ({
+                      ...f,
+                      is_reconciliation_account: !(f as any).is_reconciliation_account,
+                      reconciliation_subledger: (f as any).is_reconciliation_account ? '' : (f as any).reconciliation_subledger,
+                    }))}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                      (form as any).is_reconciliation_account ? 'bg-violet-600' : 'bg-muted'
                     }`}
                   >
-                    {c.type}
+                    <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
+                      (form as any).is_reconciliation_account ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
                   </button>
-                ))}
+                </div>
+                {(form as any).is_reconciliation_account && (
+                  <div className="min-w-0">
+                    <Label className="block text-xs font-medium text-muted-foreground mb-1.5">Subledger</Label>
+                    <select
+                      value={(form as any).reconciliation_subledger || ''}
+                      onChange={e => setForm(f => ({ ...f, reconciliation_subledger: e.target.value }))}
+                      className="form-select w-full h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none"
+                    >
+                      <option value="">— Select subledger —</option>
+                      <option value="customer">Customer (AR)</option>
+                      <option value="supplier">Supplier (AP)</option>
+                      <option value="asset">Fixed Asset</option>
+                      <option value="bank">Bank / Cash</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Subtype dropdown — options come from config */}
-            <div>
-              <Label className="block text-xs font-medium text-muted-foreground mb-1">Subtype</Label>
-              <select
-                value={form.account_subtype}
-                onChange={e => setForm(f => ({ ...f, account_subtype: e.target.value }))}
-                className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            {/* Footer — pinned */}
+            <div className={dialogFooterClass}>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="btn-cancel px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg"
               >
-                <option value="">— None —</option>
-                {activeSubtypes.map(st => <option key={st} value={st}>{st}</option>)}
-              </select>
-            </div>
-
-            {/* Code + Name */}
-            {[
-              { label: 'Code', key: 'code', placeholder: `e.g. ${config.find(c => c.type === form.account_type)?.codeRangeStart ?? 1000}` },
-              { label: 'Name', key: 'name', placeholder: 'Account name' },
-              { label: 'Description', key: 'description', placeholder: 'Optional description' },
-            ].map(({ label, key, placeholder }) => (
-              <div key={key}>
-                <Label className="block text-xs font-medium text-muted-foreground mb-1">{label}</Label>
-                <input
-                  value={(form as Record<string, string>)[key]}
-                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                  placeholder={placeholder}
-                  className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-            ))}
-
-            {/* Code range hint */}
-            {(() => {
-              const c = config.find(cc => cc.type === form.account_type)
-              return c ? (
-                <p className="text-xs text-muted-foreground">
-                  Suggested range for <strong>{c.type}</strong>: {c.codeRangeStart}–{c.codeRangeEnd} · Normal balance: {c.normalBalance}
-                </p>
-              ) : null
-            })()}
-
-            {/* Reconciliation account toggle */}
-            <div className="rounded-xl border border-border p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-foreground">Reconciliation (Control) Account</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    When enabled, manual journal entries cannot post to this account.
-                    Only subledger auto-posting (AR, AP, Assets) may write to it.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setForm(f => ({
-                    ...f,
-                    is_reconciliation_account: !(f as any).is_reconciliation_account,
-                    reconciliation_subledger: (f as any).is_reconciliation_account ? '' : (f as any).reconciliation_subledger,
-                  }))}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                    (form as any).is_reconciliation_account ? 'bg-violet-600' : 'bg-muted'
-                  }`}
-                >
-                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
-                    (form as any).is_reconciliation_account ? 'translate-x-4' : 'translate-x-0'
-                  }`} />
-                </button>
-              </div>
-              {(form as any).is_reconciliation_account && (
-                <div>
-                  <Label className="block text-xs font-medium text-muted-foreground mb-1">Subledger</Label>
-                  <select
-                    value={(form as any).reconciliation_subledger || ''}
-                    onChange={e => setForm(f => ({ ...f, reconciliation_subledger: e.target.value }))}
-                    className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="">— Select subledger —</option>
-                    <option value="customer">Customer (AR)</option>
-                    <option value="supplier">Supplier (AP)</option>
-                    <option value="asset">Fixed Asset</option>
-                    <option value="bank">Bank / Cash</option>
-                  </select>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setShowModal(false)} className="btn-cancel px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg">
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={save}
                 disabled={createMut.isPending || updateMut.isPending}
-                className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium"
+                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium"
               >
                 {createMut.isPending || updateMut.isPending ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* ── Account detail drawer ── */}
