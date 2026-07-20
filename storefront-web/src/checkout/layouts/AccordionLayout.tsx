@@ -11,11 +11,13 @@ import { CheckoutActions, CheckoutState } from "../hooks/useCheckoutDemo";
 import { PlaceOrderBar } from "./TwoColumnLayout";
 
 export function AccordionLayout({ state, actions }: { state: CheckoutState; actions: CheckoutActions }) {
-  const { showSavedAddresses } = useCheckoutConfig();
+  const { showSavedAddresses, showShippingMethods } = useCheckoutConfig();
   const [openItem, setOpenItem] = useState("contact");
   const [addingNew, setAddingNew] = useState(false);
   const hasSaved = showSavedAddresses && (state.customer.savedAddresses?.length ?? 0) > 0;
   const selectedShippingLabel = state.shippingMethods.find((m) => m.id === state.shippingMethodId)?.label;
+  const requiresShipping = state.requiresShipping !== false;
+  const showShippingStep = requiresShipping && showShippingMethods;
 
   return (
     <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-3 py-6 sm:px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:items-start lg:gap-8">
@@ -29,53 +31,65 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
                 onChange={actions.setCustomer}
                 fieldErrors={state.fieldErrors}
               />
-              <button type="button" className="ck-btn-primary mt-4" onClick={() => setOpenItem("address")}>
+              <button
+                type="button"
+                className="ck-btn-primary mt-4"
+                onClick={() => setOpenItem(requiresShipping ? "address" : "payment")}
+              >
                 Continue
               </button>
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="address">
-            <AccordionTrigger>2. Shipping address</AccordionTrigger>
-            <AccordionContent>
-              {hasSaved && !addingNew ? (
-                <AddressBook
-                  addresses={state.customer.savedAddresses!}
-                  selectedId={state.selectedSavedAddressId}
-                  onSelect={actions.selectSavedAddress}
-                  onAddNew={() => setAddingNew(true)}
-                />
-              ) : (
-                <AddressForm
-                  initial={state.shippingAddress}
-                  onSubmit={actions.setShippingAddress}
-                  onChange={actions.setShippingAddress}
-                  hideSubmit
-                  fieldErrors={state.fieldErrors}
-                />
-              )}
-              <button type="button" className="ck-btn-primary mt-4" onClick={() => setOpenItem("shipping")}>
-                Continue
-              </button>
-            </AccordionContent>
-          </AccordionItem>
+          {requiresShipping && (
+            <AccordionItem value="address">
+              <AccordionTrigger>2. Shipping address</AccordionTrigger>
+              <AccordionContent>
+                {hasSaved && !addingNew ? (
+                  <AddressBook
+                    addresses={state.customer.savedAddresses!}
+                    selectedId={state.selectedSavedAddressId}
+                    onSelect={actions.selectSavedAddress}
+                    onAddNew={() => setAddingNew(true)}
+                  />
+                ) : (
+                  <AddressForm
+                    initial={state.shippingAddress}
+                    onSubmit={actions.setShippingAddress}
+                    onChange={actions.setShippingAddress}
+                    hideSubmit
+                    fieldErrors={state.fieldErrors}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="ck-btn-primary mt-4"
+                  onClick={() => setOpenItem(showShippingStep ? "shipping" : "payment")}
+                >
+                  Continue
+                </button>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
-          <AccordionItem value="shipping">
-            <AccordionTrigger>3. Shipping method</AccordionTrigger>
-            <AccordionContent>
-              <ShippingMethods
-                methods={state.shippingMethods}
-                selectedId={state.shippingMethodId}
-                onSelect={actions.setShippingMethod}
-              />
-              <button type="button" className="ck-btn-primary mt-4" onClick={() => setOpenItem("payment")}>
-                Continue
-              </button>
-            </AccordionContent>
-          </AccordionItem>
+          {showShippingStep && (
+            <AccordionItem value="shipping">
+              <AccordionTrigger>3. Shipping method</AccordionTrigger>
+              <AccordionContent>
+                <ShippingMethods
+                  methods={state.shippingMethods}
+                  selectedId={state.shippingMethodId}
+                  onSelect={actions.setShippingMethod}
+                />
+                <button type="button" className="ck-btn-primary mt-4" onClick={() => setOpenItem("payment")}>
+                  Continue
+                </button>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
           <AccordionItem value="payment">
-            <AccordionTrigger>4. Payment</AccordionTrigger>
+            <AccordionTrigger>{requiresShipping ? "4. Payment" : "2. Payment"}</AccordionTrigger>
             <AccordionContent>
               <PaymentSection onChange={actions.setPayment} value={state.payment} total={state.cart.total} />
             </AccordionContent>
@@ -90,7 +104,8 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
       <div className="min-w-0 lg:sticky lg:top-6 lg:self-start lg:pl-1">
         <OrderSummary
           cart={state.cart}
-          selectedShippingLabel={selectedShippingLabel}
+          selectedShippingLabel={requiresShipping ? selectedShippingLabel : undefined}
+          showShipping={requiresShipping}
           collapsibleOnMobile
           onApplyCoupon={actions.applyCoupon}
           onRemoveCoupon={actions.removeCoupon}

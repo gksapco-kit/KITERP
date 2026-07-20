@@ -247,7 +247,7 @@ function FeaturedServicesSection({ props, theme, storePath, services }: {
                 )}
                 {(show('card_price') || show('card_duration')) && (
                   <div className="mt-3 flex items-center gap-3 flex-wrap">
-                    {show('card_price') && (
+                    {show('card_price') && s.price_type !== 'not_applicable' && (
                       s.price
                         ? <span className="text-base font-bold" style={{ color: linkOnLight(c.primary, c.secondary) }}>{formatCurrency(s.price)}</span>
                         : <span className="text-sm font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">Get Quote</span>

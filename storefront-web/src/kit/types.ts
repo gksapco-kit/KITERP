@@ -74,6 +74,7 @@ export interface Service {
   durationMinutes: number;
   price: number;
   currency?: string;
+  price_type?: string;
   features?: string[];
   allowQuoteRequest?: boolean;
   requiresBooking?: boolean;

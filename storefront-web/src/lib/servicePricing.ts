@@ -15,6 +15,7 @@ type PlanLike = {
 type ServiceLike = {
   price?: number | null
   price_min?: number | null
+  price_type?: string | null
   duration_minutes?: number | null
   plans?: PlanLike[] | null
 }
@@ -33,6 +34,32 @@ export function resolveServicePrice(service: ServiceLike | null | undefined): nu
   if (service.price_min != null) return service.price_min
   const plan = firstUsablePlan(service.plans)
   return plan?.price ?? 0
+}
+
+/** True when a numeric price should be shown as currency (not Free / quote). */
+export function isPricedAmount(price: number | null | undefined): price is number {
+  return price != null && price > 0
+}
+
+/** Hide PRICE on business front — customers use quotation instead of RFQ/currency. */
+export function isPriceNotApplicable(priceType?: string | null): boolean {
+  return priceType === 'not_applicable'
+}
+
+/**
+ * Storefront price label when currency should not be shown.
+ * Matches vendor admin + Home: free → "Free", zero/null/quote → quote fallback.
+ * Returns null when price is not applicable (caller should hide the price UI).
+ */
+export function servicePriceFallbackLabel(
+  price: number | null | undefined,
+  priceType?: string | null,
+  quoteLabel = 'Get a Quote',
+): string | null {
+  if (isPriceNotApplicable(priceType)) return null
+  if (priceType === 'free') return 'Free'
+  if (!isPricedAmount(price)) return quoteLabel
+  return quoteLabel
 }
 
 /** Resolve a displayable duration (minutes): service duration → first plan's duration → default. */

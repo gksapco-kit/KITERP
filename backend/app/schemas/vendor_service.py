@@ -18,6 +18,7 @@ class PriceType(str, Enum):
     QUOTE = "quote"
     FREE = "free"
     SUBSCRIPTION = "subscription"
+    NOT_APPLICABLE = "not_applicable"
 
 
 class SubscriptionPriceType(str, Enum):

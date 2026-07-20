@@ -20,7 +20,15 @@ export function TwoColumnLayout({ state, actions }: Props) {
   const selectedShippingLabel = state.shippingMethods.find((m) => m.id === state.shippingMethodId)?.label;
   const isSubscription = state.checkoutIntentKind === "subscription";
   const isBooking = state.checkoutIntentKind === "booking";
+  const requiresShipping = state.requiresShipping !== false;
+  const showShippingStep = requiresShipping && showShippingMethods;
   const addressTitle = isSubscription || isBooking ? "Delivery / billing address" : "Shipping address";
+
+  let nextStep = 1;
+  const contactStep = nextStep++;
+  const addressStep = requiresShipping ? nextStep++ : null;
+  const shippingStep = showShippingStep ? nextStep++ : null;
+  const paymentStep = nextStep++;
 
   return (
     <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-3 py-6 sm:px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:items-start lg:gap-8">
@@ -35,14 +43,16 @@ export function TwoColumnLayout({ state, actions }: Props) {
                 {isSubscription ? "Complete your subscription" : "Complete your booking"}
               </p>
               <p className="ck-text-muted mt-0.5 text-xs">
-                Confirm your address and payment below
+                {requiresShipping
+                  ? "Confirm your address and payment below"
+                  : "Confirm your payment below"}
                 {state.checkoutIntentSummary ? <> · {state.checkoutIntentSummary}</> : null}.
               </p>
             </div>
           </div>
         )}
 
-        <Section step={1} title="Contact">
+        <Section step={contactStep} title="Contact">
           <ContactStep
             customer={state.customer}
             onChange={actions.setCustomer}
@@ -50,41 +60,43 @@ export function TwoColumnLayout({ state, actions }: Props) {
           />
         </Section>
 
-        <Section
-          step={2}
-          title={addressTitle}
-          action={
-            hasSaved && !addingNew ? (
-              <button type="button" className="ck-btn-ghost" onClick={() => setAddingNew(true)}>
-                Use a new address
-              </button>
-            ) : hasSaved ? (
-              <button type="button" className="ck-btn-ghost" onClick={() => setAddingNew(false)}>
-                Use saved
-              </button>
-            ) : null
-          }
-        >
-          {hasSaved && !addingNew ? (
-            <AddressBook
-              addresses={state.customer.savedAddresses!}
-              selectedId={state.selectedSavedAddressId}
-              onSelect={actions.selectSavedAddress}
-              onAddNew={() => setAddingNew(true)}
-            />
-          ) : (
-            <AddressForm
-              initial={state.shippingAddress}
-              onSubmit={actions.setShippingAddress}
-              onChange={actions.setShippingAddress}
-              hideSubmit
-              fieldErrors={state.fieldErrors}
-            />
-          )}
-        </Section>
+        {requiresShipping && (
+          <Section
+            step={addressStep!}
+            title={addressTitle}
+            action={
+              hasSaved && !addingNew ? (
+                <button type="button" className="ck-btn-ghost" onClick={() => setAddingNew(true)}>
+                  Use a new address
+                </button>
+              ) : hasSaved ? (
+                <button type="button" className="ck-btn-ghost" onClick={() => setAddingNew(false)}>
+                  Use saved
+                </button>
+              ) : null
+            }
+          >
+            {hasSaved && !addingNew ? (
+              <AddressBook
+                addresses={state.customer.savedAddresses!}
+                selectedId={state.selectedSavedAddressId}
+                onSelect={actions.selectSavedAddress}
+                onAddNew={() => setAddingNew(true)}
+              />
+            ) : (
+              <AddressForm
+                initial={state.shippingAddress}
+                onSubmit={actions.setShippingAddress}
+                onChange={actions.setShippingAddress}
+                hideSubmit
+                fieldErrors={state.fieldErrors}
+              />
+            )}
+          </Section>
+        )}
 
-        {showShippingMethods && (
-          <Section step={3} title="Shipping method">
+        {showShippingStep && (
+          <Section step={shippingStep!} title="Shipping method">
             <ShippingMethods
               methods={state.shippingMethods}
               selectedId={state.shippingMethodId}
@@ -93,7 +105,7 @@ export function TwoColumnLayout({ state, actions }: Props) {
           </Section>
         )}
 
-        <Section step={showShippingMethods ? 4 : 3} title="Payment" description="All transactions are secure & encrypted.">
+        <Section step={paymentStep} title="Payment" description="All transactions are secure & encrypted.">
           <PaymentSection onChange={actions.setPayment} value={state.payment} total={state.cart.total} />
         </Section>
 
@@ -138,7 +150,8 @@ export function TwoColumnLayout({ state, actions }: Props) {
       <div className="order-1 min-w-0 lg:order-2 lg:self-start lg:pl-1 lg:sticky lg:top-20">
         <OrderSummary
           cart={state.cart}
-          selectedShippingLabel={selectedShippingLabel}
+          selectedShippingLabel={requiresShipping ? selectedShippingLabel : undefined}
+          showShipping={requiresShipping}
           collapsibleOnMobile
           onApplyCoupon={actions.applyCoupon}
           onRemoveCoupon={actions.removeCoupon}

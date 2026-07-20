@@ -10,6 +10,11 @@ type ImageHoverZoomProps = {
   zoomScale?: number
   /** Disable lens zoom (e.g. while dragging 360°). */
   disabled?: boolean
+  /**
+   * `fill` — absolute cover/contain inside a sized parent (default).
+   * `intrinsic` — image sets the frame height (full flyer visible, no crop).
+   */
+  sizing?: 'fill' | 'intrinsic'
   onClick?: () => void
   onError?: () => void
   children?: ReactNode
@@ -23,6 +28,7 @@ export function ImageHoverZoom({
   imgClassName,
   zoomScale = 2.25,
   disabled = false,
+  sizing = 'fill',
   onClick,
   onError,
   children,
@@ -30,6 +36,7 @@ export function ImageHoverZoom({
   const ref = useRef<HTMLDivElement>(null)
   const [hovered, setHovered] = useState(false)
   const [origin, setOrigin] = useState({ x: 50, y: 50 })
+  const intrinsic = sizing === 'intrinsic'
 
   const handleMove = (e: React.MouseEvent) => {
     const el = ref.current
@@ -47,7 +54,8 @@ export function ImageHoverZoom({
     <div
       ref={ref}
       className={cn(
-        'relative h-full w-full overflow-hidden',
+        'relative overflow-hidden',
+        intrinsic ? 'w-full' : 'h-full w-full',
         disabled ? 'cursor-grabbing' : 'cursor-zoom-in',
         className,
       )}
@@ -74,7 +82,10 @@ export function ImageHoverZoom({
         draggable={false}
         onError={onError}
         className={cn(
-          'pointer-events-none absolute inset-0 h-full w-full transition-transform duration-150 ease-out',
+          'pointer-events-none transition-transform duration-150 ease-out',
+          intrinsic
+            ? 'relative block h-auto w-full'
+            : 'absolute inset-0 h-full w-full',
           imgClassName,
         )}
         style={

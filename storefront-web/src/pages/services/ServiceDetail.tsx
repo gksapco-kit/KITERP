@@ -6,6 +6,7 @@ import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 import { storeApi } from '@/api/store'
 import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
 import { formatCurrency, imgUrl } from '@/lib/utils'
+import { isPricedAmount, servicePriceFallbackLabel, isPriceNotApplicable } from '@/lib/servicePricing'
 import {
   Clock, Wrench, Loader2, ChevronLeft, ChevronRight, CheckCircle, XCircle,
   Phone, Mail, Tag, MapPin, AlertTriangle, Monitor, CalendarDays, X,
@@ -235,7 +236,7 @@ export function PlanSelector({
                     <p className="font-bold text-gray-900 truncate text-xs leading-tight">{plan.name}</p>
                     {!hidePrice && (
                       <div className="mt-0.5 min-w-0">
-                        {plan.price != null ? (
+                        {isPricedAmount(plan.price) ? (
                           <div className="min-w-0">
                             <p className="text-sm font-extrabold text-gray-900 tabular-nums leading-snug break-all">
                               {formatCurrency(plan.price, currency)}
@@ -244,14 +245,14 @@ export function PlanSelector({
                           </div>
                         ) : (
                           <p className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded inline-block">
-                            Quote
+                            {servicePriceFallbackLabel(plan.price, undefined, 'Quote')}
                           </p>
                         )}
                       </div>
                     )}
-                    {hidePrice && plan.price == null && (
+                    {hidePrice && !isPricedAmount(plan.price) && (
                       <span className="mt-0.5 inline-block text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
-                        Quote
+                        {servicePriceFallbackLabel(plan.price, undefined, 'Quote')}
                       </span>
                     )}
                     {plan.description && (
@@ -424,7 +425,9 @@ function BookingModal({
           <div className={`rounded-lg px-3 py-2 border flex items-center justify-between gap-3 ${themeUi.gradientHero} ${themeUi.borderPrimaryMuted}`}>
             <p className="font-semibold text-sm text-gray-900 truncate min-w-0">{serviceName}</p>
             <div className="flex items-center gap-2 shrink-0 text-sm text-gray-600">
-              <span className="text-base font-extrabold text-gray-900 tabular-nums">{formatCurrency(price)}</span>
+              <span className="text-base font-extrabold text-gray-900 tabular-nums">
+                {isPricedAmount(price) ? formatCurrency(price) : (servicePriceFallbackLabel(price, undefined, 'Quote') ?? '')}
+              </span>
               {duration != null && duration > 0 && (
                 <span className="flex items-center gap-0.5 bg-white/80 px-1.5 py-0.5 rounded-full text-[11px]">
                   <Clock className="w-2.5 h-2.5" /> {duration} min
@@ -981,24 +984,28 @@ export default function ServiceDetail() {
             {/* Booking panel */}
             {((hasBothModes && sidebarMode === 'booking') || (canBook && !isSubscription)) && (
               <>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Price</p>
-                  {unitPrice != null ? (
-                    <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">
-                      {formatCurrency(unitPrice, currency)}
-                      {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
-                        <span className="text-base font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>
-                      )}
-                    </p>
-                  ) : (
-                    <p className="text-xl font-bold text-amber-600 mt-1">Get a Quote</p>
-                  )}
-                  {isDisplayFieldEnabled(sf, 'price_range') && service.price_min != null && service.price_max != null && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      Range: {formatCurrency(service.price_min, currency)} – {formatCurrency(service.price_max, currency)}
-                    </p>
-                  )}
-                </div>
+                {!isPriceNotApplicable(service.price_type) && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Price</p>
+                    {service.price_type === 'free' ? (
+                      <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">Free</p>
+                    ) : isPricedAmount(unitPrice) ? (
+                      <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">
+                        {formatCurrency(unitPrice, currency)}
+                        {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
+                          <span className="text-base font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-xl font-bold text-amber-600 mt-1">Get a Quote</p>
+                    )}
+                    {isDisplayFieldEnabled(sf, 'price_range') && service.price_min != null && service.price_max != null && service.price_min > 0 && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Range: {formatCurrency(service.price_min, currency)} – {formatCurrency(service.price_max, currency)}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {isDisplayFieldEnabled(sf, 'duration') && (selectedPlan?.duration_minutes ?? service.duration_minutes) ? (
                   <div className={`flex items-center gap-3 text-sm text-gray-600 rounded-xl p-3 border ${themeUi.bgBlueishPanel} ${themeUi.borderPrimarySoft}`}>
@@ -1031,19 +1038,23 @@ export default function ServiceDetail() {
             {/* Fallback — neither booking nor subscription enabled */}
             {!canBook && !isSubscription && (
               <>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Price</p>
-                  {unitPrice != null ? (
-                    <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">
-                      {formatCurrency(unitPrice, currency)}
-                      {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
-                        <span className="text-base font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>
-                      )}
-                    </p>
-                  ) : (
-                    <p className="text-xl font-bold text-amber-600 mt-1">Contact for Pricing</p>
-                  )}
-                </div>
+                {!isPriceNotApplicable(service.price_type) && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Price</p>
+                    {service.price_type === 'free' ? (
+                      <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">Free</p>
+                    ) : isPricedAmount(unitPrice) ? (
+                      <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">
+                        {formatCurrency(unitPrice, currency)}
+                        {isDisplayFieldEnabled(sf, 'uom') && (selectedPlan?.uom ?? service.uom) && (selectedPlan?.uom ?? service.uom) !== 'fixed' && (
+                          <span className="text-base font-normal text-gray-500 ml-1">/{UOM_LABELS[selectedPlan?.uom ?? service.uom] || selectedPlan?.uom || service.uom}</span>
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-xl font-bold text-amber-600 mt-1">Contact for Pricing</p>
+                    )}
+                  </div>
+                )}
                 {canQuote && (
                   <Button className={`w-full h-12 font-bold rounded-xl shadow-sm ${themeUi.btnSolid}`} size="lg"
                     onClick={() => { if (!isLoggedIn) { navigate(storePath('/login')); return }; setShowQuote(true) }}>

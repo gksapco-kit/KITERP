@@ -8,7 +8,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { AvailabilityCalendar, TimeSlotPicker } from '@/kit/bookings/AvailabilityCalendar'
 import { GroupBookingFlow, RecurringBookingFlow, WaitlistFlow } from '@/kit/bookings/BookingFlows'
 import { PlanSelector } from './ServiceDetail'
-import { resolveServicePrice, resolveServiceDuration } from '@/lib/servicePricing'
+import { resolveServicePrice, resolveServiceDuration, isPricedAmount, servicePriceFallbackLabel, isPriceNotApplicable } from '@/lib/servicePricing'
+import { formatCurrency } from '@/lib/utils'
 import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -274,10 +275,16 @@ export default function ServiceBookingPage() {
                     <span className="text-muted-foreground">Duration</span>
                     <span>{planDuration} min</span>
                   </div>
-                  <div className="text-sm flex justify-between font-semibold">
-                    <span>Price</span>
-                    <span>₹{planPrice.toLocaleString('en-IN')}</span>
-                  </div>
+                  {!isPriceNotApplicable(service.price_type) && (
+                    <div className="text-sm flex justify-between font-semibold">
+                      <span>Price</span>
+                      <span>
+                        {isPricedAmount(planPrice)
+                          ? formatCurrency(planPrice, service.currency || 'INR')
+                          : (servicePriceFallbackLabel(planPrice, service.price_type, 'Get a Quote') ?? '')}
+                      </span>
+                    </div>
+                  )}
                   {selectedDate && (
                     <div className="text-sm flex justify-between">
                       <span className="text-muted-foreground">Date</span>

@@ -215,6 +215,7 @@ export default function ServiceList() {
                 durationMinutes: resolveServiceDuration(s),
                 price: resolveServicePrice(s),
                 currency: s.currency || 'INR',
+                price_type: s.price_type,
                 features: s.features || [],
                 allowQuoteRequest: !!s.allow_quote_request,
                 requiresBooking: s.requires_booking,

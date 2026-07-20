@@ -31,7 +31,7 @@ interface MediaViewerProps {
   badges?: React.ReactNode
   /** e.g. wishlist — pinned to the top-right of the main stage */
   topRightOverlay?: React.ReactNode
-  /** `detail` — square hero (default). `square` — full-width square. `fit` — 4:3, fills frame. `fill` — stretches to parent height. */
+  /** `detail` — square hero (default). `square` — full-width square. `fit` — natural aspect, full image (no crop). `fill` — stretches to parent height. */
   layout?: MediaViewerLayout
   /** Vertical thumbnails on the left when multiple images exist. */
   thumbnailPosition?: MediaViewerThumbnailPosition
@@ -50,9 +50,10 @@ const STAGE_LAYOUT: Record<MediaViewerLayout, { stage: string; image: string; vi
     video: 'object-contain',
   },
   fit: {
-    stage: 'aspect-[4/3] w-full max-w-[640px] mx-auto lg:mx-0',
-    image: 'object-cover',
-    video: 'object-cover',
+    // Height follows the image so banners/flyers stay fully visible with no crop.
+    stage: 'w-full max-w-[720px] mx-auto lg:mx-0',
+    image: 'object-contain',
+    video: 'object-contain',
   },
   fill: {
     stage: 'h-full min-h-[240px] w-full',
@@ -255,6 +256,7 @@ export default function MediaViewer({
   const firstImage = items.find(i => (i.media_type || 'image') === 'image')
   const stage = STAGE_LAYOUT[layout]
   const fillHeight = layout === 'fill'
+  const naturalFit = layout === 'fit'
   const modelMinHeight = layout === 'detail' ? 320 : 300
   const useLeftThumbs = items.length > 1 && thumbnailPosition === 'left'
 
@@ -371,11 +373,11 @@ export default function MediaViewer({
       <div className={cn('min-w-0', useLeftThumbs ? 'flex-1' : 'w-full', fillHeight && 'flex min-h-0 flex-1 flex-col')}>
       <div className={cn('bg-gray-50 rounded-xl overflow-hidden border relative group/stage', stage.stage, fillHeight && 'min-h-0 flex-1')}>
         {!selected || (mt === 'image' && mainImageFailed) ? (
-          <div className="absolute inset-0">
+          <div className={cn(naturalFit ? 'relative aspect-[4/3] w-full' : 'absolute inset-0')}>
             <ProductImagePlaceholder size="lg" />
           </div>
         ) : mt === 'video' ? (
-          <div className="absolute inset-0">
+          <div className={cn(naturalFit ? 'relative aspect-video w-full' : 'absolute inset-0')}>
             <VideoPlayer url={selected.url} alt={selected.alt_text} videoClassName={stage.video} />
             <button
               type="button"
@@ -387,7 +389,7 @@ export default function MediaViewer({
             </button>
           </div>
         ) : mt === 'model3d' ? (
-          <div className="absolute inset-0">
+          <div className={cn(naturalFit ? 'relative aspect-square w-full' : 'absolute inset-0')}>
             <Model3DViewer
               url={selected.url}
               alt={productName}
@@ -406,7 +408,7 @@ export default function MediaViewer({
         ) : (
           <div
             className={cn(
-              'absolute inset-0',
+              naturalFit ? 'relative w-full' : 'absolute inset-0',
               can360 && (isDragging360 ? 'cursor-grabbing' : 'cursor-grab'),
             )}
             onPointerDown={handleImagePointerDown}
@@ -418,6 +420,7 @@ export default function MediaViewer({
               src={selected.url}
               alt={selected.alt_text || productName}
               imgClassName={stage.image}
+              sizing={naturalFit ? 'intrinsic' : 'fill'}
               disabled={isDragging360}
               onClick={can360 ? undefined : openLightbox}
               onError={() => setMainImageFailed(true)}

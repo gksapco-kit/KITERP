@@ -291,7 +291,7 @@ export default function CompanyFiscalRow({
                                 {st.label}
                               </span>
                               <div className="flex items-center gap-1.5">
-                                {p.status === 'open' && async (
+                                {p.status === 'open' && (
                                   <>
                                     <button
                                       type="button"
@@ -313,7 +313,7 @@ export default function CompanyFiscalRow({
                                     </button>
                                   </>
                                 )}
-                                {(p.status === 'locked' || p.status === 'closed') && async (
+                                {(p.status === 'locked' || p.status === 'closed') && (
                                   <button
                                     type="button"
                                     disabled={busy}

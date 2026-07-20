@@ -7,6 +7,8 @@ import { LineItem } from "./LineItem";
 type Props = {
   cart: Cart;
   selectedShippingLabel?: string;
+  /** When false, hide the Shipping row (service-only checkouts). Default true. */
+  showShipping?: boolean;
   collapsibleOnMobile?: boolean;
   showItems?: boolean;
   showCouponInput?: boolean;
@@ -17,6 +19,7 @@ type Props = {
 export function OrderSummary({
   cart,
   selectedShippingLabel,
+  showShipping = true,
   collapsibleOnMobile = false,
   showItems = true,
   showCouponInput,
@@ -110,16 +113,18 @@ export function OrderSummary({
               tone="success"
             />
           )}
-          <Row
-            label={selectedShippingLabel ? `Shipping (${selectedShippingLabel})` : "Shipping"}
-            value={
-              cart.shipping
-                ? cart.shipping.amount === 0
-                  ? "Free"
-                  : formatMoney(cart.shipping, locale)
-                : "Calculated next"
-            }
-          />
+          {showShipping && (
+            <Row
+              label={selectedShippingLabel ? `Shipping (${selectedShippingLabel})` : "Shipping"}
+              value={
+                cart.shipping
+                  ? cart.shipping.amount === 0
+                    ? "Free"
+                    : formatMoney(cart.shipping, locale)
+                  : "Calculated next"
+              }
+            />
+          )}
           {showTaxBreakdown &&
             cart.taxes.map((t, i) => <Row key={i} label={t.label} value={formatMoney(t.amount, locale)} />)}
         </dl>

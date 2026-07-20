@@ -4109,20 +4109,34 @@ async def _fetch_live_resource_items(
         from app.services.service_media import resolve_service_thumbnail_url
         q = (
             select(Service)
-            .where(Service.vendor_id == vendor.id)
+            .where(
+                Service.vendor_id == vendor.id,
+                Service.status == "active",
+                Service.is_visible.is_(True),
+            )
             .order_by(Service.created_at.desc())
             .limit(limit)
         )
         rows = (await db.execute(q)).scalars().all()
         for s in rows:
+            price_val = float(s.price) if s.price is not None else None
+            if s.price_type == "free":
+                price_formatted = "Free"
+            elif s.price_type == "not_applicable":
+                price_formatted = None
+                price_val = None
+            elif price_val is not None and price_val > 0:
+                price_formatted = f"{s.currency or 'INR'} {price_val:,.0f}"
+            else:
+                price_formatted = None
             items.append(_norm_item(
                 id=str(s.id),
                 title=s.name or "",
                 subtitle=s.category,
                 description=s.short_description or s.description,
                 image_url=resolve_service_thumbnail_url(s),
-                price=float(s.price) if s.price is not None else None,
-                price_formatted=(f"{s.currency or 'INR'} {float(s.price):,.0f}" if s.price is not None else None),
+                price=price_val if price_val and price_val > 0 else None,
+                price_formatted=price_formatted,
                 url=f"/services/{s.slug}" if s.slug else None,
                 meta={
                     "duration_minutes": s.duration_minutes,

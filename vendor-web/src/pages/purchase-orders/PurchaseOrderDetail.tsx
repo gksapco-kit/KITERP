@@ -338,7 +338,7 @@ export default function PurchaseOrderDetail() {
               <Button className="gap-2" onClick={() => setShowReceive(true)}>
                 <PackageCheck className="w-4 h-4" /> Receive Items
               </Button>
-              {po.status === 'sent' && async (
+              {po.status === 'sent' && (
                 <Button variant="cancel" className="gap-2 text-red-600 hover:text-red-700" disabled={actionLoading}
                   onClick={async () => { if (await askConfirm('Cancel this purchase order?')) cancelMut.mutate(po.id) }}>
                   <XCircle className="w-4 h-4" />Cancel</Button>

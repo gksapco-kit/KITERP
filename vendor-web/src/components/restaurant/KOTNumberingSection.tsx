@@ -167,7 +167,7 @@ export function KOTNumberingSection({
             <Button size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
               {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save KOT settings'}
             </Button>
-            {mode === 'sequential' && async (
+            {mode === 'sequential' && (
               <Button
                 size="sm"
                 variant="outline"

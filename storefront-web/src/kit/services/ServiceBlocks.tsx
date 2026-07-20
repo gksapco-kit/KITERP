@@ -11,6 +11,7 @@ import {
 import { cn, imgUrl } from "@/lib/utils";
 import type { Service } from "../types";
 import { formatPrice } from "../mock";
+import { isPricedAmount, servicePriceFallbackLabel, isPriceNotApplicable } from "@/lib/servicePricing";
 
 export interface ServiceCardProps {
   service: Service;
@@ -63,13 +64,20 @@ export function ServiceCard({
   };
 
   const imageBlock = (
-    <div className={cn("relative w-full overflow-hidden bg-muted", row ? "h-full min-h-[11rem]" : "aspect-[4/3]")}>
+    <div
+      className={cn(
+        "relative w-full shrink-0 overflow-hidden bg-muted",
+        row ? "h-full min-h-[11rem]" : "aspect-[16/10]",
+      )}
+      style={row ? undefined : { aspectRatio: "16 / 10" }}
+    >
       {service.image ? (
         <img
           src={imgUrl(service.image)}
           alt={service.name}
           loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+          className="absolute inset-0 h-full w-full max-w-none object-cover object-center transition-transform duration-300 group-hover:scale-105"
+          style={{ objectFit: "cover" }}
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
@@ -80,8 +88,8 @@ export function ServiceCard({
   );
 
   return (
-    <Card className={cn("overflow-hidden group flex flex-col", row && "flex-row")}>
-      <div className={cn("relative", row ? "w-44 shrink-0" : "")}>
+    <Card className={cn("overflow-hidden group flex h-full flex-col", row && "flex-row")}>
+      <div className={cn("relative shrink-0", row ? "w-44" : "w-full")}>
         <Link to={serviceHref} className="block" onClick={handleNavClick}>
           {imageBlock}
         </Link>
@@ -114,7 +122,13 @@ export function ServiceCard({
           </ul>
         )}
         <div className="flex flex-wrap items-baseline gap-2">
-          <span className="font-semibold">{formatPrice(service.price, service.currency)}</span>
+          {!isPriceNotApplicable(service.price_type) && (
+            <span className="font-semibold">
+              {isPricedAmount(service.price)
+                ? formatPrice(service.price, service.currency)
+                : (servicePriceFallbackLabel(service.price, service.price_type, "Get Quote") ?? "")}
+            </span>
+          )}
         </div>
         {showBookCta && onBook && (
           <div className="mt-auto flex items-center gap-2 pt-2">
@@ -148,7 +162,7 @@ export function ServiceCardGrid({ services, columns = 3, onBook, onView, linkTo 
 }) {
   const colMap = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3", 4: "sm:grid-cols-2 lg:grid-cols-4" } as const;
   return (
-    <div className={cn("grid gap-4 grid-cols-1", colMap[columns])}>
+    <div className={cn("grid gap-4 grid-cols-1 items-stretch", colMap[columns])}>
       {services.map((s) => (
         <ServiceCard
           key={s.id}

@@ -12,9 +12,18 @@ export function validateCheckoutFields(params: {
   isGuest: boolean
   requirePhone?: boolean
   usingSavedAddress: boolean
+  /** When false (service booking/subscription), skip address field checks. */
+  requireShippingAddress?: boolean
 }): CheckoutFieldErrors {
   const errors: CheckoutFieldErrors = {}
-  const { customer, shippingAddress, isGuest, requirePhone, usingSavedAddress } = params
+  const {
+    customer,
+    shippingAddress,
+    isGuest,
+    requirePhone,
+    usingSavedAddress,
+    requireShippingAddress = true,
+  } = params
 
   if (isGuest) {
     const email = customer.email?.trim() ?? ''
@@ -24,6 +33,8 @@ export function validateCheckoutFields(params: {
     if (!customer.firstName?.trim()) errors.firstName = 'First name is required'
     if (!customer.lastName?.trim()) errors.lastName = 'Last name is required'
   }
+
+  if (!requireShippingAddress) return errors
 
   if (!usingSavedAddress) {
     const addr = shippingAddress

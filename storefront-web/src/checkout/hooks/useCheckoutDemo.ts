@@ -23,6 +23,8 @@ export type CheckoutState = {
   checkoutIntentKind?: CheckoutIntentKind;
   checkoutIntentSummary?: string | null;
   placeOrderLabel?: string;
+  /** False for service-only / booking / subscription checkouts (no delivery). */
+  requiresShipping?: boolean;
 };
 
 export type CheckoutActions = {

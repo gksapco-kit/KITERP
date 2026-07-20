@@ -126,6 +126,20 @@ export function useStoreBridgeCheckout() {
       ? 'Confirm booking & pay'
       : 'Place order'
 
+  /** No physical delivery only when every line is a service (booking/subscription alone or service-only cart). */
+  const requiresShipping = useMemo(() => {
+    const items = (cart?.items ?? []) as Record<string, unknown>[]
+    if (!items.length) {
+      // Empty cart but booking/subscription intent → no shipping until/unless a product is added
+      return !(checkoutIntentKind === 'booking' || checkoutIntentKind === 'subscription')
+    }
+    return items.some((item) => {
+      const itemType = (item.item_type as string | undefined)
+        || (item.service_id && !item.product_id ? 'service' : 'product')
+      return itemType !== 'service'
+    })
+  }, [checkoutIntentKind, cart?.items])
+
   useEffect(() => {
     if (notesPrefillDone || !pendingIntent) return
     setNotes((prev) => (prev.trim() ? prev : buildCheckoutNotesFromIntent(pendingIntent)))
@@ -256,11 +270,21 @@ export function useStoreBridgeCheckout() {
     [cart?.items],
   )
   const subtotalAmount = Math.round((serverPreview?.subtotal ?? localSubtotal) * 100)
-  const shippingAmount = Math.round((serverPreview?.shipping_amount ?? 0) * 100)
+  const shippingAmount = Math.round(
+    (requiresShipping ? (serverPreview?.shipping_amount ?? 0) : 0) * 100,
+  )
   const taxAmount = Math.round((serverPreview?.tax_amount ?? 0) * 100)
   const discountAmount = Math.round((serverPreview?.discount_amount ?? 0) * 100)
   const totalAmount = Math.round(
-    (serverPreview?.total ?? Math.max(0, localSubtotal + (serverPreview?.shipping_amount ?? 0) - (serverPreview?.discount_amount ?? 0))) * 100,
+    (serverPreview?.total != null && requiresShipping
+      ? serverPreview.total
+      : Math.max(
+          0,
+          localSubtotal
+            + (requiresShipping ? (serverPreview?.shipping_amount ?? 0) : 0)
+            + (serverPreview?.tax_amount ?? 0)
+            - (serverPreview?.discount_amount ?? 0),
+        )) * 100,
   )
 
   const checkoutCart: Cart = useMemo(() => ({
@@ -444,6 +468,7 @@ export function useStoreBridgeCheckout() {
         shippingAddress: resolvedAddress,
         isGuest,
         usingSavedAddress,
+        requireShippingAddress: requiresShipping,
       })
 
       if (Object.keys(validationErrors).length > 0) {
@@ -468,22 +493,33 @@ export function useStoreBridgeCheckout() {
         || customer?.phone
         || ''
       ).trim()
-      const shippingPayload = {
-        street_address: resolvedAddress?.line1 ?? '',
-        city: resolvedAddress?.city ?? '',
-        state: resolvedAddress?.region ?? '',
-        postal_code: resolvedAddress?.postalCode ?? '',
-        country: resolvedAddress?.country || 'India',
-        ...(checkoutPhone ? { phone: checkoutPhone } : {}),
-      }
+      const shippingPayload = requiresShipping
+        ? {
+            street_address: resolvedAddress?.line1 ?? '',
+            city: resolvedAddress?.city ?? '',
+            state: resolvedAddress?.region ?? '',
+            postal_code: resolvedAddress?.postalCode ?? '',
+            country: resolvedAddress?.country || 'India',
+            ...(checkoutPhone ? { phone: checkoutPhone } : {}),
+          }
+        : {
+            street_address: 'N/A',
+            city: 'N/A',
+            state: 'N/A',
+            postal_code: '000000',
+            country: 'India',
+            ...(checkoutPhone ? { phone: checkoutPhone } : {}),
+          }
 
       if (isGuest) {
         const email = customerInfo.email?.trim()
         const name = [customerInfo.firstName, customerInfo.lastName].filter(Boolean).join(' ').trim()
         if (!email) return { ok: false, error: 'Please enter your email address.' }
         if (!name) return { ok: false, error: 'Please enter your name.' }
-        if (!resolvedAddress?.line1) return { ok: false, error: 'Please enter a delivery address.' }
-      } else if (!resolvedAddress) {
+        if (requiresShipping && !resolvedAddress?.line1) {
+          return { ok: false, error: 'Please enter a delivery address.' }
+        }
+      } else if (requiresShipping && !resolvedAddress) {
         return { ok: false, error: 'Please select a delivery address.' }
       }
 
@@ -627,7 +663,7 @@ export function useStoreBridgeCheckout() {
     completeOnlinePayment, refreshPreview, isGuest, customerInfo,
     cartItemsPayload, cart?.items, setTokens, setCustomer, vendorSlug, qc,
     branchCode, isBranchClosed, branches, clearFieldErrors, selectedSavedAddressId, savedAddresses, isPlacingOrder,
-    setPaymentSelection, setNotesValue, setGiftMessageValue, customer?.phone,
+    setPaymentSelection, setNotesValue, setGiftMessageValue, customer?.phone, requiresShipping,
   ])
 
   return {
@@ -658,6 +694,7 @@ export function useStoreBridgeCheckout() {
       checkoutIntentKind,
       checkoutIntentSummary,
       placeOrderLabel,
+      requiresShipping,
     },
     actions,
   }

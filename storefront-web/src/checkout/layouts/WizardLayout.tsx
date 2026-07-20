@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, ChevronLeft } from "lucide-react";
 import { ContactStep } from "../components/ContactStep";
 import { AddressBook } from "../components/AddressBook";
@@ -10,24 +10,34 @@ import { CheckoutActions, CheckoutState } from "../hooks/useCheckoutDemo";
 import { useCheckoutConfig, formatMoney } from "../config";
 import { PlaceOrderBar } from "./TwoColumnLayout";
 
-const STEPS = ["Information", "Shipping", "Payment", "Review"] as const;
-type StepKey = (typeof STEPS)[number];
-
 export function WizardLayout({ state, actions }: { state: CheckoutState; actions: CheckoutActions }) {
-  const { showSavedAddresses, locale } = useCheckoutConfig();
-  const [step, setStep] = useState<StepKey>("Information");
+  const { showSavedAddresses, showShippingMethods, locale } = useCheckoutConfig();
+  const requiresShipping = state.requiresShipping !== false;
+  const showShippingStep = requiresShipping && showShippingMethods;
+
+  const steps = useMemo(() => {
+    const list: string[] = ["Information"];
+    if (showShippingStep) list.push("Shipping");
+    list.push("Payment", "Review");
+    return list;
+  }, [showShippingStep]);
+
+  const [step, setStep] = useState("Information");
   const [addingNew, setAddingNew] = useState(false);
-  const idx = STEPS.indexOf(step);
+  const idx = Math.max(0, steps.indexOf(step));
   const hasSaved = showSavedAddresses && (state.customer.savedAddresses?.length ?? 0) > 0;
   const selectedShippingLabel = state.shippingMethods.find((m) => m.id === state.shippingMethodId)?.label;
+
+  // If shipping step was removed while on it, jump to Payment
+  const activeStep = steps.includes(step) ? step : "Payment";
 
   return (
     <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-3 py-6 sm:px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:items-start lg:gap-8">
       <div className="min-w-0 space-y-4">
-        <ProgressIndicator current={idx} />
+        <ProgressIndicator steps={steps} current={steps.indexOf(activeStep)} />
 
         <div className="ck-surface ck-border ck-radius-md p-4 md:p-6">
-          {step === "Information" && (
+          {activeStep === "Information" && (
             <div className="space-y-5">
               <Header title="Contact information" onBack={null} />
               <ContactStep
@@ -35,27 +45,31 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
                 onChange={actions.setCustomer}
                 fieldErrors={state.fieldErrors}
               />
-              <h3 className="text-sm font-semibold">Shipping address</h3>
-              {hasSaved && !addingNew ? (
-                <AddressBook
-                  addresses={state.customer.savedAddresses!}
-                  selectedId={state.selectedSavedAddressId}
-                  onSelect={actions.selectSavedAddress}
-                  onAddNew={() => setAddingNew(true)}
-                />
-              ) : (
-                <AddressForm
-                  initial={state.shippingAddress}
-                  onSubmit={actions.setShippingAddress}
-                  onChange={actions.setShippingAddress}
-                  hideSubmit
-                  fieldErrors={state.fieldErrors}
-                />
+              {requiresShipping && (
+                <>
+                  <h3 className="text-sm font-semibold">Shipping address</h3>
+                  {hasSaved && !addingNew ? (
+                    <AddressBook
+                      addresses={state.customer.savedAddresses!}
+                      selectedId={state.selectedSavedAddressId}
+                      onSelect={actions.selectSavedAddress}
+                      onAddNew={() => setAddingNew(true)}
+                    />
+                  ) : (
+                    <AddressForm
+                      initial={state.shippingAddress}
+                      onSubmit={actions.setShippingAddress}
+                      onChange={actions.setShippingAddress}
+                      hideSubmit
+                      fieldErrors={state.fieldErrors}
+                    />
+                  )}
+                </>
               )}
             </div>
           )}
 
-          {step === "Shipping" && (
+          {activeStep === "Shipping" && showShippingStep && (
             <div className="space-y-5">
               <Header title="Shipping method" onBack={() => setStep("Information")} />
               <ShippingMethods
@@ -66,31 +80,38 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
             </div>
           )}
 
-          {step === "Payment" && (
+          {activeStep === "Payment" && (
             <div className="space-y-5">
-              <Header title="Payment" onBack={() => setStep("Shipping")} />
+              <Header
+                title="Payment"
+                onBack={() => setStep(showShippingStep ? "Shipping" : "Information")}
+              />
               <PaymentSection onChange={actions.setPayment} value={state.payment} total={state.cart.total} />
             </div>
           )}
 
-          {step === "Review" && (
+          {activeStep === "Review" && (
             <div className="space-y-5">
               <Header title="Review your order" onBack={() => setStep("Payment")} />
               <ReviewBlock label="Contact" value={state.customer.email ?? "—"} onEdit={() => setStep("Information")} />
-              <ReviewBlock
-                label="Ship to"
-                value={
-                  state.shippingAddress
-                    ? `${state.shippingAddress.fullName} · ${state.shippingAddress.line1}, ${state.shippingAddress.city}`
-                    : "—"
-                }
-                onEdit={() => setStep("Information")}
-              />
-              <ReviewBlock
-                label="Method"
-                value={state.shippingMethods.find((m) => m.id === state.shippingMethodId)?.label ?? "—"}
-                onEdit={() => setStep("Shipping")}
-              />
+              {requiresShipping && (
+                <ReviewBlock
+                  label="Ship to"
+                  value={
+                    state.shippingAddress
+                      ? `${state.shippingAddress.fullName} · ${state.shippingAddress.line1}, ${state.shippingAddress.city}`
+                      : "—"
+                  }
+                  onEdit={() => setStep("Information")}
+                />
+              )}
+              {showShippingStep && (
+                <ReviewBlock
+                  label="Method"
+                  value={state.shippingMethods.find((m) => m.id === state.shippingMethodId)?.label ?? "—"}
+                  onEdit={() => setStep("Shipping")}
+                />
+              )}
               <ReviewBlock
                 label="Payment"
                 value={
@@ -106,13 +127,13 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
           )}
         </div>
 
-        {step !== "Review" ? (
+        {activeStep !== "Review" ? (
           <button
             type="button"
             className="ck-btn-primary"
-            onClick={() => setStep(STEPS[Math.min(STEPS.length - 1, idx + 1)])}
+            onClick={() => setStep(steps[Math.min(steps.length - 1, idx + 1)])}
           >
-            Continue to {STEPS[idx + 1]} · {formatMoney(state.cart.total, locale)}
+            Continue to {steps[idx + 1]} · {formatMoney(state.cart.total, locale)}
           </button>
         ) : (
           <PlaceOrderBar state={state} actions={actions} />
@@ -122,7 +143,8 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
       <div className="min-w-0 lg:self-start lg:pl-1 lg:sticky lg:top-6">
         <OrderSummary
           cart={state.cart}
-          selectedShippingLabel={selectedShippingLabel}
+          selectedShippingLabel={requiresShipping ? selectedShippingLabel : undefined}
+          showShipping={requiresShipping}
           collapsibleOnMobile
           onApplyCoupon={actions.applyCoupon}
           onRemoveCoupon={actions.removeCoupon}
@@ -132,10 +154,10 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
   );
 }
 
-function ProgressIndicator({ current }: { current: number }) {
+function ProgressIndicator({ steps, current }: { steps: string[]; current: number }) {
   return (
     <ol className="ck-surface ck-border ck-radius-md flex items-center gap-2 p-3 text-sm">
-      {STEPS.map((s, i) => {
+      {steps.map((s, i) => {
         const done = i < current;
         const active = i === current;
         return (
@@ -159,7 +181,7 @@ function ProgressIndicator({ current }: { current: number }) {
             >
               {s}
             </span>
-            {i < STEPS.length - 1 && <span className="ck-border-t flex-1" />}
+            {i < steps.length - 1 && <span className="ck-border-t flex-1" />}
           </li>
         );
       })}

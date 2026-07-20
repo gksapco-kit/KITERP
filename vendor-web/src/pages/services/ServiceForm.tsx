@@ -1345,7 +1345,8 @@ export default function ServiceForm() {
     const typeLbl = SERVICE_TYPE_OPTIONS.find(t => t.value === service.service_type)?.label || service.service_type
     const modeLbl = SERVICE_MODE_OPTIONS.find(m => m.value === service.service_mode)?.label || service.service_mode
     const history: any[] = (service as any).change_history || []
-    const priceDisplay = service.price_type === 'free' ? 'Free' :
+    const priceDisplay = service.price_type === 'not_applicable' ? 'Not applicable' :
+      service.price_type === 'free' ? 'Free' :
       service.price ? `${sym}${service.price.toLocaleString()}` :
       (service.price_min && service.price_max) ? `${sym}${service.price_min}–${sym}${service.price_max}` : 'Quote'
 
@@ -1460,7 +1461,12 @@ export default function ServiceForm() {
             <CardContent className="p-5">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Star className="w-3.5 h-3.5" />Pricing</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <DisplayField label="Price Type" value={service.price_type} />
+                <DisplayField label="Price Type" value={
+                  service.price_type === 'not_applicable' ? 'Not applicable' :
+                  service.price_type === 'free' ? 'Free' :
+                  service.price_type === 'quote' ? 'Quote' :
+                  service.price_type
+                } />
                 <DisplayField label="Price" value={service.price ? `${sym}${service.price.toLocaleString()}` : undefined} />
                 <DisplayField label="Min Price" value={service.price_min ? `${sym}${service.price_min.toLocaleString()}` : undefined} />
                 <DisplayField label="Max Price" value={service.price_max ? `${sym}${service.price_max.toLocaleString()}` : undefined} />
@@ -1505,6 +1511,15 @@ export default function ServiceForm() {
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.allow_quote_request ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                   {service.allow_quote_request ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-gray-500" />
+                  <p className="text-sm text-gray-700 font-medium">Price not applicable</p>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.price_type === 'not_applicable' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {service.price_type === 'not_applicable' ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
             </div>
@@ -2207,6 +2222,23 @@ export default function ServiceForm() {
                 <Controller name="allow_quote_request" control={control} render={({ field }) => (
                   <Toggle checked={field.value} onChange={field.onChange} small />
                 )} />
+              </div>
+              <div className="flex items-center justify-between px-3 py-2 gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <Tag className="w-4 h-4 text-gray-500 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-800">Price not applicable</p>
+                    <p className="text-xs text-gray-400">Hide the PRICE section on the business front. Customers reach you via quotation instead of seeing &quot;Get a Quote&quot;.</p>
+                  </div>
+                </div>
+                <Toggle
+                  checked={watchedPriceType === 'not_applicable'}
+                  onChange={(on) => {
+                    setValue('price_type', on ? 'not_applicable' : 'fixed', { shouldDirty: true })
+                    if (on) setValue('allow_quote_request', true, { shouldDirty: true })
+                  }}
+                  small
+                />
               </div>
             </div>
 
