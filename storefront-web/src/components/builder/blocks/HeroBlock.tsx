@@ -15,7 +15,12 @@ import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderContentGroup } from '@/components/builder/BuilderContentGroup'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
 import { hasMediaClip } from '@/lib/mediaClip'
-import { readSectionImageFit, readSectionImageLayer } from '@/lib/sectionImageStyle'
+import {
+  readSectionImageFit,
+  readSectionImageFocal,
+  readSectionImageLayer,
+  sectionImageObjectStyle,
+} from '@/lib/sectionImageStyle'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { previewBelowMd } from '@/lib/previewBreakpoint'
 import { useEffect, useMemo, useState } from 'react'
@@ -162,6 +167,9 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
   const bgImageFit = readSectionImageFit('bg_image_url', props)
   const bgImageFitClass =
     bgImageFit === 'fill' ? 'object-fill' : bgImageFit === 'cover' ? 'object-cover' : 'object-contain'
+  const bgImageObjectStyle = sectionImageObjectStyle('bg_image_url', props)
+  const bgImageFocal = readSectionImageFocal('bg_image_url', props)
+  const bgImagePosition = `${bgImageFocal.x}% ${bgImageFocal.y}%`
 
   const hasSideImage = isSplit && !!sideImageUrl
   const hasBgImg = heroBackgroundUrls.length > 0
@@ -588,8 +596,10 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           : {
               background: heroBg,
               backgroundImage: isEditorCanvas && heroUsesImageBg ? undefined : heroBgImage,
-              backgroundSize: isEditorCanvas && heroUsesImageBg ? undefined : (bgImageFit === 'contain' ? 'contain' : bgImageFit === 'fill' ? '100% 100%' : 'cover'),
-              backgroundPosition: isEditorCanvas && heroUsesImageBg ? undefined : 'center',
+              backgroundSize: isEditorCanvas && heroUsesImageBg
+                ? undefined
+                : (bgImageFit === 'contain' ? 'contain' : bgImageFit === 'fill' ? '100% 100%' : 'cover'),
+              backgroundPosition: isEditorCanvas && heroUsesImageBg ? undefined : bgImagePosition,
               backgroundRepeat: isEditorCanvas && heroUsesImageBg ? undefined : 'no-repeat',
               color: heroText,
               ...(heroUsesImageBg && !splitSideBySide && !isSplit && bannerAspect
@@ -604,6 +614,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
             <HeroBannerCarousel
               urls={heroBackgroundUrls}
               imageClassName={cn('h-full w-full object-center', bgImageFitClass)}
+              imageStyle={bgImageObjectStyle}
               onIndexChange={setBannerSlideIndex}
               overlay={
                 bgStyle === 'gradient' ? (
@@ -628,7 +639,8 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
             <img
               src={heroPrimaryUrl}
               alt=""
-              className={cn('absolute inset-0 h-full w-full object-center', bgImageFitClass)}
+              className={cn('absolute inset-0 h-full w-full', bgImageFitClass)}
+              style={bgImageObjectStyle}
               loading="eager"
               decoding="async"
             />

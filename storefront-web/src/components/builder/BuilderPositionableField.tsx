@@ -29,16 +29,22 @@ import { BuilderFieldDragGuides } from '@/components/builder/BuilderFieldDragGui
 
 type ResizeAxis = 'width' | 'height' | 'both'
 
-function clampWidthPct(parentWidth: number, widthPx: number, maxWidthPx: number): number {
+function clampWidthPct(
+  parentWidth: number,
+  widthPx: number,
+  maxWidthPx: number,
+  minPct = FIELD_WIDTH_MIN_PCT,
+): number {
   if (parentWidth <= 0) return FIELD_WIDTH_MAX_PCT
   // The box may be wider than its column (pct > 100), but never past the section
   // edge — derive the ceiling from the available width measured at drag start.
+  const floorPct = Math.max(1, Math.min(FIELD_WIDTH_MIN_PCT, minPct))
   const ceilPct = Math.min(
     FIELD_WIDTH_MAX_PCT,
-    Math.max(FIELD_WIDTH_MIN_PCT, Math.round((maxWidthPx / parentWidth) * 100)),
+    Math.max(floorPct, Math.round((maxWidthPx / parentWidth) * 100)),
   )
   const pct = Math.round((widthPx / parentWidth) * 100)
-  return Math.max(FIELD_WIDTH_MIN_PCT, Math.min(ceilPct, pct))
+  return Math.max(floorPct, Math.min(ceilPct, pct))
 }
 
 /**
@@ -62,9 +68,11 @@ function maxResizeWidthPx(
 }
 
 /** Smallest box width (px) the user can drag to — lets long text wrap to multiple lines. */
-function minResizeWidthPx(parentWidth: number): number {
+function minResizeWidthPx(parentWidth: number, inline = false): number {
   if (parentWidth <= 0) return 48
-  return Math.max(48, Math.round((parentWidth * FIELD_WIDTH_MIN_PCT) / 100))
+  // Buttons start much narrower than text columns; allow shrinking closer to the label.
+  const pctFloor = inline ? 8 : FIELD_WIDTH_MIN_PCT
+  return Math.max(48, Math.round((parentWidth * pctFloor) / 100))
 }
 
 /** Drag handle + offset wrapper for canvas fields (text, buttons, etc.). */
@@ -198,18 +206,23 @@ export function BuilderPositionableField({
     const patch: Record<string, unknown> = {}
     if (start.axis === 'width' || start.axis === 'both') {
       const widthPx = widthPreviewPx ?? el.offsetWidth
-      // Snap back to auto (fit the column) only when the box is ~column width AND
-      // the content already fits inside the column on its own. Otherwise store an
-      // explicit width — which may be wider than the column (pct > 100), capped at
-      // the section edge by clampWidthPct.
+      // Buttons / inline chips: snap back to fit-content near the natural label width.
+      // Text boxes: snap to auto when near the parent column width and content fits.
+      const nearNaturalWidth = Math.abs(widthPx - start.naturalWidth) <= FIELD_RESIZE_SNAP_PX
       const atColumnWidth = Math.abs(widthPx - start.parentWidth) <= FIELD_RESIZE_SNAP_PX
       const contentFitsInColumn = start.naturalWidth <= start.parentWidth - FIELD_RESIZE_SNAP_PX
-      if (atColumnWidth && contentFitsInColumn) {
+      if (inline ? nearNaturalWidth : (atColumnWidth && contentFitsInColumn)) {
         patch.field_width_pct = null
       } else {
-        patch.field_width_pct = clampWidthPct(start.parentWidth, widthPx, start.maxWidth)
+        patch.field_width_pct = clampWidthPct(
+          start.parentWidth,
+          widthPx,
+          start.maxWidth,
+          inline ? 5 : FIELD_WIDTH_MIN_PCT,
+        )
       }
-      if (patch.field_width_pct != null && fieldStyle.text_wrap !== false) {
+      // Don't force wrapping on CTA buttons — labels stay on one line by default.
+      if (!inline && patch.field_width_pct != null && fieldStyle.text_wrap !== false) {
         patch.text_wrap = true
       }
     }
@@ -234,7 +247,7 @@ export function BuilderPositionableField({
     if (Object.keys(patch).length) {
       ctx.onTextFieldStylePatch(blockId, fieldKey, patch)
     }
-  }, [blockId, ctx, fieldKey, heightPreviewPx, widthPreviewPx])
+  }, [blockId, ctx, fieldKey, fieldStyle.text_wrap, heightPreviewPx, inline, widthPreviewPx])
 
   // Hold the latest finish callbacks in refs so the window listeners below can
   // stay attached for the whole gesture. Depending on the callbacks (or the
@@ -328,7 +341,7 @@ export function BuilderPositionableField({
   }
 
   const handleResizePointerDown = (axis: ResizeAxis) => (e: ReactPointerEvent) => {
-    if (!isActive || !blockId || inline) return
+    if (!isActive || !blockId) return
     const el = wrapperRef.current
     const parent = el?.parentElement
     if (!el || !parent) return
@@ -359,7 +372,7 @@ export function BuilderPositionableField({
     const dy = (e.clientY - start.startY) / canvasScale
     if (start.axis === 'width' || start.axis === 'both') {
       const maxW = start.maxWidth
-      const minW = minResizeWidthPx(start.parentWidth)
+      const minW = minResizeWidthPx(start.parentWidth, inline)
       setWidthPreviewPx(Math.max(minW, Math.min(maxW, start.startWidth + dx)))
     }
     if (start.axis === 'height' || start.axis === 'both') {
@@ -398,10 +411,15 @@ export function BuilderPositionableField({
 
   const hasCustomWidth = storedWidthPct != null || widthPreviewPx != null
   const isWidthConstrained = hasCustomWidth || widthPreviewPx != null
+  const isBoxConstrained =
+    isWidthConstrained
+    || storedMinHeight != null
+    || heightPreviewPx != null
 
   const layoutClassName = cn(
     inline ? 'inline-flex max-w-full' : hasCustomWidth ? 'relative min-w-0 max-w-full' : 'relative w-fit max-w-full min-w-0',
     isActive && 'group/field-pos z-[2]',
+    isBoxConstrained && '[&_[data-builder-cta-shell]]:!h-full [&_[data-builder-cta-shell]]:!min-h-0 [&_[data-builder-cta-shell]]:!w-full',
     className,
   )
   const layoutStyle = wrapperStyle ?? { position: 'relative' as const }
@@ -459,13 +477,13 @@ export function BuilderPositionableField({
           <Move className="h-3 w-3" strokeWidth={2.5} />
         </button>
       )}
-      {isActive && !inline && (
+      {isActive && (
         <>
           <button
             type="button"
             data-field-resize-handle="e"
             title="Drag to resize width"
-            aria-label="Resize text box width"
+            aria-label="Resize width"
             className={cn(resizeHandleClass, 'right-0 top-1/2 h-4 w-3 -translate-y-1/2 translate-x-1/2 cursor-ew-resize')}
             onPointerDown={handleResizePointerDown('width')}
             onPointerMove={handleResizePointerMove}
@@ -477,7 +495,7 @@ export function BuilderPositionableField({
             type="button"
             data-field-resize-handle="s"
             title="Drag to resize height"
-            aria-label="Resize text box height"
+            aria-label="Resize height"
             className={cn(resizeHandleClass, 'bottom-0 left-1/2 h-3 w-4 -translate-x-1/2 translate-y-1/2 cursor-ns-resize')}
             onPointerDown={handleResizePointerDown('height')}
             onPointerMove={handleResizePointerMove}
@@ -488,8 +506,8 @@ export function BuilderPositionableField({
           <button
             type="button"
             data-field-resize-handle="se"
-            title="Drag to resize width and height"
-            aria-label="Resize text box"
+            title="Drag to resize"
+            aria-label="Resize"
             className={cn(resizeHandleClass, 'bottom-0 right-0 h-3.5 w-3.5 translate-x-1/2 translate-y-1/2 cursor-nwse-resize')}
             onPointerDown={handleResizePointerDown('both')}
             onPointerMove={handleResizePointerMove}

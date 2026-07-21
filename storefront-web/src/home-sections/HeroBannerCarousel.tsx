@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
 
@@ -8,6 +8,8 @@ type Props = {
   urls: string[]
   className?: string
   imageClassName?: string
+  /** Fit / focal / zoom from section image controls. */
+  imageStyle?: CSSProperties
   intervalMs?: number
   onIndexChange?: (index: number) => void
   /** Dim / gradient layer painted above slides and below the arrow controls. */
@@ -18,6 +20,7 @@ export function HeroBannerCarousel({
   urls,
   className,
   imageClassName = 'h-full w-full object-contain object-center',
+  imageStyle,
   intervalMs = DEFAULT_INTERVAL_MS,
   onIndexChange,
   overlay,
@@ -56,7 +59,7 @@ export function HeroBannerCarousel({
   if (count === 1) {
     return (
       <div className={cn('absolute inset-0', className)}>
-        <img src={slides[0]} alt="" className={cn(imageClassName, 'pointer-events-none')} />
+        <img src={slides[0]} alt="" className={cn(imageClassName, 'pointer-events-none')} style={imageStyle} />
         {overlay ? (
           <div className="pointer-events-none absolute inset-0 z-[1]" aria-hidden>
             {overlay}
@@ -85,6 +88,7 @@ export function HeroBannerCarousel({
             'pointer-events-none absolute inset-0 h-full w-full transition-opacity duration-700 ease-in-out',
             i === index ? 'opacity-100' : 'opacity-0',
           )}
+          style={imageStyle}
         />
       ))}
 

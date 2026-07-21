@@ -71,7 +71,8 @@ export function readFieldOffset(value: unknown): number {
 
 export function readFieldWidthPct(value: unknown): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null
-  return Math.max(FIELD_WIDTH_MIN_PCT, Math.min(FIELD_WIDTH_MAX_PCT, Math.round(value)))
+  // Allow CTA buttons to store narrower widths than text boxes (floor 5%).
+  return Math.max(5, Math.min(FIELD_WIDTH_MAX_PCT, Math.round(value)))
 }
 
 export function readFieldMinHeight(value: unknown): number | null {
@@ -279,7 +280,13 @@ export function fieldLayoutWrapperStyle(
     boxSizing: 'border-box',
     ...(widthPct != null || boxMinHeight != null ? { minWidth: 0 } : {}),
     ...(inline
-      ? { display: 'inline-flex', maxWidth: '100%' }
+      ? {
+          display: 'inline-flex',
+          maxWidth: '100%',
+          ...(widthPct != null
+            ? { width: `${widthPct}%`, maxWidth: `${widthPct}%` }
+            : {}),
+        }
       : widthPct != null
         ? { width: `${widthPct}%`, maxWidth: `${widthPct}%` }
         : hasVertical
@@ -397,7 +404,9 @@ export function buildFieldStylesCss(
           'min-width: 0 !important',
           'box-sizing: border-box !important',
         )
-        if (fs.text_wrap !== false) {
+        if (isInlinePositionField(key)) {
+          layoutRules.push('display: inline-flex !important')
+        } else if (fs.text_wrap !== false) {
           textRules.push(
             'display: block !important',
             'max-width: 100% !important',
@@ -469,6 +478,12 @@ export function buildFieldStylesCss(
       }
       if (layoutRules.length) {
         css += `[${bidAttr}="${bid}"] [data-field-layout="${selectorKey}"] { ${layoutRules.join('; ')}; }\n`
+      }
+      if (
+        isInlinePositionField(key)
+        && (widthPct != null || boxMinHeight != null)
+      ) {
+        css += `[${bidAttr}="${bid}"] [data-field-layout="${selectorKey}"] [data-builder-cta-shell] { width: 100% !important; height: 100% !important; min-height: 0 !important; box-sizing: border-box !important; }\n`
       }
       return css
     })

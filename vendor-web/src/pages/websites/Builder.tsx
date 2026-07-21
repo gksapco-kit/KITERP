@@ -235,6 +235,10 @@ import {
   isGlobalStructureBlock,
 } from '@storefront/lib/designBarCapabilities'
 import {
+  readSectionImageFocal,
+  sectionImageStyleKeys,
+} from '@storefront/lib/sectionImageStyle'
+import {
   canvasImageArraySlots,
   canvasImageStyleField,
   slotKey,
@@ -6879,6 +6883,87 @@ function SectionSpacingField({
   )
 }
 
+const IMAGE_ALIGN_STEP = 5
+
+function SectionImageAlignControls({
+  focalX,
+  focalY,
+  onChange,
+}: {
+  focalX: number
+  focalY: number
+  onChange: (next: { x: number; y: number }, preview: boolean) => void
+}) {
+  const clamp = (n: number) => Math.min(100, Math.max(0, Math.round(n)))
+  const nudge = (dx: number, dy: number) => {
+    onChange({ x: clamp(focalX + dx), y: clamp(focalY + dy) }, false)
+  }
+  const cell =
+    'flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground'
+  const activeCenter = focalX === 50 && focalY === 50
+
+  return (
+    <div className="space-y-2 border-t border-border/50 pt-2">
+      <div className="text-xs font-medium text-muted-foreground">Image position</div>
+      <p className="text-[10px] leading-snug text-muted-foreground">
+        Move the photo left, right, up, or down to choose the best crop.
+      </p>
+      <div className="flex items-start gap-3">
+        <div className="grid grid-cols-3 gap-1" role="group" aria-label="Move image">
+          <span aria-hidden className="h-8 w-8" />
+          <button type="button" title="Move up" className={cell} onClick={() => nudge(0, -IMAGE_ALIGN_STEP)}>
+            <ChevronUp className="h-3.5 w-3.5" />
+          </button>
+          <span aria-hidden className="h-8 w-8" />
+          <button type="button" title="Move left" className={cell} onClick={() => nudge(-IMAGE_ALIGN_STEP, 0)}>
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Center image"
+            className={cn(cell, activeCenter && 'border-primary bg-primary/10 text-primary')}
+            onClick={() => onChange({ x: 50, y: 50 }, false)}
+          >
+            <Move className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" title="Move right" className={cell} onClick={() => nudge(IMAGE_ALIGN_STEP, 0)}>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+          <span aria-hidden className="h-8 w-8" />
+          <button type="button" title="Move down" className={cell} onClick={() => nudge(0, IMAGE_ALIGN_STEP)}>
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+          <span aria-hidden className="h-8 w-8" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-2">
+          <SectionSpacingField
+            label="Left / Right"
+            value={focalX}
+            min={0}
+            max={100}
+            step={1}
+            unit="%"
+            hint="0 = left edge · 100 = right edge"
+            onPreview={n => onChange({ x: clamp(n), y: focalY }, true)}
+            onCommit={n => onChange({ x: clamp(n), y: focalY }, false)}
+          />
+          <SectionSpacingField
+            label="Top / Bottom"
+            value={focalY}
+            min={0}
+            max={100}
+            step={1}
+            unit="%"
+            hint="0 = top edge · 100 = bottom edge"
+            onPreview={n => onChange({ x: focalX, y: clamp(n) }, true)}
+            onCommit={n => onChange({ x: focalX, y: clamp(n) }, false)}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SectionSpacingBreakpointTabs({
   active,
   onChange,
@@ -8035,9 +8120,26 @@ function PropsEditor({
   const hasExplicitHeaderBarSize = block.block_type === 'nav'
     && Number.isFinite(Number((p as any).header_bar_size ?? (p as any).header_bar_height))
 
+  const sectionImageFieldForSpacing =
+    isHeroBlock
+      ? (usesSideImage ? 'image_url' : usesBgImage ? 'bg_image_url' : null)
+      : p.bg_style === 'image'
+        ? 'bg_image_url'
+        : (p.image_url !== undefined ? 'image_url' : null)
+  const sectionImageFocal = sectionImageFieldForSpacing
+    ? readSectionImageFocal(sectionImageFieldForSpacing, blockProps)
+    : { x: 50, y: 50 }
+  const sectionImageStyleKeyMap = sectionImageFieldForSpacing
+    ? sectionImageStyleKeys(sectionImageFieldForSpacing)
+    : null
+  const sectionImageAligned =
+    sectionImageFieldForSpacing != null
+    && (sectionImageFocal.x !== 50 || sectionImageFocal.y !== 50)
+
   const sectionSpacingPreview = [
     previewDevice !== 'desktop' ? `${previewDevice}` : null,
     sectionScale !== 1 ? `${Math.round(sectionScale * 100)}% size` : null,
+    sectionImageAligned ? `pos ${sectionImageFocal.x}/${sectionImageFocal.y}` : null,
     hasExplicitHeaderBarSize && navHeaderBarSize != null ? `${navHeaderBarSize}px bar` : null,
     `${paddingTop}px top`,
     `${paddingBottom}px bottom`,
@@ -9704,6 +9806,20 @@ function PropsEditor({
                   pushSectionSpacing({ section_scale: n }, false)
                 }}
               />
+              {sectionImageFieldForSpacing && sectionImageStyleKeyMap ? (
+                <SectionImageAlignControls
+                  focalX={sectionImageFocal.x}
+                  focalY={sectionImageFocal.y}
+                  onChange={({ x, y }, preview) => {
+                    const patch = {
+                      [sectionImageStyleKeyMap.focalX]: x,
+                      [sectionImageStyleKeyMap.focalY]: y,
+                    } as Partial<BlockProps>
+                    if (preview) onPreview(patch)
+                    else onUpdate(patch)
+                  }}
+                />
+              ) : null}
               {block.block_type === 'nav' && navHeaderBarSize != null ? (
                 <div className="space-y-2 border-t border-border/50 pt-2">
                   <SectionSpacingField

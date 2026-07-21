@@ -5,7 +5,11 @@ import { cn } from '@/lib/utils'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isMultiSelectModifier } from '@/lib/builderMultiSelect'
 import { useStorePath } from '@/hooks/useStorePath'
-import { fieldCtaShellStyle } from '@/lib/fieldTextStyles'
+import {
+  fieldCtaShellStyle,
+  fieldHasConstrainedBoxWidth,
+  readFieldMinHeight,
+} from '@/lib/fieldTextStyles'
 import { BuilderPositionableField } from '@/components/builder/BuilderPositionableField'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 
@@ -39,6 +43,12 @@ export function BuilderCtaButton({
     && ctx?.activeBlockId === blockId
     && ((ctx?.activeTextFields ?? []).includes(fieldKey) || ctx?.activeTextField === fieldKey)
 
+  const fieldStyles = (blockProps?._field_styles as Record<string, Record<string, unknown>> | undefined) || {}
+  const fieldStyle = fieldStyles[fieldKey] || {}
+  const hasCustomWidth = fieldHasConstrainedBoxWidth(fieldStyle)
+  const hasCustomHeight = readFieldMinHeight(fieldStyle.field_min_height) != null
+  const fillsResizedBox = hasCustomWidth || hasCustomHeight
+
   const inner = (
     <>
       <BuilderTextField
@@ -59,6 +69,8 @@ export function BuilderCtaButton({
     'builder-site-btn',
     className,
     isEditor && 'cursor-pointer',
+    fillsResizedBox && 'h-full min-h-0 w-full',
+    hasCustomHeight && '!h-full',
   )
 
   const shellStyle = blockProps
