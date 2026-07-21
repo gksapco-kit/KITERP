@@ -17,6 +17,15 @@ interface Props {
   blockId?: string
 }
 
+function readMapCoord(raw: unknown): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+  if (typeof raw === 'string' && raw.trim()) {
+    const n = parseFloat(raw)
+    return Number.isFinite(n) ? n : null
+  }
+  return null
+}
+
 export default function MapEmbedBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
@@ -27,11 +36,27 @@ export default function MapEmbedBlock({ style, props, liveItems, blockId }: Prop
   })
   const profile = liveItems[0]
   const addressHidden = isBlockFieldHidden(props, 'address')
+  // Prefer the address typed on this map block; only fall back to business settings when unset.
+  const blockAddress = typeof props.address === 'string' ? props.address.trim() : ''
   const address = addressHidden
     ? null
-    : resolveBusinessContactAddress(props.address as string | undefined, profile, vendor)
-  const lat = (props.lat as number | null) || (profile?.meta?.latitude as number | null) || null
-  const lng = (props.lng as number | null) || (profile?.meta?.longitude as number | null) || null
+    : (blockAddress || resolveBusinessContactAddress(undefined, profile, vendor) || null)
+
+  const blockLat = readMapCoord(props.lat)
+  const blockLng = readMapCoord(props.lng)
+  const hasBlockPin = blockLat != null && blockLng != null
+  // Do not keep showing the business-unit pin (e.g. store HQ) when the user set a different
+  // address on this block — use Google Maps with that address until Find saves coordinates.
+  const lat = hasBlockPin
+    ? blockLat
+    : blockAddress
+      ? null
+      : readMapCoord(profile?.meta?.latitude)
+  const lng = hasBlockPin
+    ? blockLng
+    : blockAddress
+      ? null
+      : readMapCoord(profile?.meta?.longitude)
 
   const mapSrc = lat != null && lng != null
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`

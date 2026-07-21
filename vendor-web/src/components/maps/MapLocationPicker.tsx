@@ -161,7 +161,7 @@ export function MapLocationPicker({
   return (
     <div className="space-y-3">
       <p className="text-[11px] text-muted-foreground leading-snug">
-        Click the map to place a pin, search by address, or enter latitude and longitude. The storefront map uses coordinates when set.
+        Enter the address, then click Find (or click the map / enter lat &amp; lng) so the storefront pin matches that location.
       </p>
 
       <MapPinPicker
@@ -182,9 +182,23 @@ export function MapLocationPicker({
               onChange={e => {
                 const val = e.target.value
                 setLocalAddress(val)
-                onPreview?.({ address: val, lat: resolvedLat, lng: resolvedLng })
+                // Changing the address invalidates the previous pin until Find / map click / lat-lng.
+                if (val.trim() !== (address ?? '').trim()) {
+                  setLatInput('')
+                  setLngInput('')
+                  onPreview?.({ address: val, lat: null, lng: null })
+                } else {
+                  onPreview?.({ address: val, lat: resolvedLat, lng: resolvedLng })
+                }
               }}
-              onBlur={() => emit({ address: localAddress.trim(), lat: resolvedLat, lng: resolvedLng })}
+              onBlur={() => {
+                const trimmed = localAddress.trim()
+                if (trimmed !== (address ?? '').trim()) {
+                  emit({ address: trimmed, lat: null, lng: null })
+                } else {
+                  emit({ address: trimmed, lat: resolvedLat, lng: resolvedLng })
+                }
+              }}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void handleAddressSearch() } }}
               placeholder="Street address, landmark, or 19.0760, 72.8777"
               className="h-9 pl-8 text-xs"
