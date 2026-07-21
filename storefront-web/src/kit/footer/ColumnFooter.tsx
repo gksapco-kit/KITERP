@@ -15,7 +15,7 @@ import { builderSectionContainerClass } from "@/lib/builderSectionLayout";
 
 export interface FooterColumn {
   title: string;
-  links: { label: string; href: string; external?: boolean }[];
+  links: { label: string; href: string; external?: boolean; openInNewTab?: boolean }[];
 }
 
 export interface ColumnFooterProps {
@@ -144,24 +144,27 @@ export function ColumnFooter({
               <div key={col.title}>
                 <h3 className="text-sm font-semibold text-foreground">{col.title}</h3>
                 <ul className="mt-3 space-y-2">
-                  {col.links.map((l) => (
-                    <li key={l.href + l.label}>
-                      {l.external ? (
-                        <a
-                          href={l.href}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm text-muted-foreground hover:text-foreground"
-                        >
-                          {l.label}
-                        </a>
-                      ) : (
-                        <Link to={l.href} className="text-sm text-muted-foreground hover:text-foreground">
-                          {l.label}
-                        </Link>
-                      )}
-                    </li>
-                  ))}
+                  {col.links.map((l) => {
+                    const useAnchor = Boolean(l.external) || /^(https?:|mailto:|tel:)/i.test(l.href) || l.href.startsWith("//")
+                    const openNew = l.openInNewTab ?? Boolean(l.external)
+                    return (
+                      <li key={l.href + l.label}>
+                        {useAnchor ? (
+                          <a
+                            href={l.href}
+                            {...(openNew ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                            className="text-sm text-muted-foreground hover:text-foreground"
+                          >
+                            {l.label}
+                          </a>
+                        ) : (
+                          <Link to={l.href} className="text-sm text-muted-foreground hover:text-foreground">
+                            {l.label}
+                          </Link>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
               </div>
             ))}

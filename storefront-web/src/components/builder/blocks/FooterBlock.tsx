@@ -41,7 +41,10 @@ interface Props {
   blockId?: string
 }
 
-type RawColumn = { title?: string; links?: Array<{ label: string; href: string } | string> }
+type RawColumn = {
+  title?: string
+  links?: Array<{ label: string; href: string; openInNewTab?: boolean } | string>
+}
 
 const DEFAULT_POWERED_BY_TEXT = 'Powered By @ KITERP.com'
 const DEFAULT_POWERED_BY_URL = 'https://kiterp.com/'
@@ -56,11 +59,58 @@ function resolvePoweredByText(props: Record<string, unknown>): string | null {
 }
 
 function isExternalHref(href: string): boolean {
-  return href.startsWith('http://')
-    || href.startsWith('https://')
-    || href.startsWith('mailto:')
-    || href.startsWith('tel:')
+  return /^(https?:|mailto:|tel:)/i.test(href)
+    || href.startsWith('//')
     || href.startsWith('#')
+}
+
+function isHttpHref(href: string): boolean {
+  return /^https?:\/\//i.test(href) || href.startsWith('//')
+}
+
+/**
+ * Resolve a footer/nav href for storefront routing.
+ * http(s) links default to new-tab external navigation (including same-site HR URLs)
+ * so they are never prefixed with `/store/{slug}/`. Unchecking "Open in new tab"
+ * keeps same-origin URLs as in-app paths.
+ */
+function resolveFooterHref(
+  rawHref: string | undefined | null,
+  storePath: (p: string) => string,
+  openInNewTab?: boolean | null,
+): { href: string; external: boolean; openInNewTab: boolean } {
+  const raw = String(rawHref ?? '/').trim() || '/'
+
+  if (isHttpHref(raw)) {
+    const absolute = raw.startsWith('//') ? `https:${raw}` : raw
+    // Default: all http(s) links open in a new tab unless explicitly disabled.
+    const newTab = openInNewTab !== false
+    if (newTab) {
+      return { href: absolute, external: true, openInNewTab: true }
+    }
+    try {
+      if (typeof window !== 'undefined') {
+        const url = new URL(absolute, window.location.origin)
+        if (url.origin === window.location.origin) {
+          return { href: `${url.pathname}${url.search}${url.hash}`, external: false, openInNewTab: false }
+        }
+      }
+    } catch {
+      /* keep absolute */
+    }
+    // Cross-origin, same-tab preference: use <a> without target=_blank.
+    return { href: absolute, external: true, openInNewTab: false }
+  }
+
+  if (isExternalHref(raw)) {
+    return { href: raw, external: true, openInNewTab: openInNewTab === true }
+  }
+
+  const href = storePath(raw.startsWith('/') ? raw : `/${raw}`)
+  if (openInNewTab === true) {
+    return { href, external: true, openInNewTab: true }
+  }
+  return { href, external: false, openInNewTab: false }
 }
 
 function resolvePoweredByHref(
@@ -200,10 +250,12 @@ function normalizeFooterColumns(
             if (typeof x === 'string') {
               return { label: x, href: storePath('/'), external: previewShell || undefined }
             }
+            const resolved = resolveFooterHref(x.href, storePath, x.openInNewTab)
             return {
               label: x.label ?? '',
-              href: storePath(x.href ?? '/'),
-              external: previewShell || undefined,
+              href: resolved.href,
+              external: previewShell || resolved.external || undefined,
+              openInNewTab: resolved.openInNewTab || undefined,
             }
           })
         : [],
@@ -410,6 +462,13 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
         </a>
       )
     }
+    if (isExternalHref(href)) {
+      return (
+        <a href={href} className={className} target="_blank" rel="noopener noreferrer">
+          {children}
+        </a>
+      )
+    }
     return <Link to={href} className={className}>{children}</Link>
   }, [previewShell, previewFooterClick])
   const brandName = effectiveVendor?.display_name?.trim() || vendor?.display_name?.trim() || 'Store'
@@ -513,7 +572,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
           />
           <div className={cn('flex flex-wrap justify-center gap-x-4 gap-y-2 mb-4', isSimple && 'text-sm')}>
             {navLinks.map((link, i) => (
-              <FooterLink key={i} href={storePath(link.url)} className={cn('hover:opacity-80', isDark || isBrand ? 'text-white/70' : 'text-gray-500')}>
+              <FooterLink key={i} href={resolveFooterHref(link.url, storePath).href} className={cn('hover:opacity-80', isDark || isBrand ? 'text-white/70' : 'text-gray-500')}>
                 {link.label}
               </FooterLink>
             ))}
@@ -561,7 +620,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
           </p>
           <div className={cn('flex flex-wrap justify-center gap-x-4 gap-y-2 mb-4', isSimple && 'text-sm')}>
             {navLinks.map((link, i) => (
-              <FooterLink key={i} href={storePath(link.url)} className={cn('hover:opacity-80', isDark || isBrand ? 'text-white/70' : 'text-gray-500')}>
+              <FooterLink key={i} href={resolveFooterHref(link.url, storePath).href} className={cn('hover:opacity-80', isDark || isBrand ? 'text-white/70' : 'text-gray-500')}>
                 {link.label}
               </FooterLink>
             ))}
@@ -635,7 +694,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
                 <ul className="space-y-2">
                   {navLinks.map((link, i) => (
                     <li key={i}>
-                      <FooterLink href={storePath(link.url)} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">{link.label}</FooterLink>
+                      <FooterLink href={resolveFooterHref(link.url, storePath).href} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">{link.label}</FooterLink>
                     </li>
                   ))}
                 </ul>
@@ -690,7 +749,7 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
               <ul className="space-y-2">
                 {navLinks.map((link, i) => (
                   <li key={i}>
-                    <FooterLink href={storePath(link.url)} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">{link.label}</FooterLink>
+                    <FooterLink href={resolveFooterHref(link.url, storePath).href} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">{link.label}</FooterLink>
                   </li>
                 ))}
               </ul>

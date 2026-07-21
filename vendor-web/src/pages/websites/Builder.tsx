@@ -1581,6 +1581,8 @@ function LinkEditorPopup({
                     setPickerSearch('')
                     // Clear multi-select when switching away from a multi type
                     if (opt.id !== 'stores_multi') setMultiSelected([])
+                    // External website links default to opening in a new tab.
+                    if (opt.id === 'url') setOpenNew(true)
                   }}
                   className={cn(
                     'flex items-start gap-2 px-2.5 py-2 rounded-lg border text-left transition-all',
@@ -15548,7 +15550,10 @@ export default function WebsiteBuilder() {
         type: target ? 'url' : 'none',
         target,
         label: label || 'Link',
-        openInNewTab: /^https?:\/\//i.test(target),
+        // Prefer saved preference; default http(s) links to new tab.
+        openInNewTab: typeof linkObj.openInNewTab === 'boolean'
+          ? !!linkObj.openInNewTab
+          : /^https?:\/\//i.test(target),
       }
       setLinkEditor({
         anchor,
@@ -15570,6 +15575,7 @@ export default function WebsiteBuilder() {
           nextLinks[linkIdx] = {
             label: nextLabel,
             href: v.type === 'none' ? '' : v.target.trim(),
+            openInNewTab: v.openInNewTab,
           }
           nextCols[colIdx] = { ...colBase, links: nextLinks }
           handleUpdateBlockProps(blockId, { [arrayKey]: nextCols } as Partial<BlockProps>)
@@ -15592,7 +15598,9 @@ export default function WebsiteBuilder() {
         type: target ? 'url' : 'none',
         target,
         label,
-        openInNewTab: /^https?:\/\//i.test(target),
+        openInNewTab: typeof item.openInNewTab === 'boolean'
+          ? !!item.openInNewTab
+          : /^https?:\/\//i.test(target),
       }
       setLinkEditor({
         anchor,
@@ -15605,6 +15613,7 @@ export default function WebsiteBuilder() {
           const nextItem = {
             ...base,
             [urlField]: v.type === 'none' ? '' : v.target.trim(),
+            openInNewTab: v.openInNewTab,
             ...(v.label && urlField !== 'cta_url' ? { label: v.label } : {}),
             ...(v.label && urlField === 'cta_url' ? { cta: v.label } : {}),
           }
