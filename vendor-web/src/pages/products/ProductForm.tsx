@@ -4510,7 +4510,7 @@ export default function ProductForm() {
               </div>
 
               {/* Existing rules table */}
-              {async (() => {
+              {(() => {
                 const tabRules = (priceRules as ProductPriceRule[]).filter(r => r.rule_type === priceRuleTab)
                 const symbol = watch('currency') === 'USD' ? '$' : watch('currency') === 'EUR' ? '€' : watch('currency') === 'GBP' ? '£' : '₹'
                 return (
