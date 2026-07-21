@@ -420,7 +420,11 @@
     /* Block vertical pull-to-refresh; restrict touch to vertical pan only */
     overscroll-behavior-y: none;
     overflow-x: clip;
+    overflow-y: auto;
     touch-action: pan-y;
+    /* Reserve scrollbar space so opening a modal (overflow:hidden) does not
+       shift the sticky header / page content and leave a right-edge gap. */
+    scrollbar-gutter: stable;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
@@ -428,7 +432,7 @@
     overscroll-behavior-y: none;
     overflow-x: clip;
     touch-action: pan-y;
-    max-width: 100vw;
+    max-width: 100%;
   }
   /* Crisper vector icons at small sizes / non-100% zoom */
   svg {
@@ -2434,7 +2438,8 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
  * footer stays pinned and visible.
  */
 @layer components {
-  /* Lock document scroll whenever a centered or tagged modal overlay is open */
+  /* Lock document scroll whenever a centered or tagged modal overlay is open.
+   * Layout shift is prevented by `scrollbar-gutter: stable` on html (above). */
   html:has([data-kiterp-modal]),
   html:has(.fixed.inset-0.flex.items-center.justify-center),
   body:has([data-kiterp-modal]),
@@ -2462,18 +2467,38 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     flex-shrink: 0;
   }
 
-  /* Body (middle with footer, or last when no footer) */
+  /*
+   * Body scrollport (middle child, or sole/last when no footer).
+   * Prefer overflow on ModalBody itself; wrapping <form> stays a flex shell only
+   * so rounded input borders are not shaved by a second clip edge.
+   */
   .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
-    > div[class*='rounded-']:not([class*='inset-']) > *:not(:first-child):not(:last-child),
-  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
-    > div[class*='rounded-']:not([class*='inset-']) > *:last-child:nth-child(2),
-  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
-    > div[class*='rounded-']:not([class*='inset-']) > *:only-child {
+    > div[class*='rounded-']:not([class*='inset-']) > form {
     flex: 1 1 auto;
     min-height: 0;
-    overflow-x: hidden;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-']:not([class*='inset-']) > *:not(form):not(:first-child):not(:last-child),
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-']:not([class*='inset-']) > *:not(form):last-child:nth-child(2),
+  .fixed.inset-0.flex.items-center.justify-center:not([data-modal-fullscreen])
+    > div[class*='rounded-']:not([class*='inset-']) > *:not(form):only-child {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: clip;
     overflow-y: auto;
     overscroll-behavior: contain;
+  }
+
+  /* Keep rounded field borders from being shaved by the scrollport clip edge */
+  [data-kiterp-modal] input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  [data-kiterp-modal] textarea,
+  [data-kiterp-modal] select {
+    overflow: visible;
   }
 
   /* Footer (3rd+ child) stays pinned */

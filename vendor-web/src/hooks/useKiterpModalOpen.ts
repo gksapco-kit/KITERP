@@ -16,7 +16,12 @@ export function useKiterpModalOpen(): boolean {
     }
     sync()
     const observer = new MutationObserver(sync)
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state', 'class'] })
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-state', 'class'],
+    })
     return () => observer.disconnect()
   }, [])
 

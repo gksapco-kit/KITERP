@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import {
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  ModalPanel,
+} from '@/components/ui/Modal'
 import {
   useStores,
   usePlants,
@@ -13,7 +19,7 @@ import {
   useDeletePlant,
 } from '@/hooks/useVendor'
 import {
-  Loader2, Plus, Pencil, Trash2, X, Factory, Store,
+  Loader2, Plus, Pencil, Trash2, Factory, Store,
 } from 'lucide-react'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
@@ -59,8 +65,6 @@ export default function PlantsPage() {
     setDescription('')
     setSortOrder(0)
   }
-
-  useEscapeToClose(resetForm, showForm)
 
   const openCreate = () => {
     resetForm()
@@ -247,43 +251,43 @@ export default function PlantsPage() {
       </Card>
 
       {showForm && (
-        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
-          <div className="w-full max-w-md bg-card border border-border text-foreground rounded-xl shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
-              <h2 className="text-lg font-semibold">{editing ? 'Edit Plant' : 'New Plant'}</h2>
-              <button type="button" aria-label="Close" onClick={resetForm} className="p-1.5 rounded-lg hover:bg-gray-100">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <Label>Name *</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Main Plant, Assembly Unit, North Warehouse" required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+        <ModalOverlay onClose={resetForm} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+            <ModalHeader
+              title={editing ? 'Edit Plant' : 'New Plant'}
+              onClose={resetForm}
+            />
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label>Code</Label>
-                  <Input value={code} onChange={e => setCode(e.target.value)} placeholder="PLT-01" />
+                  <Label>Name *</Label>
+                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Main Plant, Assembly Unit, North Warehouse" required />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Code</Label>
+                    <Input value={code} onChange={e => setCode(e.target.value)} placeholder="PLT-01" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Sort order</Label>
+                    <Input type="number" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Sort order</Label>
-                  <Input type="number" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} />
+                  <Label>Description</Label>
+                  <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional notes" />
                 </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Description</Label>
-                <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional notes" />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
+              </ModalBody>
+              <ModalFooter>
                 <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
                 <Button type="submit" disabled={createPlant.isPending || updatePlant.isPending}>
                   {(createPlant.isPending || updatePlant.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   {editing ? 'Save Changes' : 'Create Plant'}
                 </Button>
-              </div>
+              </ModalFooter>
             </form>
-          </div>
-        </div>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

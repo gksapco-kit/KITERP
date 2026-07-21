@@ -1,12 +1,18 @@
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
+import {
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  ModalPanel,
+} from '@/components/ui/Modal'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import {
   BranchPlantSelect,
@@ -50,20 +56,22 @@ function CustomFieldsEditor({ fields, onChange }: { fields: CustomField[]; onCha
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">
-          Custom Fields <span className="text-gray-400 font-normal">(attributes for this location)</span>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs font-medium">
+          Custom Fields <span className="text-muted-foreground font-normal">(optional)</span>
         </Label>
         <Button type="button" variant="outline" size="sm" onClick={addField} className="gap-1 text-xs h-7">
           <Plus className="w-3 h-3" /> Add Field
         </Button>
       </div>
       {fields.length === 0 && (
-        <p className="text-xs text-gray-400">No custom fields. Add fields like Aisle, Shelf, Temperature zone, etc.</p>
+        <p className="text-[11px] text-muted-foreground leading-snug">
+          No custom fields yet. Add Aisle, Shelf, Temperature zone, etc.
+        </p>
       )}
       {fields.map((f, i) => (
-        <div key={i} className="flex items-start gap-2 p-3 rounded-lg border bg-gray-50">
+        <div key={i} className="flex items-start gap-2 rounded-lg border bg-muted/30 p-2">
           <div className="flex-1 grid grid-cols-3 gap-2">
             <Input placeholder="Field name" value={f.name} onChange={e => updateField(i, { name: e.target.value })} className="h-8 text-sm" />
             <Select
@@ -82,7 +90,7 @@ function CustomFieldsEditor({ fields, onChange }: { fields: CustomField[]; onCha
               />
             )}
           </div>
-          <label className="flex items-center gap-1 text-xs text-gray-500 pt-1.5 shrink-0">
+          <label className="flex items-center gap-1 text-xs text-muted-foreground pt-1.5 shrink-0">
             <input type="checkbox" checked={f.required || false} onChange={e => updateField(i, { required: e.target.checked })} className="rounded" />
             Req
           </label>
@@ -272,8 +280,6 @@ export default function StorageLocationsPage() {
     setSortOrder(0)
     setCustomFields([])
   }
-
-  useEscapeToClose(resetForm, showForm)
 
   const openCreate = (pId?: string) => {
     setEditing(null)
@@ -501,87 +507,88 @@ export default function StorageLocationsPage() {
       </Card>
 
       {showForm && (
-        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={resetForm}>
-          <div className="w-full max-w-lg bg-card border border-border text-foreground rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
-              <h2 className="text-lg font-semibold">{editing ? 'Edit Storage Location' : 'New Storage Location'}</h2>
-              <button type="button" aria-label="Close" onClick={resetForm} className="p-1.5 rounded-lg hover:bg-gray-100">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {!editing && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label>Business Unit *</Label>
-                    <BusinessUnitSelect
-                      value={formStoreId}
-                      onChange={(id) => {
-                        setFormStoreId(id)
-                        setFormScope({ kind: 'plant', id: '' })
+        <ModalOverlay onClose={resetForm} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-lg max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+            <ModalHeader
+              title={editing ? 'Edit Storage Location' : 'New Storage Location'}
+              onClose={resetForm}
+              className="border-0 px-4 py-2.5 [&>div>h2]:text-base"
+            />
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+              <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+                {!editing && (
+                  <>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Business Unit *</Label>
+                      <BusinessUnitSelect
+                        value={formStoreId}
+                        onChange={(id) => {
+                          setFormStoreId(id)
+                          setFormScope({ kind: 'plant', id: '' })
+                          setParentId(null)
+                        }}
+                        autoSelectDefault={false}
+                      />
+                    </div>
+                    <BranchPlantSelect
+                      businessUnitId={formStoreId || null}
+                      value={formScope}
+                      onChange={(next) => {
+                        setFormScope(next)
                         setParentId(null)
                       }}
-                      autoSelectDefault={false}
+                      allowAll={false}
                     />
+                    {formScope.kind === 'plant' && formStoreId && formPlants.length === 0 && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-1.5">
+                        No plants for this business unit yet. Create one under Inventory → Plants first.
+                      </p>
+                    )}
+                  </>
+                )}
+                <div className="space-y-1">
+                  <Label className="text-xs">Name *</Label>
+                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Main Warehouse, Aisle A, Shelf 3" required />
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Code</Label>
+                    <Input value={code} onChange={e => setCode(e.target.value)} placeholder="WH-01" />
                   </div>
-                  <BranchPlantSelect
-                    businessUnitId={formStoreId || null}
-                    value={formScope}
-                    onChange={(next) => {
-                      setFormScope(next)
-                      setParentId(null)
-                    }}
-                    allowAll={false}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Sort order</Label>
+                    <Input type="number" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Description</Label>
+                  <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional notes" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Parent location</Label>
+                  <Select
+                    value={parentId || ''}
+                    onChange={(v) => setParentId(v || null)}
+                    options={selectOptionsWithBlank('None (root location)', flatOptions.map(o => ({
+                      value: o.id,
+                      label: o.label,
+                    })))}
+                    placeholder="None (root location)"
+                    aria-label="Parent location"
                   />
-                  {formScope.kind === 'plant' && formStoreId && formPlants.length === 0 && (
-                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                      No plants for this business unit yet. Create one under Inventory → Plants first.
-                    </p>
-                  )}
-                </>
-              )}
-              <div className="space-y-1.5">
-                <Label>Name *</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Main Warehouse, Aisle A, Shelf 3" required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Code</Label>
-                  <Input value={code} onChange={e => setCode(e.target.value)} placeholder="WH-01" />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Sort order</Label>
-                  <Input type="number" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Description</Label>
-                <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional notes" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Parent location</Label>
-                <Select
-                  value={parentId || ''}
-                  onChange={(v) => setParentId(v || null)}
-                  options={selectOptionsWithBlank('None (root location)', flatOptions.map(o => ({
-                    value: o.id,
-                    label: o.label,
-                  })))}
-                  placeholder="None (root location)"
-                  aria-label="Parent location"
-                />
-              </div>
-              <CustomFieldsEditor fields={customFields} onChange={setCustomFields} />
-              <div className="flex justify-end gap-2 pt-2">
+                <CustomFieldsEditor fields={customFields} onChange={setCustomFields} />
+              </ModalBody>
+              <ModalFooter className="px-4 py-2.5">
                 <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
                 <Button type="submit" disabled={createLocation.isPending || updateLocation.isPending}>
                   {(createLocation.isPending || updateLocation.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   {editing ? 'Save Changes' : 'Create Location'}
                 </Button>
-              </div>
+              </ModalFooter>
             </form>
-          </div>
-        </div>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

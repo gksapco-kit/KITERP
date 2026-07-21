@@ -13,11 +13,11 @@ import {
 } from '@/lib/modalUi'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 
-/** Nested-modal-safe body scroll lock — only restores when the last overlay unmounts. */
+/** Nested-modal-safe body scroll lock — only restores when the last overlay unmounts.
+ * Header/content shift is prevented by `scrollbar-gutter: stable` on html in globals.css. */
 let modalScrollLockCount = 0
 let prevHtmlOverflow = ''
 let prevBodyOverflow = ''
-let prevBodyPaddingRight = ''
 
 function lockModalScroll() {
   if (typeof document === 'undefined') return
@@ -26,13 +26,8 @@ function lockModalScroll() {
   if (modalScrollLockCount === 0) {
     prevHtmlOverflow = html.style.overflow
     prevBodyOverflow = body.style.overflow
-    prevBodyPaddingRight = body.style.paddingRight
-    const scrollbarGap = window.innerWidth - html.clientWidth
     html.style.overflow = 'hidden'
     body.style.overflow = 'hidden'
-    if (scrollbarGap > 0) {
-      body.style.paddingRight = `${scrollbarGap}px`
-    }
   }
   modalScrollLockCount += 1
 }
@@ -45,7 +40,6 @@ function unlockModalScroll() {
   const body = document.body
   html.style.overflow = prevHtmlOverflow
   body.style.overflow = prevBodyOverflow
-  body.style.paddingRight = prevBodyPaddingRight
 }
 
 export function ModalEscHint({ className }: { className?: string }) {
@@ -151,7 +145,13 @@ export function ModalBody({
   className?: string
 }) {
   return (
-    <div className={cn('flex-1 min-h-0 overflow-y-auto overscroll-contain', className)}>
+    <div
+      className={cn(
+        // Padding keeps 1.5px rounded field borders from being clipped by overflow.
+        'flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4',
+        className,
+      )}
+    >
       {children}
     </div>
   )

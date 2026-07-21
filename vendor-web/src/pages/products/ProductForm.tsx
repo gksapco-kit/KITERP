@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useCategoryTree, useCreateCategory, useProductMerchandising, useSyncProductMerchandising, useBundles, usePriceRules, useCreatePriceRule, useUpdatePriceRule, useDeletePriceRule, useStores } from '@/hooks/useVendor'
+import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useCategoryTree, useCreateCategory, useProductMerchandising, useSyncProductMerchandising, useBundles, usePriceRules, useCreatePriceRule, useUpdatePriceRule, useDeletePriceRule, useStores, vendorKeys } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { mediaUrl, cn } from '@/lib/utils'
 import type { Product, ProductPriceRule, PriceRuleType } from '@/types'
@@ -788,20 +788,24 @@ function VariantMediaEdit({
   variantId: string
   variantName: string
   initialMedia: VariantMediaItem[]
-  onChanged: () => void
+  onChanged: (media: VariantMediaItem[]) => void
   layout?: 'inline' | 'stacked'
 }) {
   const [media, setMedia] = useState(initialMedia)
 
   useEffect(() => { setMedia(initialMedia) }, [initialMedia])
 
+  const commitMedia = (next: VariantMediaItem[]) => {
+    setMedia(next)
+    onChanged(next)
+  }
+
   const uploadFile = async (file: File) => {
     const mt = getMediaType(file)
     const label = mt === 'model3d' ? '3D model' : mt === 'video' ? 'Video' : 'Image'
     try {
       const result = await vendorApi.uploadVariantMedia(variantId, file)
-      setMedia(result.media)
-      onChanged()
+      commitMedia(result.media)
       toast.success(`${label} uploaded successfully`)
     } catch (err: unknown) {
       const detail = extractApiError(err, 'Unknown error')
@@ -812,8 +816,7 @@ function VariantMediaEdit({
   const handleDelete = async (url: string) => {
     try {
       const result = await vendorApi.deleteVariantMedia(variantId, url)
-      setMedia(result.media)
-      onChanged()
+      commitMedia(result.media)
       toast.success('Media removed')
     } catch (err: unknown) {
       toast.error(`Failed to delete media: ${extractApiError(err, 'Unknown error')}`)
@@ -823,8 +826,7 @@ function VariantMediaEdit({
   const handleSetPrimary = async (url: string) => {
     try {
       const result = await vendorApi.setPrimaryVariantMedia(variantId, url)
-      setMedia(result.media)
-      onChanged()
+      commitMedia(result.media)
       toast.success('Primary image updated')
     } catch (err: unknown) {
       toast.error(`Failed to set primary: ${extractApiError(err, 'Unknown error')}`)
@@ -834,8 +836,7 @@ function VariantMediaEdit({
   const handleReorder = async (urls: string[]) => {
     try {
       const result = await vendorApi.reorderVariantMedia(variantId, urls)
-      setMedia(result.media)
-      onChanged()
+      commitMedia(result.media)
     } catch {
       toast.error('Failed to reorder media')
     }
@@ -2271,6 +2272,9 @@ export default function ProductForm() {
     name: 'variants',
   })
   const createVariantSeeded = useRef(false)
+  /** Avoid re-resetting the form when product query refetches (e.g. variant media upload/delete). */
+  const hydratedProductIdRef = useRef<string | null>(null)
+  const wasViewModeRef = useRef(isViewMode)
 
   // Apply prefill barcode once form is ready (new product only)
   useEffect(() => {
@@ -2596,6 +2600,17 @@ export default function ProductForm() {
 
   useEffect(() => {
     if (!product) return
+    // Media upload/delete invalidates the product query. Re-running reset() remounts
+    // useFieldArray rows and collapses open variant panels — only hydrate once per
+    // product (or when switching from view → edit).
+    const enteringEditFromView = wasViewModeRef.current && !isViewMode
+    wasViewModeRef.current = isViewMode
+    if (isViewMode) return
+    const shouldHydrate =
+      hydratedProductIdRef.current !== product.id || enteringEditFromView
+    if (!shouldHydrate) return
+    hydratedProductIdRef.current = product.id
+
     reset({
       name: product.name, slug: toSlug(product.slug),
       material_code: product.material_code || '',
@@ -2723,18 +2738,12 @@ export default function ProductForm() {
     }
 
     setProductAddons(normalizeCatalogAddons((product as { addons?: unknown }).addons))
-  }, [product, reset])
-
-  // Initialise bundle items when editing a bundle product
-  useEffect(() => {
-    if (product?.product_type === 'bundle') {
-      setBundleItemIds((product as any).related_product_ids || [])
+    if (product.product_type === 'bundle') {
+      setBundleItemIds((product as { related_product_ids?: string[] }).related_product_ids || [])
     }
-    if (product) {
-      setCatalogStoreScope(product.store_scope === 'selected' ? 'selected' : 'all')
-      setCatalogStoreIds(product.store_ids || [])
-    }
-  }, [product])
+    setCatalogStoreScope(product.store_scope === 'selected' ? 'selected' : 'all')
+    setCatalogStoreIds(product.store_ids || [])
+  }, [product, reset, isViewMode])
 
   const pendingPreviewsRef = useRef<string[]>([])
   pendingPreviewsRef.current = pendingPreviews
@@ -3715,6 +3724,7 @@ export default function ProductForm() {
                   const isActive = watch(`variants.${index}.is_active`)
                   const isExpanded = expandedVariants[index] ?? false
                   const variantName = watch(`variants.${index}.name`)
+                  const variantDbId = watch(`variants.${index}.id`) as string | undefined
                   const variantColor = watch(`variants.${index}.color`) as string | undefined
                   const accentColor = resolveVariantAccentColor(variantColor, index)
                   const uiAccent = variantUiAccentColor(accentColor, index)
@@ -3729,7 +3739,7 @@ export default function ProductForm() {
                   const variantDisplayNum = index + 1
                   return (
                   <FormTintPanel
-                    key={vf.id}
+                    key={variantDbId || vf.id}
                     panelId={`variant-panel-${index}`}
                     accentColor={accentColor}
                     active={isActive}
@@ -4158,7 +4168,19 @@ export default function ProductForm() {
                             variantId={variantId}
                             variantName={displayName}
                             initialMedia={product?.variants?.find(v => v.id === variantId)?.media || []}
-                            onChanged={() => qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })}
+                            onChanged={(nextMedia) => {
+                              // Patch cache only — full invalidate remounts the form and collapses the variant panel.
+                              if (!id) return
+                              qc.setQueryData(vendorKeys.product(id), (old: Product | undefined) => {
+                                if (!old?.variants) return old
+                                return {
+                                  ...old,
+                                  variants: old.variants.map((v) =>
+                                    v.id === variantId ? { ...v, media: nextMedia } : v,
+                                  ),
+                                }
+                              })
+                            }}
                             layout="stacked"
                           />
                         )
