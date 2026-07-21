@@ -773,7 +773,9 @@ async def upload_variant_media(
         "alt_text": variant.name,
         "position": len(current_media),
     })
+    from sqlalchemy.orm.attributes import flag_modified
     variant.media = current_media
+    flag_modified(variant, "media")
     await db.commit()
 
     return JSONResponse(content={"media": current_media, "added": current_media[-1]})
@@ -808,7 +810,9 @@ async def delete_variant_media(
                 m["is_primary"] = True
                 break
 
+    from sqlalchemy.orm.attributes import flag_modified
     variant.media = current_media
+    flag_modified(variant, "media")
     await db.commit()
 
     await delete_stored_file(url)
@@ -839,7 +843,9 @@ async def set_primary_variant_media(
     current_media = list(variant.media or [])
     for m in current_media:
         m["is_primary"] = m.get("url") == url and m.get("media_type", "image") == "image"
+    from sqlalchemy.orm.attributes import flag_modified
     variant.media = current_media
+    flag_modified(variant, "media")
     await db.commit()
 
     return JSONResponse(content={"media": current_media})
@@ -887,7 +893,9 @@ async def reorder_variant_media(
             copy["position"] = len(reordered)
             reordered.append(copy)
 
+    from sqlalchemy.orm.attributes import flag_modified
     variant.media = reordered
+    flag_modified(variant, "media")
     await db.commit()
     return JSONResponse(content={"media": reordered})
 

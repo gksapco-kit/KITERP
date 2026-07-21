@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Check, Eye, EyeOff, Info, Link2, Loader2, Plus, Save, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowRight, Check, Copy, Eye, EyeOff, Info, Link2, Loader2, Pencil, Plus, Save, Sparkles, Trash2, X } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
-import type { ConfigAttribute, ConfigRule, RuleAction, RuleConditionGroup } from '@/api/vendor'
+import type { ConfigAttribute, ConfigRule, RuleAction, RuleCondition, RuleConditionGroup } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -15,6 +15,7 @@ import {
   configRulesToPreviewCompat,
   estimateEffectiveCombinations,
   countCombinationsRemovedByRule,
+  previewRuleTargetValues,
 } from '@/lib/variantComboEstimate'
 
 interface Props {
@@ -24,7 +25,7 @@ interface Props {
   onSkip: () => void
 }
 
-type SimpleRuleKind = 'show_choice' | 'hide_choice' | 'hide_value'
+type SimpleRuleKind = 'show_choice' | 'hide_choice' | 'hide_value' | 'show_value'
 
 interface DraftRule {
   id: string
@@ -32,7 +33,11 @@ interface DraftRule {
   whenAttr: string
   whenValue: string
   targetAttr: string
-  targetValue?: string
+  /** One or more option values for hide_value / show_value. */
+  targetValues: string[]
+  /** When set, saving updates this existing rule instead of creating. */
+  editingRuleId?: string
+  editingVersion?: number
 }
 
 interface QuickPreset {
@@ -44,7 +49,7 @@ interface QuickPreset {
   whenAttr: string
   whenValue: string
   targetAttr: string
-  targetValue?: string
+  targetValues?: string[]
 }
 
 const KIND_CARDS: {
@@ -55,9 +60,15 @@ const KIND_CARDS: {
 }[] = [
   {
     value: 'hide_value',
-    label: 'Hide one value',
-    plain: 'e.g. hide Red when Size is XL',
+    label: 'Hide values',
+    plain: 'e.g. hide Red & Blue when Size is XL',
     icon: EyeOff,
+  },
+  {
+    value: 'show_value',
+    label: 'Show values',
+    plain: 'e.g. show Matte & Gloss when Finish is Premium',
+    icon: Eye,
   },
   {
     value: 'hide_choice',
@@ -73,6 +84,9 @@ const KIND_CARDS: {
   },
 ]
 
+const needsTargetValue = (kind: SimpleRuleKind) => kind === 'hide_value' || kind === 'show_value'
+const isShowKind = (kind: SimpleRuleKind) => kind === 'show_choice' || kind === 'show_value'
+
 let _id = 0
 const newDraft = (seed?: Partial<DraftRule>): DraftRule => ({
   id: `d_${++_id}`,
@@ -80,6 +94,7 @@ const newDraft = (seed?: Partial<DraftRule>): DraftRule => ({
   whenAttr: '',
   whenValue: '',
   targetAttr: '',
+  targetValues: [],
   ...seed,
 })
 
@@ -103,7 +118,7 @@ function buildQuickPresets(attributes: ConfigAttribute[]): QuickPreset[] {
       whenAttr: a.name,
       whenValue: aOpt.name,
       targetAttr: b.name,
-      targetValue: bOpt.name,
+      targetValues: [bOpt.name],
     },
     {
       id: 'show-later',
@@ -149,28 +164,112 @@ function draftToApiRule(draft: DraftRule, attributes: ConfigAttribute[], priorit
       actions: [{ type: 'hide_field', target: draft.targetAttr }],
     }
   }
-  if (draft.kind === 'hide_value' && draft.targetValue) {
-    const targetOpt = target.options.find(o => o.name === draft.targetValue)
-    const targetLabel = targetOpt?.display_name ?? draft.targetValue
+  if (draft.kind === 'hide_value' && draft.targetValues.length > 0) {
+    const targetLabels = draft.targetValues.map(v =>
+      target.options.find(o => o.name === v)?.display_name ?? v,
+    )
     return {
-      name: `Hide ${targetLabel} when ${when.display_name} is ${whenLabel}`,
+      name: `Hide ${targetLabels.join(', ')} when ${when.display_name} is ${whenLabel}`,
       conditions,
-      actions: [{ type: 'disable_option', target: `${draft.targetAttr}:${draft.targetValue}` }],
+      actions: draft.targetValues.map(v => ({
+        type: 'disable_option' as const,
+        target: `${draft.targetAttr}:${v}`,
+      })),
     }
+  }
+  if (draft.kind === 'show_value' && draft.targetValues.length > 0) {
+    const targetLabels = draft.targetValues.map(v =>
+      target.options.find(o => o.name === v)?.display_name ?? v,
+    )
+    return {
+      name: `Show ${targetLabels.join(', ')} when ${when.display_name} is ${whenLabel}`,
+      conditions,
+      actions: draft.targetValues.map(v => ({
+        type: 'enable_option' as const,
+        target: `${draft.targetAttr}:${v}`,
+      })),
+    }
+  }
+  return null
+}
+
+function extractWhenEquals(node: RuleCondition | null | undefined): { attr: string; value: string } | null {
+  if (!node) return null
+  if ('op' in node && node.op) {
+    if (node.op === 'AND' || node.op === 'OR') {
+      for (const child of node.children ?? []) {
+        const found = extractWhenEquals(child)
+        if (found) return found
+      }
+    }
+    return null
+  }
+  if ('attribute' in node && node.attribute && node.operator === 'equals' && node.value != null) {
+    return { attr: node.attribute, value: String(node.value) }
   }
   return null
 }
 
 function ruleSummary(rule: ConfigRule, attributes: ConfigAttribute[]): string {
   const attrLabel = (name: string) => attributes.find(a => a.name === name)?.display_name ?? name
-  const action = rule.actions[0]
-  if (!action) return rule.name
-  const [attrPart, optPart] = (action.target ?? '').split(':')
-  if (action.type === 'show_field') return `Show "${attrLabel(attrPart)}" under certain conditions`
-  if (action.type === 'hide_field') return `Hide "${attrLabel(attrPart)}" under certain conditions`
-  if (action.type === 'disable_option') {
-    const opt = attributes.find(a => a.name === attrPart)?.options.find(o => o.name === optPart)
-    return `Hide value "${opt?.display_name ?? optPart}" under certain conditions`
+  const valueLabel = (attrName: string, valueName: string) =>
+    attributes.find(a => a.name === attrName)?.options.find(o => o.name === valueName)?.display_name
+    ?? valueName
+
+  const actions = rule.actions?.filter(a => a?.target) ?? []
+  if (actions.length === 0) return rule.name
+
+  const when = extractWhenEquals(rule.conditions)
+  const optionActions = actions.filter(
+    a => a.type === 'disable_option' || a.type === 'enable_option',
+  )
+  if (optionActions.length > 0 && when) {
+    const kind = optionActions[0].type
+    const same = optionActions.filter(a => a.type === kind)
+    const parsed = same
+      .map(a => {
+        const [attrPart, optPart] = a.target!.includes(':')
+          ? a.target!.split(':')
+          : [a.target!, undefined]
+        return optPart ? { attrPart, optPart } : null
+      })
+      .filter((x): x is { attrPart: string; optPart: string } => Boolean(x))
+    if (parsed.length > 0) {
+      const targetAttr = parsed[0].attrPart
+      const labels = parsed
+        .filter(p => p.attrPart === targetAttr)
+        .map(p => valueLabel(targetAttr, p.optPart))
+      const whenClause = `When ${attrLabel(when.attr)} is ${valueLabel(when.attr, when.value)}`
+      const verb = kind === 'disable_option' ? 'hide' : 'show'
+      return `${whenClause}, ${verb} ${labels.join(', ')} in ${attrLabel(targetAttr)}.`
+    }
+  }
+
+  const action = actions[0]
+  const [attrPart, optPart] = action.target!.includes(':')
+    ? action.target!.split(':')
+    : [action.target!, undefined]
+
+  if (when) {
+    const whenClause = `When ${attrLabel(when.attr)} is ${valueLabel(when.attr, when.value)}`
+    if (action.type === 'show_field') return `${whenClause}, show ${attrLabel(attrPart)}.`
+    if (action.type === 'hide_field') return `${whenClause}, hide ${attrLabel(attrPart)}.`
+    if (action.type === 'disable_option' && optPart) {
+      return `${whenClause}, hide ${valueLabel(attrPart, optPart)} in ${attrLabel(attrPart)}.`
+    }
+    if (action.type === 'enable_option' && optPart) {
+      return `${whenClause}, show ${valueLabel(attrPart, optPart)} in ${attrLabel(attrPart)}.`
+    }
+  }
+
+  // Fallback when conditions are too complex to summarize
+  if (action.type === 'show_field') return `Show ${attrLabel(attrPart)} under certain conditions`
+  if (action.type === 'hide_field') return `Hide ${attrLabel(attrPart)} under certain conditions`
+  if (action.type === 'disable_option' && optPart) {
+    return `Hide ${valueLabel(attrPart, optPart)} in ${attrLabel(attrPart)} under certain conditions`
+  }
+  if (action.type === 'enable_option' && optPart) {
+    return `Show ${valueLabel(attrPart, optPart)} in ${attrLabel(attrPart)} under certain conditions`
   }
   return rule.name
 }
@@ -179,13 +278,19 @@ function draftPlainSentence(draft: DraftRule, attributes: ConfigAttribute[]): st
   const when = attributes.find(a => a.name === draft.whenAttr)
   const target = attributes.find(a => a.name === draft.targetAttr)
   const whenVal = when?.options.find(o => o.name === draft.whenValue)?.display_name
-  const targetVal = target?.options.find(o => o.name === draft.targetValue)?.display_name
+  const targetLabels = draft.targetValues.map(v =>
+    target?.options.find(o => o.name === v)?.display_name ?? v,
+  )
 
   if (!when || !whenVal || !target) return 'Pick the choices below to finish this rule.'
 
   if (draft.kind === 'hide_value') {
-    if (!targetVal) return `When ${when.display_name} is ${whenVal}, hide a value in ${target.display_name}…`
-    return `When ${when.display_name} is ${whenVal}, hide ${targetVal}.`
+    if (targetLabels.length === 0) return `When ${when.display_name} is ${whenVal}, hide a value in ${target.display_name}…`
+    return `When ${when.display_name} is ${whenVal}, hide ${targetLabels.join(', ')}.`
+  }
+  if (draft.kind === 'show_value') {
+    if (targetLabels.length === 0) return `When ${when.display_name} is ${whenVal}, show a value in ${target.display_name}…`
+    return `When ${when.display_name} is ${whenVal}, show ${targetLabels.join(', ')}.`
   }
   if (draft.kind === 'hide_choice') {
     return `When ${when.display_name} is ${whenVal}, hide ${target.display_name}.`
@@ -195,8 +300,20 @@ function draftPlainSentence(draft: DraftRule, attributes: ConfigAttribute[]): st
 
 function isDraftComplete(d: DraftRule): boolean {
   if (!d.whenAttr || !d.whenValue || !d.targetAttr) return false
-  if (d.kind === 'hide_value' && !d.targetValue) return false
+  if (needsTargetValue(d.kind) && d.targetValues.length === 0) return false
   return true
+}
+
+function savedRuleToDraftSeed(rule: ConfigRule): Omit<DraftRule, 'id'> | null {
+  const [preview] = configRulesToPreviewCompat([rule])
+  if (!preview) return null
+  return {
+    kind: preview.kind,
+    whenAttr: preview.whenAttr,
+    whenValue: preview.whenValue,
+    targetAttr: preview.targetAttr,
+    targetValues: previewRuleTargetValues(preview),
+  }
 }
 
 export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip }: Props) {
@@ -230,6 +347,14 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
   const rules = rulesData?.items ?? []
   const attrsWithOptions = attributes.filter(a => a.options.length > 0)
   const quickPresets = useMemo(() => buildQuickPresets(attributes), [attributes])
+  const editingRuleIds = useMemo(
+    () => new Set(drafts.map(d => d.editingRuleId).filter((id): id is string => Boolean(id))),
+    [drafts],
+  )
+  const visibleSavedRules = useMemo(
+    () => rules.filter(r => !editingRuleIds.has(r.id)),
+    [rules, editingRuleIds],
+  )
 
   const exampleHint = useMemo(() => {
     const preferred =
@@ -244,11 +369,25 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
 
   const saveDraftsMutation = useMutation({
     mutationFn: async () => {
-      const existingNames = new Set(rules.map(r => r.name))
+      const existingNames = new Set(
+        rules.filter(r => !editingRuleIds.has(r.id)).map(r => r.name),
+      )
       let priority = rules.length
       for (const draft of drafts) {
         const payload = draftToApiRule(draft, attributes, priority)
-        if (!payload || existingNames.has(payload.name)) continue
+        if (!payload) continue
+        if (draft.editingRuleId) {
+          const existing = rules.find(r => r.id === draft.editingRuleId)
+          await vendorApi.productUpdateConfigRule(productId, draft.editingRuleId, {
+            ...payload,
+            execution_mode: existing?.execution_mode ?? 'always',
+            is_active: existing?.is_active ?? true,
+            version_number: draft.editingVersion ?? existing?.version_number,
+          })
+          existingNames.add(payload.name)
+          continue
+        }
+        if (existingNames.has(payload.name)) continue
         await vendorApi.productCreateConfigRule(productId, {
           ...payload,
           priority,
@@ -275,6 +414,16 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
       const priority = rules.length + drafts.findIndex(d => d.id === draftId)
       const payload = draftToApiRule(draft, attributes, Math.max(0, priority))
       if (!payload) throw new Error('incomplete')
+      if (draft.editingRuleId) {
+        const existing = rules.find(r => r.id === draft.editingRuleId)
+        await vendorApi.productUpdateConfigRule(productId, draft.editingRuleId, {
+          ...payload,
+          execution_mode: existing?.execution_mode ?? 'always',
+          is_active: existing?.is_active ?? true,
+          version_number: draft.editingVersion ?? existing?.version_number,
+        })
+        return draftId
+      }
       if (rules.some(r => r.name === payload.name)) throw new Error('duplicate')
       await vendorApi.productCreateConfigRule(productId, {
         ...payload,
@@ -302,14 +451,48 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
     onError: () => toast.error('Could not remove rule'),
   })
 
+  const startEditSavedRule = (rule: ConfigRule) => {
+    const seed = savedRuleToDraftSeed(rule)
+    if (!seed) {
+      toast.error('This rule is too complex to edit here — use the advanced editor')
+      return
+    }
+    setDrafts(prev => {
+      if (prev.some(d => d.editingRuleId === rule.id)) {
+        toast.info('That rule is already open for editing above')
+        return prev
+      }
+      toast.success('Editing above — save when ready')
+      return [...prev, newDraft({
+        ...seed,
+        editingRuleId: rule.id,
+        editingVersion: rule.version_number,
+      })]
+    })
+  }
+
+  const copySavedRule = (rule: ConfigRule) => {
+    const seed = savedRuleToDraftSeed(rule)
+    if (!seed) {
+      toast.error('This rule is too complex to copy here — use the advanced editor')
+      return
+    }
+    setDrafts(prev => {
+      toast.success('Copy added above — tweak and save as a new rule')
+      return [...prev, newDraft(seed)]
+    })
+  }
+
   const applyPreset = (preset: QuickPreset) => {
     setDrafts(prev => {
+      const presetValues = preset.targetValues ?? []
       const duplicate = prev.some(d =>
         d.kind === preset.kind
         && d.whenAttr === preset.whenAttr
         && d.whenValue === preset.whenValue
         && d.targetAttr === preset.targetAttr
-        && d.targetValue === preset.targetValue,
+        && d.targetValues.length === presetValues.length
+        && d.targetValues.every(v => presetValues.includes(v)),
       )
       if (duplicate) {
         toast.info('That example is already added — edit it below')
@@ -321,7 +504,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
         whenAttr: preset.whenAttr,
         whenValue: preset.whenValue,
         targetAttr: preset.targetAttr,
-        targetValue: preset.targetValue,
+        targetValues: presetValues,
       })]
     })
   }
@@ -333,7 +516,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
       whenAttr: a?.name ?? '',
       whenValue: a?.options[0]?.name ?? '',
       targetAttr: b?.name ?? '',
-      targetValue: b?.options[0]?.name,
+      targetValues: b?.options[0]?.name ? [b.options[0].name] : [],
     })])
   }
 
@@ -352,18 +535,24 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
       whenAttr: d.whenAttr,
       whenValue: d.whenValue,
       targetAttr: d.targetAttr,
-      targetValue: d.targetValue,
+      targetValues: d.targetValues,
+      targetValue: d.targetValues[0],
     })),
     [drafts, attributes],
   )
   const comboBreakdown = useMemo(() => {
-    const savedPreview = configRulesToPreviewCompat(rules)
+    const savedPreview = configRulesToPreviewCompat(
+      rules.filter(r => !editingRuleIds.has(r.id)),
+    )
     return estimateEffectiveCombinations(roots, [...savedPreview, ...previewRules])
-  }, [roots, rules, previewRules])
+  }, [roots, rules, previewRules, editingRuleIds])
   const comboEstimate = comboBreakdown.effective
   const overComboLimit = isOverComboLimit(comboEstimate)
 
-  const savedPreviewRules = useMemo(() => configRulesToPreviewCompat(rules), [rules])
+  const savedPreviewRules = useMemo(
+    () => configRulesToPreviewCompat(visibleSavedRules),
+    [visibleSavedRules],
+  )
   const ruleImpactById = useMemo(() => {
     const map = new Map<string, number>()
     for (const preview of savedPreviewRules) {
@@ -437,7 +626,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {quickPresets.map(p => {
-                  const Icon = p.kind === 'show_choice' ? Eye : EyeOff
+                  const Icon = isShowKind(p.kind) ? Eye : EyeOff
                   return (
                   <button
                     key={p.id}
@@ -452,7 +641,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
                       <Icon
                         className={cn(
                           'mt-0.5 h-4 w-4 shrink-0',
-                          p.kind === 'show_choice' ? 'text-emerald-600' : 'text-amber-600',
+                          isShowKind(p.kind) ? 'text-emerald-600' : 'text-amber-600',
                         )}
                         aria-hidden
                       />
@@ -509,7 +698,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
                         style={{ backgroundColor: highlight.border }}
                         title={`Rule ${index + 1} color`}
                       />
-                      Rule {index + 1}
+                      {draft.editingRuleId ? 'Editing saved rule' : `Rule ${index + 1}`}
                       <span className="text-xs font-normal text-muted-foreground">
                         · {complete ? 'ready to save' : 'almost ready'}
                       </span>
@@ -554,7 +743,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
 
                 <div>
                   <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">What should happen?</p>
-                  <div className="grid gap-1.5 sm:grid-cols-3">
+                  <div className="grid gap-1.5 sm:grid-cols-2">
                     {KIND_CARDS.map(k => {
                       const Icon = k.icon
                       const selected = draft.kind === k.value
@@ -562,7 +751,10 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
                         <button
                           key={k.value}
                           type="button"
-                          onClick={() => updateDraft(draft.id, { kind: k.value, targetValue: k.value === 'hide_value' ? draft.targetValue : undefined })}
+                          onClick={() => updateDraft(draft.id, {
+                            kind: k.value,
+                            targetValues: needsTargetValue(k.value) ? draft.targetValues : [],
+                          })}
                           className={cn(
                             'rounded-md border px-2 py-2 text-left transition-colors',
                             selected
@@ -601,24 +793,60 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
                     ]}
                   />
                   <span className="text-muted-foreground">
-                    {draft.kind === 'show_choice' ? 'show' : 'hide'}
+                    {isShowKind(draft.kind) ? 'show' : 'hide'}
                   </span>
-                  {draft.kind === 'hide_value' ? (
+                  {needsTargetValue(draft.kind) ? (
                     <>
-                      <Select
-                        className="h-8 min-w-[7rem] flex-1 text-sm sm:flex-none"
-                        value={draft.targetValue ?? ''}
-                        onChange={v => updateDraft(draft.id, { targetValue: v })}
-                        options={[
-                          { value: '', label: 'Pick value…' },
-                          ...(targetAttr?.options ?? []).map(o => ({ value: o.name, label: o.display_name })),
-                        ]}
-                      />
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 sm:flex-none">
+                        {draft.targetValues.map(v => {
+                          const label = targetAttr?.options.find(o => o.name === v)?.display_name ?? v
+                          return (
+                            <span
+                              key={v}
+                              className="inline-flex h-8 max-w-[10rem] items-center gap-0.5 rounded-md border border-border bg-background px-1.5 text-xs font-medium text-foreground"
+                            >
+                              <span className="truncate">{label}</span>
+                              <button
+                                type="button"
+                                className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                title={`Remove ${label}`}
+                                onClick={() => updateDraft(draft.id, {
+                                  targetValues: draft.targetValues.filter(x => x !== v),
+                                })}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          )
+                        })}
+                        {(() => {
+                          const remaining = (targetAttr?.options ?? [])
+                            .filter(o => !draft.targetValues.includes(o.name))
+                          if (remaining.length === 0 && draft.targetValues.length > 0) return null
+                          return (
+                            <Select
+                              className="h-8 min-w-[7rem] flex-1 text-sm sm:flex-none"
+                              value=""
+                              onChange={v => {
+                                if (!v || draft.targetValues.includes(v)) return
+                                updateDraft(draft.id, { targetValues: [...draft.targetValues, v] })
+                              }}
+                              options={[
+                                {
+                                  value: '',
+                                  label: draft.targetValues.length > 0 ? 'Add value…' : 'Pick value…',
+                                },
+                                ...remaining.map(o => ({ value: o.name, label: o.display_name })),
+                              ]}
+                            />
+                          )
+                        })()}
+                      </div>
                       <span className="text-muted-foreground">in</span>
                       <Select
                         className="h-8 min-w-[7rem] flex-1 text-sm sm:flex-none"
                         value={draft.targetAttr}
-                        onChange={v => updateDraft(draft.id, { targetAttr: v, targetValue: undefined })}
+                        onChange={v => updateDraft(draft.id, { targetAttr: v, targetValues: [] })}
                         options={attributes
                           .filter(a => a.name !== draft.whenAttr)
                           .map(a => ({ value: a.name, label: a.display_name }))}
@@ -628,7 +856,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
                     <Select
                       className="h-8 min-w-[7rem] flex-1 text-sm sm:flex-none"
                       value={draft.targetAttr}
-                      onChange={v => updateDraft(draft.id, { targetAttr: v, targetValue: undefined })}
+                      onChange={v => updateDraft(draft.id, { targetAttr: v, targetValues: [] })}
                       options={attributes
                         .filter(a => a.name !== draft.whenAttr)
                         .map(a => ({ value: a.name, label: a.display_name }))}
@@ -650,7 +878,9 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
                   onClick={() => {
                     const unused = quickPresets.find(p => !drafts.some(d =>
                       d.kind === p.kind && d.whenAttr === p.whenAttr && d.whenValue === p.whenValue
-                      && d.targetAttr === p.targetAttr && d.targetValue === p.targetValue,
+                      && d.targetAttr === p.targetAttr
+                      && d.targetValues.length === (p.targetValues?.length ?? 0)
+                      && d.targetValues.every(v => (p.targetValues ?? []).includes(v)),
                     ))
                     if (unused) applyPreset(unused)
                     else toast.info('All ready examples are already added')
@@ -665,14 +895,14 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
         </>
       )}
 
-      {rules.length > 0 && (
+      {visibleSavedRules.length > 0 && (
         <div className="space-y-2 rounded-lg border bg-card p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Already saved</p>
-          {rules.map(rule => {
+          {visibleSavedRules.map(rule => {
             const blocked = ruleImpactById.get(rule.id) ?? 0
             return (
               <div key={rule.id} className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-sm">
-                <span className="min-w-0 flex-1 truncate">{ruleSummary(rule, attributes)}</span>
+                <span className="min-w-0 flex-1 leading-snug">{ruleSummary(rule, attributes)}</span>
                 <span
                   className={cn(
                     'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium tabular-nums',
@@ -690,14 +920,32 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
                     ? `−${blocked.toLocaleString('en-IN')} variant${blocked === 1 ? '' : 's'}`
                     : '0 variants'}
                 </span>
-                <button
-                  type="button"
-                  className="shrink-0 rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500"
-                  onClick={() => deleteMutation.mutate(rule.id)}
-                  title="Remove rule"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <button
+                    type="button"
+                    className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                    onClick={() => startEditSavedRule(rule)}
+                    title="Edit rule"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                    onClick={() => copySavedRule(rule)}
+                    title="Copy rule"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500"
+                    onClick={() => deleteMutation.mutate(rule.id)}
+                    title="Remove rule"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             )
           })}

@@ -49,7 +49,8 @@ class POSTransaction(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
-    session_id = Column(UUID(as_uuid=True), ForeignKey("pos_session.id"), nullable=False, index=True)
+    # Nullable for credit/debit memos created outside a till session.
+    session_id = Column(UUID(as_uuid=True), ForeignKey("pos_session.id"), nullable=True, index=True)
     # Business unit (store) this sale is attributed to. Nullable for vendors with no store records.
     store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
     cashier_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)

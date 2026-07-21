@@ -1147,7 +1147,11 @@ async def ensure_crm_tables() -> None:
 
 
 async def ensure_pos_transaction_accounting_columns() -> None:
-    """Add document/posting dates and period labels on pos_transaction (ORM fields)."""
+    """Add document/posting dates and period labels on pos_transaction (ORM fields).
+
+    Also allows session_id to be NULL so credit/debit memos can be created
+    without an open till session.
+    """
     if "postgresql" not in settings.DATABASE_URL.lower():
         return
     stmts = [
@@ -1157,6 +1161,7 @@ async def ensure_pos_transaction_accounting_columns() -> None:
         "ALTER TABLE pos_transaction ADD COLUMN IF NOT EXISTS accounting_period VARCHAR(64)",
         "ALTER TABLE pos_transaction ADD COLUMN IF NOT EXISTS sales_person_vendor_user_id UUID REFERENCES vendor_user(id) ON DELETE SET NULL",
         "CREATE INDEX IF NOT EXISTS ix_pos_txn_sales_person ON pos_transaction(vendor_id, sales_person_vendor_user_id)",
+        "ALTER TABLE pos_transaction ALTER COLUMN session_id DROP NOT NULL",
     ]
     async with engine.begin() as conn:
         for s in stmts:
@@ -2691,3 +2696,14 @@ async def ensure_platform_career_application_table() -> None:
         for s in stmts:
             await conn.execute(text(s))
     logger.info("ensure_platform_career_application_table: ready")
+
+
+async def ensure_storage_location_plant_nullable() -> None:
+    """Allow storage locations under a branch without a plant."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(
+            text("ALTER TABLE storage_location ALTER COLUMN plant_id DROP NOT NULL")
+        )
+    logger.info("ensure_storage_location_plant_nullable: plant_id nullable")

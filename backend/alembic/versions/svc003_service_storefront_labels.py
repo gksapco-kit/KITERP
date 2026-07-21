@@ -6,9 +6,10 @@ Create Date: 2026-07-18
 
 Vendors can rename Subscription and Quote Requests options so custom
 labels appear on the storefront (same pattern as booking_label).
+
+Idempotent: columns may already exist from ensure_service_storefront_label_columns().
 """
 from alembic import op
-import sqlalchemy as sa
 
 revision = "svc003_service_storefront_labels"
 down_revision = "svc002_service_booking_label"
@@ -17,16 +18,16 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "service",
-        sa.Column("subscription_label", sa.String(100), server_default="Subscription", nullable=True),
+    op.execute(
+        "ALTER TABLE service ADD COLUMN IF NOT EXISTS "
+        "subscription_label VARCHAR(100) DEFAULT 'Subscription'"
     )
-    op.add_column(
-        "service",
-        sa.Column("quote_request_label", sa.String(100), server_default="Quote Requests", nullable=True),
+    op.execute(
+        "ALTER TABLE service ADD COLUMN IF NOT EXISTS "
+        "quote_request_label VARCHAR(100) DEFAULT 'Quote Requests'"
     )
 
 
 def downgrade() -> None:
-    op.drop_column("service", "quote_request_label")
-    op.drop_column("service", "subscription_label")
+    op.execute("ALTER TABLE service DROP COLUMN IF EXISTS quote_request_label")
+    op.execute("ALTER TABLE service DROP COLUMN IF EXISTS subscription_label")

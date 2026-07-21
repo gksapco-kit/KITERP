@@ -3,11 +3,13 @@ from uuid import UUID
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.api.deps import get_current_vendor_id
 from app.models.storage_location import StorageLocation
+from app.models.store import Store
 from app.schemas.storage_location import StorageLocationCreate, StorageLocationUpdate
 from app.repositories.storage_location_repo import StorageLocationRepository
 from app.repositories.plant_repo import PlantRepository
@@ -21,7 +23,7 @@ def _location_to_dict(loc: StorageLocation) -> dict:
         "id": str(loc.id),
         "vendor_id": str(loc.vendor_id),
         "store_id": str(loc.store_id),
-        "plant_id": str(loc.plant_id),
+        "plant_id": str(loc.plant_id) if loc.plant_id else None,
         "parent_id": str(loc.parent_id) if loc.parent_id else None,
         "name": loc.name,
         "code": loc.code,
@@ -104,11 +106,29 @@ async def create_storage_location(
     repo = StorageLocationRepository(db)
     plant_repo = PlantRepository(db)
     store_uuid = UUID(data.store_id)
-    plant_uuid = UUID(data.plant_id)
+    plant_uuid = UUID(data.plant_id) if data.plant_id else None
 
-    plant = await plant_repo.get_by_vendor_and_id(vendor_id, plant_uuid)
-    if not plant or plant.store_id != store_uuid:
-        raise HTTPException(status_code=400, detail="Plant not found in this business unit")
+    if plant_uuid is not None:
+        plant = await plant_repo.get_by_vendor_and_id(vendor_id, plant_uuid)
+        # Plant belongs to a business unit; location store_id may be that BU
+        # or a branch under it.
+        if not plant:
+            raise HTTPException(status_code=400, detail="Plant not found")
+        if plant.store_id != store_uuid:
+            branch = (
+                await db.execute(
+                    select(Store.id).where(
+                        Store.id == store_uuid,
+                        Store.vendor_id == vendor_id,
+                        Store.parent_id == plant.store_id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if not branch:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Plant not found in this business unit or branch",
+                )
 
     if data.code:
         existing = await repo.get_by_store_and_code(vendor_id, store_uuid, data.code.strip())
@@ -123,7 +143,7 @@ async def create_storage_location(
         if parent.store_id != store_uuid:
             raise HTTPException(status_code=400, detail="Parent must belong to the same business unit")
         if parent.plant_id != plant_uuid:
-            raise HTTPException(status_code=400, detail="Parent must belong to the same plant")
+            raise HTTPException(status_code=400, detail="Parent must belong to the same plant / branch scope")
         parent_uuid = parent.id
 
     loc = StorageLocation(
@@ -156,11 +176,26 @@ async def update_storage_location(
         raise HTTPException(status_code=404, detail="Storage location not found")
 
     if data.plant_id is not None:
-        plant_repo = PlantRepository(db)
-        plant = await plant_repo.get_by_vendor_and_id(vendor_id, UUID(data.plant_id))
-        if not plant or plant.store_id != loc.store_id:
-            raise HTTPException(status_code=400, detail="Plant not found in this business unit")
-        loc.plant_id = plant.id
+        if not data.plant_id:
+            loc.plant_id = None
+        else:
+            plant_repo = PlantRepository(db)
+            plant = await plant_repo.get_by_vendor_and_id(vendor_id, UUID(data.plant_id))
+            if not plant:
+                raise HTTPException(status_code=400, detail="Plant not found")
+            if plant.store_id != loc.store_id:
+                branch = (
+                    await db.execute(
+                        select(Store.id).where(
+                            Store.id == loc.store_id,
+                            Store.vendor_id == vendor_id,
+                            Store.parent_id == plant.store_id,
+                        )
+                    )
+                ).scalar_one_or_none()
+                if not branch:
+                    raise HTTPException(status_code=400, detail="Plant not found in this business unit")
+            loc.plant_id = plant.id
 
     if data.code is not None:
         code = data.code.strip() if data.code else None

@@ -15,7 +15,8 @@ class StorageLocation(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
     store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
-    plant_id = Column(UUID(as_uuid=True), ForeignKey("plant.id", ondelete="CASCADE"), nullable=False)
+    # Optional: location may hang under a plant OR a branch/store only.
+    plant_id = Column(UUID(as_uuid=True), ForeignKey("plant.id", ondelete="CASCADE"), nullable=True)
     parent_id = Column(UUID(as_uuid=True), ForeignKey("storage_location.id", ondelete="CASCADE"), nullable=True)
 
     name = Column(String(200), nullable=False)

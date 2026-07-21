@@ -216,10 +216,6 @@ export default function CreditDebitMemos() {
   const [voidingId, setVoidingId] = useState<string | null>(null)
   const [selectedTxn, setSelectedTxn] = useState<any | null>(null)
 
-  // POS session needed for transactions
-  const [session, setSession] = useState<Record<string, unknown> | null>(null)
-  const [sessionLoading, setSessionLoading] = useState(true)
-
   // Business unit (catalog store) the memo is posted to / scoped by.
   const { data: myMembership } = useMyMembership()
   const [memoStoreId, setMemoStoreId] = useState('')
@@ -232,14 +228,6 @@ export default function CreditDebitMemos() {
     const eff = myMembership?.effective_store_id ?? myMembership?.store_id ?? ''
     if (eff && !memoStoreId) setMemoStoreId(eff)
   }, [myMembership, memoStoreId])
-
-  useEffect(() => {
-    setSessionLoading(true)
-    vendorApi.posGetCurrentSession(effectiveMemoStoreId ? { store_id: effectiveMemoStoreId } : undefined).then((data) => {
-      setSession(data.session)
-      setSessionLoading(false)
-    }).catch(() => setSessionLoading(false))
-  }, [effectiveMemoStoreId])
 
   const { data: memosData, isLoading: memosLoading } = useQuery({
     queryKey: [
@@ -801,19 +789,10 @@ export default function CreditDebitMemos() {
         <Button
           onClick={() => { resetForm(); setView('create') }}
           className="gap-2"
-          disabled={sessionLoading || !session}
         >
           <Plus className="w-4 h-4" /> New Memo
         </Button>
       </div>
-
-      {!session && !sessionLoading && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-          <strong>Posting session required:</strong> Memos are saved as financial documents, but the server records them
-          in the same posting pipeline as the register, which is tied to an <strong>open till session</strong>. Open a
-          session on the POS page, then return here to create a memo — you do not use the POS sale screen for memos.
-        </div>
-      )}
 
       <Card>
         <CardContent className="p-0">
@@ -1797,10 +1776,9 @@ export default function CreditDebitMemos() {
         </div>
       )}
 
-      {paymentModal && (session || editingMemoId) && (
+      {paymentModal && (
         <MemoPaymentModal
           total={grandTotal}
-          sessionId={session?.id as string | undefined}
           storeId={effectiveMemoStoreId || undefined}
           editTxnId={editingMemoId}
           cart={cart}
@@ -1836,9 +1814,8 @@ export default function CreditDebitMemos() {
 // ── Payment Modal ────────────────────────────────────────────────
 
 function MemoPaymentModal({
- total, sessionId, storeId, editTxnId, cart, discountType, discountValue, memoMode, originalTxnId, selectedCustomer, notes, onClose, onComplete }: {
+ total, storeId, editTxnId, cart, discountType, discountValue, memoMode, originalTxnId, selectedCustomer, notes, onClose, onComplete }: {
   total: number
-  sessionId?: string
   storeId?: string
   editTxnId: string | null
   cart: MemoItem[]; discountType: string; discountValue: number
@@ -1868,10 +1845,6 @@ function MemoPaymentModal({
     }))
 
   const handleSubmit = async () => {
-    if (!isEdit && !sessionId) {
-      toast.error('No open register session')
-      return
-    }
     setLoading(true)
     const payments = method === 'adjustment'
       ? [{ method: 'adjustment', amount: total }]
@@ -1896,7 +1869,6 @@ function MemoPaymentModal({
         return
       }
       const result = await vendorApi.posCreateTransaction({
-        session_id: sessionId as string,
         store_id: storeId || undefined,
         transaction_type: memoMode,
         customer_id: selectedCustomer?.id || undefined,

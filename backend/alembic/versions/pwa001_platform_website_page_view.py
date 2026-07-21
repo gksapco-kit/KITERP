@@ -2,10 +2,10 @@
 
 Revision ID: pwa001
 Revises: web011
+
+Idempotent: table may already exist from ensure_* in database.py.
 """
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 
 revision = "pwa001"
@@ -15,22 +15,34 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "platform_website_page_view",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("visitor_id", sa.String(120), nullable=True),
-        sa.Column("event_type", sa.String(60), nullable=False, server_default="page_view"),
-        sa.Column("path", sa.String(500), nullable=False, server_default="/"),
-        sa.Column("payload", JSONB(), nullable=True, server_default="{}"),
-        sa.Column("occurred_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+    op.execute(
+        """
+        CREATE TABLE IF NOT EXISTS platform_website_page_view (
+            id UUID NOT NULL PRIMARY KEY,
+            visitor_id VARCHAR(120),
+            event_type VARCHAR(60) DEFAULT 'page_view' NOT NULL,
+            path VARCHAR(500) DEFAULT '/' NOT NULL,
+            payload JSONB DEFAULT '{}',
+            occurred_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+        )
+        """
     )
-    op.create_index("ix_platform_pv_occurred", "platform_website_page_view", ["occurred_at"])
-    op.create_index("ix_platform_pv_path_time", "platform_website_page_view", ["path", "occurred_at"])
-    op.create_index("ix_platform_pv_visitor", "platform_website_page_view", ["visitor_id"])
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_platform_pv_occurred "
+        "ON platform_website_page_view (occurred_at)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_platform_pv_path_time "
+        "ON platform_website_page_view (path, occurred_at)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_platform_pv_visitor "
+        "ON platform_website_page_view (visitor_id)"
+    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_platform_pv_visitor", table_name="platform_website_page_view")
-    op.drop_index("ix_platform_pv_path_time", table_name="platform_website_page_view")
-    op.drop_index("ix_platform_pv_occurred", table_name="platform_website_page_view")
-    op.drop_table("platform_website_page_view")
+    op.execute("DROP INDEX IF EXISTS ix_platform_pv_visitor")
+    op.execute("DROP INDEX IF EXISTS ix_platform_pv_path_time")
+    op.execute("DROP INDEX IF EXISTS ix_platform_pv_occurred")
+    op.execute("DROP TABLE IF EXISTS platform_website_page_view")

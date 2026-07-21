@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { toast } from 'sonner'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Card, CardContent } from '@/components/ui/card'
@@ -7,10 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
-import { BranchSelect } from '@/components/common/BranchSelect'
-import { PlantSelect } from '@/components/common/PlantSelect'
+import {
+  BranchPlantSelect,
+  type BranchPlantSelection,
+} from '@/components/common/BranchPlantSelect'
 import {
   useStores,
+  usePlants,
   useStorageLocationTree,
   useCreateStorageLocation,
   useUpdateStorageLocation,
@@ -217,9 +221,15 @@ export default function StorageLocationsPage() {
   const { data: storesData, isLoading: storesLoading } = useStores()
   const stores = storesData?.stores ?? []
   const [selectedStoreId, setSelectedStoreId] = useState('')
-  const [selectedBranchId, setSelectedBranchId] = useState('')
-  const effectiveStoreId = selectedBranchId || selectedStoreId
-  const [selectedPlantId, setSelectedPlantId] = useState('')
+  const [scope, setScope] = useState<BranchPlantSelection>({ kind: '' })
+  const selectedBranchId = scope.kind === 'branch' ? scope.id : ''
+  const selectedPlantId = scope.kind === 'plant' ? scope.id : ''
+
+  // Plants belong to the business unit; branch filter uses the branch store id.
+  const { data: plantsData } = usePlants(selectedStoreId || null)
+  const plants = plantsData?.plants ?? []
+  const selectedPlant = plants.find((p) => p.id === selectedPlantId)
+  const effectiveStoreId = selectedBranchId || selectedStoreId || selectedPlant?.store_id || ''
 
   const { data, isLoading } = useStorageLocationTree(
     effectiveStoreId || null,
@@ -235,6 +245,8 @@ export default function StorageLocationsPage() {
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<StorageLocation | null>(null)
+  const [formStoreId, setFormStoreId] = useState('')
+  const [formScope, setFormScope] = useState<BranchPlantSelection>({ kind: '' })
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [description, setDescription] = useState('')
@@ -243,9 +255,16 @@ export default function StorageLocationsPage() {
   const [customFields, setCustomFields] = useState<CustomField[]>([])
   const [search, setSearch] = useState('')
 
+  const { data: formPlantsData } = usePlants(formStoreId || null)
+  const formPlants = formPlantsData?.plants ?? []
+  const formPlantId = formScope.kind === 'plant' ? formScope.id : ''
+  const formPlant = formPlants.find((p) => p.id === formPlantId)
+
   const resetForm = () => {
     setShowForm(false)
     setEditing(null)
+    setFormStoreId('')
+    setFormScope({ kind: '' })
     setName('')
     setCode('')
     setDescription('')
@@ -257,13 +276,33 @@ export default function StorageLocationsPage() {
   useEscapeToClose(resetForm, showForm)
 
   const openCreate = (pId?: string) => {
-    resetForm()
-    if (pId) setParentId(pId)
+    setEditing(null)
+    setName('')
+    setCode('')
+    setDescription('')
+    setSortOrder(0)
+    setCustomFields([])
+    setFormStoreId(selectedStoreId)
+    // Mirror filter bar Branch / Plant choice into the create form.
+    setFormScope(
+      scope.kind
+        ? { kind: scope.kind, id: scope.id }
+        : { kind: 'plant', id: '' },
+    )
+    setParentId(pId || null)
     setShowForm(true)
   }
 
   const openEdit = (loc: StorageLocation) => {
     setEditing(loc)
+    // Prefer plant scope when present; otherwise treat store_id as branch/BU scope.
+    if (loc.plant_id) {
+      setFormStoreId(selectedStoreId || loc.store_id)
+      setFormScope({ kind: 'plant', id: loc.plant_id })
+    } else {
+      setFormStoreId(selectedStoreId || '')
+      setFormScope({ kind: 'branch', id: loc.store_id })
+    }
     setName(loc.name)
     setCode(loc.code || '')
     setDescription(loc.description || '')
@@ -275,7 +314,10 @@ export default function StorageLocationsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !effectiveStoreId || !selectedPlantId) return
+    if (!name.trim()) {
+      toast.error('Name is required')
+      return
+    }
 
     const payload: Record<string, unknown> = {
       name: name.trim(),
@@ -288,9 +330,36 @@ export default function StorageLocationsPage() {
 
     if (editing) {
       updateLocation.mutate({ id: editing.id, data: payload }, { onSuccess: resetForm })
-    } else {
-      createLocation.mutate({ ...payload, store_id: effectiveStoreId, plant_id: selectedPlantId }, { onSuccess: resetForm })
+      return
     }
+
+    if (!formScope.kind || !formScope.id) {
+      toast.error('Choose Branch or Plant, then select a value')
+      return
+    }
+    if (!formStoreId) {
+      toast.error('Select a business unit first')
+      return
+    }
+
+    if (formScope.kind === 'plant') {
+      const createStoreId = formPlant?.store_id || formStoreId
+      if (formPlant && formPlant.store_id !== formStoreId && formPlant.store_id !== createStoreId) {
+        toast.error('Selected plant does not belong to this business unit')
+        return
+      }
+      createLocation.mutate(
+        { ...payload, store_id: createStoreId, plant_id: formScope.id },
+        { onSuccess: resetForm },
+      )
+      return
+    }
+
+    // Branch: location belongs to the branch store; no plant required.
+    createLocation.mutate(
+      { ...payload, store_id: formScope.id, plant_id: null },
+      { onSuccess: resetForm },
+    )
   }
 
   const flatOptions = useMemo(
@@ -316,13 +385,13 @@ export default function StorageLocationsPage() {
   }, [data?.locations, search])
 
   const selectedStore = stores.find(s => s.id === selectedStoreId)
-  const canCreate = Boolean(effectiveStoreId && selectedPlantId)
-  const filterHint = effectiveStoreId && selectedPlantId
-    ? `Locations below belong to ${selectedStore?.name ?? 'this unit'}`
-    : effectiveStoreId
-      ? `All plants in ${selectedStore?.name ?? 'this unit'}`
-      : selectedPlantId
-        ? 'Filtered by plant across all business units'
+  const canCreate = stores.length > 0
+  const filterHint = selectedPlantId
+    ? `Locations for plant ${selectedPlant?.name ?? 'selected'}${selectedStore ? ` · ${selectedStore.name}` : ''}`
+    : selectedBranchId
+      ? `Filtered by branch${selectedStore ? ` under ${selectedStore.name}` : ''}`
+      : effectiveStoreId
+        ? `All branches / plants in ${selectedStore?.name ?? 'this unit'}`
         : 'All business units and plants'
 
   return (
@@ -344,7 +413,7 @@ export default function StorageLocationsPage() {
 
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap items-start gap-4">
             <div className="min-w-[220px] space-y-1.5">
               <Label className="text-xs text-muted-foreground">Business Unit</Label>
               {storesLoading ? (
@@ -354,33 +423,19 @@ export default function StorageLocationsPage() {
               ) : (
                 <BusinessUnitSelect
                   value={selectedStoreId}
-                  onChange={(v) => { setSelectedStoreId(v); setSelectedBranchId(''); setSelectedPlantId('') }}
+                  onChange={(v) => { setSelectedStoreId(v); setScope({ kind: '' }) }}
                   allowAll
                   autoSelectDefault={false}
                 />
               )}
             </div>
             {stores.length > 0 && (
-              <div className="min-w-[220px] space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Branch</Label>
-                <BranchSelect
-                  businessUnitId={selectedStoreId || null}
-                  value={selectedBranchId}
-                  onChange={(v) => { setSelectedBranchId(v); setSelectedPlantId('') }}
-                  allowAll
-                />
-              </div>
-            )}
-            {stores.length > 0 && (
-              <div className="min-w-[220px] space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Plant</Label>
-                <PlantSelect
-                  value={selectedPlantId}
-                  onChange={setSelectedPlantId}
-                  storeId={effectiveStoreId || null}
-                  allowAll
-                />
-              </div>
+              <BranchPlantSelect
+                businessUnitId={selectedStoreId || null}
+                value={scope}
+                onChange={setScope}
+                allowAll
+              />
             )}
             {stores.length > 0 && (
               <p className="text-xs text-gray-400 pb-2">{filterHint}</p>
@@ -455,6 +510,36 @@ export default function StorageLocationsPage() {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {!editing && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>Business Unit *</Label>
+                    <BusinessUnitSelect
+                      value={formStoreId}
+                      onChange={(id) => {
+                        setFormStoreId(id)
+                        setFormScope({ kind: 'plant', id: '' })
+                        setParentId(null)
+                      }}
+                      autoSelectDefault={false}
+                    />
+                  </div>
+                  <BranchPlantSelect
+                    businessUnitId={formStoreId || null}
+                    value={formScope}
+                    onChange={(next) => {
+                      setFormScope(next)
+                      setParentId(null)
+                    }}
+                    allowAll={false}
+                  />
+                  {formScope.kind === 'plant' && formStoreId && formPlants.length === 0 && (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                      No plants for this business unit yet. Create one under Inventory → Plants first.
+                    </p>
+                  )}
+                </>
+              )}
               <div className="space-y-1.5">
                 <Label>Name *</Label>
                 <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Main Warehouse, Aisle A, Shelf 3" required />

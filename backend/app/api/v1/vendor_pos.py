@@ -143,7 +143,8 @@ def _session_dict(s) -> dict:
 
 def _txn_dict(t, *, order_number: str = None, invoice_number: str = None, invoice_id: str = None) -> dict:
     d = {
-        "id": str(t.id), "vendor_id": str(t.vendor_id), "session_id": str(t.session_id),
+        "id": str(t.id), "vendor_id": str(t.vendor_id),
+        "session_id": str(t.session_id) if t.session_id else None,
         "store_id": str(t.store_id) if getattr(t, "store_id", None) else None,
         "cashier_id": str(t.cashier_id),
         "customer_id": str(t.customer_id) if t.customer_id else None,
@@ -272,7 +273,9 @@ async def create_transaction(
         items = [i.model_dump() for i in data.items]
         payments = [p.model_dump() for p in data.payment_methods]
         result = await svc.create_transaction(
-            vendor_id=vid, session_id=UUID(data.session_id), cashier_id=user.id,
+            vendor_id=vid,
+            session_id=UUID(data.session_id) if data.session_id else None,
+            cashier_id=user.id,
             store_id=store_id,
             items=items, payment_methods=payments,
             customer_id=UUID(data.customer_id) if data.customer_id else None,

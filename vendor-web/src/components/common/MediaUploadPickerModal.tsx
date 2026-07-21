@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   Check,
   FolderOpen,
@@ -8,11 +8,15 @@ import {
   Search,
   Upload,
 } from 'lucide-react'
-import { ModalHeader, ModalOverlay, ModalPanel, ModalBody, ModalFooter } from '@/components/ui/Modal'
+import { toast } from 'sonner'
+import { AxiosError } from 'axios'
+import { ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
+import { extractApiError } from '@/lib/errorMessages'
 import { apiClient } from '@/api/client'
 import {
   BUSINESS_IMAGE_CATEGORIES,
@@ -295,6 +299,7 @@ export function MediaUploadPickerModal({
   const [urlInput, setUrlInput] = useState('')
   const [applying, setApplying] = useState(false)
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(() => new Set())
+  const urlInputRef = useRef<HTMLInputElement>(null)
   const [stockTabGroup, setStockTabGroup] = useState<string>(
     () => categoryById(defaultBrowseCategoryId(resolvedDefaultCategoryId))?.group ?? IMAGE_CATEGORY_GROUPS[0],
   )
@@ -305,6 +310,13 @@ export function MediaUploadPickerModal({
     setCategoryId(browseId)
     setStockTabGroup(categoryById(browseId)?.group ?? IMAGE_CATEGORY_GROUPS[0])
   }, [open, resolvedDefaultCategoryId])
+
+  // Nested under a Sheet/Dialog: Radix focus trap needs an explicit focus into the URL field.
+  useEffect(() => {
+    if (!open || step !== 'url') return
+    const id = window.setTimeout(() => urlInputRef.current?.focus(), 0)
+    return () => window.clearTimeout(id)
+  }, [open, step])
 
   const handleStockTabChange = (group: string) => {
     setStockTabGroup(group)
@@ -475,21 +487,44 @@ export function MediaUploadPickerModal({
     setApplying(true)
     try {
       await onChooseExternalUrl(trimmed)
+      resetAndClose()
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message && !err.message.startsWith('Request failed')
+          ? err.message
+          : extractApiError(err, 'Image URL').replace(/^Image URL:\s*/i, '')
+      toast.error(message || 'Could not load image from that URL')
     } finally {
       setApplying(false)
-      resetAndClose()
     }
   }
 
   if (!open) return null
 
+  const heading = step === 'menu' ? title : step === 'gallery' ? 'Image gallery' : 'Image URL'
+
   return (
-    <ModalOverlay onClose={resetAndClose}>
-      <ModalPanel className={cn('max-w-lg', step === 'gallery' && 'max-h-[min(90dvh,calc(100vh-2rem))]')}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) resetAndClose() }}>
+      <DialogContent
+        hideCloseButton
+        className={cn(
+          'max-w-lg gap-0 overflow-hidden p-0 sm:rounded-xl',
+          step === 'gallery' && 'max-h-[min(90dvh,calc(100vh-2rem))]',
+        )}
+        onOpenAutoFocus={(e) => {
+          if (step === 'url') {
+            // Keep default focus so the URL field (autoFocus) can receive typing inside Sheets.
+            return
+          }
+          // Avoid stealing focus from the file input trigger when opening the menu.
+          e.preventDefault()
+        }}
+      >
+        <DialogTitle className="sr-only">{heading}</DialogTitle>
         <div className={cn('flex min-h-0 flex-col', step === 'gallery' ? 'max-h-[inherit]' : '')}>
           <div className="shrink-0 space-y-4 p-4 sm:p-5 pb-0">
             <ModalHeader
-              title={step === 'menu' ? title : step === 'gallery' ? 'Image gallery' : 'Image URL'}
+              title={heading}
               subtitle={
                 step === 'menu' ? (
                   <p className="mt-0.5 text-sm text-muted-foreground">
@@ -776,17 +811,27 @@ export function MediaUploadPickerModal({
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Image URL</label>
                 <Input
+                  ref={urlInputRef}
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void handleUrlPick()
+                    }
+                  }}
+                  placeholder="Paste a direct image link…"
                   className="text-sm"
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Must be a direct link to an image file (JPG, PNG, WebP, GIF). Page links will not work.
+                </p>
               </div>
               <Button
                 type="button"
                 className="w-full gap-1.5"
                 disabled={!urlInput.trim() || applying}
-                onClick={handleUrlPick}
+                onClick={() => void handleUrlPick()}
               >
                 {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 Use this URL
@@ -794,8 +839,8 @@ export function MediaUploadPickerModal({
             </div>
           )}
         </div>
-      </ModalPanel>
-    </ModalOverlay>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -822,13 +867,31 @@ function filenameFromUrl(url: string): string {
 }
 
 async function proxyImageToFile(url: string): Promise<File> {
-  const res = await apiClient.post('/uploads/proxy-image', { url: url.trim() }, { responseType: 'blob', timeout: 60000 })
-  const blob = res.data as Blob
-  if (!(await blobLooksLikeImage(blob))) {
-    throw new Error('Response was not an image')
+  try {
+    const res = await apiClient.post('/uploads/proxy-image', { url: url.trim() }, { responseType: 'blob', timeout: 60000 })
+    const blob = res.data as Blob
+    if (!(await blobLooksLikeImage(blob))) {
+      throw new Error('That URL did not return a valid image')
+    }
+    const type = blob.type.startsWith('image/') ? blob.type : 'image/jpeg'
+    return new File([blob], filenameFromUrl(url), { type })
+  } catch (err) {
+    if (err instanceof Error && !(err instanceof AxiosError)) throw err
+    const ax = err as AxiosError
+    const data = ax.response?.data
+    if (data instanceof Blob) {
+      try {
+        const text = await data.text()
+        const parsed = JSON.parse(text) as { detail?: string }
+        if (typeof parsed?.detail === 'string' && parsed.detail.trim()) {
+          throw new Error(parsed.detail)
+        }
+      } catch (inner) {
+        if (inner instanceof Error && inner.message && !(inner instanceof SyntaxError)) throw inner
+      }
+    }
+    throw new Error(extractApiError(err, 'Image URL').replace(/^Image URL:\s*/i, '') || 'Could not load image from that URL')
   }
-  const type = blob.type.startsWith('image/') ? blob.type : 'image/jpeg'
-  return new File([blob], filenameFromUrl(url), { type })
 }
 
 /** Resolve gallery paths, remote http(s) URLs, or local assets into a File for upload APIs. */

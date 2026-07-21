@@ -8,17 +8,23 @@ import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { modalWidthMd } from '@/lib/modalUi'
+import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
+import {
+  BranchPlantSelect,
+  type BranchPlantSelection,
+} from '@/components/common/BranchPlantSelect'
 import {
   usePurchaseOrders, useCreatePurchaseOrder, useSuppliers, useProducts, useServices,
-  useCreateSupplier, useUpdatePurchaseOrder,
+  useCreateSupplier, useUpdatePurchaseOrder, usePlants, useStorageLocationTree,
 } from '@/hooks/useVendor'
+import { useVendorStore } from '@/stores/vendorStore'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { cn, formatDate, formatCurrency } from '@/lib/utils'
 import { dedupeSuppliers, findExistingSupplier } from '@/lib/supplierUtils'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { ResizableTable } from '@/components/table/ResizableTable'
-import type { Product, Service, PurchaseOrder } from '@/types'
+import type { Product, Service, PurchaseOrder, StorageLocation } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { TablePagination } from '@/components/table/TablePagination'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
@@ -53,6 +59,21 @@ interface BarcodePrefill {
   productName: string
   variantName?: string
   unitCost?: number
+}
+
+function flattenStorageLocations(
+  nodes: StorageLocation[],
+  prefix = '',
+): { value: string; label: string }[] {
+  const out: { value: string; label: string }[] = []
+  for (const node of nodes) {
+    const label = prefix ? `${prefix} / ${node.name}` : node.name
+    out.push({ value: node.id, label })
+    if (node.children?.length) {
+      out.push(...flattenStorageLocations(node.children, label))
+    }
+  }
+  return out
 }
 
 export default function PurchaseOrdersPage() {
@@ -393,10 +414,35 @@ function CreatePOModal({
   const { data: productsData } = useProducts({ size: 500, status: 'active' })
   const { data: servicesData } = useServices({ size: 500, status: 'active' })
   const navigate = useNavigate()
+  const selectedStore = useVendorStore((s) => s.selectedStore)
+  const selectedBranch = useVendorStore((s) => s.selectedBranch)
 
   const [supplierId, setSupplierId] = useState(pendingSupplier?.id || '')
   const [expectedDate, setExpectedDate] = useState('')
   const [notes, setNotes] = useState('')
+  const [storeId, setStoreId] = useState(selectedStore?.id || '')
+  const [scope, setScope] = useState<BranchPlantSelection>(() => (
+    selectedBranch?.id
+      ? { kind: 'branch', id: selectedBranch.id }
+      : { kind: '' }
+  ))
+  const [storageLocationId, setStorageLocationId] = useState('')
+
+  const plantId = scope.kind === 'plant' ? scope.id : ''
+  const branchId = scope.kind === 'branch' ? scope.id : ''
+  const { data: plantsData } = usePlants(storeId || null)
+  const plants = plantsData?.plants ?? []
+  const selectedPlant = plants.find((p) => p.id === plantId)
+  // Locations under a plant use the plant's BU; under a branch use the branch store id.
+  const locationStoreId = branchId || selectedPlant?.store_id || storeId || null
+  const { data: locationsData, isLoading: locationsLoading } = useStorageLocationTree(
+    locationStoreId,
+    plantId || null,
+  )
+  const locationOptions = useMemo(
+    () => flattenStorageLocations(locationsData?.locations ?? []),
+    [locationsData?.locations],
+  )
 
   // Quick-create supplier mini-panel state
   const [showQuickSupplier, setShowQuickSupplier] = useState(false)
@@ -408,6 +454,17 @@ function CreatePOModal({
   useEffect(() => {
     if (pendingSupplier?.id) setSupplierId(pendingSupplier.id)
   }, [pendingSupplier?.id])
+
+  // Keep form in sync if header BU / branch changes while modal is open
+  useEffect(() => {
+    if (selectedStore?.id && !storeId) setStoreId(selectedStore.id)
+  }, [selectedStore?.id, storeId])
+
+  useEffect(() => {
+    if (selectedBranch?.id && !scope.kind) {
+      setScope({ kind: 'branch', id: selectedBranch.id })
+    }
+  }, [selectedBranch?.id, scope.kind])
 
   const handleQuickCreateSupplier = async () => {
     if (!qsName.trim()) return
@@ -540,6 +597,8 @@ function CreatePOModal({
           quantity: parseInt(i.quantity),
           unit_cost: parseFloat(i.unit_cost),
           description: i.item_note || undefined,
+          plant_id: plantId || undefined,
+          storage_location_id: storageLocationId || undefined,
         })),
         expected_delivery_date: expectedDate || undefined,
         notes: notes || undefined,
@@ -549,7 +608,7 @@ function CreatePOModal({
     } catch {
       // handled by hook
     }
-  }, [canSubmit, supplierId, items, expectedDate, notes, createMut, onClose, navigate])
+  }, [canSubmit, supplierId, items, expectedDate, notes, plantId, storageLocationId, createMut, onClose, navigate])
 
   return (
     <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
@@ -647,6 +706,58 @@ function CreatePOModal({
               <Label className="text-xs">Expected Delivery</Label>
               <Input type="date" className="h-8 text-sm" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Business Unit</Label>
+            <BusinessUnitSelect
+              value={storeId}
+              onChange={(id) => {
+                setStoreId(id)
+                setScope({ kind: '' })
+                setStorageLocationId('')
+              }}
+              autoSelectDefault={false}
+              className="w-full max-w-md"
+            />
+          </div>
+
+          <BranchPlantSelect
+            businessUnitId={storeId || null}
+            value={scope}
+            onChange={(next) => {
+              setScope(next)
+              setStorageLocationId('')
+            }}
+            allowAll={false}
+          />
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Storage Location</Label>
+            <Select
+              value={storageLocationId}
+              onChange={setStorageLocationId}
+              options={selectOptionsWithBlank(
+                !scope.kind
+                  ? 'Select Branch or Plant first…'
+                  : locationsLoading
+                    ? 'Loading…'
+                    : locationOptions.length
+                      ? 'Select location…'
+                      : 'No locations found',
+                locationOptions,
+              )}
+              placeholder={
+                !scope.kind
+                  ? 'Select Branch or Plant first…'
+                  : locationsLoading
+                    ? 'Loading…'
+                    : 'Select location…'
+              }
+              disabled={!scope.kind || locationsLoading}
+              aria-label="Storage location"
+              className="w-full max-w-md"
+            />
           </div>
 
           <div className="space-y-2.5">

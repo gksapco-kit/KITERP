@@ -1437,101 +1437,103 @@ export default function POS() {
           </span>
         </div>
 
-        {/* Customer selection */}
-        <div className="px-3 py-2 border-b bg-gray-50/50 space-y-1.5">
-          {selectedCustomer ? (
-            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-              <div className="flex items-center gap-2 text-sm">
-                <User className="w-4 h-4 text-blue-600" />
-                <div>
-                  <span className="font-medium text-blue-800">{selectedCustomer.full_name}</span>
-                  {selectedCustomer.phone && <span className="text-xs text-blue-600 ml-2">{selectedCustomer.phone}</span>}
-                  {selectedCustomer.id === defaultCustomerId && (
-                    <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded ml-2">Default</span>
+        {/* Customer + salesperson (side by side) */}
+        <div className="px-3 py-2 border-b bg-gray-50/50 flex gap-3 items-start">
+          <div className="flex-1 min-w-0 space-y-1.5">
+            {selectedCustomer ? (
+              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-sm min-w-0">
+                  <User className="w-4 h-4 text-blue-600 shrink-0" />
+                  <div className="min-w-0 truncate">
+                    <span className="font-medium text-blue-800">{selectedCustomer.full_name}</span>
+                    {selectedCustomer.phone && <span className="text-xs text-blue-600 ml-2">{selectedCustomer.phone}</span>}
+                    {selectedCustomer.id === defaultCustomerId && (
+                      <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded ml-2">Default</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {selectedCustomer.id !== defaultCustomerId && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const cur = vendorData?.settings || {}
+                          await vendorApi.updateMyVendor({ settings: { ...cur, default_pos_customer_id: selectedCustomer.id } } as any)
+                          setDefaultCustomerId(selectedCustomer.id)
+                          toast.success(`${selectedCustomer.full_name} set as default POS customer`)
+                        } catch { toast.error('Could not save default customer') }
+                      }}
+                      className="text-blue-400 hover:text-blue-600 p-0.5" title="Set as default POS customer"
+                    >
+                      <Award className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button type="button" aria-label="Close" onClick={() => { setSelectedCustomer(null); setCustomerSearch('') }} className="text-blue-400 hover:text-blue-600">
+                  <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <div className="flex gap-1.5">
+                    <div className="relative flex-1">
+                      <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={customerSearch}
+                        onChange={e => setCustomerSearch(e.target.value)}
+                        onFocus={() => customerResults.length > 0 && setShowCustomerDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                        placeholder="Search customer..."
+                        className="w-full h-8 pl-8 pr-3 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <button onClick={() => setShowQuickCreate(true)}
+                      className="flex items-center gap-1 px-2 h-8 text-xs bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100"
+                      title="Quick create customer"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {showCustomerDropdown && customerResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 max-h-48 overflow-y-auto">
+                      {customerResults.map(cust => (
+                        <button key={cust.id}
+                          className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm flex items-center justify-between"
+                          onMouseDown={() => selectCustomer(cust)}
+                        >
+                          <span className="font-medium">{cust.full_name}</span>
+                          <span className="text-xs text-gray-500">{cust.phone || cust.email}</span>
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
-              </div>
-              <div className="flex items-center gap-1">
-                {selectedCustomer.id !== defaultCustomerId && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const cur = vendorData?.settings || {}
-                        await vendorApi.updateMyVendor({ settings: { ...cur, default_pos_customer_id: selectedCustomer.id } } as any)
-                        setDefaultCustomerId(selectedCustomer.id)
-                        toast.success(`${selectedCustomer.full_name} set as default POS customer`)
-                      } catch { toast.error('Could not save default customer') }
-                    }}
-                    className="text-blue-400 hover:text-blue-600 p-0.5" title="Set as default POS customer"
-                  >
-                    <Award className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <button type="button" aria-label="Close" onClick={() => { setSelectedCustomer(null); setCustomerSearch('') }} className="text-blue-400 hover:text-blue-600">
-                <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="relative">
-                <div className="flex gap-1.5">
-                  <div className="relative flex-1">
-                    <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={customerSearch}
-                      onChange={e => setCustomerSearch(e.target.value)}
-                      onFocus={() => customerResults.length > 0 && setShowCustomerDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
-                      placeholder="Search customer..."
-                      className="w-full h-8 pl-8 pr-3 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <button onClick={() => setShowQuickCreate(true)}
-                    className="flex items-center gap-1 px-2 h-8 text-xs bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100"
-                    title="Quick create customer"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                {showCustomerDropdown && customerResults.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 max-h-48 overflow-y-auto">
-                    {customerResults.map(cust => (
-                      <button key={cust.id}
-                        className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm flex items-center justify-between"
-                        onMouseDown={() => selectCustomer(cust)}
+                {/* Recent customers scrollable */}
+                {!customerSearch && recentCustomers.length > 0 && (
+                  <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
+                    {recentCustomers.map(cust => (
+                      <button key={cust.id} onClick={() => selectCustomer(cust)}
+                        className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-full text-xs hover:bg-blue-50 hover:border-blue-200 transition-colors"
                       >
-                        <span className="font-medium">{cust.full_name}</span>
-                        <span className="text-xs text-gray-500">{cust.phone || cust.email}</span>
+                        <User className="w-3 h-3 text-gray-400" />
+                        <span className="font-medium text-gray-700 truncate max-w-[80px]">{cust.full_name}</span>
                       </button>
                     ))}
                   </div>
                 )}
-              </div>
-              {/* Recent customers scrollable */}
-              {!customerSearch && recentCustomers.length > 0 && (
-                <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
-                  {recentCustomers.map(cust => (
-                    <button key={cust.id} onClick={() => selectCustomer(cust)}
-                      className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-full text-xs hover:bg-blue-50 hover:border-blue-200 transition-colors"
-                    >
-                      <User className="w-3 h-3 text-gray-400" />
-                      <span className="font-medium text-gray-700 truncate max-w-[80px]">{cust.full_name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
+              </>
+            )}
+          </div>
+
+          {txnMode === 'sale' && (
+            <div className="flex-1 min-w-0 space-y-1">
+              <SectionLabel>Salesperson (commission)</SectionLabel>
+              <StaffPicker selected={selectedSalesPerson} onSelect={setSelectedSalesPerson} />
+            </div>
           )}
         </div>
-
-        {txnMode === 'sale' && (
-          <div className="px-3 py-2 border-b bg-gray-50/50 space-y-1">
-            <SectionLabel>Salesperson (commission)</SectionLabel>
-            <StaffPicker selected={selectedSalesPerson} onSelect={setSelectedSalesPerson} />
-          </div>
-        )}
 
         {/* Quick create customer modal */}
         {showQuickCreate && (

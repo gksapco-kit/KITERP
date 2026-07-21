@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List
 from datetime import datetime, date
 from enum import Enum
@@ -48,7 +48,8 @@ class POSSessionClose(BaseModel):
 
 
 class POSTransactionCreate(BaseModel):
-    session_id: str
+    # Required for sale/return/exchange; optional for credit_memo / debit_memo.
+    session_id: Optional[str] = None
     # Privileged roles (owner/admin) may target a specific business unit (memos).
     store_id: Optional[str] = None
     customer_id: Optional[str] = None
@@ -66,6 +67,14 @@ class POSTransactionCreate(BaseModel):
     sales_person_vendor_user_id: Optional[str] = None
     tip_amount: float = 0
     service_charge_amount: float = 0
+
+    @model_validator(mode="after")
+    def session_required_for_register_txns(self):
+        if self.transaction_type in (TransactionType.CREDIT_MEMO, TransactionType.DEBIT_MEMO):
+            return self
+        if not self.session_id:
+            raise ValueError("session_id is required for register sales and returns")
+        return self
 
 
 class POSReturnCreate(BaseModel):
@@ -117,7 +126,7 @@ class POSSessionResponse(BaseModel):
 class POSTransactionResponse(BaseModel):
     id: str
     vendor_id: str
-    session_id: str
+    session_id: Optional[str] = None
     store_id: Optional[str] = None
     cashier_id: str
     customer_id: Optional[str] = None

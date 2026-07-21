@@ -150,7 +150,7 @@ class POSService:
     async def create_transaction(
         self,
         vendor_id: UUID,
-        session_id: UUID,
+        session_id: Optional[UUID],
         cashier_id: UUID,
         store_id: UUID,
         items: list,
@@ -169,7 +169,11 @@ class POSService:
         tip_amount: float = 0,
         service_charge_amount: float = 0,
     ) -> dict:
-        """Create a POS transaction and return a rich dict with linked records."""
+        """Create a POS transaction and return a rich dict with linked records.
+
+        Credit/debit memos may omit session_id (no open till required). Register
+        sales/returns still require an open POS session.
+        """
         sp_vu_id: Optional[UUID] = None
         if sales_person_vendor_user_id:
             sp_row = await self.db.get(VendorUser, sales_person_vendor_user_id)
@@ -187,19 +191,30 @@ class POSService:
             if not tbl or tbl.vendor_id != vendor_id:
                 raise ValueError("Invalid restaurant table")
 
-        session_result = await self.db.execute(
-            select(POSSession).where(
-                and_(
-                    POSSession.id == session_id,
-                    POSSession.vendor_id == vendor_id,
-                    POSSession.store_id == store_id,
-                    POSSession.status == "open",
+        is_memo = transaction_type in ("credit_memo", "debit_memo")
+        session = None
+        resolved_session_id: Optional[UUID] = None
+
+        if is_memo and not session_id:
+            # Finance memos are independent of the till — no open session needed.
+            resolved_session_id = None
+        else:
+            if not session_id:
+                raise ValueError("No open POS session found for this business unit")
+            session_result = await self.db.execute(
+                select(POSSession).where(
+                    and_(
+                        POSSession.id == session_id,
+                        POSSession.vendor_id == vendor_id,
+                        POSSession.store_id == store_id,
+                        POSSession.status == "open",
+                    )
                 )
             )
-        )
-        session = session_result.scalar_one_or_none()
-        if not session:
-            raise ValueError("No open POS session found for this business unit")
+            session = session_result.scalar_one_or_none()
+            if not session:
+                raise ValueError("No open POS session found for this business unit")
+            resolved_session_id = session_id
 
         # ── Apply party (retail/wholesale/distributor/agent…), quantity-tier,
         # and channel price rules for new sales, so the price charged reflects
@@ -288,7 +303,7 @@ class POSService:
 
         txn = POSTransaction(
             vendor_id=vendor_id,
-            session_id=session_id,
+            session_id=resolved_session_id,
             store_id=store_id,
             cashier_id=cashier_id,
             customer_id=customer_id,
@@ -320,25 +335,26 @@ class POSService:
         )
         self.db.add(txn)
 
-        # ── Session totals ──
-        if transaction_type in ("sale", "debit_memo"):
-            session.total_sales = float(session.total_sales or 0) + total
-            session.total_discount = float(session.total_discount or 0) + total_discount
-        elif transaction_type in ("return", "credit_memo", "exchange"):
-            session.total_returns = float(session.total_returns or 0) + total
+        # ── Session totals (skip when memo has no till session) ──
+        if session is not None:
+            if transaction_type in ("sale", "debit_memo"):
+                session.total_sales = float(session.total_sales or 0) + total
+                session.total_discount = float(session.total_discount or 0) + total_discount
+            elif transaction_type in ("return", "credit_memo", "exchange"):
+                session.total_returns = float(session.total_returns or 0) + total
 
-        session.total_tax = float(session.total_tax or 0) + total_tax
-        session.transaction_count = (session.transaction_count or 0) + 1
+            session.total_tax = float(session.total_tax or 0) + total_tax
+            session.transaction_count = (session.transaction_count or 0) + 1
 
-        for pm in payment_methods:
-            method = pm["method"]
-            amt = float(pm["amount"])
-            if method == "cash":
-                session.cash_total = float(session.cash_total or 0) + amt
-            elif method == "upi":
-                session.upi_total = float(session.upi_total or 0) + amt
-            elif method == "card":
-                session.card_total = float(session.card_total or 0) + amt
+            for pm in payment_methods:
+                method = pm["method"]
+                amt = float(pm["amount"])
+                if method == "cash":
+                    session.cash_total = float(session.cash_total or 0) + amt
+                elif method == "upi":
+                    session.upi_total = float(session.upi_total or 0) + amt
+                elif method == "card":
+                    session.card_total = float(session.card_total or 0) + amt
 
         await self.db.flush()
 
@@ -868,14 +884,16 @@ class POSService:
             raise ValueError("Only credit or debit memos can be voided")
         if (txn.status or "") == "voided":
             raise ValueError("This memo is already voided")
-        res_s = await self.db.execute(
-            select(POSSession).where(and_(POSSession.id == txn.session_id, POSSession.vendor_id == vendor_id))
-        )
-        session = res_s.scalar_one_or_none()
-        if not session:
-            raise ValueError("Session not found for this transaction")
+        session = None
+        if txn.session_id:
+            res_s = await self.db.execute(
+                select(POSSession).where(and_(POSSession.id == txn.session_id, POSSession.vendor_id == vendor_id))
+            )
+            session = res_s.scalar_one_or_none()
+            if not session:
+                raise ValueError("Session not found for this transaction")
+            self._reverse_memo_session_totals(session, txn)
 
-        self._reverse_memo_session_totals(session, txn)
         await self._undo_memo_inventory(vendor_id, txn)
 
         stamp = f"\n[VOIDED] {datetime.utcnow().isoformat()}"
@@ -912,12 +930,14 @@ class POSService:
         if (txn.status or "") == "voided":
             raise ValueError("Voided memos cannot be edited")
 
-        res_s = await self.db.execute(
-            select(POSSession).where(and_(POSSession.id == txn.session_id, POSSession.vendor_id == vendor_id))
-        )
-        session = res_s.scalar_one_or_none()
-        if not session:
-            raise ValueError("Session not found for this transaction")
+        session = None
+        if txn.session_id:
+            res_s = await self.db.execute(
+                select(POSSession).where(and_(POSSession.id == txn.session_id, POSSession.vendor_id == vendor_id))
+            )
+            session = res_s.scalar_one_or_none()
+            if not session:
+                raise ValueError("Session not found for this transaction")
 
         def _as_dict(x):
             if hasattr(x, "model_dump"):
@@ -928,7 +948,8 @@ class POSService:
 
         raw_items = [_as_dict(it) for it in items]
 
-        self._reverse_memo_session_totals(session, txn)
+        if session is not None:
+            self._reverse_memo_session_totals(session, txn)
         await self._undo_memo_inventory(vendor_id, txn)
 
         subtotal, total_tax, total_discount, total, change_due, computed_items = self._recompute_memo_from_items(
@@ -936,7 +957,8 @@ class POSService:
         )
         ttype = txn.transaction_type
         pms = [{"method": p["method"], "amount": float(p["amount"])} for p in payment_methods]
-        self._apply_memo_session_totals(session, ttype, total, total_discount, total_tax, pms)
+        if session is not None:
+            self._apply_memo_session_totals(session, ttype, total, total_discount, total_tax, pms)
 
         txn.customer_id = customer_id
         txn.cashier_id = cashier_id

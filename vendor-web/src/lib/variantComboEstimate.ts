@@ -13,14 +13,28 @@ import {
 export type PreviewCompatRule = {
   id?: string
   label?: string
-  kind: 'show_choice' | 'hide_choice' | 'hide_value'
+  kind: 'show_choice' | 'hide_choice' | 'hide_value' | 'show_value'
   whenAttr: string
   whenValue: string
   targetAttr: string
+  /** Prefer this for hide_value / show_value (one or many). */
+  targetValues?: string[]
+  /** Single-value form — still accepted; merged with targetValues. */
   targetValue?: string
 }
 
 const MAX_ENUMERATE = 250_000
+
+function needsTargetValue(kind: PreviewCompatRule['kind']) {
+  return kind === 'hide_value' || kind === 'show_value'
+}
+
+/** Normalized option values for hide_value / show_value rules. */
+export function previewRuleTargetValues(rule: PreviewCompatRule): string[] {
+  const fromList = rule.targetValues?.filter(Boolean) ?? []
+  if (fromList.length > 0) return [...new Set(fromList)]
+  return rule.targetValue ? [rule.targetValue] : []
+}
 
 function isAttrVisible(
   attrName: string,
@@ -47,14 +61,25 @@ function isOptionHidden(
   rules: PreviewCompatRule[],
   selected: Record<string, string>,
 ): boolean {
-  return rules.some(r =>
+  const hide = rules.some(r =>
     r.kind === 'hide_value'
     && r.targetAttr === attrName
-    && r.targetValue === optName
+    && previewRuleTargetValues(r).includes(optName)
     && r.whenAttr
     && r.whenValue
     && selected[r.whenAttr] === r.whenValue,
   )
+  if (hide) return true
+
+  const showRules = rules.filter(r =>
+    r.kind === 'show_value'
+    && r.targetAttr === attrName
+    && previewRuleTargetValues(r).includes(optName)
+    && r.whenAttr
+    && r.whenValue,
+  )
+  if (showRules.length === 0) return false
+  return !showRules.some(r => selected[r.whenAttr] === r.whenValue)
 }
 
 /**
@@ -71,7 +96,8 @@ export function countCombinationsAfterRules(
   if (attrs.length === 0) return 0
 
   const completeRules = rules.filter(r =>
-    r.whenAttr && r.whenValue && r.targetAttr && (r.kind !== 'hide_value' || r.targetValue),
+    r.whenAttr && r.whenValue && r.targetAttr
+    && (!needsTargetValue(r.kind) || previewRuleTargetValues(r).length > 0),
   )
   if (completeRules.length === 0) {
     return estimateVariantCombinations(attrs)
@@ -120,33 +146,50 @@ export function configRulesToPreviewCompat(rules: ConfigRule[]): PreviewCompatRu
   const out: PreviewCompatRule[] = []
   for (const rule of rules) {
     if (rule.is_active === false) continue
-    const action = rule.actions?.[0]
-    if (!action?.target) continue
+    const actions = rule.actions?.filter(a => a?.target) ?? []
+    if (actions.length === 0) continue
     const when = extractSimpleWhen(rule.conditions)
     if (!when) continue
 
-    if (action.type === 'disable_option') {
-      const [targetAttr, targetValue] = action.target.includes(':')
-        ? action.target.split(':')
-        : [action.target, action.target]
-      if (!targetValue) continue
+    const optionActions = actions.filter(
+      a => a.type === 'disable_option' || a.type === 'enable_option',
+    )
+    if (optionActions.length > 0) {
+      const kind = optionActions[0].type === 'disable_option' ? 'hide_value' : 'show_value'
+      const sameType = optionActions.filter(a => a.type === optionActions[0].type)
+      let targetAttr = ''
+      const targetValues: string[] = []
+      for (const action of sameType) {
+        const [attr, value] = action.target!.includes(':')
+          ? action.target!.split(':')
+          : [action.target!, '']
+        if (!value) continue
+        if (!targetAttr) targetAttr = attr
+        if (attr === targetAttr) targetValues.push(value)
+      }
+      if (!targetAttr || targetValues.length === 0) continue
       out.push({
         id: rule.id,
         label: rule.name,
-        kind: 'hide_value',
+        kind,
         whenAttr: when.attr,
         whenValue: when.value,
         targetAttr,
-        targetValue,
+        targetValues: [...new Set(targetValues)],
+        targetValue: targetValues[0],
       })
-    } else if (action.type === 'hide_field') {
+      continue
+    }
+
+    const action = actions[0]
+    if (action.type === 'hide_field') {
       out.push({
         id: rule.id,
         label: rule.name,
         kind: 'hide_choice',
         whenAttr: when.attr,
         whenValue: when.value,
-        targetAttr: action.target,
+        targetAttr: action.target!,
       })
     } else if (action.type === 'show_field') {
       out.push({
@@ -155,7 +198,7 @@ export function configRulesToPreviewCompat(rules: ConfigRule[]): PreviewCompatRu
         kind: 'show_choice',
         whenAttr: when.attr,
         whenValue: when.value,
-        targetAttr: action.target,
+        targetAttr: action.target!,
       })
     }
   }

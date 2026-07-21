@@ -162,6 +162,10 @@ class PurchaseOrderItemCreate(BaseModel):
     variant_id: Optional[str] = None
     quantity: int = Field(..., gt=0)
     unit_cost: float = Field(..., ge=0)
+    plant_id: Optional[str] = None
+    storage_location_id: Optional[str] = None
+    description: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class PurchaseOrderItemResponse(BaseModel):
@@ -180,6 +184,8 @@ class PurchaseOrderItemResponse(BaseModel):
     quantity_received: int = 0
     unit_cost: float = 0
     total_cost: float = 0
+    plant_id: Optional[str] = None
+    storage_location_id: Optional[str] = None
     notes: Optional[str] = None
 
     @field_validator("id", "purchase_order_id", "product_id", mode="before")
@@ -187,7 +193,7 @@ class PurchaseOrderItemResponse(BaseModel):
     def coerce_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v
 
-    @field_validator("variant_id", mode="before")
+    @field_validator("variant_id", "plant_id", "storage_location_id", mode="before")
     @classmethod
     def coerce_optional_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v
@@ -198,7 +204,6 @@ class PurchaseOrderItemResponse(BaseModel):
         if isinstance(v, Decimal):
             return float(v)
         return float(v) if v is not None else 0
-
 
 # ── Purchase Order Schemas ───────────────────────────────────────
 

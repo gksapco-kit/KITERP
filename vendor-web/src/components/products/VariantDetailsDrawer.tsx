@@ -19,6 +19,8 @@ interface Props {
   productId: string
   variantId: string
   onClose: () => void
+  /** Open a specific tab (e.g. "media" when launched from the Fast-edit thumbnail). */
+  initialTab?: 'general' | 'pricing' | 'promotion' | 'inventory' | 'attributes' | 'media'
 }
 
 const selectCls =
@@ -29,7 +31,7 @@ function dateInputValue(iso: string | null | undefined): string {
   return String(iso).slice(0, 10)
 }
 
-export function VariantDetailsDrawer({ productId, variantId, onClose }: Props) {
+export function VariantDetailsDrawer({ productId, variantId, onClose, initialTab = 'general' }: Props) {
   const qc = useQueryClient()
   const detailKey = ['variant-detail', productId, variantId]
 
@@ -55,7 +57,13 @@ export function VariantDetailsDrawer({ productId, variantId, onClose }: Props) {
         {isLoading || !variant ? (
           <div className="flex h-full items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>
         ) : (
-          <VariantDetailsBody variant={variant} onSave={save} saving={patchMutation.isPending} />
+          <VariantDetailsBody
+            productId={productId}
+            variant={variant}
+            onSave={save}
+            saving={patchMutation.isPending}
+            initialTab={initialTab}
+          />
         )}
       </SheetContent>
     </Sheet>
@@ -63,11 +71,13 @@ export function VariantDetailsDrawer({ productId, variantId, onClose }: Props) {
 }
 
 function VariantDetailsBody({
-  variant, onSave, saving,
+  productId, variant, onSave, saving, initialTab,
 }: {
+  productId: string
   variant: VariantDetail
   onSave: (fields: VariantPatchFields) => void
   saving: boolean
+  initialTab: NonNullable<Props['initialTab']>
 }) {
   return (
     <>
@@ -87,7 +97,7 @@ function VariantDetailsBody({
         </SheetDescription>
       </SheetHeader>
 
-      <Tabs defaultValue="general" className="mt-2">
+      <Tabs defaultValue={initialTab} className="mt-2">
         <TabsList className="flex h-auto flex-wrap gap-1">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="pricing">Pricing &amp; Tax</TabsTrigger>
@@ -294,21 +304,38 @@ function VariantDetailsBody({
         </TabsContent>
 
         <TabsContent value="media">
-          <VariantMediaTab variantId={variant.id} initialMedia={variant.media as unknown as VariantMediaItem[]} />
+          <VariantMediaTab
+            productId={productId}
+            variantId={variant.id}
+            initialMedia={variant.media as unknown as VariantMediaItem[]}
+          />
         </TabsContent>
       </Tabs>
     </>
   )
 }
 
-function VariantMediaTab({ variantId, initialMedia }: { variantId: string; initialMedia: VariantMediaItem[] }) {
+function VariantMediaTab({
+  productId, variantId, initialMedia,
+}: {
+  productId: string
+  variantId: string
+  initialMedia: VariantMediaItem[]
+}) {
+  const qc = useQueryClient()
   const [media, setMedia] = useState(initialMedia)
   useEffect(() => { setMedia(initialMedia) }, [initialMedia])
+
+  const refreshLists = () => {
+    qc.invalidateQueries({ queryKey: ['variant-detail', productId, variantId] })
+    qc.invalidateQueries({ queryKey: ['product-variants', productId] })
+  }
 
   const uploadFile = async (file: File) => {
     try {
       const result = await vendorApi.uploadVariantMedia(variantId, file)
       setMedia(result.media)
+      refreshLists()
       toast.success('Media uploaded')
     } catch {
       toast.error('Upload failed')
@@ -318,6 +345,7 @@ function VariantMediaTab({ variantId, initialMedia }: { variantId: string; initi
     try {
       const result = await vendorApi.deleteVariantMedia(variantId, url)
       setMedia(result.media)
+      refreshLists()
       toast.success('Media removed')
     } catch {
       toast.error('Failed to delete media')
@@ -327,6 +355,7 @@ function VariantMediaTab({ variantId, initialMedia }: { variantId: string; initi
     try {
       const result = await vendorApi.setPrimaryVariantMedia(variantId, url)
       setMedia(result.media)
+      refreshLists()
       toast.success('Primary image updated')
     } catch {
       toast.error('Failed to set primary')
@@ -336,6 +365,7 @@ function VariantMediaTab({ variantId, initialMedia }: { variantId: string; initi
     try {
       const result = await vendorApi.reorderVariantMedia(variantId, urls)
       setMedia(result.media)
+      refreshLists()
     } catch {
       toast.error('Failed to reorder media')
     }

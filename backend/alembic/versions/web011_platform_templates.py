@@ -2,10 +2,10 @@
 
 Revision ID: web011
 Revises: web010
+
+Idempotent: table may already exist from SQLAlchemy create/ensure paths.
 """
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSON
 
 
 revision = "web011"
@@ -15,39 +15,57 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "wb_platform_templates",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("slug", sa.String(120), nullable=False),
-        sa.Column("name", sa.String(200), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("thumbnail", sa.String(500), nullable=True),
-        sa.Column("category", sa.String(80), nullable=False, server_default="custom"),
-        sa.Column("tags", JSON(), nullable=False, server_default="[]"),
-        sa.Column("source_site_id", UUID(as_uuid=True), sa.ForeignKey("wb_sites.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("source_vendor_id", UUID(as_uuid=True), sa.ForeignKey("vendor.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("catalog_status", sa.String(20), nullable=False, server_default="draft"),
-        sa.Column("snapshot", JSON(), nullable=False, server_default="{}"),
-        sa.Column("snapshot_source_updated_at", sa.DateTime(), nullable=True),
-        sa.Column("published_at", sa.DateTime(), nullable=True),
-        sa.Column("published_by_user_id", UUID(as_uuid=True), nullable=True),
-        sa.Column("last_synced_at", sa.DateTime(), nullable=True),
-        sa.Column("last_synced_by_user_id", UUID(as_uuid=True), nullable=True),
-        sa.Column("deleted_at", sa.DateTime(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=True),
-        sa.Column("updated_at", sa.DateTime(), nullable=True),
+    op.execute(
+        """
+        CREATE TABLE IF NOT EXISTS wb_platform_templates (
+            id UUID NOT NULL PRIMARY KEY,
+            slug VARCHAR(120) NOT NULL,
+            name VARCHAR(200) NOT NULL,
+            description TEXT,
+            thumbnail VARCHAR(500),
+            category VARCHAR(80) NOT NULL DEFAULT 'custom',
+            tags JSON NOT NULL DEFAULT '[]',
+            source_site_id UUID REFERENCES wb_sites(id) ON DELETE SET NULL,
+            source_vendor_id UUID REFERENCES vendor(id) ON DELETE SET NULL,
+            catalog_status VARCHAR(20) NOT NULL DEFAULT 'draft',
+            snapshot JSON NOT NULL DEFAULT '{}',
+            snapshot_source_updated_at TIMESTAMP WITHOUT TIME ZONE,
+            published_at TIMESTAMP WITHOUT TIME ZONE,
+            published_by_user_id UUID,
+            last_synced_at TIMESTAMP WITHOUT TIME ZONE,
+            last_synced_by_user_id UUID,
+            deleted_at TIMESTAMP WITHOUT TIME ZONE,
+            created_at TIMESTAMP WITHOUT TIME ZONE,
+            updated_at TIMESTAMP WITHOUT TIME ZONE
+        )
+        """
     )
-    op.create_index("ix_wb_platform_templates_slug", "wb_platform_templates", ["slug"], unique=True)
-    op.create_index("ix_wb_platform_templates_source_site_id", "wb_platform_templates", ["source_site_id"])
-    op.create_index("ix_wb_platform_templates_source_vendor_id", "wb_platform_templates", ["source_vendor_id"])
-    op.create_index("ix_wb_platform_templates_catalog_status", "wb_platform_templates", ["catalog_status"])
-    op.create_index("ix_wb_platform_templates_deleted_at", "wb_platform_templates", ["deleted_at"])
+    op.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_wb_platform_templates_slug "
+        "ON wb_platform_templates (slug)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_wb_platform_templates_source_site_id "
+        "ON wb_platform_templates (source_site_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_wb_platform_templates_source_vendor_id "
+        "ON wb_platform_templates (source_vendor_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_wb_platform_templates_catalog_status "
+        "ON wb_platform_templates (catalog_status)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_wb_platform_templates_deleted_at "
+        "ON wb_platform_templates (deleted_at)"
+    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_wb_platform_templates_deleted_at", table_name="wb_platform_templates")
-    op.drop_index("ix_wb_platform_templates_catalog_status", table_name="wb_platform_templates")
-    op.drop_index("ix_wb_platform_templates_source_vendor_id", table_name="wb_platform_templates")
-    op.drop_index("ix_wb_platform_templates_source_site_id", table_name="wb_platform_templates")
-    op.drop_index("ix_wb_platform_templates_slug", table_name="wb_platform_templates")
-    op.drop_table("wb_platform_templates")
+    op.execute("DROP INDEX IF EXISTS ix_wb_platform_templates_deleted_at")
+    op.execute("DROP INDEX IF EXISTS ix_wb_platform_templates_catalog_status")
+    op.execute("DROP INDEX IF EXISTS ix_wb_platform_templates_source_vendor_id")
+    op.execute("DROP INDEX IF EXISTS ix_wb_platform_templates_source_site_id")
+    op.execute("DROP INDEX IF EXISTS ix_wb_platform_templates_slug")
+    op.execute("DROP TABLE IF EXISTS wb_platform_templates")

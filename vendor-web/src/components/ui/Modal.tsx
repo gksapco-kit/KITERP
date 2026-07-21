@@ -112,6 +112,7 @@ export function ModalOverlay({
   const overlay = (
     <div
       data-kiterp-modal
+      data-kiterp-portal-modal=""
       className={cn(modalOverlayCenterClass, className)}
       onClick={onModalBackdropClick(onClose)}
     >

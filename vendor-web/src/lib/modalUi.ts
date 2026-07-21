@@ -11,13 +11,17 @@ export const modalWidth4xl = 'max-w-7xl'
 export const modalWidth5xl = 'max-w-7xl'
 export const modalDefaultMaxWidth = modalWidthLg
 
-/** Full-screen modal backdrop — z-[100] sits above sticky form bars (z-10–z-30) and dashboard chrome */
+/** Full-screen modal backdrop — above sticky form bars and Radix Sheet/Dialog (z-[100]) */
 export const modalOverlayClass =
-  'fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none'
+  'fixed inset-0 z-[110] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none pointer-events-auto'
 
-/** Vertically centered backdrop (legacy pages) */
+/**
+ * Vertically centered backdrop (legacy pages).
+ * z-[110] + pointer-events-auto: sits above Radix Sheet/Dialog (z-[100]), which set
+ * body { pointer-events: none } — without auto, nested pickers render but are unclickable.
+ */
 export const modalOverlayCenterClass =
-  'fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none'
+  'fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none pointer-events-auto'
 
 /**
  * Drop-in classes for handcrafted dialogs (not using ModalOverlay/ModalPanel).

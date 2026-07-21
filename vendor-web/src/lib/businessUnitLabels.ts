@@ -6,6 +6,9 @@ export const BUSINESS_UNIT_STORE_SETTINGS_LINK = `${BUSINESS_UNIT_STORE_LABEL} S
 /** Shared label for the branch (child-of-business-unit) selector. */
 export const BRANCH_LABEL = 'Branch'
 
+/** Combined branch-or-plant scope (mutually exclusive pick). */
+export const BRANCH_PLANT_LABEL = 'Branch / Plant'
+
 /** Code field on business-unit create/edit forms (Finance → Business Units). */
 export const BUSINESS_UNIT_CODE_LABEL = 'Company Code / Business Unit'
 

@@ -502,48 +502,112 @@ export default function InvoicesPage() {
 }
 
 // ── Item catalogue search row ────────────────────────────────────
+interface CatalogueVariant {
+  id: string
+  name: string
+  sku?: string
+  price?: number
+  tax_rate?: number
+  hsn_code?: string
+  is_active?: boolean
+}
+
 interface CatalogueItem {
-  id: string; name: string; kind: 'product' | 'service'
-  hsn_sac?: string; price?: number; tax_rate?: number
+  id: string
+  name: string
+  kind: 'product' | 'service'
+  hsn_sac?: string
+  price?: number
+  tax_rate?: number
+  variants?: CatalogueVariant[]
+}
+
+type LineItemDraft = {
+  name: string
+  hsn_sac: string
+  qty: number
+  rate: number
+  discount: number
+  tax_rate: number
+  product_id?: string
+  variant_id?: string
+  kind?: 'product' | 'service'
+}
+
+function activeVariantsOf(item: CatalogueItem | undefined): CatalogueVariant[] {
+  if (!item?.variants?.length) return []
+  return item.variants.filter(v => v.is_active !== false)
 }
 
 function ItemSearchRow({
-  item, index, onUpdate, onRemove, catalogue, compact = false,
+  item, index, onUpdate, onPatch, onRemove, catalogue, compact = false,
 }: {
-  item: { name: string; hsn_sac: string; qty: number; rate: number; discount: number; tax_rate: number }
+  item: LineItemDraft
   index: number
   onUpdate: (field: string, value: string | number) => void
+  onPatch: (patch: Partial<LineItemDraft>) => void
   onRemove: () => void
   catalogue: CatalogueItem[]
   compact?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'all' | 'product' | 'service'>('all')
+  const [variantPickFor, setVariantPickFor] = useState<CatalogueItem | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+
+  const selectedProduct = useMemo(
+    () => (item.product_id ? catalogue.find(c => c.id === item.product_id) : undefined),
+    [catalogue, item.product_id],
+  )
+  const rowVariants = activeVariantsOf(selectedProduct)
 
   const filtered = useMemo(() => {
     const q = item.name.trim().toLowerCase()
+    // When searching after a product was selected, strip the " — Variant" suffix for matching
+    const baseQ = q.includes(' — ') ? q.split(' — ')[0] : q
     return catalogue
       .filter(c => tab === 'all' || c.kind === tab)
-      .filter(c => !q || c.name.toLowerCase().includes(q))
+      .filter(c => !baseQ || c.name.toLowerCase().includes(baseQ) || c.name.toLowerCase().includes(q))
       .slice(0, 12)
   }, [catalogue, item.name, tab])
 
-  // close on outside click
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setVariantPickFor(null)
+      }
     }
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
   }, [])
 
-  function apply(c: CatalogueItem) {
-    onUpdate('name', c.name)
-    onUpdate('hsn_sac', c.hsn_sac || '')
-    onUpdate('rate', c.price ?? 0)
-    onUpdate('tax_rate', c.tax_rate ?? 18)
+  function applyCatalogue(c: CatalogueItem, variant?: CatalogueVariant) {
+    const variants = activeVariantsOf(c)
+    if (c.kind === 'product' && variants.length > 1 && !variant) {
+      setVariantPickFor(c)
+      return
+    }
+    const chosen = variant ?? (variants.length === 1 ? variants[0] : undefined)
+    const displayName = chosen?.name ? `${c.name} — ${chosen.name}` : c.name
+    onPatch({
+      name: displayName,
+      hsn_sac: chosen?.hsn_code || c.hsn_sac || '',
+      rate: chosen?.price ?? c.price ?? 0,
+      tax_rate: chosen?.tax_rate ?? c.tax_rate ?? 18,
+      product_id: c.kind === 'product' ? c.id : undefined,
+      variant_id: chosen?.id,
+      kind: c.kind,
+    })
+    setVariantPickFor(null)
     setOpen(false)
+  }
+
+  function applyVariantId(variantId: string) {
+    if (!selectedProduct) return
+    const variant = rowVariants.find(v => v.id === variantId)
+    if (!variant) return
+    applyCatalogue(selectedProduct, variant)
   }
 
   const fieldClass = compact
@@ -552,91 +616,174 @@ function ItemSearchRow({
 
   return (
     <div className={cn('flex items-start', compact ? 'gap-1.5' : 'gap-2')}>
-      {/* Item name with dropdown */}
-      <div className="relative min-w-0 flex-1" ref={wrapRef}>
+      <div className={cn('shrink-0 text-center text-gray-400 font-medium', compact ? 'w-6 pt-1.5 text-[10px]' : 'w-7 pt-2.5 text-xs')}>
+        {index + 1}
+      </div>
+      <div className="relative min-w-0 flex-[1.6]" ref={wrapRef}>
         <div className="relative">
           <Search className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-2 h-3 w-3' : 'left-2.5 h-3.5 w-3.5')} />
           <input
             className={cn(fieldClass, 'bg-white', compact ? 'pl-7' : 'pl-8')}
             placeholder="Search product or service…"
             value={item.name}
-            onChange={e => { onUpdate('name', e.target.value); setOpen(true) }}
+            onChange={e => {
+              onPatch({
+                name: e.target.value,
+                product_id: undefined,
+                variant_id: undefined,
+                kind: undefined,
+              })
+              setVariantPickFor(null)
+              setOpen(true)
+            }}
             onFocus={() => setOpen(true)}
           />
         </div>
 
         {open && (
-          <div className="absolute left-0 right-0 top-full mt-1 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            {/* Tabs */}
-            <div className="flex border-b bg-gray-50 px-2 pt-1.5 gap-1">
-              {(['all', 'product', 'service'] as const).map(t => (
-                <button key={t} onClick={() => setTab(t)}
-                  className={`px-3 py-1 rounded-t-lg text-xs font-medium capitalize transition-colors ${tab === t ? 'bg-white border border-b-white border-gray-200 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
-                  {t === 'all' ? 'All' : t === 'product' ? '📦 Products' : '⚙️ Services'}
-                </button>
-              ))}
-              <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="ml-auto p-1 text-gray-400 hover:text-gray-600">
-                <X className="w-3.5 h-3.5" /></button>
-            </div>
-
-            {filtered.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-4">
-                {item.name.trim() ? `No matches for "${item.name}"` : 'Start typing to search…'}
-              </p>
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[90vh] overflow-hidden overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-xl" onClick={e => e.stopPropagation()}>
+            {variantPickFor ? (
+              <>
+                <div className="flex items-center gap-2 border-b bg-gray-50 px-3 py-2">
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setVariantPickFor(null)}
+                  >
+                    ← Back
+                  </button>
+                  <p className="min-w-0 flex-1 truncate text-xs font-medium text-gray-700">
+                    Select variant — {variantPickFor.name}
+                  </p>
+                  <button type="button" aria-label="Close" onClick={() => { setOpen(false); setVariantPickFor(null) }} className="p-1 text-gray-400 hover:text-gray-600">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <ul className="max-h-52 divide-y divide-gray-50 overflow-y-auto">
+                  {activeVariantsOf(variantPickFor).map(v => (
+                    <li key={v.id}>
+                      <button
+                        type="button"
+                        onMouseDown={e => { e.preventDefault(); applyCatalogue(variantPickFor, v) }}
+                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-blue-50"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-gray-800">{v.name}</p>
+                          <p className="text-xs text-gray-400">
+                            {v.sku && <span className="mr-2 font-mono">{v.sku}</span>}
+                            {v.price != null && <span className="mr-2">₹{Number(v.price).toFixed(2)}</span>}
+                            {v.tax_rate != null && <span>{v.tax_rate}% tax</span>}
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : (
-              <ul className="max-h-52 overflow-y-auto divide-y divide-gray-50">
-                {filtered.map(c => (
-                  <li key={c.id}>
-                    <button
-                      onMouseDown={e => { e.preventDefault(); apply(c) }}
-                      className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors flex items-center gap-3"
-                    >
-                      <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${c.kind === 'product' ? 'bg-blue-100 text-blue-700' : 'bg-primary/12 text-primary'}`}>
-                        {c.kind === 'product' ? '📦' : '⚙️'}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
-                        <p className="text-xs text-gray-400">
-                          {c.hsn_sac && <span className="mr-2">HSN {c.hsn_sac}</span>}
-                          {c.price != null && <span className="mr-2">₹{c.price.toFixed(2)}</span>}
-                          {c.tax_rate != null && <span>{c.tax_rate}% tax</span>}
-                        </p>
-                      </div>
-                      <span className="text-xs text-gray-300 capitalize shrink-0">{c.kind}</span>
+              <>
+                <div className="flex gap-1 border-b bg-gray-50 px-2 pt-1.5">
+                  {(['all', 'product', 'service'] as const).map(t => (
+                    <button key={t} type="button" onClick={() => setTab(t)}
+                      className={`rounded-t-lg px-3 py-1 text-xs font-medium capitalize transition-colors ${tab === t ? 'border border-b-white border-gray-200 bg-white text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+                      {t === 'all' ? 'All' : t === 'product' ? '📦 Products' : '⚙️ Services'}
                     </button>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                  <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="ml-auto p-1 text-gray-400 hover:text-gray-600">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {filtered.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-gray-400">
+                    {item.name.trim() ? `No matches for "${item.name}"` : 'Start typing to search…'}
+                  </p>
+                ) : (
+                  <ul className="max-h-52 divide-y divide-gray-50 overflow-y-auto">
+                    {filtered.map(c => {
+                      const vCount = activeVariantsOf(c).length
+                      return (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            onMouseDown={e => { e.preventDefault(); applyCatalogue(c) }}
+                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-blue-50"
+                          >
+                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${c.kind === 'product' ? 'bg-blue-100 text-blue-700' : 'bg-primary/12 text-primary'}`}>
+                              {c.kind === 'product' ? '📦' : '⚙️'}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-gray-800">{c.name}</p>
+                              <p className="text-xs text-gray-400">
+                                {c.hsn_sac && <span className="mr-2">HSN {c.hsn_sac}</span>}
+                                {c.price != null && <span className="mr-2">₹{c.price.toFixed(2)}</span>}
+                                {c.tax_rate != null && <span className="mr-2">{c.tax_rate}% tax</span>}
+                                {vCount > 0 && <span className="text-blue-600">{vCount} variant{vCount === 1 ? '' : 's'}</span>}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-xs capitalize text-gray-300">
+                              {c.kind === 'product' && vCount > 1 ? 'Choose →' : c.kind}
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+                <div className="border-t bg-gray-50 px-3 py-2 text-xs text-gray-400">
+                  {filtered.length} result{filtered.length !== 1 ? 's' : ''} · Select to auto-fill details
+                </div>
+              </>
             )}
-            <div className="px-3 py-2 bg-gray-50 border-t text-xs text-gray-400">
-              {filtered.length} result{filtered.length !== 1 ? 's' : ''} · Select to auto-fill details
-            </div>
           </div>
         )}
       </div>
 
-      {/* HSN */}
-      <div className={cn('shrink-0', compact ? 'w-24' : 'w-32')}>
+      {/* Variant (when product has multiple) */}
+      <div className="min-w-0 flex-1">
+        {rowVariants.length > 1 ? (
+          <select
+            className={cn(fieldClass, 'bg-white')}
+            value={item.variant_id || ''}
+            onChange={e => applyVariantId(e.target.value)}
+            title="Variant"
+          >
+            <option value="" disabled>Select variant…</option>
+            {rowVariants.map(v => (
+              <option key={v.id} value={v.id}>
+                {v.name}{v.price != null ? ` · ₹${Number(v.price).toFixed(0)}` : ''}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className={cn(fieldClass, 'bg-gray-50 text-gray-400')}
+            value={rowVariants[0]?.name || (item.kind === 'service' ? '—' : '')}
+            readOnly
+            tabIndex={-1}
+            placeholder="Variant"
+            title={rowVariants[0]?.name || 'No variants'}
+          />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
         <input className={fieldClass}
           placeholder="HSN" value={item.hsn_sac} onChange={e => onUpdate('hsn_sac', e.target.value)} />
       </div>
-      {/* Qty */}
-      <div className={cn('shrink-0', compact ? 'w-16' : 'w-28')}>
+      <div className="min-w-0 flex-1">
         <input type="number" min={1} className={cn(fieldClass, 'text-center')}
           value={item.qty} onChange={e => onUpdate('qty', Number(e.target.value))} />
       </div>
-      {/* Rate */}
-      <div className={cn('shrink-0', compact ? 'w-24' : 'w-36')}>
+      <div className="min-w-0 flex-1">
         <input type="number" min={0} placeholder="Rate" className={fieldClass}
           value={item.rate} onChange={e => onUpdate('rate', Number(e.target.value))} />
       </div>
-      {/* Tax % */}
-      <div className={cn('shrink-0', compact ? 'w-16' : 'w-24')}>
+      <div className="w-14 shrink-0">
         <input type="number" min={0} max={100} placeholder="Tax%" className={cn(fieldClass, 'text-center')}
           value={item.tax_rate} onChange={e => onUpdate('tax_rate', Number(e.target.value))} />
       </div>
-      {/* Remove */}
-      <button onClick={onRemove} className={cn('shrink-0 rounded-lg transition-colors hover:bg-red-50', compact ? 'p-1' : 'mt-0.5 p-2')}>
+      <button type="button" onClick={onRemove} className={cn('shrink-0 rounded-lg transition-colors hover:bg-red-50', compact ? 'p-1' : 'mt-0.5 p-2')}>
         <Trash2 className={cn('text-red-400', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
       </button>
     </div>
@@ -659,7 +806,7 @@ export function CreateInvoiceModal({
     customer_gstin?: string
     notes?: string
     order_id?: string
-    items?: Array<{ name: string; hsn_sac: string; qty: number; rate: number; discount: number; tax_rate: number }>
+    items?: LineItemDraft[]
   }
 }) {
   useEscapeToClose(onClose)
@@ -680,7 +827,7 @@ export function CreateInvoiceModal({
       ? 'This quotation is valid until the date shown above. Prices are subject to change after expiry.'
       : '',
   })
-  const [items, setItems] = useState(
+  const [items, setItems] = useState<LineItemDraft[]>(
     prefill?.items?.length
       ? prefill.items
       : [{ name: '', hsn_sac: '', qty: 1, rate: 0, discount: 0, tax_rate: 18 }],
@@ -700,9 +847,21 @@ export function CreateInvoiceModal({
   const { data: servicesData } = useServices({ size: 200, store_id: effectiveStoreId || undefined })
   const catalogue = useMemo<CatalogueItem[]>(() => {
     const prods = (productsData?.items ?? []).map((p: any) => ({
-      id: p.id, name: p.name, kind: 'product' as const,
-      hsn_sac: p.hsn_code || '', price: p.price ?? p.selling_price ?? 0,
+      id: p.id,
+      name: p.name,
+      kind: 'product' as const,
+      hsn_sac: p.hsn_code || '',
+      price: p.price ?? p.selling_price ?? 0,
       tax_rate: p.tax_rate ?? p.gst_rate ?? 18,
+      variants: (p.variants || []).map((v: any) => ({
+        id: v.id,
+        name: v.name,
+        sku: v.sku,
+        price: v.price ?? 0,
+        tax_rate: v.tax_rate ?? v.gst_rate ?? p.tax_rate ?? p.gst_rate ?? 18,
+        hsn_code: v.hsn_code || p.hsn_code || '',
+        is_active: v.is_active !== false,
+      })),
     }))
     const svcs = (servicesData?.items ?? []).map((s: any) => ({
       id: s.id, name: s.name, kind: 'service' as const,
@@ -746,6 +905,13 @@ export function CreateInvoiceModal({
       return updated
     })
   }, [])
+  const patchLine = useCallback((i: number, patch: Partial<LineItemDraft>) => {
+    setItems(prev => {
+      const updated = [...prev]
+      updated[i] = { ...updated[i], ...patch }
+      return updated
+    })
+  }, [])
 
   const subtotal = items.reduce((s, i) => s + i.qty * i.rate, 0)
   const totalTax = items.reduce((s, i) => {
@@ -760,7 +926,9 @@ export function CreateInvoiceModal({
         ...form,
         store_id: effectiveStoreId || undefined,
         order_id: form.order_id || undefined,
-        items,
+        items: items.map(({ name, hsn_sac, qty, rate, discount, tax_rate }) => ({
+          name, hsn_sac, qty, rate, discount, tax_rate,
+        })),
         ...(isQuotation ? { extra_fields: serializeQuotationExtraFields(extraFields) } : {}),
       }
       const created = await vendorApi.createInvoice(payload)
@@ -806,42 +974,96 @@ export function CreateInvoiceModal({
             </div>
           </div>
 
-          {/* Customer picker */}
+          {/* Customer + quotation meta — single compact row */}
           <div className="relative">
-            <Label className="text-xs">Select Customer (optional)</Label>
-            <div className="mt-0.5 flex gap-2">
-              <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                <Input
-                  placeholder="Search existing customers…"
-                  className="pl-9 h-8 text-sm"
-                  value={custSearch}
-                  onFocus={() => setCustOpen(true)}
-                  onChange={e => { setCustSearch(e.target.value); setCustOpen(true) }}
+            {isQuotation ? (
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+                <div className="min-w-0">
+                  <Label className="text-xs">Select Customer (optional)</Label>
+                  <div className="relative mt-0.5">
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      placeholder="Search customers…"
+                      className="h-8 pl-8 text-sm"
+                      value={custSearch}
+                      onFocus={() => setCustOpen(true)}
+                      onChange={e => { setCustSearch(e.target.value); setCustOpen(true) }}
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-8 shrink-0 gap-1 px-2 text-xs"
+                  onClick={() => setShowQuickCreate(true)}
+                >
+                  <UserPlus className="h-3.5 w-3.5" /> Create
+                </Button>
+                <div className="min-w-0">
+                  <Label className="text-xs">Valid Until</Label>
+                  <Input
+                    type="date"
+                    className="mt-0.5 h-8 w-full text-sm"
+                    value={form.due_date}
+                    onChange={e => setForm({ ...form, due_date: e.target.value })}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
+                  <Input
+                    className="mt-0.5 h-8 w-full text-sm"
+                    value={form.customer_gstin}
+                    onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })}
+                    maxLength={15}
+                  />
+                </div>
+                <CheckboxFieldLabel
+                  label="Inter-state (IGST)"
+                  checked={form.is_inter_state}
+                  onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
+                  helpKey="inter-state supply (igst)"
+                  className="shrink-0 pb-1.5 whitespace-nowrap"
+                  labelClassName="text-xs"
                 />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-8 gap-1.5 px-2.5 text-xs shrink-0"
-                onClick={() => setShowQuickCreate(true)}
-              >
-                <UserPlus className="w-3.5 h-3.5" /> Create Customer
-              </Button>
-            </div>
+            ) : (
+              <div>
+                <Label className="text-xs">Select Customer (optional)</Label>
+                <div className="mt-0.5 flex gap-2">
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      placeholder="Search existing customers…"
+                      className="h-8 pl-9 text-sm"
+                      value={custSearch}
+                      onFocus={() => setCustOpen(true)}
+                      onChange={e => { setCustSearch(e.target.value); setCustOpen(true) }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 shrink-0 gap-1.5 px-2.5 text-xs"
+                    onClick={() => setShowQuickCreate(true)}
+                  >
+                    <UserPlus className="h-3.5 w-3.5" /> Create Customer
+                  </Button>
+                </div>
+              </div>
+            )}
             {form.customer_name && (
-              <p className="text-[11px] text-gray-500 mt-1">
+              <p className="mt-1 text-[11px] text-gray-500">
                 Selected: <span className="font-medium text-gray-700">{form.customer_name}</span>
                 {form.customer_phone ? ` · ${form.customer_phone}` : ''}
               </p>
             )}
             {custOpen && (
-              <div className="absolute z-30 left-0 right-0 sm:right-auto sm:pr-[9.5rem] bg-white border rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
+              <div className="absolute left-0 right-0 z-30 mt-1 max-h-40 overflow-y-auto rounded-lg border bg-white shadow-lg sm:right-auto sm:min-w-[16rem] sm:max-w-[24rem]">
                 {customers.length === 0 ? (
                   <p className="px-4 py-3 text-sm text-gray-400">No customers found</p>
                 ) : customers.map(c => (
                   <button key={c.id} type="button"
-                    className="w-full text-left px-4 py-2 hover:bg-indigo-50 transition-colors border-b last:border-0"
+                    className="w-full border-b px-4 py-2 text-left transition-colors last:border-0 hover:bg-indigo-50"
                     onClick={() => applyCustomer(c)}
                   >
                     <p className="text-sm font-medium text-gray-900">{c.full_name}</p>
@@ -855,32 +1077,8 @@ export function CreateInvoiceModal({
             )}
           </div>
 
-          {isQuotation ? (
-            <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end">
-              <div>
-                <Label className="text-xs">Valid Until</Label>
-                <Input
-                  type="date"
-                  className="mt-0.5 h-8 text-sm"
-                  value={form.due_date}
-                  onChange={e => setForm({ ...form, due_date: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
-                <Input className="mt-0.5 h-8 text-sm" value={form.customer_gstin} onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })} maxLength={15} />
-              </div>
-              <CheckboxFieldLabel
-                label="Inter-state (IGST)"
-                checked={form.is_inter_state}
-                onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
-                helpKey="inter-state supply (igst)"
-                className="pb-1.5 whitespace-nowrap"
-                labelClassName="text-xs"
-              />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-12 items-end">
+          {isQuotation ? null : (
+            <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-12">
               <div className="sm:col-span-2">
                 <Label className="text-xs">Type</Label>
                 <Select
@@ -933,11 +1131,13 @@ export function CreateInvoiceModal({
               </Button>
             </div>
             <div className="mb-1 flex gap-1.5 px-0.5">
-              <FormColumnLabel className="flex-1 min-w-0 text-[10px]">Item</FormColumnLabel>
-              <FormColumnLabel className="w-24 shrink-0 text-[10px]">HSN/SAC</FormColumnLabel>
-              <FormColumnLabel className="w-16 shrink-0 text-center text-[10px]">Qty</FormColumnLabel>
-              <FormColumnLabel className="w-24 shrink-0 text-[10px]">Rate (₹)</FormColumnLabel>
-              <FormColumnLabel className="w-16 shrink-0 text-center text-[10px]">Tax %</FormColumnLabel>
+              <FormColumnLabel className="w-6 shrink-0 text-center text-[10px]">#</FormColumnLabel>
+              <FormColumnLabel className="min-w-0 flex-[1.6] text-[10px]">Item</FormColumnLabel>
+              <FormColumnLabel className="min-w-0 flex-1 text-[10px]">Variant</FormColumnLabel>
+              <FormColumnLabel className="min-w-0 flex-1 text-[10px]">HSN/SAC</FormColumnLabel>
+              <FormColumnLabel className="min-w-0 flex-1 text-center text-[10px]">Qty</FormColumnLabel>
+              <FormColumnLabel className="min-w-0 flex-1 text-[10px]">Rate (₹)</FormColumnLabel>
+              <FormColumnLabel className="w-14 shrink-0 text-center text-[10px]">Tax %</FormColumnLabel>
               <div className="w-7 shrink-0" />
             </div>
             <div className="space-y-1.5">
@@ -947,6 +1147,7 @@ export function CreateInvoiceModal({
                   item={item}
                   index={i}
                   onUpdate={(field, value) => updateLine(i, field, value)}
+                  onPatch={(patch) => patchLine(i, patch)}
                   onRemove={() => removeLine(i)}
                   catalogue={catalogue}
                   compact

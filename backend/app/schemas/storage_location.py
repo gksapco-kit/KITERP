@@ -7,7 +7,9 @@ from app.schemas.vendor_category import CustomFieldSchema
 
 class StorageLocationCreate(BaseModel):
     store_id: str
-    plant_id: str
+    """Business unit or branch id this location belongs to."""
+    plant_id: Optional[str] = None
+    """Optional plant; omit when the location is under a branch only."""
     name: str = Field(..., min_length=1, max_length=200)
     code: Optional[str] = Field(None, max_length=50)
     description: Optional[str] = None

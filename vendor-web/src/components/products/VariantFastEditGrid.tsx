@@ -203,6 +203,7 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
   const [sort, setSort] = useState<{ col: 'name' | ColKey; dir: 'asc' | 'desc' } | null>(null)
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(() => loadVisibleCols())
   const [detailsId, setDetailsId] = useState<string | null>(null)
+  const [detailsTab, setDetailsTab] = useState<'general' | 'media'>('general')
   const csvInputRef = useRef<HTMLInputElement>(null)
 
   const [overlay, setOverlay] = useState<Record<string, Partial<Record<ColKey, unknown>>>>({})
@@ -1170,22 +1171,29 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
                       aria-label={`Select ${v.name}`}
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setDetailsId(v.id)}
-                    className="flex items-center gap-2 truncate px-2 py-2 text-left font-medium text-foreground hover:text-primary"
-                    title={v.name}
-                  >
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+                  <div className="flex items-center gap-2 truncate px-2 py-2">
+                    <button
+                      type="button"
+                      onClick={() => { setDetailsTab('media'); setDetailsId(v.id) }}
+                      className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded bg-muted ring-offset-background hover:ring-2 hover:ring-primary/40"
+                      title={v.media?.[0]?.url ? 'View / edit media' : 'Add media'}
+                    >
                       {v.media?.[0]?.url ? (
                         <img src={v.media[0].url} alt="" className="h-full w-full object-cover" />
                       ) : (
                         <ImageOff className="h-3 w-3 text-muted-foreground" />
                       )}
-                    </span>
-                    <span className="truncate">{v.name}</span>
-                    <ChevronRight className="h-3 w-3 shrink-0 opacity-40" />
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setDetailsTab('general'); setDetailsId(v.id) }}
+                      className="flex min-w-0 flex-1 items-center gap-1 truncate text-left font-medium text-foreground hover:text-primary"
+                      title={v.name}
+                    >
+                      <span className="truncate">{v.name}</span>
+                      <ChevronRight className="h-3 w-3 shrink-0 opacity-40" />
+                    </button>
+                  </div>
 
                   {visibleColumnOrder.map(col => {
                     const isSel = !!selection && selection.col === col && rowIndex >= selection.startRow && rowIndex <= selection.endRow
@@ -1366,7 +1374,12 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
       </div>
 
       {detailsId && (
-        <VariantDetailsDrawer productId={productId} variantId={detailsId} onClose={() => setDetailsId(null)} />
+        <VariantDetailsDrawer
+          productId={productId}
+          variantId={detailsId}
+          initialTab={detailsTab}
+          onClose={() => setDetailsId(null)}
+        />
       )}
 
       <PriceAdjustDialog

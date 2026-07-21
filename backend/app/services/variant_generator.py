@@ -96,6 +96,34 @@ def _is_attribute_applicable(attr: dict, evaluation) -> bool:
     return attr["parent_attribute_id"] is None
 
 
+def _gated_options_by_attr(rules: list[dict]) -> dict[str, set[str]]:
+    """Options targeted by any enable_option rule — hidden until enabled."""
+    gated: dict[str, set[str]] = {}
+    for rule in rules:
+        for action in rule.get("actions") or []:
+            if action.get("type") != "enable_option":
+                continue
+            target = action.get("target") or ""
+            attr, _, option = target.partition(":")
+            if not attr:
+                continue
+            gated.setdefault(attr, set()).add(option or target)
+    return gated
+
+
+def _option_allowed(
+    attr_name: str,
+    option_name: str,
+    evaluation,
+    gated: dict[str, set[str]],
+) -> bool:
+    if option_name in evaluation.disabled_options.get(attr_name, set()):
+        return False
+    if option_name in gated.get(attr_name, set()) and option_name not in evaluation.enabled_options.get(attr_name, set()):
+        return False
+    return True
+
+
 def generate_candidate_combinations(
     attribute_order: list[dict],
     rules: list[dict],
@@ -103,10 +131,11 @@ def generate_candidate_combinations(
 ) -> tuple[list[dict[str, Any]], bool]:
     """Returns (combinations, truncated). Each combination is a flat
     {attribute_name: option_name} dict — only combinations that survive every
-    active rule (visibility + disabled options + required-attribute pruning)
+    active rule (visibility + disabled/enabled options + required-attribute pruning)
     are returned."""
     out: list[dict[str, Any]] = []
     truncated = False
+    gated = _gated_options_by_attr(rules)
 
     def expand(idx: int, selection: dict[str, Any]) -> None:
         nonlocal truncated
@@ -129,8 +158,10 @@ def generate_candidate_combinations(
             expand(idx + 1, selection)
             return
 
-        disabled = evaluation.disabled_options.get(attr["name"], set())
-        options = [o for o in attr["options"] if o["name"] not in disabled]
+        options = [
+            o for o in attr["options"]
+            if _option_allowed(attr["name"], o["name"], evaluation, gated)
+        ]
 
         if not options:
             is_required = attr["is_required"] or attr["name"] in evaluation.required
@@ -224,6 +255,7 @@ def is_selection_still_valid(selection: dict[str, Any], attribute_order: list[di
     and rules (used by the "delete invalid variants" cleanup after metadata edits)."""
     by_name = {a["name"]: a for a in attribute_order}
     evaluation = evaluate_rules(rules, selection)
+    gated = _gated_options_by_attr(rules)
 
     if evaluation.errors or evaluation.prevent_save:
         return False
@@ -234,7 +266,7 @@ def is_selection_still_valid(selection: dict[str, Any], attribute_order: list[di
             return False
         if not _is_attribute_applicable(attr, evaluation):
             return False
-        if option_name in evaluation.disabled_options.get(attr_name, set()):
+        if not _option_allowed(attr_name, option_name, evaluation, gated):
             return False
         if not any(o["name"] == option_name for o in attr["options"]):
             return False

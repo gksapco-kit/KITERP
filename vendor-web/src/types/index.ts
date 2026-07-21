@@ -775,7 +775,7 @@ export interface StorageLocation {
   id: string
   vendor_id: string
   store_id: string
-  plant_id: string
+  plant_id?: string | null
   parent_id?: string | null
   name: string
   code?: string | null
@@ -891,6 +891,8 @@ export interface PurchaseOrderItem {
   quantity_received: number
   unit_cost: number
   total_cost: number
+  plant_id?: string | null
+  storage_location_id?: string | null
   notes?: string
 }
 

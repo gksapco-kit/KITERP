@@ -50,11 +50,33 @@ interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
     VariantProps<typeof sheetVariants> {}
 
+function isOutsideLayerTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  // Legacy custom portals (ModalOverlay)
+  if (target.closest('[data-kiterp-portal-modal]')) return true
+  // Nested Radix Dialog content (image picker) — not this sheet
+  const dialog = target.closest('[role="dialog"]')
+  return Boolean(dialog && !dialog.hasAttribute('data-kiterp-sheet-content'))
+}
+
 const SheetContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, SheetContentProps>(
-  ({ side = 'right', className, children, ...props }, ref) => (
+  ({ side = 'right', className, children, onPointerDownOutside, onInteractOutside, ...props }, ref) => (
     <SheetPortal>
       <SheetOverlay />
-      <DialogPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+      <DialogPrimitive.Content
+        ref={ref}
+        data-kiterp-sheet-content=""
+        className={cn(sheetVariants({ side }), className)}
+        onPointerDownOutside={(e) => {
+          if (isOutsideLayerTarget(e.target)) e.preventDefault()
+          onPointerDownOutside?.(e)
+        }}
+        onInteractOutside={(e) => {
+          if (isOutsideLayerTarget(e.target)) e.preventDefault()
+          onInteractOutside?.(e)
+        }}
+        {...props}
+      >
         {children}
         <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
           <X className="h-4 w-4" />

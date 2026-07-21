@@ -119,13 +119,17 @@ export function ImageSourcePicker({
         const file = await remoteImageToFile(url)
         closePicker()
         await onFile(file)
-      } catch {
+      } catch (err) {
         if (onUrl) {
-          await onUrl(resolveBusinessGalleryDisplayUrl(url))
-          closePicker()
-          return
+          try {
+            await onUrl(resolveBusinessGalleryDisplayUrl(url))
+            closePicker()
+            return
+          } catch {
+            // fall through to rethrow original fetch error
+          }
         }
-        throw new Error('Could not load image')
+        throw err
       }
     },
     [closePicker, onFile, onUrl, preferDirectUrl],
@@ -271,13 +275,17 @@ export function useImageSourcePicker({
         const file = await remoteImageToFile(url)
         closePicker()
         await onFile(file)
-      } catch {
+      } catch (err) {
         if (onUrl) {
-          await onUrl(resolveBusinessGalleryDisplayUrl(url))
-          closePicker()
-          return
+          try {
+            await onUrl(resolveBusinessGalleryDisplayUrl(url))
+            closePicker()
+            return
+          } catch {
+            // fall through to rethrow original fetch error
+          }
         }
-        throw new Error('Could not load image')
+        throw err
       }
     },
     [closePicker, onFile, onUrl],

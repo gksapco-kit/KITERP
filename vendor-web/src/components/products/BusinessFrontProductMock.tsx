@@ -6,6 +6,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { getVariantOptionTypeForAttribute, estimateVariantCombinations, MAX_VARIANT_COMBINATIONS, isOverComboLimit } from '@/lib/variantOptionTypes'
 import {
   countCombinationsAfterRules,
+  previewRuleTargetValues,
   type PreviewCompatRule,
 } from '@/lib/variantComboEstimate'
 import { COLOUR_PALETTE } from '@/lib/productVariantPresets'
@@ -93,19 +94,32 @@ function isOptionHidden(
   rules: PreviewCompatRule[],
   selected: Record<string, string>,
 ): boolean {
-  return rules.some(r =>
+  const hide = rules.some(r =>
     r.kind === 'hide_value'
     && r.targetAttr === attrName
-    && r.targetValue === optName
+    && previewRuleTargetValues(r).includes(optName)
     && r.whenAttr
     && r.whenValue
     && selected[r.whenAttr] === r.whenValue,
   )
+  if (hide) return true
+
+  const showRules = rules.filter(r =>
+    r.kind === 'show_value'
+    && r.targetAttr === attrName
+    && previewRuleTargetValues(r).includes(optName)
+    && r.whenAttr
+    && r.whenValue,
+  )
+  if (showRules.length === 0) return false
+  return !showRules.some(r => selected[r.whenAttr] === r.whenValue)
 }
 
 function isRuleTriggered(rule: PreviewCompatRule, selected: Record<string, string>): boolean {
   if (!rule.whenAttr || !rule.whenValue || !rule.targetAttr) return false
-  if (rule.kind === 'hide_value' && !rule.targetValue) return false
+  if ((rule.kind === 'hide_value' || rule.kind === 'show_value') && previewRuleTargetValues(rule).length === 0) {
+    return false
+  }
   return selected[rule.whenAttr] === rule.whenValue
 }
 
@@ -115,9 +129,12 @@ function ruleShortLabel(rule: PreviewCompatRule, attributes: ConfigAttribute[], 
   const target = attributes.find(a => a.name === rule.targetAttr)
   const whenVal = when?.options.find(o => o.name === rule.whenValue)?.display_name ?? rule.whenValue
   const whenName = when?.display_name ?? rule.whenAttr
-  if (rule.kind === 'hide_value') {
-    const tv = target?.options.find(o => o.name === rule.targetValue)?.display_name ?? rule.targetValue
-    return `When ${whenName} is ${whenVal}, hide ${tv}`
+  if (rule.kind === 'hide_value' || rule.kind === 'show_value') {
+    const labels = previewRuleTargetValues(rule).map(v =>
+      target?.options.find(o => o.name === v)?.display_name ?? v,
+    )
+    const verb = rule.kind === 'hide_value' ? 'hide' : 'show'
+    return `When ${whenName} is ${whenVal}, ${verb} ${labels.join(', ')}`
   }
   if (rule.kind === 'hide_choice') {
     return `When ${whenName} is ${whenVal}, hide ${target?.display_name ?? rule.targetAttr}`
@@ -209,7 +226,8 @@ export function BusinessFrontProductMock({
     : estimateVariantCombinations(attributes.filter(a => a.options.length > 0))
   const activeRules = useMemo(
     () => previewRules.filter(r =>
-      r.whenAttr && r.whenValue && r.targetAttr && (r.kind !== 'hide_value' || r.targetValue),
+      r.whenAttr && r.whenValue && r.targetAttr
+      && ((r.kind !== 'hide_value' && r.kind !== 'show_value') || previewRuleTargetValues(r).length > 0),
     ),
     [previewRules],
   )
@@ -234,9 +252,11 @@ export function BusinessFrontProductMock({
     for (const { rule, color } of triggered) {
       const whenKey = `${rule.whenAttr}:${rule.whenValue}`
       if (!map.has(whenKey)) map.set(whenKey, color)
-      if (rule.kind === 'hide_value' && rule.targetValue) {
-        const tKey = `${rule.targetAttr}:${rule.targetValue}`
-        if (!map.has(tKey)) map.set(tKey, color)
+      if ((rule.kind === 'hide_value' || rule.kind === 'show_value')) {
+        for (const tv of previewRuleTargetValues(rule)) {
+          const tKey = `${rule.targetAttr}:${tv}`
+          if (!map.has(tKey)) map.set(tKey, color)
+        }
       }
       if (rule.kind === 'hide_choice' || rule.kind === 'show_choice') {
         const aKey = `${rule.targetAttr}:*`

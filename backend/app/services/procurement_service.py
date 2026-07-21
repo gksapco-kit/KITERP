@@ -218,6 +218,12 @@ class PurchaseOrderService:
                 quantity_ordered=qty,
                 unit_cost=cost,
                 total_cost=line_total,
+                plant_id=UUID(item_data["plant_id"]) if item_data.get("plant_id") else None,
+                storage_location_id=(
+                    UUID(item_data["storage_location_id"])
+                    if item_data.get("storage_location_id") else None
+                ),
+                notes=item_data.get("notes") or item_data.get("description"),
             ))
 
         total = round(subtotal, 2)
@@ -279,6 +285,12 @@ class PurchaseOrderService:
                     quantity_ordered=qty,
                     unit_cost=cost,
                     total_cost=line_total,
+                    plant_id=UUID(item_data["plant_id"]) if item_data.get("plant_id") else None,
+                    storage_location_id=(
+                        UUID(item_data["storage_location_id"])
+                        if item_data.get("storage_location_id") else None
+                    ),
+                    notes=item_data.get("notes") or item_data.get("description"),
                 ))
             self.db.add_all(new_items)
             po.subtotal = subtotal
