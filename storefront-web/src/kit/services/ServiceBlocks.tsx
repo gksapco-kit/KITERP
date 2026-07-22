@@ -124,9 +124,11 @@ export function ServiceCard({
         <div className="flex flex-wrap items-baseline gap-2">
           {!isPriceNotApplicable(service.price_type) && (
             <span className="font-semibold">
-              {isPricedAmount(service.price)
-                ? formatPrice(service.price, service.currency)
-                : (servicePriceFallbackLabel(service.price, service.price_type, "Get Quote") ?? "")}
+              {service.price_type === 'free'
+                ? 'Free'
+                : isPricedAmount(service.price)
+                  ? formatPrice(service.price, service.currency)
+                  : (servicePriceFallbackLabel(service.price, service.price_type, 'Get a Quote') ?? '')}
             </span>
           )}
         </div>

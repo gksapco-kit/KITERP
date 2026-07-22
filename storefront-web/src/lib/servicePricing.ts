@@ -48,8 +48,9 @@ export function isPriceNotApplicable(priceType?: string | null): boolean {
 
 /**
  * Storefront price label when currency should not be shown.
- * Matches vendor admin + Home: free → "Free", zero/null/quote → quote fallback.
- * Returns null when price is not applicable (caller should hide the price UI).
+ * free → "Free", zero/null/quote → quote fallback.
+ * Returns null when price is not applicable (caller should hide the price UI),
+ * or when a real amount should be formatted by the caller instead.
  */
 export function servicePriceFallbackLabel(
   price: number | null | undefined,
@@ -59,7 +60,7 @@ export function servicePriceFallbackLabel(
   if (isPriceNotApplicable(priceType)) return null
   if (priceType === 'free') return 'Free'
   if (!isPricedAmount(price)) return quoteLabel
-  return quoteLabel
+  return null
 }
 
 /** Resolve a displayable duration (minutes): service duration → first plan's duration → default. */

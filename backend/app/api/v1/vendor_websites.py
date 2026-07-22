@@ -4128,7 +4128,7 @@ async def _fetch_live_resource_items(
             elif price_val is not None and price_val > 0:
                 price_formatted = f"{s.currency or 'INR'} {price_val:,.0f}"
             else:
-                price_formatted = None
+                price_formatted = "Get a Quote"
             items.append(_norm_item(
                 id=str(s.id),
                 title=s.name or "",

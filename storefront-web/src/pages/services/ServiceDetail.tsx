@@ -125,17 +125,20 @@ function BookingSlotsPanel({ availability }: { availability: AvailSlot[] }) {
 // ── Plan Selector ─────────────────────────────────────────────────
 
 export function PlanSelector({
-  plans, currency, selectedId, onSelect, hidePrice = false, compact = false,
+  plans, currency, selectedId, onSelect, hidePrice = false, compact = false, priceType,
 }: {
   plans: ServicePlan[]; currency: string; selectedId: string | null; onSelect: (id: string) => void
   hidePrice?: boolean
   compact?: boolean
+  /** Service-level price_type — hides plan prices when not_applicable; Free when free. */
+  priceType?: string | null
 }) {
   const activePlans = plans.filter(p => p.is_active)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
-  const isCompact = compact || hidePrice
+  const priceHidden = hidePrice || isPriceNotApplicable(priceType)
+  const isCompact = compact || priceHidden
 
   const updateScrollState = useCallback(() => {
     const el = scrollerRef.current
@@ -234,9 +237,13 @@ export function PlanSelector({
                   </div>
                   <div className="min-w-0 flex-1 overflow-hidden">
                     <p className="font-bold text-gray-900 truncate text-xs leading-tight">{plan.name}</p>
-                    {!hidePrice && (
+                    {!priceHidden && (
                       <div className="mt-0.5 min-w-0">
-                        {isPricedAmount(plan.price) ? (
+                        {priceType === 'free' ? (
+                          <p className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded inline-block">
+                            Free
+                          </p>
+                        ) : isPricedAmount(plan.price) ? (
                           <div className="min-w-0">
                             <p className="text-sm font-extrabold text-gray-900 tabular-nums leading-snug break-all">
                               {formatCurrency(plan.price, currency)}
@@ -245,14 +252,14 @@ export function PlanSelector({
                           </div>
                         ) : (
                           <p className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded inline-block">
-                            {servicePriceFallbackLabel(plan.price, undefined, 'Quote')}
+                            {servicePriceFallbackLabel(plan.price, priceType, 'Get a Quote')}
                           </p>
                         )}
                       </div>
                     )}
-                    {hidePrice && !isPricedAmount(plan.price) && (
+                    {hidePrice && !isPriceNotApplicable(priceType) && priceType !== 'free' && !isPricedAmount(plan.price) && (
                       <span className="mt-0.5 inline-block text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
-                        {servicePriceFallbackLabel(plan.price, undefined, 'Quote')}
+                        {servicePriceFallbackLabel(plan.price, priceType, 'Get a Quote')}
                       </span>
                     )}
                     {plan.description && (
@@ -313,9 +320,11 @@ function clampTimeToBounds(time: string, bounds: { start: string; end: string } 
 }
 
 function BookingModal({
-  serviceId, planId, serviceName, price, duration, availability, imageUrl, onClose,
+  serviceId, planId, serviceName, price, priceType, duration, availability, imageUrl, onClose,
 }: {
-  serviceId: string; planId?: string | null; serviceName: string; price: number; duration?: number
+  serviceId: string; planId?: string | null; serviceName: string; price: number
+  priceType?: string | null
+  duration?: number
   availability?: AvailSlot[]; imageUrl?: string; onClose: () => void
 }) {
   const navigate = useNavigate()
@@ -425,9 +434,21 @@ function BookingModal({
           <div className={`rounded-lg px-3 py-2 border flex items-center justify-between gap-3 ${themeUi.gradientHero} ${themeUi.borderPrimaryMuted}`}>
             <p className="font-semibold text-sm text-gray-900 truncate min-w-0">{serviceName}</p>
             <div className="flex items-center gap-2 shrink-0 text-sm text-gray-600">
-              <span className="text-base font-extrabold text-gray-900 tabular-nums">
-                {isPricedAmount(price) ? formatCurrency(price) : (servicePriceFallbackLabel(price, undefined, 'Quote') ?? '')}
-              </span>
+              {!isPriceNotApplicable(priceType) && (
+                <span className={`text-base font-extrabold tabular-nums ${
+                  priceType === 'free'
+                    ? 'text-emerald-700'
+                    : !isPricedAmount(price)
+                      ? 'text-amber-700'
+                      : 'text-gray-900'
+                }`}>
+                  {priceType === 'free'
+                    ? 'Free'
+                    : isPricedAmount(price)
+                      ? formatCurrency(price)
+                      : (servicePriceFallbackLabel(price, priceType, 'Get a Quote') ?? '')}
+                </span>
+              )}
               {duration != null && duration > 0 && (
                 <span className="flex items-center gap-0.5 bg-white/80 px-1.5 py-0.5 rounded-full text-[11px]">
                   <Clock className="w-2.5 h-2.5" /> {duration} min
@@ -957,14 +978,16 @@ export default function ServiceDetail() {
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight truncate">
                     {subscriptionLabel}
                   </p>
-                  <p className="text-base sm:text-lg font-bold text-gray-900 mt-0.5 tabular-nums leading-tight break-all">
-                    {formatCurrency(subscriptionPrice, currency)}
-                    <span className="ml-1 text-xs font-medium text-gray-500">
-                      {subscriptionPriceType === 'per_unit'
-                        ? `per ${UOM_LABELS[subscriptionUom] || subscriptionUom}`
-                        : (intervalShort[subscriptionInterval] || `/${subscriptionInterval}`)}
-                    </span>
-                  </p>
+                  {!isPriceNotApplicable(service.price_type) && (
+                    <p className="text-base sm:text-lg font-bold text-gray-900 mt-0.5 tabular-nums leading-tight break-all">
+                      {formatCurrency(subscriptionPrice, currency)}
+                      <span className="ml-1 text-xs font-medium text-gray-500">
+                        {subscriptionPriceType === 'per_unit'
+                          ? `per ${UOM_LABELS[subscriptionUom] || subscriptionUom}`
+                          : (intervalShort[subscriptionInterval] || `/${subscriptionInterval}`)}
+                      </span>
+                    </p>
+                  )}
                 </div>
                 <Button
                   className={`w-full h-10 font-bold rounded-xl shadow-sm text-sm ${themeUi.btnSolid}`}
@@ -997,7 +1020,12 @@ export default function ServiceDetail() {
                         )}
                       </p>
                     ) : (
-                      <p className="text-xl font-bold text-amber-600 mt-1">Get a Quote</p>
+                      <div className="mt-1">
+                        <p className="text-xl font-bold text-amber-600">Get a Quote</p>
+                        <span className="mt-1.5 inline-flex items-center text-[11px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                          Price is not applicable
+                        </span>
+                      </div>
                     )}
                     {isDisplayFieldEnabled(sf, 'price_range') && service.price_min != null && service.price_max != null && service.price_min > 0 && (
                       <p className="text-xs text-gray-400 mt-1">
@@ -1051,7 +1079,12 @@ export default function ServiceDetail() {
                         )}
                       </p>
                     ) : (
-                      <p className="text-xl font-bold text-amber-600 mt-1">Contact for Pricing</p>
+                      <div className="mt-1">
+                        <p className="text-xl font-bold text-amber-600">Contact for Pricing</p>
+                        <span className="mt-1.5 inline-flex items-center text-[11px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                          Price is not applicable
+                        </span>
+                      </div>
                     )}
                   </div>
                 )}
@@ -1101,8 +1134,9 @@ export default function ServiceDetail() {
               currency={currency}
               selectedId={selectedPlanId ?? activePlans[0]?.id ?? null}
               onSelect={setSelectedPlanId}
-              hidePrice={isSubscription && subscriptionPrice > 0}
+              hidePrice={isSubscription && subscriptionPrice > 0 && !isPriceNotApplicable(service.price_type)}
               compact={isSubscription && subscriptionPrice > 0}
+              priceType={service.price_type}
             />
           )}
 
@@ -1232,6 +1266,7 @@ export default function ServiceDetail() {
           planId={selectedPlan?.id}
           serviceName={selectedPlan ? `${service.name} — ${selectedPlan.name}` : service.name}
           price={selectedPlan?.price ?? service.price ?? 0}
+          priceType={service.price_type}
           duration={selectedPlan?.duration_minutes ?? service.duration_minutes}
           availability={
             selectedPlan?.availability && selectedPlan.availability.length > 0

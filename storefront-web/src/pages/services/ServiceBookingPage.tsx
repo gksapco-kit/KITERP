@@ -210,6 +210,7 @@ export default function ServiceBookingPage() {
                       currency={service.currency || 'INR'}
                       selectedId={selectedPlanId ?? activePlans[0]?.id ?? null}
                       onSelect={setSelectedPlanId}
+                      priceType={service.price_type}
                     />
                   </CardContent>
                 </Card>
@@ -279,9 +280,11 @@ export default function ServiceBookingPage() {
                     <div className="text-sm flex justify-between font-semibold">
                       <span>Price</span>
                       <span>
-                        {isPricedAmount(planPrice)
-                          ? formatCurrency(planPrice, service.currency || 'INR')
-                          : (servicePriceFallbackLabel(planPrice, service.price_type, 'Get a Quote') ?? '')}
+                        {service.price_type === 'free'
+                          ? 'Free'
+                          : isPricedAmount(planPrice)
+                            ? formatCurrency(planPrice, service.currency || 'INR')
+                            : (servicePriceFallbackLabel(planPrice, service.price_type, 'Get a Quote') ?? '')}
                       </span>
                     </div>
                   )}

@@ -9,6 +9,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, imgUrl } from '@/lib/utils'
 import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
+import { isPricedAmount, isPriceNotApplicable, servicePriceFallbackLabel } from '@/lib/servicePricing'
 import { linkOnLight, textOnSolid } from '@/lib/themeColors'
 import {
   ArrowRight, ShoppingBag, Wrench, Loader2, Star, Truck, ShieldCheck,
@@ -247,10 +248,18 @@ function FeaturedServicesSection({ props, theme, storePath, services }: {
                 )}
                 {(show('card_price') || show('card_duration')) && (
                   <div className="mt-3 flex items-center gap-3 flex-wrap">
-                    {show('card_price') && s.price_type !== 'not_applicable' && (
-                      s.price
-                        ? <span className="text-base font-bold" style={{ color: linkOnLight(c.primary, c.secondary) }}>{formatCurrency(s.price)}</span>
-                        : <span className="text-sm font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">Get Quote</span>
+                    {show('card_price') && !isPriceNotApplicable(s.price_type) && (
+                      isPricedAmount(s.price) && s.price_type !== 'free' ? (
+                        <span className="text-base font-bold" style={{ color: linkOnLight(c.primary, c.secondary) }}>{formatCurrency(s.price)}</span>
+                      ) : (
+                        <span className={`text-sm font-semibold px-2.5 py-1 rounded-md border ${
+                          s.price_type === 'free'
+                            ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
+                            : 'text-amber-800 bg-amber-50 border-amber-200'
+                        }`}>
+                          {servicePriceFallbackLabel(s.price, s.price_type, 'Get a Quote')}
+                        </span>
+                      )
                     )}
                     {show('card_duration') && s.duration_minutes && (
                       <span className="text-sm text-gray-600 flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {s.duration_minutes} min</span>

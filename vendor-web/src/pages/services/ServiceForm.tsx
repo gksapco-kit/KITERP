@@ -31,7 +31,7 @@ import {
   Clock, Eye, Search, Puzzle, BarChart3, Edit2, History,
   Calendar, MapPin, Star, Globe, Tag, Repeat, Plus, Trash2,
   GripVertical, Film, Box, Image as ImageIcon, Copy, MessageSquare, ToggleRight, Info, Layers, Pencil, FileDown,
-  Printer, Store, Hash, Factory, Users, X,
+  Printer, Store, Hash, Factory, Users, X, Gift,
 } from 'lucide-react'
 import {
   BOOKING_DOC_TYPES, getServiceDocTemplates, setServiceDocTemplates,
@@ -1515,6 +1515,15 @@ export default function ServiceForm() {
               </div>
               <div className="flex items-center justify-between px-3 py-2">
                 <div className="flex items-center gap-2">
+                  <Gift className="w-4 h-4 text-emerald-600" />
+                  <p className="text-sm text-gray-700 font-medium">Free</p>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.price_type === 'free' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {service.price_type === 'free' ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2">
                   <Tag className="w-4 h-4 text-gray-500" />
                   <p className="text-sm text-gray-700 font-medium">Price not applicable</p>
                 </div>
@@ -2222,6 +2231,22 @@ export default function ServiceForm() {
                 <Controller name="allow_quote_request" control={control} render={({ field }) => (
                   <Toggle checked={field.value} onChange={field.onChange} small />
                 )} />
+              </div>
+              <div className="flex items-center justify-between px-3 py-2 gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <Gift className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-800">Free</p>
+                    <p className="text-xs text-gray-400">Show &quot;Free&quot; on the business front instead of a price or quote label.</p>
+                  </div>
+                </div>
+                <Toggle
+                  checked={watchedPriceType === 'free'}
+                  onChange={(on) => {
+                    setValue('price_type', on ? 'free' : 'fixed', { shouldDirty: true })
+                  }}
+                  small
+                />
               </div>
               <div className="flex items-center justify-between px-3 py-2 gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
