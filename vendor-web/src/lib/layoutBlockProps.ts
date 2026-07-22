@@ -28,6 +28,12 @@ const STYLE_PRESERVE_PROP_KEYS = new Set([
   'content_offset_x', 'content_offset_y',
   'content_flip_h', 'content_flip_v', 'content_rotate_deg',
   'section_flip_h', 'section_flip_v', 'section_rotate_deg',
+  // Section photo + crop / fit / zoom — layout presets change chrome, not the media itself.
+  'image_url', 'bg_image_url',
+  'image_fit', 'image_focal_x', 'image_focal_y', 'image_scale',
+  'image_radius', 'image_shadow', 'image_opacity', 'image_layer', 'image_overlay',
+  'bg_image_fit', 'bg_image_focal_x', 'bg_image_focal_y', 'bg_image_scale',
+  'bg_image_radius', 'bg_image_shadow', 'bg_image_opacity', 'bg_image_layer', 'bg_image_overlay',
 ])
 
 function normalizeFeaturesLayout(props: Record<string, unknown>): Record<string, unknown> {
@@ -144,6 +150,16 @@ export function mergeLayoutBlockProps(
   ] as const
   for (const key of LAYOUT_SHELL_PROP_KEYS) {
     if (key in layoutShell) merged[key] = layoutShell[key]
+  }
+
+  // Keep left/right photo placement when the new preset omits image_position
+  // (e.g. White Clean / Gradient Left after Image Left).
+  if (
+    !('image_position' in propsOverride)
+    && existing.image_position != null
+    && existing.image_position !== ''
+  ) {
+    merged.image_position = existing.image_position
   }
 
   if (blockType.includes('gallery') || blockType === 'portfolio_grid' || blockType === 'video_gallery') {

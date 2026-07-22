@@ -37,3 +37,54 @@ export function heroShouldUseFullBleedImage(
 ): boolean {
   return hasBgImage && heroUsesBackgroundImage(blockType, props)
 }
+
+/** Map historically-saved `bg_image_*` crop/style keys onto `image_*` for side-image heroes. */
+const SIDE_IMAGE_STYLE_MIGRATE: Array<[bgKey: string, imageKey: string]> = [
+  ['bg_image_fit', 'image_fit'],
+  ['bg_image_focal_x', 'image_focal_x'],
+  ['bg_image_focal_y', 'image_focal_y'],
+  ['bg_image_scale', 'image_scale'],
+  ['bg_image_radius', 'image_radius'],
+  ['bg_image_shadow', 'image_shadow'],
+  ['bg_image_opacity', 'image_opacity'],
+  ['bg_image_layer', 'image_layer'],
+  ['bg_image_overlay', 'image_overlay'],
+]
+
+/**
+ * Side-image heroes render `image_url` + `image_*`. Older data may still store the photo
+ * under `bg_image_url` / `bg_image_*` — migrate so crop/fit/zoom actually apply.
+ */
+export function normalizeHeroSideImageProps(
+  blockType: string,
+  props: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!heroUsesSideImage(blockType, props)) return props
+  const next = { ...props }
+  let changed = false
+
+  if (!next.image_url && typeof next.bg_image_url === 'string' && next.bg_image_url) {
+    next.image_url = next.bg_image_url
+    changed = true
+  }
+
+  for (const [bgKey, imageKey] of SIDE_IMAGE_STYLE_MIGRATE) {
+    if (next[imageKey] == null && next[bgKey] != null) {
+      next[imageKey] = next[bgKey]
+      changed = true
+    }
+  }
+
+  if (next.bg_image_url != null) {
+    delete next.bg_image_url
+    changed = true
+  }
+  for (const [bgKey] of SIDE_IMAGE_STYLE_MIGRATE) {
+    if (bgKey in next) {
+      delete next[bgKey]
+      changed = true
+    }
+  }
+
+  return changed ? next : props
+}

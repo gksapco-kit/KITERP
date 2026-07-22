@@ -22,14 +22,19 @@ export function sectionImageStyleKeys(field: string) {
 
 export function readSectionImageFit(field: string, props: Record<string, unknown>): SectionImageFit {
   const { fit } = sectionImageStyleKeys(field)
-  const raw = props[fit]
+  let raw = props[fit]
+  if (raw == null && field === 'image_url') raw = props.bg_image_fit
   return raw === 'contain' || raw === 'fill' ? raw : 'cover'
 }
 
 export function readSectionImageFocal(field: string, props: Record<string, unknown>): { x: number; y: number } {
   const { focalX, focalY } = sectionImageStyleKeys(field)
-  const x = Number(props[focalX])
-  const y = Number(props[focalY])
+  let x = Number(props[focalX])
+  let y = Number(props[focalY])
+  if (field === 'image_url') {
+    if (!Number.isFinite(x)) x = Number(props.bg_image_focal_x)
+    if (!Number.isFinite(y)) y = Number(props.bg_image_focal_y)
+  }
   return {
     x: Number.isFinite(x) ? Math.min(100, Math.max(0, Math.round(x))) : 50,
     y: Number.isFinite(y) ? Math.min(100, Math.max(0, Math.round(y))) : 50,
@@ -38,7 +43,8 @@ export function readSectionImageFocal(field: string, props: Record<string, unkno
 
 export function readSectionImageScale(field: string, props: Record<string, unknown>): number {
   const { scale } = sectionImageStyleKeys(field)
-  const raw = Number(props[scale])
+  let raw = Number(props[scale])
+  if (!Number.isFinite(raw) && field === 'image_url') raw = Number(props.bg_image_scale)
   return Number.isFinite(raw) ? Math.min(400, Math.max(25, Math.round(raw))) : 100
 }
 

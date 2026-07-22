@@ -7,6 +7,7 @@ import {
   heroShouldUseFullBleedImage,
   heroUsesBackgroundImage,
   heroUsesSideImage,
+  normalizeHeroSideImageProps,
   resolveGradientCss,
 } from '@/lib/heroLayoutUtils'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
@@ -50,7 +51,8 @@ interface Props {
   blockId?: string
 }
 
-export default function HeroBlock({ site, style, props, blockType, blockId, branchCode: branchFromBlocks }: Props) {
+export default function HeroBlock({ site, style, props: rawProps, blockType, blockId, branchCode: branchFromBlocks }: Props) {
+  const props = normalizeHeroSideImageProps(blockType, rawProps)
   const canvas = useBuilderCanvas()
   const isEditorCanvas = canvas?.isEditorCanvas && !!blockId
   const stackBelowMd = Boolean(isEditorCanvas && previewBelowMd(canvas?.previewBreakpoint))
@@ -422,7 +424,7 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
                 src={sideImageUrl}
                 className={
                   splitSideBySide || panelClass
-                    ? 'block h-full w-full object-cover object-center'
+                    ? 'block h-full w-full'
                     : cn('w-full h-full', !clippedMedia && 'shadow-2xl rounded-2xl')
                 }
               />
@@ -580,7 +582,9 @@ export default function HeroBlock({ site, style, props, blockType, blockId, bran
           ? cn(
               'relative grid min-h-[min(420px,72vh)] grid-cols-1 overflow-hidden',
               !stackBelowMd && 'md:min-h-[min(560px,78vh)] md:items-stretch',
-              !stackBelowMd && (wideImage ? 'md:grid-cols-[2fr_3fr]' : 'md:grid-cols-2'),
+              !stackBelowMd && (wideImage
+                ? (imageOnLeft ? 'md:grid-cols-[3fr_2fr]' : 'md:grid-cols-[2fr_3fr]')
+                : 'md:grid-cols-2'),
             )
           : isSplit
             ? cn(

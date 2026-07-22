@@ -3127,11 +3127,16 @@ def _enrich_block_props_with_category(
         cursor[0] += 1
         return images[idx]
 
-    if block_type in ("hero", "hero_split", "hero_minimal"):
+    if block_type == "hero_split":
+        # Split heroes render the side photo (`image_url`), not a full-bleed background.
+        if not props.get("image_url"):
+            # Prefer an existing bg fill from older starters, else pick a stock image.
+            props["image_url"] = props.get("bg_image_url") or next_img()
+        props.pop("bg_image_url", None)
+        # Keep the author's text-panel style (minimal / solid / gradient) — do not force image bg.
+    elif block_type in ("hero", "hero_minimal"):
         if not props.get("bg_image_url"):
             props["bg_image_url"] = next_img()
-        if block_type == "hero_split" and not props.get("image_url"):
-            props["image_url"] = next_img()
         if props.get("bg_style") in (None, "", "gradient", "minimal"):
             props["bg_style"] = "image"
         props.setdefault("overlay", True)

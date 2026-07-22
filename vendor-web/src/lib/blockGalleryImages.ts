@@ -48,7 +48,8 @@ const SITE_KEYWORD_CATEGORIES: { pattern: RegExp; categoryId: string }[] = [
 
 const BLOCK_IMAGE_FIELDS: Record<string, string[]> = {
   hero: ['bg_image_url'],
-  hero_split: ['bg_image_url', 'image_url'],
+  // Side-image heroes render `image_url` only — do not dual-fill `bg_image_url`.
+  hero_split: ['image_url'],
   hero_minimal: ['bg_image_url'],
   about_split: ['image_url'],
   image_block: ['image_url'],
@@ -195,8 +196,15 @@ export function applyCategoryImagesToBlockProps(
     }
   }
 
+  // Hero / CTA / contact_form already handled above — skip the generic loop so we
+  // never dual-fill bg_image_url onto side-image heroes (or fight bg_style gates).
   const topFields = BLOCK_IMAGE_FIELDS[blockType]
-  if (topFields && blockType !== 'cta' && blockType !== 'contact_form') {
+  if (
+    topFields
+    && !blockType.includes('hero')
+    && blockType !== 'cta'
+    && blockType !== 'contact_form'
+  ) {
     for (const field of topFields) {
       if (shouldFill(field)) next[field] = nextUrl()
     }
