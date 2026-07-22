@@ -111,8 +111,8 @@ export default function TeamPage() {
   const [editMember, setEditMember] = useState<TeamMember | null>(null)
   const [viewMember, setViewMember] = useState<TeamMember | null>(null)
   const [search, setSearch] = useState('')
-  const [sortKey, setSortKey] = useState('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [sortKey, setSortKey] = useState('created_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   // Post-invite OTP state
   const [otpModal, setOtpModal] = useState<{
@@ -205,7 +205,7 @@ export default function TeamPage() {
           email: (m) => m.user?.email || '',
           role: (m) => m.role,
           status: (m) => (m.is_active ? 1 : 0),
-          created_at: (m) => m.created_at || '',
+          created_at: (m) => (m.created_at ? new Date(m.created_at).getTime() : 0),
         },
       ),
     [members, search, sortKey, sortDir],

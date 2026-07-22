@@ -167,8 +167,8 @@ export default function Services() {
   const [serviceType, setServiceType] = useState('')
   const [serviceMode, setServiceMode] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [sortKey, setSortKey] = useState('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [sortKey, setSortKey] = useState('created_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   useEffect(() => {
     const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1) }, 300)
@@ -252,6 +252,7 @@ export default function Services() {
       sortKey,
       sortDir,
       {
+        created_at:      (s) => (s.created_at ? new Date(s.created_at).getTime() : 0),
         name:             (s) => s.name,
         service_type:     (s) => s.service_type,
         service_mode:     (s) => s.service_mode || '',
@@ -375,6 +376,7 @@ export default function Services() {
             search="" onSearchChange={() => {}} hideSearch
             hint={INLINE_EDIT_HINT}
             sortOptions={[
+              { value: 'created_at', label: 'Newest' },
               { value: 'name', label: 'Service' },
               { value: 'service_type', label: 'Type' },
               { value: 'service_mode', label: 'Mode' },

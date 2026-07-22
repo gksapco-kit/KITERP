@@ -319,8 +319,8 @@ export default function Customers() {
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [sortKey, setSortKey] = useState('full_name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [sortKey, setSortKey] = useState('created_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const { data, isLoading } = useCustomers({ page, size: pageSize, search: search || undefined })
   const updateCustomer = useUpdateCustomer()
@@ -341,7 +341,7 @@ export default function Customers() {
         total_orders: (c) => c.total_orders,
         total_spent: (c) => c.total_spent,
         opening_balance: (c) => c.opening_balance ?? 0,
-        created_at: (c) => c.created_at,
+        created_at: (c) => (c.created_at ? new Date(c.created_at).getTime() : 0),
       },
     )
   }, [data?.items, sortKey, sortDir])

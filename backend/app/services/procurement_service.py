@@ -161,7 +161,7 @@ class SupplierService:
         stmt = (
             select(Supplier)
             .where(and_(*conditions))
-            .order_by(Supplier.name)
+            .order_by(Supplier.created_at.desc())
         )
         result = await self.db.execute(stmt)
         items = list(result.scalars().all())

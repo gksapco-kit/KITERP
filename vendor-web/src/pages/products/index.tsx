@@ -192,8 +192,8 @@ export default function Products() {
   const [showFilters, setShowFilters] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [scanLoading, setScanLoading] = useState(false)
-  const [sortKey, setSortKey] = useState('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [sortKey, setSortKey] = useState('created_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [viewMode, setViewMode] = useState<'product' | 'variant'>(() => {
     try { return (localStorage.getItem('kiterp:products:viewMode') as 'product' | 'variant') || 'product' } catch { return 'product' }
   })
@@ -318,6 +318,7 @@ export default function Products() {
       sortKey,
       sortDir,
       {
+        created_at: (p) => (p.created_at ? new Date(p.created_at).getTime() : 0),
         name: (p) => p.name,
         brand: (p) => p.brand || '',
         product_type: (p) => p.product_type || 'physical',

@@ -350,7 +350,7 @@ export default function BookingsPage() {
   const [listBranchFilter, setListBranchFilter] = useState('')
   const [listSalesAreaFilter, setListSalesAreaFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [sortKey, setSortKey] = useState('booking_date')
+  const [sortKey, setSortKey] = useState('created_at')
 
   // Resizable modal columns — persisted to localStorage
   const { widths: modalWidths, startResize: startModalResize, resetWidths: resetModalWidths } = usePanelResize(
@@ -736,7 +736,7 @@ export default function BookingsPage() {
         booking_date: (b) => b.booking_date || '',
         status: (b) => b.status || '',
         total: (b) => Number(b.total ?? b.service_price ?? 0),
-        created_at: (b) => b.created_at || '',
+        created_at: (b) => (b.created_at ? new Date(String(b.created_at)).getTime() : 0),
       },
     )
   }, [data?.items, sortKey, sortDir])

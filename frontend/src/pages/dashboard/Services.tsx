@@ -54,8 +54,8 @@ export default function Services() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ServiceCreate>(DEFAULT_SERVICE)
-  const [sortKey, setSortKey] = useState('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [sortKey, setSortKey] = useState('created_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const { data, isLoading } = useServices({ page, size: 15, search: search || undefined, status: statusFilter || undefined })
   const createService = useCreateService()
@@ -103,6 +103,7 @@ export default function Services() {
       sortKey,
       sortDir,
       {
+        created_at: (s) => (s.created_at ? new Date(s.created_at).getTime() : 0),
         name: (s) => s.name,
         category: (s) => s.category || '',
         price: (s) => s.price ?? 0,
@@ -261,6 +262,7 @@ export default function Services() {
               hideSearch
               hint="Sorting applies to the current page."
               sortOptions={[
+                { value: 'created_at', label: 'Newest' },
                 { value: 'name', label: 'Service' },
                 { value: 'category', label: 'Category' },
                 { value: 'price', label: 'Price' },

@@ -59,8 +59,8 @@ export default function CouponsPage() {
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; coupon?: Record<string, unknown> } | null>(null)
-  const [sortKey, setSortKey] = useState('code')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [sortKey, setSortKey] = useState('created_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [storeFilter, setStoreFilter] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
   const [salesAreaFilter, setSalesAreaFilter] = useState('')
@@ -96,6 +96,7 @@ export default function CouponsPage() {
 
   type CRow = Record<string, unknown>
   const sortAccessors: Record<string, (c: CRow) => unknown> = {
+    created_at: (c) => (c.created_at ? new Date(String(c.created_at)).getTime() : 0),
     code: (c) => c.code,
     discount_type: (c) => c.discount_type,
     discount_value: (c) => Number(c.discount_value),
@@ -139,6 +140,7 @@ export default function CouponsPage() {
             hideSearch
             hint={INLINE_EDIT_HINT}
             sortOptions={[
+              { value: 'created_at', label: 'Newest' },
               { value: 'code', label: 'Code' },
               { value: 'discount_type', label: 'Discount Type' },
               { value: 'discount_value', label: 'Discount Value' },

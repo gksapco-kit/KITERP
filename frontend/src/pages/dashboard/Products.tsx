@@ -50,8 +50,8 @@ export default function Products() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(1)
-  const [sortKey, setSortKey] = useState('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [sortKey, setSortKey] = useState('created_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const { data, isLoading } = useProducts({
     page,
@@ -144,6 +144,7 @@ export default function Products() {
       sortKey,
       sortDir,
       {
+        created_at: (p) => (p.created_at ? new Date(p.created_at).getTime() : 0),
         name: (p) => p.name,
         category: (p) => p.category || '',
         price: (p) => p.price,
@@ -341,6 +342,7 @@ export default function Products() {
               hideSearch
               hint="Sorting applies to the current page."
               sortOptions={[
+                { value: 'created_at', label: 'Newest' },
                 { value: 'name', label: 'Product' },
                 { value: 'category', label: 'Category' },
                 { value: 'price', label: 'Price' },

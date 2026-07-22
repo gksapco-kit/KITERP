@@ -134,7 +134,7 @@ class EmployeeRepo:
         q = q.options(*opts)
         total_q = select(func.count()).select_from(q.subquery())
         total = (await self.db.execute(total_q)).scalar_one()
-        q = q.offset(skip).limit(limit).order_by(EmployeeProfile.employee_code)
+        q = q.offset(skip).limit(limit).order_by(EmployeeProfile.created_at.desc())
         result = await self.db.execute(q)
         return list(result.scalars().all()), total
 

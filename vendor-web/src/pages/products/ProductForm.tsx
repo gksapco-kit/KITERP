@@ -64,10 +64,12 @@ import {
   useFormActiveSection,
 } from '@/components/common/FormSectionNav'
 import { CatalogEditStickyBar } from '@/components/common/CatalogEditStickyBar'
+import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog'
 import { PRODUCT_TYPE_FILTER_OPTIONS } from '@/components/catalog/CatalogListFilters'
 import { BusinessUnitScopePicker, type StoreScope } from '@/components/common/BusinessUnitScopePicker'
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
@@ -2256,7 +2258,11 @@ export default function ProductForm() {
       variants: [],
     },
   })
-  const { register, handleSubmit, reset, setValue, getValues, watch, control, formState: { errors } } = formMethods
+  const { register, handleSubmit, reset, setValue, getValues, watch, control, formState: { errors, isDirty } } = formMethods
+  /** After create-page variant seed, treat current values as the clean baseline. */
+  const createBaselineReadyRef = useRef(isEdit)
+  const allowLeaveRef = useRef(false)
+  const unsavedDirtyRef = useRef(false)
 
   const onFormInvalid = useCallback((validationErrors: FieldErrors) => {
     handleFormInvalid(validationErrors, {
@@ -3065,6 +3071,8 @@ export default function ProductForm() {
     try {
       const saved = await persistProduct(raw)
       if (!saved) return
+      allowLeaveRef.current = true
+      unsavedDirtyRef.current = false
       navigate('/products')
     } catch (err) {
       if (!isAxiosError(err)) {
@@ -3084,6 +3092,8 @@ export default function ProductForm() {
         v => v.name?.trim() && (!isEdit || !isAutoSeededPlaceholderVariant(v, isSubscriptionType)),
       )
       qc.invalidateQueries({ queryKey: ['vendor', 'product', saved.id] })
+      allowLeaveRef.current = true
+      unsavedDirtyRef.current = false
       navigate(
         isEdit && hasRealVariants
           ? `/products/${saved.id}/configure?view=manage`
@@ -3287,6 +3297,14 @@ export default function ProductForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once per create session; makeVariantDefaults is stable enough for our guards
   }, [isEdit, isBundleType, variantFields.length, isSubscriptionType])
 
+  // Seeded default variant marks RHF dirty — reset defaults once so leave-guard stays quiet until real edits
+  useEffect(() => {
+    if (isEdit || createBaselineReadyRef.current) return
+    if (!createVariantSeeded.current || variantFields.length < 1) return
+    reset(getValues())
+    createBaselineReadyRef.current = true
+  }, [isEdit, variantFields.length, reset, getValues])
+
   useEffect(() => {
     if (isEdit || isBundleType || variantFields.length !== 1) return
     const v0 = getValues('variants.0')
@@ -3346,6 +3364,69 @@ export default function ProductForm() {
     return s
   }, [errors])
 
+  const hasUnsavedChanges = !isViewMode && (
+    isDirty || pendingFiles.length > 0 || pendingVariantMedia.size > 0
+  )
+
+  useLayoutEffect(() => {
+    if (allowLeaveRef.current) {
+      unsavedDirtyRef.current = false
+      return
+    }
+    unsavedDirtyRef.current = hasUnsavedChanges
+  }, [hasUnsavedChanges])
+
+  const saveForLeaveGuard = useCallback(async (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      void handleSubmit(
+        async (raw) => {
+          try {
+            const saved = await persistProduct(raw)
+            if (!saved) {
+              resolve(false)
+              return
+            }
+            allowLeaveRef.current = true
+            unsavedDirtyRef.current = false
+            resolve(true)
+          } catch (err) {
+            if (!isAxiosError(err)) {
+              toast.error(extractApiError(err, 'Submit failed'))
+            }
+            resolve(false)
+          }
+        },
+        (validationErrors) => {
+          onFormInvalid(validationErrors)
+          resolve(false)
+        },
+      )()
+    })
+  }, [handleSubmit, persistProduct, onFormInvalid])
+
+  const discardForLeaveGuard = useCallback(() => {
+    allowLeaveRef.current = true
+    unsavedDirtyRef.current = false
+  }, [])
+
+  const {
+    dialogOpen: unsavedDialogOpen,
+    saving: unsavedSaving,
+    handleCancel: handleUnsavedCancel,
+    handleDiscard: handleUnsavedDiscard,
+    handleSave: handleUnsavedSave,
+    confirmIfDirty,
+  } = useUnsavedChangesGuard({
+    when: hasUnsavedChanges,
+    dirtyRef: unsavedDirtyRef,
+    onSave: saveForLeaveGuard,
+    onDiscard: discardForLeaveGuard,
+  })
+
+  const leaveProductForm = useCallback(() => {
+    confirmIfDirty(() => navigate('/products'))
+  }, [confirmIfDirty, navigate])
+
   if (isEdit && isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
 
   if (isViewMode && isEdit && product) {
@@ -3376,6 +3457,8 @@ export default function ProductForm() {
 
   const handleDeleteProduct = () => {
     if (!id) return
+    allowLeaveRef.current = true
+    unsavedDirtyRef.current = false
     deleteProduct.mutate(id, { onSuccess: () => navigate('/products') })
   }
 
@@ -3385,7 +3468,7 @@ export default function ProductForm() {
       nav={null}
     >
       <CatalogEditStickyBar
-        onBack={() => navigate('/products')}
+        onBack={leaveProductForm}
         title={isEdit ? 'Edit Product' : 'New Product'}
         status={formValues.status ?? 'draft'}
         onStatusChange={(value) => setValue('status', value as 'active' | 'draft' | 'archived')}
@@ -5343,7 +5426,7 @@ export default function ProductForm() {
 
         {/* Submit */}
         <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="cancel" size="sm" onClick={() => navigate('/products')}>Cancel</Button>
+          <Button type="button" variant="cancel" size="sm" onClick={leaveProductForm}>Cancel</Button>
           <Button type="submit" disabled={isSaving} size="sm">
             {isSaving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
             {isEdit ? 'Update Product' : 'Create Product'}
@@ -5351,6 +5434,13 @@ export default function ProductForm() {
         </div>
       </form>
       </FormProvider>
+      <UnsavedChangesDialog
+        open={unsavedDialogOpen}
+        saving={unsavedSaving}
+        onCancel={handleUnsavedCancel}
+        onDiscard={handleUnsavedDiscard}
+        onSave={handleUnsavedSave}
+      />
     </FormPageWithNav>
   )
 }

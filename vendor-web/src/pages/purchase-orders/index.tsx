@@ -82,7 +82,7 @@ export default function PurchaseOrdersPage() {
   const [pageSize, setPageSize] = useState(20)
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [sortKey, setSortKey] = useState('order_date')
+  const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showScanner, setShowScanner] = useState(false)
   const [scanLoading, setScanLoading] = useState(false)
@@ -140,7 +140,7 @@ export default function PurchaseOrdersPage() {
         total: (po) => po.total,
         order_date: (po) => po.order_date || '',
         expected_delivery_date: (po) => po.expected_delivery_date || '',
-        created_at: (po) => po.created_at,
+        created_at: (po) => (po.created_at ? new Date(po.created_at).getTime() : 0),
         item_count: (po) => po.items?.length || 0,
       },
     )

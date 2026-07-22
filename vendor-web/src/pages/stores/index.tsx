@@ -782,12 +782,12 @@ export default function StoresPage({
   const defaultCountry = vendor?.country || 'India'
 
   const sortedStores = [...stores].sort((a, b) => {
-    const aCode = parseInt(a.code ?? '', 10)
-    const bCode = parseInt(b.code ?? '', 10)
-    if (!isNaN(aCode) && !isNaN(bCode)) return aCode - bCode
-    if (!isNaN(aCode)) return -1
-    if (!isNaN(bCode)) return 1
-    return (a.code ?? '').localeCompare(b.code ?? '')
+    // Default store first, then newest created
+    if (a.is_default !== b.is_default) return a.is_default ? -1 : 1
+    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
+    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
+    if (aTime !== bTime) return bTime - aTime
+    return (a.name ?? '').localeCompare(b.name ?? '')
   })
 
   const searchNorm = listSearch.trim().toLowerCase()

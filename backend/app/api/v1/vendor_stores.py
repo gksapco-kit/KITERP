@@ -183,7 +183,7 @@ async def list_stores(
         # endpoint (dashboards, filters, forms) unaffected by branch rollout.
         q = q.where(Store.parent_id.is_(None))
 
-    q = q.order_by(Store.is_default.desc(), Store.name)
+    q = q.order_by(Store.is_default.desc(), Store.created_at.desc())
 
     result = await db.execute(q)
     stores = result.scalars().all()
@@ -224,7 +224,7 @@ async def list_branches(
     q = select(Store).where(Store.vendor_id == vendor_id, Store.parent_id == bu_id)
     if is_active is not None:
         q = q.where(Store.is_active == is_active)
-    q = q.order_by(Store.is_default.desc(), Store.name)
+    q = q.order_by(Store.is_default.desc(), Store.created_at.desc())
 
     result = await db.execute(q)
     branches = result.scalars().all()

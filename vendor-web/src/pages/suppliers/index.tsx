@@ -94,8 +94,8 @@ export default function SuppliersPage() {
 
   const suppliers = data?.items || []
 
-  const [sortKey, setSortKey] = useState('')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [sortKey, setSortKey] = useState('created_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const displaySuppliers = useMemo(
     () => processRows(suppliers, '', () => [], sortKey, sortDir, {
@@ -106,7 +106,7 @@ export default function SuppliersPage() {
       phone: (s) => s.phone || '',
       opening_balance: (s) => s.opening_balance ?? 0,
       is_active: (s) => s.is_active ? 'Active' : 'Inactive',
-      created_at: (s) => s.created_at,
+      created_at: (s) => (s.created_at ? new Date(s.created_at).getTime() : 0),
     }),
     [suppliers, sortKey, sortDir],
   )
