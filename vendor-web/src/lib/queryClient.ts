@@ -1,5 +1,7 @@
 import { MutationCache, QueryClient, type QueryKey } from '@tanstack/react-query'
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
+import { isAxiosAuthError } from '@/lib/errorMessages'
+import { getAccessToken } from '@/lib/authTokenStorage'
 
 export type AppMutationMeta = {
   /** Skip auto-refresh for non-data mutations (OTP, login, etc.) */
@@ -29,11 +31,18 @@ export function bindQueryClient(client: QueryClient) {
   boundQueryClient = client
 }
 
+export function getBoundQueryClient(): QueryClient | null {
+  return boundQueryClient
+}
+
 export function scheduleActiveQueryRefresh(skip = false) {
   if (skip || !boundQueryClient) return
+  // Never invalidate while logged out — avoids focus/mutation storms of 401s.
+  if (!getAccessToken()) return
   if (refreshTimer) clearTimeout(refreshTimer)
   refreshTimer = setTimeout(() => {
     refreshTimer = null
+    if (!getAccessToken()) return
     void boundQueryClient?.invalidateQueries({ refetchType: 'active' })
   }, 50)
 }
@@ -63,8 +72,13 @@ export function createAppQueryClient() {
     defaultOptions: {
       queries: {
         staleTime: 30_000,
-        retry: 1,
-        refetchOnWindowFocus: true,
+        // Never retry 401/403 — refresh/redirect already ran in the axios interceptor.
+        retry: (failureCount, error) => {
+          if (isAxiosAuthError(error)) return false
+          return failureCount < 1
+        },
+        // Focus refetch is handled by installAuthFocusQuerySync (refresh token first).
+        refetchOnWindowFocus: false,
         refetchOnReconnect: true,
       },
     },

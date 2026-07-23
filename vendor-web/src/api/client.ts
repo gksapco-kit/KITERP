@@ -51,8 +51,13 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
-    // Log error details for debugging
-    if (error.response) {
+    const url = originalRequest?.url || ''
+    const skipRefresh = shouldSkipTokenRefresh(url)
+    const status = error.response?.status
+    // 401s are handled below (refresh or redirect) — avoid noisy console spam.
+    const isHandledAuth = status === 401 && !skipRefresh
+
+    if (error.response && !isHandledAuth) {
       console.error('API Error:', {
         status: error.response.status,
         statusText: error.response.statusText,
@@ -63,10 +68,7 @@ apiClient.interceptors.response.use(
       })
     }
 
-    const url = originalRequest?.url || ''
-    const skipRefresh = shouldSkipTokenRefresh(url)
-
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !skipRefresh) {
+    if (status === 401 && originalRequest && !originalRequest._retry && !skipRefresh) {
       originalRequest._retry = true
 
       try {

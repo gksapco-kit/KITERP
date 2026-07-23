@@ -144,6 +144,7 @@ import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
 import { useInboxUnreadCount } from '@/hooks/useCrm'
 import { useNewContactQueryCount } from '@/hooks/useContactQueries'
+import { isAxiosAuthError } from '@/lib/errorMessages'
 import { UniversalSearch } from '@/components/UniversalSearch'
 import { KitErpThemePickerModal } from '@/components/KitErpThemePickerModal'
 import { SidebarAppsPickerModal } from '@/components/SidebarAppsPickerModal'
@@ -1407,7 +1408,8 @@ function RestaurantScopeBanner() {
 
 export default function DashboardLayout() {
   const logout = useLogout()
-  const { user } = useAuthStore()
+  const { user, accessToken } = useAuthStore()
+  const sessionReady = Boolean(accessToken)
   const { vendor, selectedStore, setSelectedStore, favouriteStoreId, setFavouriteStoreId } = useVendorStore()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -1781,8 +1783,9 @@ export default function DashboardLayout() {
       const res = await apiClient.get('/vendors/me/notifications/stats')
       return res.data
     },
-    refetchInterval: 30_000,
-    retry: 1,
+    enabled: sessionReady,
+    refetchInterval: (query) =>
+      query.state.error && isAxiosAuthError(query.state.error) ? false : 30_000,
   })
 
   // Fetch notification preferences (for sound/schedule/repeat/delivery)
@@ -1800,8 +1803,8 @@ export default function DashboardLayout() {
       const res = await apiClient.get('/vendors/me/notifications/preferences')
       return res.data
     },
+    enabled: sessionReady,
     staleTime: 60_000,
-    retry: 1,
   })
 
   const bh = vendor?.business_hours as Record<string, { open: string; close: string; closed?: boolean }> | undefined
@@ -1910,8 +1913,8 @@ export default function DashboardLayout() {
 
   const financeNavVisible = useMemo(() => isFinanceNavVisible(vendorSettings), [vendorSettings])
   const crmNavVisible = useMemo(() => isCrmNavVisible(vendorSettings), [vendorSettings])
-  const { data: inboxCount = 0 } = useInboxUnreadCount(crmNavVisible)
-  const { data: newQueryCount = 0 } = useNewContactQueryCount()
+  const { data: inboxCount = 0 } = useInboxUnreadCount(sessionReady && crmNavVisible)
+  const { data: newQueryCount = 0 } = useNewContactQueryCount(sessionReady)
   const commissionNavVisible = useMemo(() => isCommissionNavVisible(vendorSettings), [vendorSettings])
   const controllingNavVisible = useMemo(() => isControllingNavVisible(vendorSettings), [vendorSettings])
   const productionNavVisible = useMemo(
@@ -1920,7 +1923,7 @@ export default function DashboardLayout() {
   )
 
   const canViewOrders = isOwnerOrAdmin || permissions.includes('orders.view')
-  const { data: orderStats } = useOrderStats(canViewOrders)
+  const { data: orderStats } = useOrderStats(sessionReady && canViewOrders)
   const pendingOrderCount = orderStats?.pending_orders ?? 0
 
   const getNavBadgeCount = useCallback(

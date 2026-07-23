@@ -9,6 +9,7 @@ import {
   relationshipManagerApi,
   type VendorRmQueryRow,
 } from '@/api/relationshipManager'
+import { useAuthStore } from '@/stores/authStore'
 
 const rmKeys = {
   summary: ['relationship-manager'] as const,
@@ -24,17 +25,21 @@ function statusBadge(status: string) {
 
 export default function RelationshipManagerPage() {
   const qc = useQueryClient()
+  const accessToken = useAuthStore((s) => s.accessToken)
+  const sessionReady = Boolean(accessToken)
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: rmKeys.summary,
     queryFn: () => relationshipManagerApi.getMine(),
+    enabled: sessionReady,
   })
 
   const { data: queries, isLoading: loadingQueries } = useQuery({
     queryKey: rmKeys.queries,
     queryFn: () => relationshipManagerApi.listQueries(),
+    enabled: sessionReady,
   })
 
   const createMut = useMutation({

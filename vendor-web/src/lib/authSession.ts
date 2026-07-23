@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { resolveApiBaseUrl } from '@/lib/apiBase'
 import { isAxiosNetworkError } from '@/lib/errorMessages'
 import { getRefreshToken } from '@/lib/authTokenStorage'
+import { getBoundQueryClient } from '@/lib/queryClient'
 
 /** Endpoints where 401 means bad credentials — never attempt token refresh. */
 const SKIP_TOKEN_REFRESH_RE =
@@ -52,6 +53,9 @@ export function refreshAuthSessionDeduped(): Promise<boolean> {
 
 export function clearAuthSessionAndRedirectToLogin(): void {
   const onAuthPage = /\/(login|register|forgot-password|auth\/handoff)/.test(window.location.pathname)
+  const qc = getBoundQueryClient()
+  void qc?.cancelQueries()
+  qc?.clear()
   useAuthStore.getState().logout()
   if (!onAuthPage) {
     window.location.href = '/login'

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="KITERP">
+  <rect width="32" height="32" rx="7" fill="#1a5c45"/>
+  <path
+    fill="none"
+    stroke="#0b1f17"
+    stroke-width="1.6"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+    d="M7.5 14.2 16 8.5l8.5 5.7V24a1.2 1.2 0 0 1-1.2 1.2H8.7A1.2 1.2 0 0 1 7.5 24Z"
+  />
+  <path
+    fill="none"
+    stroke="#0b1f17"
+    stroke-width="1.6"
+    stroke-linejoin="round"
+    d="M12.2 25.2v-6.4h7.6v6.4"
+  />
+  <path
+    fill="none"
+    stroke="#0b1f17"
+    stroke-width="1.4"
+    stroke-linecap="round"
+    d="M14.2 12.2h3.6"
+  />
+</svg>

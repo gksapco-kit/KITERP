@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { crmApi } from '@/api/crm'
+import { isAxiosAuthError } from '@/lib/errorMessages'
 
 const KEY = (...parts: (string | number | undefined | Record<string, unknown>)[]) =>
   ['crm', ...parts] as const
@@ -333,8 +334,8 @@ export const useInboxUnreadCount = (enabled = true) =>
       return (open.total ?? 0) + (awaiting.total ?? 0)
     },
     enabled,
-    refetchInterval: 30_000,
-    retry: 1,
+    refetchInterval: (query) =>
+      query.state.error && isAxiosAuthError(query.state.error) ? false : 30_000,
   })
 
 export const useConversations = (params: Record<string, unknown> = {}) =>

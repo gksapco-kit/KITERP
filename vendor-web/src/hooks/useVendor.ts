@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { vendorApi } from '@/api/vendor'
 import { apiError } from '@/lib/errorMessages'
+import { useAuthStore } from '@/stores/authStore'
 import { useVendorStore } from '@/stores/vendorStore'
 import type { PaginatedResponse, Product, Service, Order, Customer, OrderStats, Review, VendorRole, TeamMember, VendorCategory } from '@/types'
 
@@ -98,6 +99,7 @@ export const vendorKeys = {
 }
 
 export function useMyVendor() {
+  const accessToken = useAuthStore((s) => s.accessToken)
   const { setVendor } = useVendorStore()
   return useQuery({
     queryKey: vendorKeys.me(),
@@ -116,6 +118,7 @@ export function useMyVendor() {
       setVendor(merged)
       return merged
     },
+    enabled: Boolean(accessToken),
     staleTime: 5 * 60 * 1000,
     retry: false,
   })
@@ -957,9 +960,11 @@ export function useDeleteRole() {
 
 // ── Plans ────────────────────────────────────────────────────────
 export function useMyPlan() {
+  const accessToken = useAuthStore((s) => s.accessToken)
   return useQuery({
     queryKey: vendorKeys.myPlan(),
     queryFn: () => vendorApi.getMyPlan(),
+    enabled: Boolean(accessToken),
     staleTime: 5 * 60 * 1000,
   })
 }
@@ -1925,10 +1930,11 @@ export function useReleaseAllReservations() {
 
 export function useStores(params?: Record<string, unknown>) {
   const vendorId = useVendorStore((s) => s.vendor?.id)
+  const accessToken = useAuthStore((s) => s.accessToken)
   return useQuery({
     queryKey: vendorKeys.stores(vendorId, params),
     queryFn: () => vendorApi.listStores(params),
-    enabled: Boolean(vendorId),
+    enabled: Boolean(vendorId) && Boolean(accessToken),
     staleTime: 60_000,
   })
 }
@@ -2850,7 +2856,13 @@ export function useMyTraining() {
 // HR Extended: ESS
 // ════════════════════════════════════════════════════════════════
 export function useESSProfile() {
-  return useQuery({ queryKey: ['hr', 'ess-profile'], queryFn: vendorApi.hrEssProfile, staleTime: 30_000 })
+  const accessToken = useAuthStore((s) => s.accessToken)
+  return useQuery({
+    queryKey: ['hr', 'ess-profile'],
+    queryFn: vendorApi.hrEssProfile,
+    enabled: Boolean(accessToken),
+    staleTime: 30_000,
+  })
 }
 export function useHRAnnouncements(status?: string) {
   return useQuery({ queryKey: ['hr', 'announcements', status], queryFn: () => vendorApi.hrListAnnouncements(status), staleTime: 60_000 })

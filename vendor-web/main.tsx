@@ -50,8 +50,6 @@ function isDraftPreviewPath(pathname) {
     window.history.replaceState({}, "", qs ? `${path}?${qs}` : path);
   }
 })();
-console.log("%c🏪 VENDOR-WEB (Port 3001)", "color: #10b981; font-size: 16px; font-weight: bold;");
-console.log("Open http://localhost:3001 — if it fails on Windows Docker, run scripts\\fix-localhost-docker.ps1 as Admin.");
 async function preflight() {
   if (isDraftPreviewPath(window.location.pathname)) return;
   const token = localStorage.getItem("access_token");

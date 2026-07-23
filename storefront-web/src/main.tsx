@@ -1,3 +1,4 @@
+import './quietDevConsole'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -32,15 +33,11 @@ if (typeof window !== 'undefined') {
 const queryClient = createAppQueryClient()
 attachAutoRefreshInterceptor(apiClient)
 
-// Debug: Identify which app is running
-console.log('%c🚀 STOREFRONT-WEB (Port 3002)', 'color: #3b82f6; font-size: 16px; font-weight: bold;')
-console.log('Open http://localhost:3002 — if it fails on Windows Docker, run scripts\\fix-localhost-docker.ps1 as Admin.')
-
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <ConfirmProvider>
-        <RouterProvider router={router} />
+        <RouterProvider router={router} future={{ v7_startTransition: true }} />
         <Toaster position="top-right" richColors closeButton />
       </ConfirmProvider>
     </QueryClientProvider>

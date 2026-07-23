@@ -56,8 +56,11 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
-        if (state?.accessToken && state?.refreshToken) {
-          setAuthTokens(state.accessToken, state.refreshToken)
+        // Always re-sync access token into sessionStorage keys used by apiClient.
+        // Do not require refreshToken — handoff/login can leave refresh empty, and
+        // skipping sync left zustand "authenticated" while requests had no Bearer header → 401.
+        if (state?.accessToken) {
+          setAuthTokens(state.accessToken, state.refreshToken || '')
         }
       },
     }
