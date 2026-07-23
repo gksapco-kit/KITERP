@@ -106,7 +106,7 @@ async def _sync_order_status(booking: Booking, new_status: str, db: AsyncSession
 @router.get("")
 async def list_bookings(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=200),
     status: Optional[str] = None,
     store_id: Optional[str] = None,
     sales_area_id: Optional[str] = None,

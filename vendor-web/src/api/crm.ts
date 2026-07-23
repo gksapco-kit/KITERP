@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { clampPageSize } from '@/lib/pageSize'
 
 const BASE = '/vendors/me/crm'
 
@@ -472,7 +473,9 @@ export const crmApi = {
 
   // Contacts
   listContacts: (params: Record<string, unknown> = {}) =>
-    apiClient.get<Paginated<Contact>>(`${BASE}/contacts`, { params }).then(r => r.data),
+    apiClient
+      .get<Paginated<Contact>>(`${BASE}/contacts`, { params: clampPageSize(params) })
+      .then(r => r.data),
   getContact: (id: string) => apiClient.get<Contact>(`${BASE}/contacts/${id}`).then(r => r.data),
   createContact: (data: Partial<Contact>) => apiClient.post<Contact>(`${BASE}/contacts`, data).then(r => r.data),
   updateContact: (id: string, data: Partial<Contact>) =>

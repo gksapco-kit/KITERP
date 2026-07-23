@@ -122,7 +122,7 @@ async def delete_account(
 
 @router.get("/contacts", response_model=PaginatedResponse)
 async def list_contacts(
-    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=200),
     q: Optional[str] = None, account_id: Optional[UUID] = None,
     owner_id: Optional[UUID] = None, stage: Optional[str] = None,
     tag: Optional[str] = None, record_type: Optional[str] = None,

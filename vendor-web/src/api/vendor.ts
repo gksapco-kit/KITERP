@@ -1,4 +1,5 @@
 import apiClient from './client'
+import { clampPageSize } from '@/lib/pageSize'
 import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, InvoiceTemplate, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType, PurchasingInfoRecord, SourceList, PurchaseRequisition, VendorInvoice, GoodsBatch, GoodsMovementDocument, MaterialValuation, ServiceEntrySheet, RestaurantOutlet, RestaurantMenuOut, RestaurantMenuCategoryOut, RestaurantMenuZoneLinkOut } from '@/types'
 
 // ── Restaurant extra types ────────────────────────────────────────
@@ -1243,7 +1244,7 @@ export const vendorApi = {
 
   // ── Orders ────────────────────────────────────────────────
   listOrders: async (params?: Record<string, unknown>): Promise<PaginatedResponse<Order>> => {
-    const response = await apiClient.get('/vendors/me/orders', { params })
+    const response = await apiClient.get('/vendors/me/orders', { params: clampPageSize(params) })
     return response.data
   },
 
@@ -2080,7 +2081,7 @@ export const vendorApi = {
 
   // ── Coupons ───────────────────────────────────────────────────
   listCoupons: async (params?: Record<string, unknown>) => {
-    const response = await apiClient.get('/vendors/me/coupons', { params })
+    const response = await apiClient.get('/vendors/me/coupons', { params: clampPageSize(params) })
     return response.data
   },
   createCoupon: async (data: Record<string, unknown>) => {
@@ -2484,7 +2485,7 @@ export const vendorApi = {
 
   // ── Bookings ───────────────────────────────────────────────────
   listBookings: async (params?: Record<string, unknown>) => {
-    const response = await apiClient.get('/vendors/me/bookings', { params })
+    const response = await apiClient.get('/vendors/me/bookings', { params: clampPageSize(params) })
     return response.data
   },
 

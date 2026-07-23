@@ -218,7 +218,7 @@ async def _get_vendor_id(user: User, db: AsyncSession) -> UUID:
 @router.get("")
 async def list_orders(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=200),
     status_filter: Optional[str] = Query(None, alias="status"),
     source: Optional[str] = Query(None),
     search: Optional[str] = None,

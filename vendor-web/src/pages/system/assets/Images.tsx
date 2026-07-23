@@ -202,31 +202,40 @@ function UploadedImageCard({
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        if (selecting) onToggleSelect?.(image)
-        else onPreview(image)
-      }}
+    <div
       className={cn(
-        'group relative overflow-hidden rounded-lg border bg-card text-left shadow-sm transition hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        'group relative overflow-hidden rounded-lg border bg-card text-left shadow-sm transition hover:border-primary/40 hover:shadow-md',
         selected && 'border-primary ring-2 ring-primary/30',
       )}
     >
-      <div className="aspect-[16/10] overflow-hidden bg-muted">
-        <img
-          src={mediaUrl(image.url)}
-          alt={image.label}
-          loading="lazy"
-          onError={() => setVisible(false)}
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-        />
-      </div>
+      <button
+        type="button"
+        onClick={() => {
+          if (selecting) onToggleSelect?.(image)
+          else onPreview(image)
+        }}
+        className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        <div className="aspect-[16/10] overflow-hidden bg-muted">
+          <img
+            src={mediaUrl(image.url)}
+            alt={image.label}
+            loading="lazy"
+            onError={() => setVisible(false)}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-2 px-2.5 py-2">
+          <div className="min-w-0">
+            <span className="block truncate text-xs font-medium text-foreground">{image.label}</span>
+            <span className="block truncate text-[0.625rem] text-muted-foreground">{filename}</span>
+          </div>
+          {/* Spacer so label row height matches when action buttons overlay */}
+          {!selecting && <div className="h-7 w-[3.75rem] shrink-0" aria-hidden />}
+        </div>
+      </button>
       {selecting && (
-        <div
-          className="absolute left-2 top-2 z-10"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="absolute left-2 top-2 z-10">
           <Checkbox
             checked={selected}
             onCheckedChange={() => onToggleSelect?.(image)}
@@ -235,37 +244,31 @@ function UploadedImageCard({
           />
         </div>
       )}
-      <div className="flex items-center justify-between gap-2 px-2.5 py-2">
-        <div className="min-w-0">
-          <span className="block truncate text-xs font-medium text-foreground">{image.label}</span>
-          <span className="block truncate text-[0.625rem] text-muted-foreground">{filename}</span>
+      {!selecting && (
+        <div className="absolute bottom-2 right-2.5 z-10 flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={download}
+            title="Download image"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={copyUrl}
+            title="Copy image URL"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+          </Button>
         </div>
-        {!selecting && (
-          <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={download}
-              title="Download image"
-            >
-              <Download className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={copyUrl}
-              title="Copy image URL"
-            >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-            </Button>
-          </div>
-        )}
-      </div>
-    </button>
+      )}
+    </div>
   )
 }
 
@@ -509,49 +512,52 @@ function ImageCard({
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => onPreview(image)}
-      className="group relative overflow-hidden rounded-lg border bg-card text-left shadow-sm transition hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-    >
-      <div className="aspect-[16/10] overflow-hidden bg-muted">
-        <BusinessGalleryThumb
-          image={image}
-          onFailed={() => setVisible(false)}
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-        />
-      </div>
-      <div className="flex items-center justify-between gap-2 px-2.5 py-2">
-        <div className="min-w-0">
-          <span className="block truncate text-xs font-medium text-foreground">{image.filename}</span>
-          {categoryLabel && (
-            <span className="block truncate text-[0.625rem] text-muted-foreground">{categoryLabel}</span>
-          )}
+    <div className="group relative overflow-hidden rounded-lg border bg-card text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
+      <button
+        type="button"
+        onClick={() => onPreview(image)}
+        className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        <div className="aspect-[16/10] overflow-hidden bg-muted">
+          <BusinessGalleryThumb
+            image={image}
+            onFailed={() => setVisible(false)}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+          />
         </div>
-        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={download}
-            title="Download image"
-          >
-            <Download className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={copyUrl}
-            title="Copy image URL"
-          >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-          </Button>
+        <div className="flex items-center justify-between gap-2 px-2.5 py-2">
+          <div className="min-w-0">
+            <span className="block truncate text-xs font-medium text-foreground">{image.filename}</span>
+            {categoryLabel && (
+              <span className="block truncate text-[0.625rem] text-muted-foreground">{categoryLabel}</span>
+            )}
+          </div>
+          <div className="h-7 w-[3.75rem] shrink-0" aria-hidden />
         </div>
+      </button>
+      <div className="absolute bottom-2 right-2.5 z-10 flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={download}
+          title="Download image"
+        >
+          <Download className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={copyUrl}
+          title="Copy image URL"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+        </Button>
       </div>
-    </button>
+    </div>
   )
 }
 

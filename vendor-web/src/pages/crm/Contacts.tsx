@@ -101,7 +101,7 @@ function ContactForm({
   const isEdit = !!contact
   const cf = (contact?.custom_fields || {}) as Record<string, unknown>
   const extras = useCrmExtras(contact?.custom_fields)
-  const { data: companiesData } = useContacts({ record_type: 'company', size: 200 })
+  const { data: companiesData } = useContacts({ record_type: 'company', size: 100 })
 
   const recordType = contact?.record_type === 'company' ? 'company' : 'person'
   const [type, setType] = useState<'person' | 'company'>(contact ? recordType : defaultType)
@@ -504,7 +504,7 @@ export default function ContactsPage() {
     page, size: pageSize, q: search || undefined,
     record_type: typeFilter || undefined,
   })
-  const { data: companiesData } = useContacts({ record_type: 'company', size: 200 })
+  const { data: companiesData } = useContacts({ record_type: 'company', size: 100 })
   const companyMap = useMemo(() => {
     const m = new Map<string, string>()
     for (const c of companiesData?.items ?? []) m.set(c.id, c.first_name)
