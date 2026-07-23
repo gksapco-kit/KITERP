@@ -16,12 +16,15 @@
     /* Min 14px — avoids broken glyphs when viewport scales root type down */
     font-size: clamp(15px, 0.9rem + 0.35vw, 17px);
     text-rendering: optimizeLegibility;
+    /* Reserve scrollbar space so sticky headers/CTAs don't crop when scroll appears */
+    scrollbar-gutter: stable;
   }
   body {
     font-family: var(--font-body, Inter), system-ui, sans-serif;
     color: var(--color-text-on-bg, var(--color-text, hsl(var(--foreground))));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    max-width: 100%;
   }
   button,
   [role='button'],
@@ -829,6 +832,46 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   .builder-block [data-overlay-canvas][data-overlay-mobile='true'] {
     overflow: hidden;
   }
+
+  /*
+   * Desktop field offsets / % widths break on phones: pill eyebrows & CTA buttons
+   * keep a tiny background while the label overflows (e.g. "START YOUR JOURNEY").
+   * Reset positioning and let constrained boxes hug their content up to the column.
+   */
+  .builder-page [data-field-layout] {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-width: 100% !important;
+  }
+
+  .builder-page [data-field-layout][data-field-width-constrained] {
+    width: fit-content !important;
+    min-width: 0 !important;
+  }
+
+  .builder-page [data-field-layout][data-field-width-constrained] [data-builder-cta-shell] {
+    width: auto !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+    white-space: normal !important;
+  }
+
+  .builder-page [data-field-layout][data-field-width-constrained] > [data-text-key],
+  .builder-page [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout {
+    width: auto !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
 }
 
 @media (max-width: 639px) {
@@ -862,8 +905,38 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   transform: none !important;
   min-height: 0 !important;
   height: auto !important;
-  width: 100% !important;
   max-width: 100% !important;
+}
+
+/* Preview: stretch block text to the column; pills/CTAs hug their label (not a tiny %). */
+[data-page-canvas][data-preview-bp='mobile'] [data-field-layout]:not([data-field-width-constrained]),
+[data-page-canvas][data-preview-bp='tablet'] [data-field-layout]:not([data-field-width-constrained]) {
+  width: 100% !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [data-field-layout][data-field-width-constrained],
+[data-page-canvas][data-preview-bp='tablet'] [data-field-layout][data-field-width-constrained] {
+  width: fit-content !important;
+  min-width: 0 !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [data-field-layout][data-field-width-constrained] [data-builder-cta-shell],
+[data-page-canvas][data-preview-bp='tablet'] [data-field-layout][data-field-width-constrained] [data-builder-cta-shell] {
+  width: auto !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  white-space: normal !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [data-field-layout][data-field-width-constrained] > [data-text-key],
+[data-page-canvas][data-preview-bp='tablet'] [data-field-layout][data-field-width-constrained] > [data-text-key],
+[data-page-canvas][data-preview-bp='mobile'] [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout,
+[data-page-canvas][data-preview-bp='tablet'] [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout {
+  width: auto !important;
+  max-width: 100% !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
 }
 
 [data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-image-col,

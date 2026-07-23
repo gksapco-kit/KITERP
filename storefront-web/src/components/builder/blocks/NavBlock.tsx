@@ -322,7 +322,11 @@ export default function NavBlock({
     ) : null
   ) : null
 
-  const brandTextClass = cn(resolveNavBrandTextClass(props, shell.isCompact))
+  const brandTextClass = cn(
+    resolveNavBrandTextClass(props, shell.isCompact),
+    // Logo mark already carries the wordmark on small screens — avoid "Sunrise I…" crunch.
+    showLogoImageResolved && 'max-md:hidden',
+  )
   const brandTextStyle = { color: shell.navBrandCol, fontFamily: style.font_heading }
 
   const brandTextNode = showBrandText ? (
@@ -467,7 +471,7 @@ export default function NavBlock({
   )
 
   const mobileActionsNode = (
-    <div className="flex items-center gap-0.5 shrink-0 ml-auto">
+    <div className="flex items-center gap-0.5 shrink-0">
       {showSearch && !searchOpen && (
         <button
           type="button"
@@ -491,7 +495,7 @@ export default function NavBlock({
         <Button
           variant="ghost"
           size="icon"
-          className={cn('shrink-0 -ml-1 h-9 w-9', !narrowNavPreview && 'md:hidden')}
+          className={cn('shrink-0 h-9 w-9', !narrowNavPreview && 'md:hidden')}
           style={{ color: shell.navTextCol }}
           aria-label="Open menu"
         >
@@ -629,12 +633,10 @@ export default function NavBlock({
       {mobileCartNode}
     </div>
   ) : (
-    <div className={cn('flex w-full items-center justify-between gap-2 min-w-0', !narrowNavPreview && 'md:hidden')}>
-      <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-        {mobileMenuNode}
-        <div className="min-w-0 flex-1 overflow-hidden">
-          {logoNode}
-        </div>
+    <div className={cn('flex w-full items-center gap-2 min-w-0', !narrowNavPreview && 'md:hidden')}>
+      {mobileMenuNode}
+      <div className="min-w-0 flex-1 overflow-hidden">
+        {logoNode}
       </div>
       {mobileActionsNode}
     </div>

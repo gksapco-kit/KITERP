@@ -34,7 +34,7 @@ export const StorefrontShell = ({ storeName, tagline, nav, basePath, children }:
       {/* Header */}
       <header className="border-b sticky top-0 z-30 backdrop-blur" style={{ borderColor: 'hsl(var(--sf-border))', background: 'hsl(var(--sf-bg) / 0.85)' }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4 min-w-0">
-          <button type="button" className="md:hidden p-2 -ml-1 shrink-0" aria-label="Open menu" onClick={() => setMobileOpen(true)}>
+          <button type="button" className="md:hidden p-2 shrink-0" aria-label="Open menu" onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>
 

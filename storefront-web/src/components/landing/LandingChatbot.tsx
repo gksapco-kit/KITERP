@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Loader2, MessageCircle, Send, X } from 'lucide-react'
 import { apiClient } from '@/api/client'
@@ -81,8 +82,8 @@ export function LandingChatbot() {
     ask(input)
   }
 
-  return (
-    <div className="kiterp-chatbot">
+  const ui = (
+    <div className="kiterp-chatbot" data-landing-chatbot>
       {open ? (
         <div className="kiterp-chatbot-panel" role="dialog" aria-label="KIT ERP assistant">
           <header className="kiterp-chatbot-header">
@@ -161,11 +162,15 @@ export function LandingChatbot() {
         aria-label={open ? 'Close chat' : 'Open chat assistant'}
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
+        {open ? <X className="w-5 h-5" aria-hidden /> : <MessageCircle className="w-5 h-5" aria-hidden />}
         {!open ? <span className="kiterp-chatbot-fab-label">Ask KIT</span> : null}
       </button>
     </div>
   )
+
+  // Portal to body so page overflow / transforms cannot crop the FAB on mobile.
+  if (typeof document === 'undefined') return ui
+  return createPortal(ui, document.body)
 }
 
 export function openLandingChat() {

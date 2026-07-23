@@ -185,7 +185,7 @@ export function UnifiedNav({
         {/* Mobile menu */}
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden shrink-0 -ml-1" aria-label="Open menu">
+            <Button variant="ghost" size="icon" className="md:hidden shrink-0" aria-label="Open menu">
               <Menu />
             </Button>
           </SheetTrigger>

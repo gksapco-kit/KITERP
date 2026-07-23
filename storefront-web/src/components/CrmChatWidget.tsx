@@ -150,7 +150,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full shadow-2xl text-white flex items-center justify-center hover:scale-105 transition-transform"
+          className="fixed z-50 w-14 h-14 rounded-full shadow-2xl text-white flex items-center justify-center hover:scale-105 transition-transform bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))] right-[max(1.25rem,calc(env(safe-area-inset-right,0px)+1rem))]"
           style={{ backgroundColor: themeColor }}
           aria-label="Open chat"
         >
@@ -161,7 +161,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
       {open && (
         <div
           className={cn(
-            'fixed bottom-5 right-5 z-50 w-80 sm:w-96 h-[520px] max-h-[calc(100vh-40px)] rounded-2xl shadow-2xl border flex flex-col overflow-hidden',
+            'fixed z-50 w-80 sm:w-96 h-[520px] max-h-[calc(100dvh-5rem)] rounded-2xl shadow-2xl border flex flex-col overflow-hidden bottom-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))] right-[max(1.25rem,calc(env(safe-area-inset-right,0px)+1rem))]',
             isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-gray-200 text-gray-900',
           )}
           style={{ colorScheme: isDark ? 'dark' : 'light' }}

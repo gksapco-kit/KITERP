@@ -19,6 +19,54 @@
   --kiterp-mint-bg: #eef9f4;
   --kiterp-mint-soft: #d4f0e8;
   color: var(--kiterp-ink);
+  width: 100%;
+  max-width: 100%;
+  /* Do not set overflow-x here — it breaks position:sticky on the header. */
+}
+
+/* Fixed landing header — stays pinned while scrolling (sticky breaks with overflow ancestors). */
+.kiterp-landing-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.kiterp-landing-header-spacer {
+  height: 3.5rem; /* h-14 */
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .kiterp-landing-header-spacer {
+    height: 4.25rem;
+  }
+}
+
+.kiterp-landing-header-inner {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 80rem; /* max-w-7xl */
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 640px) {
+  .kiterp-landing-header-inner {
+    padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+@media (min-width: 1024px) {
+  .kiterp-landing-header-inner {
+    padding-left: max(2rem, env(safe-area-inset-left, 0px));
+    padding-right: max(2rem, env(safe-area-inset-right, 0px));
+  }
 }
 
 .kiterp-highlight {
@@ -3062,14 +3110,17 @@
 /* -- Landing chatbot ------------------------------------------------------- */
 .kiterp-chatbot {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
-  z-index: 80;
+  right: max(1.25rem, calc(env(safe-area-inset-right, 0px) + 1rem));
+  bottom: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 1rem));
+  z-index: 9999;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 0.65rem;
   pointer-events: none;
+  /* Keep the FAB fully inside the visible viewport (no edge crop / no 100vw overflow). */
+  max-width: min(22.5rem, calc(100% - 2.5rem));
+  box-sizing: border-box;
 }
 
 .kiterp-chatbot > * {
@@ -3079,10 +3130,14 @@
 .kiterp-chatbot-fab {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.45rem;
+  flex-shrink: 0;
   border: none;
   cursor: pointer;
   padding: 0.85rem 1.05rem;
+  min-width: 3.25rem;
+  min-height: 3.25rem;
   border-radius: 9999px;
   background: var(--kiterp-primary, #64c3a0);
   color: #fff;
@@ -3090,6 +3145,8 @@
   font-size: 0.9rem;
   box-shadow: 0 10px 28px rgba(100, 195, 160, 0.35);
   transition: transform 0.15s ease, background 0.2s ease;
+  /* Avoid hover translate pushing the button into the clipped edge on mobile. */
+  will-change: auto;
 }
 
 .kiterp-chatbot-fab:hover {
@@ -3102,7 +3159,8 @@
 }
 
 .kiterp-chatbot-panel {
-  width: min(22.5rem, calc(100vw - 1.5rem));
+  width: min(22.5rem, calc(100dvw - 2.5rem));
+  max-width: 100%;
   max-height: min(32rem, calc(100dvh - 6.5rem));
   display: flex;
   flex-direction: column;
@@ -3275,10 +3333,10 @@
   text-underline-offset: 2px;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .kiterp-chatbot {
-    right: 0.65rem;
-    bottom: 0.65rem;
+    right: max(1.25rem, calc(env(safe-area-inset-right, 0px) + 1.1rem));
+    bottom: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 1.1rem));
   }
 
   .kiterp-chatbot-fab-label {
@@ -3286,6 +3344,21 @@
   }
 
   .kiterp-chatbot-fab {
-    padding: 0.9rem;
+    width: 3.5rem;
+    height: 3.5rem;
+    min-width: 3.5rem;
+    min-height: 3.5rem;
+    padding: 0;
+  }
+
+  .kiterp-chatbot-fab:hover,
+  .kiterp-chatbot-fab:active {
+    transform: none;
+  }
+
+  .kiterp-chatbot-panel {
+    width: min(22.5rem, calc(100dvw - 2.5rem));
+    max-width: 100%;
+    max-height: min(32rem, calc(100dvh - 7.5rem));
   }
 }
