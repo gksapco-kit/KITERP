@@ -3164,10 +3164,13 @@ function OverlayElement({
 
   const renderContent = () => {
     const fillFallback = defaultOverlayFillColor(item.type)
+    const isTextLike = item.type === 'text' || item.type === 'badge' || item.type === 'button'
+    // Square corners on text chips — high borderRadius becomes a clipped circle on mobile.
+    const cornerRadius = isTextLike ? 0 : (item.borderRadius || 0)
     const commonStyle: React.CSSProperties = {
       width: '100%', height: '100%',
       backgroundColor: resolveOverlayBackground(item, item.type === 'text' ? 'transparent' : fillFallback),
-      borderRadius: item.borderRadius || 0,
+      borderRadius: cornerRadius,
       border: resolveOverlayBorder(item),
       boxShadow: item.shadow ? '0 8px 32px rgba(0,0,0,0.15)' : undefined,
       opacity: (item.opacity ?? 100) / 100,
@@ -3178,6 +3181,7 @@ function OverlayElement({
         return (
           <div
             ref={textRef}
+            data-overlay-text-chip
             contentEditable={textEditing}
             suppressContentEditableWarning
             onDoubleClick={e => { e.stopPropagation(); setTextEditing(true) }}
@@ -3185,8 +3189,10 @@ function OverlayElement({
             style={{ ...commonStyle,
               fontSize: item.fontSize || 16, fontWeight: item.fontWeight || 'normal',
               fontStyle: item.italic ? 'italic' : undefined,
-              color: item.color || '#111827', textAlign: item.align || 'left',
-              padding: '6px 10px', display: 'flex', alignItems: 'center', wordBreak: 'break-word',
+              color: item.color || '#111827', textAlign: item.align || 'center',
+              padding: '8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              whiteSpace: mobilePreview ? 'nowrap' : 'normal',
+              overflowWrap: 'normal', wordBreak: 'normal', lineHeight: 1.25,
               outline: textEditing ? '2px solid #64C3A0' : 'none', cursor: textEditing ? 'text' : 'move',
               ...overlayTextFontStyle(item),
             }}
@@ -3296,6 +3302,7 @@ function OverlayElement({
 
   const containerEl = containerRef.current
   const pinToImage = Boolean(mobilePreview && stackCount != null && stackCount > 0)
+  const isTextLikeOverlay = item.type === 'text' || item.type === 'badge' || item.type === 'button'
   const positionStyle = overlayPositionStyleForViewport(item, {
     mobile: pinToImage,
     containerWidthPx: containerEl?.clientWidth,
@@ -3306,14 +3313,24 @@ function OverlayElement({
   })
   // Mobile preview uses a display-only pin layout — don't drag/resize desktop coords while pinned.
   const lockDesktopCoords = pinToImage
+  const mobileTextChipStyle: React.CSSProperties = mobilePreview && isTextLikeOverlay
+    ? {
+        width: 'max-content',
+        maxWidth: 'min(92vw, 20rem)',
+        height: 'auto',
+        minHeight: 0,
+      }
+    : {}
 
   return (
     <div
       data-overlay-root
       data-overlay-id={item.id}
+      data-overlay-text-chip={isTextLikeOverlay ? 'true' : undefined}
       data-overlay-mobile-on-image={pinToImage ? 'true' : undefined}
       style={{
         ...positionStyle,
+        ...mobileTextChipStyle,
         zIndex: item.zIndex || 10,
         cursor: textEditing ? 'text' : lockDesktopCoords ? 'default' : 'move',
         userSelect: 'none',

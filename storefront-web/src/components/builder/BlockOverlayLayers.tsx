@@ -193,11 +193,15 @@ function OverlayLinkWrap({
 
 function OverlayLayerContent({ item }: { item: BlockOverlayItem }) {
   const fillFallback = defaultOverlayFillColor(item.type)
+  const isTextLike = item.type === 'text' || item.type === 'badge' || item.type === 'button'
+  // Text / badge chips: keep square corners so high borderRadius doesn't become a circle
+  // when the overlay box is roughly square (common mobile layout bug).
+  const cornerRadius = isTextLike ? 0 : (item.borderRadius || 0)
   const commonStyle: CSSProperties = {
     width: '100%',
     height: '100%',
     backgroundColor: resolveOverlayBackground(item, item.type === 'text' ? 'transparent' : fillFallback),
-    borderRadius: item.borderRadius || 0,
+    borderRadius: cornerRadius,
     border: resolveOverlayBorder(item),
     boxShadow: item.shadow ? '0 8px 32px rgba(0,0,0,0.15)' : undefined,
     opacity: (item.opacity ?? 100) / 100,
@@ -208,17 +212,22 @@ function OverlayLayerContent({ item }: { item: BlockOverlayItem }) {
     case 'text':
       return (
         <div
+          data-overlay-text-chip
           style={{
             ...commonStyle,
             fontSize: item.fontSize || 16,
             fontWeight: item.fontWeight || 'normal',
             fontStyle: item.italic ? 'italic' : undefined,
             color: item.color || '#111827',
-            textAlign: item.align || 'left',
-            padding: '6px 10px',
+            textAlign: item.align || 'center',
+            padding: '8px 14px',
             display: 'flex',
             alignItems: 'center',
-            wordBreak: 'break-word',
+            justifyContent: 'center',
+            whiteSpace: 'nowrap',
+            overflowWrap: 'normal',
+            wordBreak: 'normal',
+            lineHeight: 1.25,
             ...overlayTextFontStyle(item),
           }}
         >
@@ -369,21 +378,33 @@ function OverlayLayer({
   const linked = overlayHasLink(item)
   const body = <OverlayLayerContent item={item} />
   const pinToImage = mobile && stackCount != null && stackCount > 0
+  const isTextLike = item.type === 'text' || item.type === 'badge' || item.type === 'button'
+  const positionStyle = overlayPositionStyleForViewport(item, {
+    mobile: pinToImage,
+    containerWidthPx,
+    containerHeightPx,
+    imageBounds,
+    stackIndex,
+    stackCount,
+  })
+  const mobileTextChipStyle: CSSProperties = mobile && isTextLike
+    ? {
+        width: 'max-content',
+        maxWidth: 'min(92vw, 20rem)',
+        height: 'auto',
+        minHeight: 0,
+      }
+    : {}
 
   return (
     <div
       data-overlay-root
       data-overlay-id={item.id}
+      data-overlay-text-chip={isTextLike ? 'true' : undefined}
       data-overlay-mobile-on-image={pinToImage ? 'true' : undefined}
       style={{
-        ...overlayPositionStyleForViewport(item, {
-          mobile: pinToImage,
-          containerWidthPx,
-          containerHeightPx,
-          imageBounds,
-          stackIndex,
-          stackCount,
-        }),
+        ...positionStyle,
+        ...mobileTextChipStyle,
         zIndex: item.zIndex || 10,
         pointerEvents: 'auto',
       }}

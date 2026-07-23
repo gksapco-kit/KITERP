@@ -833,10 +833,31 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     overflow: hidden;
   }
 
+  /* Text / badge / button overlay chips: square corners + hug label on phones. */
+  .builder-page [data-overlay-root][data-overlay-text-chip='true'],
+  .builder-page [data-overlay-text-chip] {
+    border-radius: 0 !important;
+  }
+
+  .builder-page [data-overlay-root][data-overlay-text-chip='true'] {
+    width: max-content !important;
+    max-width: min(92vw, 20rem) !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .builder-page [data-overlay-root][data-overlay-text-chip='true'] > * {
+    border-radius: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    white-space: nowrap !important;
+  }
+
   /*
    * Desktop field offsets / % widths break on phones: pill eyebrows & CTA buttons
    * keep a tiny background while the label overflows (e.g. "START YOUR JOURNEY").
    * Reset positioning and let constrained boxes hug their content up to the column.
+   * Force square corners so rounded-full never collapses into a clipped circle.
    */
   .builder-page [data-field-layout] {
     position: static !important;
@@ -863,14 +884,21 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     white-space: normal !important;
   }
 
+  .builder-page [data-text-key],
+  .builder-page [data-field-layout] > [data-text-key],
+  .builder-page [data-field-layout] > .builder-canvas-text-field-in-layout {
+    border-radius: 0 !important;
+  }
+
   .builder-page [data-field-layout][data-field-width-constrained] > [data-text-key],
   .builder-page [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout {
     width: auto !important;
     max-width: 100% !important;
     min-width: 0 !important;
     box-sizing: border-box !important;
-    white-space: normal !important;
-    overflow-wrap: anywhere !important;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    border-radius: 0 !important;
   }
 }
 
@@ -935,8 +963,30 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 [data-page-canvas][data-preview-bp='tablet'] [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout {
   width: auto !important;
   max-width: 100% !important;
-  white-space: normal !important;
-  overflow-wrap: anywhere !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  border-radius: 0 !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [data-text-key],
+[data-page-canvas][data-preview-bp='tablet'] [data-text-key] {
+  border-radius: 0 !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [data-overlay-root][data-overlay-text-chip='true'],
+[data-page-canvas][data-preview-bp='tablet'] [data-overlay-root][data-overlay-text-chip='true'] {
+  width: max-content !important;
+  max-width: min(92vw, 20rem) !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [data-overlay-root][data-overlay-text-chip='true'] > *,
+[data-page-canvas][data-preview-bp='tablet'] [data-overlay-root][data-overlay-text-chip='true'] > *,
+[data-page-canvas][data-preview-bp='mobile'] [data-overlay-text-chip],
+[data-page-canvas][data-preview-bp='tablet'] [data-overlay-text-chip] {
+  border-radius: 0 !important;
+  white-space: nowrap !important;
 }
 
 [data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-image-col,

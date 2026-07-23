@@ -259,10 +259,12 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
         fieldKey="eyebrow"
         as="span"
         value={eyebrow}
-        className="inline-block max-w-full w-fit text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full whitespace-normal break-words"
+        className="inline-block max-w-full w-fit text-xs font-bold uppercase tracking-widest px-3.5 py-2 whitespace-nowrap"
         style={{
           backgroundColor: panelUsesDarkText ? 'rgba(255,255,255,0.15)' : `${style.accent_color}22`,
           color: panelUsesDarkText ? '#fff' : style.accent_color,
+          // Square chip — rounded-full becomes a broken circle when the box is narrow on mobile.
+          borderRadius: 0,
         }}
       />
     )
