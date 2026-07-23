@@ -132,12 +132,12 @@ export function BuilderContentGroup({
   const isDragging = dragDelta != null && (dragDelta.x !== 0 || dragDelta.y !== 0)
 
   if (!isEditor) {
-    // Live / preview must keep content_offset_* and data-field-layout so builder
-    // drag offsets and injected field CSS still apply on published storefronts.
+    // Keep data-field-layout for injected CSS; offsets live in
+    // @media (min-width: 768px) only — inline left/top would break phones.
     return (
       <div
         className={className}
-        style={baseWrapperStyle ?? style}
+        style={style}
         data-content-group="true"
         data-field-layout={CONTENT_GROUP_FIELD_KEY}
       >

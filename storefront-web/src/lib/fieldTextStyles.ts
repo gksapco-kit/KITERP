@@ -344,6 +344,18 @@ export function sectionTransformStyle(props: Record<string, unknown>): CSSProper
   )
 }
 
+/**
+ * Desktop-only layout (drag offsets, % widths, flips). Phones stack naturally —
+ * applying desktop left/width on a narrow viewport clips headlines and shrinks CTA pills.
+ * Keep in sync with globals.css `@media (max-width: 767px)` field-layout resets.
+ */
+export const FIELD_LAYOUT_DESKTOP_MQ = '(min-width: 768px)'
+
+function wrapDesktopLayoutCss(rules: string): string {
+  if (!rules.trim()) return ''
+  return `@media ${FIELD_LAYOUT_DESKTOP_MQ} {\n${rules}}\n`
+}
+
 /** Inject per-field styles so Tailwind classes (e.g. text-center) do not override builder typography. */
 export function buildFieldStylesCss(
   bidAttr: 'data-bid' | 'data-sf-bid',
@@ -351,6 +363,7 @@ export function buildFieldStylesCss(
   props: Record<string, unknown>,
 ): string {
   const fieldStyles = (props._field_styles as Record<string, Record<string, unknown>>) || {}
+  const desktopLayoutChunks: string[] = []
   const fieldCss = Object.entries(fieldStyles)
     .map(([key, fs]) => {
       const selectorKey = key.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
@@ -477,13 +490,17 @@ export function buildFieldStylesCss(
         css += `[${bidAttr}="${bid}"] [data-text-key="${selectorKey}"] { ${textRules.join('; ')}; }\n`
       }
       if (layoutRules.length) {
-        css += `[${bidAttr}="${bid}"] [data-field-layout="${selectorKey}"] { ${layoutRules.join('; ')}; }\n`
+        desktopLayoutChunks.push(
+          `  [${bidAttr}="${bid}"] [data-field-layout="${selectorKey}"] { ${layoutRules.join('; ')}; }\n`,
+        )
       }
       if (
         isInlinePositionField(key)
         && (widthPct != null || boxMinHeight != null)
       ) {
-        css += `[${bidAttr}="${bid}"] [data-field-layout="${selectorKey}"] [data-builder-cta-shell] { width: 100% !important; height: 100% !important; min-height: 0 !important; box-sizing: border-box !important; }\n`
+        desktopLayoutChunks.push(
+          `  [${bidAttr}="${bid}"] [data-field-layout="${selectorKey}"] [data-builder-cta-shell] { width: 100% !important; height: 100% !important; min-height: 0 !important; box-sizing: border-box !important; }\n`,
+        )
       }
       return css
     })
@@ -507,7 +524,9 @@ export function buildFieldStylesCss(
     groupRules.push(`transform: ${gTransform} !important`, 'transform-origin: center center !important')
   }
   if (groupRules.length) {
-    return `${fieldCss}[${bidAttr}="${bid}"] [data-field-layout="${groupKey}"] { ${groupRules.join('; ')}; }\n`
+    desktopLayoutChunks.push(
+      `  [${bidAttr}="${bid}"] [data-field-layout="${groupKey}"] { ${groupRules.join('; ')}; }\n`,
+    )
   }
-  return fieldCss
+  return `${fieldCss}${wrapDesktopLayoutCss(desktopLayoutChunks.join(''))}`
 }

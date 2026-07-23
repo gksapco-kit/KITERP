@@ -424,15 +424,15 @@ export function BuilderPositionableField({
   )
   const layoutStyle = wrapperStyle ?? { position: 'relative' as const }
 
-  // Preview / live must keep the same data-field-layout wrapper + offsets/sizes as
-  // the editor canvas so injected buildFieldStylesCss rules still apply.
+  // Live / published: keep data-field-layout so buildFieldStylesCss can target the
+  // node, but do NOT inline desktop drag offsets / % widths — those are injected
+  // inside @media (min-width: 768px). Inline left/width would still clip phones.
   if (!isEditor) {
     return (
       <div
         data-field-layout={fieldKey}
         data-field-width-constrained={isWidthConstrained ? 'true' : undefined}
         className={layoutClassName}
-        style={layoutStyle}
       >
         {children}
       </div>

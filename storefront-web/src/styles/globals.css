@@ -787,6 +787,11 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 }
 
 @media (max-width: 1023px) {
+  /* Include [data-sf-bid]/[data-bid] so these beat injected field style tags. */
+  .builder-page [data-sf-bid] .about-split-block .about-split-text-col [data-field-layout],
+  .builder-page [data-bid] .about-split-block .about-split-text-col [data-field-layout],
+  .builder-page [data-sf-bid] .about-split-block .about-split-text-wrap [data-field-layout],
+  .builder-page [data-bid] .about-split-block .about-split-text-wrap [data-field-layout],
   .about-split-block .about-split-text-col [data-field-layout],
   .about-split-block .about-split-text-wrap [data-field-layout] {
     position: static !important;
@@ -855,10 +860,14 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 
   /*
    * Desktop field offsets / % widths break on phones: pill eyebrows & CTA buttons
-   * keep a tiny background while the label overflows (e.g. "START YOUR JOURNEY").
-   * Reset positioning and let constrained boxes hug their content up to the column.
+   * keep a tiny background while the label overflows (e.g. "START YOUR JOURNEY"),
+   * and headlines shift off-screen (e.g. "Choose Your Course…" clipped on the left).
+   * Injected per-block style tags use [data-sf-bid] [data-field-layout="…"] !important —
+   * match that specificity (or higher) so these resets actually win on the live site.
    * Force square corners so rounded-full never collapses into a clipped circle.
    */
+  .builder-page [data-sf-bid] [data-field-layout],
+  .builder-page [data-bid] [data-field-layout],
   .builder-page [data-field-layout] {
     position: static !important;
     top: auto !important;
@@ -870,11 +879,22 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     max-width: 100% !important;
   }
 
+  .builder-page [data-sf-bid] [data-field-layout]:not([data-field-width-constrained]),
+  .builder-page [data-bid] [data-field-layout]:not([data-field-width-constrained]),
+  .builder-page [data-field-layout]:not([data-field-width-constrained]) {
+    width: 100% !important;
+  }
+
+  .builder-page [data-sf-bid] [data-field-layout][data-field-width-constrained],
+  .builder-page [data-bid] [data-field-layout][data-field-width-constrained],
   .builder-page [data-field-layout][data-field-width-constrained] {
     width: fit-content !important;
+    max-width: 100% !important;
     min-width: 0 !important;
   }
 
+  .builder-page [data-sf-bid] [data-field-layout][data-field-width-constrained] [data-builder-cta-shell],
+  .builder-page [data-bid] [data-field-layout][data-field-width-constrained] [data-builder-cta-shell],
   .builder-page [data-field-layout][data-field-width-constrained] [data-builder-cta-shell] {
     width: auto !important;
     max-width: 100% !important;
@@ -890,6 +910,10 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     border-radius: 0 !important;
   }
 
+  .builder-page [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key],
+  .builder-page [data-bid] [data-field-layout][data-field-width-constrained] > [data-text-key],
+  .builder-page [data-sf-bid] [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout,
+  .builder-page [data-bid] [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout,
   .builder-page [data-field-layout][data-field-width-constrained] > [data-text-key],
   .builder-page [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout {
     width: auto !important;
@@ -919,11 +943,16 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
  * Builder device preview — when the canvas sets data-preview-bp, apply the same
  * field-offset / stack rules as real max-width media queries (browser viewport
  * is usually desktop even when the canvas is phone-sized).
+ * Include [data-sf-bid]/[data-bid] so resets beat injected field style tags.
  */
 [data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-text-col [data-field-layout],
 [data-page-canvas][data-preview-bp='tablet'] .about-split-block .about-split-text-col [data-field-layout],
 [data-page-canvas][data-preview-bp='mobile'] .about-split-block .about-split-text-wrap [data-field-layout],
 [data-page-canvas][data-preview-bp='tablet'] .about-split-block .about-split-text-wrap [data-field-layout],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout],
+[data-page-canvas][data-preview-bp='mobile'] [data-bid] [data-field-layout],
+[data-page-canvas][data-preview-bp='tablet'] [data-bid] [data-field-layout],
 [data-page-canvas][data-preview-bp='mobile'] [data-field-layout],
 [data-page-canvas][data-preview-bp='tablet'] [data-field-layout] {
   position: static !important;
@@ -937,17 +966,30 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 }
 
 /* Preview: stretch block text to the column; pills/CTAs hug their label (not a tiny %). */
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout]:not([data-field-width-constrained]),
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout]:not([data-field-width-constrained]),
+[data-page-canvas][data-preview-bp='mobile'] [data-bid] [data-field-layout]:not([data-field-width-constrained]),
+[data-page-canvas][data-preview-bp='tablet'] [data-bid] [data-field-layout]:not([data-field-width-constrained]),
 [data-page-canvas][data-preview-bp='mobile'] [data-field-layout]:not([data-field-width-constrained]),
 [data-page-canvas][data-preview-bp='tablet'] [data-field-layout]:not([data-field-width-constrained]) {
   width: 100% !important;
 }
 
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout][data-field-width-constrained],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout][data-field-width-constrained],
+[data-page-canvas][data-preview-bp='mobile'] [data-bid] [data-field-layout][data-field-width-constrained],
+[data-page-canvas][data-preview-bp='tablet'] [data-bid] [data-field-layout][data-field-width-constrained],
 [data-page-canvas][data-preview-bp='mobile'] [data-field-layout][data-field-width-constrained],
 [data-page-canvas][data-preview-bp='tablet'] [data-field-layout][data-field-width-constrained] {
   width: fit-content !important;
+  max-width: 100% !important;
   min-width: 0 !important;
 }
 
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout][data-field-width-constrained] [data-builder-cta-shell],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout][data-field-width-constrained] [data-builder-cta-shell],
+[data-page-canvas][data-preview-bp='mobile'] [data-bid] [data-field-layout][data-field-width-constrained] [data-builder-cta-shell],
+[data-page-canvas][data-preview-bp='tablet'] [data-bid] [data-field-layout][data-field-width-constrained] [data-builder-cta-shell],
 [data-page-canvas][data-preview-bp='mobile'] [data-field-layout][data-field-width-constrained] [data-builder-cta-shell],
 [data-page-canvas][data-preview-bp='tablet'] [data-field-layout][data-field-width-constrained] [data-builder-cta-shell] {
   width: auto !important;
@@ -957,6 +999,14 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   white-space: normal !important;
 }
 
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key],
+[data-page-canvas][data-preview-bp='mobile'] [data-bid] [data-field-layout][data-field-width-constrained] > [data-text-key],
+[data-page-canvas][data-preview-bp='tablet'] [data-bid] [data-field-layout][data-field-width-constrained] > [data-text-key],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout,
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout,
+[data-page-canvas][data-preview-bp='mobile'] [data-bid] [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout,
+[data-page-canvas][data-preview-bp='tablet'] [data-bid] [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout,
 [data-page-canvas][data-preview-bp='mobile'] [data-field-layout][data-field-width-constrained] > [data-text-key],
 [data-page-canvas][data-preview-bp='tablet'] [data-field-layout][data-field-width-constrained] > [data-text-key],
 [data-page-canvas][data-preview-bp='mobile'] [data-field-layout][data-field-width-constrained] > .builder-canvas-text-field-in-layout,

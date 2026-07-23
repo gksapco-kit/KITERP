@@ -1020,12 +1020,7 @@ export default function ServiceDetail() {
                         )}
                       </p>
                     ) : (
-                      <div className="mt-1">
-                        <p className="text-xl font-bold text-amber-600">Get a Quote</p>
-                        <span className="mt-1.5 inline-flex items-center text-[11px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
-                          Price is not applicable
-                        </span>
-                      </div>
+                      <p className="text-xl font-bold text-amber-600 mt-1">Get a Quote</p>
                     )}
                     {isDisplayFieldEnabled(sf, 'price_range') && service.price_min != null && service.price_max != null && service.price_min > 0 && (
                       <p className="text-xs text-gray-400 mt-1">
@@ -1079,12 +1074,7 @@ export default function ServiceDetail() {
                         )}
                       </p>
                     ) : (
-                      <div className="mt-1">
-                        <p className="text-xl font-bold text-amber-600">Contact for Pricing</p>
-                        <span className="mt-1.5 inline-flex items-center text-[11px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
-                          Price is not applicable
-                        </span>
-                      </div>
+                      <p className="text-xl font-bold text-amber-600 mt-1">Contact for Pricing</p>
                     )}
                   </div>
                 )}
