@@ -4102,13 +4102,15 @@ export default function DashboardLayout() {
                               toggleDark()
                             }}
                             className={cn(
-                              'relative h-6 w-11 shrink-0 rounded-full border overflow-hidden transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                              dark ? 'bg-primary border-primary' : 'bg-muted border-border',
+                              'relative h-6 w-11 shrink-0 rounded-full border-2 overflow-hidden transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                              dark
+                                ? 'border-transparent bg-primary'
+                                : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600',
                             )}
                           >
                             <span
                               className={cn(
-                                'pointer-events-none absolute top-[2px] left-[2px] block h-[18px] w-[18px] rounded-full bg-white shadow transition-transform duration-200 ease-out',
+                                'pointer-events-none absolute top-[2px] left-[2px] block h-[18px] w-[18px] rounded-full bg-white shadow ring-1 ring-black/5 transition-transform duration-200 ease-out',
                                 dark && 'translate-x-5',
                               )}
                             />

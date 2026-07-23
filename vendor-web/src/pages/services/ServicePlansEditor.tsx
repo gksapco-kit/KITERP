@@ -72,27 +72,31 @@ const SECTION_TONE = {
   },
 } as const
 
-function Toggle({ label, checked, onChange, tone = 'default', className }: {
+function Toggle({ label, checked, onChange, tone = 'default', className, title }: {
   label?: string
   checked: boolean
   onChange: (v: boolean) => void
   tone?: ToggleTone
   className?: string
+  title?: string
 }) {
   return (
-    <label className={cn('flex cursor-pointer select-none items-center gap-2', className)}>
+    <label className={cn('flex cursor-pointer select-none items-center gap-2', className)} title={title}>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={label || title}
         onClick={() => onChange(!checked)}
         className={cn(
-          'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors',
-          checked ? TOGGLE_ON_BG[tone] : 'bg-muted',
+          'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors',
+          checked
+            ? cn('border-transparent', TOGGLE_ON_BG[tone])
+            : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600',
         )}
       >
         <span className={cn(
-          'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+          'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform',
           checked ? 'translate-x-4' : 'translate-x-0',
         )} />
       </button>
@@ -101,6 +105,7 @@ function Toggle({ label, checked, onChange, tone = 'default', className }: {
           'text-xs text-foreground sm:text-sm',
           checked && tone === 'tax' && 'font-medium text-amber-900 dark:text-amber-200',
           checked && tone === 'active' && 'font-medium text-emerald-900 dark:text-emerald-200',
+          !checked && 'text-gray-600 dark:text-gray-300',
         )}>
           {label}
         </span>
@@ -173,6 +178,9 @@ export interface ServicePlansEditorProps {
     availability: AvailSlot[]
     onChange: (slots: AvailSlot[]) => void
   }>
+  /** Service-level: hide PRICE on business front (shown to the right of Currency). */
+  priceNotApplicable?: boolean
+  onPriceNotApplicableChange?: (on: boolean) => void
 }
 
 export function ServicePlansEditor({
@@ -184,6 +192,8 @@ export function ServicePlansEditor({
   setConfirmDeletePlan,
   insertPlanAt,
   AvailabilityEditor,
+  priceNotApplicable = false,
+  onPriceNotApplicableChange,
 }: ServicePlansEditorProps) {
   const updatePlan = useCallback((idx: number, patch: Partial<PlanDraft>) => {
     setPlans(p => p.map((x, i) => (i === idx ? { ...x, ...patch } : x)))
@@ -512,18 +522,30 @@ export function ServicePlansEditor({
                               onChange={e => updatePlan(idx, { cost_price: e.target.value, enable_pricing: true })}
                             />
                           </FormField>
-                          <FormField label="Currency">
-                            <select
-                              value={plan.currency}
-                              onChange={e => updatePlan(idx, { currency: e.target.value })}
-                              className={cn(selectCls, 'w-full')}
-                            >
-                              <option value="INR">₹ INR</option>
-                              <option value="USD">$ USD</option>
-                              <option value="EUR">€ EUR</option>
-                              <option value="GBP">£ GBP</option>
-                            </select>
-                          </FormField>
+                          <div className={cn('col-span-2 grid grid-cols-2 items-end', variantFormUi.grid)}>
+                            <FormField label="Currency">
+                              <select
+                                value={plan.currency}
+                                onChange={e => updatePlan(idx, { currency: e.target.value })}
+                                className={cn(selectCls, 'w-full')}
+                              >
+                                <option value="INR">₹ INR</option>
+                                <option value="USD">$ USD</option>
+                                <option value="EUR">€ EUR</option>
+                                <option value="GBP">£ GBP</option>
+                              </select>
+                            </FormField>
+                            {onPriceNotApplicableChange && (
+                              <div className="flex items-center pb-1.5">
+                                <Toggle
+                                  label="Price not applicable"
+                                  checked={priceNotApplicable}
+                                  onChange={onPriceNotApplicableChange}
+                                  title="Hide the PRICE section on the business front. Customers reach you via quotation instead of seeing Get a Quote."
+                                />
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         <div className={cn('grid gap-2', hasPromo ? 'grid-cols-3' : 'grid-cols-2')}>

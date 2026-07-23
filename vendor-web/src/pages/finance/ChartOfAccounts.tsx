@@ -1350,11 +1350,13 @@ export default function ChartOfAccounts() {
                       is_reconciliation_account: !(f as any).is_reconciliation_account,
                       reconciliation_subledger: (f as any).is_reconciliation_account ? '' : (f as any).reconciliation_subledger,
                     }))}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                      (form as any).is_reconciliation_account ? 'bg-violet-600' : 'bg-muted'
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 transition-colors ${
+                      (form as any).is_reconciliation_account
+                        ? 'border-transparent bg-violet-600'
+                        : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'
                     }`}
                   >
-                    <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
+                    <span className={`inline-block h-4 w-4 rounded-full bg-white shadow ring-1 ring-black/5 transform transition-transform ${
                       (form as any).is_reconciliation_account ? 'translate-x-4' : 'translate-x-0'
                     }`} />
                   </button>

@@ -1093,7 +1093,7 @@ function MemberDetailDrawer({
                       onChange={(e) => setIsActive(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:ring-2 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary" />
+                    <div className="w-9 h-5 border-2 border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600 peer-focus:ring-2 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:shadow after:ring-1 after:ring-black/5 after:transition-all peer-checked:border-transparent peer-checked:bg-primary" />
                   </label>
                   <span className="text-sm text-gray-700">Active</span>
                 </div>
@@ -1259,7 +1259,7 @@ function EditRoleModal({
                 onChange={(e) => setIsActive(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-gray-200 peer-focus:ring-2 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary" />
+              <div className="w-9 h-5 border-2 border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600 peer-focus:ring-2 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:shadow after:ring-1 after:ring-black/5 after:transition-all peer-checked:border-transparent peer-checked:bg-primary" />
             </label>
             <span className="text-sm text-gray-700">Active</span>
           </div>

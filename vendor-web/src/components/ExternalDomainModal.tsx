@@ -117,9 +117,9 @@ export function ExternalDomainModal({ vendor, onClose, onSave }: Props) {
               role="switch"
               aria-checked={enabled}
               onClick={() => setEnabled((v: boolean) => !v)}
-              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${enabled ? 'bg-primary' : 'bg-gray-200'}`}
+              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors ${enabled ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}
             >
-              <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+              <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-1 ring-black/5 transform transition-transform ${enabled ? 'translate-x-4' : 'translate-x-0'}`} />
             </button>
             <span className="text-sm font-medium text-foreground">Use an external domain</span>
           </label>

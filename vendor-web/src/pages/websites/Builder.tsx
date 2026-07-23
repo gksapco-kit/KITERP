@@ -20021,7 +20021,7 @@ function SiteSettingsPanel({
                   <p className="text-xs font-bold text-gray-700">Headless API Mode</p>
                   <p className="text-xs text-gray-500">Expose your site content as a JSON API for custom frontends (Next.js, Vue, mobile).</p>
                 </div>
-                <div className={cn('w-8 h-5 rounded-full shrink-0 transition-colors cursor-pointer flex items-center', siteHeadless ? 'bg-primary' : 'bg-gray-300')}
+                <div className={cn('w-8 h-5 rounded-full shrink-0 border-2 transition-colors cursor-pointer flex items-center', siteHeadless ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600')}
                   onClick={() => {
                     const toggle = () => {
                       if (siteHeadless) {

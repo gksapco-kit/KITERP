@@ -569,14 +569,16 @@ function Toggle({ label, checked, onChange, compact }: {
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={cn(
-          'relative inline-flex shrink-0 rounded-full border-2 border-transparent transition-colors',
+          'relative inline-flex shrink-0 rounded-full border-2 transition-colors',
           compact ? 'h-4 w-7' : 'h-5 w-9',
-          checked ? 'bg-primary' : 'bg-muted',
+          checked
+            ? 'border-transparent bg-primary'
+            : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600',
         )}
       >
         <span
           className={cn(
-            'pointer-events-none inline-block rounded-full bg-background shadow-sm transform transition-transform',
+            'pointer-events-none inline-block rounded-full bg-white shadow-sm ring-1 ring-black/5 transform transition-transform',
             compact ? 'h-3 w-3' : 'h-4 w-4',
             checked ? (compact ? 'translate-x-3' : 'translate-x-4') : 'translate-x-0',
           )}
@@ -669,7 +671,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
         }`}>
           <div className="flex items-center gap-2 px-3 py-2.5">
             <button type="button" onClick={() => onChange(fields.map(x => x.key === f.key ? { ...x, enabled: !x.enabled } : x))}
-              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${f.enabled ? 'bg-primary' : 'bg-gray-200'}`}>
+              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors ${f.enabled ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}>
               <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${f.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
             </button>
 
@@ -4522,7 +4524,7 @@ export default function ProductForm() {
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-gray-500">Mark On Sale</span>
                             <button type="button" onClick={() => field.onChange(!field.value)}
-                              className={`relative inline-flex h-5 w-9 rounded-full border-2 border-transparent transition-colors ${field.value ? 'bg-orange-500' : 'bg-gray-200'}`}>
+                              className={`relative inline-flex h-5 w-9 rounded-full border-2 transition-colors ${field.value ? 'border-transparent bg-orange-500' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}>
                               <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${field.value ? 'translate-x-4' : 'translate-x-0'}`} />
                             </button>
                           </div>

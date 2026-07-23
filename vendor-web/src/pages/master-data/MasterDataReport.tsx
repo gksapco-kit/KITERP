@@ -1220,9 +1220,11 @@ function StatusToggleSwitch({
       title={active ? 'Active — click to deactivate' : 'Inactive — click to activate'}
       aria-label={active ? 'Deactivate record' : 'Activate record'}
       className={cn(
-        'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
+        'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 transition-colors duration-200 ease-in-out',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-        active ? 'bg-primary hover:bg-primary/90' : 'bg-muted hover:bg-muted/80',
+        active
+          ? 'border-transparent bg-primary hover:bg-primary/90'
+          : 'border-gray-300 bg-gray-200 hover:bg-gray-300 dark:border-gray-500 dark:bg-gray-600 dark:hover:bg-gray-500',
         busy && 'opacity-60 cursor-wait',
       )}
     >

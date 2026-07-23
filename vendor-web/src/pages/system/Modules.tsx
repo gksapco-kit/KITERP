@@ -84,7 +84,7 @@ function EnableRow({
         {enabled ? (
           <ToggleRight className="h-7 w-7 text-primary" />
         ) : (
-          <ToggleLeft className="h-7 w-7 text-muted-foreground/50" />
+          <ToggleLeft className="h-7 w-7 text-gray-400 dark:text-gray-500" />
         )}
       </button>
     </div>

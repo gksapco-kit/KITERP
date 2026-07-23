@@ -94,7 +94,7 @@ function ActiveToggle({
         onClick={() => onChange(!checked)}
         className={cn(
           'relative h-6 w-11 shrink-0 rounded-full border overflow-hidden transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          checked ? 'bg-emerald-500 border-emerald-500' : 'bg-gray-200 border-gray-300',
+          checked ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600',
         )}
       >
         <span

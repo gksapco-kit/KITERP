@@ -235,7 +235,7 @@ function ConfigPanel({
             className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer group">
             <GripVertical className="w-3.5 h-3.5 text-gray-300 cursor-grab group-hover:text-gray-400 shrink-0" />
             <button type="button" onClick={() => toggleFilter(f.key)}
-              className={`shrink-0 relative inline-flex h-4.5 w-8 h-4 items-center rounded-full transition-colors ${f.enabled ? 'bg-primary' : 'bg-gray-300'}`}>
+              className={`shrink-0 relative inline-flex h-4.5 w-8 h-4 items-center rounded-full border-2 transition-colors ${f.enabled ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}>
               <span className="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
                 style={{ transform: f.enabled ? 'translateX(17px)' : 'translateX(2px)' }} />
             </button>
@@ -252,7 +252,7 @@ function ConfigPanel({
             className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer group">
             <GripVertical className="w-3.5 h-3.5 text-gray-300 cursor-grab group-hover:text-gray-400 shrink-0" />
             <button type="button" onClick={() => toggleColumn(c.key)}
-              className={`shrink-0 relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${c.enabled ? 'bg-primary' : 'bg-gray-300'}`}>
+              className={`shrink-0 relative inline-flex h-4 w-8 items-center rounded-full border-2 transition-colors ${c.enabled ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}>
               <span className="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
                 style={{ transform: c.enabled ? 'translateX(17px)' : 'translateX(2px)' }} />
             </button>

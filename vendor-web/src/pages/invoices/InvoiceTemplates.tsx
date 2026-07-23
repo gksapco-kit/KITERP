@@ -470,7 +470,7 @@ function ToggleRow({ label, hint, checked, onChange }: {
       <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors mt-0.5 ${checked ? 'bg-primary' : 'bg-gray-300'}`}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 transition-colors mt-0.5 ${checked ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}
       >
         <span className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform" style={{ transform: checked ? 'translateX(18px)' : 'translateX(2px)' }} />
       </button>
@@ -1391,7 +1391,7 @@ export default function InvoiceSettingsPage() {
                     className={`flex items-center justify-between px-3 py-2 text-left transition-colors bg-white hover:bg-gray-50 ${val ? '' : 'opacity-60'}`}
                   >
                     <span className="text-xs text-gray-700 leading-tight">{label}</span>
-                    <span className={`ml-2 shrink-0 w-8 h-4 rounded-full relative transition-colors ${val ? 'bg-primary' : 'bg-gray-200'}`}>
+                    <span className={`ml-2 shrink-0 w-8 h-4 rounded-full relative border transition-colors ${val ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}>
                       <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${val ? 'left-4' : 'left-0.5'}`} />
                     </span>
                   </button>
@@ -2119,7 +2119,7 @@ export default function InvoiceSettingsPage() {
                   className={`flex items-center justify-between px-3 py-2 text-left transition-colors bg-white hover:bg-gray-50 ${val ? '' : 'opacity-60'}`}
                 >
                   <span className="text-xs text-gray-700 leading-tight">{label}</span>
-                  <span className={`ml-2 shrink-0 w-8 h-4 rounded-full relative transition-colors ${val ? 'bg-primary' : 'bg-gray-200'}`}>
+                  <span className={`ml-2 shrink-0 w-8 h-4 rounded-full relative border transition-colors ${val ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}>
                     <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${val ? 'left-4' : 'left-0.5'}`} />
                   </span>
                 </button>

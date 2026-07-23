@@ -543,9 +543,9 @@ export default function RestaurantSetupPage() {
                 role="switch"
                 aria-checked={timerEnabled}
                 onClick={() => setTimerEnabled(v => !v)}
-                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${timerEnabled ? 'bg-amber-500' : 'bg-gray-200'}`}
+                className={`relative w-11 h-6 rounded-full border-2 transition-colors cursor-pointer ${timerEnabled ? 'border-transparent bg-amber-500' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${timerEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow ring-1 ring-black/5 transition-transform ${timerEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
               </div>
               <span className="text-sm font-medium text-gray-700">
                 {timerEnabled ? 'Dining timer enabled' : 'Dining timer disabled'}

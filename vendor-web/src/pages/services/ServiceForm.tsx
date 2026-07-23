@@ -230,12 +230,12 @@ function Toggle({ label, checked, onChange, small }: {
   return (
     <label className="flex items-center gap-2 cursor-pointer select-none">
       <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
-        className={`relative inline-flex shrink-0 rounded-full border-2 border-transparent transition-colors
-          ${small ? 'h-5 w-9' : 'h-6 w-11'} ${checked ? 'bg-primary' : 'bg-muted'}`}>
-        <span className={`pointer-events-none inline-block rounded-full bg-background shadow-sm transform transition-transform
+        className={`relative inline-flex shrink-0 rounded-full border-2 transition-colors
+          ${small ? 'h-5 w-9' : 'h-6 w-11'} ${checked ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}>
+        <span className={`pointer-events-none inline-block rounded-full bg-white shadow-sm ring-1 ring-black/5 transform transition-transform
           ${small ? 'h-4 w-4' : 'h-5 w-5'} ${checked ? (small ? 'translate-x-4' : 'translate-x-5') : 'translate-x-0'}`} />
       </button>
-      <span className={`text-foreground ${small ? 'text-xs' : 'text-sm'}`}>{label}</span>
+      <span className={`${small ? 'text-xs' : 'text-sm'} ${checked ? 'text-foreground' : 'text-gray-600 dark:text-gray-300'}`}>{label}</span>
     </label>
   )
 }
@@ -374,7 +374,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
         }`}>
           <div className="flex items-center gap-2 px-3 py-2.5">
             <button type="button" onClick={() => onChange(fields.map(x => x.key === f.key ? { ...x, enabled: !x.enabled } : x))}
-              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${f.enabled ? 'bg-primary' : 'bg-gray-200'}`}>
+              className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors ${f.enabled ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}>
               <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${f.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
             </button>
 
@@ -554,12 +554,14 @@ function AvailabilityEditor({ availability, onChange }: {
                 type="button"
                 onClick={() => toggleDay(day)}
                 className={cn(
-                  'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors',
-                  isOn ? 'bg-primary' : 'bg-muted',
+                  'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors',
+                  isOn
+                    ? 'border-transparent bg-primary'
+                    : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600',
                 )}
               >
                 <span className={cn(
-                  'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                  'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform',
                   isOn ? 'translate-x-4' : 'translate-x-0',
                 )} />
               </button>
@@ -1522,15 +1524,6 @@ export default function ServiceForm() {
                   {service.price_type === 'free' ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
-              <div className="flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-gray-500" />
-                  <p className="text-sm text-gray-700 font-medium">Price not applicable</p>
-                </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.price_type === 'not_applicable' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {service.price_type === 'not_applicable' ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
             </div>
             {service.allow_quote_request && Array.isArray(service.quote_form_config) && service.quote_form_config.length > 0 && (
               <div className="mt-3 space-y-1">
@@ -1553,7 +1546,18 @@ export default function ServiceForm() {
         {showTab('subscription') && (service as any).is_subscription && (service as any).plans?.length > 0 && (
           <Card>
             <CardContent className="p-5">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Repeat className="w-3.5 h-3.5" />Subscription Plans</p>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                  <Repeat className="w-3.5 h-3.5" />Subscription Plans
+                </p>
+                <div className="flex items-center gap-2">
+                  <Tag className="w-3.5 h-3.5 text-gray-500" />
+                  <span className="text-sm text-gray-700">Price not applicable</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${service.price_type === 'not_applicable' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {service.price_type === 'not_applicable' ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+              </div>
               <div className="space-y-4">
                 {(service as any).plans.filter((v: any) => v.is_active !== false).map((v: any) => {
                   const freq = v.service_frequency || 'once'
@@ -2248,23 +2252,6 @@ export default function ServiceForm() {
                   small
                 />
               </div>
-              <div className="flex items-center justify-between px-3 py-2 gap-3">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <Tag className="w-4 h-4 text-gray-500 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-800">Price not applicable</p>
-                    <p className="text-xs text-gray-400">Hide the PRICE section on the business front. Customers reach you via quotation instead of seeing &quot;Get a Quote&quot;.</p>
-                  </div>
-                </div>
-                <Toggle
-                  checked={watchedPriceType === 'not_applicable'}
-                  onChange={(on) => {
-                    setValue('price_type', on ? 'not_applicable' : 'fixed', { shouldDirty: true })
-                    if (on) setValue('allow_quote_request', true, { shouldDirty: true })
-                  }}
-                  small
-                />
-              </div>
             </div>
 
             {/* Quote Form Field Configurator */}
@@ -2310,8 +2297,10 @@ export default function ServiceForm() {
                         aria-checked={isAllDay}
                         onClick={toggleAllDay}
                         className={cn(
-                          'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors',
-                          isAllDay ? 'bg-primary' : 'bg-muted',
+                          'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors',
+                          isAllDay
+                            ? 'border-transparent bg-primary'
+                            : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600',
                         )}
                       >
                         <span className={cn(
@@ -2339,6 +2328,11 @@ export default function ServiceForm() {
             setConfirmDeletePlan={setConfirmDeletePlan}
             insertPlanAt={insertPlanAt}
             AvailabilityEditor={AvailabilityEditor}
+            priceNotApplicable={watchedPriceType === 'not_applicable'}
+            onPriceNotApplicableChange={(on) => {
+              setValue('price_type', on ? 'not_applicable' : 'fixed', { shouldDirty: true })
+              if (on) setValue('allow_quote_request', true, { shouldDirty: true })
+            }}
           />
         )}
         {/* Pricing, Tax, Booking, Availability, and Lifecycle are now inside each plan card */}

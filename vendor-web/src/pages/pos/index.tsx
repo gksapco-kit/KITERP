@@ -3861,7 +3861,7 @@ function POSInvoiceSettingsModal({
                                 const next = isEnabled ? enabledForms.filter(id => id !== form.id) : [...enabledForms, form.id]
                                 setEnabledForms(next); saveEnabledForms(next)
                               }}
-                              className={`relative w-10 h-5.5 rounded-full transition-colors flex items-center px-0.5 ${isEnabled ? 'bg-blue-500' : 'bg-gray-200'}`}
+                              className={`relative w-10 h-5.5 rounded-full border-2 transition-colors flex items-center px-0.5 ${isEnabled ? 'border-transparent bg-blue-500' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}
                               title={isEnabled ? 'Disable' : 'Enable'}
                             >
                               <span className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -4053,7 +4053,7 @@ function POSInvoiceSettingsModal({
                 <label className="flex items-center gap-2 cursor-pointer">
                   <span className="text-xs text-gray-500">{loyaltyActive ? 'Active' : 'Inactive'}</span>
                   <div onClick={() => setLoyaltyActive(p => !p)}
-                    className={`w-10 h-5.5 rounded-full relative transition-colors cursor-pointer ${loyaltyActive ? 'bg-amber-500' : 'bg-gray-200'}`}
+                    className={`w-10 h-5.5 rounded-full relative border-2 transition-colors cursor-pointer ${loyaltyActive ? 'border-transparent bg-amber-500' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}
                     style={{ width: 40, height: 22 }}>
                     <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-transform ${loyaltyActive ? 'translate-x-5' : 'translate-x-0.5'}`}
                       style={{ width: 18, height: 18, top: 2, transform: loyaltyActive ? 'translateX(20px)' : 'translateX(2px)' }} />
