@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import {
   ArrowLeft, CalendarDays, Clock, User, Phone, Mail, CheckCircle, Play,
   Ban, UserX, Check, Loader2, MessageSquare, Paperclip, X,
@@ -460,16 +461,18 @@ export default function BookingDetail() {
               {/* Add new note */}
               <div className="space-y-2 mb-4">
                 <div className="flex gap-2">
-                  <select
-                    className="h-9 px-2 border rounded-lg text-sm text-gray-600 bg-white"
+                  <Select
                     value={followupType}
-                    onChange={e => setFollowupType(e.target.value)}
-                  >
-                    <option value="note">Note</option>
-                    <option value="followup">Follow-up</option>
-                    <option value="reminder">Reminder</option>
-                    <option value="update">Update</option>
-                  </select>
+                    onChange={setFollowupType}
+                    wrapperClassName="w-[120px] shrink-0"
+                    className="h-9 rounded-lg border border-input bg-white text-sm text-gray-600"
+                    options={[
+                      { value: 'note', label: 'Note' },
+                      { value: 'followup', label: 'Follow-up' },
+                      { value: 'reminder', label: 'Reminder' },
+                      { value: 'update', label: 'Update' },
+                    ]}
+                  />
                   <Input
                     placeholder="Add a note or followup message…"
                     value={newFollowup}
@@ -912,18 +915,20 @@ export default function BookingDetail() {
               )}
               {!isDone && !isCancelled && (
                 <div className="flex gap-2">
-                  <select
-                    className="flex-1 h-8 px-2 border rounded-lg text-sm"
+                  <Select
                     value={selectedStaff}
-                    onChange={e => setSelectedStaff(e.target.value)}
-                  >
-                    <option value="">Select staff…</option>
-                    {teamMembers.map((m: any) => (
-                      <option key={m.id} value={m.id}>
-                        {m.full_name || m.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedStaff}
+                    wrapperClassName="flex-1 min-w-0"
+                    className="h-8 rounded-lg border border-input bg-background text-sm"
+                    placeholder="Select staff…"
+                    options={[
+                      { value: '', label: 'Select staff…' },
+                      ...teamMembers.map((m: { id: string; full_name?: string; name?: string }) => ({
+                        value: m.id,
+                        label: m.full_name || m.name || m.id,
+                      })),
+                    ]}
+                  />
                   <Button size="sm" onClick={handleAssignStaff} disabled={!selectedStaff || assigningStaff}>
                     {assigningStaff ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Assign'}
                   </Button>

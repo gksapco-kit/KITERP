@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 import { CustomerPicker, type CustomerPickerValue } from '@/components/commission/CustomerPicker'
 import { StaffPicker, type StaffPickerValue } from '@/components/commission/StaffPicker'
 import { TaskEditorPanel } from '@/components/projects/TaskEditorPanel'
+import { Select } from '@/components/ui/select'
 import {
   ArrowLeft, Loader2, ChevronLeft, ChevronRight, Plus, Trash2,
   CheckCircle2, Circle, Flag, GripVertical, Pencil, Save, X,
@@ -437,27 +438,27 @@ export default function ProjectDetailPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label>Status</Label>
-                    <select
+                    <Select
                       value={editForm.status}
-                      onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value as ProjectStatus }))}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                      {(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((s) => (
-                        <option key={s} value={s}>{PROJECT_STATUS_LABELS[s]}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => setEditForm((p) => ({ ...p, status: v as ProjectStatus }))}
+                      className="h-10 rounded-md border border-input bg-background text-sm"
+                      options={(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((s) => ({
+                        value: s,
+                        label: PROJECT_STATUS_LABELS[s],
+                      }))}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Priority</Label>
-                    <select
+                    <Select
                       value={editForm.priority}
-                      onChange={(e) => setEditForm((p) => ({ ...p, priority: e.target.value as ProjectPriority }))}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                      {(Object.keys(PROJECT_PRIORITY_LABELS) as ProjectPriority[]).map((p) => (
-                        <option key={p} value={p}>{PROJECT_PRIORITY_LABELS[p]}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => setEditForm((p) => ({ ...p, priority: v as ProjectPriority }))}
+                      className="h-10 rounded-md border border-input bg-background text-sm"
+                      options={(Object.keys(PROJECT_PRIORITY_LABELS) as ProjectPriority[]).map((p) => ({
+                        value: p,
+                        label: PROJECT_PRIORITY_LABELS[p],
+                      }))}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">

@@ -1420,25 +1420,29 @@ export default function BookingsPage() {
         </ModalOverlay>
       )}
 
-      <div className="flex flex-wrap gap-2 items-center">
-        {statuses.map((s) => {
-          const badge = s ? statusBadge[s] : null
-          return (
-            <button
-              key={s || 'all'}
-              onClick={() => { setStatusFilter(s); setPage(1) }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === s
-                  ? 'bg-gray-900 text-white dark:bg-primary dark:text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
-              }`}
-            >
-              {badge?.label || 'All'}
-            </button>
-          )
-        })}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {statuses.map((s) => {
+            const badge = s ? statusBadge[s] : null
+            return (
+              <button
+                key={s || 'all'}
+                type="button"
+                onClick={() => { setStatusFilter(s); setPage(1) }}
+                className={`inline-flex h-8 items-center rounded-full px-3 text-xs font-medium transition-colors ${
+                  statusFilter === s
+                    ? 'bg-gray-900 text-white dark:bg-primary dark:text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
+                }`}
+              >
+                {badge?.label || 'All'}
+              </button>
+            )
+          })}
+        </div>
         <SalesScopeFilters
           className="ml-auto"
+          size="sm"
           businessUnitId={listStoreFilter}
           branchId={listBranchFilter}
           salesAreaId={listSalesAreaFilter}

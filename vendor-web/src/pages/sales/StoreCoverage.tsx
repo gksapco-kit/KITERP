@@ -18,6 +18,7 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { BRANCH_LABEL } from '@/lib/businessUnitLabels'
 import { toast } from 'sonner'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
+import { ThemeSelect, type ThemeSelectOption } from '@/components/common/ThemeSelect'
 import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
 import { CoverageRadiusMap } from '@/components/maps/CoverageRadiusMap'
 import { COUNTRIES, POPULAR_COUNTRIES } from '@/data/countries'
@@ -204,6 +205,18 @@ function getCitiesForState(state: string): string[] {
   return CITIES_BY_STATE[state] ?? []
 }
 
+function buildCountrySelectOptions(
+  popular: typeof COUNTRIES,
+  rest: typeof COUNTRIES,
+  emptyLabel: string,
+): ThemeSelectOption[] {
+  return [
+    { value: '', label: emptyLabel },
+    ...popular.map((c) => ({ value: c.iso, label: `${c.flag} ${c.name}`, group: 'Popular' })),
+    ...rest.map((c) => ({ value: c.iso, label: `${c.flag} ${c.name}`, group: 'All countries' })),
+  ]
+}
+
 // ── Reusable dropdown ──────────────────────────────────────────────────────────
 
 function Dropdown({
@@ -217,22 +230,14 @@ function Dropdown({
   className?: string
 }) {
   return (
-    <select
+    <ThemeSelect
       value={value}
-      onChange={e => onChange(e.target.value)}
+      onChange={onChange}
       disabled={disabled}
-      className={cn(
-        'h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background',
-        'focus:outline-none focus:ring-1 focus:ring-ring',
-        'disabled:cursor-not-allowed disabled:opacity-40',
-        className,
-      )}
-    >
-      <option value="">{placeholder}</option>
-      {options.map(o => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
+      placeholder={placeholder}
+      className={cn('h-9 rounded-md border border-input bg-background text-sm', className)}
+      options={[{ value: '', label: placeholder }, ...options]}
+    />
   )
 }
 
@@ -529,19 +534,13 @@ function RuleRow({
 
             <div className="flex flex-col gap-1 min-w-[180px]">
               <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Country</span>
-              <select
+              <ThemeSelect
                 value={rule.country}
-                onChange={e => onUpdate({ country: e.target.value, regions: [], cities: [], postal_values: [], area_values: [] })}
-                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">— All countries —</option>
-                <optgroup label="Popular">
-                  {popular.map(c => <option key={c.iso} value={c.iso}>{c.flag} {c.name}</option>)}
-                </optgroup>
-                <optgroup label="All countries">
-                  {rest.map(c => <option key={c.iso} value={c.iso}>{c.flag} {c.name}</option>)}
-                </optgroup>
-              </select>
+                onChange={(v) => onUpdate({ country: v, regions: [], cities: [], postal_values: [], area_values: [] })}
+                placeholder="— All countries —"
+                className="h-9 rounded-md border border-input bg-background text-sm"
+                options={buildCountrySelectOptions(popular, rest, '— All countries —')}
+              />
             </div>
 
             {showRegion && (
@@ -928,33 +927,26 @@ function TestAddress({ rules }: { rules: CoverageRule[] }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Country</Label>
-          <select
+          <ThemeSelect
             value={testCountry}
-            onChange={e => { setTestCountry(e.target.value); setTestRegion(''); setTestCity('') }}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="">— Select country —</option>
-            <optgroup label="Popular">
-              {popular.map(c => <option key={c.iso} value={c.iso}>{c.flag} {c.name}</option>)}
-            </optgroup>
-            <optgroup label="All">
-              {rest.map(c => <option key={c.iso} value={c.iso}>{c.flag} {c.name}</option>)}
-            </optgroup>
-          </select>
+            onChange={(v) => { setTestCountry(v); setTestRegion(''); setTestCity('') }}
+            placeholder="— Select country —"
+            className="h-9 rounded-md border border-input bg-background text-sm"
+            options={buildCountrySelectOptions(popular, rest, '— Select country —')}
+          />
         </div>
 
         <div className="flex flex-col gap-1">
           <Label className="text-xs">{testCountry ? regionLabel(testCountry) : 'State / Region'}</Label>
           {states.length > 0 ? (
-            <select
+            <ThemeSelect
               value={testRegion}
-              onChange={e => { setTestRegion(e.target.value); setTestCity('') }}
+              onChange={(v) => { setTestRegion(v); setTestCity('') }}
               disabled={!testCountry}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">— Select —</option>
-              {states.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+              placeholder="— Select —"
+              className="h-9 rounded-md border border-input bg-background text-sm"
+              options={[{ value: '', label: '— Select —' }, ...states.map((s) => ({ value: s, label: s }))]}
+            />
           ) : (
             <Input value={testRegion} onChange={e => setTestRegion(e.target.value)} placeholder="Enter region" className="h-9" />
           )}
@@ -963,15 +955,14 @@ function TestAddress({ rules }: { rules: CoverageRule[] }) {
         <div className="flex flex-col gap-1">
           <Label className="text-xs">City</Label>
           {cities.length > 0 ? (
-            <select
+            <ThemeSelect
               value={testCity}
-              onChange={e => setTestCity(e.target.value)}
+              onChange={setTestCity}
               disabled={!testRegion}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">— Select —</option>
-              {cities.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+              placeholder="— Select —"
+              className="h-9 rounded-md border border-input bg-background text-sm"
+              options={[{ value: '', label: '— Select —' }, ...cities.map((c) => ({ value: c, label: c }))]}
+            />
           ) : (
             <Input value={testCity} onChange={e => setTestCity(e.target.value)} placeholder="Enter city" className="h-9" />
           )}
@@ -1372,8 +1363,6 @@ interface CoverageScope {
   storeId: string
 }
 
-const modalNativeSelectClass =
-  'h-8 w-full rounded border border-input bg-background px-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50'
 
 function scopeDedupeKey(buId: string, branchId: string) {
   return `${buId}::${branchId || 'bu'}`
@@ -1604,47 +1593,46 @@ export default function StoreCoveragePage() {
                   <Label htmlFor="coverage-create-bu" className="text-xs">
                     Business unit
                   </Label>
-                  <select
+                  <ThemeSelect
                     id="coverage-create-bu"
                     value={createBuId}
-                    onChange={(e) => handleCreateBuChange(e.target.value)}
-                    className={modalNativeSelectClass}
-                    autoFocus
-                  >
-                    <option value="">— Select business unit —</option>
-                    {buStores.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.code ? `${s.code} — ${s.name}` : s.name}
-                        {s.is_default ? ' (default)' : ''}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={handleCreateBuChange}
+                    className="h-8 rounded border border-input bg-background"
+                    placeholder="— Select business unit —"
+                    options={[
+                      { value: '', label: '— Select business unit —' },
+                      ...buStores.map((s) => ({
+                        value: s.id,
+                        label: `${s.code ? `${s.code} — ${s.name}` : s.name}${s.is_default ? ' (default)' : ''}`,
+                      })),
+                    ]}
+                    aria-label="Business unit"
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="coverage-create-branch" className="text-xs">
                     {BRANCH_LABEL}
                   </Label>
-                  <select
+                  <ThemeSelect
                     id="coverage-create-branch"
                     value={createBranchId}
-                    onChange={(e) => setCreateBranchId(e.target.value)}
+                    onChange={setCreateBranchId}
                     disabled={!createBuId || createBranchesLoading}
-                    className={modalNativeSelectClass}
-                  >
-                    {createBranchesLoading ? (
-                      <option value="">Loading branches…</option>
-                    ) : (
-                      <>
-                        <option value="">All branches</option>
-                        {createBranches.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.code ? `${b.code} — ${b.name}` : b.name}
-                            {b.is_default ? ' (default)' : ''}
-                          </option>
-                        ))}
-                      </>
-                    )}
-                  </select>
+                    className="h-8 rounded border border-input bg-background"
+                    placeholder={createBranchesLoading ? 'Loading branches…' : 'All branches'}
+                    options={
+                      createBranchesLoading
+                        ? [{ value: '', label: 'Loading branches…' }]
+                        : [
+                            { value: '', label: 'All branches' },
+                            ...createBranches.map((b) => ({
+                              value: b.id,
+                              label: `${b.code ? `${b.code} — ${b.name}` : b.name}${b.is_default ? ' (default)' : ''}`,
+                            })),
+                          ]
+                    }
+                    aria-label={BRANCH_LABEL}
+                  />
                 </div>
               </div>
               {createBuId ? (

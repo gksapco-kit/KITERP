@@ -1080,21 +1080,20 @@ export default function CreditDebitMemos() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
                   <div>
                     <Label className="text-xs text-slate-600">Business unit (code)</Label>
-                    <select
-                      className="mt-1 w-full h-9 text-sm border border-border rounded-md bg-white"
+                    <ThemeSelect
+                      className="mt-1 h-9 rounded-md border border-border bg-white"
                       value={headerCompanyId}
-                      onChange={(e) => {
-                        setHeaderCompanyId(e.target.value)
+                      onChange={(id) => {
+                        setHeaderCompanyId(id)
                         setHeaderFiscalYearId('')
                         setHeaderPeriodId('')
                       }}
-                    >
-                      {companiesList.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.code} — {c.name}
-                        </option>
-                      ))}
-                    </select>
+                      options={companiesList.map((c) => ({
+                        value: c.id,
+                        label: `${c.code} — ${c.name}`,
+                      }))}
+                      aria-label="Business unit"
+                    />
                     {selectedHeaderCompany && (
                       <p className="mt-1 text-xs text-slate-400 font-mono">Unit code: {selectedHeaderCompany.code}</p>
                     )}
@@ -1112,38 +1111,45 @@ export default function CreditDebitMemos() {
                   </div>
                   <div>
                     <Label className="text-xs text-slate-600">Fiscal year</Label>
-                    <select
-                      className="mt-1 w-full h-9 text-sm border border-border rounded-md bg-white"
+                    <ThemeSelect
+                      className="mt-1 h-9 rounded-md border border-border bg-white"
                       value={headerFiscalYearId}
-                      onChange={(e) => {
-                        setHeaderFiscalYearId(e.target.value)
+                      onChange={(id) => {
+                        setHeaderFiscalYearId(id)
                         setHeaderPeriodId('')
                       }}
-                    >
-                      <option value="">— Select —</option>
-                      {(fiscalYears as { id: string; name: string }[]).map((fy) => (
-                        <option key={fy.id} value={fy.id}>{fy.name}</option>
-                      ))}
-                    </select>
+                      placeholder="— Select —"
+                      options={[
+                        { value: '', label: '— Select —' },
+                        ...(fiscalYears as { id: string; name: string }[]).map((fy) => ({
+                          value: fy.id,
+                          label: fy.name,
+                        })),
+                      ]}
+                      aria-label="Fiscal year"
+                    />
                   </div>
                   <div>
                     <Label className="text-xs text-slate-600">Posting period</Label>
-                    <select
-                      className="mt-1 w-full h-9 text-sm border border-border rounded-md bg-white disabled:bg-slate-50"
+                    <ThemeSelect
+                      className="mt-1 h-9 rounded-md border border-border bg-white disabled:bg-slate-50"
                       value={headerPeriodId}
-                      onChange={(e) => setHeaderPeriodId(e.target.value)}
+                      onChange={setHeaderPeriodId}
                       disabled={!headerFiscalYearId}
-                    >
-                      <option value="">— Select —</option>
-                      {(finPeriods as { id: string; name: string; period_number?: number; start_date?: string; end_date?: string }[]).map(
-                        (p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.period_number != null ? `${p.period_number} · ` : ''}{p.name}
-                            {p.start_date && p.end_date ? ` (${p.start_date} – ${p.end_date})` : ''}
-                          </option>
-                        )
-                      )}
-                    </select>
+                      placeholder="— Select —"
+                      options={[
+                        { value: '', label: '— Select —' },
+                        ...(finPeriods as { id: string; name: string; period_number?: number; start_date?: string; end_date?: string }[]).map(
+                          (p) => ({
+                            value: p.id,
+                            label: `${p.period_number != null ? `${p.period_number} · ` : ''}${p.name}${
+                              p.start_date && p.end_date ? ` (${p.start_date} – ${p.end_date})` : ''
+                            }`,
+                          }),
+                        ),
+                      ]}
+                      aria-label="Posting period"
+                    />
                   </div>
                   <div className="sm:col-span-2 xl:col-span-4">
                     <Label className="text-xs text-slate-600">Header text</Label>
@@ -1611,10 +1617,18 @@ export default function CreditDebitMemos() {
               <div>
                 <Label className="text-xs text-slate-500">Header discount</Label>
                 <div className="mt-1 flex items-center gap-2">
-                  <select className="text-xs border border-border rounded h-8 px-2" value={discountType} onChange={e => setDiscountType(e.target.value as 'flat' | 'percentage')}>
-                    <option value="flat">Flat</option>
-                    <option value="percentage">%</option>
-                  </select>
+                  <ThemeSelect
+                    value={discountType}
+                    onChange={(v) => setDiscountType(v as 'flat' | 'percentage')}
+                    wrapperClassName="w-[5.5rem] shrink-0"
+                    className="h-8 rounded border border-border text-xs"
+                    menuMinWidth={0}
+                    options={[
+                      { value: 'flat', label: 'Flat' },
+                      { value: 'percentage', label: '%' },
+                    ]}
+                    aria-label="Header discount type"
+                  />
                   <Input type="number" min={0} value={cartDiscount} onChange={e => setCartDiscount(Number(e.target.value))} className="h-8 text-sm w-24" />
                 </div>
               </div>
@@ -1648,7 +1662,7 @@ export default function CreditDebitMemos() {
           <div className="px-6 sm:px-8 py-4 bg-slate-50/60 border-t border-slate-200/80">
             <Button
               type="button"
-              className={`w-full gap-2 h-11 text-base ${memoMode === 'credit_memo' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-primary hover:bg-primary/90'}`}
+              className="w-full gap-2 h-11 text-base bg-primary hover:bg-primary/90"
               size="lg"
               disabled={memoLinesInvalid}
               onClick={() => setPaymentModal(true)}

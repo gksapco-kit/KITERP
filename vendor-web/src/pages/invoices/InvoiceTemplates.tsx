@@ -33,6 +33,7 @@ import type { Vendor } from '@/types'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import { DOCUMENT_LAYOUT_THUMBNAILS as TEMPLATES } from '@/lib/documentLayoutThumbnails'
+import { Select } from '@/components/ui/select'
 
 function resolveOriginPath(url: string) {
   if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url
@@ -195,16 +196,14 @@ function templateSelectControl(
   return (
     <label className="flex items-center gap-2 min-w-0 text-xs">
       <span className="text-gray-500 shrink-0 font-medium">Layout</span>
-      <select
+      <Select
         value={templateId}
-        onChange={e => onTemplateChange(e.target.value as InvoiceTemplateId)}
-        className="h-8 min-w-[120px] max-w-[180px] rounded-md border border-gray-200 bg-white px-2 text-xs font-medium text-gray-800 shadow-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+        onChange={v => onTemplateChange(v as InvoiceTemplateId)}
+        options={opts.map(t => ({ value: t.id, label: t.name }))}
+        className="h-8 min-w-[120px] max-w-[180px] text-xs font-medium"
+        wrapperClassName="min-w-[120px] max-w-[180px]"
         aria-label="Select template layout"
-      >
-        {opts.map(t => (
-          <option key={t.id} value={t.id}>{t.name}</option>
-        ))}
-      </select>
+      />
     </label>
   )
 }

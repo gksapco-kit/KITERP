@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import {
   Check, ChevronDown, Copy, Eye, EyeOff, KeyRound, Link2, Loader2,
   LogIn, Mail, Plus, RefreshCw, Share2, ShieldCheck, Trash2, X,
@@ -149,10 +150,15 @@ export function BankTab({
         <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.bank_name} onChange={e => update('bank_name', e.target.value)} placeholder="e.g. State Bank of India" />
       </FieldRow>
       <FieldRow label="Account type" editing={editing} display={form.account_type}>
-        <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.account_type} onChange={e => update('account_type', e.target.value)}>
-          <option value="savings">Savings</option>
-          <option value="current">Current</option>
-        </select>
+        <Select
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          value={form.account_type}
+          onChange={v => update('account_type', v)}
+          options={[
+            { value: 'savings', label: 'Savings' },
+            { value: 'current', label: 'Current' },
+          ]}
+        />
       </FieldRow>
       <FieldRow label="Account holder" editing={editing} display={form.account_holder_name}>
         <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.account_holder_name} onChange={e => update('account_holder_name', e.target.value)} placeholder="As per bank records" />
@@ -256,28 +262,43 @@ export function EmployeePersonalTab({
           <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.date_of_birth} onChange={e => update('date_of_birth', e.target.value)} />
         </FieldRow>
         <FieldRow label="Gender" editing={editing} display={form.gender}>
-          <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.gender} onChange={e => update('gender', e.target.value)}>
-            <option value="">—</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-            <option value="prefer_not_to_say">Prefer not to say</option>
-          </select>
+          <Select
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            value={form.gender}
+            onChange={v => update('gender', v)}
+            options={[
+              { value: '', label: '—' },
+              { value: 'male', label: 'Male' },
+              { value: 'female', label: 'Female' },
+              { value: 'other', label: 'Other' },
+              { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+            ]}
+          />
         </FieldRow>
         <FieldRow label="Blood group" editing={editing} display={form.blood_group}>
-          <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.blood_group} onChange={e => update('blood_group', e.target.value)}>
-            <option value="">—</option>
-            {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
+          <Select
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            value={form.blood_group}
+            onChange={v => update('blood_group', v)}
+            options={[
+              { value: '', label: '—' },
+              ...['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => ({ value: g, label: g })),
+            ]}
+          />
         </FieldRow>
         <FieldRow label="Marital status" editing={editing} display={form.marital_status}>
-          <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.marital_status} onChange={e => update('marital_status', e.target.value)}>
-            <option value="">—</option>
-            <option value="single">Single</option>
-            <option value="married">Married</option>
-            <option value="divorced">Divorced</option>
-            <option value="widowed">Widowed</option>
-          </select>
+          <Select
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            value={form.marital_status}
+            onChange={v => update('marital_status', v)}
+            options={[
+              { value: '', label: '—' },
+              { value: 'single', label: 'Single' },
+              { value: 'married', label: 'Married' },
+              { value: 'divorced', label: 'Divorced' },
+              { value: 'widowed', label: 'Widowed' },
+            ]}
+          />
         </FieldRow>
         <FieldRow label="Nationality" editing={editing} display={form.nationality}>
           <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.nationality} onChange={e => update('nationality', e.target.value)} />

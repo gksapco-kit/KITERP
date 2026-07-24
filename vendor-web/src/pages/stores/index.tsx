@@ -625,14 +625,14 @@ export function BranchesPanel({ businessUnit }: { businessUnit: StoreRecord }) {
   })
 
   return (
-    <Card>
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+    <Card className="overflow-hidden shadow-none">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
               <Store className="h-4 w-4 text-muted-foreground" /> Branches under {businessUnit.name}
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               Optional locations reporting to this business unit — pick one wherever this business unit is selected.
             </p>
           </div>
@@ -644,25 +644,25 @@ export function BranchesPanel({ businessUnit }: { businessUnit: StoreRecord }) {
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : branches.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-lg">
+          <p className="rounded-lg border border-dashed border-border py-4 text-center text-sm text-muted-foreground">
             No branches yet — this business unit is used directly for transactions.
           </p>
         ) : (
-          <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+          <div className="overflow-hidden divide-y divide-border rounded-lg border border-border">
             {branches.map((b) => (
-              <div key={b.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-card">
-                <div className="min-w-0 flex items-center gap-2">
-                  {b.is_default && <Star className="h-3.5 w-3.5 text-indigo-500 shrink-0" aria-label="Default branch" />}
+              <div key={b.id} className="flex items-center justify-between gap-3 bg-card px-3 py-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  {b.is_default && <Star className="h-3.5 w-3.5 shrink-0 text-indigo-500" aria-label="Default branch" />}
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{b.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="truncate text-sm font-medium text-foreground">{b.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
                       {b.code || '—'}
                       {branchGstinFromStore(b) ? ` · GST ${branchGstinFromStore(b)}` : ''}
                       {!b.is_active ? ' · Inactive' : ''}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex shrink-0 items-center gap-1">
                   {!b.is_default && (
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Set default"
                       onClick={() => setDefaultMutation.mutate(b.id)}>

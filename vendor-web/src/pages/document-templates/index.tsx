@@ -631,7 +631,7 @@ function generateMeetingHtml(s: MeetingSettings): string {
 .agenda-item{display:flex;gap:8px;margin-bottom:6px;font-size:11px}
 .agenda-num{background:${c};color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px}
 .action-row{display:flex;gap:8px;margin-bottom:6px;font-size:11px;align-items:flex-start}
-.action-check{width:14px;height:14px;border:1.5px solid #d1d5db;border-radius:3px;flex-shrink:0;margin-top:2px}
+.action-check{width:14px;height:14px;border:1px solid #d1d5db;border-radius:3px;flex-shrink:0;margin-top:2px}
 </style></head><body><div class="page">
 <div class="header">
   <div style="font-size:10px;opacity:.8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Meeting Minutes</div>

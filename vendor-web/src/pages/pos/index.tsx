@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useProducts, useServices, useInvoiceSettings, vendorKeys, useMyMembership, useStores } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { formatCurrency } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -1695,10 +1696,15 @@ export default function POS() {
         <div className="px-3 py-2 border-t bg-gray-50 space-y-1.5">
           <div className="flex items-center gap-2">
             <Label className="text-xs shrink-0">Discount:</Label>
-            <select className="text-xs border rounded px-2 py-1" value={discountType} onChange={(e) => setDiscountType(e.target.value as 'flat' | 'percentage')}>
-              <option value="flat">Flat</option>
-              <option value="percentage">%</option>
-            </select>
+            <Select
+              value={discountType}
+              onChange={v => setDiscountType(v as 'flat' | 'percentage')}
+              options={[
+                { value: 'flat', label: 'Flat' },
+                { value: 'percentage', label: '%' },
+              ]}
+              className="text-xs"
+            />
             <Input type="number" min={0} value={cartDiscount} onChange={(e) => setCartDiscount(Number(e.target.value))} className="h-7 text-sm w-20" />
           </div>
           <div className="flex items-center gap-2">
@@ -2222,22 +2228,23 @@ function PaymentModal({
                   <span className="text-xs font-mono text-teal-800 shrink-0">
                     {formatCurrency(lineAmounts[idx] ?? 0)}
                   </span>
-                  <select
-                    className="h-8 rounded border border-teal-200 bg-white px-2 text-xs shrink-0"
-                    value={itemCover[idx] ?? 0}
-                    onChange={e => {
-                      const v = parseInt(e.target.value, 10)
+                  <Select
+                    value={String(itemCover[idx] ?? 0)}
+                    onChange={v => {
+                      const n = parseInt(v, 10)
                       setItemCover(prev => {
                         const next = [...prev]
-                        next[idx] = v
+                        next[idx] = n
                         return next
                       })
                     }}
-                  >
-                    {Array.from({ length: coverCount }, (_, c) => (
-                      <option key={c} value={c}>Cover {c + 1}</option>
-                    ))}
-                  </select>
+                    options={Array.from({ length: coverCount }, (_, c) => ({
+                      value: String(c),
+                      label: `Cover ${c + 1}`,
+                    }))}
+                    className="h-8 text-xs shrink-0"
+                    menuMinWidth={0}
+                  />
                 </div>
               ))}
               <p className="text-xs text-teal-700 pt-1 border-t border-teal-100">
@@ -2859,14 +2866,16 @@ function POSTransactionHistory({
               sortKey={sortKey} sortDir={sortDir}
               onSortKeyChange={onSortKeyChange} onSortDirChange={onSortDirChange}
             />
-            <select value={typeFilter} onChange={e => onTypeFilterChange(e.target.value)}
-              className="text-xs border rounded-md px-2 py-1.5 h-9"
-              title="Sales and returns only. Credit and debit memos: Finance → Credit & Debit Memos"
-            >
-              <option value="">Sales &amp; returns</option>
-              <option value="sale">Sale</option>
-              <option value="return">Return</option>
-            </select>
+            <Select
+              value={typeFilter}
+              onChange={onTypeFilterChange}
+              options={selectOptionsWithBlank('Sales & returns', [
+                { value: 'sale', label: 'Sale' },
+                { value: 'return', label: 'Return' },
+              ])}
+              className="text-xs h-9"
+              aria-label="Filter by transaction type"
+            />
           </div>
 
           {loading ? (

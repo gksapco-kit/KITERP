@@ -12,6 +12,7 @@ import { useFormSubmissions, useDeleteFormSubmission, useSite } from '@/hooks/us
 import type { FormSubmission } from '@/types/websites'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
+import { Select } from '@/components/ui/select'
 const FORM_TYPE_LABELS: Record<string, string> = {
   contact: 'Contact Form',
   newsletter: 'Newsletter',
@@ -196,16 +197,16 @@ export default function WebsiteSubmissions() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm">
           <Filter className="w-4 h-4 text-gray-400" />
-          <select
+          <Select
             value={formType}
-            onChange={e => { setFormType(e.target.value); setPage(0) }}
-            className="text-sm text-gray-700 bg-transparent focus:outline-none pr-2"
-          >
-            <option value="">All form types</option>
-            {Object.entries(FORM_TYPE_LABELS).map(([id, label]) => (
-              <option key={id} value={id}>{label}</option>
-            ))}
-          </select>
+            onChange={(v) => { setFormType(v); setPage(0) }}
+            className="text-sm text-gray-700 bg-transparent border-0 shadow-none h-8"
+            placeholder="All form types"
+            options={[
+              { value: '', label: 'All form types' },
+              ...Object.entries(FORM_TYPE_LABELS).map(([id, label]) => ({ value: id, label })),
+            ]}
+          />
         </div>
         <div className="text-sm text-gray-500">{total} submission{total !== 1 ? 's' : ''}</div>
         <button

@@ -11,6 +11,7 @@ import {
 import type { FsvVersion, FsvNode, FsvResultRow } from '@/api/finance'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
+import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 
 const fmtAmt = (n: number) =>
@@ -327,15 +328,15 @@ export default function FinancialStatementVersions() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Statement Type</label>
-                <select
+                <Select
                   value={newForm.statement_type}
-                  onChange={e => setNewForm(f => ({ ...f, statement_type: e.target.value }))}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="income_statement">Income Statement (P&L)</option>
-                  <option value="balance_sheet">Balance Sheet</option>
-                  <option value="custom">Custom</option>
-                </select>
+                  onChange={v => setNewForm(f => ({ ...f, statement_type: v }))}
+                  options={[
+                    { value: 'income_statement', label: 'Income Statement (P&L)' },
+                    { value: 'balance_sheet', label: 'Balance Sheet' },
+                    { value: 'custom', label: 'Custom' },
+                  ]}
+                />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Description</label>

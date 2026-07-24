@@ -12,6 +12,7 @@ import {
   useTransitionOrderStatus,
 } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
+import { Select } from '@/components/ui/select'
 import { toast } from 'sonner'
 
 const LIFECYCLE = [
@@ -175,18 +176,23 @@ export default function ProductionProcessPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         {companies.length > 1 && (
-          <select value={activeCo} onChange={e => setCompanyId(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-            {companies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
-          </select>
+          <Select
+            value={activeCo}
+            onChange={setCompanyId}
+            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+            options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+          />
         )}
-        <select value={kindFilter} onChange={e => setKindFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          <option value="">All kinds</option>
-          {['assembly', 'process', 'project', 'internal'].map(k => (
-            <option key={k} value={k}>{k}</option>
-          ))}
-        </select>
+        <Select
+          value={kindFilter}
+          onChange={setKindFilter}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          placeholder="All kinds"
+          options={[
+            { value: '', label: 'All kinds' },
+            ...['assembly', 'process', 'project', 'internal'].map(k => ({ value: k, label: k })),
+          ]}
+        />
       </div>
 
       {isLoading && <div className="text-gray-400 text-sm">Loading production orders…</div>}

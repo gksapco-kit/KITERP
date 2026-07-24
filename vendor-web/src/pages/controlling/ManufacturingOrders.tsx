@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ArrowLeft, Factory, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 
 const KINDS = [
   { id: 'assembly', label: 'Assembly' },
@@ -102,15 +103,12 @@ export default function ControllingManufacturingOrdersPage() {
           {companies.length > 0 && (
             <label className="flex flex-col gap-1 text-xs text-gray-600">
               Company
-              <select
+              <Select
                 value={activeCo}
-                onChange={e => setCompanyId(e.target.value)}
+                onChange={setCompanyId}
                 className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white min-w-[180px]"
-              >
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>{c.code}</option>
-                ))}
-              </select>
+                options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+              />
             </label>
           )}
           <Button type="button" onClick={() => setShowNew(true)} className="gap-1">
@@ -125,26 +123,25 @@ export default function ControllingManufacturingOrdersPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <label className="text-xs text-gray-600 flex flex-col gap-1">
               Kind
-              <select
+              <Select
                 value={form.order_kind}
-                onChange={e => setForm(f => ({ ...f, order_kind: e.target.value }))}
+                onChange={v => setForm(f => ({ ...f, order_kind: v }))}
                 className="rounded-lg border border-gray-200 px-2 py-2 text-sm"
-              >
-                {KINDS.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
-              </select>
+                options={KINDS.map(k => ({ value: k.id, label: k.label }))}
+              />
             </label>
             <label className="text-xs text-gray-600 flex flex-col gap-1">
               Output product (optional for internal)
-              <select
+              <Select
                 value={form.product_id}
-                onChange={e => setForm(f => ({ ...f, product_id: e.target.value }))}
+                onChange={v => setForm(f => ({ ...f, product_id: v }))}
                 className="rounded-lg border border-gray-200 px-2 py-2 text-sm"
-              >
-                <option value="">—</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+                placeholder="—"
+                options={[
+                  { value: '', label: '—' },
+                  ...products.map(p => ({ value: String(p.id), label: String(p.name) })),
+                ]}
+              />
             </label>
             <label className="text-xs text-gray-600 flex flex-col gap-1">
               Qty planned
@@ -156,15 +153,16 @@ export default function ControllingManufacturingOrdersPage() {
             </label>
             <label className="text-xs text-gray-600 flex flex-col gap-1">
               Status
-              <select
+              <Select
                 value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                onChange={v => setForm(f => ({ ...f, status: v }))}
                 className="rounded-lg border border-gray-200 px-2 py-2 text-sm"
-              >
-                <option value="draft">draft</option>
-                <option value="released">released</option>
-                <option value="in_progress">in_progress</option>
-              </select>
+                options={[
+                  { value: 'draft', label: 'draft' },
+                  { value: 'released', label: 'released' },
+                  { value: 'in_progress', label: 'in_progress' },
+                ]}
+              />
             </label>
           </div>
           <div className="flex gap-2">

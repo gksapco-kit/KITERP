@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -46,7 +47,8 @@ export function InlineEditCell(props: InlineEditCellProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const selectWrapperRef = useRef<HTMLDivElement>(null)
   const skipBlurSave = useRef(false)
 
   const startEditing = useCallback(() => {
@@ -65,13 +67,15 @@ export function InlineEditCell(props: InlineEditCellProps) {
 
   useEffect(() => {
     if (!editing) return
+    if (isSelectProps(props)) {
+      selectWrapperRef.current?.querySelector('button')?.focus()
+      return
+    }
     const el = inputRef.current
     if (!el) return
     el.focus()
-    if (el instanceof HTMLInputElement) {
-      el.select()
-    }
-  }, [editing])
+    el.select()
+  }, [editing, props])
 
   const cancel = useCallback(() => {
     setEditing(false)
@@ -142,16 +146,27 @@ export function InlineEditCell(props: InlineEditCellProps) {
   if (editing) {
     if (isSelectProps(props)) {
       return (
-        <div data-stop-row-click className={cn('relative min-w-0', className)} title={title}>
-          <select
-            ref={inputRef as RefObject<HTMLSelectElement>}
+        <div
+          ref={selectWrapperRef}
+          data-stop-row-click
+          className={cn('relative min-w-0', className)}
+          title={title}
+          tabIndex={-1}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              onBlur()
+            }
+          }}
+          onKeyDown={onKeyDown}
+        >
+          <Select
             value={draft}
-            onChange={(e) => {
-              setDraft(e.target.value)
+            onChange={(v) => {
+              setDraft(v)
               skipBlurSave.current = true
               void (async () => {
                 try {
-                  await props.onSave(e.target.value)
+                  await props.onSave(v)
                   setEditing(false)
                   setError(null)
                 } catch {
@@ -159,14 +174,10 @@ export function InlineEditCell(props: InlineEditCellProps) {
                 }
               })()
             }}
-            onKeyDown={onKeyDown}
-            onBlur={onBlur}
-            className="h-8 w-full min-w-[5.5rem] rounded-md border border-blue-300 bg-white px-2 text-xs font-medium text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-          >
-            {props.options.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+            menuMinWidth={120}
+            className="h-8 rounded-md border border-blue-300 bg-white px-2 text-xs font-medium text-gray-900 shadow-sm"
+            options={props.options}
+          />
           {error && <p className="mt-0.5 text-[10px] text-red-600">{error}</p>}
         </div>
       )

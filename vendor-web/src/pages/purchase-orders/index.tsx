@@ -628,16 +628,16 @@ function CreatePOModal({
         />
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <ModalBody className="space-y-4 px-4 pb-3 pt-0">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex h-5 items-center justify-between gap-2">
                 <Label className="text-xs">Supplier *</Label>
                 <button
                   type="button"
                   onClick={() => setShowQuickSupplier(v => !v)}
-                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80"
                 >
-                  <UserPlus className="w-3 h-3" /> New Supplier
+                  <UserPlus className="h-3 w-3" /> New Supplier
                 </button>
               </div>
               <Select
@@ -646,15 +646,16 @@ function CreatePOModal({
                 options={selectOptionsWithBlank('Select supplier...', dedupeSuppliers(suppliersData?.items ?? []).map((s) => ({ value: s.id, label: s.name })))}
                 placeholder="Select supplier..."
                 aria-label="Supplier"
-                className="w-full"
+                className="w-full min-w-0"
+                triggerClassName="h-9"
               />
 
               {/* Quick-create supplier inline panel */}
               {showQuickSupplier && (
-                <div className="border border-blue-200 rounded-lg bg-blue-50/60 p-3 space-y-2 mt-1">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <p className="text-xs font-medium text-blue-700 flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5" /> Quick Create Supplier
+                <div className="mt-1 space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <div className="mb-0.5 flex items-center justify-between">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                      <Building2 className="h-3.5 w-3.5" /> Quick Create Supplier
                     </p>
                     <button type="button" aria-label="Close" onClick={() => setShowQuickSupplier(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-3.5 h-3.5" />
@@ -702,24 +703,68 @@ function CreatePOModal({
                 </div>
               )}
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Expected Delivery</Label>
-              <Input type="date" className="h-8 text-sm" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex h-5 items-center">
+                <Label htmlFor="po-expected-delivery" className="text-xs">Expected Delivery</Label>
+              </div>
+              <Input
+                id="po-expected-delivery"
+                type="date"
+                className="h-9 w-full min-w-0"
+                value={expectedDate}
+                onChange={(e) => setExpectedDate(e.target.value)}
+              />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs">Business Unit</Label>
-            <BusinessUnitSelect
-              value={storeId}
-              onChange={(id) => {
-                setStoreId(id)
-                setScope({ kind: '' })
-                setStorageLocationId('')
-              }}
-              autoSelectDefault={false}
-              className="w-full max-w-md"
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex h-5 items-center">
+                <Label className="text-xs">Business Unit</Label>
+              </div>
+              <BusinessUnitSelect
+                value={storeId}
+                onChange={(id) => {
+                  setStoreId(id)
+                  setScope({ kind: '' })
+                  setStorageLocationId('')
+                }}
+                autoSelectDefault={false}
+                className="w-full min-w-0"
+                triggerClassName="h-9"
+              />
+            </div>
+
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex h-5 items-center">
+                <Label className="text-xs">Storage Location</Label>
+              </div>
+              <Select
+                value={storageLocationId}
+                onChange={setStorageLocationId}
+                options={selectOptionsWithBlank(
+                  !scope.kind
+                    ? 'Select Branch or Plant first…'
+                    : locationsLoading
+                      ? 'Loading…'
+                      : locationOptions.length
+                        ? 'Select location…'
+                        : 'No locations found',
+                  locationOptions,
+                )}
+                placeholder={
+                  !scope.kind
+                    ? 'Select Branch or Plant first…'
+                    : locationsLoading
+                      ? 'Loading…'
+                      : 'Select location…'
+                }
+                disabled={!scope.kind || locationsLoading}
+                aria-label="Storage location"
+                className="w-full min-w-0"
+                triggerClassName="h-9"
+              />
+            </div>
           </div>
 
           <BranchPlantSelect
@@ -730,35 +775,8 @@ function CreatePOModal({
               setStorageLocationId('')
             }}
             allowAll={false}
+            className="w-full"
           />
-
-          <div className="space-y-1.5">
-            <Label className="text-xs">Storage Location</Label>
-            <Select
-              value={storageLocationId}
-              onChange={setStorageLocationId}
-              options={selectOptionsWithBlank(
-                !scope.kind
-                  ? 'Select Branch or Plant first…'
-                  : locationsLoading
-                    ? 'Loading…'
-                    : locationOptions.length
-                      ? 'Select location…'
-                      : 'No locations found',
-                locationOptions,
-              )}
-              placeholder={
-                !scope.kind
-                  ? 'Select Branch or Plant first…'
-                  : locationsLoading
-                    ? 'Loading…'
-                    : 'Select location…'
-              }
-              disabled={!scope.kind || locationsLoading}
-              aria-label="Storage location"
-              className="w-full max-w-md"
-            />
-          </div>
 
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">

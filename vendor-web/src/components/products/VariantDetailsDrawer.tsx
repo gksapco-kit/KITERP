@@ -14,6 +14,7 @@ import { VariantMediaUpload, type VariantMediaItem } from '@/components/common/I
 import { UOM_OPTIONS } from '@/lib/uomOptions'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Select } from '@/components/ui/select'
 
 interface Props {
   productId: string
@@ -445,17 +446,14 @@ function SelectField({
   return (
     <div>
       <label className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
-      <select
+      <Select
         className={selectCls}
         value={value}
-        onChange={e => {
-          if (e.target.value !== value) onChange(e.target.value)
+        onChange={(v) => {
+          if (v !== value) onChange(v)
         }}
-      >
-        {options.map(o => (
-          <option key={o.value || '__empty'} value={o.value}>{o.label}</option>
-        ))}
-      </select>
+        options={options}
+      />
     </div>
   )
 }

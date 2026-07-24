@@ -10,6 +10,7 @@ import {
 import { toast } from 'sonner'
 import { ArrowLeft, Layers, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 const fieldClass =
@@ -114,15 +115,12 @@ export default function ControllingSetupPage() {
         {companies.length > 0 && (
           <label className={labelClass}>
             Company
-            <select
+            <Select
               value={activeCo}
-              onChange={e => setCompanyId(e.target.value)}
+              onChange={setCompanyId}
               className={cn(fieldClass, 'min-w-[200px]')}
-            >
-              {companies.map(c => (
-                <option key={c.id} value={c.id}>{c.code}</option>
-              ))}
-            </select>
+              options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+            />
           </label>
         )}
       </div>
@@ -149,28 +147,27 @@ export default function ControllingSetupPage() {
               onChange={e => setPoolForm(f => ({ ...f, name: e.target.value }))}
               className={fieldClass}
             />
-            <select
+            <Select
               value={poolForm.overhead_type}
-              onChange={e => setPoolForm(f => ({ ...f, overhead_type: e.target.value }))}
+              onChange={v => setPoolForm(f => ({ ...f, overhead_type: v }))}
               className={fieldClass}
-            >
-              <option value="direct">Direct overhead</option>
-              <option value="indirect">Indirect overhead</option>
-            </select>
-            <select
+              options={[
+                { value: 'direct', label: 'Direct overhead' },
+                { value: 'indirect', label: 'Indirect overhead' },
+              ]}
+            />
+            <Select
               value={poolForm.allocation_base}
-              onChange={e => setPoolForm(f => ({ ...f, allocation_base: e.target.value }))}
+              onChange={v => setPoolForm(f => ({ ...f, allocation_base: v }))}
               className={fieldClass}
-            >
-              {BASES.map(b => <option key={b} value={b}>{b.replace(/_/g, ' ')}</option>)}
-            </select>
-            <select
+              options={BASES.map(b => ({ value: b, label: b.replace(/_/g, ' ') }))}
+            />
+            <Select
               value={poolForm.formula_type}
-              onChange={e => setPoolForm(f => ({ ...f, formula_type: e.target.value }))}
+              onChange={v => setPoolForm(f => ({ ...f, formula_type: v }))}
               className={fieldClass}
-            >
-              {FORMULA_TYPES.map(ft => <option key={ft.value} value={ft.value}>{ft.label}</option>)}
-            </select>
+              options={FORMULA_TYPES.map(ft => ({ value: ft.value, label: ft.label }))}
+            />
             <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
               <input
                 type="number"

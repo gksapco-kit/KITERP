@@ -7,6 +7,7 @@ import { PaletteHueSuggestBar } from '@/components/websites/PaletteHueSuggestBar
 import { BuilderColorField } from '@/components/websites/BuilderColorField'
 import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
 import { matchWebsiteColorPaletteId } from '@/lib/websiteColorPalettes'
+import { Select } from '@/components/ui/select'
 
 const FONTS = [...BUILDER_FONT_FAMILIES]
 
@@ -99,18 +100,14 @@ export function BuilderStylePanel({
               { key: 'font_heading', label: 'Heading' },
               { key: 'font_body', label: 'Body' },
             ] as const).map(({ key, label }) => (
-              <label key={key} className="min-w-0">
+              <label key={key} className="min-w-0" style={{ ['--select-font' as string]: (style as Record<string, string>)[key] }}>
                 <span className={fieldLabelClass}>{label}</span>
-                <select
+                <Select
                   value={(style as Record<string, string>)[key]}
-                  onChange={e => handleFontChange(key, e.target.value)}
-                  className={fieldControlClass}
-                  style={{ fontFamily: (style as Record<string, string>)[key] }}
-                >
-                  {FONTS.map(f => (
-                    <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
-                  ))}
-                </select>
+                  onChange={(v) => handleFontChange(key, v)}
+                  triggerClassName={cn(fieldControlClass, '[font-family:var(--select-font)]')}
+                  options={FONTS.map((f) => ({ value: f, label: f }))}
+                />
               </label>
             ))}
           </div>

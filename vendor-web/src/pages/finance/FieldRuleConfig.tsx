@@ -11,6 +11,7 @@ import { StaffPicker, type StaffPickerValue } from '@/components/commission/Staf
 import { ListChecks, Plus, Trash2, Building2, User, LayoutGrid, Loader2, Info, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 type RuleRow = {
@@ -117,13 +118,12 @@ export default function FieldRuleConfig() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <label className="text-xs font-bold text-gray-500 uppercase">Entity</label>
-          <select
+          <Select
             value={entityFilter}
-            onChange={e => { setEntityFilter(e.target.value) }}
-            className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
-          >
-            <option value="journal_entry">Journal entry</option>
-          </select>
+            onChange={setEntityFilter}
+            className="border border-gray-200 rounded-lg text-sm"
+            options={[{ value: 'journal_entry', label: 'Journal entry' }]}
+          />
         </div>
         <button
           type="button"
@@ -218,35 +218,34 @@ export default function FieldRuleConfig() {
             </div>
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase">Scope</label>
-              <select
+              <Select
                 value={form.scope}
-                onChange={e => {
-                  const scope = e.target.value as 'gl' | 'company' | 'user'
-                  if (scope !== 'user') setSelectedTeamUser(null)
+                onChange={scope => {
+                  const nextScope = scope as 'gl' | 'company' | 'user'
+                  if (nextScope !== 'user') setSelectedTeamUser(null)
                   setForm(f => ({
                     ...f,
-                    scope,
-                    vendor_user_id: scope === 'user' ? f.vendor_user_id : '',
+                    scope: nextScope,
+                    vendor_user_id: nextScope === 'user' ? f.vendor_user_id : '',
                   }))
                 }}
-                className="w-full border rounded-lg mt-1 px-2 py-2 text-sm"
-              >
-                {SCOPE.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
+                className="mt-1 w-full border rounded-lg text-sm"
+                options={SCOPE.map(s => ({ value: s.value, label: s.label }))}
+              />
             </div>
             {form.scope === 'company' && (
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Business unit</label>
-                <select
+                <Select
                   value={form.company_id}
-                  onChange={e => setForm(f => ({ ...f, company_id: e.target.value }))}
-                  className="w-full border rounded-lg mt-1 px-2 py-2 text-sm"
-                >
-                  <option value="">— Select —</option>
-                  {(companies as Company[]).map(c => (
-                    <option key={c.id} value={c.id}>{c.code} · {c.name}</option>
-                  ))}
-                </select>
+                  onChange={v => setForm(f => ({ ...f, company_id: v }))}
+                  placeholder="— Select —"
+                  className="mt-1 w-full border rounded-lg text-sm"
+                  options={selectOptionsWithBlank(
+                    '— Select —',
+                    (companies as Company[]).map(c => ({ value: c.id, label: `${c.code} · ${c.name}` })),
+                  )}
+                />
               </div>
             )}
             {form.scope === 'user' && (
@@ -266,25 +265,21 @@ export default function FieldRuleConfig() {
             )}
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase">Field</label>
-              <select
+              <Select
                 value={form.field_key}
-                onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))}
-                className="w-full border rounded-lg mt-1 px-2 py-2 text-sm"
-              >
-                {JOURNAL_FIELD_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+                onChange={v => setForm(f => ({ ...f, field_key: v }))}
+                className="mt-1 w-full border rounded-lg text-sm"
+                options={JOURNAL_FIELD_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+              />
             </div>
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase">Requirement</label>
-              <select
+              <Select
                 value={form.requirement}
-                onChange={e => setForm(f => ({ ...f, requirement: e.target.value as 'optional' | 'mandatory' | 'hidden' }))}
-                className="w-full border rounded-lg mt-1 px-2 py-2 text-sm"
-              >
-                {REQ.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
+                onChange={v => setForm(f => ({ ...f, requirement: v as 'optional' | 'mandatory' | 'hidden' }))}
+                className="mt-1 w-full border rounded-lg text-sm"
+                options={REQ.map(s => ({ value: s.value, label: s.label }))}
+              />
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setShowAdd(false)} className="btn-cancel px-3 py-2 text-sm border rounded-lg">Cancel</button>

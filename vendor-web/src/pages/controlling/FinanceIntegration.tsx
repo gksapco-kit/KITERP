@@ -5,6 +5,7 @@ import { useCoGlMapping, usePutCoGlMapping } from '@/hooks/useControlling'
 import { toast } from 'sonner'
 import { ArrowLeft, Landmark } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 const fieldClass =
@@ -88,15 +89,12 @@ export default function FinanceIntegrationPage() {
         {companies.length > 0 && (
           <label className={labelClass}>
             Company
-            <select
+            <Select
               value={activeCo}
-              onChange={e => setCompanyId(e.target.value)}
+              onChange={setCompanyId}
               className={cn(fieldClass, 'min-w-[200px]')}
-            >
-              {companies.map(c => (
-                <option key={c.id} value={c.id}>{c.code}</option>
-              ))}
-            </select>
+              options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+            />
           </label>
         )}
       </div>
@@ -112,18 +110,19 @@ export default function FinanceIntegrationPage() {
           {GL_FIELDS.map(([key, label]) => (
             <label key={key} className={labelClass}>
               {label}
-              <select
+              <Select
                 value={glForm[key]}
-                onChange={e => setGlForm(f => ({ ...f, [key]: e.target.value }))}
+                onChange={v => setGlForm(f => ({ ...f, [key]: v }))}
                 className={fieldClass}
-              >
-                <option value="">—</option>
-                {(accounts as { id: string; code: string; name: string }[]).map(a => (
-                  <option key={a.id} value={a.id}>
-                    {a.code} — {a.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="—"
+                options={[
+                  { value: '', label: '—' },
+                  ...(accounts as { id: string; code: string; name: string }[]).map(a => ({
+                    value: a.id,
+                    label: `${a.code} — ${a.name}`,
+                  })),
+                ]}
+              />
             </label>
           ))}
         </div>

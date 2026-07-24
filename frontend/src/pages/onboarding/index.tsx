@@ -9,7 +9,16 @@ import axios from 'axios'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
+
+const BUSINESS_TYPE_OPTIONS = [
+  { value: 'individual', label: 'Individual' },
+  { value: 'proprietorship', label: 'Proprietorship' },
+  { value: 'partnership', label: 'Partnership' },
+  { value: 'llc', label: 'LLC' },
+  { value: 'corporation', label: 'Corporation' },
+]
 import { mediaUrl } from '@/lib/utils'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
@@ -36,6 +45,8 @@ export default function OnboardingBasic() {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -234,17 +245,15 @@ export default function OnboardingBasic() {
 
         <div>
           <Label htmlFor="business_type">Business Type</Label>
-          <select
+          <ThemeSelect
             id="business_type"
-            {...register('business_type')}
+            value={watch('business_type')}
+            onChange={(v) =>
+              setValue('business_type', v as FormData['business_type'], { shouldValidate: true })
+            }
+            options={BUSINESS_TYPE_OPTIONS}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="individual">Individual</option>
-            <option value="proprietorship">Proprietorship</option>
-            <option value="partnership">Partnership</option>
-            <option value="llc">LLC</option>
-            <option value="corporation">Corporation</option>
-          </select>
+          />
         </div>
 
         <div>

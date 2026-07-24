@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import type { Customer, Supplier, PurchaseOrder } from '@/types'
 import { formatDate, formatCurrency, cn } from '@/lib/utils'
@@ -178,6 +179,21 @@ const TYPE_COLORS: Record<string, string> = {
   partner:    'bg-green-50 text-green-700 border-green-200',
   contractor: 'bg-orange-50 text-orange-700 border-orange-200',
 }
+
+const YES_NO_ANY_OPTIONS = selectOptionsWithBlank('Any', [
+  { value: 'yes', label: 'Yes' },
+  { value: 'no', label: 'No' },
+])
+const CREDIT_LIMIT_OPTIONS = selectOptionsWithBlank('Any', [
+  { value: 'set', label: 'Set' },
+  { value: 'none', label: 'Not Set' },
+])
+const SORT_FIELD_OPTIONS = [
+  { value: 'created_at', label: 'Date Added' },
+  { value: 'name', label: 'Name' },
+  { value: 'type', label: 'Type' },
+  { value: 'status', label: 'Status' },
+]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1727,34 +1743,42 @@ export default function MasterDataReport() {
             {/* Has Email */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Has Email</label>
-              <select value={advFilters.hasEmail} onChange={e => setAdv({ hasEmail: e.target.value as AdvFilters['hasEmail'] })}
-                className="w-full text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary">
-                <option value="">Any</option><option value="yes">Yes</option><option value="no">No</option>
-              </select>
+              <Select
+                value={advFilters.hasEmail}
+                onChange={v => setAdv({ hasEmail: v as AdvFilters['hasEmail'] })}
+                options={YES_NO_ANY_OPTIONS}
+                className="text-xs"
+              />
             </div>
             {/* Has Phone */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Has Phone</label>
-              <select value={advFilters.hasPhone} onChange={e => setAdv({ hasPhone: e.target.value as AdvFilters['hasPhone'] })}
-                className="w-full text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary">
-                <option value="">Any</option><option value="yes">Yes</option><option value="no">No</option>
-              </select>
+              <Select
+                value={advFilters.hasPhone}
+                onChange={v => setAdv({ hasPhone: v as AdvFilters['hasPhone'] })}
+                options={YES_NO_ANY_OPTIONS}
+                className="text-xs"
+              />
             </div>
             {/* Has GST */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Has GST / Tax ID</label>
-              <select value={advFilters.hasGst} onChange={e => setAdv({ hasGst: e.target.value as AdvFilters['hasGst'] })}
-                className="w-full text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary">
-                <option value="">Any</option><option value="yes">Yes</option><option value="no">No</option>
-              </select>
+              <Select
+                value={advFilters.hasGst}
+                onChange={v => setAdv({ hasGst: v as AdvFilters['hasGst'] })}
+                options={YES_NO_ANY_OPTIONS}
+                className="text-xs"
+              />
             </div>
             {/* Credit Limit */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Credit Limit</label>
-              <select value={advFilters.creditLimit} onChange={e => setAdv({ creditLimit: e.target.value as AdvFilters['creditLimit'] })}
-                className="w-full text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary">
-                <option value="">Any</option><option value="set">Set</option><option value="none">Not Set</option>
-              </select>
+              <Select
+                value={advFilters.creditLimit}
+                onChange={v => setAdv({ creditLimit: v as AdvFilters['creditLimit'] })}
+                options={CREDIT_LIMIT_OPTIONS}
+                className="text-xs"
+              />
             </div>
             {/* City / State */}
             <div className="col-span-2">
@@ -1800,106 +1824,128 @@ export default function MasterDataReport() {
         </div>
       )}
 
-      {/* ── Sort + summary bar ───────────────────────────────────────────── */}
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <div className="flex items-center gap-3">
-          {selected.size > 0 && <span className="text-primary font-semibold">{selected.size} selected</span>}
-          <span>Showing <span className="font-semibold text-gray-700">{filtered.length}</span> of {allRecords.length} records</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Column filter toggle */}
-          <button onClick={() => setShowColFilters(v => !v)}
-            className={`flex items-center gap-1.5 text-xs border rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
-              showColFilters || colFilterActive
-                ? 'bg-amber-50 border-amber-300 text-amber-700'
-                : 'bg-white text-gray-500 hover:bg-gray-50'
-            }`}>
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
-            </svg>
-            Col Filters
-            {colFilterActive && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
-          </button>
-
-          {/* Advanced filter toggle */}
-          <button onClick={() => setShowAdvFilters(v => !v)}
-            className={`flex items-center gap-1.5 text-xs border rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
-              showAdvFilters || advActive
-                ? 'bg-primary/10 border-primary/40 text-primary'
-                : 'bg-white text-gray-500 hover:bg-gray-50'
-            }`}>
-            <Filter className="w-3.5 h-3.5" />
-            Filters
-            {advActive && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-          </button>
-
-          {/* Column chooser */}
-          <div className="relative" ref={colPickerRef}>
-            <button onClick={() => setShowColPicker(v => !v)}
-              className={`flex items-center gap-1.5 text-xs border rounded-lg px-2.5 py-1.5 font-semibold transition-colors ${
-                showColPicker ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-white text-gray-500 hover:bg-gray-50'
-              }`}>
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-              </svg>
-              Columns
-              <span className="text-xs bg-primary/15 text-primary font-bold px-1 rounded">
-                {visibleCols.size}
-              </span>
-            </button>
-            {showColPicker && (
-              <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-52 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-gray-700">Show / Hide Columns</span>
-                  <button onClick={() => setVisibleCols(DEFAULT_VISIBLE_COLS)}
-                    className="text-xs text-primary hover:underline">Reset</button>
-                </div>
-                <div className="space-y-1">
-                  {ALL_COL_DEFS.map(col => (
-                    <label key={col.key} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs transition-colors ${
-                      col.locked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'
-                    }`}>
-                      <input type="checkbox"
-                        checked={visibleCols.has(col.key)}
-                        disabled={col.locked}
-                        onChange={() => {
-                          if (col.locked) return
-                          setVisibleCols(prev => {
-                            const n = new Set(prev)
-                            n.has(col.key) ? n.delete(col.key) : n.add(col.key)
-                            return n
-                          })
-                        }}
-                        className="rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <span className="flex-1 text-gray-700">{col.label}</span>
-                      {col.locked && <span className="text-xs text-gray-400 uppercase tracking-wide">locked</span>}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
+      {/* ── Table + toolbar ─────────────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/25 px-3 py-2">
+          <div className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
+            {selected.size > 0 && <span className="font-semibold text-primary">{selected.size} selected</span>}
+            <span>
+              Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {allRecords.length} records
+            </span>
           </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowColFilters(v => !v)}
+              className={cn(
+                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors',
+                showColFilters || colFilterActive
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-accent/50 hover:text-foreground',
+              )}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Col Filters
+              {colFilterActive && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+            </button>
 
-          <span className="text-gray-300">|</span>
-          <span className="text-gray-400">Sort by</span>
-          <select value={sortField} onChange={e => { setSortField(e.target.value as SortField); setPage(1) }}
-            className="text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary">
-            <option value="created_at">Date Added</option>
-            <option value="name">Name</option>
-            <option value="type">Type</option>
-            <option value="status">Status</option>
-          </select>
-          <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-            className="flex items-center gap-1 text-xs border rounded-lg px-2 py-1.5 bg-white hover:bg-gray-50 transition-colors">
-            {sortDir === 'asc' ? 'A → Z / Old → New' : 'Z → A / New → Old'}
-            {sortDir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
+            <button
+              type="button"
+              onClick={() => setShowAdvFilters(v => !v)}
+              className={cn(
+                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors',
+                showAdvFilters || advActive
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-accent/50 hover:text-foreground',
+              )}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              Filters
+              {advActive && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+            </button>
+
+            <div className="relative" ref={colPickerRef}>
+              <button
+                type="button"
+                onClick={() => setShowColPicker(v => !v)}
+                className={cn(
+                  'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors',
+                  showColPicker
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-accent/50 hover:text-foreground',
+                )}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+                Columns
+                <span className="rounded bg-primary/15 px-1 text-[10px] font-bold text-primary">
+                  {visibleCols.size}
+                </span>
+              </button>
+              {showColPicker && (
+                <div className="absolute right-0 top-full z-30 mt-1 max-h-[90vh] w-52 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-700">Show / Hide Columns</span>
+                    <button type="button" onClick={() => setVisibleCols(DEFAULT_VISIBLE_COLS)}
+                      className="text-xs text-primary hover:underline">Reset</button>
+                  </div>
+                  <div className="space-y-1">
+                    {ALL_COL_DEFS.map(col => (
+                      <label key={col.key} className={cn(
+                        'flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors',
+                        col.locked ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-50',
+                      )}>
+                        <input type="checkbox"
+                          checked={visibleCols.has(col.key)}
+                          disabled={col.locked}
+                          onChange={() => {
+                            if (col.locked) return
+                            setVisibleCols(prev => {
+                              const n = new Set(prev)
+                              n.has(col.key) ? n.delete(col.key) : n.add(col.key)
+                              return n
+                            })
+                          }}
+                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span className="flex-1 text-gray-700">{col.label}</span>
+                        {col.locked && <span className="text-xs uppercase tracking-wide text-gray-400">locked</span>}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <span className="mx-0.5 hidden h-4 w-px shrink-0 bg-border sm:block" aria-hidden />
+            <span className="hidden shrink-0 text-[11px] font-medium text-muted-foreground sm:inline">Sort</span>
+            <Select
+              value={sortField}
+              onChange={v => { setSortField(v as SortField); setPage(1) }}
+              options={SORT_FIELD_OPTIONS}
+              aria-label="Sort by column"
+              className="h-8 text-xs"
+              wrapperClassName="w-[7.5rem] shrink-0"
+            />
+            <Select
+              value={sortDir}
+              onChange={v => setSortDir(v as SortDir)}
+              options={[
+                { value: 'asc', label: 'A → Z' },
+                { value: 'desc', label: 'Z → A' },
+              ]}
+              aria-label="Sort direction"
+              className="h-8 text-xs"
+              wrapperClassName="w-[5.75rem] shrink-0"
+              menuMinWidth={100}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* ── Table ────────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-20 text-gray-400">
             <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Loading master data…
@@ -1936,12 +1982,12 @@ export default function MasterDataReport() {
 
                 {/* ── Column filter input row ── */}
                 {showColFilters && (
-                  <tr className="bg-amber-50/60 border-b border-amber-100">
-                    <td className="pl-4 pr-2 py-2">
+                  <tr className="border-b border-primary/15 bg-primary/5">
+                    <td className="py-2 pl-4 pr-2">
                       {colFilterActive && (
-                        <button type="button" aria-label="Close" onClick={() => { setColFilters({}); setPage(1) }} title="Clear column filters"
-                          className="text-amber-500 hover:text-amber-700">
-                <X className="w-3.5 h-3.5" />
+                        <button type="button" aria-label="Clear column filters" onClick={() => { setColFilters({}); setPage(1) }} title="Clear column filters"
+                          className="text-primary/70 hover:text-primary">
+                          <X className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </td>
@@ -1956,16 +2002,17 @@ export default function MasterDataReport() {
                                 value={colFilters[col.key] ?? ''}
                                 onChange={e => setColFilter(col.key, e.target.value)}
                                 placeholder={`Filter…`}
-                                className={`w-full text-xs rounded-md border px-2 py-1 pr-5 outline-none focus:ring-2 focus:ring-amber-300 transition-colors ${
+                                className={cn(
+                                  'w-full rounded-md border px-2 py-1 pr-5 text-xs outline-none transition-colors focus:ring-2 focus:ring-primary/30',
                                   colFilters[col.key]?.trim()
-                                    ? 'border-amber-400 bg-white text-gray-800'
-                                    : 'border-gray-200 bg-white/70 text-gray-500 placeholder-gray-300'
-                                }`}
+                                    ? 'border-primary/40 bg-white text-gray-800'
+                                    : 'border-gray-200 bg-white/70 text-gray-500 placeholder-gray-300',
+                                )}
                               />
                               {colFilters[col.key]?.trim() && (
-                                <button type="button" aria-label="Close" onClick={() => setColFilter(col.key, '')}
+                                <button type="button" aria-label="Clear" onClick={() => setColFilter(col.key, '')}
                                   className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
-                <X className="w-3 h-3" />
+                                  <X className="h-3 w-3" />
                                 </button>
                               )}
                             </div>
@@ -2096,8 +2143,8 @@ export default function MasterDataReport() {
                                   </svg>
                                 </button>
                                 <button onClick={() => openEdit(r)} title="Edit"
-                                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
-                                  <Pencil className="w-3.5 h-3.5" />
+                                  className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-primary/10 hover:text-primary">
+                                  <Pencil className="h-3.5 w-3.5" />
                                 </button>
                                 <button onClick={(e) => handleDelete(r, e)} title="Delete permanently"
                                   className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
@@ -2116,29 +2163,30 @@ export default function MasterDataReport() {
             </table>
           </div>
         )}
+        </div>
 
         {/* Pagination */}
         {!isLoading && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
+          <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-4 py-3">
             <span className="text-xs text-gray-500">
               Page {page} of {totalPages} · {sorted.length} records
             </span>
             <div className="flex items-center gap-1">
               <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                className="px-2.5 py-1 text-xs border rounded-lg disabled:opacity-40 hover:bg-white transition-colors">
+                className="rounded-lg border px-2.5 py-1 text-xs transition-colors hover:bg-white disabled:opacity-40">
                 ← Prev
               </button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 const pg = Math.max(1, Math.min(page - 2, totalPages - 4)) + i
                 return (
                   <button key={pg} onClick={() => setPage(pg)}
-                    className={`px-2.5 py-1 text-xs border rounded-lg transition-colors ${
-                      pg === page ? 'bg-primary border-primary text-white' : 'hover:bg-white'
+                    className={`rounded-lg border px-2.5 py-1 text-xs transition-colors ${
+                      pg === page ? 'border-primary bg-primary text-white' : 'hover:bg-white'
                     }`}>{pg}</button>
                 )
               })}
               <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-                className="px-2.5 py-1 text-xs border rounded-lg disabled:opacity-40 hover:bg-white transition-colors">
+                className="rounded-lg border px-2.5 py-1 text-xs transition-colors hover:bg-white disabled:opacity-40">
                 Next →
               </button>
             </div>
@@ -2147,7 +2195,7 @@ export default function MasterDataReport() {
       </div>
 
       {/* ── Summary stats strip ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {sourceTabs.filter(t => t.value !== 'all').map(tab => {
           const cnt   = allRecords.filter(r => r.type === tab.value).length
           const activ = allRecords.filter(r => r.type === tab.value && r.isActive).length
@@ -2158,18 +2206,18 @@ export default function MasterDataReport() {
               type="button"
               onClick={() => { toggleType(tab.value); setPage(1) }}
               className={cn(
-                'flex flex-col items-start p-3 rounded-xl border text-left transition-colors',
+                'flex flex-col items-start rounded-xl border p-3 text-left transition-colors',
                 selected
                   ? 'border-primary bg-primary/5 shadow-sm'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
               )}
             >
-              <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="mb-1.5 flex items-center gap-1.5">
                 <span className={selected ? 'text-primary' : 'text-gray-500'}>{tab.icon}</span>
                 <span className={cn('text-xs font-medium', selected ? 'text-primary' : 'text-gray-600')}>{tab.label}</span>
               </div>
-              <p className="text-2xl font-bold text-gray-900 leading-none">{cnt}</p>
-              <p className="text-xs text-gray-400 mt-1">{activ} active</p>
+              <p className="text-xl font-bold leading-none text-gray-900">{cnt}</p>
+              <p className="mt-1 text-xs text-gray-400">{activ} active</p>
             </button>
           )
         })}

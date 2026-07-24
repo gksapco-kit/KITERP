@@ -25,6 +25,7 @@ import {
 import { CategoryHierarchyPicker } from '@/components/common/CategoryHierarchyPicker'
 import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import { filterCategoryTree } from '@/lib/categoryHierarchy'
+import { Select } from '@/components/ui/select'
 import {
   ArrowLeft, Loader2,
   Briefcase, IndianRupee, Receipt, Settings, CalendarClock,
@@ -335,6 +336,37 @@ const FIELD_TYPES = [
   { value: 'select', label: 'Dropdown', icon: '▼' },
 ] as const
 
+const FIELD_TYPE_OPTIONS = FIELD_TYPES.map(t => ({ value: t.value, label: `${t.icon} ${t.label}` }))
+const ADDON_TYPE_OPTIONS = [
+  { value: 'install', label: 'Installation' },
+  { value: 'demo', label: 'Demo / Training' },
+  { value: 'warranty', label: 'Warranty' },
+  { value: 'maintenance', label: 'Maintenance' },
+  { value: 'delivery', label: 'Delivery' },
+  { value: 'setup', label: 'Setup / Config' },
+  { value: 'other', label: 'Other' },
+]
+const BOOKING_TRIGGER_OPTIONS = [
+  { value: 'at_sale', label: 'At Point of Sale / POS' },
+  { value: 'after_delivery', label: 'After Delivery (online orders)' },
+  { value: 'on_status', label: 'On Specific Order Status' },
+]
+const TRIGGER_STATUS_OPTIONS = [
+  { value: 'confirmed', label: 'Order Confirmed', group: '— Order Statuses —' },
+  { value: 'processing', label: 'Processing', group: '— Order Statuses —' },
+  { value: 'shipped', label: 'Shipped', group: '— Order Statuses —' },
+  { value: 'out_for_delivery', label: 'Out for Delivery', group: '— Order Statuses —' },
+  { value: 'delivered', label: 'Delivered', group: '— Order Statuses —' },
+  { value: 'installed', label: 'Installed', group: '— Order Statuses —' },
+  { value: 'booking_confirmed', label: 'Booking Confirmed', group: '— Booking Statuses —' },
+  { value: 'booking_scheduled', label: 'Booking Scheduled', group: '— Booking Statuses —' },
+  { value: 'booking_in_progress', label: 'In Progress', group: '— Booking Statuses —' },
+  { value: 'booking_completed', label: 'Booking Completed', group: '— Booking Statuses —' },
+  { value: 'booking_no_show', label: 'No Show', group: '— Booking Statuses —' },
+  { value: 'booking_rescheduled', label: 'Rescheduled', group: '— Booking Statuses —' },
+  { value: 'booking_cancelled', label: 'Booking Cancelled', group: '— Booking Statuses —' },
+]
+
 function QuoteFormConfigurator({ fields, onChange }: {
   fields: QuoteFormFieldDraft[]
   onChange: (fields: QuoteFormFieldDraft[]) => void
@@ -379,11 +411,14 @@ function QuoteFormConfigurator({ fields, onChange }: {
             </button>
 
             {f.enabled ? (
-              <select value={f.type}
-                onChange={e => onChange(fields.map(x => x.key === f.key ? { ...x, type: e.target.value as any } : x))}
-                className="h-7 rounded border border-gray-200 bg-gray-50 px-1.5 text-xs text-gray-500 shrink-0">
-                {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
-              </select>
+              <Select
+                value={f.type}
+                onChange={v => onChange(fields.map(x => x.key === f.key ? { ...x, type: v as any } : x))}
+                options={FIELD_TYPE_OPTIONS}
+                className="h-7 shrink-0 text-xs text-gray-500"
+                wrapperClassName="w-auto shrink-0"
+                menuMinWidth={160}
+              />
             ) : (
               <span className="text-xs text-gray-400 w-5 text-center shrink-0">
                 {FIELD_TYPES.find(t => t.value === f.type)?.icon || '?'}
@@ -2575,52 +2610,31 @@ export default function ServiceForm() {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                       <div>
                         <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Add-on Category</label>
-                        <select value={addon.addon_type}
-                          onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, addon_type: e.target.value } : a))}
-                          className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                          <option value="install">Installation</option>
-                          <option value="demo">Demo / Training</option>
-                          <option value="warranty">Warranty</option>
-                          <option value="maintenance">Maintenance</option>
-                          <option value="delivery">Delivery</option>
-                          <option value="setup">Setup / Config</option>
-                          <option value="other">Other</option>
-                        </select>
+                        <Select
+                          value={addon.addon_type}
+                          onChange={v => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, addon_type: v } : a))}
+                          options={ADDON_TYPE_OPTIONS}
+                          className="h-8 text-xs"
+                        />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Book When</label>
-                        <select value={addon.booking_trigger}
-                          onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, booking_trigger: e.target.value } : a))}
-                          className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                          <option value="at_sale">At Point of Sale / POS</option>
-                          <option value="after_delivery">After Delivery (online)</option>
-                          <option value="on_status">On Specific Order Status</option>
-                        </select>
+                        <Select
+                          value={addon.booking_trigger}
+                          onChange={v => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, booking_trigger: v } : a))}
+                          options={BOOKING_TRIGGER_OPTIONS}
+                          className="h-8 text-xs"
+                        />
                       </div>
                       {addon.booking_trigger === 'on_status' && (
                         <div>
                           <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Trigger Status</label>
-                          <select value={addon.trigger_status || 'delivered'}
-                            onChange={e => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, trigger_status: e.target.value } : a))}
-                            className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                            <optgroup label="— Order Statuses —">
-                              <option value="confirmed">Order Confirmed</option>
-                              <option value="processing">Processing</option>
-                              <option value="shipped">Shipped</option>
-                              <option value="out_for_delivery">Out for Delivery</option>
-                              <option value="delivered">Delivered</option>
-                              <option value="installed">Installed</option>
-                            </optgroup>
-                            <optgroup label="— Booking Statuses —">
-                              <option value="booking_confirmed">Booking Confirmed</option>
-                              <option value="booking_scheduled">Booking Scheduled</option>
-                              <option value="booking_in_progress">In Progress</option>
-                              <option value="booking_completed">Booking Completed</option>
-                              <option value="booking_no_show">No Show</option>
-                              <option value="booking_rescheduled">Rescheduled</option>
-                              <option value="booking_cancelled">Booking Cancelled</option>
-                            </optgroup>
-                          </select>
+                          <Select
+                            value={addon.trigger_status || 'delivered'}
+                            onChange={v => setServiceAddons(p => p.map((a, i) => i === ai ? { ...a, trigger_status: v } : a))}
+                            options={TRIGGER_STATUS_OPTIONS}
+                            className="h-8 text-xs"
+                          />
                         </div>
                       )}
                     </div>

@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { formLabelClass } from '@/components/common/FormSectionNav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,11 +17,12 @@ import { PayeeSelector } from '@/components/commission/PayeeSelector'
 import { CollapsibleSection } from '@/components/commission/CollapsibleSection'
 import type { CommissionAssignment, CommissionPayee } from '@/types/commission'
 import { extractApiError } from '@/lib/errorMessages'
+import { cn } from '@/lib/utils'
+import { THEME_SELECT_MENU_ATTR } from '@/components/common/ThemeSelect'
 import {
   commissionEmptyCell,
   commissionFieldInput,
   commissionFilterBtn,
-  commissionFilterPanel,
   commissionPageSub,
   commissionPageTitle,
   commissionPaginationActive,
@@ -53,7 +55,10 @@ export default function AssignmentsPage() {
   })
 
   const [page, setPage] = useState(1)
-  const [showFilters, setShowFilters] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
+  const filterBtnRef = useRef<HTMLButtonElement>(null)
+  const filterPanelRef = useRef<HTMLDivElement>(null)
+  const [filterPos, setFilterPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null)
   const [filters, setFilters] = useState<Record<string, string>>({
     search: '',
     payee_id: '',
@@ -66,6 +71,61 @@ export default function AssignmentsPage() {
     location: '',
     group_name: '',
   })
+
+  const activeFilterCount = useMemo(() => {
+    return Object.values(filters).filter(v => String(v).trim() !== '').length
+  }, [filters])
+
+  const closeFilters = useCallback(() => setShowFilters(false), [])
+
+  useEscapeToClose(closeFilters, showFilters && !showForm)
+
+  const updateFilterPos = useCallback(() => {
+    const btn = filterBtnRef.current
+    if (!btn) return
+    const rect = btn.getBoundingClientRect()
+    const width = Math.min(320, window.innerWidth - 16)
+    const gap = 6
+    const edge = 8
+    let left = rect.right - width
+    left = Math.max(edge, Math.min(left, window.innerWidth - width - edge))
+    const spaceBelow = window.innerHeight - rect.bottom - gap - edge
+    const maxHeight = Math.max(180, Math.min(spaceBelow, Math.floor(window.innerHeight * 0.72)))
+    setFilterPos({
+      top: rect.bottom + gap,
+      left,
+      width,
+      maxHeight,
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!showFilters) {
+      setFilterPos(null)
+      return
+    }
+    updateFilterPos()
+    window.addEventListener('resize', updateFilterPos)
+    window.addEventListener('scroll', updateFilterPos, true)
+    return () => {
+      window.removeEventListener('resize', updateFilterPos)
+      window.removeEventListener('scroll', updateFilterPos, true)
+    }
+  }, [showFilters, updateFilterPos])
+
+  useEffect(() => {
+    if (!showFilters) return
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (filterBtnRef.current?.contains(target)) return
+      if (filterPanelRef.current?.contains(target)) return
+      if (target.closest(`[${THEME_SELECT_MENU_ATTR}]`)) return
+      setShowFilters(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [showFilters])
 
   const apiParams = useMemo(() => {
     const p: Record<string, unknown> = { page, size: 20 }
@@ -207,139 +267,226 @@ export default function AssignmentsPage() {
         </div>
         <div className="flex gap-2">
           <button
+            ref={filterBtnRef}
             type="button"
+            aria-expanded={showFilters}
+            aria-haspopup="dialog"
             onClick={() => setShowFilters(s => !s)}
-            className={commissionFilterBtn}
+            className={cn(
+              commissionFilterBtn,
+              'h-9',
+              (showFilters || activeFilterCount > 0) &&
+                'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15',
+            )}
           >
-            <Filter className="h-4 w-4" /> Filters <ChevronDown className="h-3 w-3" />
+            <Filter className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                {activeFilterCount}
+              </span>
+            )}
+            <ChevronDown
+              className={cn('h-3 w-3 transition-transform', showFilters && 'rotate-180')}
+            />
           </button>
+
+          {showFilters && filterPos && createPortal(
+            <div
+              ref={filterPanelRef}
+              role="dialog"
+              aria-label="Assignment filters"
+              data-assignment-filters-panel=""
+              style={{
+                position: 'fixed',
+                top: filterPos.top,
+                left: filterPos.left,
+                width: filterPos.width,
+                maxHeight: filterPos.maxHeight,
+                zIndex: 200,
+              }}
+              className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl ring-1 ring-black/10"
+            >
+              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/70 bg-muted/30 px-3 py-2">
+                <p className="text-xs font-semibold text-foreground">Filters</p>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  disabled={activeFilterCount === 0}
+                  className="text-xs font-medium text-primary hover:text-primary/80 disabled:pointer-events-none disabled:opacity-40"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+                <div>
+                  <Label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Search
+                  </Label>
+                  <Input
+                    value={filters.search}
+                    onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(1) }}
+                    placeholder="Name, email, phone, code…"
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="min-w-0">
+                    <Label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Payee
+                    </Label>
+                    <Select
+                      value={filters.payee_id}
+                      onChange={(v) => { setFilters(f => ({ ...f, payee_id: v })); setPage(1) }}
+                      options={selectOptionsWithBlank('All payees', payeeOptions.map(p => ({
+                        value: p.id,
+                        label: p.display_name,
+                      })))}
+                      placeholder="All payees"
+                      aria-label="Payee filter"
+                      className="h-8 w-full text-xs"
+                      triggerClassName="h-8 text-xs"
+                      menuZIndex={10050}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <Label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Plan
+                    </Label>
+                    <Select
+                      value={filters.plan_id}
+                      onChange={(v) => { setFilters(f => ({ ...f, plan_id: v })); setPage(1) }}
+                      options={selectOptionsWithBlank('All plans', plans.map(p => ({
+                        value: p.id,
+                        label: `${p.name} (${p.code})`,
+                      })))}
+                      placeholder="All plans"
+                      aria-label="Plan filter"
+                      className="h-8 w-full text-xs"
+                      triggerClassName="h-8 text-xs"
+                      menuZIndex={10050}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="min-w-0">
+                      <Label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Store
+                      </Label>
+                      <Select
+                        value={filters.store_id}
+                        onChange={(v) => { setFilters(f => ({ ...f, store_id: v })); setPage(1) }}
+                        options={selectOptionsWithBlank('Any store', stores.map(s => ({
+                          value: s.id,
+                          label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
+                        })))}
+                        placeholder="Any store"
+                        aria-label="Store filter"
+                        className="h-8 w-full text-xs"
+                        triggerClassName="h-8 text-xs"
+                        menuZIndex={10050}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Status
+                      </Label>
+                      <Select
+                        value={filters.is_active}
+                        onChange={(v) => { setFilters(f => ({ ...f, is_active: v })); setPage(1) }}
+                        options={[
+                          { value: '', label: 'All statuses' },
+                          { value: 'true', label: 'Active' },
+                          { value: 'false', label: 'Inactive' },
+                        ]}
+                        aria-label="Status filter"
+                        className="h-8 w-full text-xs"
+                        triggerClassName="h-8 text-xs"
+                        menuZIndex={10050}
+                      />
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <Label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Payee type
+                    </Label>
+                    <Select
+                      value={filters.link_type}
+                      onChange={(v) => { setFilters(f => ({ ...f, link_type: v })); setPage(1) }}
+                      options={LINK_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                      aria-label="Payee type filter"
+                      className="h-8 w-full text-xs"
+                      triggerClassName="h-8 text-xs"
+                      menuZIndex={10050}
+                    />
+                  </div>
+                </div>
+
+                <details className="group rounded-lg border border-border/70 bg-muted/20 open:bg-muted/30">
+                  <summary className="cursor-pointer list-none px-2.5 py-1.5 text-xs font-medium text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-center justify-between gap-2">
+                      More filters
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-180" />
+                    </span>
+                  </summary>
+                  <div className="grid grid-cols-2 gap-2 border-t border-border/60 p-2.5">
+                    <div className="min-w-0">
+                      <Label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Plan code
+                      </Label>
+                      <Input
+                        value={filters.plan_code}
+                        onChange={e => { setFilters(f => ({ ...f, plan_code: e.target.value })); setPage(1) }}
+                        placeholder="e.g. DEFAULT"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Plan name
+                      </Label>
+                      <Input
+                        value={filters.plan_name}
+                        onChange={e => { setFilters(f => ({ ...f, plan_name: e.target.value })); setPage(1) }}
+                        placeholder="Contains…"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Location
+                      </Label>
+                      <Input
+                        value={filters.location}
+                        onChange={e => { setFilters(f => ({ ...f, location: e.target.value })); setPage(1) }}
+                        placeholder="Location"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <Label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Group
+                      </Label>
+                      <Input
+                        value={filters.group_name}
+                        onChange={e => { setFilters(f => ({ ...f, group_name: e.target.value })); setPage(1) }}
+                        placeholder="Group name"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>,
+            document.body,
+          )}
+
           <Button type="button" onClick={openCreate} className="gap-2">
             <Plus className="h-4 w-4" /> Assign
           </Button>
         </div>
       </div>
-
-      {showFilters && (
-        <div className={commissionFilterPanel}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            <div className="lg:col-span-2">
-              <Label className={`block mb-1 ${formLabelClass}`}>Search</Label>
-              <Input
-                value={filters.search}
-                onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(1) }}
-                placeholder="Payee name, email, phone, or employee code"
-              />
-            </div>
-            <div>
-              <Label className={`block mb-1 ${formLabelClass}`}>Payee</Label>
-              <Select
-                value={filters.payee_id}
-                onChange={(v) => { setFilters(f => ({ ...f, payee_id: v })); setPage(1) }}
-                options={selectOptionsWithBlank('All payees', payeeOptions.map(p => ({
-                  value: p.id,
-                  label: p.display_name,
-                })))}
-                placeholder="All payees"
-                aria-label="Payee filter"
-                className="w-full"
-              />
-            </div>
-            <div>
-              <Label className={`block mb-1 ${formLabelClass}`}>Plan</Label>
-              <Select
-                value={filters.plan_id}
-                onChange={(v) => { setFilters(f => ({ ...f, plan_id: v })); setPage(1) }}
-                options={selectOptionsWithBlank('All plans', plans.map(p => ({
-                  value: p.id,
-                  label: `${p.name} (${p.code})`,
-                })))}
-                placeholder="All plans"
-                aria-label="Plan filter"
-                className="w-full"
-              />
-            </div>
-            <div>
-              <Label className={`block mb-1 ${formLabelClass}`}>Store / branch</Label>
-              <Select
-                value={filters.store_id}
-                onChange={(v) => { setFilters(f => ({ ...f, store_id: v })); setPage(1) }}
-                options={selectOptionsWithBlank('Any store', stores.map(s => ({
-                  value: s.id,
-                  label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
-                })))}
-                placeholder="Any store"
-                aria-label="Store filter"
-                className="w-full"
-              />
-            </div>
-            <div>
-              <Label className={`block mb-1 ${formLabelClass}`}>Status</Label>
-              <Select
-                value={filters.is_active}
-                onChange={(v) => { setFilters(f => ({ ...f, is_active: v })); setPage(1) }}
-                options={[
-                  { value: '', label: 'Active & inactive' },
-                  { value: 'true', label: 'Active only' },
-                  { value: 'false', label: 'Inactive only' },
-                ]}
-                aria-label="Status filter"
-                className="w-full"
-              />
-            </div>
-            <div>
-              <Label className={`block mb-1 ${formLabelClass}`}>Payee type</Label>
-              <Select
-                value={filters.link_type}
-                onChange={(v) => { setFilters(f => ({ ...f, link_type: v })); setPage(1) }}
-                options={LINK_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
-                aria-label="Payee type filter"
-                className="w-full"
-              />
-            </div>
-            <div>
-              <Label className={`block mb-1 ${formLabelClass}`}>Plan code</Label>
-              <Input
-                value={filters.plan_code}
-                onChange={e => { setFilters(f => ({ ...f, plan_code: e.target.value })); setPage(1) }}
-                placeholder="e.g. DEFAULT"
-              />
-            </div>
-            <div>
-              <Label className={`block mb-1 ${formLabelClass}`}>Plan name</Label>
-              <Input
-                value={filters.plan_name}
-                onChange={e => { setFilters(f => ({ ...f, plan_name: e.target.value })); setPage(1) }}
-                placeholder="Contains…"
-              />
-            </div>
-            <div>
-              <Label className={`block mb-1 ${formLabelClass}`}>Location</Label>
-              <Input
-                value={filters.location}
-                onChange={e => { setFilters(f => ({ ...f, location: e.target.value })); setPage(1) }}
-                placeholder="Assignment location"
-              />
-            </div>
-            <div>
-              <Label className={`block mb-1 ${formLabelClass}`}>Group</Label>
-              <Input
-                value={filters.group_name}
-                onChange={e => { setFilters(f => ({ ...f, group_name: e.target.value })); setPage(1) }}
-                placeholder="Group name"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="text-sm text-primary hover:text-primary/80 font-medium"
-            >
-              Clear all filters
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className={commissionTableShellScroll}>
         <table className="w-full text-sm min-w-[900px]">

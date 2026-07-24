@@ -283,7 +283,6 @@ export default function Orders() {
                 onBusinessUnitChange={(id) => { setStoreFilter(id); setBranchFilter(''); setSalesAreaFilter(''); setPage(1) }}
                 onBranchChange={(id) => { setBranchFilter(id); setSalesAreaFilter(''); setPage(1) }}
                 onSalesAreaChange={(id) => { setSalesAreaFilter(id); setPage(1) }}
-                itemClassName="w-full min-w-[9rem] sm:w-[10.5rem]"
               />
               <form
                 onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }}

@@ -1,6 +1,6 @@
-import { useState, lazy, Suspense, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,9 +10,7 @@ import { isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
 import { useUpdateVendor } from '@/hooks/useVendor'
 import { adminApi } from '@/api/admin.api'
 import { toast } from 'sonner'
-import { MapPin, Save, Eye, EyeOff, Key, Loader2, ExternalLink } from 'lucide-react'
-
-const LocationPicker = lazy(() => import('@/components/common/LocationPicker'))
+import { Save, Eye, EyeOff, Key, Loader2, ExternalLink } from 'lucide-react'
 
 function formatAddress(vendor: {
   street_address?: string | null
@@ -52,11 +50,6 @@ export default function Settings() {
   const [contactCity, setContactCity] = useState('')
   const [contactState, setContactState] = useState('')
   const [contactPostal, setContactPostal] = useState('')
-
-  const [editingLocation, setEditingLocation] = useState(false)
-  const [lat, setLat] = useState<number | undefined>(vendor?.latitude ?? undefined)
-  const [lng, setLng] = useState<number | undefined>(vendor?.longitude ?? undefined)
-  const [radius, setRadius] = useState(vendor?.service_radius_km ?? 10)
 
   // API Integrations state (admin only)
   const [gstApiKey, setGstApiKey] = useState('')
@@ -244,48 +237,28 @@ export default function Settings() {
     }
   }
 
-  const handleSaveLocation = async () => {
-    if (!lat || !lng) {
-      toast.error('Please select a location on the map')
-      return
-    }
-    try {
-      const updated = await updateVendor.mutateAsync({
-        latitude: lat,
-        longitude: lng,
-        service_radius_km: radius,
-      })
-      setVendor(updated)
-      setEditingLocation(false)
-      toast.success('Location and service radius updated')
-    } catch {
-      toast.error('Failed to update location')
-    }
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         <p className="text-gray-600 mt-1">Manage your store settings</p>
       </div>
 
-      <div className="grid gap-6">
-        {/* API Integrations — admin only */}
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="h-5 w-5 text-indigo-600" />
-                API Integrations
-              </CardTitle>
-              <p className="text-sm text-gray-500 mt-1">
-                Platform-wide API keys used across all vendor stores.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {/* GSTINCheck */}
-              <div className="border rounded-lg p-4 space-y-3 bg-indigo-50/30">
+      <Card>
+        <CardContent className="p-0 divide-y">
+          {/* API Integrations — admin only */}
+          {isAdmin && (
+            <section className="p-5 space-y-3">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                  <Key className="h-4 w-4 text-indigo-600" />
+                  API Integrations
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Platform-wide API keys used across all vendor stores.
+                </p>
+              </div>
+              <div className="rounded-lg border bg-indigo-50/30 p-3 space-y-2.5">
                 <div>
                   <p className="text-sm font-semibold text-gray-800">GSTINCheck API Key</p>
                   <p className="text-xs text-gray-500 mt-0.5">
@@ -301,8 +274,8 @@ export default function Settings() {
                     </a>
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
+                <div className="flex flex-wrap gap-2">
+                  <div className="relative flex-1 min-w-[200px]">
                     <Input
                       type={showKey ? 'text' : 'password'}
                       value={gstApiKey}
@@ -352,208 +325,137 @@ export default function Settings() {
                   )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </section>
+          )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Store Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <dt className="text-gray-500">Business Name</dt>
-              <dd className="font-medium">{vendor?.business_name}</dd>
-              <dt className="text-gray-500">Display Name</dt>
-              <dd className="font-medium">{vendor?.display_name}</dd>
-              <dt className="text-gray-500">Store URL</dt>
-              <dd className="font-medium">https://{vendor?.subdomain}.kiterp.com</dd>
-              <dt className="text-gray-500">Status</dt>
-              <dd className="font-medium capitalize">{vendor?.status}</dd>
-            </dl>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-3">
-            <div>
-              <CardTitle>Contact Information</CardTitle>
-              {usePlatformContact && (
-                <p className="text-xs text-gray-500 mt-1 font-normal">
-                  Platform support contact (saved in admin settings). For a storefront site, also set
-                  contact under that business in Business Accounts or vendor Settings.
-                </p>
-              )}
-            </div>
-            {!editingContact && (
-              <Button variant="outline" size="sm" onClick={() => setEditingContact(true)}>
-                Edit
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            {!editingContact ? (
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <dt className="text-gray-500">Email</dt>
-                <dd className="font-medium">{displayContact.email || 'Not set'}</dd>
-                <dt className="text-gray-500">Phone</dt>
-                <dd className="font-medium">{displayContact.phone || 'Not set'}</dd>
-                <dt className="text-gray-500">Address</dt>
-                <dd className="font-medium">{formatAddress(displayContact)}</dd>
-              </dl>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="contact-email">Email</Label>
-                    <Input
-                      id="contact-email"
-                      type="email"
-                      value={contactEmail}
-                      onChange={(e) => setContactEmail(e.target.value)}
-                      placeholder="business@example.com"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="contact-phone">Phone</Label>
-                    <Input
-                      id="contact-phone"
-                      type="tel"
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="+91 98765 43210"
-                    />
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label htmlFor="contact-street">Street address</Label>
-                    <Input
-                      id="contact-street"
-                      value={contactStreet}
-                      onChange={(e) => setContactStreet(e.target.value)}
-                      placeholder="Street address"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="contact-city">City</Label>
-                    <Input
-                      id="contact-city"
-                      value={contactCity}
-                      onChange={(e) => setContactCity(e.target.value)}
-                      placeholder="City"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="contact-state">State</Label>
-                    <Input
-                      id="contact-state"
-                      value={contactState}
-                      onChange={(e) => setContactState(e.target.value)}
-                      placeholder="State"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="contact-postal">Postal code</Label>
-                    <Input
-                      id="contact-postal"
-                      value={contactPostal}
-                      onChange={(e) => setContactPostal(e.target.value)}
-                      placeholder="Postal code"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <Button variant="cancel" onClick={resetContactForm} disabled={savingContact}>
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSaveContact}
-                    disabled={savingContact || updateVendor.isPending}
-                    className="flex items-center gap-1.5"
-                  >
-                    <Save className="h-4 w-4" />
-                    {savingContact || updateVendor.isPending ? 'Saving...' : 'Save Contact'}
-                  </Button>
-                </div>
+          {/* Store + Contact — single page grid */}
+          <section className="p-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+              {/* Store Information */}
+              <div className="space-y-3">
+                <h2 className="text-base font-semibold text-gray-900">Store Information</h2>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-sm">
+                  <dt className="text-gray-500">Business Name</dt>
+                  <dd className="font-medium text-right sm:text-left">{vendor?.business_name || '—'}</dd>
+                  <dt className="text-gray-500">Display Name</dt>
+                  <dd className="font-medium text-right sm:text-left">{vendor?.display_name || '—'}</dd>
+                  <dt className="text-gray-500">Store URL</dt>
+                  <dd className="font-medium text-right sm:text-left break-all">
+                    https://{vendor?.subdomain || ''}.kiterp.com
+                  </dd>
+                  <dt className="text-gray-500">Status</dt>
+                  <dd className="font-medium text-right sm:text-left capitalize">{vendor?.status || '—'}</dd>
+                </dl>
               </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Location & Service Radius */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-blue-600" />
-              Location &amp; Service Radius
-            </CardTitle>
-            {!editingLocation && (
-              <Button variant="outline" size="sm" onClick={() => setEditingLocation(true)}>
-                Edit
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            {!editingLocation ? (
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <dt className="text-gray-500">Latitude</dt>
-                <dd className="font-medium">{vendor?.latitude ?? 'Not set'}</dd>
-                <dt className="text-gray-500">Longitude</dt>
-                <dd className="font-medium">{vendor?.longitude ?? 'Not set'}</dd>
-                <dt className="text-gray-500">Service Radius</dt>
-                <dd className="font-medium">{vendor?.service_radius_km ?? 10} km</dd>
-                <dt className="text-gray-500">Coverage Area</dt>
-                <dd className="font-medium">
-                  {vendor?.latitude && vendor?.longitude
-                    ? `Customers within ${vendor.service_radius_km ?? 10} km of your location can discover you`
-                    : 'Set your location to enable distance-based discovery'}
-                </dd>
-              </dl>
-            ) : (
-              <div className="space-y-4">
-                <Suspense
-                  fallback={
-                    <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ height: '400px' }}>
-                      <p className="text-gray-500 text-sm">Loading map...</p>
+              {/* Contact Information */}
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">Contact Information</h2>
+                    {usePlatformContact && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Platform support contact (saved in admin settings). For a storefront site, also set
+                        contact under that business in Business Accounts or vendor Settings.
+                      </p>
+                    )}
+                  </div>
+                  {!editingContact && (
+                    <Button variant="outline" size="sm" onClick={() => setEditingContact(true)}>
+                      Edit
+                    </Button>
+                  )}
+                </div>
+
+                {!editingContact ? (
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-sm">
+                    <dt className="text-gray-500">Email</dt>
+                    <dd className="font-medium text-right sm:text-left">{displayContact.email || 'Not set'}</dd>
+                    <dt className="text-gray-500">Phone</dt>
+                    <dd className="font-medium text-right sm:text-left">{displayContact.phone || 'Not set'}</dd>
+                    <dt className="text-gray-500">Address</dt>
+                    <dd className="font-medium text-right sm:text-left">{formatAddress(displayContact)}</dd>
+                  </dl>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="contact-email">Email</Label>
+                        <Input
+                          id="contact-email"
+                          type="email"
+                          value={contactEmail}
+                          onChange={(e) => setContactEmail(e.target.value)}
+                          placeholder="business@example.com"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="contact-phone">Phone</Label>
+                        <Input
+                          id="contact-phone"
+                          type="tel"
+                          value={contactPhone}
+                          onChange={(e) => setContactPhone(e.target.value)}
+                          placeholder="+91 98765 43210"
+                        />
+                      </div>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <Label htmlFor="contact-street">Street address</Label>
+                        <Input
+                          id="contact-street"
+                          value={contactStreet}
+                          onChange={(e) => setContactStreet(e.target.value)}
+                          placeholder="Street address"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="contact-city">City</Label>
+                        <Input
+                          id="contact-city"
+                          value={contactCity}
+                          onChange={(e) => setContactCity(e.target.value)}
+                          placeholder="City"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="contact-state">State</Label>
+                        <Input
+                          id="contact-state"
+                          value={contactState}
+                          onChange={(e) => setContactState(e.target.value)}
+                          placeholder="State"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="contact-postal">Postal code</Label>
+                        <Input
+                          id="contact-postal"
+                          value={contactPostal}
+                          onChange={(e) => setContactPostal(e.target.value)}
+                          placeholder="Postal code"
+                        />
+                      </div>
                     </div>
-                  }
-                >
-                  <LocationPicker
-                    latitude={lat}
-                    longitude={lng}
-                    radiusKm={radius}
-                    onLocationChange={(newLat, newLng) => {
-                      setLat(newLat)
-                      setLng(newLng)
-                    }}
-                    onRadiusChange={setRadius}
-                    showRadius
-                    height="400px"
-                  />
-                </Suspense>
-                <div className="flex gap-3 justify-end">
-                  <Button
-                    variant="cancel"
-                    onClick={() => {
-                      setEditingLocation(false)
-                      setLat(vendor?.latitude ?? undefined)
-                      setLng(vendor?.longitude ?? undefined)
-                      setRadius(vendor?.service_radius_km ?? 10)
-                    }}
-                  >Cancel</Button>
-                  <Button
-                    onClick={handleSaveLocation}
-                    disabled={updateVendor.isPending}
-                    className="flex items-center gap-1.5"
-                  >
-                    <Save className="h-4 w-4" />
-                    {updateVendor.isPending ? 'Saving...' : 'Save Location'}
-                  </Button>
-                </div>
+                    <div className="flex gap-3 justify-end">
+                      <Button variant="cancel" onClick={resetContactForm} disabled={savingContact}>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSaveContact}
+                        disabled={savingContact || updateVendor.isPending}
+                        className="flex items-center gap-1.5"
+                      >
+                        <Save className="h-4 w-4" />
+                        {savingContact || updateVendor.isPending ? 'Saving...' : 'Save Contact'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+          </section>
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -223,14 +222,14 @@ function DealCard({ deal, onDragStart, onOpen }: { deal: Deal; onDragStart: (e: 
       draggable
       onDragStart={onDragStart}
       onClick={onOpen}
-      className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md cursor-pointer max-h-[90vh] overflow-y-auto"
+      className="cursor-pointer rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
     >
-      <p className="text-sm font-medium text-gray-900 line-clamp-2">
-        {deal.number && <span className="font-mono text-xs text-gray-400 mr-1">{deal.number}</span>}
+      <p className="line-clamp-2 text-sm font-medium text-foreground">
+        {deal.number && <span className="mr-1 font-mono text-xs text-muted-foreground">{deal.number}</span>}
         {deal.title}
       </p>
-      <p className="text-base font-semibold text-blue-600 mt-1">{formatCurrency(deal.amount, deal.currency)}</p>
-      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+      <p className="mt-1 text-base font-semibold text-primary">{formatCurrency(deal.amount, deal.currency)}</p>
+      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
         <span>{deal.expected_close_date ? formatDate(deal.expected_close_date) : '—'}</span>
         {deal.probability != null && <Badge variant="soft">{deal.probability}%</Badge>}
       </div>
@@ -274,78 +273,113 @@ export default function PipelinePage() {
     )
   }
 
+  const openDealCount = kanban?.columns?.reduce((n, c) => n + c.deals.length, 0) ?? 0
+  const stageCount = kanban?.columns?.length ?? 0
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
-          <h1 className="text-2xl font-bold text-gray-900">Sales Pipeline</h1>
+    <div className="flex min-h-0 flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">CRM</p>
+          <h1 className="text-xl font-bold text-foreground sm:text-2xl">Sales Pipeline</h1>
         </div>
         <div className="flex items-center gap-2">
           <Select
-            className="w-48"
+            className="h-8 w-44 text-sm"
             value={pipelineId}
             onChange={setPipelineId}
             options={(pipelines ?? []).map(p => ({ value: p.id, label: p.name }))}
+            wrapperClassName="w-44 shrink-0"
           />
-          <Button onClick={() => setShowCreate({})}>
-            <Plus className="w-4 h-4 mr-2" /> Add deal
+          <Button className="h-8 gap-1.5 px-3 text-sm" onClick={() => setShowCreate({})}>
+            <Plus className="h-4 w-4" /> Add deal
           </Button>
         </div>
       </div>
 
       {forecast && (
-        <Card>
-          <CardContent className="p-4 flex flex-wrap gap-6 items-center">
-            <div>
-              <p className="text-xs uppercase text-gray-500">Pipeline value</p>
-              <p className="text-xl font-semibold text-gray-900">{formatCurrency(forecast.total_value || 0)}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-gray-500 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Weighted</p>
-              <p className="text-xl font-semibold text-emerald-600">{formatCurrency(forecast.weighted_value || 0)}</p>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {forecast.by_stage?.map(s => (
-                <Badge key={s.stage} variant="secondary">{s.stage}: {s.count} • {formatCurrency(s.value)}</Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">
+          <div className="bg-card px-3 py-2.5 sm:px-4">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Pipeline value</p>
+            <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground sm:text-lg">
+              {formatCurrency(forecast.total_value || 0)}
+            </p>
+          </div>
+          <div className="bg-card px-3 py-2.5 sm:px-4">
+            <p className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <TrendingUp className="h-3 w-3" /> Weighted
+            </p>
+            <p className="mt-0.5 text-base font-semibold tabular-nums text-primary sm:text-lg">
+              {formatCurrency(forecast.weighted_value || 0)}
+            </p>
+          </div>
+          <div className="bg-card px-3 py-2.5 sm:px-4">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Open deals</p>
+            <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground sm:text-lg">{openDealCount}</p>
+          </div>
+          <div className="bg-card px-3 py-2.5 sm:px-4">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Stages</p>
+            <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground sm:text-lg">{stageCount}</p>
+          </div>
+        </div>
       )}
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-3">
-          {kanban?.columns?.map(col => (
-            <div key={col.stage.id}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={onDrop(col.stage)}
-              className="w-72 shrink-0 bg-gray-50 rounded-xl border border-gray-200 flex flex-col max-h-[70vh]">
-              <div className="px-3 py-2 border-b flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-2 h-2 rounded-full" style={{ background: col.stage.color || '#6366f1' }} />
-                  <p className="text-sm font-semibold truncate">{col.stage.name}</p>
-                  <span className="text-xs text-gray-500">({col.deals.length})</span>
+        <div className="flex min-h-0 flex-1 gap-2.5 overflow-x-auto pb-1">
+          {kanban?.columns?.map(col => {
+            const colTotal = col.deals.reduce((s, d) => s + (d.amount || 0), 0)
+            return (
+              <div
+                key={col.stage.id}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={onDrop(col.stage)}
+                className="flex max-h-[min(70vh,42rem)] min-h-[18rem] w-[min(100%,16rem)] min-w-[14rem] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-muted/40"
+              >
+                <div className="flex shrink-0 items-start gap-2 border-b border-border/60 bg-card/80 px-2.5 py-2">
+                  <div className="flex min-w-0 flex-1 items-start gap-2 pt-0.5">
+                    <span
+                      className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: col.stage.color || 'hsl(var(--primary))' }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold leading-snug text-foreground" title={col.stage.name}>
+                        {col.stage.name}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {col.deals.length} {col.deals.length === 1 ? 'deal' : 'deals'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreate({ stageId: col.stage.id })}
+                    aria-label={`Add deal to ${col.stage.name}`}
+                    className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-                <button onClick={() => setShowCreate({ stageId: col.stage.id })}
-                  className="text-gray-400 hover:text-gray-700 p-1 rounded hover:bg-white">
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
+                  {col.deals.length ? (
+                    col.deals.map(d => (
+                      <DealCard key={d.id} deal={d} onDragStart={onDragStart(d)} onOpen={() => setOpenDealId(d.id)} />
+                    ))
+                  ) : (
+                    <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/80 bg-card/40 px-3 py-8">
+                      <p className="text-center text-xs text-muted-foreground">Drop deals here</p>
+                    </div>
+                  )}
+                </div>
+                <div className="shrink-0 border-t border-border/60 bg-card px-3 py-2.5 text-xs font-medium tabular-nums text-muted-foreground">
+                  {formatCurrency(colTotal)}
+                </div>
               </div>
-              <div className="p-2 space-y-2 overflow-y-auto flex-1">
-                {col.deals.length ? col.deals.map(d => (
-                  <DealCard key={d.id} deal={d} onDragStart={onDragStart(d)} onOpen={() => setOpenDealId(d.id)} />
-                )) : (
-                  <p className="text-xs text-gray-400 text-center py-6">Drop deals here</p>
-                )}
-              </div>
-              <div className="px-3 py-2 border-t bg-white text-xs text-gray-600">
-                {formatCurrency(col.deals.reduce((s, d) => s + (d.amount || 0), 0))}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

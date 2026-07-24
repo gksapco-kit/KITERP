@@ -11,6 +11,7 @@ import {
 import { usePanelResize } from '@/hooks/usePanelResize'
 import { DragHandle } from '@/components/common/DragHandle'
 import type { Customer } from '@/types'
+import { Select } from '@/components/ui/select'
 
 interface ExistingSlot {
   id: string
@@ -318,17 +319,19 @@ export function POSBookingPanel({
                   <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-primary/70" /> Who Serves
                   </label>
-                  <select
+                  <Select
                     value={selectedStaff}
-                    onChange={e => setSelectedStaff(e.target.value)}
-                    className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm text-gray-800 bg-gray-50
-                      focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:border-gray-300 transition-colors"
-                  >
-                    <option value="">Any available staff</option>
-                    {teamMembers.map((m: any) => (
-                      <option key={m.id} value={m.id}>{m.full_name || m.name}</option>
-                    ))}
-                  </select>
+                    onChange={setSelectedStaff}
+                    className="h-10 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-800"
+                    placeholder="Any available staff"
+                    options={[
+                      { value: '', label: 'Any available staff' },
+                      ...teamMembers.map((m: { id: string; full_name?: string; name?: string }) => ({
+                        value: m.id,
+                        label: m.full_name || m.name || m.id,
+                      })),
+                    ]}
+                  />
                 </div>
               )}
 

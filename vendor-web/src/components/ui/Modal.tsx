@@ -147,7 +147,7 @@ export function ModalBody({
   return (
     <div
       className={cn(
-        // Padding keeps 1.5px rounded field borders from being clipped by overflow.
+        // Padding keeps rounded field borders from being clipped by overflow.
         'flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4',
         className,
       )}

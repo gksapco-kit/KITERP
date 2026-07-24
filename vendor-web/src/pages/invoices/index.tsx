@@ -742,19 +742,16 @@ function ItemSearchRow({
       {/* Variant (when product has multiple) */}
       <div className="min-w-0 flex-1">
         {rowVariants.length > 1 ? (
-          <select
+          <Select
             className={cn(fieldClass, 'bg-white')}
             value={item.variant_id || ''}
-            onChange={e => applyVariantId(e.target.value)}
-            title="Variant"
-          >
-            <option value="" disabled>Select variant…</option>
-            {rowVariants.map(v => (
-              <option key={v.id} value={v.id}>
-                {v.name}{v.price != null ? ` · ₹${Number(v.price).toFixed(0)}` : ''}
-              </option>
-            ))}
-          </select>
+            onChange={applyVariantId}
+            placeholder="Select variant…"
+            options={rowVariants.map(v => ({
+              value: v.id,
+              label: `${v.name}${v.price != null ? ` · ₹${Number(v.price).toFixed(0)}` : ''}`,
+            }))}
+          />
         ) : (
           <input
             className={cn(fieldClass, 'bg-gray-50 text-gray-400')}

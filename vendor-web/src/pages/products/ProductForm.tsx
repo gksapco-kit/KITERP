@@ -77,6 +77,7 @@ import { extractApiError } from '@/lib/errorMessages'
 import { CatalogItemLink } from '@/components/common/CatalogItemLink'
 import { normalizeCatalogAddons, serializeCatalogAddons, type CatalogAddon } from '@/lib/catalogAddons'
 import { UOM_OPTIONS, UOM_GROUPS, formatUomDisplay } from '@/lib/uomOptions'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 // ── Zod schema ──────────────────────────────────────────────────
@@ -633,6 +634,124 @@ const FIELD_TYPES = [
   { value: 'select', label: 'Dropdown', icon: '▼' },
 ] as const
 
+const FIELD_TYPE_OPTIONS = FIELD_TYPES.map(t => ({ value: t.value, label: `${t.icon} ${t.label}` }))
+const UOM_SELECT_OPTIONS = UOM_GROUPS.flatMap(group =>
+  UOM_OPTIONS.filter(u => u.group === group).map(u => ({ value: u.value, label: u.label, group })),
+)
+const CURRENCY_SELECT_OPTIONS = [
+  { value: 'INR', label: '₹ INR' },
+  { value: 'USD', label: '$ USD' },
+  { value: 'EUR', label: '€ EUR' },
+  { value: 'GBP', label: '£ GBP' },
+]
+const CURRENCY_BUNDLE_OPTIONS = [
+  { value: 'INR', label: 'INR ₹' },
+  { value: 'USD', label: 'USD $' },
+  { value: 'EUR', label: 'EUR €' },
+  { value: 'GBP', label: 'GBP £' },
+]
+const SUBSCRIPTION_INTERVAL_OPTIONS = selectOptionsWithBlank('Select…', [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'biweekly', label: 'Bi-Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'biannual', label: 'Half-Yearly' },
+  { value: 'yearly', label: 'Yearly' },
+])
+const STOCK_STATUS_OPTIONS = [
+  { value: 'in_stock', label: 'In Stock' },
+  { value: 'out_of_stock', label: 'Out of Stock' },
+  { value: 'pre_order', label: 'Pre-Order' },
+  { value: 'discontinued', label: 'Discontinued' },
+]
+const VARIANT_STOCK_STATUS_OPTIONS = [
+  { value: 'in_stock', label: 'In Stock' },
+  { value: 'out_of_stock', label: 'Out of Stock' },
+  { value: 'backorder', label: 'Backorder' },
+  { value: 'discontinued', label: 'Discontinued' },
+]
+const REFUND_POLICY_OPTIONS = selectOptionsWithBlank('Select...', [
+  { value: 'full_refund', label: 'Full Refund' },
+  { value: 'store_credit', label: 'Store Credit' },
+  { value: 'exchange_only', label: 'Exchange Only' },
+])
+const WARRANTY_TYPE_OPTIONS = selectOptionsWithBlank('None', [
+  { value: 'manufacturer', label: 'Manufacturer' },
+  { value: 'vendor', label: 'Vendor' },
+])
+const WEIGHT_UNIT_OPTIONS = [
+  { value: 'kg', label: 'kg' },
+  { value: 'g', label: 'g' },
+  { value: 'lb', label: 'lb' },
+  { value: 'oz', label: 'oz' },
+]
+const LENGTH_UNIT_OPTIONS = [
+  { value: 'cm', label: 'cm' },
+  { value: 'mm', label: 'mm' },
+  { value: 'm', label: 'm' },
+  { value: 'in', label: 'in' },
+  { value: 'ft', label: 'ft' },
+]
+const SHIPPING_CLASS_OPTIONS = selectOptionsWithBlank('Standard', [
+  { value: 'express', label: 'Express' },
+  { value: 'fragile', label: 'Fragile' },
+  { value: 'oversized', label: 'Oversized' },
+])
+const SHIPPING_COST_TYPE_OPTIONS = [
+  { value: 'fixed', label: 'Fixed' },
+  { value: 'variable', label: 'Variable (by weight)' },
+  { value: 'per_uom', label: 'Per UOM' },
+  { value: 'free', label: 'Free' },
+  { value: 'calculated', label: 'Calculated at checkout' },
+]
+const SALES_CHANNEL_OPTIONS = selectOptionsWithBlank('Select channel…', [
+  { value: 'online', label: 'Online Store' },
+  { value: 'pos', label: 'POS (Point of Sale)' },
+  { value: 'wholesale', label: 'Wholesale' },
+  { value: 'marketplace', label: 'Marketplace' },
+  { value: 'mobile_app', label: 'Mobile App' },
+  { value: 'social', label: 'Social Commerce' },
+])
+const ADDON_TYPE_OPTIONS = [
+  { value: 'install', label: 'Installation' },
+  { value: 'demo', label: 'Demo / Training' },
+  { value: 'warranty', label: 'Warranty' },
+  { value: 'maintenance', label: 'Maintenance' },
+  { value: 'delivery', label: 'Delivery' },
+  { value: 'setup', label: 'Setup / Config' },
+  { value: 'other', label: 'Other' },
+]
+const BOOKING_TRIGGER_OPTIONS = [
+  { value: 'at_sale', label: 'At Point of Sale / POS' },
+  { value: 'after_delivery', label: 'After Delivery (online orders)' },
+  { value: 'on_status', label: 'On Specific Order Status' },
+]
+const TRIGGER_STATUS_OPTIONS = [
+  { value: 'confirmed', label: 'Order Confirmed', group: '— Order Statuses —' },
+  { value: 'processing', label: 'Processing', group: '— Order Statuses —' },
+  { value: 'shipped', label: 'Shipped', group: '— Order Statuses —' },
+  { value: 'out_for_delivery', label: 'Out for Delivery', group: '— Order Statuses —' },
+  { value: 'delivered', label: 'Delivered', group: '— Order Statuses —' },
+  { value: 'installed', label: 'Installed', group: '— Order Statuses —' },
+  { value: 'booking_confirmed', label: 'Booking Confirmed', group: '— Booking Statuses —' },
+  { value: 'booking_scheduled', label: 'Booking Scheduled', group: '— Booking Statuses —' },
+  { value: 'booking_in_progress', label: 'In Progress', group: '— Booking Statuses —' },
+  { value: 'booking_completed', label: 'Booking Completed', group: '— Booking Statuses —' },
+  { value: 'booking_no_show', label: 'No Show', group: '— Booking Statuses —' },
+  { value: 'booking_rescheduled', label: 'Rescheduled', group: '— Booking Statuses —' },
+  { value: 'booking_cancelled', label: 'Booking Cancelled', group: '— Booking Statuses —' },
+]
+const TRIGGER_STAGE_OPTIONS = [
+  { value: 'PDP', label: 'PDP (Product Page)' },
+  { value: 'CART', label: 'CART' },
+  { value: 'CHECKOUT', label: 'CHECKOUT' },
+]
+const YES_NO_OPTIONS = selectOptionsWithBlank('Select', [
+  { value: 'yes', label: 'Yes' },
+  { value: 'no', label: 'No' },
+])
+
 function QuoteFormConfigurator({ fields, onChange }: {
   fields: QuoteFormFieldDraft[]; onChange: (f: QuoteFormFieldDraft[]) => void
 }) {
@@ -676,11 +795,14 @@ function QuoteFormConfigurator({ fields, onChange }: {
             </button>
 
             {f.enabled ? (
-              <select value={f.type}
-                onChange={e => onChange(fields.map(x => x.key === f.key ? { ...x, type: e.target.value as any } : x))}
-                className="h-7 rounded border border-gray-200 bg-gray-50 px-1.5 text-xs text-gray-500 shrink-0">
-                {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
-              </select>
+              <Select
+                value={f.type}
+                onChange={v => onChange(fields.map(x => x.key === f.key ? { ...x, type: v as any } : x))}
+                options={FIELD_TYPE_OPTIONS}
+                className="h-7 shrink-0 text-xs text-gray-500"
+                wrapperClassName="w-auto shrink-0"
+                menuMinWidth={160}
+              />
             ) : (
               <span className="text-xs text-gray-400 w-5 text-center shrink-0">
                 {FIELD_TYPES.find(t => t.value === f.type)?.icon || '?'}
@@ -2022,10 +2144,15 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
         {variants.length > 0 && (
           <div>
             <Label className="block text-xs font-medium text-gray-600 mb-1">Apply to Variant</Label>
-            <select className={selectCls} value={variantId} onChange={e => setVariantId(e.target.value)}>
-              <option value="">All variants (product-level)</option>
-              {variants.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-            </select>
+            <Select
+              value={variantId}
+              onChange={setVariantId}
+              options={selectOptionsWithBlank(
+                'All variants (product-level)',
+                variants.map(v => ({ value: v.id, label: v.name })),
+              )}
+              className={selectCls}
+            />
           </div>
         )}
         <div>
@@ -2039,12 +2166,15 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="block text-xs font-medium text-gray-600 mb-1">Customer Group <span className="text-red-500">*</span></Label>
-            <select className={selectCls} value={customerGroup} onChange={e => setCustomerGroup(e.target.value)}>
-              <option value="">Select group…</option>
-              {CUSTOMER_PRICING_GROUPS.map(g => (
-                <option key={g.value} value={g.value}>{g.label}</option>
-              ))}
-            </select>
+            <Select
+              value={customerGroup}
+              onChange={setCustomerGroup}
+              options={selectOptionsWithBlank(
+                'Select group…',
+                CUSTOMER_PRICING_GROUPS.map(g => ({ value: g.value, label: g.label })),
+              )}
+              className={selectCls}
+            />
             <p className="text-xs text-gray-400 mt-1">Must match the pricing group set on the customer's record for this rule to apply.</p>
           </div>
         </div>
@@ -2105,15 +2235,12 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="block text-xs font-medium text-gray-600 mb-1">Sales Channel <span className="text-red-500">*</span></Label>
-            <select className={selectCls} value={channel} onChange={e => setChannel(e.target.value)}>
-              <option value="">Select channel…</option>
-              <option value="online">Online Store</option>
-              <option value="pos">POS (Point of Sale)</option>
-              <option value="wholesale">Wholesale</option>
-              <option value="marketplace">Marketplace</option>
-              <option value="mobile_app">Mobile App</option>
-              <option value="social">Social Commerce</option>
-            </select>
+            <Select
+              value={channel}
+              onChange={setChannel}
+              options={SALES_CHANNEL_OPTIONS}
+              className={selectCls}
+            />
           </div>
         </div>
       )}
@@ -3511,11 +3638,18 @@ export default function ProductForm() {
               <FormField label="Name" required><Input className="w-full min-w-0" {...register('name')} placeholder="Product name" /></FormField>
               <FormField label="Brand"><Input className="w-full min-w-0" {...register('brand')} placeholder="e.g. Samsung" /></FormField>
               <FormField label="Product Type">
-                <select {...register('product_type')} className={cn(selectCls, 'w-full min-w-0')}>
-                  {PRODUCT_TYPE_FILTER_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                <Controller
+                  name="product_type"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={String(field.value ?? '')}
+                      onChange={field.onChange}
+                      options={PRODUCT_TYPE_FILTER_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+                      className={cn(selectCls, 'w-full min-w-0')}
+                    />
+                  )}
+                />
               </FormField>
               <FormField label="Tags (comma separated)"><Input {...register('tags')} placeholder="tag1, tag2, tag3" /></FormField>
               <FormField label="Material Code">
@@ -3676,16 +3810,19 @@ export default function ProductForm() {
                       <div key={`cf-${i}`} className="space-y-1">
                         <Label className="text-xs">{f.name} {f.required && <span className="text-red-500">*</span>}</Label>
                         {f.type === 'select' || f.type === 'multiselect' ? (
-                          <select className={selectCls + ' h-9 text-sm'}>
-                            <option value="">Select {f.name}</option>
-                            {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
+                          <Select
+                            value=""
+                            onChange={() => {}}
+                            options={selectOptionsWithBlank(`Select ${f.name}`, (f.options || []).map(o => ({ value: o, label: o })))}
+                            className={cn(selectCls, 'h-9 text-sm')}
+                          />
                         ) : f.type === 'boolean' ? (
-                          <select className={selectCls + ' h-9 text-sm'}>
-                            <option value="">Select</option>
-                            <option value="yes">Yes</option>
-                            <option value="no">No</option>
-                          </select>
+                          <Select
+                            value=""
+                            onChange={() => {}}
+                            options={YES_NO_OPTIONS}
+                            className={cn(selectCls, 'h-9 text-sm')}
+                          />
                         ) : (
                           <Input type={f.type === 'number' ? 'number' : 'text'} placeholder={f.name} className="h-9 text-sm" />
                         )}
@@ -3953,13 +4090,18 @@ export default function ProductForm() {
                         </div>
                         <div className={cn('grid grid-cols-2 md:grid-cols-4', variantFormUi.grid)}>
                           <FormField label="Interval">
-                            <select {...register(`variants.${index}.subscription_interval`)} className={selectCls}>
-                              <option value="">Select…</option>
-                              <option value="daily">Daily</option><option value="weekly">Weekly</option>
-                              <option value="biweekly">Bi-Weekly</option><option value="monthly">Monthly</option>
-                              <option value="quarterly">Quarterly</option><option value="biannual">Half-Yearly</option>
-                              <option value="yearly">Yearly</option>
-                            </select>
+                            <Controller
+                              name={`variants.${index}.subscription_interval`}
+                              control={control}
+                              render={({ field }) => (
+                                <Select
+                                  value={String(field.value ?? '')}
+                                  onChange={field.onChange}
+                                  options={SUBSCRIPTION_INTERVAL_OPTIONS}
+                                  className={selectCls}
+                                />
+                              )}
+                            />
                           </FormField>
                           <FormField label="Max Cycles"><Input type="number" min="0" {...register(`variants.${index}.subscription_billing_cycles`)} placeholder="0 = ∞" /></FormField>
                           <FormField label="Trial (days)"><Input type="number" min="0" {...register(`variants.${index}.subscription_trial_days`)} placeholder="14" /></FormField>
@@ -4047,15 +4189,18 @@ export default function ProductForm() {
                                   {...register(`variants.${index}.uom_quantity`)} placeholder="1" />
                               </FormField>
                               <FormField label="UOM">
-                                <select {...register(`variants.${index}.uom`)} className={cn(selectCls, 'w-full')}>
-                                  {UOM_GROUPS.map(group => (
-                                    <optgroup key={group} label={group}>
-                                      {UOM_OPTIONS.filter(u => u.group === group).map(u => (
-                                        <option key={u.value} value={u.value}>{u.label}</option>
-                                      ))}
-                                    </optgroup>
-                                  ))}
-                                </select>
+                                <Controller
+                                  name={`variants.${index}.uom`}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <Select
+                                      value={String(field.value ?? '')}
+                                      onChange={field.onChange}
+                                      options={UOM_SELECT_OPTIONS}
+                                      className={cn(selectCls, 'w-full')}
+                                    />
+                                  )}
+                                />
                               </FormField>
                               <FormField label={priceLabel}>
                                 <Input type="number" step="0.01" min="0" className="w-full"
@@ -4079,10 +4224,18 @@ export default function ProductForm() {
                                   {...register(`variants.${index}.cost_price`)} placeholder="0" />
                               </FormField>
                               <FormField label="Currency">
-                                <select {...register(`variants.${index}.currency`)} className={cn(selectCls, 'w-full')}>
-                                  <option value="INR">₹ INR</option><option value="USD">$ USD</option>
-                                  <option value="EUR">€ EUR</option><option value="GBP">£ GBP</option>
-                                </select>
+                                <Controller
+                                  name={`variants.${index}.currency`}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <Select
+                                      value={String(field.value ?? '')}
+                                      onChange={field.onChange}
+                                      options={CURRENCY_SELECT_OPTIONS}
+                                      className={cn(selectCls, 'w-full')}
+                                    />
+                                  )}
+                                />
                               </FormField>
                             </div>
                             {(autoDiscPct > 0 || profit != null) && (
@@ -4168,10 +4321,18 @@ export default function ProductForm() {
                         </FormField>
                         <FormField label="Low stock at"><Input type="number" min="0" {...register(`variants.${index}.low_stock_threshold`)} placeholder="5" /></FormField>
                         <FormField label="Status">
-                          <select {...register(`variants.${index}.stock_status`)} className={selectCls}>
-                            <option value="in_stock">In Stock</option><option value="out_of_stock">Out of Stock</option>
-                            <option value="backorder">Backorder</option><option value="discontinued">Discontinued</option>
-                          </select>
+                          <Controller
+                            name={`variants.${index}.stock_status`}
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                value={String(field.value ?? '')}
+                                onChange={field.onChange}
+                                options={VARIANT_STOCK_STATUS_OPTIONS}
+                                className={selectCls}
+                              />
+                            )}
+                          />
                         </FormField>
                         <FormField label="Reorder at"><Input type="number" min="0" {...register(`variants.${index}.reorder_point`)} placeholder="—" /></FormField>
                         <FormField label="Max per order">
@@ -4215,20 +4376,33 @@ export default function ProductForm() {
                         <div className={cn('grid grid-cols-2 md:grid-cols-4', variantFormUi.grid)}>
                           <FormField label="Return Window (days)"><Input type="number" min="0" {...register(`variants.${index}.return_days`)} placeholder="30" /></FormField>
                           <FormField label="Refund Policy">
-                            <select {...register(`variants.${index}.refund_policy`)} className={selectCls}>
-                              <option value="">Select...</option>
-                              <option value="full_refund">Full Refund</option>
-                              <option value="store_credit">Store Credit</option>
-                              <option value="exchange_only">Exchange Only</option>
-                            </select>
+                            <Controller
+                              name={`variants.${index}.refund_policy`}
+                              control={control}
+                              render={({ field }) => (
+                                <Select
+                                  value={String(field.value ?? '')}
+                                  onChange={field.onChange}
+                                  options={REFUND_POLICY_OPTIONS}
+                                  className={selectCls}
+                                />
+                              )}
+                            />
                           </FormField>
                           <FormField label="Warranty (days)"><Input type="number" min="0" {...register(`variants.${index}.warranty_period_days`)} /></FormField>
                           <FormField label="Warranty Type">
-                            <select {...register(`variants.${index}.warranty_type`)} className={selectCls}>
-                              <option value="">None</option>
-                              <option value="manufacturer">Manufacturer</option>
-                              <option value="vendor">Vendor</option>
-                            </select>
+                            <Controller
+                              name={`variants.${index}.warranty_type`}
+                              control={control}
+                              render={({ field }) => (
+                                <Select
+                                  value={String(field.value ?? '')}
+                                  onChange={field.onChange}
+                                  options={WARRANTY_TYPE_OPTIONS}
+                                  className={selectCls}
+                                />
+                              )}
+                            />
                           </FormField>
                         </div>
                         <FormField label="Return Conditions"><Input {...register(`variants.${index}.return_conditions`)} placeholder='e.g. "Unopened, with tags"' className="max-w-lg" /></FormField>
@@ -4413,15 +4587,18 @@ export default function ProductForm() {
                         />
                       </FormField>
                       <FormField label="UOM">
-                        <select {...register('uom')} className={selectCls}>
-                          {UOM_GROUPS.map(group => (
-                            <optgroup key={group} label={group}>
-                              {UOM_OPTIONS.filter(u => u.group === group).map(u => (
-                                <option key={u.value} value={u.value}>{u.label}</option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
+                        <Controller
+                          name="uom"
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              value={String(field.value ?? '')}
+                              onChange={field.onChange}
+                              options={UOM_SELECT_OPTIONS}
+                              className={selectCls}
+                            />
+                          )}
+                        />
                       </FormField>
                       <FormField label="Price *">
                         <Input type="number" step="0.01" min="0"
@@ -4443,12 +4620,18 @@ export default function ProductForm() {
                       </FormField>
                       <FormField label="Cost Price"><Input type="number" step="0.01" min="0" {...register('cost_price')} placeholder="Your cost" /></FormField>
                       <FormField label="Currency">
-                        <select {...register('currency')} className={selectCls}>
-                          <option value="INR">INR ₹</option>
-                          <option value="USD">USD $</option>
-                          <option value="EUR">EUR €</option>
-                          <option value="GBP">GBP £</option>
-                        </select>
+                        <Controller
+                          name="currency"
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              value={String(field.value ?? '')}
+                              onChange={field.onChange}
+                              options={CURRENCY_BUNDLE_OPTIONS}
+                              className={selectCls}
+                            />
+                          )}
+                        />
                       </FormField>
                     </div>
                     {(bProfit != null || bAutoDiscPct > 0) && (
@@ -4570,12 +4753,18 @@ export default function ProductForm() {
                     <FormField label="Reorder Qty"><Input type="number" min="0" {...register('reorder_quantity')} placeholder="e.g. 50" /></FormField>
                   </div>
                   <FormField label="Stock Status">
-                    <select {...register('stock_status')} className={selectCls}>
-                      <option value="in_stock">In Stock</option>
-                      <option value="out_of_stock">Out of Stock</option>
-                      <option value="pre_order">Pre-Order</option>
-                      <option value="discontinued">Discontinued</option>
-                    </select>
+                    <Controller
+                      name="stock_status"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={String(field.value ?? '')}
+                          onChange={field.onChange}
+                          options={STOCK_STATUS_OPTIONS}
+                          className={selectCls}
+                        />
+                      )}
+                    />
                   </FormField>
                 </div>
               </div>
@@ -4777,20 +4966,33 @@ export default function ProductForm() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <FormField label="Return Window (days)"><Input type="number" min="0" {...register('return_days')} placeholder="e.g. 30" /></FormField>
                   <FormField label="Refund Policy">
-                    <select {...register('refund_policy')} className={selectCls}>
-                      <option value="">Select...</option>
-                      <option value="full_refund">Full Refund</option>
-                      <option value="store_credit">Store Credit</option>
-                      <option value="exchange_only">Exchange Only</option>
-                    </select>
+                    <Controller
+                      name="refund_policy"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={String(field.value ?? '')}
+                          onChange={field.onChange}
+                          options={REFUND_POLICY_OPTIONS}
+                          className={selectCls}
+                        />
+                      )}
+                    />
                   </FormField>
                   <FormField label="Warranty (days)"><Input type="number" min="0" {...register('warranty_period_days')} placeholder="e.g. 365" /></FormField>
                   <FormField label="Warranty Type">
-                    <select {...register('warranty_type')} className={selectCls}>
-                      <option value="">None</option>
-                      <option value="manufacturer">Manufacturer</option>
-                      <option value="vendor">Vendor</option>
-                    </select>
+                    <Controller
+                      name="warranty_type"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={String(field.value ?? '')}
+                          onChange={field.onChange}
+                          options={WARRANTY_TYPE_OPTIONS}
+                          className={selectCls}
+                        />
+                      )}
+                    />
                   </FormField>
                 </div>
                 <FormField label="Return Policy"><textarea {...register('return_policy')} rows={2} className={textareaCls} placeholder="Describe your return policy..." /></FormField>
@@ -4812,68 +5014,108 @@ export default function ProductForm() {
                 <FormField label={`Weight (${watch('weight_unit') || 'kg'})`}>
                   <div className="flex">
                     <Input type="number" step="0.001" min="0" {...register('weight_kg')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
-                    <select {...register('weight_unit')} className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}>
-                      <option value="kg">kg</option>
-                      <option value="g">g</option>
-                      <option value="lb">lb</option>
-                      <option value="oz">oz</option>
-                    </select>
+                    <Controller
+                      name="weight_unit"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={String(field.value ?? 'kg')}
+                          onChange={field.onChange}
+                          options={WEIGHT_UNIT_OPTIONS}
+                          className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
+                          wrapperClassName="w-[4.5rem] shrink-0"
+                          menuMinWidth={80}
+                        />
+                      )}
+                    />
                   </div>
                 </FormField>
                 <FormField label={`Length (${watch('length_unit') || 'cm'})`}>
                   <div className="flex">
                     <Input type="number" step="0.01" min="0" {...register('length_cm')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
-                    <select {...register('length_unit')} className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}>
-                      <option value="cm">cm</option>
-                      <option value="mm">mm</option>
-                      <option value="m">m</option>
-                      <option value="in">in</option>
-                      <option value="ft">ft</option>
-                    </select>
+                    <Controller
+                      name="length_unit"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={String(field.value ?? 'cm')}
+                          onChange={field.onChange}
+                          options={LENGTH_UNIT_OPTIONS}
+                          className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
+                          wrapperClassName="w-[4.5rem] shrink-0"
+                          menuMinWidth={80}
+                        />
+                      )}
+                    />
                   </div>
                 </FormField>
                 <FormField label={`Width (${watch('width_unit') || 'cm'})`}>
                   <div className="flex">
                     <Input type="number" step="0.01" min="0" {...register('width_cm')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
-                    <select {...register('width_unit')} className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}>
-                      <option value="cm">cm</option>
-                      <option value="mm">mm</option>
-                      <option value="m">m</option>
-                      <option value="in">in</option>
-                      <option value="ft">ft</option>
-                    </select>
+                    <Controller
+                      name="width_unit"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={String(field.value ?? 'cm')}
+                          onChange={field.onChange}
+                          options={LENGTH_UNIT_OPTIONS}
+                          className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
+                          wrapperClassName="w-[4.5rem] shrink-0"
+                          menuMinWidth={80}
+                        />
+                      )}
+                    />
                   </div>
                 </FormField>
                 <FormField label={`Height (${watch('height_unit') || 'cm'})`}>
                   <div className="flex">
                     <Input type="number" step="0.01" min="0" {...register('height_cm')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
-                    <select {...register('height_unit')} className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}>
-                      <option value="cm">cm</option>
-                      <option value="mm">mm</option>
-                      <option value="m">m</option>
-                      <option value="in">in</option>
-                      <option value="ft">ft</option>
-                    </select>
+                    <Controller
+                      name="height_unit"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={String(field.value ?? 'cm')}
+                          onChange={field.onChange}
+                          options={LENGTH_UNIT_OPTIONS}
+                          className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
+                          wrapperClassName="w-[4.5rem] shrink-0"
+                          menuMinWidth={80}
+                        />
+                      )}
+                    />
                   </div>
                 </FormField>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <FormField label="Shipping Class">
-                  <select {...register('shipping_class')} className={selectCls}>
-                    <option value="">Standard</option>
-                    <option value="express">Express</option>
-                    <option value="fragile">Fragile</option>
-                    <option value="oversized">Oversized</option>
-                  </select>
+                  <Controller
+                    name="shipping_class"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={String(field.value ?? '')}
+                        onChange={field.onChange}
+                        options={SHIPPING_CLASS_OPTIONS}
+                        className={selectCls}
+                      />
+                    )}
+                  />
                 </FormField>
                 <FormField label="Shipping Cost Type">
-                  <select {...register('shipping_cost_type')} className={selectCls}>
-                    <option value="fixed">Fixed</option>
-                    <option value="variable">Variable (by weight)</option>
-                    <option value="per_uom">Per UOM</option>
-                    <option value="free">Free</option>
-                    <option value="calculated">Calculated at checkout</option>
-                  </select>
+                  <Controller
+                    name="shipping_cost_type"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={String(field.value ?? '')}
+                        onChange={field.onChange}
+                        options={SHIPPING_COST_TYPE_OPTIONS}
+                        className={selectCls}
+                      />
+                    )}
+                  />
                 </FormField>
                 {watch('shipping_cost_type') !== 'free' && watch('shipping_cost_type') !== 'calculated' && (
                   <FormField label={
@@ -5062,59 +5304,35 @@ export default function ProductForm() {
                       {/* Add-on type */}
                       <div>
                         <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Type</label>
-                        <select
+                        <Select
                           value={addon.addon_type}
-                          onChange={e => setProductAddons(p => p.map((a, i) => i === ai ? { ...a, addon_type: e.target.value } : a))}
-                          className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                          <option value="install">Installation</option>
-                          <option value="demo">Demo / Training</option>
-                          <option value="warranty">Warranty</option>
-                          <option value="maintenance">Maintenance</option>
-                          <option value="delivery">Delivery</option>
-                          <option value="setup">Setup / Config</option>
-                          <option value="other">Other</option>
-                        </select>
+                          onChange={v => setProductAddons(p => p.map((a, i) => i === ai ? { ...a, addon_type: v } : a))}
+                          options={ADDON_TYPE_OPTIONS}
+                          className="h-8 text-xs"
+                        />
                       </div>
 
                       {/* Booking trigger channel */}
                       <div>
                         <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Book When</label>
-                        <select
+                        <Select
                           value={addon.booking_trigger}
-                          onChange={e => setProductAddons(p => p.map((a, i) => i === ai ? { ...a, booking_trigger: e.target.value } : a))}
-                          className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                          <option value="at_sale">At Point of Sale / POS</option>
-                          <option value="after_delivery">After Delivery (online orders)</option>
-                          <option value="on_status">On Specific Order Status</option>
-                        </select>
+                          onChange={v => setProductAddons(p => p.map((a, i) => i === ai ? { ...a, booking_trigger: v } : a))}
+                          options={BOOKING_TRIGGER_OPTIONS}
+                          className="h-8 text-xs"
+                        />
                       </div>
 
                       {/* Status trigger (conditional) */}
                       {addon.booking_trigger === 'on_status' && (
                         <div>
                           <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Trigger Status</label>
-                          <select
+                          <Select
                             value={addon.trigger_status || 'delivered'}
-                            onChange={e => setProductAddons(p => p.map((a, i) => i === ai ? { ...a, trigger_status: e.target.value } : a))}
-                            className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                            <optgroup label="— Order Statuses —">
-                              <option value="confirmed">Order Confirmed</option>
-                              <option value="processing">Processing</option>
-                              <option value="shipped">Shipped</option>
-                              <option value="out_for_delivery">Out for Delivery</option>
-                              <option value="delivered">Delivered</option>
-                              <option value="installed">Installed</option>
-                            </optgroup>
-                            <optgroup label="— Booking Statuses —">
-                              <option value="booking_confirmed">Booking Confirmed</option>
-                              <option value="booking_scheduled">Booking Scheduled</option>
-                              <option value="booking_in_progress">In Progress</option>
-                              <option value="booking_completed">Booking Completed</option>
-                              <option value="booking_no_show">No Show</option>
-                              <option value="booking_rescheduled">Rescheduled</option>
-                              <option value="booking_cancelled">Booking Cancelled</option>
-                            </optgroup>
-                          </select>
+                            onChange={v => setProductAddons(p => p.map((a, i) => i === ai ? { ...a, trigger_status: v } : a))}
+                            options={TRIGGER_STATUS_OPTIONS}
+                            className="h-8 text-xs"
+                          />
                         </div>
                       )}
                     </div>
@@ -5204,37 +5422,38 @@ export default function ProductForm() {
                               {/* Conditional picker */}
                               {row.target_type === 'product' ? (
                                 <div className="space-y-1">
-                                  <select
+                                  <Select
                                     value={row.target_product_id}
-                                    onChange={e => updateMerchMapping(row._idx, { target_product_id: e.target.value })}
+                                    onChange={v => updateMerchMapping(row._idx, { target_product_id: v })}
+                                    options={selectOptionsWithBlank(
+                                      'Select a product…',
+                                      categories.flatMap(cat =>
+                                        availableProducts
+                                          .filter(p => (p.category || 'Uncategorized') === cat)
+                                          .map(p => ({
+                                            value: p.id,
+                                            label: `${p.name}${p.sku ? ` (${p.sku})` : ''}`,
+                                            group: cat,
+                                          })),
+                                      ),
+                                    )}
                                     className={cn(selectCls, 'w-full')}
-                                  >
-                                    <option value="">Select a product…</option>
-                                    {categories.map(cat => (
-                                      <optgroup key={cat} label={cat}>
-                                        {availableProducts.filter(p => (p.category || 'Uncategorized') === cat).map(p => (
-                                          <option key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ''}</option>
-                                        ))}
-                                      </optgroup>
-                                    ))}
-                                  </select>
+                                  />
                                   {targetProd && <p className="text-xs text-muted-foreground">SKU: {targetProd.sku || '—'}</p>}
                                 </div>
                               ) : (
                                 <div className="space-y-1">
-                                  <select
+                                  <Select
                                     value={row.target_category}
-                                    onChange={e => updateMerchMapping(row._idx, { target_category: e.target.value })}
+                                    onChange={v => updateMerchMapping(row._idx, { target_category: v })}
+                                    options={selectOptionsWithBlank('Select a category…', [
+                                      ...categories.map(cat => ({ value: cat, label: cat })),
+                                      ...productCategories
+                                        .filter(c => !categories.includes(c.name))
+                                        .map(c => ({ value: c.name, label: c.name })),
+                                    ])}
                                     className={cn(selectCls, 'w-full')}
-                                  >
-                                    <option value="">Select a category…</option>
-                                    {categories.map(cat => (
-                                      <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                    {productCategories.filter(c => !categories.includes(c.name)).map(c => (
-                                      <option key={c.id} value={c.name}>{c.name}</option>
-                                    ))}
-                                  </select>
+                                  />
                                   {row.target_category && (
                                     <p className="text-xs text-muted-foreground">
                                       All products in "{row.target_category}" ({catProductCount} product{catProductCount !== 1 ? 's' : ''})
@@ -5252,15 +5471,12 @@ export default function ProductForm() {
                             {/* Trigger Stage */}
                             <div className="space-y-1">
                               <label className="text-xs font-medium text-muted-foreground">Trigger Stage</label>
-                              <select
+                              <Select
                                 value={row.trigger_stage}
-                                onChange={e => updateMerchMapping(row._idx, { trigger_stage: e.target.value as 'PDP' | 'CART' | 'CHECKOUT' })}
+                                onChange={v => updateMerchMapping(row._idx, { trigger_stage: v as 'PDP' | 'CART' | 'CHECKOUT' })}
+                                options={TRIGGER_STAGE_OPTIONS}
                                 className={cn(selectCls, 'w-full')}
-                              >
-                                <option value="PDP">PDP (Product Page)</option>
-                                <option value="CART">CART</option>
-                                <option value="CHECKOUT">CHECKOUT</option>
-                              </select>
+                              />
                             </div>
 
                             {/* Priority */}
@@ -5278,16 +5494,12 @@ export default function ProductForm() {
                             {/* Bundle (optional) */}
                             <div className="space-y-1">
                               <label className="text-xs font-medium text-muted-foreground">Bundle (opt.)</label>
-                              <select
+                              <Select
                                 value={row.bundle_id || ''}
-                                onChange={e => updateMerchMapping(row._idx, { bundle_id: e.target.value || undefined })}
+                                onChange={v => updateMerchMapping(row._idx, { bundle_id: v || undefined })}
+                                options={selectOptionsWithBlank('None', bundles.map(b => ({ value: b.id, label: b.name })))}
                                 className={cn(selectCls, 'w-full')}
-                              >
-                                <option value="">None</option>
-                                {bundles.map(b => (
-                                  <option key={b.id} value={b.id}>{b.name}</option>
-                                ))}
-                              </select>
+                              />
                             </div>
                           </div>
                         </div>

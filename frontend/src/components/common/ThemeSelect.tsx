@@ -1,32 +1,26 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, formFieldFocusClassName } from '@/lib/utils'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 
 export type ThemeSelectOption = {
   value: string
   label: string
-  hint?: string
-  /** Renders options under a labeled section in the menu */
-  group?: string
 }
 
-/** Attribute on portaled ThemeSelect menus — Dialog must ignore outside-click for these. */
+/** Attribute on portaled menus — modals should ignore outside-click for these. */
 export const THEME_SELECT_MENU_ATTR = 'data-theme-select-menu'
 
-/** Semantic tokens — light, dark, and all KIT templates. */
 export const themeSelectUi = {
-  trigger:
-    'form-select inline-flex h-10 w-full min-w-0 items-center justify-between gap-2 px-2.5 text-sm text-left text-foreground transition-colors hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
-  menu: 'z-[9999] max-h-60 overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-100',
+  trigger: cn(
+    'flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/30 disabled:cursor-not-allowed disabled:opacity-50',
+    formFieldFocusClassName,
+  ),
+  menu: 'z-[9999] max-h-60 overflow-auto rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg',
   item: 'group flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground focus-visible:outline-none',
-  itemActive: '',
-  itemLabel: 'min-w-0 flex-1 font-medium whitespace-normal break-words',
-  itemHint: 'block truncate text-xs text-muted-foreground group-hover:text-primary-foreground/80 group-focus-visible:text-primary-foreground/80',
+  itemLabel: 'min-w-0 flex-1 truncate',
   check: 'ml-auto h-4 w-4 shrink-0 text-primary group-hover:text-primary-foreground group-focus-visible:text-primary-foreground',
-  groupLabel:
-    'px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sticky top-0 bg-popover/95 backdrop-blur-sm',
 } as const
 
 export type ThemeSelectProps = {
@@ -36,22 +30,13 @@ export type ThemeSelectProps = {
   placeholder?: string
   disabled?: boolean
   id?: string
-  /** Field appearance (height, border overrides). Layout width → `wrapperClassName`. */
   className?: string
-  /** Root wrapper layout (max-width, margin). */
   wrapperClassName?: string
-  /** Extra classes on the trigger button (e.g. status tint) */
   triggerClassName?: string
-  /** Stacking order for the portaled menu (default above modals). */
   menuZIndex?: number
-  /** Minimum menu width in px. Omit to auto-size from options (compact for short labels). */
-  menuMinWidth?: number
-  /** Menu open direction. `auto` flips when space is tight; `top` / `bottom` force a side. */
-  menuPlacement?: 'auto' | 'top' | 'bottom'
   'aria-label'?: string
 }
 
-/** Split legacy `className` — field chrome on trigger, layout on wrapper. */
 function splitSelectClassName(className?: string) {
   const wrapper: string[] = []
   const trigger: string[] = []
@@ -77,8 +62,6 @@ export function ThemeSelect({
   wrapperClassName,
   triggerClassName,
   menuZIndex = 9999,
-  menuMinWidth,
-  menuPlacement = 'auto',
   'aria-label': ariaLabel,
 }: ThemeSelectProps) {
   const [open, setOpen] = useState(false)
@@ -99,49 +82,9 @@ export function ThemeSelect({
   const displayLabel = selected?.label ?? placeholder
 
   const autoMenuMinWidth = useMemo(() => {
-    if (menuMinWidth != null) return menuMinWidth
-    const longest = options.reduce((max, o) => Math.max(max, (o.label || '').length, (o.hint || '').length), 0)
-    // Short numeric options (e.g. page size) stay compact; form fields keep room for labels.
-    return longest <= 4 ? 0 : 280
-  }, [menuMinWidth, options])
-
-  const menuSections = useMemo(() => {
-    const ungrouped: ThemeSelectOption[] = []
-    const groups = new Map<string, ThemeSelectOption[]>()
-    for (const opt of options) {
-      if (opt.group) {
-        const list = groups.get(opt.group) ?? []
-        list.push(opt)
-        groups.set(opt.group, list)
-      } else {
-        ungrouped.push(opt)
-      }
-    }
-    return { ungrouped, groups: [...groups.entries()] }
+    const longest = options.reduce((max, o) => Math.max(max, (o.label || '').length), 0)
+    return longest <= 4 ? 0 : 220
   }, [options])
-
-  const renderOption = (opt: ThemeSelectOption) => {
-    const isSelected = value === opt.value
-    return (
-      <button
-        key={opt.value || `opt-${opt.label}`}
-        type="button"
-        role="option"
-        aria-selected={isSelected}
-        onClick={() => {
-          onChange(opt.value)
-          setOpen(false)
-        }}
-        className={cn(themeSelectUi.item, isSelected && themeSelectUi.itemActive)}
-      >
-        <div className="min-w-0 flex-1">
-          <span className={themeSelectUi.itemLabel}>{opt.label}</span>
-          {opt.hint ? <span className={themeSelectUi.itemHint}>{opt.hint}</span> : null}
-        </div>
-        {isSelected ? <Check className={themeSelectUi.check} aria-hidden /> : null}
-      </button>
-    )
-  }
 
   useEscapeToClose(() => setOpen(false), open)
 
@@ -155,14 +98,8 @@ export function ThemeSelect({
       const edge = 8
       const spaceBelow = window.innerHeight - rect.bottom - gap
       const spaceAbove = rect.top - gap
-      // Prefer opening down; flip up when the footer/viewport would clip the menu.
       const estimatedMenuH = Math.min(240, Math.max(120, options.length * 40 + 8))
-      const openUp =
-        menuPlacement === 'top'
-          ? true
-          : menuPlacement === 'bottom'
-            ? false
-            : spaceBelow < estimatedMenuH && spaceAbove > spaceBelow
+      const openUp = spaceBelow < estimatedMenuH && spaceAbove > spaceBelow
       const maxHeight = Math.min(240, Math.max(120, openUp ? spaceAbove : spaceBelow))
       const minWidth = Math.max(rect.width, autoMenuMinWidth)
       const maxAllowedWidth = Math.max(rect.width, window.innerWidth - edge * 2)
@@ -172,7 +109,6 @@ export function ThemeSelect({
         left = Math.max(edge, window.innerWidth - width - edge)
       }
       left = Math.max(edge, Math.min(left, window.innerWidth - width - edge))
-      // Use `bottom` when opening up so CSS zoom animations can't wipe `translateY(-100%)`.
       setMenuRect({
         ...(openUp
           ? { bottom: window.innerHeight - rect.top + gap }
@@ -191,7 +127,7 @@ export function ThemeSelect({
       window.removeEventListener('scroll', updateMenuRect, true)
       window.removeEventListener('resize', updateMenuRect)
     }
-  }, [open, options.length, autoMenuMinWidth, menuPlacement])
+  }, [open, options.length, autoMenuMinWidth])
 
   useEffect(() => {
     if (!open) return
@@ -212,7 +148,7 @@ export function ThemeSelect({
   const { wrapper: splitWrapper, trigger: splitTrigger } = splitSelectClassName(className)
 
   return (
-    <div ref={rootRef} className={cn('relative w-full min-w-0 overflow-hidden', splitWrapper, wrapperClassName)}>
+    <div ref={rootRef} className={cn('relative w-full min-w-0', splitWrapper, wrapperClassName)}>
       <button
         ref={triggerRef}
         type="button"
@@ -225,9 +161,11 @@ export function ThemeSelect({
         onClick={() => !disabled && setOpen((v) => !v)}
         className={cn(themeSelectUi.trigger, splitTrigger, triggerClassName)}
       >
-        <span className={cn('min-w-0 flex-1 truncate leading-none', !selected && 'text-muted-foreground')}>{displayLabel}</span>
+        <span className={cn('min-w-0 flex-1 truncate leading-none', !selected && 'text-muted-foreground')}>
+          {displayLabel}
+        </span>
         <ChevronDown
-          className={cn('h-4 w-4 shrink-0 self-center text-muted-foreground transition-transform', open && 'rotate-180')}
+          className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
           aria-hidden
         />
       </button>
@@ -249,15 +187,27 @@ export function ThemeSelect({
             maxHeight: menuRect.maxHeight,
             zIndex: menuZIndex,
           }}
-          className={cn(themeSelectUi.menu, menuRect.openUp && 'origin-bottom')}
+          className={themeSelectUi.menu}
         >
-          {menuSections.ungrouped.map(renderOption)}
-          {menuSections.groups.map(([group, items]) => (
-            <div key={group} role="group" aria-label={group}>
-              <div className={themeSelectUi.groupLabel}>{group}</div>
-              {items.map(renderOption)}
-            </div>
-          ))}
+          {options.map((opt) => {
+            const isSelected = value === opt.value
+            return (
+              <button
+                key={opt.value || `opt-${opt.label}`}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  onChange(opt.value)
+                  setOpen(false)
+                }}
+                className={themeSelectUi.item}
+              >
+                <span className={themeSelectUi.itemLabel}>{opt.label}</span>
+                {isSelected ? <Check className={themeSelectUi.check} aria-hidden /> : null}
+              </button>
+            )
+          })}
         </div>,
         document.body,
       )}

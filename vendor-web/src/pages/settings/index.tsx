@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useUpdateVendor, useUpdateStore, useStores, vendorKeys } from '@/hooks/useVendor'
 import type { StoreRecord } from '@/api/vendor'
@@ -524,7 +525,7 @@ function SettingsPageBody() {
       {showUnitsZone && (
         <section
           aria-labelledby="settings-units-heading"
-          className="rounded-xl border border-border bg-muted/20 shadow-sm"
+          className="overflow-hidden rounded-xl border border-border bg-muted/20 shadow-sm"
         >
           <header className="flex flex-col gap-2 border-b border-border bg-card/90 px-4 py-2.5 lg:flex-row lg:items-start lg:justify-between">
             {allBusinessUnitsMode ? (
@@ -606,7 +607,7 @@ function SettingsPageBody() {
 
       <section
         aria-labelledby="settings-config-heading"
-        className="rounded-xl border border-border bg-card shadow-sm"
+        className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
       >
         <header className="flex items-center gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
           <div className="min-w-0 flex-1">
@@ -1522,11 +1523,11 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <Label className="mb-1 block text-xs font-medium">Business name</Label>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:items-start">
+          <div className="flex min-w-0 flex-col gap-1">
+            <Label className="text-xs font-medium leading-none">Business name</Label>
             <Input
-              className="h-8 text-sm"
+              className="h-8 py-0 text-sm"
               value={form.business_name}
               onChange={(e) => {
                 const name = e.target.value
@@ -1537,30 +1538,26 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
               maxLength={255}
             />
           </div>
-          <div>
-            <CompanyTypeDropdown
-              label="Business category"
-              value={form.company_type}
-              onChange={(company_type) => setForm({ ...form, company_type })}
-              placeholder="Select business category…"
-              className="[&>button]:h-8 [&>button]:min-h-8 [&>button]:rounded-md [&>button]:text-sm"
-            />
-          </div>
-          <div>
-            <Label className="mb-1 block text-xs font-medium">Offering type</Label>
-            <select
-              className="flex h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+          <CompanyTypeDropdown
+            label="Business category"
+            value={form.company_type}
+            onChange={(company_type) => setForm({ ...form, company_type })}
+            placeholder="Select business category…"
+          />
+          <div className="flex min-w-0 flex-col gap-1">
+            <Label className="text-xs font-medium leading-none">Offering type</Label>
+            <Select
+              className="box-border h-8 w-full rounded-md border border-input bg-background text-sm leading-none"
               value={form.offering_type}
-              onChange={(e) => setForm({ ...form, offering_type: e.target.value })}
-            >
-              {OFFERING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+              onChange={(offering_type) => setForm({ ...form, offering_type })}
+              options={OFFERING_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            />
           </div>
         </div>
 
-        <div>
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <Label className="text-xs font-medium">Tell about your business</Label>
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-xs font-medium leading-none">Tell about your business</Label>
             <span className="text-xs tabular-nums text-muted-foreground">{form.description.length}/2000</span>
           </div>
           <AiDescriptionTextarea
@@ -3303,14 +3300,15 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                 <Label className="text-xs font-medium" required={dnsMode === 'kit_assisted'}>
                   Registrar
                 </Label>
-                <select
+                <Select
                   value={registrar}
-                  onChange={e => setRegistrar(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Select registrar…</option>
-                  {REGISTRAR_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+                  onChange={setRegistrar}
+                  placeholder="Select registrar…"
+                  options={selectOptionsWithBlank(
+                    'Select registrar…',
+                    REGISTRAR_OPTIONS.map(r => ({ value: r, label: r })),
+                  )}
+                />
               </div>
             </div>
 

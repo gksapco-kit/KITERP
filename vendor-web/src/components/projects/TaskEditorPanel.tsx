@@ -7,6 +7,7 @@ import { StaffPicker, type StaffPickerValue } from '@/components/commission/Staf
 import { Loader2, X, Link2, GitBranch } from 'lucide-react'
 import type { ProjectTask, ProjectTaskUpdateInput, TaskPriority, TaskStatus } from '@/types/project'
 import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS } from '@/types/project'
+import { Select } from '@/components/ui/select'
 
 type Props = {
   task: ProjectTask
@@ -107,27 +108,21 @@ export function TaskEditorPanel({ task, allTasks, onClose, onSave, saving }: Pro
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <select
+              <Select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
+                onChange={(v) => setStatus(v as TaskStatus)}
+                className="h-10 rounded-md border border-input bg-background text-sm"
+                options={Object.entries(TASK_STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Priority</Label>
-              <select
+              <Select
                 value={priority}
-                onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                {Object.entries(TASK_PRIORITY_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
+                onChange={(v) => setPriority(v as TaskPriority)}
+                className="h-10 rounded-md border border-input bg-background text-sm"
+                options={Object.entries(TASK_PRIORITY_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+              />
             </div>
           </div>
 
@@ -146,16 +141,16 @@ export function TaskEditorPanel({ task, allTasks, onClose, onSave, saving }: Pro
               <GitBranch className="w-3.5 h-3.5" />
               Parent task (subtask of)
             </Label>
-            <select
+            <Select
               value={parentTaskId}
-              onChange={(e) => setParentTaskId(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">None — top-level task</option>
-              {parentOptions.map((t) => (
-                <option key={t.id} value={t.id}>{t.title}</option>
-              ))}
-            </select>
+              onChange={setParentTaskId}
+              className="h-10 rounded-md border border-input bg-background text-sm"
+              placeholder="None — top-level task"
+              options={[
+                { value: '', label: 'None — top-level task' },
+                ...parentOptions.map((t) => ({ value: t.id, label: t.title })),
+              ]}
+            />
           </div>
 
           <div className="space-y-2">
@@ -183,16 +178,16 @@ export function TaskEditorPanel({ task, allTasks, onClose, onSave, saving }: Pro
               </ul>
             )}
             {linkOptions.length > 0 && (
-              <select
+              <Select
                 value=""
-                onChange={(e) => { if (e.target.value) toggleLink(e.target.value) }}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">Add connected task…</option>
-                {linkOptions.map((t) => (
-                  <option key={t.id} value={t.id}>{t.title}</option>
-                ))}
-              </select>
+                onChange={(v) => { if (v) toggleLink(v) }}
+                className="h-10 rounded-md border border-input bg-background text-sm"
+                placeholder="Add connected task…"
+                options={[
+                  { value: '', label: 'Add connected task…' },
+                  ...linkOptions.map((t) => ({ value: t.id, label: t.title })),
+                ]}
+              />
             )}
           </div>
 

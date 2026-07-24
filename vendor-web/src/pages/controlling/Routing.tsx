@@ -24,6 +24,7 @@ import { formatCurrency } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -161,10 +162,12 @@ function WorkCentersPanel({ companyId }: { companyId: string }) {
             </label>
             <label className="flex flex-col gap-1 text-xs text-gray-600">
               Type
-              <select value={form.wc_type} onChange={f('wc_type')}
-                className="rounded-lg border border-gray-200 px-2 py-2 bg-white">
-                {WC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <Select
+                value={form.wc_type}
+                onChange={v => setForm(p => ({ ...p, wc_type: v }))}
+                className="rounded-lg border border-gray-200 px-2 py-2 bg-white"
+                options={WC_TYPES.map(t => ({ value: t, label: t }))}
+              />
             </label>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
@@ -368,19 +371,29 @@ function RoutingOperationsEditor({ routing, companyId }: { routing: Routing; com
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
             <label className="flex flex-col gap-1 text-gray-600">
               Work centre
-              <select value={opForm.work_center_id} onChange={of('work_center_id')}
-                className="rounded-lg border border-gray-200 px-2 py-2 bg-white text-sm">
-                <option value="">— none —</option>
-                {wcs.map(wc => <option key={wc.id} value={wc.id}>{wc.code} — {wc.name}</option>)}
-              </select>
+              <Select
+                value={opForm.work_center_id}
+                onChange={v => setOpForm(p => ({ ...p, work_center_id: v }))}
+                className="rounded-lg border border-gray-200 px-2 py-2 bg-white text-sm"
+                placeholder="— none —"
+                options={[
+                  { value: '', label: '— none —' },
+                  ...wcs.map(wc => ({ value: String(wc.id), label: `${wc.code} — ${wc.name}` })),
+                ]}
+              />
             </label>
             <label className="flex flex-col gap-1 text-gray-600">
               Activity type
-              <select value={opForm.activity_type_id} onChange={of('activity_type_id')}
-                className="rounded-lg border border-gray-200 px-2 py-2 bg-white text-sm">
-                <option value="">— none —</option>
-                {acts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-              </select>
+              <Select
+                value={opForm.activity_type_id}
+                onChange={v => setOpForm(p => ({ ...p, activity_type_id: v }))}
+                className="rounded-lg border border-gray-200 px-2 py-2 bg-white text-sm"
+                placeholder="— none —"
+                options={[
+                  { value: '', label: '— none —' },
+                  ...acts.map(a => ({ value: String(a.id), label: `${a.code} — ${a.name}` })),
+                ]}
+              />
             </label>
             <label className="flex flex-col gap-1 text-gray-600">
               Direct OH %
@@ -551,12 +564,15 @@ export default function RoutingPage() {
 
       {/* Company selector */}
       {companies.length > 1 && (
-        <select value={activeCo} onChange={e => setCompanyId(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          {companies.map((c: { id: string; code: string; name: string }) =>
-            <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
-          )}
-        </select>
+        <Select
+          value={activeCo}
+          onChange={setCompanyId}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          options={companies.map((c: { id: string; code: string; name: string }) => ({
+            value: String(c.id),
+            label: `${c.code} — ${c.name}`,
+          }))}
+        />
       )}
 
       {/* ── Work centres ─────────────────────────────────────────────── */}
@@ -597,13 +613,19 @@ export default function RoutingPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <label className="flex flex-col gap-1 text-gray-600 col-span-2">
                 Product (optional)
-                <select value={rForm.product_id} onChange={rf('product_id')}
-                  className="rounded-lg border border-gray-200 px-2 py-2 bg-white text-sm">
-                  <option value="">— not assigned —</option>
-                  {products.map((p: { id: string; name: string }) =>
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  )}
-                </select>
+                <Select
+                  value={rForm.product_id}
+                  onChange={v => setRForm(p => ({ ...p, product_id: v }))}
+                  className="rounded-lg border border-gray-200 px-2 py-2 bg-white text-sm"
+                  placeholder="— not assigned —"
+                  options={[
+                    { value: '', label: '— not assigned —' },
+                    ...products.map((p: { id: string; name: string }) => ({
+                      value: String(p.id),
+                      label: String(p.name),
+                    })),
+                  ]}
+                />
               </label>
               <label className="flex flex-col gap-1 text-gray-600">
                 Lot size
@@ -612,10 +634,12 @@ export default function RoutingPage() {
               </label>
               <label className="flex flex-col gap-1 text-gray-600">
                 Status
-                <select value={rForm.status} onChange={rf('status')}
-                  className="rounded-lg border border-gray-200 px-2 py-2 bg-white text-sm">
-                  {ROUTING_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <Select
+                  value={rForm.status}
+                  onChange={v => setRForm(p => ({ ...p, status: v }))}
+                  className="rounded-lg border border-gray-200 px-2 py-2 bg-white text-sm"
+                  options={ROUTING_STATUSES.map(s => ({ value: s, label: s }))}
+                />
               </label>
             </div>
             <div className="flex gap-2">

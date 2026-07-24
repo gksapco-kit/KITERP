@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -235,15 +236,18 @@ function CreateOfferModal({
                       <Settings2 className="h-3 w-3" /> Manage templates
                     </button>
                   </div>
-                  <select value={form.template_id} onChange={e => set('template_id', e.target.value)}
-                    className={denseFieldClass}>
-                    <option value="">
-                      {bestTemplate ? `Auto: ${tplLabel(bestTemplate)}` : '— System default —'}
-                    </option>
-                    {templates.map((t: OfferLetterTemplate) => (
-                      <option key={t.id} value={t.id}>{tplLabel(t)}</option>
-                    ))}
-                  </select>
+                  <Select
+                    value={form.template_id}
+                    onChange={v => set('template_id', v)}
+                    className={denseFieldClass}
+                    options={[
+                      {
+                        value: '',
+                        label: bestTemplate ? `Auto: ${tplLabel(bestTemplate)}` : '— System default —',
+                      },
+                      ...templates.map((t: OfferLetterTemplate) => ({ value: t.id, label: tplLabel(t) })),
+                    ]}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -264,27 +268,39 @@ function CreateOfferModal({
                   <div className="col-span-2 grid grid-cols-3 gap-2">
                     <div>
                       <Label className={denseLabelClass}>Designation</Label>
-                      <select className={denseFieldClass}
-                        value={form.designation_id} onChange={e => set('designation_id', e.target.value)}>
-                        <option value="">— None —</option>
-                        {designations.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
+                      <Select
+                        className={denseFieldClass}
+                        value={form.designation_id}
+                        onChange={v => set('designation_id', v)}
+                        options={[
+                          { value: '', label: '— None —' },
+                          ...designations.map((d: any) => ({ value: d.id, label: d.name })),
+                        ]}
+                      />
                     </div>
                     <div>
                       <Label className={denseLabelClass}>Department</Label>
-                      <select className={denseFieldClass}
-                        value={form.department_id} onChange={e => set('department_id', e.target.value)}>
-                        <option value="">— None —</option>
-                        {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
+                      <Select
+                        className={denseFieldClass}
+                        value={form.department_id}
+                        onChange={v => set('department_id', v)}
+                        options={[
+                          { value: '', label: '— None —' },
+                          ...departments.map((d: any) => ({ value: d.id, label: d.name })),
+                        ]}
+                      />
                     </div>
                     <div>
                       <Label className={denseLabelClass}>Store / Branch</Label>
-                      <select className={denseFieldClass}
-                        value={form.store_id} onChange={e => set('store_id', e.target.value)}>
-                        <option value="">— None —</option>
-                        {stores.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
+                      <Select
+                        className={denseFieldClass}
+                        value={form.store_id}
+                        onChange={v => set('store_id', v)}
+                        options={[
+                          { value: '', label: '— None —' },
+                          ...stores.map((s: any) => ({ value: s.id, label: s.name })),
+                        ]}
+                      />
                     </div>
                   </div>
                   <div>
@@ -316,12 +332,12 @@ function CreateOfferModal({
                     <label className={cn(denseLabelClass, 'flex items-center gap-1')}>
                       <LayoutTemplate className="h-3.5 w-3.5" /> Layout
                     </label>
-                    <select value={form.layout} onChange={e => set('layout', e.target.value)}
-                      className={denseFieldClass}>
-                      {OFFER_LAYOUTS.map(l => (
-                        <option key={l.id} value={l.id}>{l.label}</option>
-                      ))}
-                    </select>
+                    <Select
+                      value={form.layout}
+                      onChange={v => set('layout', v)}
+                      className={denseFieldClass}
+                      options={OFFER_LAYOUTS.map(l => ({ value: l.id, label: l.label }))}
+                    />
                     <p className="mt-0.5 text-[10px] text-muted-foreground">{layoutLabel(form.layout)}</p>
                   </div>
                   <div>

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useCompanies } from '@/hooks/useFinance'
 import { useWipReport } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
+import { Select } from '@/components/ui/select'
 import { ArrowLeft } from 'lucide-react'
 
 export default function ControllingWipReportPage() {
@@ -38,28 +39,26 @@ export default function ControllingWipReportPage() {
           {companies.length > 0 && (
             <label className="flex flex-col gap-1 text-xs text-gray-600">
               Company
-              <select
+              <Select
                 value={activeCo}
-                onChange={e => setCompanyId(e.target.value)}
+                onChange={setCompanyId}
                 className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white min-w-[160px]"
-              >
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>{c.code}</option>
-                ))}
-              </select>
+                options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+              />
             </label>
           )}
           <label className="flex flex-col gap-1 text-xs text-gray-600">
             Group by
-            <select
+            <Select
               value={groupBy}
-              onChange={e => setGroupBy(e.target.value as typeof groupBy)}
+              onChange={v => setGroupBy(v as typeof groupBy)}
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
-            >
-              <option value="project">Project / internal</option>
-              <option value="order_kind">Order kind</option>
-              <option value="status">Status</option>
-            </select>
+              options={[
+                { value: 'project', label: 'Project / internal' },
+                { value: 'order_kind', label: 'Order kind' },
+                { value: 'status', label: 'Status' },
+              ]}
+            />
           </label>
         </div>
       </div>

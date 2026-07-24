@@ -28,6 +28,7 @@ import {
 import { coursesApi } from '@/api/courses'
 import type { VendorCourse, VendorCourseCreate, CourseSyllabusWeek, CoursePerk } from '@/api/courses'
 
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 const COURSE_LEVELS = ['Beginner', 'Intermediate', 'Advanced']
 const PERK_ICONS = ['clock', 'video', 'award', 'users']
@@ -100,13 +101,12 @@ function PerksEditor({
     <div className="space-y-2">
       {items.map((row, i) => (
         <div key={i} className="grid grid-cols-[90px_1fr_28px] gap-1.5 items-center">
-          <select
+          <ThemeSelect
             value={row.icon ?? 'clock'}
-            onChange={e => onChange(items.map((r, idx) => idx === i ? { ...r, icon: e.target.value } : r))}
+            onChange={v => onChange(items.map((r, idx) => idx === i ? { ...r, icon: v } : r))}
+            options={PERK_ICONS.map(icon => ({ value: icon, label: icon }))}
             className="h-8 rounded-lg border border-input bg-background px-2 text-xs"
-          >
-            {PERK_ICONS.map(icon => <option key={icon} value={icon}>{icon}</option>)}
-          </select>
+          />
           <Input
             value={row.text}
             onChange={e => onChange(items.map((r, idx) => idx === i ? { ...r, text: e.target.value } : r))}
@@ -319,9 +319,12 @@ function CourseModal({
             <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
               <div className={fieldGap}>
                 <Label className={labelCls}>Level</Label>
-                <select value={level} onChange={e => setLevel(e.target.value)} className={selectCls}>
-                  {COURSE_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
+                <ThemeSelect
+                  value={level}
+                  onChange={setLevel}
+                  options={COURSE_LEVELS.map(l => ({ value: l, label: l }))}
+                  className={selectCls}
+                />
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Duration</Label>

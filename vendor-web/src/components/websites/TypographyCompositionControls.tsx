@@ -25,6 +25,7 @@ import {
   WrapText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Select } from '@/components/ui/select'
 
 export type TextAlignH = 'left' | 'center' | 'right'
 export type TextAlignV = 'top' | 'middle' | 'bottom'
@@ -184,34 +185,29 @@ export function FontSizePxControl({
         <span className="text-[11px] font-bold leading-none">A</span>
         <ChevronDown className="w-2.5 h-2.5 shrink-0 text-primary" strokeWidth={2.5} />
       </button>
-      <select
-        className={cn(
-          'cursor-pointer border-0 bg-white font-medium text-gray-800 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40',
-          stacked
-            ? 'h-full min-w-0 flex-1 px-1 text-[10px]'
-            : cn('shrink-0', s.select),
-        )}
-        value={normalized != null ? String(normalized) : ''}
-        onChange={e => {
-          const v = e.target.value
-          onChange(v ? Math.round(Number(v)) : null)
-        }}
+      <div
         onClick={e => e.stopPropagation()}
         onMouseDown={e => {
-          // Parent typography toolbar uses preventDefault on mousedown (keeps canvas focus).
           pinInlineTextSelectionBeforeToolbarAction()
           e.stopPropagation()
           onMouseDown?.(e)
         }}
       >
-        <option value="">Auto</option>
-        {extraSize != null ? (
-          <option key={`extra-${extraSize}`} value={extraSize}>{extraSize}</option>
-        ) : null}
-        {FONT_SIZE_PX_CHOICES.map(n => (
-          <option key={n} value={n}>{n}</option>
-        ))}
-      </select>
+        <Select
+          value={normalized != null ? String(normalized) : ''}
+          onChange={v => onChange(v ? Math.round(Number(v)) : null)}
+          options={[
+            { value: '', label: 'Auto' },
+            ...(extraSize != null ? [{ value: String(extraSize), label: String(extraSize) }] : []),
+            ...FONT_SIZE_PX_CHOICES.map(n => ({ value: String(n), label: String(n) })),
+          ]}
+          className={cn(
+            'border-0 bg-white font-medium text-gray-800',
+            stacked ? 'h-full min-w-0 flex-1 px-1 text-[10px]' : cn('shrink-0', s.select),
+          )}
+          menuMinWidth={0}
+        />
+      </div>
     </div>
   )
 }
@@ -240,44 +236,40 @@ export function FontFamilyControl({
       : null
 
   return (
-    <select
-      title="Font family"
-      aria-label="Font family"
-      className={cn(
-        'w-full cursor-pointer border-0 bg-white font-medium text-gray-800 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40 truncate',
-        stacked
-          ? 'h-7 shrink-0 px-2 text-[10px]'
-          : cn(s.select, 'border-l border-gray-200'),
-        className,
-      )}
-      value={current}
-      onChange={e => {
-        const next = e.target.value.trim()
-        if (next) ensureBuilderFontLoaded(next)
-        onChange(next || null)
-      }}
+    <div
       onClick={e => e.stopPropagation()}
       onMouseDown={e => {
-        // Parent typography toolbar uses preventDefault on mousedown (keeps canvas focus).
-        // Stop propagation so native <select> can open and show font choices.
         pinInlineTextSelectionBeforeToolbarAction()
         e.stopPropagation()
         onMouseDown?.(e)
       }}
-      style={current ? builderFontPreviewStyle(current) : undefined}
+      className={cn(
+        'w-full',
+        stacked ? 'h-7 shrink-0' : s.select,
+        className,
+      )}
     >
-      <option value="">Auto</option>
-      {extraFont ? (
-        <option value={extraFont} style={builderFontPreviewStyle(extraFont)}>
-          {extraFont}
-        </option>
-      ) : null}
-      {BUILDER_FONT_FAMILIES.map(font => (
-        <option key={font} value={font} style={builderFontPreviewStyle(font)}>
-          {font}
-        </option>
-      ))}
-    </select>
+      <Select
+        value={current}
+        onChange={v => {
+          const next = v.trim()
+          if (next) ensureBuilderFontLoaded(next)
+          onChange(next || null)
+        }}
+        options={[
+          { value: '', label: 'Auto' },
+          ...(extraFont ? [{ value: extraFont, label: extraFont }] : []),
+          ...BUILDER_FONT_FAMILIES.map(font => ({ value: font, label: font })),
+        ]}
+        placeholder="Auto"
+        aria-label="Font family"
+        className={cn(
+          'border-0 bg-white font-medium text-gray-800 truncate',
+          stacked ? 'h-7 px-2 text-[10px]' : cn(s.select, 'border-l border-gray-200'),
+        )}
+        menuMinWidth={220}
+      />
+    </div>
   )
 }
 

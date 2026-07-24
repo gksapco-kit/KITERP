@@ -3,6 +3,7 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Plus, Trash2, Save, Loader2, Users, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { useServiceResources, useUpdateServiceResources, useHREmployees } from '@/hooks/useVendor'
 
 interface ResourceRow {
@@ -30,6 +31,11 @@ const RESOURCE_TYPES = [
   { value: 'work_center', label: 'Work Center / Station' },
   { value: 'equipment', label: 'Equipment / Tool' },
   { value: 'room', label: 'Room / Facility' },
+]
+
+const COST_TYPE_OPTIONS = [
+  { value: 'hourly', label: 'Per Hour' },
+  { value: 'fixed', label: 'Fixed' },
 ]
 
 function calcLineCost(row: ResourceRow): number {
@@ -201,10 +207,12 @@ export function ServiceResourcesEditor({ serviceId, serviceName, defaultDuration
               {rows.map((row, idx) => (
                 <tr key={idx} className="hover:bg-gray-50">
                   <td className="px-3 py-2">
-                    <select value={row.resource_type} onChange={e => updateRow(idx, 'resource_type', e.target.value)}
-                      className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white">
-                      {RESOURCE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
+                    <Select
+                      value={row.resource_type}
+                      onChange={v => updateRow(idx, 'resource_type', v)}
+                      options={RESOURCE_TYPES}
+                      className="h-8 text-xs"
+                    />
                   </td>
                   <td className="px-3 py-2 relative">
                     {row.resource_type === 'employee' ? (
@@ -250,11 +258,12 @@ export function ServiceResourcesEditor({ serviceId, serviceName, defaultDuration
                       placeholder="min" className="w-20 text-xs h-8" disabled={row.cost_type === 'fixed'} />
                   </td>
                   <td className="px-3 py-2">
-                    <select value={row.cost_type} onChange={e => updateRow(idx, 'cost_type', e.target.value)}
-                      className="w-full h-8 px-2 border border-gray-200 rounded-lg text-xs bg-white">
-                      <option value="hourly">Per Hour</option>
-                      <option value="fixed">Fixed</option>
-                    </select>
+                    <Select
+                      value={row.cost_type}
+                      onChange={v => updateRow(idx, 'cost_type', v)}
+                      options={COST_TYPE_OPTIONS}
+                      className="h-8 text-xs"
+                    />
                   </td>
                   <td className="px-3 py-2">
                     <Input type="number" min={0} step={0.01} value={row.cost_rate}

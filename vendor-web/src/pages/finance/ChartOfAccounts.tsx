@@ -13,6 +13,7 @@ import {
   ArrowUpRight, ArrowDownLeft, CalendarDays,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   dialogOverlayClass,
   dialogPanelClass,
@@ -829,26 +830,26 @@ function ConfigPanel({
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Normal Balance</label>
-                        <select
+                        <Select
                           value={cfg.normalBalance}
-                          onChange={e => update(cfg.type, { normalBalance: e.target.value as NormalBalance })}
-                          className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                        >
-                          <option>Debit</option>
-                          <option>Credit</option>
-                        </select>
+                          onChange={v => update(cfg.type, { normalBalance: v as NormalBalance })}
+                          options={[
+                            { value: 'Debit', label: 'Debit' },
+                            { value: 'Credit', label: 'Credit' },
+                          ]}
+                        />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Financial Statement</label>
-                        <select
+                        <Select
                           value={cfg.statement}
-                          onChange={e => update(cfg.type, { statement: e.target.value as Statement })}
-                          className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                        >
-                          <option>Balance Sheet</option>
-                          <option>Income Statement</option>
-                          <option>None</option>
-                        </select>
+                          onChange={v => update(cfg.type, { statement: v as Statement })}
+                          options={[
+                            { value: 'Balance Sheet', label: 'Balance Sheet' },
+                            { value: 'Income Statement', label: 'Income Statement' },
+                            { value: 'None', label: 'None' },
+                          ]}
+                        />
                       </div>
                     </div>
 
@@ -1162,42 +1163,45 @@ export default function ChartOfAccounts() {
             {/* Subtype */}
             <div className="flex items-center gap-1.5">
               <label className="text-xs text-muted-foreground whitespace-nowrap">Subtype</label>
-              <select
+              <Select
                 value={subtypeFilter}
-                onChange={e => setSubtypeFilter(e.target.value)}
-                className="border border-input rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-              >
-                <option value="All">All subtypes</option>
-                {availableSubtypes.map(st => <option key={st} value={st}>{st}</option>)}
-              </select>
+                onChange={setSubtypeFilter}
+                className="text-xs"
+                options={[
+                  { value: 'All', label: 'All subtypes' },
+                  ...availableSubtypes.map(st => ({ value: st, label: st })),
+                ]}
+              />
             </div>
 
             {/* Status */}
             <div className="flex items-center gap-1.5">
               <label className="text-xs text-muted-foreground">Status</label>
-              <select
+              <Select
                 value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value as any)}
-                className="border border-input rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-              >
-                <option value="All">All</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
+                onChange={v => setStatusFilter(v as typeof statusFilter)}
+                className="text-xs"
+                options={[
+                  { value: 'All', label: 'All' },
+                  { value: 'Active', label: 'Active' },
+                  { value: 'Inactive', label: 'Inactive' },
+                ]}
+              />
             </div>
 
             {/* Financial statement */}
             <div className="flex items-center gap-1.5">
               <label className="text-xs text-muted-foreground whitespace-nowrap">Statement</label>
-              <select
+              <Select
                 value={statementFilter}
-                onChange={e => setStatementFilter(e.target.value)}
-                className="border border-input rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
-              >
-                <option value="All">All</option>
-                <option value="BS">Balance Sheet</option>
-                <option value="PL">Income Statement (P&L)</option>
-              </select>
+                onChange={setStatementFilter}
+                className="text-xs"
+                options={[
+                  { value: 'All', label: 'All' },
+                  { value: 'BS', label: 'Balance Sheet' },
+                  { value: 'PL', label: 'Income Statement (P&L)' },
+                ]}
+              />
             </div>
 
             {activeFilters > 0 && (
@@ -1298,14 +1302,13 @@ export default function ChartOfAccounts() {
 
               <div className="min-w-0">
                 <Label className="block text-xs font-medium text-muted-foreground mb-1.5">Subtype</Label>
-                <select
+                <Select
                   value={form.account_subtype}
-                  onChange={e => setForm(f => ({ ...f, account_subtype: e.target.value }))}
-                  className="form-select w-full h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none"
-                >
-                  <option value="">— None —</option>
-                  {activeSubtypes.map(st => <option key={st} value={st}>{st}</option>)}
-                </select>
+                  onChange={v => setForm(f => ({ ...f, account_subtype: v }))}
+                  placeholder="— None —"
+                  className="w-full h-10"
+                  options={selectOptionsWithBlank('— None —', activeSubtypes.map(st => ({ value: st, label: st })))}
+                />
               </div>
 
               {[
@@ -1364,17 +1367,19 @@ export default function ChartOfAccounts() {
                 {(form as any).is_reconciliation_account && (
                   <div className="min-w-0">
                     <Label className="block text-xs font-medium text-muted-foreground mb-1.5">Subledger</Label>
-                    <select
+                    <Select
                       value={(form as any).reconciliation_subledger || ''}
-                      onChange={e => setForm(f => ({ ...f, reconciliation_subledger: e.target.value }))}
-                      className="form-select w-full h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none"
-                    >
-                      <option value="">— Select subledger —</option>
-                      <option value="customer">Customer (AR)</option>
-                      <option value="supplier">Supplier (AP)</option>
-                      <option value="asset">Fixed Asset</option>
-                      <option value="bank">Bank / Cash</option>
-                    </select>
+                      onChange={v => setForm(f => ({ ...f, reconciliation_subledger: v }))}
+                      placeholder="— Select subledger —"
+                      className="w-full h-10"
+                      options={[
+                        { value: '', label: '— Select subledger —' },
+                        { value: 'customer', label: 'Customer (AR)' },
+                        { value: 'supplier', label: 'Supplier (AP)' },
+                        { value: 'asset', label: 'Fixed Asset' },
+                        { value: 'bank', label: 'Bank / Cash' },
+                      ]}
+                    />
                   </div>
                 )}
               </div>

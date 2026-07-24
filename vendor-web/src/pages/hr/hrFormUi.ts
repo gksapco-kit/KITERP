@@ -1,9 +1,9 @@
 /** Shared dark-mode form chrome for HR pages. */
 export const hrInputClass =
-  'w-full rounded-lg border-[1.5px] border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
+  'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
 
 export const hrSelectClass =
-  'h-10 rounded-lg border-[1.5px] border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
+  'h-10 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
 
 export const hrInfoBannerClass =
   'rounded-lg border border-primary/25 bg-primary/10 px-3 py-2.5 text-xs text-foreground sm:text-sm'
@@ -45,6 +45,6 @@ export const hrStatusBadge: Record<string, string> = {
 
 export const hrLabelClass = 'text-xs font-medium uppercase text-muted-foreground'
 
-export const hrEmptyStateClass = 'rounded-xl border-[1.5px] border-border bg-card p-12 text-center'
+export const hrEmptyStateClass = 'overflow-hidden rounded-xl border border-border bg-card p-12 text-center'
 
-export const hrCardClass = 'rounded-xl border-[1.5px] border-border bg-card text-foreground shadow-sm'
+export const hrCardClass = 'overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-sm'

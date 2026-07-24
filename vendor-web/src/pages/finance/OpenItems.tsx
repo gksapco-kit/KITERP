@@ -4,6 +4,7 @@ import {
   ChevronDown, Search, Filter, Trash2, ListChecks, BookOpen,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useAccounts, useOpenItems, useClearOpenItems, useResetClearing, useClearingBatches } from '@/hooks/useFinance'
 import type { OpenItem, ClearingBatch } from '@/api/finance'
 
@@ -121,28 +122,27 @@ export default function OpenItems() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">Account</label>
-          <select
+          <Select
             value={accountId}
-            onChange={e => { setAccountId(e.target.value); setSelected(new Set()) }}
-            className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">— Select reconcilable account —</option>
-            {reconcilableAccounts.map((a: any) => (
-              <option key={a.id} value={a.id}>{a.code} – {a.name}</option>
-            ))}
-          </select>
+            onChange={v => { setAccountId(v); setSelected(new Set()) }}
+            placeholder="— Select reconcilable account —"
+            options={selectOptionsWithBlank(
+              '— Select reconcilable account —',
+              reconcilableAccounts.map((a: any) => ({ value: a.id, label: `${a.code} – ${a.name}` })),
+            )}
+          />
         </div>
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">Party Type</label>
-          <select
+          <Select
             value={partyTypeFilter}
-            onChange={e => setPartyTypeFilter(e.target.value)}
-            className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">All parties</option>
-            <option value="customer">Customer</option>
-            <option value="supplier">Supplier</option>
-          </select>
+            onChange={setPartyTypeFilter}
+            options={[
+              { value: '', label: 'All parties' },
+              { value: 'customer', label: 'Customer' },
+              { value: 'supplier', label: 'Supplier' },
+            ]}
+          />
         </div>
         <div className="flex items-end">
           <button

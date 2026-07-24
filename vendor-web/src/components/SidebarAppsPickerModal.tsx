@@ -65,7 +65,7 @@ function SubmenuBubble({
     <span
       title={title ?? item.label}
       className={cn(
-        'inline-flex max-w-full items-center gap-1 rounded-full border-[1.5px] py-0.5 pl-0.5 pr-2',
+        'inline-flex max-w-full items-center gap-1 rounded-full border py-0.5 pl-0.5 pr-2',
         installed
           ? 'border-primary/30 bg-primary/[0.08] text-foreground'
           : 'border-[color:var(--border-color)] bg-muted/25 text-muted-foreground',

@@ -15,6 +15,21 @@ import { useAuthStore } from '@/stores/authStore'
 import { canCreateBusinessAccounts } from '@/lib/platformAccess'
 import { adminKeys } from '@/hooks/useAdmin'
 import { ArrowLeft, Loader2, UserPlus, Copy, CheckCircle2 } from 'lucide-react'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
+
+const BUSINESS_TYPE_OPTIONS = [
+  { value: 'individual', label: 'Individual' },
+  { value: 'partnership', label: 'Partnership' },
+  { value: 'llc', label: 'LLC' },
+  { value: 'corporation', label: 'Corporation' },
+  { value: 'proprietorship', label: 'Proprietorship' },
+]
+
+const OFFERING_TYPE_OPTIONS = [
+  { value: 'both', label: 'Products & Services' },
+  { value: 'products', label: 'Products Only' },
+  { value: 'services', label: 'Services Only' },
+]
 
 const EMAIL_OR_PHONE_MSG = 'Provide either login email or owner phone'
 
@@ -87,6 +102,7 @@ export default function AddVendor() {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<AddVendorForm>({
     resolver: zodResolver(addVendorSchema),
@@ -97,6 +113,9 @@ export default function AddVendor() {
       owner_password: generatePassword(),
     },
   })
+
+  const businessType = watch('business_type')
+  const offeringType = watch('offering_type')
 
   const onInvalid = (formErrors: typeof errors) => {
     if (formErrors.owner_email?.message === EMAIL_OR_PHONE_MSG) {
@@ -417,23 +436,25 @@ export default function AddVendor() {
                 <Label htmlFor="business_type" className="text-xs">
                   Business Type *
                 </Label>
-                <select id="business_type" {...register('business_type')} className={fieldClass}>
-                  <option value="individual">Individual</option>
-                  <option value="partnership">Partnership</option>
-                  <option value="llc">LLC</option>
-                  <option value="corporation">Corporation</option>
-                  <option value="proprietorship">Proprietorship</option>
-                </select>
+                <ThemeSelect
+                  id="business_type"
+                  value={businessType}
+                  onChange={(v) => setValue('business_type', v as AddVendorForm['business_type'], { shouldValidate: true })}
+                  options={BUSINESS_TYPE_OPTIONS}
+                  className={fieldClass}
+                />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="offering_type" className="text-xs">
                   Offering *
                 </Label>
-                <select id="offering_type" {...register('offering_type')} className={fieldClass}>
-                  <option value="both">Products & Services</option>
-                  <option value="products">Products Only</option>
-                  <option value="services">Services Only</option>
-                </select>
+                <ThemeSelect
+                  id="offering_type"
+                  value={offeringType}
+                  onChange={(v) => setValue('offering_type', v as AddVendorForm['offering_type'], { shouldValidate: true })}
+                  options={OFFERING_TYPE_OPTIONS}
+                  className={fieldClass}
+                />
               </div>
               <div className="space-y-1 sm:col-span-2">
                 <Label htmlFor="description" className="text-xs">

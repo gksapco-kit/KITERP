@@ -151,7 +151,7 @@ function MetaRow({
 }) {
   const copyValue = copyValueProp ?? displayUrl ?? value
   return (
-    <div className="flex items-start gap-2 border-t border-border bg-muted/20 px-2.5 py-2">
+    <div className="flex items-start gap-2 bg-muted/20 px-2.5 py-2">
       <div className="min-w-0 flex-1">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
@@ -234,85 +234,83 @@ export default function VendorStorefrontLinksCard({
         : 'Customer-facing shop'
 
   const cardBody = (
-    <>
-      <div className="flex min-h-0 divide-x divide-border">
-        {/* Left half — store links */}
-        <div className="min-w-0 flex-1 divide-y divide-border">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,42%)] sm:items-stretch">
+      {/* Store links */}
+      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-background divide-y divide-border">
+        <LinkRow
+          href={storeUrl}
+          icon={Store}
+          label="Customer store"
+          hint={storeHint}
+          copyKey="store"
+          copied={copied}
+          onCopy={copyText}
+        />
+        {hrUrl ? (
           <LinkRow
-            href={storeUrl}
-            icon={Store}
-            label="Customer store"
-            hint={storeHint}
-            copyKey="store"
+            href={hrUrl}
+            icon={UserCircle}
+            label="HR & employee login"
+            hint={hrCentral ? 'Shared ESS portal for all staff' : outletCode ? 'ESS portal for this business unit' : 'ESS portal for staff (vendor-wide)'}
+            iconClassName="text-emerald-600"
+            copyKey="hr"
             copied={copied}
             onCopy={copyText}
           />
-          {hrUrl ? (
-            <LinkRow
-              href={hrUrl}
-              icon={UserCircle}
-              label="HR & employee login"
-              hint={hrCentral ? 'Shared ESS portal for all staff' : outletCode ? 'ESS portal for this business unit' : 'ESS portal for staff (vendor-wide)'}
-              iconClassName="text-emerald-600"
-              copyKey="hr"
-              copied={copied}
-              onCopy={copyText}
-            />
-          ) : null}
-        </div>
-
-        {/* Right half — External Domain */}
-        <div className="flex w-[45%] shrink-0 flex-col justify-between gap-2 px-3 py-3">
-          <div className="flex items-start gap-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
-              <Globe className={cn('h-3.5 w-3.5', extEnabled ? 'text-primary' : 'text-muted-foreground')} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-foreground">External Domain</p>
-              {extEnabled && extDomain ? (
-                <p className="mt-0.5 truncate font-mono text-[11px] text-primary" title={extDomain}>{extDomain}</p>
-              ) : (
-                <p className="mt-0.5 text-[11px] text-muted-foreground">Not configured</p>
-              )}
-              <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
-                Point your own domain to this business front. Manage DNS yourself or let KIT ERP set it up.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              // If already on settings, dispatch event to open the section directly
-              window.dispatchEvent(new CustomEvent('open-settings-section', { detail: 'external-domain' }))
-              navigate('/settings?section=external-domain', { replace: true })
-            }}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
-          >
-            <Settings className="h-3 w-3 shrink-0" />
-            {extEnabled && extDomain ? 'Update domain' : 'Configure'}
-          </button>
-        </div>
+        ) : null}
       </div>
 
-      {outlet && !hideOutletRow ? (
-        <MetaRow
-          label="Branch"
-          value={outlet}
-          displayUrl={storeUrl}
-          copyValue={outlet}
-          copyKey="outlet"
-          copied={copied}
-          openHref={storeUrl}
-          onCopy={copyText}
-        />
-      ) : null}
-    </>
+      {/* External Domain */}
+      <div className="flex h-full min-h-0 flex-col justify-between gap-2 overflow-hidden rounded-lg border border-border bg-background px-3 py-3">
+        <div className="flex items-start gap-2">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
+            <Globe className={cn('h-3.5 w-3.5', extEnabled ? 'text-primary' : 'text-muted-foreground')} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-foreground">External Domain</p>
+            {extEnabled && extDomain ? (
+              <p className="mt-0.5 truncate font-mono text-[11px] text-primary" title={extDomain}>{extDomain}</p>
+            ) : (
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Not configured</p>
+            )}
+            <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+              Point your own domain to this business front. Manage DNS yourself or let KIT ERP set it up.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('open-settings-section', { detail: 'external-domain' }))
+            navigate('/settings?section=external-domain', { replace: true })
+          }}
+          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          <Settings className="h-3 w-3 shrink-0" />
+          {extEnabled && extDomain ? 'Update domain' : 'Configure'}
+        </button>
+      </div>
+    </div>
   )
 
   if (embedded) {
     return (
       <div className="space-y-1.5">
-        <div className="overflow-hidden rounded-lg border border-border bg-background">{cardBody}</div>
+        {cardBody}
+        {outlet && !hideOutletRow ? (
+          <div className="overflow-hidden rounded-lg border border-border bg-background">
+            <MetaRow
+              label="Branch"
+              value={outlet}
+              displayUrl={storeUrl}
+              copyValue={outlet}
+              copyKey="outlet"
+              copied={copied}
+              openHref={storeUrl}
+              onCopy={copyText}
+            />
+          </div>
+        ) : null}
         <p className="text-xs leading-snug text-muted-foreground">
           Use the slug when your email is linked to more than one vendor account.
         </p>
@@ -323,7 +321,21 @@ export default function VendorStorefrontLinksCard({
   return (
     <div className="mx-3 mb-2 space-y-2 rounded-lg border border-border bg-card px-3 py-2.5 shadow-sm">
       <p className="text-xs font-medium text-foreground">Public links</p>
-      <div className="overflow-hidden rounded-md border border-border">{cardBody}</div>
+      {cardBody}
+      {outlet && !hideOutletRow ? (
+        <div className="overflow-hidden rounded-lg border border-border bg-background">
+          <MetaRow
+            label="Branch"
+            value={outlet}
+            displayUrl={storeUrl}
+            copyValue={outlet}
+            copyKey="outlet"
+            copied={copied}
+            openHref={storeUrl}
+            onCopy={copyText}
+          />
+        </div>
+      ) : null}
       <p className="text-xs leading-snug text-muted-foreground">
         Copy or open links in a new tab. Use the slug when your email is linked to more than one vendor account.
       </p>

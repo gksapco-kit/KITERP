@@ -622,7 +622,7 @@ export default function Dashboard() {
 
       {/* Orders Report */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <CardTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-info" /> Orders Report
@@ -657,30 +657,31 @@ export default function Dashboard() {
               View all <ExternalLink className="w-3 h-3" />
             </button>
           </div>
+
+          {/* Compact summary stats */}
+          <div className="mt-3 flex flex-wrap items-stretch gap-2">
+            <div className="flex min-w-[7rem] flex-1 items-center justify-between gap-3 rounded-lg bg-info/10 px-3 py-2">
+              <span className="text-xs text-muted-foreground">Total Count</span>
+              <span className="text-base font-bold text-foreground tabular-nums">{orderStats.count}</span>
+            </div>
+            <div className="flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-lg bg-success/10 px-3 py-2">
+              <span className="text-xs text-muted-foreground">Total Revenue</span>
+              <span className="text-base font-bold text-foreground tabular-nums">{formatCurrency(orderStats.revenue)}</span>
+            </div>
+            <div className="flex min-w-[8rem] flex-1 items-center justify-between gap-3 rounded-lg bg-warning/10 px-3 py-2">
+              <span className="text-xs text-muted-foreground">Avg Value</span>
+              <span className="text-base font-bold text-foreground tabular-nums">{formatCurrency(orderStats.avg)}</span>
+            </div>
+          </div>
         </CardHeader>
 
         <CardContent className="p-0">
-          {/* Summary stats */}
-          <div className="grid grid-cols-3 gap-4 px-5 pb-4">
-            <div className="rounded-xl bg-info/10 py-3 text-center">
-              <p className="text-xs text-muted-foreground">Total Count</p>
-              <p className="mt-0.5 text-lg font-bold text-foreground">{orderStats.count}</p>
-            </div>
-            <div className="rounded-xl bg-success/10 py-3 text-center">
-              <p className="text-xs text-muted-foreground">Total Revenue</p>
-              <p className="mt-0.5 text-lg font-bold text-foreground">{formatCurrency(orderStats.revenue)}</p>
-            </div>
-            <div className="rounded-xl bg-warning/10 py-3 text-center">
-              <p className="text-xs text-muted-foreground">Avg Value</p>
-              <p className="mt-0.5 text-lg font-bold text-foreground">{formatCurrency(orderStats.avg)}</p>
-            </div>
-          </div>
-
           {/* Toolbar */}
           <TableToolbar
             search={orderSearch}
             onSearchChange={(v) => { setOrderSearch(v); setOrderPage(0) }}
             searchPlaceholder={isBookingTab ? 'Search bookings…' : 'Search orders…'}
+            searchWrapperClassName="min-w-[10rem] flex-1 basis-[12rem] sm:basis-auto sm:max-w-xs"
             sortOptions={isBookingTab
               ? [
                   { value: 'booking_date',   label: 'Date' },

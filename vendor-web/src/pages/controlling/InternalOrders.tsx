@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus, ExternalLink, FolderOpen, Target, X } from 'lucide-react'
@@ -105,10 +106,12 @@ function BudgetPanel({ orderId, companyId }: { orderId: string; companyId: strin
       {showAdd && (
         <form onSubmit={handleAdd} className="rounded-lg border border-primary/30 bg-accent p-3 space-y-2">
           <div className="grid grid-cols-3 gap-2">
-            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="rounded border border-gray-200 px-2 py-1.5 text-xs">
-              {BUDGET_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <Select
+              value={form.category}
+              onChange={v => setForm(f => ({ ...f, category: v }))}
+              className="rounded border border-gray-200 px-2 py-1.5 text-xs"
+              options={BUDGET_CATEGORIES.map(c => ({ value: c, label: c }))}
+            />
             <input type="number" step="0.01" value={form.amount_budgeted}
               onChange={e => setForm(f => ({ ...f, amount_budgeted: e.target.value }))}
               className="rounded border border-gray-200 px-2 py-1.5 text-xs" placeholder="Amount" required />
@@ -253,19 +256,26 @@ export default function InternalOrdersPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         {companies.length > 1 && (
-          <select value={activeCo} onChange={e => setCompanyId(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-            {companies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
-          </select>
+          <Select
+            value={activeCo}
+            onChange={setCompanyId}
+            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+            options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+          />
         )}
-        <select value={kindFilter} onChange={e => setKindFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          {ORDER_KINDS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s || 'All statuses'}</option>)}
-        </select>
+        <Select
+          value={kindFilter}
+          onChange={setKindFilter}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          options={ORDER_KINDS.map(k => ({ value: k.value, label: k.label }))}
+        />
+        <Select
+          value={statusFilter}
+          onChange={setStatusFilter}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          placeholder="All statuses"
+          options={STATUS_OPTIONS.map(s => ({ value: s, label: s || 'All statuses' }))}
+        />
       </div>
 
       {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm p-3">{error}</div>}
@@ -356,23 +366,31 @@ export default function InternalOrdersPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="block text-xs font-medium text-gray-600 mb-1" required>Order Kind</Label>
-                  <select value={form.order_kind} onChange={e => setForm(f => ({ ...f, order_kind: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                    <option value="project">Project</option>
-                    <option value="internal">Internal</option>
-                    <option value="assembly">Assembly</option>
-                    <option value="process">Process</option>
-                  </select>
+                  <Select
+                    value={form.order_kind}
+                    onChange={v => setForm(f => ({ ...f, order_kind: v }))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                    options={[
+                      { value: 'project', label: 'Project' },
+                      { value: 'internal', label: 'Internal' },
+                      { value: 'assembly', label: 'Assembly' },
+                      { value: 'process', label: 'Process' },
+                    ]}
+                  />
                 </div>
                 <div>
                   <Label className="block text-xs font-medium text-gray-600 mb-1">Priority</Label>
-                  <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
+                  <Select
+                    value={form.priority}
+                    onChange={v => setForm(f => ({ ...f, priority: v }))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                    options={[
+                      { value: 'low', label: 'Low' },
+                      { value: 'medium', label: 'Medium' },
+                      { value: 'high', label: 'High' },
+                      { value: 'urgent', label: 'Urgent' },
+                    ]}
+                  />
                 </div>
               </div>
               <div>

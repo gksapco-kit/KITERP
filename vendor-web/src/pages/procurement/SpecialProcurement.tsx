@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { TableToolbar } from '@/components/table/TableToolbar'
@@ -57,14 +58,15 @@ function ValuationEditModal({ valuation, onClose }: { valuation: MaterialValuati
           </div>
           <div>
             <Label className="text-xs">Valuation Method</Label>
-            <select
-              className="mt-1 w-full text-sm border rounded-md px-3 py-2 bg-background"
+            <Select
               value={method}
-              onChange={e => setMethod(e.target.value as any)}
-            >
-              <option value="moving_average">Moving Average (MAP)</option>
-              <option value="standard_price">Standard Price</option>
-            </select>
+              onChange={v => setMethod(v as typeof method)}
+              options={[
+                { value: 'moving_average', label: 'Moving Average (MAP)' },
+                { value: 'standard_price', label: 'Standard Price' },
+              ]}
+              className="mt-1 text-sm"
+            />
           </div>
           {method === 'standard_price' && (
             <div>
@@ -151,10 +153,15 @@ function CreateSESModal({ onClose }: { onClose: () => void }) {
             />
             <div className="col-span-2">
               <Label className="text-xs">Link to PO (optional)</Label>
-              <select className="mt-1 w-full text-sm border rounded-md px-3 py-2 bg-background" value={poId} onChange={e => setPoId(e.target.value)}>
-                <option value="">— No PO —</option>
-                {pos.map((p: any) => <option key={p.id} value={p.id}>{p.po_number}</option>)}
-              </select>
+              <Select
+                value={poId}
+                onChange={setPoId}
+                options={selectOptionsWithBlank(
+                  '— No PO —',
+                  pos.map((p: { id: string; po_number: string }) => ({ value: p.id, label: p.po_number })),
+                )}
+                className="mt-1 text-sm"
+              />
             </div>
             <div className="col-span-2">
               <Label className="text-xs">Service Description</Label>

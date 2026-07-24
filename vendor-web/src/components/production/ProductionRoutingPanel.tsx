@@ -4,6 +4,7 @@ import {
   CircleDashed, MinusCircle, Wrench,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Select } from '@/components/ui/select'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import {
   useProductionOperations, useWorkCenters, useCreateProductionOperation,
@@ -156,28 +157,32 @@ export function ProductionRoutingPanel({ orderId }: ProductionRoutingPanelProps)
                       />
                     </td>
                     <td className="py-2 px-3">
-                      <select
+                      <Select
                         value={op.work_center_id || ''}
-                        onChange={e => patch(op, { work_center_id: e.target.value || null })}
+                        onChange={v => patch(op, { work_center_id: v || null })}
                         className="w-full bg-transparent text-sm rounded px-1 py-0.5 border border-transparent hover:border-border focus:outline-none focus:ring-1 focus:ring-primary/40"
-                      >
-                        <option value="">— Unassigned —</option>
-                        {workCenters.map(wc => (
-                          <option key={wc.id} value={wc.id}>{wc.code} · {wc.name}</option>
-                        ))}
-                      </select>
+                        placeholder="— Unassigned —"
+                        options={[
+                          { value: '', label: '— Unassigned —' },
+                          ...workCenters.map(wc => ({
+                            value: wc.id,
+                            label: `${wc.code} · ${wc.name}`,
+                          })),
+                        ]}
+                      />
                     </td>
                     <td className="py-2 px-3">
                       <div className="flex justify-center">
-                        <select
+                        <Select
                           value={op.status}
-                          onChange={e => patch(op, { status: e.target.value })}
-                          className={cn('text-xs font-medium rounded-full px-2 py-1 border-0 focus:outline-none focus:ring-1 focus:ring-primary/40 cursor-pointer', cfg.badge)}
-                        >
-                          {(Object.keys(STATUS_CFG) as ProductionOperationStatus[]).map(s => (
-                            <option key={s} value={s}>{STATUS_CFG[s].label}</option>
-                          ))}
-                        </select>
+                          onChange={v => patch(op, { status: v })}
+                          className="text-xs font-medium rounded-full px-2 py-1 border-0 focus:outline-none focus:ring-1 focus:ring-primary/40 cursor-pointer"
+                          triggerClassName={cfg.badge}
+                          options={(Object.keys(STATUS_CFG) as ProductionOperationStatus[]).map(s => ({
+                            value: s,
+                            label: STATUS_CFG[s].label,
+                          }))}
+                        />
                       </div>
                     </td>
                     <td className="py-2 px-3 text-right">

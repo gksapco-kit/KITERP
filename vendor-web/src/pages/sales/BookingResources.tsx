@@ -24,6 +24,7 @@ import {
 } from '@/hooks/useBookingResources'
 import type { VendorBookingResource, VendorBookingResourceCreate } from '@/api/bookingResources'
 
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 const RESOURCE_TYPES = ['room', 'table', 'court', 'equipment']
 
@@ -89,11 +90,15 @@ function ResourceModal({
             <div className="grid grid-cols-2 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Type</Label>
-                <select value={resourceType} onChange={e => setResourceType(e.target.value)} className={selectCls}>
-                  {RESOURCE_TYPES.map(t => (
-                    <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>
-                  ))}
-                </select>
+                <ThemeSelect
+                  value={resourceType}
+                  onChange={setResourceType}
+                  options={RESOURCE_TYPES.map(t => ({
+                    value: t,
+                    label: t[0].toUpperCase() + t.slice(1),
+                  }))}
+                  className={selectCls}
+                />
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Capacity</Label>

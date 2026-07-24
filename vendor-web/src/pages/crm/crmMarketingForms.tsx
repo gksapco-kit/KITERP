@@ -1,3 +1,5 @@
+import { ThemeSelect } from '@/components/common/ThemeSelect'
+import { selectOptionsWithBlank } from '@/components/ui/select'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -77,14 +79,15 @@ export function SegmentFilterBuilder({
     <div className="space-y-2 rounded-lg border p-3 bg-gray-50/50">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-gray-600">Contact must match</p>
-        <select
+        <ThemeSelect
           value={value.match}
-          onChange={e => onChange({ ...value, match: e.target.value as 'all' | 'any' })}
-          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-        >
-          <option value="all">All conditions</option>
-          <option value="any">Any condition</option>
-        </select>
+          onChange={v => onChange({ ...value, match: v as 'all' | 'any' })}
+          options={[
+            { value: 'all', label: 'All conditions' },
+            { value: 'any', label: 'Any condition' },
+          ]}
+          className="h-8 text-xs"
+        />
       </div>
       {value.rules.length === 0 ? (
         <p className="text-xs text-gray-400 py-2">No rules — segment includes all contacts.</p>
@@ -93,14 +96,19 @@ export function SegmentFilterBuilder({
         const ops = SEGMENT_OPS.filter(o => !o.forTags || fieldMeta?.tagField)
         return (
           <div key={idx} className="grid grid-cols-[1fr_auto_1fr_auto] gap-1.5 items-center">
-            <select value={rule.field} onChange={e => updateRule(idx, { field: e.target.value })}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm">
-              {SEGMENT_FIELDS.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
-            </select>
-            <select value={rule.op} onChange={e => updateRule(idx, { op: e.target.value })}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm min-w-[7rem]">
-              {ops.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-            </select>
+            <ThemeSelect
+              value={rule.field}
+              onChange={v => updateRule(idx, { field: v })}
+              options={SEGMENT_FIELDS.map(f => ({ value: f.id, label: f.label }))}
+              className="h-9 text-sm"
+            />
+            <ThemeSelect
+              value={rule.op}
+              onChange={v => updateRule(idx, { op: v })}
+              options={ops.map(o => ({ value: o.id, label: o.label }))}
+              wrapperClassName="min-w-[7rem]"
+              className="h-9 text-sm"
+            />
             <Input value={rule.value} onChange={e => updateRule(idx, { value: e.target.value })}
               placeholder={rule.field === 'lifecycle_stage' ? 'customer' : 'Value'}
               className="h-9" />
@@ -216,20 +224,26 @@ export function WorkflowStepBuilder({
         <div key={idx} className="space-y-1.5 rounded-md border border-border bg-card p-2">
           <div className="flex items-center gap-1.5">
             <span className="w-4 text-[10px] font-mono text-muted-foreground">{idx + 1}</span>
-            <select value={step.type} onChange={e => update(idx, { type: e.target.value })}
-              className={`${inputCls} h-8 flex-1 text-xs`}>
-              {WORKFLOW_STEP_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
+            <ThemeSelect
+              value={step.type}
+              onChange={v => update(idx, { type: v })}
+              options={WORKFLOW_STEP_TYPES.map(t => ({ value: t.id, label: t.label }))}
+              className={`${inputCls} h-8 flex-1 text-xs`}
+            />
             <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => remove(idx)}>
               <Trash2 className="h-3.5 w-3.5 text-red-500" />
             </Button>
           </div>
           {step.type === 'send_email' && (
-            <select value={step.template_id || ''} onChange={e => update(idx, { template_id: e.target.value })}
-              className={`${inputCls} h-8 text-xs`}>
-              <option value="">Select email template…</option>
-              {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+            <ThemeSelect
+              value={step.template_id || ''}
+              onChange={v => update(idx, { template_id: v })}
+              options={selectOptionsWithBlank(
+                'Select email template…',
+                templates.map(t => ({ value: t.id, label: t.name })),
+              )}
+              className={`${inputCls} h-8 text-xs`}
+            />
           )}
           {step.type === 'wait' && (
             <div className="flex items-center gap-2">
@@ -244,11 +258,15 @@ export function WorkflowStepBuilder({
               placeholder="Task subject" className="h-8 text-xs" />
           )}
           {step.type === 'assign_user' && (
-            <select value={step.user_id || ''} onChange={e => update(idx, { user_id: e.target.value })}
-              className={`${inputCls} h-8 text-xs`}>
-              <option value="">Select team member…</option>
-              {teamOptions.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
-            </select>
+            <ThemeSelect
+              value={step.user_id || ''}
+              onChange={v => update(idx, { user_id: v })}
+              options={selectOptionsWithBlank(
+                'Select team member…',
+                teamOptions.map(u => ({ value: u.id, label: u.label })),
+              )}
+              className={`${inputCls} h-8 text-xs`}
+            />
           )}
           {step.type === 'update_field' && (
             <div className="grid grid-cols-2 gap-1.5">
@@ -353,11 +371,15 @@ export function CampaignStepsBuilder({
               className="h-8 w-16 text-sm" />
             <span className="text-xs text-gray-500">min</span>
           </div>
-          <select value={step.template_id} onChange={e => update(idx, { template_id: e.target.value })}
-            className="h-8 rounded-md border border-input bg-background px-2 text-sm">
-            <option value="">Template…</option>
-            {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
+          <ThemeSelect
+            value={step.template_id}
+            onChange={v => update(idx, { template_id: v })}
+            options={selectOptionsWithBlank(
+              'Template…',
+              templates.map(t => ({ value: t.id, label: t.name })),
+            )}
+            className="h-8 text-sm"
+          />
           <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}>
             <Trash2 className="w-4 h-4 text-red-500" />
           </Button>

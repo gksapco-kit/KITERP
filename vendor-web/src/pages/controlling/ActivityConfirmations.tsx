@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Link } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
@@ -148,16 +149,23 @@ export default function ActivityConfirmationsPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         {companies.length > 1 && (
-          <select value={activeCo} onChange={e => setCompanyId(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-            {companies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
-          </select>
+          <Select
+            value={activeCo}
+            onChange={setCompanyId}
+            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+            options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+          />
         )}
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          <option value="">All types</option>
-          {CONFIRMATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <Select
+          value={typeFilter}
+          onChange={setTypeFilter}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          placeholder="All types"
+          options={[
+            { value: '', label: 'All types' },
+            ...CONFIRMATION_TYPES.map(t => ({ value: t, label: t })),
+          ]}
+        />
         <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white" />
         <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
@@ -235,33 +243,45 @@ export default function ActivityConfirmationsPage() {
               <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
                 <div>
                   <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>CO Order</Label>
-                  <select value={form.order_id} onChange={e => setForm(f => ({ ...f, order_id: e.target.value }))}
-                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" required>
-                    <option value="">— select order —</option>
-                    {(orders as Array<{ id: string; order_no: string; title?: string }>).map(o => (
-                      <option key={o.id} value={o.id}>{o.order_no} {o.title ? `— ${o.title}` : ''}</option>
-                    ))}
-                  </select>
+                  <Select
+                    value={form.order_id}
+                    onChange={v => setForm(f => ({ ...f, order_id: v }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                    placeholder="— select order —"
+                    options={[
+                      { value: '', label: '— select order —' },
+                      ...(orders as Array<{ id: string; order_no: string; title?: string }>).map(o => ({
+                        value: String(o.id),
+                        label: `${o.order_no}${o.title ? ` — ${o.title}` : ''}`,
+                      })),
+                    ]}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Confirmation Type</Label>
-                    <select value={form.confirmation_type}
-                      onChange={e => setForm(f => ({ ...f, confirmation_type: e.target.value }))}
-                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm">
-                      {CONFIRMATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                    <Select
+                      value={form.confirmation_type}
+                      onChange={v => setForm(f => ({ ...f, confirmation_type: v }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                      options={CONFIRMATION_TYPES.map(t => ({ value: t, label: t }))}
+                    />
                   </div>
                   <div>
                     <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Activity Type</Label>
-                    <select value={form.activity_type_id}
-                      onChange={e => setForm(f => ({ ...f, activity_type_id: e.target.value }))}
-                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm">
-                      <option value="">— optional —</option>
-                      {(activityTypes as Array<{ id: string; code: string; name: string }>).map(a => (
-                        <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                      ))}
-                    </select>
+                    <Select
+                      value={form.activity_type_id}
+                      onChange={v => setForm(f => ({ ...f, activity_type_id: v }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                      placeholder="— optional —"
+                      options={[
+                        { value: '', label: '— optional —' },
+                        ...(activityTypes as Array<{ id: string; code: string; name: string }>).map(a => ({
+                          value: String(a.id),
+                          label: `${a.code} — ${a.name}`,
+                        })),
+                      ]}
+                    />
                   </div>
                 </div>
                 <div>

@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useAuthStore } from '@/stores/authStore'
 import { isSuperuserAdmin } from '@/lib/platformAccess'
 import { toast } from 'sonner'
@@ -338,22 +339,22 @@ export default function TableDataPage() {
                 placeholder="Filter by name (leave empty for all)…"
                 className="sm:max-w-xs"
               />
-              <select
+              <Select
                 value={browseTable}
-                onChange={(e) => {
-                  setBrowseTable(e.target.value)
+                onChange={(v) => {
+                  setBrowseTable(v)
                   setBrowseQ('')
                   setBrowsePage(1)
                 }}
+                options={selectOptionsWithBlank(
+                  'Select a table…',
+                  tableOptions.map((m) => ({
+                    value: m.table,
+                    label: `${m.table} — ${m.domain}`,
+                  })),
+                )}
                 className="h-10 flex-1 rounded-md border border-input bg-background px-3 font-mono text-sm"
-              >
-                <option value="">Select a table…</option>
-                {tableOptions.map((m) => (
-                  <option key={m.table} value={m.table}>
-                    {m.table} — {m.domain}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div className="flex flex-1 gap-2">
               <Input

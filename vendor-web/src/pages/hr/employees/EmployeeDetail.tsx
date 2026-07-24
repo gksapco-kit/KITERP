@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, User, Briefcase, FileText, Calendar, Plane, DollarSign, Receipt,
@@ -81,10 +82,12 @@ function PersonalTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, 
         <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
         {editing ? (
           options ? (
-            <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={(form as any)[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}>
-              <option value="">—</option>
-              {options.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
+            <Select
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              value={(form as any)[field]}
+              onChange={v => setForm(f => ({ ...f, [field]: v }))}
+              options={[{ value: '', label: '—' }, ...options.map(o => ({ value: o, label: o }))]}
+            />
           ) : isPhone ? (
             <PhoneInput
               value={(form as any)[field] || ''}
@@ -242,16 +245,17 @@ function FamilyMembersSection({ emp, editing, onSave }: { emp: any; editing: boo
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">Gender</p>
                 {editing ? (
-                  <select
+                  <Select
                     className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     value={m.gender ?? ''}
-                    onChange={e => updateMember(i, { ...m, gender: e.target.value })}
-                  >
-                    <option value="">—</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
+                    onChange={v => updateMember(i, { ...m, gender: v })}
+                    options={[
+                      { value: '', label: '—' },
+                      { value: 'male', label: 'Male' },
+                      { value: 'female', label: 'Female' },
+                      { value: 'other', label: 'Other' },
+                    ]}
+                  />
                 ) : (
                   <p className="text-sm text-gray-900">{m.gender || <span className="text-gray-400">—</span>}</p>
                 )}
@@ -259,14 +263,15 @@ function FamilyMembersSection({ emp, editing, onSave }: { emp: any; editing: boo
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">Blood Group</p>
                 {editing ? (
-                  <select
+                  <Select
                     className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     value={m.blood_group ?? ''}
-                    onChange={e => updateMember(i, { ...m, blood_group: e.target.value })}
-                  >
-                    <option value="">—</option>
-                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
+                    onChange={v => updateMember(i, { ...m, blood_group: v })}
+                    options={[
+                      { value: '', label: '—' },
+                      ...['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => ({ value: g, label: g })),
+                    ]}
+                  />
                 ) : (
                   <p className="text-sm text-gray-900">{m.blood_group || <span className="text-gray-400">—</span>}</p>
                 )}
@@ -321,12 +326,17 @@ function EmploymentTab({ emp, departments, designations, onSave }: { emp: any; d
           <div key={f.label}>
             <p className="text-xs font-medium text-gray-500 mb-1">{f.label}</p>
             {editing && !f.readOnly && f.label === 'Status' ? (
-              <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                <option value="active">Active</option>
-                <option value="probation">Probation</option>
-                <option value="on_notice">On Notice</option>
-                <option value="exited">Exited</option>
-              </select>
+              <Select
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                value={form.status}
+                onChange={v => setForm(f => ({ ...f, status: v }))}
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'probation', label: 'Probation' },
+                  { value: 'on_notice', label: 'On Notice' },
+                  { value: 'exited', label: 'Exited' },
+                ]}
+              />
             ) : (
               <p className="text-sm font-semibold text-gray-900">{f.value || '—'}</p>
             )}
@@ -335,30 +345,45 @@ function EmploymentTab({ emp, departments, designations, onSave }: { emp: any; d
         <div>
           <p className="text-xs font-medium text-gray-500 mb-1">Department</p>
           {editing ? (
-            <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.department_id} onChange={e => setForm(f => ({ ...f, department_id: e.target.value }))}>
-              <option value="">— None —</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
+            <Select
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              value={form.department_id}
+              onChange={v => setForm(f => ({ ...f, department_id: v }))}
+              options={[
+                { value: '', label: '— None —' },
+                ...departments.map(d => ({ value: d.id, label: d.name })),
+              ]}
+            />
           ) : <p className="text-sm text-gray-900">{emp.department?.name ?? '—'}</p>}
         </div>
         <div>
           <p className="text-xs font-medium text-gray-500 mb-1">Designation</p>
           {editing ? (
-            <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.designation_id} onChange={e => setForm(f => ({ ...f, designation_id: e.target.value }))}>
-              <option value="">— None —</option>
-              {designations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
+            <Select
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              value={form.designation_id}
+              onChange={v => setForm(f => ({ ...f, designation_id: v }))}
+              options={[
+                { value: '', label: '— None —' },
+                ...designations.map(d => ({ value: d.id, label: d.name })),
+              ]}
+            />
           ) : <p className="text-sm text-gray-900">{emp.designation?.name ?? '—'}</p>}
         </div>
         <div>
           <p className="text-xs font-medium text-gray-500 mb-1">Employment Type</p>
           {editing ? (
-            <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.employment_type} onChange={e => setForm(f => ({ ...f, employment_type: e.target.value }))}>
-              <option value="full_time">Full-time</option>
-              <option value="part_time">Part-time</option>
-              <option value="contract">Contract</option>
-              <option value="intern">Intern</option>
-            </select>
+            <Select
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              value={form.employment_type}
+              onChange={v => setForm(f => ({ ...f, employment_type: v }))}
+              options={[
+                { value: 'full_time', label: 'Full-time' },
+                { value: 'part_time', label: 'Part-time' },
+                { value: 'contract', label: 'Contract' },
+                { value: 'intern', label: 'Intern' },
+              ]}
+            />
           ) : <p className="text-sm text-gray-900">{emp.employment_type?.replace('_', '-') ?? '—'}</p>}
         </div>
         <div>
@@ -656,13 +681,12 @@ function DocumentsTab({ empId }: { empId: string }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Document Type</Label>
-              <select
+              <Select
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 value={form.document_type}
-                onChange={e => handleTypeChange(e.target.value)}
-              >
-                {docTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
+                onChange={handleTypeChange}
+                options={docTypes.map(t => ({ value: t.value, label: t.label }))}
+              />
             </div>
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1" required>Document Name</Label>
@@ -843,10 +867,15 @@ function LeavesTab({ empId }: { empId: string }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Leave Type</Label>
-              <select className="w-full border rounded-lg px-3 py-2 text-sm" required value={form.leave_policy_id} onChange={e => setForm(f => ({ ...f, leave_policy_id: e.target.value }))}>
-                <option value="">— Select —</option>
-                {policies.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <Select
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                value={form.leave_policy_id}
+                onChange={v => setForm(f => ({ ...f, leave_policy_id: v }))}
+                options={[
+                  { value: '', label: '— Select —' },
+                  ...policies.map((p: any) => ({ value: p.id, label: p.name })),
+                ]}
+              />
             </div>
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Days</Label>
@@ -1443,12 +1472,16 @@ function TaskCard({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Priority</label>
-                  <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={editForm.priority} onChange={e => setEditForm(f => ({ ...f, priority: e.target.value as ExitTask['priority'] }))}>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
+                  <Select
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={editForm.priority}
+                    onChange={v => setEditForm(f => ({ ...f, priority: v as ExitTask['priority'] }))}
+                    options={[
+                      { value: 'low', label: 'Low' },
+                      { value: 'medium', label: 'Medium' },
+                      { value: 'high', label: 'High' },
+                    ]}
+                  />
                 </div>
               </div>
               <div>
@@ -1756,15 +1789,20 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
         <div>
           <p className="text-xs font-medium text-gray-500 mb-1">Exit Reason</p>
           {editing ? (
-            <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.exit_reason} onChange={e => setForm(f => ({ ...f, exit_reason: e.target.value }))}>
-              <option value="">— Select —</option>
-              <option value="resignation">Resignation</option>
-              <option value="termination">Termination</option>
-              <option value="retirement">Retirement</option>
-              <option value="contract_end">Contract End</option>
-              <option value="absconding">Absconding</option>
-              <option value="other">Other</option>
-            </select>
+            <Select
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              value={form.exit_reason}
+              onChange={v => setForm(f => ({ ...f, exit_reason: v }))}
+              options={[
+                { value: '', label: '— Select —' },
+                { value: 'resignation', label: 'Resignation' },
+                { value: 'termination', label: 'Termination' },
+                { value: 'retirement', label: 'Retirement' },
+                { value: 'contract_end', label: 'Contract End' },
+                { value: 'absconding', label: 'Absconding' },
+                { value: 'other', label: 'Other' },
+              ]}
+            />
           ) : (
             <p className="text-sm text-gray-900 capitalize">{emp.exit_reason?.replace('_', ' ') ?? <span className="text-gray-400">—</span>}</p>
           )}
@@ -1772,11 +1810,16 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
         <div>
           <p className="text-xs font-medium text-gray-500 mb-1">Status</p>
           {editing ? (
-            <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-              <option value="active">Active</option>
-              <option value="on_notice">On Notice</option>
-              <option value="exited">Exited</option>
-            </select>
+            <Select
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              value={form.status}
+              onChange={v => setForm(f => ({ ...f, status: v }))}
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'on_notice', label: 'On Notice' },
+                { value: 'exited', label: 'Exited' },
+              ]}
+            />
           ) : (
             <p className="text-sm text-gray-900 capitalize">{emp.status?.replace('_', ' ')}</p>
           )}
@@ -1893,15 +1936,16 @@ function ExitTab({ emp, onSave }: { emp: any; onSave: (data: Record<string, unkn
               </div>
               <div>
                 <Label className="block text-xs font-medium text-gray-600 mb-1">Priority</Label>
-                <select
+                <Select
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                   value={taskForm.priority}
-                  onChange={e => setTaskForm(f => ({ ...f, priority: e.target.value as ExitTask['priority'] }))}
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
+                  onChange={v => setTaskForm(f => ({ ...f, priority: v as ExitTask['priority'] }))}
+                  options={[
+                    { value: 'low', label: 'Low' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'high', label: 'High' },
+                  ]}
+                />
               </div>
             </div>
             <div>

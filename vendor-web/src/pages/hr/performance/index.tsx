@@ -1,6 +1,7 @@
 import { onModalBackdropClick, cn } from '@/lib/utils'
 import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -239,13 +240,17 @@ function CycleModal({
               </div>
               <div>
                 <Label className={denseLabelClass}>Type</Label>
-                <select value={form.review_type} onChange={e => setForm({ ...form, review_type: e.target.value })}
-                  className={denseFieldClass}>
-                  <option value="annual">Annual</option>
-                  <option value="semi_annual">Semi-Annual</option>
-                  <option value="quarterly">Quarterly</option>
-                  <option value="probation">Probation</option>
-                </select>
+                <Select
+                  value={form.review_type}
+                  onChange={v => setForm({ ...form, review_type: v })}
+                  className={denseFieldClass}
+                  options={[
+                    { value: 'annual', label: 'Annual' },
+                    { value: 'semi_annual', label: 'Semi-Annual' },
+                    { value: 'quarterly', label: 'Quarterly' },
+                    { value: 'probation', label: 'Probation' },
+                  ]}
+                />
               </div>
               <div>
                 <Label className={denseLabelClass}>Rating Max</Label>
@@ -329,13 +334,18 @@ function GoalsTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <select value={employeeFilter} onChange={e => setEmployeeFilter(e.target.value)}
-          className="px-3 py-2 border rounded-lg text-sm">
-          <option value="">All employees</option>
-          {(employees as EmployeeProfile[]).map(e => (
-            <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>
-          ))}
-        </select>
+        <Select
+          value={employeeFilter}
+          onChange={setEmployeeFilter}
+          className="px-3 py-2 border rounded-lg text-sm"
+          options={[
+            { value: '', label: 'All employees' },
+            ...(employees as EmployeeProfile[]).map(e => ({
+              value: e.id,
+              label: e.vendor_user?.user?.full_name ?? e.employee_code ?? '',
+            })),
+          ]}
+        />
         <button onClick={() => setShowNew(true)}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Goal
@@ -374,13 +384,17 @@ function GoalsTab() {
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600">{g.target_date ?? '—'}</td>
                   <td className="py-3 px-4">
-                    <select value={g.status} onChange={e => update.mutate({ id: g.id, data: { status: e.target.value } })}
-                      className="text-xs border rounded px-2 py-1">
-                      <option value="active">Active</option>
-                      <option value="completed">Completed</option>
-                      <option value="dropped">Dropped</option>
-                      <option value="on_hold">On hold</option>
-                    </select>
+                    <Select
+                      value={g.status}
+                      onChange={v => update.mutate({ id: g.id, data: { status: v } })}
+                      className="text-xs border rounded px-2 py-1"
+                      options={[
+                        { value: 'active', label: 'Active' },
+                        { value: 'completed', label: 'Completed' },
+                        { value: 'dropped', label: 'Dropped' },
+                        { value: 'on_hold', label: 'On hold' },
+                      ]}
+                    />
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-1">
@@ -452,21 +466,30 @@ function GoalModal({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 p-5">
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase" required>Employee</Label>
-            <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-              <option value="">— Select —</option>
-              {(employees as EmployeeProfile[]).map(e => (
-                <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>
-              ))}
-            </select>
+            <Select
+              value={form.employee_id}
+              onChange={v => setForm({ ...form, employee_id: v })}
+              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+              options={[
+                { value: '', label: '— Select —' },
+                ...(employees as EmployeeProfile[]).map(e => ({
+                  value: e.id,
+                  label: e.vendor_user?.user?.full_name ?? e.employee_code ?? '',
+                })),
+              ]}
+            />
           </div>
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase">Cycle (optional)</Label>
-            <select value={form.cycle_id} onChange={e => setForm({ ...form, cycle_id: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-              <option value="">— None —</option>
-              {(cycles as ReviewCycle[]).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <Select
+              value={form.cycle_id}
+              onChange={v => setForm({ ...form, cycle_id: v })}
+              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+              options={[
+                { value: '', label: '— None —' },
+                ...(cycles as ReviewCycle[]).map(c => ({ value: c.id, label: c.name })),
+              ]}
+            />
           </div>
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase" required>Title</Label>
@@ -524,11 +547,15 @@ function ReviewsTab() {
   return (
     <div>
       <div className="flex items-center mb-3">
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border rounded-lg text-sm">
-          <option value="">All statuses</option>
-          {Object.entries(REVIEW_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
+        <Select
+          value={statusFilter}
+          onChange={setStatusFilter}
+          className="px-3 py-2 border rounded-lg text-sm"
+          options={[
+            { value: '', label: 'All statuses' },
+            ...Object.entries(REVIEW_STATUS).map(([k, v]) => ({ value: k, label: v.label })),
+          ]}
+        />
       </div>
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (

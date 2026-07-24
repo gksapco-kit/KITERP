@@ -1229,27 +1229,14 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
                         }}
                       >
                         {def.type === 'status' ? (
-                          <select
+                          <div
                             data-cell={`${rowIndex}-${col}`}
-                            value={value ? 'true' : 'false'}
                             onMouseDown={(e) => {
                               if (e.shiftKey && anchor) extendSelection(rowIndex, col)
                               else startSelection(rowIndex, col)
                             }}
                             onFocus={() => startSelection(rowIndex, col)}
-                            onChange={(e) => {
-                              const next = e.target.value === 'true'
-                              const multi = !!selection && selection.col === col && selection.endRow > selection.startRow
-                              if (multi) {
-                                applySameValueToIds(
-                                  displayRows.slice(selection.startRow, selection.endRow + 1).map(r => r.id),
-                                  col,
-                                  next,
-                                )
-                              } else {
-                                commitSingleEdit(v.id, col, next)
-                              }
-                            }}
+                            tabIndex={-1}
                             onKeyDown={(e) => {
                               e.stopPropagation()
                               if (e.key === 'Tab') {
@@ -1261,15 +1248,37 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
                                 gridRef.current?.focus()
                               }
                             }}
-                            className={cn(
-                              'h-7 w-full rounded border-0 bg-transparent px-1 text-xs shadow-none outline-none',
-                              'focus:border-0 focus:outline-none focus:ring-0',
-                              value ? 'text-emerald-600' : 'text-muted-foreground',
-                            )}
                           >
-                            <option value="true">Active</option>
-                            <option value="false">Inactive</option>
-                          </select>
+                            <Select
+                              value={value ? 'true' : 'false'}
+                              onChange={(v) => {
+                                const next = v === 'true'
+                                const multi = !!selection && selection.col === col && selection.endRow > selection.startRow
+                                if (multi) {
+                                  applySameValueToIds(
+                                    displayRows.slice(selection.startRow, selection.endRow + 1).map(r => r.id),
+                                    col,
+                                    next,
+                                  )
+                                } else {
+                                  commitSingleEdit(v.id, col, next)
+                                }
+                              }}
+                              menuMinWidth={100}
+                              className={cn(
+                                'h-7 border-0 bg-transparent px-1 text-xs shadow-none',
+                                value ? 'text-emerald-600' : 'text-muted-foreground',
+                              )}
+                              triggerClassName={cn(
+                                'h-7 border-0 bg-transparent px-1 text-xs shadow-none',
+                                value ? 'text-emerald-600' : 'text-muted-foreground',
+                              )}
+                              options={[
+                                { value: 'true', label: 'Active' },
+                                { value: 'false', label: 'Inactive' },
+                              ]}
+                            />
+                          </div>
                         ) : (
                           <input
                             key={`${v.id}-${col}-${rawInput}`}

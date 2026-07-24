@@ -8,6 +8,7 @@ import { websiteApi } from '@/api/websites'
 import type { WebsiteTemplate } from '@/types/websites'
 import { getTemplatePreviewPalette } from '@/lib/templateBlockHighlights'
 import { getStorefrontAppOrigin, openDraftPreviewInBrowser, STOREFRONT_PREVIEW_IN_BROWSER_BTN_CLASS, wrapStorefrontPreviewForVendorBrowser } from '@/lib/storefrontPreviewUrl'
+import { Select } from '@/components/ui/select'
 
 // ── Fonts available via Google Fonts in storefront-web globals.css ────────────
 const HEADING_FONTS = ['Fraunces', 'Playfair Display', 'DM Serif Display', 'Space Grotesk', 'Manrope', 'Inter']
@@ -152,29 +153,27 @@ function CustomizeStylePanel({ template }: StylePanelProps) {
           <div>
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Typography</div>
             <div className="space-y-2">
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2" style={{ ['--select-font' as string]: displayFont }}>
                 <span className="text-xs text-gray-700 w-14 shrink-0">Heading</span>
-                <select
+                <Select
                   value={displayFont}
-                  onChange={e => setDisplayFont(e.target.value)}
-                  className="flex-1 text-xs px-2 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-800"
-                >
-                  {HEADING_FONTS.map(f => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </select>
+                  onChange={setDisplayFont}
+                  wrapperClassName="flex-1 min-w-0"
+                  className="text-xs border border-gray-200 rounded-lg bg-white h-8"
+                  triggerClassName="[font-family:var(--select-font)]"
+                  options={HEADING_FONTS.map((f) => ({ value: f, label: f }))}
+                />
               </label>
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2" style={{ ['--select-font' as string]: bodyFont }}>
                 <span className="text-xs text-gray-700 w-14 shrink-0">Body</span>
-                <select
+                <Select
                   value={bodyFont}
-                  onChange={e => setBodyFont(e.target.value)}
-                  className="flex-1 text-xs px-2 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-ring text-gray-800"
-                >
-                  {BODY_FONTS.map(f => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </select>
+                  onChange={setBodyFont}
+                  wrapperClassName="flex-1 min-w-0"
+                  className="text-xs border border-gray-200 rounded-lg bg-white h-8"
+                  triggerClassName="[font-family:var(--select-font)]"
+                  options={BODY_FONTS.map((f) => ({ value: f, label: f }))}
+                />
               </label>
             </div>
           </div>

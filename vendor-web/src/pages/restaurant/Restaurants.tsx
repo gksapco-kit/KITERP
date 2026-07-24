@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { KOTNumberingSection } from '@/components/restaurant/KOTNumberingSection'
+import { Select } from '@/components/ui/select'
 
 // ── Form state ────────────────────────────────────────────────────────────
 
@@ -220,15 +221,20 @@ export default function RestaurantsPage() {
             <ModalBody className="space-y-2.5 px-4 pb-3 pt-0">
               <div className="space-y-1">
                 <Label className="text-xs">Business Unit (Hotel / Store) *</Label>
-                <select
-                  className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                <Select
+                  className="h-8 rounded-md border border-input bg-background text-sm"
                   value={form.store_id}
-                  onChange={e => setForm(f => ({ ...f, store_id: e.target.value }))}
+                  onChange={(v) => setForm(f => ({ ...f, store_id: v }))}
                   disabled={typeof modal === 'object'}
-                >
-                  <option value="">Select a Business Unit…</option>
-                  {stores.map(s => <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ''}</option>)}
-                </select>
+                  placeholder="Select a Business Unit…"
+                  options={[
+                    { value: '', label: 'Select a Business Unit…' },
+                    ...stores.map((s) => ({
+                      value: s.id,
+                      label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
+                    })),
+                  ]}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2">

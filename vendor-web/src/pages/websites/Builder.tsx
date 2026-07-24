@@ -29,6 +29,7 @@ import {
   Store as StoreIcon, ClipboardCopy, ClipboardPaste, RotateCcw, SlidersHorizontal, Paintbrush, Scissors, Eraser, Pin,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import {
   collectOverlayTargets,
@@ -5696,19 +5697,17 @@ function PerkListEditor({
     <div className="space-y-2">
       {items.map((perk, i) => (
         <div key={i} className="flex items-center gap-1.5 rounded-lg border border-gray-100 bg-white p-2">
-          <select
+          <Select
             value={perk.icon ?? 'clock'}
-            onChange={e => {
+            onChange={v => {
               const next = [...items]
-              next[i] = { ...next[i], icon: e.target.value }
+              next[i] = { ...next[i], icon: v }
               onChange(next)
             }}
-            className="px-1.5 py-2 border border-gray-200 rounded-lg text-xs bg-white shrink-0"
-          >
-            {PERK_ICON_OPTIONS.map(opt => (
-              <option key={opt.id} value={opt.id}>{opt.label}</option>
-            ))}
-          </select>
+            options={PERK_ICON_OPTIONS.map(opt => ({ value: opt.id, label: opt.label }))}
+            wrapperClassName="shrink-0"
+            className="px-1.5 py-2 border border-gray-200 rounded-lg text-xs bg-white"
+          />
           <input
             type="text"
             value={perk.text}
@@ -6006,18 +6005,13 @@ function SubItemEditor({
                       <div key={field.key} className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">{field.label}</label>
                         {useDropdown ? (
-                          <select
+                          <Select
                             value={String(item[field.key] ?? opts[0] ?? '')}
                             disabled={readOnly}
-                            onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.value })}
+                            onChange={v => !readOnly && updateItem(idx, { [field.key]: v })}
+                            options={opts.map(opt => ({ value: opt, label: field.optionLabels?.[opt] ?? opt }))}
                             className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-ring"
-                          >
-                            {opts.map(opt => (
-                              <option key={opt} value={opt}>
-                                {field.optionLabels?.[opt] ?? opt}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         ) : (
                         <div className="flex gap-1 flex-wrap">
                           {opts.map(opt => (
@@ -6444,13 +6438,13 @@ function BlockBreakpointStyles({
             />
           )}
           {type === 'select' && (
-            <select
+            <Select
               value={(bpStyle[key] as string) || 'base'}
-              onChange={e => updateBpProp(key, e.target.value)}
-              className="flex-1 text-xs border border-gray-200 rounded px-1.5 py-1"
-            >
-              {options!.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
+              onChange={v => updateBpProp(key, v)}
+              options={options!.map(o => ({ value: o, label: o }))}
+              wrapperClassName="flex-1"
+              className="text-xs border border-gray-200 rounded px-1.5 py-1"
+            />
           )}
         </div>
       ))}
@@ -7958,15 +7952,18 @@ function PropsEditor({
       </div>
       <div>
         <label className="text-xs text-gray-500">Direction</label>
-        <select
+        <Select
           value={(p as any).gradient_dir || '135deg'}
-          onChange={e => onUpdate({ gradient_dir: e.target.value } as any)}
+          onChange={v => onUpdate({ gradient_dir: v } as any)}
+          options={[
+            { value: '135deg', label: '? Diagonal' },
+            { value: 'to right', label: '? Horizontal' },
+            { value: 'to bottom', label: '? Vertical' },
+            { value: 'to top right', label: '? Top-Right' },
+            { value: 'circle at center', label: '? Radial' },
+          ]}
           className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
-        >
-          {[['135deg','? Diagonal'],['to right','? Horizontal'],['to bottom','? Vertical'],['to top right','? Top-Right'],['circle at center','? Radial']].map(([v,l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
+        />
       </div>
     </div>
   )
@@ -8776,14 +8773,15 @@ function PropsEditor({
         >
           <div className="space-y-2">
             <label className="text-xs text-gray-500">Link source</label>
-            <select
+            <Select
               value={(p.nav_links_source as string) || 'site_pages'}
-              onChange={e => onUpdate({ nav_links_source: e.target.value } as any)}
+              onChange={v => onUpdate({ nav_links_source: v } as any)}
+              options={[
+                { value: 'site_pages', label: 'Site pages (auto-sync)' },
+                { value: 'manual', label: 'Manual links' },
+              ]}
               className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
-            >
-              <option value="site_pages">Site pages (auto-sync)</option>
-              <option value="manual">Manual links</option>
-            </select>
+            />
           </div>
 
           {(p.nav_links_source as string) === 'manual' ? (
@@ -9027,17 +9025,15 @@ function PropsEditor({
             ) : (
               <>
                 <label className="block text-xs font-medium text-gray-700">Course</label>
-                <select
+                <Select
                   value={String((p as any).courseId ?? '')}
-                  onChange={e => onUpdate({ courseId: e.target.value } as any)}
+                  onChange={v => onUpdate({ courseId: v } as any)}
+                  options={coursesLiveItems.map(item => ({
+                    value: item.id ?? '',
+                    label: `${item.title}${item.meta?.is_active === false ? ' (Hidden — won\u2019t show)' : ''}`,
+                  }))}
                   className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs"
-                >
-                  {coursesLiveItems.map(item => (
-                    <option key={item.id ?? ''} value={item.id ?? ''}>
-                      {item.title}{item.meta?.is_active === false ? ' (Hidden — won\u2019t show)' : ''}
-                    </option>
-                  ))}
-                </select>
+                />
                 {(p as any).courseId && coursesLiveItems.find(item => item.id === (p as any).courseId)?.meta?.is_active === false && (
                   <p className="text-[11px] text-amber-700 leading-snug">
                     This course is hidden in Course Catalog, so a different active course is shown instead.
@@ -9140,17 +9136,15 @@ function PropsEditor({
             ) : (
               <>
                 <label className="block text-xs font-medium text-gray-700">Property</label>
-                <select
+                <Select
                   value={String((p as any).propertyId ?? '')}
-                  onChange={e => onUpdate({ propertyId: e.target.value } as any)}
+                  onChange={v => onUpdate({ propertyId: v } as any)}
+                  options={propertiesLiveItems.map(item => ({
+                    value: item.id ?? '',
+                    label: `${item.title}${item.meta?.is_active === false ? ' (Hidden — won\u2019t show)' : ''}`,
+                  }))}
                   className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs"
-                >
-                  {propertiesLiveItems.map(item => (
-                    <option key={item.id ?? ''} value={item.id ?? ''}>
-                      {item.title}{item.meta?.is_active === false ? ' (Hidden — won\u2019t show)' : ''}
-                    </option>
-                  ))}
-                </select>
+                />
                 {(p as any).propertyId && propertiesLiveItems.find(item => item.id === (p as any).propertyId)?.meta?.is_active === false && (
                   <p className="text-[11px] text-amber-700 leading-snug">
                     This listing is hidden in Property Listings, so a different active listing is shown instead.
@@ -9196,18 +9190,19 @@ function PropsEditor({
           <div className="space-y-2">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Empty state type (icon)</label>
-              <select
+              <Select
                 value={(p as any).preset ?? 'emptyCart'}
-                onChange={e => onUpdate({ preset: e.target.value } as any)}
+                onChange={v => onUpdate({ preset: v } as any)}
+                options={[
+                  { value: 'emptyCart', label: 'Empty cart' },
+                  { value: 'noResults', label: 'No search results' },
+                  { value: 'emptyWishlist', label: 'Empty wishlist' },
+                  { value: 'noBookings', label: 'No bookings' },
+                  { value: 'noOrders', label: 'No orders' },
+                  { value: 'outOfStock', label: 'Out of stock' },
+                ]}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white"
-              >
-                <option value="emptyCart">Empty cart</option>
-                <option value="noResults">No search results</option>
-                <option value="emptyWishlist">Empty wishlist</option>
-                <option value="noBookings">No bookings</option>
-                <option value="noOrders">No orders</option>
-                <option value="outOfStock">Out of stock</option>
-              </select>
+              />
               <p className="mt-1 text-[10px] text-muted-foreground">Only changes the icon — edit the text below directly.</p>
             </div>
             <div className="space-y-1">
@@ -9250,18 +9245,19 @@ function PropsEditor({
           <div className="space-y-2">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Content type</label>
-              <select
+              <Select
                 value={(p as any).preset ?? 'productGrid'}
-                onChange={e => onUpdate({ preset: e.target.value } as any)}
+                onChange={v => onUpdate({ preset: v } as any)}
+                options={[
+                  { value: 'productGrid', label: 'Product grid' },
+                  { value: 'productList', label: 'Product list' },
+                  { value: 'detail', label: 'Detail page' },
+                  { value: 'cart', label: 'Cart' },
+                  { value: 'calendar', label: 'Calendar' },
+                  { value: 'table', label: 'Table' },
+                ]}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white"
-              >
-                <option value="productGrid">Product grid</option>
-                <option value="productList">Product list</option>
-                <option value="detail">Detail page</option>
-                <option value="cart">Cart</option>
-                <option value="calendar">Calendar</option>
-                <option value="table">Table</option>
-              </select>
+              />
               <p className="mt-1 text-[10px] text-muted-foreground">Shape of the loading placeholder — pick whatever this section replaces while it loads.</p>
             </div>
             {(((p as any).preset ?? 'productGrid') === 'productGrid' || ((p as any).preset ?? 'productGrid') === 'productList' || (p as any).preset === 'cart' || (p as any).preset === 'table') && (
@@ -9286,18 +9282,19 @@ function PropsEditor({
           <div className="space-y-2">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Error type (icon)</label>
-              <select
+              <Select
                 value={(p as any).preset ?? 'generic'}
-                onChange={e => onUpdate({ preset: e.target.value } as any)}
+                onChange={v => onUpdate({ preset: v } as any)}
+                options={[
+                  { value: 'generic', label: 'Generic error' },
+                  { value: 'network', label: 'Network / offline' },
+                  { value: 'notFound', label: '404 not found' },
+                  { value: 'serverError', label: '500 server error' },
+                  { value: 'forbidden', label: '403 forbidden' },
+                  { value: 'maintenance', label: 'Maintenance' },
+                ]}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs bg-white"
-              >
-                <option value="generic">Generic error</option>
-                <option value="network">Network / offline</option>
-                <option value="notFound">404 not found</option>
-                <option value="serverError">500 server error</option>
-                <option value="forbidden">403 forbidden</option>
-                <option value="maintenance">Maintenance</option>
-              </select>
+              />
               <p className="mt-1 text-[10px] text-muted-foreground">Only changes the icon — edit the text below directly.</p>
             </div>
             {inputRow({ label: 'Code / eyebrow', fieldKey: 'error_code', placeholder: 'Oops' })}
@@ -9514,18 +9511,18 @@ function PropsEditor({
               "you are here" on an order-confirmation or status page. Leave on Auto to keep the built-in interactive
               demo (visitors can click Back / Continue).
             </p>
-            <select
+            <Select
               value={typeof (p as any).current_step === 'number' ? String((p as any).current_step) : ''}
-              onChange={e => onUpdate({ current_step: e.target.value === '' ? undefined : Number(e.target.value) } as any)}
+              onChange={v => onUpdate({ current_step: v === '' ? undefined : Number(v) } as any)}
+              options={[
+                { value: '', label: 'Auto (demo default)' },
+                ...activeWizardSteps.map((item, idx) => ({
+                  value: String(idx),
+                  label: `${idx + 1}. ${item.title || `Step ${idx + 1}`}`,
+                })),
+              ]}
               className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs"
-            >
-              <option value="">Auto (demo default)</option>
-              {activeWizardSteps.map((item, idx) => (
-                <option key={item.id || idx} value={idx}>
-                  {`${idx + 1}. ${item.title || `Step ${idx + 1}`}`}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         </PropsCollapsible>
       )}
@@ -10145,14 +10142,14 @@ function PagePanel({
                 ]).map(({ key, label }) => (
                   <div key={key} className="min-w-0">
                     <label className="mb-0.5 block text-[9px] font-medium text-muted-foreground">{label}</label>
-                    <select
-                      value={(pageOverrides[key] as string) || (effective[key] as string)}
-                      onChange={e => onPageStyleChange(activePage.id, { [key]: e.target.value })}
-                      className="w-full rounded-md border border-border bg-background px-1.5 py-1 text-[10px] text-foreground"
-                      style={{ fontFamily: (pageOverrides[key] as string) || (effective[key] as string) }}
-                    >
-                      {FONTS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
-                    </select>
+                    <div style={{ fontFamily: (pageOverrides[key] as string) || (effective[key] as string) }}>
+                      <Select
+                        value={(pageOverrides[key] as string) || (effective[key] as string)}
+                        onChange={v => onPageStyleChange(activePage.id, { [key]: v })}
+                        options={FONTS.map(f => ({ value: f, label: f }))}
+                        className="w-full rounded-md border border-border bg-background px-1.5 py-1 text-[10px] text-foreground"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -10715,15 +10712,17 @@ function StructureShellDesignBarTools({
         <span className="hidden sm:inline h-5 w-px shrink-0 bg-gray-200" aria-hidden />
         <label className="flex min-w-0 items-center gap-1">
           <span className="shrink-0 text-[10px] font-semibold text-gray-500">Links</span>
-          <select
+          <Select
             value={linkSource}
-            onChange={e => onUpdate({ nav_links_source: e.target.value } as Partial<BlockProps>)}
-            className="h-7 max-w-[8.5rem] rounded-md border border-gray-200 bg-white px-1.5 text-[10px] font-medium text-gray-700"
-            title="Navigation link source"
-          >
-            <option value="site_pages">Site pages</option>
-            <option value="manual">Manual</option>
-          </select>
+            onChange={v => onUpdate({ nav_links_source: v } as Partial<BlockProps>)}
+            options={[
+              { value: 'site_pages', label: 'Site pages' },
+              { value: 'manual', label: 'Manual' },
+            ]}
+            wrapperClassName="max-w-[8.5rem]"
+            className="h-7 rounded-md border border-gray-200 bg-white px-1.5 text-[10px] font-medium text-gray-700"
+            aria-label="Navigation link source"
+          />
         </label>
         <label className="flex min-w-0 items-center gap-1">
           <span className="shrink-0 text-[10px] font-semibold text-gray-500">CTA</span>
@@ -18362,19 +18361,13 @@ export default function WebsiteBuilder() {
                           </button>
                         )}
                       </div>
-                      <div className="relative">
-                        <select
-                          value={sectionCategory}
-                          onChange={e => setSectionCategory(e.target.value)}
-                          className="w-full appearance-none pl-3 pr-8 py-2 text-xs border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-                          aria-label="Filter section category"
-                        >
-                          {BLOCK_CATEGORIES.map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.label}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                      </div>
+                      <Select
+                        value={sectionCategory}
+                        onChange={setSectionCategory}
+                        options={BLOCK_CATEGORIES.map(cat => ({ value: cat.id, label: cat.label }))}
+                        className="w-full pl-3 pr-8 py-2 text-xs border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                        aria-label="Filter section category"
+                      />
                     </div>
 
                     <div className={cn(builderPanelUi.panelScroll, 'p-3 space-y-3')}>
@@ -19809,19 +19802,25 @@ function SiteSettingsPanel({
           <>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-700">Primary Language</label>
-              <select value={lang} onChange={e => setLang(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs">
-                {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label} ({l.code})</option>)}
-              </select>
+              <Select
+                value={lang}
+                onChange={setLang}
+                options={LANGUAGES.map(l => ({ value: l.code, label: `${l.label} (${l.code})` }))}
+                className="text-xs"
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-700">Currency</label>
-              <select value={currency} onChange={e => {
-                const c = CURRENCIES.find(x => x.code === e.target.value)
-                setCurrency(e.target.value)
-                if (c) setCurrSymbol(c.symbol)
-              }} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs">
-                {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.label} ({c.symbol})</option>)}
-              </select>
+              <Select
+                value={currency}
+                onChange={v => {
+                  const c = CURRENCIES.find(x => x.code === v)
+                  setCurrency(v)
+                  if (c) setCurrSymbol(c.symbol)
+                }}
+                options={CURRENCIES.map(c => ({ value: c.code, label: `${c.label} (${c.symbol})` }))}
+                className="text-xs"
+              />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
@@ -19830,10 +19829,15 @@ function SiteSettingsPanel({
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700">Position</label>
-                <select value={currPos} onChange={e => setCurrPos(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs">
-                  <option value="before">Before (₹999)</option>
-                  <option value="after">After (999₹)</option>
-                </select>
+                <Select
+                  value={currPos}
+                  onChange={setCurrPos}
+                  options={[
+                    { value: 'before', label: 'Before (₹999)' },
+                    { value: 'after', label: 'After (999₹)' },
+                  ]}
+                  className="text-xs"
+                />
               </div>
             </div>
             <div className="space-y-1">
@@ -19983,10 +19987,15 @@ function SiteSettingsPanel({
               <div className="flex gap-2 items-end">
                 <div className="flex-1 space-y-1">
                   <label className="text-xs font-bold text-gray-500 uppercase">Type</label>
-                  <select value={newCode} onChange={e => setNewCode(Number(e.target.value) as 301 | 302)} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs">
-                    <option value={301}>301 Permanent</option>
-                    <option value={302}>302 Temporary</option>
-                  </select>
+                  <Select
+                    value={String(newCode)}
+                    onChange={v => setNewCode(Number(v) as 301 | 302)}
+                    options={[
+                      { value: '301', label: '301 Permanent' },
+                      { value: '302', label: '302 Temporary' },
+                    ]}
+                    className="text-xs"
+                  />
                 </div>
                 <button onClick={handleAddRedirect} disabled={createRedirect.isPending} className="px-3 py-2 bg-primary text-white text-xs font-bold rounded-xl flex items-center gap-1">
                   <Plus className="w-3 h-3" /> Add

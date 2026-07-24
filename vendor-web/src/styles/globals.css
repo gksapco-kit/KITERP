@@ -511,14 +511,11 @@
     background-color: hsl(var(--popover));
     color: hsl(var(--popover-foreground));
   }
-  select option:checked {
-    background-color: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-  }
+  select option:checked,
   select option:hover,
   select option:focus {
-    background-color: hsl(var(--accent));
-    color: hsl(var(--accent-foreground));
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
   }
 }
 
@@ -565,7 +562,7 @@
 
   /* Native selects — use on pages that still use raw <select> */
   .form-select {
-    @apply inline-flex h-10 max-w-full min-w-0 items-center rounded-md border-[1.5px] border-input bg-background px-2.5 py-0 text-sm leading-none text-foreground
+    @apply inline-flex h-10 max-w-full min-w-0 items-center rounded-md border border-input bg-background px-2.5 py-0 text-sm leading-none text-foreground
            focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50;
     color-scheme: light;
     box-sizing: border-box;
@@ -600,19 +597,23 @@
     border-color: var(--border-color);
   }
 
+  /* Keep rounded surfaces at 1px — 1.5px + border-radius chamfers corners in Chromium. */
   main .rounded-xl.border:not(.border-0):not(.border-2):not(.border-4),
   main .rounded-lg.border:not(.border-0):not(.border-2):not(.border-4),
   main .rounded-2xl.border:not(.border-0):not(.border-2):not(.border-4),
-  main .rounded-md.border:not(.border-0):not(.border-2):not(.border-4),
+  main .rounded-md.border:not(.border-0):not(.border-2):not(.border-4) {
+    border-width: 1px;
+  }
+
   main select.border-gray-200,
   main input.border-gray-200,
   main textarea.border-gray-200 {
-    border-width: 1.5px;
+    border-width: 1px;
   }
 
   main .border-dashed.border-gray-200,
   main .border-dashed.border-gray-300 {
-    border-width: 1.5px;
+    border-width: 1px;
   }
 
   main thead .border-b,
@@ -635,9 +636,9 @@
     border-radius: var(--radius);
   }
 
-  /* Shared table frame — matches input/card border weight & color */
+  /* Shared table frame — matches card border weight & color */
   .kiterp-table-shell {
-    border-width: 1.5px;
+    border-width: 1px;
     border-style: solid;
     border-color: var(--border-color);
     background-color: hsl(var(--card));
@@ -654,7 +655,7 @@
   .kiterp-filter-panel {
     overflow: hidden;
     border-radius: var(--radius);
-    border-width: 1.5px;
+    border-width: 1px;
     border-style: solid;
     border-color: var(--border-color);
     background-color: hsl(var(--card));
@@ -969,15 +970,11 @@ select option {
   color: hsl(var(--popover-foreground));
 }
 
-.dark select option:checked {
-  background-color: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-}
-
+.dark select option:checked,
 .dark select option:hover,
 .dark select option:focus {
-  background-color: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
 }
 
 .dark .hover\:bg-white:hover,
@@ -2757,7 +2754,7 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 
   /* Single border on themed selects — wrapper is layout-only. */
   [data-kiterp-modal] button.form-select {
-    @apply border-[1.5px] border-input bg-background;
+    @apply border border-input bg-background;
   }
 
   /* Form fields — label spacing; avoid double chrome with Input/Select inside FormField. */

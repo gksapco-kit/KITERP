@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
   Calendar, CheckCircle, XCircle, Clock, AlertCircle,
@@ -126,10 +127,18 @@ function AttendanceModal({
           {!isEdit && (
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1" required>Employee</Label>
-              <select required className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none" value={form.employee_id} onChange={e => set('employee_id', e.target.value)}>
-                <option value="">— Select Employee —</option>
-                {employees.map(e => <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>)}
-              </select>
+              <Select
+                value={form.employee_id}
+                onChange={v => set('employee_id', v)}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
+                options={[
+                  { value: '', label: '— Select Employee —' },
+                  ...employees.map(e => ({
+                    value: e.id,
+                    label: e.vendor_user?.user?.full_name ?? e.employee_code ?? '',
+                  })),
+                ]}
+              />
             </div>
           )}
           {isEdit && (
@@ -147,9 +156,12 @@ function AttendanceModal({
             )}
             <div className={isEdit ? 'col-span-2' : ''}>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Status</Label>
-              <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
-                {STATUS_OPTS.map(s => <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>)}
-              </select>
+              <Select
+                value={form.status}
+                onChange={v => set('status', v)}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                options={STATUS_OPTS.map(s => ({ value: s, label: STATUS_CONFIG[s]?.label ?? s }))}
+              />
             </div>
           </div>
           {isEdit && (
@@ -657,14 +669,13 @@ function RangeMarkModal({
                       {isSaved
                         ? <StatusBadge status={isTime ? 'present' : entry.status} />
                         : (
-                          <select value={entry.status}
-                            onChange={e => setDayField(date, 'status', e.target.value)}
+                          <Select
+                            value={entry.status}
+                            onChange={v => setDayField(date, 'status', v)}
                             disabled={isSkipped}
-                            className="w-full border rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary outline-none bg-white">
-                            {STATUS_OPTS.map(s => (
-                              <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>
-                            ))}
-                          </select>
+                            className="w-full border rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary outline-none bg-white"
+                            options={STATUS_OPTS.map(s => ({ value: s, label: STATUS_CONFIG[s]?.label ?? s }))}
+                          />
                         )}
                     </td>
 
@@ -673,14 +684,13 @@ function RangeMarkModal({
                       {isSaved
                         ? <span className="capitalize text-gray-600">{entry.work_from}</span>
                         : (
-                          <select value={entry.work_from}
-                            onChange={e => setDayField(date, 'work_from', e.target.value)}
+                          <Select
+                            value={entry.work_from}
+                            onChange={v => setDayField(date, 'work_from', v)}
                             disabled={isSkipped}
-                            className="w-full border rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary outline-none bg-white">
-                            {WORK_FROM_OPTS.map(({ value, label: wl }) => (
-                              <option key={value} value={value}>{wl}</option>
-                            ))}
-                          </select>
+                            className="w-full border rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary outline-none bg-white"
+                            options={WORK_FROM_OPTS.map(({ value, label: wl }) => ({ value, label: wl }))}
+                          />
                         )}
                     </td>
 
@@ -898,24 +908,47 @@ export default function AttendancePage() {
         </div>
         {showFilters && (
           <div className="flex flex-wrap gap-3 pt-3 border-t">
-            <select className="form-select" value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
-              <option value="">All Departments</option>
-              {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-            <select className="form-select" value={empFilter} onChange={e => setEmpFilter(e.target.value)}>
-              <option value="">All Employees</option>
-              {employees.map((e: any) => <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>)}
-            </select>
-            <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              {STATUS_OPTS.map(s => <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>)}
-            </select>
-            <select className="form-select" value={approvalFilter} onChange={e => setApprovalFilter(e.target.value)}>
-              <option value="">All Approval</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
+            <Select
+              value={deptFilter}
+              onChange={setDeptFilter}
+              className="form-select"
+              options={[
+                { value: '', label: 'All Departments' },
+                ...departments.map((d: any) => ({ value: d.id, label: d.name })),
+              ]}
+            />
+            <Select
+              value={empFilter}
+              onChange={setEmpFilter}
+              className="form-select"
+              options={[
+                { value: '', label: 'All Employees' },
+                ...employees.map((e: any) => ({
+                  value: e.id,
+                  label: e.vendor_user?.user?.full_name ?? e.employee_code ?? '',
+                })),
+              ]}
+            />
+            <Select
+              value={statusFilter}
+              onChange={setStatusFilter}
+              className="form-select"
+              options={[
+                { value: '', label: 'All Statuses' },
+                ...STATUS_OPTS.map(s => ({ value: s, label: STATUS_CONFIG[s]?.label ?? s })),
+              ]}
+            />
+            <Select
+              value={approvalFilter}
+              onChange={setApprovalFilter}
+              className="form-select"
+              options={[
+                { value: '', label: 'All Approval' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'approved', label: 'Approved' },
+                { value: 'rejected', label: 'Rejected' },
+              ]}
+            />
             {(deptFilter || empFilter || statusFilter || approvalFilter) && (
               <button type="button" aria-label="Close" onClick={() => { setDeptFilter(''); setEmpFilter(''); setStatusFilter(''); setApprovalFilter('') }}
                 className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">

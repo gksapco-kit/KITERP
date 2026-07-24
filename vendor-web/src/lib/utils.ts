@@ -21,11 +21,11 @@ export const solidButtonFocusClassName =
 export const nativeSolidGreenButtonClassName =
   `bg-primary text-white hover:bg-primary/90 ${solidGreenTabFocusClassName}`
 
-/** Default field edge — #9ca3afc4 light / theme --input-color via CSS var. */
-export const formFieldBorderClassName = 'border-[1.5px] border-[color:var(--input-color)]'
+/** Default field edge — 1px so rounded inputs don't chamfer in Chromium. */
+export const formFieldBorderClassName = 'border border-[color:var(--input-color)]'
 
-/** Panel / card outer edge — same weight + #9ca3afc4 (--border-color) as app surfaces. */
-export const surfaceBorderClassName = 'border-[1.5px] border-[color:var(--border-color)]'
+/** Panel / card outer edge — 1px (not 1.5) so rounded corners stay smooth in Chromium. */
+export const surfaceBorderClassName = 'border border-[color:var(--border-color)]'
 
 export const surfacePanelClassName = `rounded-lg ${surfaceBorderClassName} bg-card`
 

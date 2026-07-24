@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 
@@ -311,14 +312,15 @@ export default function CostCenters() {
           )}
         </div>
 
-        <select
+        <Select
           value={filterGroup}
-          onChange={e => setFilterGroup(e.target.value)}
+          onChange={setFilterGroup}
           className={fieldSelect}
-        >
-          <option value="">All Groups</option>
-          {usedGroups.map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
+          options={selectOptionsWithBlank(
+            'All Groups',
+            usedGroups.map(g => ({ value: g, label: g })),
+          )}
+        />
 
         {(search || filterGroup) && (
           <button type="button" aria-label="Close"
@@ -467,14 +469,16 @@ export default function CostCenters() {
                       <label className="block text-xs font-medium text-foreground mb-1.5 uppercase tracking-wide">
                         Department Group
                       </label>
-                      <select
+                      <Select
                         value={ccForm.cc_group}
-                        onChange={e => setCcForm(f => ({ ...f, cc_group: e.target.value }))}
-                        className={`w-full h-10 px-3 text-sm rounded-lg ${fieldSelect}`}
-                      >
-                        <option value="">— No group —</option>
-                        {CC_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-                      </select>
+                        onChange={v => setCcForm(f => ({ ...f, cc_group: v }))}
+                        placeholder="— No group —"
+                        className={`w-full h-10 text-sm rounded-lg ${fieldSelect}`}
+                        options={selectOptionsWithBlank(
+                          '— No group —',
+                          CC_GROUPS.map(g => ({ value: g, label: g })),
+                        )}
+                      />
                     </div>
                   </div>
 
@@ -511,16 +515,16 @@ export default function CostCenters() {
                       Business Unit
                       <span className="text-xs font-normal text-muted-foreground normal-case tracking-normal">(optional)</span>
                     </label>
-                    <select
+                    <Select
                       value={ccForm.company_id}
-                      onChange={e => setCcForm(f => ({ ...f, company_id: e.target.value }))}
-                      className={`w-full h-10 px-3 text-sm rounded-lg ${fieldSelect}`}
-                    >
-                      <option value="">— Auto (uses default company) —</option>
-                      {companies.map(co => (
-                        <option key={co.id} value={co.id}>{co.code} — {co.name}</option>
-                      ))}
-                    </select>
+                      onChange={v => setCcForm(f => ({ ...f, company_id: v }))}
+                      placeholder="— Auto (uses default company) —"
+                      className={`w-full h-10 text-sm rounded-lg ${fieldSelect}`}
+                      options={selectOptionsWithBlank(
+                        '— Auto (uses default company) —',
+                        companies.map(co => ({ value: co.id, label: `${co.code} — ${co.name}` })),
+                      )}
+                    />
                     <p className="text-xs text-muted-foreground mt-1">
                       Leave blank to automatically use the default business unit.
                     </p>

@@ -247,10 +247,18 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="col-span-3">
               <Label className="text-xs">Link to Purchase Order (optional)</Label>
-              <select className="mt-1 w-full text-sm border rounded-md px-3 py-2 bg-background" value={poId} onChange={e => setPoId(e.target.value)}>
-                <option value="">— No PO link —</option>
-                {pos.map((p: any) => <option key={p.id} value={p.id}>{p.po_number} — {p.supplier_name}</option>)}
-              </select>
+              <Select
+                value={poId}
+                onChange={setPoId}
+                options={selectOptionsWithBlank(
+                  '— No PO link —',
+                  pos.map((p: { id: string; po_number: string; supplier_name?: string }) => ({
+                    value: p.id,
+                    label: `${p.po_number} — ${p.supplier_name ?? ''}`,
+                  })),
+                )}
+                className="mt-1 text-sm"
+              />
             </div>
           </div>
 

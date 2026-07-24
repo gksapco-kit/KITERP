@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
+import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { PlatformStaffMember } from '@/api/admin.api'
 import { useUpdatePlatformStaff } from '@/hooks/usePlatformStaff'
@@ -228,41 +229,32 @@ export function PlatformStaffEditForm({ member, teamManagers, compact = false }:
               </div>
               <div className="min-w-0">
                 <Label htmlFor="detail-edit-job-role">Job role</Label>
-                <select
+                <Select
                   id="detail-edit-job-role"
                   className={cn(platformTeamSelectClassName, 'mt-1 w-full !h-9 !py-0')}
                   value={editJobRole}
-                  onChange={(e) => {
-                    const v = e.target.value
+                  onChange={(v) => {
                     setEditJobRole(v)
                     if (isTeamManagerRole(v, roleOptions)) setEditManagerId('')
                   }}
-                >
-                  {roleOptions.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
+                  options={roleOptions.map((r) => ({ value: r.value, label: r.label }))}
+                />
               </div>
               <div className="min-w-0">
                 <Label htmlFor="detail-edit-manager">Reports to</Label>
-                <select
+                <Select
                   id="detail-edit-manager"
                   className={cn(platformTeamSelectClassName, 'mt-1 w-full !h-9 !py-0')}
                   value={editManagerId}
-                  onChange={(e) => setEditManagerId(e.target.value)}
+                  onChange={setEditManagerId}
                   disabled={isTeamMgr}
-                >
-                  <option value="">— None —</option>
-                  {teamManagers
-                    .filter((tm) => tm.id !== member.id)
-                    .map((tm) => (
-                      <option key={tm.id} value={tm.id}>
-                        {tm.full_name}
-                      </option>
-                    ))}
-                </select>
+                  options={[
+                    { value: '', label: '— None —' },
+                    ...teamManagers
+                      .filter((tm) => tm.id !== member.id)
+                      .map((tm) => ({ value: tm.id, label: tm.full_name })),
+                  ]}
+                />
                 {!compact && !isTeamMgr && (
                   <p className="text-xs text-muted-foreground mt-1">Currently: {reportsToLabel}</p>
                 )}

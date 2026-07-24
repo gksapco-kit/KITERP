@@ -13,6 +13,7 @@ import {
   usePurchaseOrder, useSendPO, useReceivePOItems, useClosePO, useCancelPO,
   useUpdatePurchaseOrder, useSuppliers, useProducts,
 } from '@/hooks/useVendor'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import type { PurchaseOrderItem as POItem } from '@/types'
@@ -375,11 +376,15 @@ export default function PurchaseOrderDetail() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>Supplier</Label>
-                <select className={selectClass} value={headerDraft.supplier_id}
-                  onChange={e => setHeaderDraft(d => ({ ...d, supplier_id: e.target.value }))}>
-                  <option value="">— Select supplier —</option>
-                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                <Select
+                  value={headerDraft.supplier_id}
+                  onChange={v => setHeaderDraft(d => ({ ...d, supplier_id: v }))}
+                  options={selectOptionsWithBlank(
+                    '— Select supplier —',
+                    suppliers.map(s => ({ value: s.id, label: s.name })),
+                  )}
+                  className={selectClass}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Expected Delivery Date</Label>
@@ -720,30 +725,41 @@ function AddItemPanel({ onSave, onCancel, saving, prefillProductId, prefillVaria
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="space-y-1 sm:col-span-2 lg:col-span-1">
           <Label className="text-xs">Product <span className="text-red-500">*</span></Label>
-          <select className={selectClass} value={productId}
-            onChange={e => { setProductId(e.target.value); setVariantId(''); setUnitCost('') }}>
-            <option value="">Select product…</option>
-            {products.map(p => <option key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ''}</option>)}
-          </select>
+          <Select
+            value={productId}
+            onChange={v => { setProductId(v); setVariantId(''); setUnitCost('') }}
+            options={selectOptionsWithBlank(
+              'Select product…',
+              products.map(p => ({
+                value: p.id,
+                label: `${p.name}${p.sku ? ` (${p.sku})` : ''}`,
+              })),
+            )}
+            className={selectClass}
+          />
         </div>
         {variants.length > 0 && (
           <div className="space-y-1">
             <Label className="text-xs">Variant</Label>
-            <select className={selectClass} value={variantId} onChange={e => {
-              setVariantId(e.target.value)
-              if (e.target.value) {
-                const v = variants.find((v: any) => v.id === e.target.value)
-                if (v?.cost_price) setUnitCost(String(v.cost_price))
-                else if (v?.price) setUnitCost(String(v.price))
-              }
-            }}>
-              <option value="">Product-level</option>
-              {variants.map((v: any) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}{v.sku ? ` · ${v.sku}` : ''}{v.barcode ? ` · ${v.barcode}` : ''}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={variantId}
+              onChange={v => {
+                setVariantId(v)
+                if (v) {
+                  const variant = variants.find((x: { id: string }) => x.id === v)
+                  if (variant?.cost_price) setUnitCost(String(variant.cost_price))
+                  else if (variant?.price) setUnitCost(String(variant.price))
+                }
+              }}
+              options={selectOptionsWithBlank(
+                'Product-level',
+                variants.map((v: { id: string; name: string; sku?: string; barcode?: string }) => ({
+                  value: v.id,
+                  label: `${v.name}${v.sku ? ` · ${v.sku}` : ''}${v.barcode ? ` · ${v.barcode}` : ''}`,
+                })),
+              )}
+              className={selectClass}
+            />
             {variantId && (() => {
               const v = variants.find((v: any) => v.id === variantId)
               return v?.barcode ? <p className="text-xs font-mono text-gray-400 mt-0.5">{v.barcode}</p> : null
@@ -901,12 +917,18 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
             {variants.length > 0 && (
               <div className="space-y-1">
                 <Label className="text-xs">Variant</Label>
-                <select className={selectClass} value={editVariantId} onChange={e => setEditVariantId(e.target.value)}>
-                  <option value="">Product-level</option>
-                  {variants.map((v: any) => (
-                    <option key={v.id} value={v.id}>{v.name}{v.sku ? ` · ${v.sku}` : ''}</option>
-                  ))}
-                </select>
+                <Select
+                  value={editVariantId}
+                  onChange={setEditVariantId}
+                  options={selectOptionsWithBlank(
+                    'Product-level',
+                    variants.map((v: { id: string; name: string; sku?: string }) => ({
+                      value: v.id,
+                      label: `${v.name}${v.sku ? ` · ${v.sku}` : ''}`,
+                    })),
+                  )}
+                  className={selectClass}
+                />
               </div>
             )}
             <div className="space-y-1">

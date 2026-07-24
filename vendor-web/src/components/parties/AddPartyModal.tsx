@@ -37,6 +37,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { cn } from '@/lib/utils'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { CUSTOMER_PRICING_GROUPS } from '@/lib/customerGroups'
 
 // ── Regex constants ───────────────────────────────────────────────────────────
@@ -1953,15 +1954,13 @@ export function AddPartyModal({
                     <div key={addr.id} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-gray-50/50">
                       {/* Row 1: address type dropdown + optional custom name + remove */}
                       <div className="flex items-center gap-2">
-                        <select
+                        <ThemeSelect
                           value={addr.type}
-                          onChange={e => updateAddr(addr.id, { type: e.target.value as AddrType, customName: '' })}
-                          className="shrink-0 text-xs font-medium border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary text-gray-700"
-                        >
-                          {ADDR_TYPE_OPTS.map(o => (
-                            <option key={o.value} value={o.value}>{o.label}</option>
-                          ))}
-                        </select>
+                          onChange={v => updateAddr(addr.id, { type: v as AddrType, customName: '' })}
+                          options={ADDR_TYPE_OPTS.map(o => ({ value: o.value, label: o.label }))}
+                          wrapperClassName="shrink-0"
+                          className="text-xs font-medium rounded-lg px-2 py-1.5 bg-white text-gray-700"
+                        />
 
                         {/* Custom name input — shown only when "Other…" is selected */}
                         {addr.type === 'other' && (
@@ -2059,21 +2058,16 @@ export function AddPartyModal({
                     ) : (
                       /* ── Dropdown + Custom button ── */
                       <div className="mt-1 flex gap-1.5">
-                        <select
+                        <ThemeSelect
                           value={paymentTerms}
-                          onChange={e => setPaymentTerms(e.target.value)}
-                          className="flex-1 text-sm border rounded-lg px-3 h-9 focus:outline-none focus:ring-2 focus:ring-primary bg-white text-gray-700"
-                        >
-                          <option value="">Select terms…</option>
-                          <optgroup label="Standard">
-                            {PAYMENT_TERMS_DEFAULT.map(t => <option key={t} value={t}>{t}</option>)}
-                          </optgroup>
-                          {customTerms.length > 0 && (
-                            <optgroup label="Custom">
-                              {customTerms.map(t => <option key={t} value={t}>{t}</option>)}
-                            </optgroup>
-                          )}
-                        </select>
+                          onChange={setPaymentTerms}
+                          options={[
+                            { value: '', label: 'Select terms…' },
+                            ...PAYMENT_TERMS_DEFAULT.map(t => ({ value: t, label: t, group: 'Standard' })),
+                            ...customTerms.map(t => ({ value: t, label: t, group: 'Custom' })),
+                          ]}
+                          className="flex-1 text-sm rounded-lg px-3 h-9 bg-white text-gray-700"
+                        />
                         <button
                           type="button"
                           onClick={() => setShowTermsInput(true)}
@@ -2147,12 +2141,12 @@ export function AddPartyModal({
                 {partyType === 'customer' && (
                   <div>
                     <Label className="flex items-center gap-1 text-xs"><Tag className="w-3 h-3" /> Pricing Group</Label>
-                    <select value={customerGroup} onChange={e => setCustomerGroup(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none">
-                      {CUSTOMER_PRICING_GROUPS.map(g => (
-                        <option key={g.value} value={g.value}>{g.label}</option>
-                      ))}
-                    </select>
+                    <ThemeSelect
+                      value={customerGroup}
+                      onChange={setCustomerGroup}
+                      options={CUSTOMER_PRICING_GROUPS.map(g => ({ value: g.value, label: g.label }))}
+                      className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
+                    />
                     <p className="text-xs text-gray-400 mt-0.5">Determines which retail/wholesale/distributor/agent price rules apply to this customer at checkout &amp; POS.</p>
                   </div>
                 )}
@@ -2179,11 +2173,15 @@ export function AddPartyModal({
                     </div>
                     <div>
                       <Label className="text-xs">Account Type</Label>
-                      <select value={accountType} onChange={e => setAccountType(e.target.value)}
-                        className="mt-1 w-full text-sm border rounded-lg px-3 h-9 focus:outline-none focus:ring-2 focus:ring-primary bg-white text-gray-700">
-                        <option value="savings">Savings</option>
-                        <option value="current">Current</option>
-                      </select>
+                      <ThemeSelect
+                        value={accountType}
+                        onChange={setAccountType}
+                        options={[
+                          { value: 'savings', label: 'Savings' },
+                          { value: 'current', label: 'Current' },
+                        ]}
+                        className="mt-1 w-full text-sm rounded-lg px-3 h-9 bg-white text-gray-700"
+                      />
                     </div>
                     <div className="col-span-2">
                       <Label className="text-xs">Account Holder Name</Label>
@@ -2232,15 +2230,13 @@ export function AddPartyModal({
                     <div key={cf.id} className="flex items-start gap-2 border border-gray-200 rounded-xl p-2.5 bg-gray-50/50">
                       {/* Field type badge */}
                       <div className="shrink-0 pt-0.5">
-                        <select
+                        <ThemeSelect
                           value={cf.type}
-                          onChange={e => updateCustomField(cf.id, { type: e.target.value as CustomFieldType, value: '' })}
-                          className="text-xs font-medium border rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-ring text-primary border-primary/30 w-[90px]"
-                        >
-                          {CUSTOM_FIELD_TYPES.map(t => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
-                          ))}
-                        </select>
+                          onChange={v => updateCustomField(cf.id, { type: v as CustomFieldType, value: '' })}
+                          options={CUSTOM_FIELD_TYPES.map(t => ({ value: t.value, label: t.label }))}
+                          wrapperClassName="w-[90px] shrink-0"
+                          className="text-xs font-medium rounded-lg px-1.5 py-1 bg-white text-primary border-primary/30"
+                        />
                       </div>
 
                       {/* Label + value */}

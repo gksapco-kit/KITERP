@@ -1,6 +1,12 @@
 import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import type { SortDir } from '@/lib/tableList'
+
+const SORT_DIR_OPTIONS = [
+  { value: 'asc', label: 'A → Z / Low → High' },
+  { value: 'desc', label: 'Z → A / High → Low' },
+]
 
 export type TableSortOption = { value: string; label: string }
 
@@ -56,29 +62,22 @@ export function TableToolbar({
         {hint && <span className="text-xs text-muted-foreground hidden md:inline max-w-[14rem]">{hint}</span>}
         <span className="text-xs font-medium text-muted-foreground">Sort</span>
         <div className="w-[8rem] shrink-0 overflow-hidden">
-          <select
+          <Select
             value={sortKey}
-            onChange={(e) => onSortKeyChange(e.target.value)}
+            onChange={onSortKeyChange}
+            options={sortOptions}
             className={selectCls}
             aria-label="Sort by column"
-          >
-            {sortOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          />
         </div>
         <div className="w-[10rem] shrink-0 overflow-hidden">
-          <select
+          <Select
             value={sortDir}
-            onChange={(e) => onSortDirChange(e.target.value as SortDir)}
+            onChange={(v) => onSortDirChange(v as SortDir)}
+            options={SORT_DIR_OPTIONS}
             className={selectCls}
             aria-label="Sort direction"
-          >
-            <option value="asc">A → Z / Low → High</option>
-            <option value="desc">Z → A / High → Low</option>
-          </select>
+          />
         </div>
         {extra}
       </div>

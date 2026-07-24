@@ -299,9 +299,9 @@ export function CompanyTypeDropdown({
   ) : null
 
   return (
-    <div ref={rootRef} className={cn('relative', className)}>
+    <div ref={rootRef} className={cn('relative flex min-w-0 flex-col gap-1', className)}>
       {label ? (
-        <Label htmlFor={id} className="mb-1 block text-xs font-medium sm:text-sm">
+        <Label htmlFor={id} className={cn('text-xs font-medium leading-none', isSignup && 'sm:text-sm')}>
           {label}
         </Label>
       ) : null}
@@ -312,11 +312,11 @@ export function CompanyTypeDropdown({
         type="button"
         onClick={openPanel}
         className={cn(
-          'flex h-9 min-h-9 w-full items-center gap-2 rounded-lg border bg-white px-3 text-sm text-left transition-all',
+          'flex w-full items-center gap-2 border bg-white px-3 text-left text-sm transition-all',
+          isSignup ? 'h-9 min-h-9 rounded-lg' : 'h-8 min-h-8 rounded-md',
           open && !isSignup && 'border-primary ring-2 ring-primary/25',
           !open && !error && 'border-gray-200 hover:border-gray-300',
           error && 'border-red-400',
-          !isSignup && 'rounded-md',
         )}
         style={
           open && isSignup

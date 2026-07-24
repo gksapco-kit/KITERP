@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { SectionLabel } from '@/components/common/FieldLabel'
+import { Select } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useHREmployees, useStores } from '@/hooks/useVendor'
 import { employeeDisplayName, sanitizeEmployeeUpdatePayload } from '@/lib/hrEmployeeDisplay'
@@ -211,53 +212,77 @@ export function IdentityTab({
         )}
       </div>
       <FieldRow label="Employer / entity" editing={editing} display={empT.store?.name ?? ''}>
-        <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.store_id} onChange={e => update('store_id', e.target.value)}>
-          <option value="">— No specific entity —</option>
-          {stores.map(s => <option key={s.id} value={s.id}>{s.name}{s.code ? ` · ${s.code}` : ''}</option>)}
-        </select>
+        <Select
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          value={form.store_id}
+          onChange={v => update('store_id', v)}
+          options={[
+            { value: '', label: '— No specific entity —' },
+            ...stores.map(s => ({ value: s.id, label: `${s.name}${s.code ? ` · ${s.code}` : ''}` })),
+          ]}
+        />
       </FieldRow>
       <FieldRow label="Department" editing={editing} display={empT.department?.name ?? ''}>
-        <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.department_id} onChange={e => update('department_id', e.target.value)}>
-          <option value="">— None —</option>
-          {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
+        <Select
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          value={form.department_id}
+          onChange={v => update('department_id', v)}
+          options={[
+            { value: '', label: '— None —' },
+            ...departments.map(d => ({ value: d.id, label: d.name })),
+          ]}
+        />
       </FieldRow>
       <FieldRow label="Designation" editing={editing} display={empT.designation?.name ?? ''}>
-        <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.designation_id} onChange={e => update('designation_id', e.target.value)}>
-          <option value="">— None —</option>
-          {designations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
+        <Select
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          value={form.designation_id}
+          onChange={v => update('designation_id', v)}
+          options={[
+            { value: '', label: '— None —' },
+            ...designations.map(d => ({ value: d.id, label: d.name })),
+          ]}
+        />
       </FieldRow>
       <FieldRow label="Reporting manager" editing={editing} display={managerDisplay}>
-        <select
+        <Select
           className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           value={form.manager_id}
-          onChange={e => update('manager_id', e.target.value)}
-        >
-          <option value="">— No manager —</option>
-          {managerOptions.map(m => (
-            <option key={m.id} value={m.id}>
-              {employeeDisplayName(m)}
-              {m.employee_code ? ` · ${m.employee_code}` : ''}
-            </option>
-          ))}
-        </select>
+          onChange={v => update('manager_id', v)}
+          options={[
+            { value: '', label: '— No manager —' },
+            ...managerOptions.map(m => ({
+              value: m.id,
+              label: `${employeeDisplayName(m)}${m.employee_code ? ` · ${m.employee_code}` : ''}`,
+            })),
+          ]}
+        />
       </FieldRow>
       <FieldRow label="Employment type" editing={editing} display={String(emp.employment_type ?? '').replace('_', '-')}>
-        <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.employment_type} onChange={e => update('employment_type', e.target.value)}>
-          <option value="full_time">Full-time</option>
-          <option value="part_time">Part-time</option>
-          <option value="contract">Contract</option>
-          <option value="intern">Intern</option>
-        </select>
+        <Select
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          value={form.employment_type}
+          onChange={v => update('employment_type', v)}
+          options={[
+            { value: 'full_time', label: 'Full-time' },
+            { value: 'part_time', label: 'Part-time' },
+            { value: 'contract', label: 'Contract' },
+            { value: 'intern', label: 'Intern' },
+          ]}
+        />
       </FieldRow>
       <FieldRow label="Status" editing={editing} display={String(emp.status ?? '').replace('_', ' ')}>
-        <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.status} onChange={e => update('status', e.target.value)}>
-          <option value="active">Active</option>
-          <option value="probation">Probation</option>
-          <option value="on_notice">On Notice</option>
-          <option value="exited">Exited</option>
-        </select>
+        <Select
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          value={form.status}
+          onChange={v => update('status', v)}
+          options={[
+            { value: 'active', label: 'Active' },
+            { value: 'probation', label: 'Probation' },
+            { value: 'on_notice', label: 'On Notice' },
+            { value: 'exited', label: 'Exited' },
+          ]}
+        />
       </FieldRow>
       <FieldRow label="Date of joining" editing={editing} display={String(emp.date_of_joining ?? '')}>
         <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.date_of_joining} onChange={e => update('date_of_joining', e.target.value)} />

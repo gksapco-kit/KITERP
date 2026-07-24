@@ -21,6 +21,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { isSuperuserAdmin } from '@/lib/platformAccess'
 import { buildAdminDraftPreviewUrl } from '@/lib/appUrls'
 import { cn, mediaUrl } from '@/lib/utils'
+import { Select } from '@/components/ui/select'
 import {
   useAdminWebsiteTemplates,
   usePublishWebsiteTemplate,
@@ -32,6 +33,12 @@ import type { AdminWebsiteTemplateRow } from '@/api/admin.api'
 
 const selectCls =
   'h-9 rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-none focus:ring-0 focus:border-primary'
+
+const VIEW_FILTER_OPTIONS = [
+  { value: 'all', label: 'All templates' },
+  { value: 'assigned', label: 'Assigned templates' },
+  { value: 'draft', label: 'Draft templates' },
+]
 
 function formatShortDate(value?: string | null) {
   if (!value) return '—'
@@ -364,16 +371,13 @@ export default function AllTemplates() {
           <CardTitle>Website builder templates</CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground">Show</span>
-            <select
+            <Select
               value={view}
-              onChange={(e) => setView(e.target.value as 'assigned' | 'draft' | 'all')}
+              onChange={(v) => setView(v as 'assigned' | 'draft' | 'all')}
+              options={VIEW_FILTER_OPTIONS}
               className={selectCls}
               aria-label="Template list filter"
-            >
-              <option value="all">All templates</option>
-              <option value="assigned">Assigned templates</option>
-              <option value="draft">Draft templates</option>
-            </select>
+            />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}

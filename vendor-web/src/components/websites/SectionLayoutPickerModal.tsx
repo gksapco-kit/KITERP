@@ -19,6 +19,7 @@ import {
 } from '@/lib/blockDataSources'
 import { SectionLayoutPreview } from '@/components/websites/SectionLayoutPreview'
 import type { BlockProps } from '@/types/websites'
+import { Select } from '@/components/ui/select'
 
 export interface SectionBlockDef {
   type: string
@@ -321,15 +322,12 @@ export function SectionLayoutPickerModal({
               {showGallerySidebar && (
               <div className="shrink-0 px-4 pt-3 pb-1 md:hidden">
                 <label className="block text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1">Image category</label>
-                <select
+                <Select
                   value={imageCategoryId}
-                  onChange={e => setImageCategoryId(e.target.value)}
-                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white"
-                >
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.label}</option>
-                  ))}
-                </select>
+                  onChange={setImageCategoryId}
+                  className="text-xs border border-gray-200 rounded-lg bg-white h-8"
+                  options={categories.map((cat) => ({ value: cat.id, label: cat.label }))}
+                />
               </div>
               )}
               <div className={cn(

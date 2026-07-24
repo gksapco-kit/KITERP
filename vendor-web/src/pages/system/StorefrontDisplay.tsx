@@ -5,6 +5,7 @@ import { useWebsiteTemplates, useSiteList } from '@/hooks/useWebsites'
 import { useStores } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { Save, Loader2, Package, Wrench, LayoutTemplate } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Vendor } from '@/types'
@@ -236,18 +237,18 @@ export default function StorefrontDisplayPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-1.5 p-3 pt-0">
-          <select
+          <ThemeSelect
             value={selectedTemplateId}
-            onChange={e => setSelectedTemplateId(e.target.value)}
-            className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
-          >
-            {templateOptions.map(opt => (
-              <option key={opt.id || 'global'} value={opt.id}>
-                {opt.label}
-                {opt.assignedTo?.length ? ` · ${opt.assignedTo.join(', ')}` : ''}
-              </option>
-            ))}
-          </select>
+            onChange={setSelectedTemplateId}
+            className="h-9 rounded-lg border border-input bg-background"
+            options={templateOptions.map(opt => ({
+              value: opt.id,
+              label: opt.assignedTo?.length
+                ? `${opt.label} · ${opt.assignedTo.join(', ')}`
+                : opt.label,
+            }))}
+            aria-label="Website template"
+          />
           {selectedOption?.assignedTo?.length ? (
             <p className="text-[11px] text-muted-foreground">
               Assigned to: {selectedOption.assignedTo.join(', ')}

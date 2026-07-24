@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { cn } from '@/lib/utils'
+import { Select } from '@/components/ui/select'
 import { useCreatePlatformStaff } from '@/hooks/usePlatformStaff'
 import { usePlatformJobRoles } from '@/hooks/usePlatformJobRoles'
 import {
@@ -133,39 +134,30 @@ export function AddSupportUserModal({ open, onClose, teamManagers }: Props) {
             </div>
             <div className="space-y-1">
               <Label htmlFor="add-ps-job">Job role</Label>
-              <select
+              <Select
                 id="add-ps-job"
                 className={cn(platformTeamSelectClassName, 'w-full !h-9 !py-0')}
                 value={jobRole}
-                onChange={(e) => {
-                  const v = e.target.value
+                onChange={(v) => {
                   setJobRole(v)
                   if (isTeamManagerRole(v, roleOptions)) setManagerId('')
                 }}
-              >
-                {roleOptions.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
+                options={roleOptions.map((r) => ({ value: r.value, label: r.label }))}
+              />
             </div>
             <div className="space-y-1">
               <Label htmlFor="add-ps-manager">Reports to</Label>
-              <select
+              <Select
                 id="add-ps-manager"
                 className={cn(platformTeamSelectClassName, 'w-full !h-9 !py-0')}
                 value={managerId}
-                onChange={(e) => setManagerId(e.target.value)}
+                onChange={setManagerId}
                 disabled={isTeamMgr}
-              >
-                <option value="">— None —</option>
-                {teamManagers.map((tm) => (
-                  <option key={tm.id} value={tm.id}>
-                    {tm.full_name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: '— None —' },
+                  ...teamManagers.map((tm) => ({ value: tm.id, label: tm.full_name })),
+                ]}
+              />
             </div>
             <div className="space-y-1">
               <Label htmlFor="add-ps-email">Email</Label>

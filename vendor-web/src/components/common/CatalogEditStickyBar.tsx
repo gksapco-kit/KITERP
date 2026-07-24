@@ -14,12 +14,12 @@ const STATUS_OPTIONS = [
 
 function statusTriggerClass(status: string) {
   return cn(
-    'h-9 min-w-[5.5rem] rounded-md border px-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring sm:px-3 [color-scheme:light] dark:[color-scheme:dark]',
+    'h-8 min-w-[6.25rem] rounded-md border px-2.5 text-xs font-semibold shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:px-3 sm:text-sm',
     status === 'active'
-      ? 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-300'
+      ? 'border-primary/35 bg-primary/10 text-primary'
       : status === 'archived'
-        ? 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-300'
-        : 'border-border bg-muted/40 text-foreground',
+        ? 'border-destructive/35 bg-destructive/10 text-destructive'
+        : 'border-border bg-muted/50 text-foreground',
   )
 }
 
@@ -95,7 +95,7 @@ export function CatalogEditStickyBar({
       onChange={onStatusChange}
       options={STATUS_OPTIONS}
       aria-label="Status"
-      className="min-w-[5.5rem] w-auto"
+      className="min-w-[6.25rem] w-auto"
       triggerClassName={statusTriggerClass(status)}
     />
   )
@@ -216,9 +216,9 @@ export function CatalogEditStickyBar({
           <h1 className="min-w-0 truncate text-base font-bold text-foreground sm:text-xl">{title}</h1>
         </div>
 
-        <div className="hidden shrink-0 items-center gap-2 sm:flex sm:gap-3">
+        <div className="hidden shrink-0 items-center gap-2.5 sm:flex">
           {statusSelect}
-          {visibleControl}
+          <div className="flex h-9 items-center">{visibleControl}</div>
           {deleteButton}
           {saveButton}
         </div>

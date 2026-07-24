@@ -7,6 +7,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { storefrontApi } from '@/api/storefront.api'
 import type { StorefrontVendor } from '@/api/storefront.api'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
+
+const ADDRESS_LABEL_OPTIONS = [
+  { value: 'home', label: 'Home' },
+  { value: 'work', label: 'Work' },
+  { value: 'other', label: 'Other' },
+]
 
 const PAYMENT_METHODS = [
   { id: 'cod', label: 'Cash on Delivery', icon: Banknote, desc: 'Pay when you receive' },
@@ -123,11 +130,12 @@ export default function StorefrontCheckout() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Label</label>
-                  <select value={address.label} onChange={(e) => setAddress({ ...address, label: e.target.value })} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option value="home">Home</option>
-                    <option value="work">Work</option>
-                    <option value="other">Other</option>
-                  </select>
+                  <ThemeSelect
+                    value={address.label}
+                    onChange={(v) => setAddress({ ...address, label: v })}
+                    options={ADDRESS_LABEL_OPTIONS}
+                    className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
                 </div>
               </div>
             </div>

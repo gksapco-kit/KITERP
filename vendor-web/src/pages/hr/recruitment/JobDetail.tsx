@@ -1,6 +1,7 @@
 import { onModalBackdropClick, cn } from '@/lib/utils'
 import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useState, useMemo } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, Link } from 'react-router-dom'
@@ -119,12 +120,16 @@ function ScheduleInterviewModal({
             </div>
             <div>
               <Label className="text-xs font-medium text-gray-600 uppercase">Mode</Label>
-              <select value={form.mode} onChange={e => setForm({ ...form, mode: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-                <option value="video">Video</option>
-                <option value="phone">Phone</option>
-                <option value="onsite">Onsite</option>
-              </select>
+              <Select
+                value={form.mode}
+                onChange={v => setForm({ ...form, mode: v })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+                options={[
+                  { value: 'video', label: 'Video' },
+                  { value: 'phone', label: 'Phone' },
+                  { value: 'onsite', label: 'Onsite' },
+                ]}
+              />
             </div>
           </div>
           <div>
@@ -206,11 +211,12 @@ export default function JobDetailPage() {
                     </p>
                   ) : null}
                   <div className="flex items-center justify-between mt-2 pt-2 border-t">
-                    <select defaultValue={app.current_stage}
-                      onChange={e => moveStage.mutate({ id: app.id, stage: e.target.value })}
-                      className="text-xs border rounded px-1 py-0.5">
-                      {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                    </select>
+                    <Select
+                      value={app.current_stage}
+                      onChange={v => moveStage.mutate({ id: app.id, stage: v })}
+                      className="text-xs border rounded px-1 py-0.5"
+                      options={STAGES.map(s => ({ value: s.key, label: s.label }))}
+                    />
                     <button onClick={() => setScheduleFor(app)} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Schedule interview">
                       <Calendar className="w-3.5 h-3.5" />
                     </button>

@@ -27,6 +27,7 @@ import {
 import { vehiclesApi } from '@/api/vehicles'
 import type { VendorVehicle, VendorVehicleCreate } from '@/api/vehicles'
 
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 const CONDITIONS = ['New', 'Certified', 'Used']
 const FUEL_TYPES = ['Gas', 'Hybrid', 'Electric', 'Diesel']
@@ -243,15 +244,21 @@ function VehicleModal({
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Fuel</Label>
-                <select value={fuel} onChange={e => setFuel(e.target.value)} className={selectCls}>
-                  {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
+                <ThemeSelect
+                  value={fuel}
+                  onChange={setFuel}
+                  options={FUEL_TYPES.map(f => ({ value: f, label: f }))}
+                  className={selectCls}
+                />
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Transmission</Label>
-                <select value={transmission} onChange={e => setTransmission(e.target.value)} className={selectCls}>
-                  {TRANSMISSIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <ThemeSelect
+                  value={transmission}
+                  onChange={setTransmission}
+                  options={TRANSMISSIONS.map(t => ({ value: t, label: t }))}
+                  className={selectCls}
+                />
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Color</Label>

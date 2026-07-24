@@ -5,6 +5,7 @@ import * as api from '@/api/finance'
 import { Loader2, Save, Shield, Info, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import {
   buildDefaultVariantCode,
@@ -188,15 +189,12 @@ export default function CreateCalendarModal({
           </p>
           <div>
             <label className={labelClass}>Fiscal pattern</label>
-            <select
+            <Select
               value={tpl}
-              onChange={e => { setTpl(e.target.value as typeof tpl) }}
+              onChange={v => { setTpl(v as typeof tpl) }}
+              options={TEMPLATES.map(t => ({ value: t.id, label: t.label }))}
               className={fieldClass}
-            >
-              {TEMPLATES.map(t => (
-                <option key={t.id} value={t.id}>{t.label}</option>
-              ))}
-            </select>
+            />
           </div>
           <label className="flex max-w-xl cursor-pointer items-start gap-2 text-sm text-foreground">
             <input
@@ -215,20 +213,17 @@ export default function CreateCalendarModal({
           </label>
           <div>
             <label className={labelClass}>Business unit</label>
-            <select
+            <Select
               value={createAssignCompanyId}
-              onChange={e => { setCreateAssignCompanyId(e.target.value) }}
+              onChange={v => { setCreateAssignCompanyId(v) }}
+              options={selectOptionsWithBlank(
+                '— Select business unit —',
+                companies.map(c => ({ value: c.id, label: `${c.code} — ${c.name}` })),
+              )}
               className={cn(fieldClass, 'max-w-md disabled:bg-muted disabled:text-muted-foreground')}
+              wrapperClassName="max-w-md"
               disabled={createForAllCompanies}
-              required={!createForAllCompanies}
-            >
-              <option value="">— Select business unit —</option>
-              {companies.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.code} — {c.name}
-                </option>
-              ))}
-            </select>
+            />
             {createForAllCompanies && (
               <p className="mt-1 text-xs text-primary">
                 One shared calendar; linked to all listed business units.

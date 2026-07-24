@@ -55,13 +55,12 @@ function BatchQualityModal({ batch, onClose }: { batch: GoodsBatch; onClose: () 
           <p className="text-sm text-gray-600">Batch: <strong>{batch.batch_number}</strong></p>
           <div>
             <Label className="text-xs">Quality Status</Label>
-            <select
-              className="mt-1 w-full text-sm border rounded-md px-3 py-2 bg-background"
+            <Select
               value={quality}
-              onChange={e => setQuality(e.target.value as any)}
-            >
-              {Object.entries(QUALITY_BADGE).map(([v, { label }]) => <option key={v} value={v}>{label}</option>)}
-            </select>
+              onChange={v => setQuality(v as typeof quality)}
+              options={Object.entries(QUALITY_BADGE).map(([v, { label }]) => ({ value: v, label }))}
+              className="mt-1 text-sm"
+            />
           </div>
           <div>
             <Label className="text-xs">Notes</Label>
@@ -137,13 +136,12 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label className="text-xs">Movement Type *</Label>
-              <select
-                className="mt-1 w-full text-sm border rounded-md px-3 py-2 bg-background"
+              <Select
                 value={movementType}
-                onChange={e => setMovementType(e.target.value)}
-              >
-                {MOVEMENT_TYPES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-              </select>
+                onChange={setMovementType}
+                options={MOVEMENT_TYPES.map(m => ({ value: m.value, label: m.label }))}
+                className="mt-1 text-sm"
+              />
             </div>
             <div>
               <Label className="text-xs">Posting Date *</Label>
@@ -151,10 +149,15 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
             </div>
             <div>
               <Label className="text-xs">Plant</Label>
-              <select className="mt-1 w-full text-sm border rounded-md px-3 py-2 bg-background" value={plantId} onChange={e => setPlantId(e.target.value)}>
-                <option value="">All plants</option>
-                {plants.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <Select
+                value={plantId}
+                onChange={setPlantId}
+                options={selectOptionsWithBlank(
+                  'All plants',
+                  plants.map((p: { id: string; name: string }) => ({ value: p.id, label: p.name })),
+                )}
+                className="mt-1 text-sm"
+              />
             </div>
             <div className="col-span-3">
               <Label className="text-xs">Notes</Label>
@@ -173,10 +176,15 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
               {lines.map((l, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-center">
                   <div className="col-span-5">
-                    <select className="w-full text-sm border rounded-md px-2 py-1.5 bg-background" value={l.product_id} onChange={e => updateLine(i, 'product_id', e.target.value)}>
-                      <option value="">Select product…</option>
-                      {products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                    <Select
+                      value={l.product_id}
+                      onChange={v => updateLine(i, 'product_id', v)}
+                      options={selectOptionsWithBlank(
+                        'Select product…',
+                        products.map((p: { id: string; name: string }) => ({ value: p.id, label: p.name })),
+                      )}
+                      className="text-sm"
+                    />
                   </div>
                   <div className="col-span-2">
                     <Input type="number" min={0.001} step={0.001} placeholder="Qty" value={l.quantity} onChange={e => updateLine(i, 'quantity', e.target.value)} className="h-8 text-sm" />

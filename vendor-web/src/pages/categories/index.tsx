@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -398,7 +397,7 @@ function CategoryTreeExplorer({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card p-4">
+    <div className="flex h-full min-h-[20rem] flex-col overflow-hidden rounded-xl border border-border bg-card p-4 shadow-sm lg:min-h-0">
       <div className="mb-3 shrink-0 space-y-2.5">
         <div className="flex min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
@@ -440,8 +439,8 @@ function CategoryTreeExplorer({
       </div>
 
       {categories.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-2 py-6 text-center">
-          <FolderTree className="mx-auto mb-2 h-10 w-10 text-gray-300" />
+        <div className="flex flex-1 flex-col items-center justify-center px-3 text-center">
+          <FolderTree className="mb-2.5 h-10 w-10 text-muted-foreground/35" />
           <p className="text-sm text-muted-foreground">No categories yet.</p>
           {formOpen ? (
             <p className="mt-1 max-w-[14rem] text-xs text-muted-foreground/80">
@@ -527,10 +526,10 @@ function CategoryDetailPanel({
 }) {
   if (!cat) {
     return (
-      <div className="flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-6 text-center shadow-sm">
-        <FolderTree className="mb-3 h-12 w-12 text-muted-foreground/40" />
+      <div className="flex h-full min-h-[20rem] w-full flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card px-6 py-8 text-center shadow-sm lg:min-h-0">
+        <FolderTree className="mb-3 h-10 w-10 text-muted-foreground/40" />
         <p className="text-sm font-medium text-foreground">Select a category in the tree</p>
-        <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+        <p className="mt-1.5 max-w-sm text-xs leading-relaxed text-muted-foreground">
           Click any folder in the tree on the left. Use the + button on a category to add subcategories beneath it.
         </p>
       </div>
@@ -544,7 +543,7 @@ function CategoryDetailPanel({
   const storefrontVisible = cat.is_visible !== false
 
   return (
-    <div className="flex w-full max-h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:max-h-[calc(100dvh-12rem)]">
+    <div className="flex h-full min-h-[20rem] w-full max-h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:min-h-0">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10">
@@ -558,7 +557,7 @@ function CategoryDetailPanel({
             onChange={() => onToggleVisibility(cat)}
           />
           {appliesBadge(cat.applies_to)}
-          <span className={`inline-flex shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${cat.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+          <span className={`inline-flex shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${cat.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
             {cat.is_active ? 'Active' : 'Inactive'}
           </span>
         </div>
@@ -1240,24 +1239,22 @@ export default function CategoriesPage() {
   const parentLabel = parentId ? findInTree(data?.categories || [], parentId)?.name : null
 
   return (
-    <div className="mx-auto flex max-h-[calc(100dvh-10rem)] min-h-0 w-full flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-2 pb-2">
-        <p className="min-w-0 text-xs text-muted-foreground">
+    <div className="flex w-full flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-muted-foreground sm:text-sm">
           Organize your catalogue with categories, subcategories, and custom fields
         </p>
-        <Button onClick={() => openCreate()} className="h-8 shrink-0 gap-1.5 px-3 text-sm">
-          <Plus className="h-3.5 w-3.5" /> Add Category
+        <Button onClick={() => openCreate()} className="h-9 shrink-0 gap-1.5">
+          <Plus className="h-4 w-4" /> Add Category
         </Button>
       </div>
 
       {isLoading ? (
-        <Card className="min-h-0 flex-1">
-          <CardContent className="flex h-full items-center justify-center py-16 text-center">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
-          </CardContent>
-        </Card>
+        <div className="flex min-h-[20rem] items-center justify-center rounded-xl border border-border bg-card py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
+        <div className="grid min-h-[min(28rem,calc(100dvh-11rem))] w-full flex-1 grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
           <div className="h-full min-h-0">
             <CategoryTreeExplorer
               categories={sortedCategories}
@@ -1274,7 +1271,7 @@ export default function CategoriesPage() {
               formOpen={showForm}
             />
           </div>
-          <div className="min-h-0 lg:self-start">
+          <div className="h-full min-h-0">
             <CategoryDetailPanel
               cat={selectedCategory}
               parentLabel={selectedCategory?.parent_id ? findInTree(data?.categories || [], selectedCategory.parent_id)?.name : null}

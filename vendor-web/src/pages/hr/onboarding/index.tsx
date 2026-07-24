@@ -1,6 +1,7 @@
 import { onModalBackdropClick, cn } from '@/lib/utils'
 import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Trash2, X, Layers, ListChecks, Pencil, CheckCircle2, Circle, Clock as ClockIcon } from 'lucide-react'
@@ -62,12 +63,17 @@ function ActiveTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-          <option value="">All statuses</option>
-          <option value="in_progress">In progress</option>
-          <option value="completed">Completed</option>
-          <option value="overdue">Overdue</option>
-        </select>
+        <Select
+          value={statusFilter}
+          onChange={setStatusFilter}
+          className="px-3 py-2 border rounded-lg text-sm"
+          options={[
+            { value: '', label: 'All statuses' },
+            { value: 'in_progress', label: 'In progress' },
+            { value: 'completed', label: 'Completed' },
+            { value: 'overdue', label: 'Overdue' },
+          ]}
+        />
         <button onClick={() => setShowNew(true)}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> Start Onboarding
@@ -142,10 +148,12 @@ function ChecklistCard({ checklist, expanded, onToggle }: { checklist: Onboardin
                     {t.category && `${t.category} · `}{t.due_date && `Due ${t.due_date}`}
                   </p>
                 </div>
-                <select value={t.status} onChange={e => update.mutate({ id: t.id, data: { status: e.target.value } })}
-                  className="text-xs border rounded px-2 py-1">
-                  {Object.entries(TASK_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                </select>
+                <Select
+                  value={t.status}
+                  onChange={v => update.mutate({ id: t.id, data: { status: v } })}
+                  className="text-xs border rounded px-2 py-1"
+                  options={Object.entries(TASK_STATUS).map(([k, v]) => ({ value: k, label: v.label }))}
+                />
               </div>
             )
           })}
@@ -188,25 +196,33 @@ function StartChecklistModal({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 p-5">
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase" required>Employee</Label>
-            <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-              <option value="">— Select —</option>
-              {employees.map(e => (
-                <option key={e.id} value={e.id}>
-                  {e.vendor_user?.user?.full_name ?? `Employee ${e.id.slice(0, 8)}`}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={form.employee_id}
+              onChange={v => setForm({ ...form, employee_id: v })}
+              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+              options={[
+                { value: '', label: '— Select —' },
+                ...employees.map(e => ({
+                  value: e.id,
+                  label: e.vendor_user?.user?.full_name ?? `Employee ${e.id.slice(0, 8)}`,
+                })),
+              ]}
+            />
           </div>
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase">Template (optional)</Label>
-            <select value={form.template_id} onChange={e => setForm({ ...form, template_id: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-              <option value="">— Auto-pick by designation —</option>
-              {(templates as OnboardingTemplate[]).map(t => (
-                <option key={t.id} value={t.id}>{t.name}{t.is_default ? ' (default)' : ''}</option>
-              ))}
-            </select>
+            <Select
+              value={form.template_id}
+              onChange={v => setForm({ ...form, template_id: v })}
+              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+              options={[
+                { value: '', label: '— Auto-pick by designation —' },
+                ...(templates as OnboardingTemplate[]).map(t => ({
+                  value: t.id,
+                  label: `${t.name}${t.is_default ? ' (default)' : ''}`,
+                })),
+              ]}
+            />
           </div>
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase">Target Completion Date</Label>
@@ -369,19 +385,27 @@ function TemplateModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-medium text-gray-600 uppercase">Department</Label>
-              <select value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-                <option value="">All</option>
-                {(depts as HRDepartment[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+              <Select
+                value={form.department_id}
+                onChange={v => setForm({ ...form, department_id: v })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+                options={[
+                  { value: '', label: 'All' },
+                  ...(depts as HRDepartment[]).map(d => ({ value: d.id, label: d.name })),
+                ]}
+              />
             </div>
             <div>
               <Label className="text-xs font-medium text-gray-600 uppercase">Designation</Label>
-              <select value={form.designation_id} onChange={e => setForm({ ...form, designation_id: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-                <option value="">All</option>
-                {(desigs as HRDesignation[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+              <Select
+                value={form.designation_id}
+                onChange={v => setForm({ ...form, designation_id: v })}
+                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+                options={[
+                  { value: '', label: 'All' },
+                  ...(desigs as HRDesignation[]).map(d => ({ value: d.id, label: d.name })),
+                ]}
+              />
             </div>
           </div>
           <label className="flex items-center gap-2 text-sm">

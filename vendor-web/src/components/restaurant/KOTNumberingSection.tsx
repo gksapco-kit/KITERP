@@ -6,6 +6,7 @@ import type { RestaurantKOTSettings } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { Select } from '@/components/ui/select'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 export function KOTNumberingSection({
@@ -101,14 +102,16 @@ export function KOTNumberingSection({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className="text-xs uppercase text-muted-foreground font-semibold block mb-1">Numbering mode</label>
-              <select
+              <Select
                 value={mode}
-                onChange={e => setMode(e.target.value as 'sequential' | 'per_order')}
-                className="h-9 text-sm border rounded-md px-2 bg-background w-full max-w-md"
-              >
-                <option value="sequential">Sequential — one running number for the whole restaurant (recommended)</option>
-                <option value="per_order">Per order — KOT #1, #2… resets for each table order</option>
-              </select>
+                onChange={(v) => setMode(v as 'sequential' | 'per_order')}
+                wrapperClassName="max-w-md"
+                className="h-9 text-sm border rounded-md bg-background"
+                options={[
+                  { value: 'sequential', label: 'Sequential — one running number for the whole restaurant (recommended)' },
+                  { value: 'per_order', label: 'Per order — KOT #1, #2… resets for each table order' },
+                ]}
+              />
             </div>
 
             {mode === 'sequential' && (
@@ -136,14 +139,16 @@ export function KOTNumberingSection({
                 </div>
                 <div className="sm:col-span-2">
                   <label className="text-xs uppercase text-muted-foreground font-semibold block mb-1">Reset policy</label>
-                  <select
+                  <Select
                     value={reset}
-                    onChange={e => setReset(e.target.value as 'daily' | 'continuous')}
-                    className="h-9 text-sm border rounded-md px-2 bg-background w-full max-w-md"
-                  >
-                    <option value="daily">Daily — restart from start number each day</option>
-                    <option value="continuous">Continuous — keep counting, wrap only at end number</option>
-                  </select>
+                    onChange={(v) => setReset(v as 'daily' | 'continuous')}
+                    wrapperClassName="max-w-md"
+                    className="h-9 text-sm border rounded-md bg-background"
+                    options={[
+                      { value: 'daily', label: 'Daily — restart from start number each day' },
+                      { value: 'continuous', label: 'Continuous — keep counting, wrap only at end number' },
+                    ]}
+                  />
                 </div>
                 {settings && (
                   <div className="sm:col-span-2 rounded-lg border border-blue-100 bg-blue-50/60 px-4 py-3 text-sm text-blue-900">

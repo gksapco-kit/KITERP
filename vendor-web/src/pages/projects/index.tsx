@@ -397,7 +397,6 @@ export default function ProjectsPage() {
                 onBusinessUnitChange={(id) => { setStoreFilter(id); setBranchFilter(''); setSalesAreaFilter('') }}
                 onBranchChange={(id) => { setBranchFilter(id); setSalesAreaFilter('') }}
                 onSalesAreaChange={setSalesAreaFilter}
-                itemClassName="w-full min-w-[7rem] sm:w-[8rem]"
               />
             )}
             moreOptions={(

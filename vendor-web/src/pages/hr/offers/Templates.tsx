@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -459,20 +460,18 @@ export default function OfferTemplatesPage() {
                   {templates.length > 0 && (
                     <div>
                       <Label className="text-xs text-gray-500 mb-1.5 block">Open template</Label>
-                      <select
+                      <Select
                         value={isNew ? '' : (selected?.id ?? '')}
-                        onChange={e => {
-                          if (e.target.value) selectTemplate(e.target.value)
-                        }}
+                        onChange={v => { if (v) selectTemplate(v) }}
                         className="w-full h-9 border rounded-md px-2 text-sm bg-white"
-                      >
-                        {isNew && <option value="">— New template —</option>}
-                        {templates.map(t => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}{t.is_default ? ' ★' : ''}
-                          </option>
-                        ))}
-                      </select>
+                        options={[
+                          ...(isNew ? [{ value: '', label: '— New template —' }] : []),
+                          ...templates.map(t => ({
+                            value: t.id,
+                            label: `${t.name}${t.is_default ? ' ★' : ''}`,
+                          })),
+                        ]}
+                      />
                     </div>
                   )}
                   <div>
@@ -591,15 +590,12 @@ export default function OfferTemplatesPage() {
                     </div>
                     <div>
                       <Label className="text-xs text-gray-500 mb-1.5 block">Style</Label>
-                      <select
+                      <Select
                         value={form.watermark_style}
-                        onChange={e => setField('watermark_style', e.target.value as OfferWatermarkStyle)}
+                        onChange={v => setField('watermark_style', v as OfferWatermarkStyle)}
                         className="w-full h-9 border rounded-md px-2 text-sm bg-white"
-                      >
-                        {WATERMARK_STYLES.map(s => (
-                          <option key={s.id} value={s.id}>{s.label}</option>
-                        ))}
-                      </select>
+                        options={WATERMARK_STYLES.map(s => ({ value: s.id, label: s.label }))}
+                      />
                     </div>
                     <div>
                       <Label className="text-xs text-gray-500 mb-1.5 block">
@@ -638,19 +634,13 @@ export default function OfferTemplatesPage() {
               </AccordionSection>
 
               <AccordionSection title="Letter body" defaultOpen>
-                <select
+                <Select
                   value={mergePick}
-                  onChange={e => {
-                    const key = e.target.value
-                    if (key) { insertMergeVar(key); setMergePick('') }
-                  }}
+                  onChange={key => { if (key) { insertMergeVar(key); setMergePick('') } }}
+                  placeholder="Insert merge field…"
                   className="w-full h-8 border rounded-md px-2 text-xs bg-white mb-2"
-                >
-                  <option value="">Insert merge field…</option>
-                  {MERGE_VARS.map(({ key, label }) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
+                  options={MERGE_VARS.map(({ key, label }) => ({ value: key, label }))}
+                />
                 <HtmlRichEditor
                   ref={editorRef}
                   editorKey={selected?.id ?? (isNew ? 'new' : '')}
@@ -668,27 +658,39 @@ export default function OfferTemplatesPage() {
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Users className="w-3 h-3" /> Role / designation</label>
-                    <select value={form.designation_id} onChange={e => setField('designation_id', e.target.value)}
-                      className="w-full h-9 border rounded-md px-2 text-sm bg-white">
-                      <option value="">Any role</option>
-                      {(designations as { id: string; name: string }[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
+                    <Select
+                      value={form.designation_id}
+                      onChange={v => setField('designation_id', v)}
+                      className="w-full h-9 border rounded-md px-2 text-sm bg-white"
+                      options={[
+                        { value: '', label: 'Any role' },
+                        ...(designations as { id: string; name: string }[]).map(d => ({ value: d.id, label: d.name })),
+                      ]}
+                    />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Building2 className="w-3 h-3" /> Department</label>
-                    <select value={form.department_id} onChange={e => setField('department_id', e.target.value)}
-                      className="w-full h-9 border rounded-md px-2 text-sm bg-white">
-                      <option value="">Any department</option>
-                      {(departments as { id: string; name: string }[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
+                    <Select
+                      value={form.department_id}
+                      onChange={v => setField('department_id', v)}
+                      className="w-full h-9 border rounded-md px-2 text-sm bg-white"
+                      options={[
+                        { value: '', label: 'Any department' },
+                        ...(departments as { id: string; name: string }[]).map(d => ({ value: d.id, label: d.name })),
+                      ]}
+                    />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Store className="w-3 h-3" /> Store / branch</label>
-                    <select value={form.store_id} onChange={e => setField('store_id', e.target.value)}
-                      className="w-full h-9 border rounded-md px-2 text-sm bg-white">
-                      <option value="">Any store</option>
-                      {(stores as { id: string; name: string }[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
+                    <Select
+                      value={form.store_id}
+                      onChange={v => setField('store_id', v)}
+                      className="w-full h-9 border rounded-md px-2 text-sm bg-white"
+                      options={[
+                        { value: '', label: 'Any store' },
+                        ...(stores as { id: string; name: string }[]).map(s => ({ value: s.id, label: s.name })),
+                      ]}
+                    />
                   </div>
                 </div>
               </AccordionSection>

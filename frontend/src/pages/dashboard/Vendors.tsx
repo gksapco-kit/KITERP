@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   useAdminVendors,
   useApproveVendor,
@@ -287,31 +288,26 @@ export default function Vendors() {
             {showRmDropdown && (
               <div className="w-full sm:w-72 shrink-0">
                 <Label htmlFor="vendor-rm-filter">Relationship manager</Label>
-                <select
+                <Select
                   id="vendor-rm-filter"
                   className={cn(platformTeamSelectClassName, 'mt-1')}
                   value={rmFilterFromUrl}
-                  onChange={(e) => {
-                    setRmFilter(e.target.value)
-                  }}
-                >
-                  <option value="">All managers</option>
-                  {(rmOptions ?? []).map((o) => {
-                    const login =
-                      o.login_display?.trim() ||
-                      o.email?.trim() ||
-                      o.phone?.trim() ||
-                      o.full_name?.trim() ||
-                      o.id
-                    const name = o.full_name?.trim()
-                    const label = name && login !== name ? `${login} — ${name}` : login
-                    return (
-                      <option key={o.id} value={o.id}>
-                        {label}
-                      </option>
-                    )
-                  })}
-                </select>
+                  onChange={setRmFilter}
+                  options={selectOptionsWithBlank(
+                    'All managers',
+                    (rmOptions ?? []).map((o) => {
+                      const login =
+                        o.login_display?.trim() ||
+                        o.email?.trim() ||
+                        o.phone?.trim() ||
+                        o.full_name?.trim() ||
+                        o.id
+                      const name = o.full_name?.trim()
+                      const label = name && login !== name ? `${login} — ${name}` : login
+                      return { value: o.id, label }
+                    }),
+                  )}
+                />
                 <p className="text-xs text-muted-foreground mt-1">
                   Limit rows to accounts assigned to this RM. Open full directory from an RM&apos;s profile applies
                   the same filter.

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -468,43 +469,40 @@ function JEDrawer({
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
                         <Building2 className="inline w-3 h-3 mr-0.5" /> Business unit <ReqRequiredMark />
                       </label>
-                      <select
+                      <Select
                         value={companyId}
-                        onChange={e => setCompanyId(e.target.value)}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        <option value="">— Select —</option>
-                        {(companies as Company[]).map(c => (
-                          <option key={c.id} value={c.id}>{c.code} · {c.name}</option>
-                        ))}
-                      </select>
+                        onChange={setCompanyId}
+                        options={selectOptionsWithBlank(
+                          '— Select —',
+                          (companies as Company[]).map(c => ({ value: c.id, label: `${c.code} · ${c.name}` })),
+                        )}
+                        className="text-sm"
+                      />
                     </div>
 
                     {/* Document Type */}
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Document Type</label>
-                      <select
+                      <Select
                         value={docType}
-                        onChange={e => setDocType(e.target.value as DocType)}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        {DOC_TYPES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-                      </select>
+                        onChange={v => setDocType(v as DocType)}
+                        options={DOC_TYPES.map(d => ({ value: d.value, label: d.label }))}
+                        className="text-sm"
+                      />
                     </div>
 
                     {/* Currency */}
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Currency</label>
-                      <select
+                      <Select
                         value={currency}
-                        onChange={e => setCurrency(e.target.value)}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        <option value="Default">Default ({defaultCompany?.currency || 'INR'})</option>
-                        {['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD'].map(c => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
+                        onChange={setCurrency}
+                        options={[
+                          { value: 'Default', label: `Default (${defaultCompany?.currency || 'INR'})` },
+                          ...['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD'].map(c => ({ value: c, label: c })),
+                        ]}
+                        className="text-sm"
+                      />
                     </div>
 
                     {/* Posting Date */}
@@ -538,33 +536,31 @@ function JEDrawer({
                     {/* Fiscal year & period */}
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Fiscal Year</label>
-                      <select
+                      <Select
                         value={fiscalYearId}
-                        onChange={e => { setFiscalYearId(e.target.value); setPeriodId('') }}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                      >
-                        <option value="">— Select —</option>
-                        {(fiscalYears as any[]).map((fy: any) => (
-                          <option key={fy.id} value={fy.id}>{fy.name}</option>
-                        ))}
-                      </select>
+                        onChange={v => { setFiscalYearId(v); setPeriodId('') }}
+                        options={selectOptionsWithBlank(
+                          '— Select —',
+                          (fiscalYears as any[]).map((fy: any) => ({ value: fy.id, label: fy.name })),
+                        )}
+                        className="text-sm bg-white"
+                      />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Accounting Period</label>
-                      <select
+                      <Select
                         value={periodId}
-                        onChange={e => setPeriodId(e.target.value)}
+                        onChange={setPeriodId}
                         disabled={!fiscalYearId}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white disabled:bg-gray-50 disabled:text-gray-400"
-                      >
-                        <option value="">— Select —</option>
-                        {(periods as any[]).map((p: any) => (
-                          <option key={p.id} value={p.id}>
-                            {p.period_number != null ? `${p.period_number} · ` : ''}{p.name}
-                            {' '}({p.start_date} – {p.end_date})
-                          </option>
-                        ))}
-                      </select>
+                        options={selectOptionsWithBlank(
+                          '— Select —',
+                          (periods as any[]).map((p: any) => ({
+                            value: p.id,
+                            label: `${p.period_number != null ? `${p.period_number} · ` : ''}${p.name} (${p.start_date} – ${p.end_date})`,
+                          })),
+                        )}
+                        className="text-sm bg-white disabled:bg-gray-50 disabled:text-gray-400"
+                      />
                     </div>
 
                     {/* Reference */}
@@ -707,46 +703,46 @@ function JEDrawer({
                           {/* Cost Centre */}
                           <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Cost Centre</label>
-                            <select
+                            <Select
                               value={ln.cost_center_id || ''}
-                              onChange={e => setLine(ln._key, { cost_center_id: e.target.value })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                            >
-                              <option value="">— None —</option>
-                              {(costCenters as CostCenter[]).map(cc => (
-                                <option key={cc.id} value={cc.id}>{cc.code} · {cc.name}</option>
-                              ))}
-                            </select>
+                              onChange={v => setLine(ln._key, { cost_center_id: v })}
+                              options={selectOptionsWithBlank(
+                                '— None —',
+                                (costCenters as CostCenter[]).map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
+                              )}
+                              className="text-xs bg-white"
+                            />
                           </div>
 
                           {/* Project */}
                           <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Project</label>
-                            <select
+                            <Select
                               value={ln.project_id || ''}
-                              onChange={e => setLine(ln._key, { project_id: e.target.value })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                            >
-                              <option value="">— None —</option>
-                              {(projects as Project[]).map(p => (
-                                <option key={p.id} value={p.id}>{p.code} · {p.name}</option>
-                              ))}
-                            </select>
+                              onChange={v => setLine(ln._key, { project_id: v })}
+                              options={selectOptionsWithBlank(
+                                '— None —',
+                                (projects as Project[]).map(p => ({ value: p.id, label: `${p.code} · ${p.name}` })),
+                              )}
+                              className="text-xs bg-white"
+                            />
                           </div>
 
                           {/* Intercompany */}
                           <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Intercompany</label>
-                            <select
+                            <Select
                               value={ln.intercompany_partner_id || ''}
-                              onChange={e => setLine(ln._key, { intercompany_partner_id: e.target.value })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                            >
-                              <option value="">— None —</option>
-                              {(icPartners as any[]).map((ip: any) => (
-                                <option key={ip.id} value={ip.id}>IC · {ip.partner_company_id?.slice(0, 8)}</option>
-                              ))}
-                            </select>
+                              onChange={v => setLine(ln._key, { intercompany_partner_id: v })}
+                              options={selectOptionsWithBlank(
+                                '— None —',
+                                (icPartners as any[]).map((ip: any) => ({
+                                  value: ip.id,
+                                  label: `IC · ${ip.partner_company_id?.slice(0, 8)}`,
+                                })),
+                              )}
+                              className="text-xs bg-white"
+                            />
                           </div>
 
                           {/* Value Date */}
@@ -763,28 +759,29 @@ function JEDrawer({
                           {/* Party Type */}
                           <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Party Type</label>
-                            <select
+                            <Select
                               value={ln.party_type || ''}
-                              onChange={e => setLine(ln._key, { party_type: (e.target.value as any) || undefined })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                            >
-                              <option value="">— None —</option>
-                              <option value="customer">Customer</option>
-                              <option value="supplier">Supplier</option>
-                            </select>
+                              onChange={v => setLine(ln._key, { party_type: (v as any) || undefined })}
+                              options={selectOptionsWithBlank('— None —', [
+                                { value: 'customer', label: 'Customer' },
+                                { value: 'supplier', label: 'Supplier' },
+                              ])}
+                              className="text-xs bg-white"
+                            />
                           </div>
 
                           {/* Ref Doc Type */}
                           <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Ref Doc Type</label>
-                            <select
+                            <Select
                               value={ln.ref_doc_type || ''}
-                              onChange={e => setLine(ln._key, { ref_doc_type: (e.target.value as RefDocType) || undefined, ref_doc_id: '', ref_doc_no: '' })}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                            >
-                              <option value="">— None —</option>
-                              {REF_DOC_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                            </select>
+                              onChange={v => setLine(ln._key, { ref_doc_type: (v as RefDocType) || undefined, ref_doc_id: '', ref_doc_no: '' })}
+                              options={selectOptionsWithBlank(
+                                '— None —',
+                                REF_DOC_TYPES.map(r => ({ value: r.value, label: r.label })),
+                              )}
+                              className="text-xs bg-white"
+                            />
                           </div>
 
                           {/* Ref Doc No */}

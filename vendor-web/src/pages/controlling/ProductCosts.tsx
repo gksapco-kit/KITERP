@@ -18,6 +18,7 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { toast } from 'sonner'
 import { ArrowLeft, Boxes, RefreshCw, Plus, GitBranch, Layers, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 
 const fieldClass =
   'rounded-lg border border-input bg-background px-2 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
@@ -122,15 +123,12 @@ export default function ControllingProductCostsPage() {
           {companies.length > 0 && (
             <label className={labelClass}>
               Company
-              <select
+              <Select
                 value={activeCo}
-                onChange={e => setCompanyId(e.target.value)}
+                onChange={setCompanyId}
                 className={selectClass}
-              >
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>{c.code}</option>
-                ))}
-              </select>
+                options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+              />
             </label>
           )}
           <Button type="button" onClick={() => setShowNew(true)} className="gap-1">
@@ -145,16 +143,16 @@ export default function ControllingProductCostsPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
             <label className={labelClass}>
               Product
-              <select
+              <Select
                 value={form.product_id}
-                onChange={e => setForm(f => ({ ...f, product_id: e.target.value }))}
+                onChange={v => setForm(f => ({ ...f, product_id: v }))}
                 className={fieldClass}
-              >
-                <option value="">Select…</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+                placeholder="Select…"
+                options={[
+                  { value: '', label: 'Select…' },
+                  ...products.map(p => ({ value: String(p.id), label: String(p.name) })),
+                ]}
+              />
             </label>
             <label className={labelClass}>
               Version code
@@ -175,14 +173,15 @@ export default function ControllingProductCostsPage() {
             </label>
             <label className={labelClass}>
               Status
-              <select
+              <Select
                 value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                onChange={v => setForm(f => ({ ...f, status: v }))}
                 className={fieldClass}
-              >
-                <option value="draft">draft</option>
-                <option value="active">active</option>
-              </select>
+                options={[
+                  { value: 'draft', label: 'draft' },
+                  { value: 'active', label: 'active' },
+                ]}
+              />
             </label>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
@@ -283,22 +282,25 @@ export default function ControllingProductCostsPage() {
                                 <p className="text-xs text-muted-foreground">
                                   Select an active routing to auto-generate labor, machine and direct overhead lines.
                                 </p>
-                                <select
-                                  defaultValue={v.routing_id ?? ''}
+                                <Select
+                                  value={v.routing_id ?? ''}
                                   className={cn(fieldClass, 'w-full px-3')}
-                                  onChange={async e => {
+                                  placeholder="— no routing —"
+                                  options={[
+                                    { value: '', label: '— no routing —' },
+                                    ...routings.map(r => ({
+                                      value: r.id,
+                                      label: `${r.code} v${r.version} — ${r.name}`,
+                                    })),
+                                  ]}
+                                  onChange={async routingId => {
                                     try {
-                                      await setRouting.mutateAsync({ versionId: v.id, routing_id: e.target.value || null })
+                                      await setRouting.mutateAsync({ versionId: v.id, routing_id: routingId || null })
                                       toast.success('Routing linked — activity cost lines updated')
                                       refetch()
                                     } catch { toast.error('Failed to link routing') }
                                   }}
-                                >
-                                  <option value="">— no routing —</option>
-                                  {routings.map(r => (
-                                    <option key={r.id} value={r.id}>{r.code} v{r.version} — {r.name}</option>
-                                  ))}
-                                </select>
+                                />
                                 {linkedRouting && (
                                   <p className="text-xs font-medium text-green-600 dark:text-green-400">
                                     ✓ Linked: {linkedRouting.code} v{linkedRouting.version}

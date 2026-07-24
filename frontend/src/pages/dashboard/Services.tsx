@@ -9,6 +9,8 @@ import { useServices, useCreateService, useUpdateService, useDeleteService } fro
 import type { ServiceCreate, ServiceUpdate, Service } from '@/api/service.api'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
+import { selectOptionsWithBlank } from '@/components/ui/select'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 const UOM_OPTIONS = [
@@ -36,6 +38,8 @@ const STATUS_OPTIONS = [
 ]
 
 const GST_RATES = [0, 5, 12, 18, 28]
+const GST_RATE_OPTIONS = GST_RATES.map((r) => ({ value: String(r), label: `${r}%` }))
+const STATUS_FILTER_OPTIONS = selectOptionsWithBlank('All Status', STATUS_OPTIONS)
 
 const DEFAULT_SERVICE: ServiceCreate = {
   name: '', description: '', short_description: '', category: '',
@@ -144,9 +148,12 @@ export default function Services() {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Status</label>
-                <select value={form.status || 'draft'} onChange={(e) => setForm({ ...form, status: e.target.value })} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                  {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <ThemeSelect
+                  value={form.status || 'draft'}
+                  onChange={(v) => setForm({ ...form, status: v })}
+                  options={STATUS_OPTIONS}
+                  className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
               </div>
             </div>
           </div>
@@ -157,9 +164,12 @@ export default function Services() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">Unit of Measurement</label>
-                <select value={form.uom} onChange={(e) => setForm({ ...form, uom: e.target.value })} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                  {UOM_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <ThemeSelect
+                  value={form.uom}
+                  onChange={(v) => setForm({ ...form, uom: v })}
+                  options={UOM_OPTIONS}
+                  className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Price ({'\u20B9'}) *</label>
@@ -171,9 +181,12 @@ export default function Services() {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Service Mode</label>
-                <select value={form.service_mode} onChange={(e) => setForm({ ...form, service_mode: e.target.value })} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                  {MODE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <ThemeSelect
+                  value={form.service_mode}
+                  onChange={(v) => setForm({ ...form, service_mode: v })}
+                  options={MODE_OPTIONS}
+                  className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
               </div>
             </div>
           </div>
@@ -190,9 +203,12 @@ export default function Services() {
                 <>
                   <div>
                     <label className="text-sm font-medium text-gray-700">GST Rate (%)</label>
-                    <select value={form.tax_rate ?? 18} onChange={(e) => setForm({ ...form, tax_rate: parseFloat(e.target.value) })} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                      {GST_RATES.map((r) => <option key={r} value={r}>{r}%</option>)}
-                    </select>
+                    <ThemeSelect
+                      value={String(form.tax_rate ?? 18)}
+                      onChange={(v) => setForm({ ...form, tax_rate: parseFloat(v) })}
+                      options={GST_RATE_OPTIONS}
+                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-700">SAC Code</label>
@@ -244,10 +260,12 @@ export default function Services() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Search services…" className="pl-10" />
         </div>
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-          <option value="">All Status</option>
-          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        <ThemeSelect
+          value={statusFilter}
+          onChange={(v) => { setStatusFilter(v); setPage(1) }}
+          options={STATUS_FILTER_OPTIONS}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+        />
       </div>
 
       {/* Table */}

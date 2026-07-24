@@ -28,6 +28,7 @@ import {
 import { propertiesApi } from '@/api/properties'
 import type { VendorProperty, VendorPropertyCreate } from '@/api/properties'
 
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 const PROPERTY_TYPES = ['house', 'condo', 'loft', 'townhouse', 'pg']
 const CURRENCIES = ['USD', 'INR', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD', 'JPY']
@@ -225,11 +226,12 @@ function PropertyModal({
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Currency</Label>
-                <select value={currency} onChange={e => setCurrency(e.target.value)} className={selectCls}>
-                  {(CURRENCIES.includes(currency) ? CURRENCIES : [currency, ...CURRENCIES]).map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                <ThemeSelect
+                  value={currency}
+                  onChange={setCurrency}
+                  options={(CURRENCIES.includes(currency) ? CURRENCIES : [currency, ...CURRENCIES]).map(c => ({ value: c, label: c }))}
+                  className={selectCls}
+                />
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Beds</Label>
@@ -248,17 +250,24 @@ function PropertyModal({
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className={fieldGap}>
                 <Label className={labelCls}>Type</Label>
-                <select value={type} onChange={e => setType(e.target.value)} className={selectCls}>
-                  {PROPERTY_TYPES.map(t => (
-                    <option key={t} value={t}>{t === 'pg' ? 'PG' : t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                  ))}
-                </select>
+                <ThemeSelect
+                  value={type}
+                  onChange={setType}
+                  options={PROPERTY_TYPES.map(t => ({
+                    value: t,
+                    label: t === 'pg' ? 'PG' : t.charAt(0).toUpperCase() + t.slice(1),
+                  }))}
+                  className={selectCls}
+                />
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Status</Label>
-                <select value={status} onChange={e => setStatus(e.target.value)} className={selectCls}>
-                  {PROPERTY_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
+                <ThemeSelect
+                  value={status}
+                  onChange={setStatus}
+                  options={PROPERTY_STATUSES}
+                  className={selectCls}
+                />
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>CTA label</Label>

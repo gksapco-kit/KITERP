@@ -12,6 +12,7 @@ import {
 } from '@/hooks/useControlling'
 import type { ControllingArea } from '@/api/controlling'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
@@ -207,16 +208,19 @@ export default function ControllingAreasPage() {
                   <div className="flex items-end gap-2 pt-1">
                     <label className={cn(labelClass, 'flex-1')}>
                       Move a company into this area
-                      <select
+                      <Select
                         value={assignPick[area.id] || ''}
-                        onChange={e => setAssignPick(prev => ({ ...prev, [area.id]: e.target.value }))}
+                        onChange={v => setAssignPick(prev => ({ ...prev, [area.id]: v }))}
                         className={fieldClass}
-                      >
-                        <option value="">Select company…</option>
-                        {unassignable.map(c => (
-                          <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
-                        ))}
-                      </select>
+                        placeholder="Select company…"
+                        options={[
+                          { value: '', label: 'Select company…' },
+                          ...unassignable.map(c => ({
+                            value: c.id,
+                            label: `${c.code} — ${c.name}`,
+                          })),
+                        ]}
+                      />
                     </label>
                     <Button
                       type="button"

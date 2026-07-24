@@ -4,6 +4,7 @@
 import { useCallback, type Dispatch, type SetStateAction, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import {
   FormField,
   formDisplayCompact,
@@ -39,6 +40,14 @@ import {
 
 const selectCls = formSelectClass
 const textareaCls = formTextareaClass
+
+const UOM_SELECT_OPTIONS = UOM_GROUPS.flatMap((group) =>
+  UOM_OPTIONS.filter((u) => u.group === group).map((u) => ({
+    value: u.value,
+    label: u.label,
+    group,
+  })),
+)
 
 type ToggleTone = 'default' | 'active' | 'booking' | 'availability' | 'lifecycle' | 'tax'
 
@@ -454,19 +463,12 @@ export function ServicePlansEditor({
                             />
                           </FormField>
                           <FormField label="Billing Unit">
-                            <select
+                            <Select
                               value={plan.uom}
-                              onChange={e => updatePlan(idx, { uom: e.target.value })}
+                              onChange={(v) => updatePlan(idx, { uom: v })}
                               className={cn(selectCls, 'w-full')}
-                            >
-                              {UOM_GROUPS.map(group => (
-                                <optgroup key={group} label={group}>
-                                  {UOM_OPTIONS.filter(u => u.group === group).map(u => (
-                                    <option key={u.value} value={u.value}>{u.label}</option>
-                                  ))}
-                                </optgroup>
-                              ))}
-                            </select>
+                              options={UOM_SELECT_OPTIONS}
+                            />
                           </FormField>
                           <FormField label={`Time / ${uomLbl.replace(/\s*\(.*\)/, '')}`}>
                             <Input
@@ -524,16 +526,17 @@ export function ServicePlansEditor({
                           </FormField>
                           <div className={cn('col-span-2 grid grid-cols-2 items-end', variantFormUi.grid)}>
                             <FormField label="Currency">
-                              <select
+                              <Select
                                 value={plan.currency}
-                                onChange={e => updatePlan(idx, { currency: e.target.value })}
+                                onChange={(v) => updatePlan(idx, { currency: v })}
                                 className={cn(selectCls, 'w-full')}
-                              >
-                                <option value="INR">₹ INR</option>
-                                <option value="USD">$ USD</option>
-                                <option value="EUR">€ EUR</option>
-                                <option value="GBP">£ GBP</option>
-                              </select>
+                                options={[
+                                  { value: 'INR', label: '₹ INR' },
+                                  { value: 'USD', label: '$ USD' },
+                                  { value: 'EUR', label: '€ EUR' },
+                                  { value: 'GBP', label: '£ GBP' },
+                                ]}
+                              />
                             </FormField>
                             {onPriceNotApplicableChange && (
                               <div className="flex items-center pb-1.5">
@@ -696,15 +699,12 @@ export function ServicePlansEditor({
                               </div>
                             </FormField>
                             <FormField label="Service Mode">
-                              <select
+                              <Select
                                 value={plan.service_mode}
-                                onChange={e => updatePlan(idx, { service_mode: e.target.value })}
+                                onChange={(v) => updatePlan(idx, { service_mode: v })}
                                 className={cn(selectCls, 'w-full')}
-                              >
-                                {SERVICE_MODE_OPTIONS.map(m => (
-                                  <option key={m.value} value={m.value}>{m.label}</option>
-                                ))}
-                              </select>
+                                options={SERVICE_MODE_OPTIONS.map((m) => ({ value: m.value, label: m.label }))}
+                              />
                             </FormField>
                             <FormField label="Description">
                               <Input
@@ -749,16 +749,16 @@ export function ServicePlansEditor({
                             </div>
                             <div className={cn('grid grid-cols-2 md:grid-cols-4', variantFormUi.grid)}>
                               <FormField label="Billing Interval">
-                                <select
+                                <Select
                                   value={plan.subscription_interval}
-                                  onChange={e => updatePlan(idx, { subscription_interval: e.target.value })}
+                                  onChange={(v) => updatePlan(idx, { subscription_interval: v })}
                                   className={selectCls}
-                                >
-                                  <option value="">Select…</option>
-                                  {SUBSCRIPTION_INTERVALS.map(si => (
-                                    <option key={si.value} value={si.value}>{si.label}</option>
-                                  ))}
-                                </select>
+                                  placeholder="Select…"
+                                  options={[
+                                    { value: '', label: 'Select…' },
+                                    ...SUBSCRIPTION_INTERVALS.map((si) => ({ value: si.value, label: si.label })),
+                                  ]}
+                                />
                               </FormField>
                               <FormField label="Max Billing Cycles">
                                 <Input
@@ -864,15 +864,12 @@ export function ServicePlansEditor({
                                   onChange={e => updatePlan(idx, { booking_lead_time_value: e.target.value })}
                                   placeholder="0"
                                 />
-                                <select
+                                <Select
                                   value={plan.booking_lead_time_unit}
-                                  onChange={e => updatePlan(idx, { booking_lead_time_unit: e.target.value })}
+                                  onChange={(v) => updatePlan(idx, { booking_lead_time_unit: v })}
                                   className={selectCls}
-                                >
-                                  {LEAD_TIME_UNITS.map(u => (
-                                    <option key={u.value} value={u.value}>{u.label}</option>
-                                  ))}
-                                </select>
+                                  options={LEAD_TIME_UNITS.map((u) => ({ value: u.value, label: u.label }))}
+                                />
                               </div>
                             </FormField>
                           </div>

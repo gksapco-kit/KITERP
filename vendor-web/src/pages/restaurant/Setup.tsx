@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { useRestaurantStore } from '@/stores/restaurantStore'
+import { Select } from '@/components/ui/select'
 
 interface DiningTimerConfig {
   enabled: boolean
@@ -124,55 +125,57 @@ function TableEditRow({ table, zones, vendorSlug, onDelete }: {
   })
 
   return (
-    <li className="px-3 py-2 text-sm">
+    <li className="px-3 py-1.5 text-sm">
       {editing ? (
         <div className="flex flex-wrap items-center gap-2">
           <Input
             value={label}
             onChange={e => setLabel(e.target.value)}
-            className="h-8 text-sm w-20"
+            className="h-8 w-20 text-sm"
             placeholder="Label"
           />
-          <select
+          <Select
             value={zoneId}
-            onChange={e => setZoneId(e.target.value)}
-            className="h-8 text-sm border rounded-md px-2 bg-white"
-          >
-            <option value="">— No zone —</option>
-            {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
-          </select>
+            onChange={setZoneId}
+            className="h-8 w-[140px] text-sm"
+            placeholder="— No zone —"
+            options={[
+              { value: '', label: '— No zone —' },
+              ...zones.map((z) => ({ value: z.id, label: z.name })),
+            ]}
+          />
           <div className="flex items-center gap-1">
-            <label className="text-xs text-gray-400">Seats</label>
+            <label className="text-xs text-muted-foreground">Seats</label>
             <Input
               type="number"
               min={1}
               max={99}
               value={capacity}
               onChange={e => setCapacity(e.target.value)}
-              className="h-8 text-sm w-16"
+              className="h-8 w-14 text-sm"
             />
           </div>
-          <Button size="sm" className="h-8 px-2 gap-1" disabled={!label.trim() || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Save
+          <Button size="sm" className="h-8 gap-1 px-2" disabled={!label.trim() || save.isPending} onClick={() => save.mutate()}>
+            {save.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save
           </Button>
           <button type="button" onClick={() => { setEditing(false); setLabel(table.label); setCapacity(String(table.capacity)); setZoneId(table.zone_id ?? '') }}
-            className="text-gray-400 hover:text-gray-600 p-1">
-            <X className="w-3 h-3" />
+            className="p-1 text-muted-foreground hover:text-foreground">
+            <X className="h-3 w-3" />
           </button>
         </div>
       ) : (
-        <div className="flex items-center justify-between">
-          <span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate">
             <span className="font-semibold">{table.label}</span>
-            <span className="text-gray-400 ml-2">{table.zone_name || '—'}</span>
-            <span className="text-gray-400 ml-2">{table.capacity} seats</span>
+            <span className="ml-2 text-muted-foreground">{table.zone_name || '—'}</span>
+            <span className="ml-2 text-muted-foreground">{table.capacity} seats</span>
           </span>
-          <div className="flex items-center gap-1">
-            <button type="button" className="text-gray-400 hover:text-primary p-1" onClick={() => setEditing(true)} title="Edit">
-              <Pencil className="w-4 h-4" />
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button type="button" className="p-1 text-muted-foreground hover:text-primary" onClick={() => setEditing(true)} title="Edit">
+              <Pencil className="h-3.5 w-3.5" />
             </button>
-            <button type="button" className="text-gray-400 hover:text-red-500 p-1" onClick={onDelete} title="Delete">
-              <Trash2 className="w-4 h-4" />
+            <button type="button" className="p-1 text-muted-foreground hover:text-red-500" onClick={onDelete} title="Delete">
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -342,220 +345,267 @@ export default function RestaurantSetupPage() {
   })
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/restaurant/floor"><ArrowLeft className="w-4 h-4" /></Link>
+    <div className="mx-auto flex max-w-6xl flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" className="h-8 w-8 shrink-0 p-0" asChild>
+          <Link to="/restaurant/floor" aria-label="Back to floor">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
         </Button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-gray-900">Restaurant Setup</h1>
-          <p className="text-sm text-gray-500">Manage zones, tables, and QR codes. Configure menu items under Dine-in Menu.</p>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg font-bold text-foreground sm:text-xl">Restaurant Setup</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
+            Zones, tables, QR codes — menu under Dine-in Menu.
+          </p>
         </div>
-        <Button variant="outline" size="sm" asChild>
+        <Button variant="outline" size="sm" className="h-8 shrink-0" asChild>
           <Link to="/restaurant/menu">Dine-in Menu</Link>
         </Button>
       </div>
 
-      {/* Zones */}
-      <section className="rounded-xl border bg-white p-5 space-y-4">
-        <h2 className="font-semibold text-gray-800">Zones</h2>
-        <div className="flex gap-2 flex-wrap items-end">
-          <div>
-            <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">Zone name *</label>
-            <Input
-              placeholder="e.g. Patio, Indoor, Rooftop"
-              value={zoneName}
-              onChange={e => setZoneName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && zoneName.trim()) createZone.mutate() }}
-              className="h-9 text-sm w-44"
-            />
-          </div>
-          <div>
-            <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">Floor (optional)</label>
-            <Input
-              placeholder="e.g. Ground, 1st, Rooftop"
-              value={zoneFloor}
-              onChange={e => setZoneFloor(e.target.value)}
-              className="h-9 text-sm w-36"
-            />
-          </div>
-          <Button size="sm" disabled={!zoneName.trim() || createZone.isPending} onClick={() => createZone.mutate()}>
-            {createZone.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Add zone</>}
-          </Button>
-        </div>
-        {zonesQ.isLoading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : (
-          <ul className="divide-y rounded-lg border">
-            {zones.map(z => (
-              <li key={z.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                <span>
-                  {z.name}
-                  {z.floor && (
-                    <span className="ml-2 text-xs text-gray-400 font-medium">· {z.floor}</span>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  className="text-gray-400 hover:text-red-500 p-1"
-                  onClick={async () => { if (await askConfirm(`Delete zone "${z.name}"? All tables in it will lose their zone.`)) delZone.mutate(z.id) }}
-                  title="Delete zone"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </li>
-            ))}
-            {!zones.length && (
-              <li className="px-3 py-6 text-center text-gray-400 text-sm">
-                No zones — tables can be added without a zone.
-              </li>
-            )}
-          </ul>
-        )}
-      </section>
-
-      {/* Tables */}
-      <section className="rounded-xl border bg-white p-5 space-y-4">
-        <h2 className="font-semibold text-gray-800">Tables</h2>
-        <div className="flex flex-wrap gap-2 items-end">
-          <div>
-            <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">Label *</label>
-            <Input
-              placeholder="T1, A3, Bar-1…"
-              value={tableLabel}
-              onChange={e => setTableLabel(e.target.value)}
-              className="h-9 text-sm w-28"
-            />
-          </div>
-          <div>
-            <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">Seats</label>
-            <Input
-              type="number"
-              min={1}
-              max={99}
-              value={tableCapacity}
-              onChange={e => setTableCapacity(e.target.value)}
-              className="h-9 text-sm w-16"
-            />
-          </div>
-          <div>
-            <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">Zone</label>
-            <select
-              value={tableZone}
-              onChange={e => setTableZone(e.target.value)}
-              className="h-9 text-sm border rounded-md px-2 bg-white min-w-[140px]"
-            >
-              <option value="">— None —</option>
-              {zones.map(z => (
-                <option key={z.id} value={z.id}>{z.name}</option>
-              ))}
-            </select>
-          </div>
-          <Button size="sm" disabled={!tableLabel.trim() || createTable.isPending} onClick={() => createTable.mutate()}>
-            {createTable.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Add table</>}
-          </Button>
-        </div>
-        {tablesQ.isLoading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : (
-          <ul className="divide-y rounded-lg border">
-            {tables.map(t => (
-              <TableEditRow
-                key={t.id}
-                table={t as TableRow}
-                zones={zones}
-                vendorSlug={vendorSlug}
-                onDelete={async () => { if (await askConfirm(`Delete table "${t.label}"?`)) delTable.mutate(t.id) }}
+      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-2">
+        {/* Zones */}
+        <section className="flex min-h-0 flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:p-4">
+          <h2 className="text-sm font-semibold text-foreground">Zones</h2>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="min-w-0 flex-1 basis-[8rem]">
+              <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Zone name *
+              </label>
+              <Input
+                placeholder="e.g. Patio, Indoor"
+                value={zoneName}
+                onChange={e => setZoneName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && zoneName.trim()) createZone.mutate() }}
+                className="h-8 w-full text-sm"
               />
-            ))}
-            {!tables.length && (
-              <li className="px-3 py-6 text-center text-gray-400 text-sm">No tables yet.</li>
-            )}
-          </ul>
-        )}
-      </section>
+            </div>
+            <div className="w-[7rem] shrink-0">
+              <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Floor
+              </label>
+              <Input
+                placeholder="Ground, 1st…"
+                value={zoneFloor}
+                onChange={e => setZoneFloor(e.target.value)}
+                className="h-8 w-full text-sm"
+              />
+            </div>
+            <Button
+              size="sm"
+              className="h-8 gap-1 shrink-0"
+              disabled={!zoneName.trim() || createZone.isPending}
+              onClick={() => createZone.mutate()}
+            >
+              {createZone.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              Add
+            </Button>
+          </div>
+          {zonesQ.isLoading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          ) : (
+            <ul className="max-h-[min(40vh,16rem)] min-h-[5.5rem] flex-1 divide-y overflow-y-auto rounded-lg border border-border">
+              {zones.map(z => (
+                <li key={z.id} className="flex items-center justify-between px-3 py-1.5 text-sm">
+                  <span className="min-w-0 truncate">
+                    {z.name}
+                    {z.floor && (
+                      <span className="ml-1.5 text-xs font-medium text-muted-foreground">· {z.floor}</span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className="shrink-0 p-1 text-muted-foreground hover:text-red-500"
+                    onClick={async () => {
+                      if (await askConfirm(`Delete zone "${z.name}"? All tables in it will lose their zone.`)) {
+                        delZone.mutate(z.id)
+                      }
+                    }}
+                    title="Delete zone"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+              {!zones.length && (
+                <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+                  No zones — tables can be added without one.
+                </li>
+              )}
+            </ul>
+          )}
+        </section>
 
-      {/* Dining timer */}
-      <section className="rounded-xl border bg-white p-5 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-amber-600" />
-            <h2 className="font-semibold text-gray-800">Dining Timer</h2>
+        {/* Tables */}
+        <section className="flex min-h-0 flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:p-4">
+          <h2 className="text-sm font-semibold text-foreground">Tables</h2>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="w-[5.5rem] shrink-0">
+              <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Label *
+              </label>
+              <Input
+                placeholder="T1, A3…"
+                value={tableLabel}
+                onChange={e => setTableLabel(e.target.value)}
+                className="h-8 w-full text-sm"
+              />
+            </div>
+            <div className="w-14 shrink-0">
+              <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Seats
+              </label>
+              <Input
+                type="number"
+                min={1}
+                max={99}
+                value={tableCapacity}
+                onChange={e => setTableCapacity(e.target.value)}
+                className="h-8 w-full text-sm"
+              />
+            </div>
+            <div className="min-w-0 flex-1 basis-[7rem]">
+              <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Zone
+              </label>
+              <Select
+                value={tableZone}
+                onChange={setTableZone}
+                wrapperClassName="w-full min-w-0"
+                className="h-8 w-full text-sm"
+                placeholder="— None —"
+                options={[
+                  { value: '', label: '— None —' },
+                  ...zones.map((z) => ({ value: z.id, label: z.name })),
+                ]}
+              />
+            </div>
+            <Button
+              size="sm"
+              className="h-8 gap-1 shrink-0"
+              disabled={!tableLabel.trim() || createTable.isPending}
+              onClick={() => createTable.mutate()}
+            >
+              {createTable.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              Add
+            </Button>
+          </div>
+          {tablesQ.isLoading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          ) : (
+            <ul className="max-h-[min(40vh,16rem)] min-h-[5.5rem] flex-1 divide-y overflow-y-auto rounded-lg border border-border">
+              {tables.map(t => (
+                <TableEditRow
+                  key={t.id}
+                  table={t as TableRow}
+                  zones={zones}
+                  vendorSlug={vendorSlug}
+                  onDelete={async () => {
+                    if (await askConfirm(`Delete table "${t.label}"?`)) delTable.mutate(t.id)
+                  }}
+                />
+              ))}
+              {!tables.length && (
+                <li className="px-3 py-4 text-center text-xs text-muted-foreground">No tables yet.</li>
+              )}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      {/* Dining timer — compact strip */}
+      <section className="rounded-xl border border-border bg-card p-3 sm:p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 shrink-0 text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">Dining Timer</h2>
+              {!timerEditing && rid && (
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    savedTimerCfg.enabled
+                      ? 'bg-primary/15 text-primary'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {savedTimerCfg.enabled ? 'On' : 'Off'}
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Countdown on Floor cards — amber near end, red when over.
+            </p>
           </div>
           {rid && hasSavedTimer && !timerEditing && (
-            <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={startTimerEdit}>
-              <Pencil className="w-3.5 h-3.5" />
+            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={startTimerEdit}>
+              <Pencil className="h-3.5 w-3.5" />
               Edit
             </Button>
           )}
         </div>
-        <p className="text-sm text-gray-500">
-          Show a live countdown on each occupied table card on the Floor screen. The timer turns amber when the warning threshold is reached and red when the target time is exceeded.
-        </p>
 
         {!rid ? (
-          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            Select a restaurant outlet from the picker above to configure its dining timer.
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Select a restaurant outlet to configure its dining timer.
           </p>
         ) : outletQ.isLoading ? (
-          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+          <Loader2 className="mt-3 h-5 w-5 animate-spin text-muted-foreground" />
         ) : !timerEditing ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                savedTimerCfg.enabled
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                {savedTimerCfg.enabled ? 'Enabled' : 'Disabled'}
-              </span>
-              {hasSavedTimer && (
-                <span className="text-xs text-gray-400">Saved settings</span>
-              )}
+          savedTimerCfg.enabled ? (
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Target</p>
+                <p className="text-sm font-semibold text-foreground">{savedTimerCfg.target_minutes} min</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Warning</p>
+                <p className="text-sm font-semibold text-foreground">{savedTimerCfg.warn_minutes} min left</p>
+              </div>
+              <div className="col-span-2 flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground sm:col-span-1">
+                <span className="font-medium text-primary">green</span>
+                <span>→</span>
+                <span className="font-medium text-amber-600">amber</span>
+                <span>→</span>
+                <span className="font-medium text-red-600">red</span>
+              </div>
             </div>
-
-            {savedTimerCfg.enabled ? (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="rounded-lg border bg-gray-50 px-3 py-2.5">
-                    <p className="text-xs uppercase text-gray-400 font-semibold">Target duration</p>
-                    <p className="text-sm font-semibold text-gray-800 mt-0.5">{savedTimerCfg.target_minutes} min</p>
-                  </div>
-                  <div className="rounded-lg border bg-gray-50 px-3 py-2.5">
-                    <p className="text-xs uppercase text-gray-400 font-semibold">Warning threshold</p>
-                    <p className="text-sm font-semibold text-gray-800 mt-0.5">{savedTimerCfg.warn_minutes} min remaining</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 text-xs text-gray-500 items-start rounded-lg bg-gray-50 border px-3 py-2">
-                  <Clock className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                  <span>
-                    Tables will show: <span className="text-emerald-600 font-medium">green</span> → <span className="text-amber-600 font-medium">amber</span> (at {savedTimerCfg.warn_minutes} min left) → <span className="text-red-600 font-medium">red/over</span> (past {savedTimerCfg.target_minutes} min).
-                  </span>
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500 rounded-lg border bg-gray-50 px-3 py-2">
-                Dining timer is off — occupied tables on Floor will not show a countdown.
-              </p>
-            )}
-          </div>
+          ) : (
+            <p className="mt-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              Timer off — occupied tables won&apos;t show a countdown.
+            </p>
+          )
         ) : (
-          <div className="space-y-5">
-            {/* Enable toggle */}
-            <label className="flex items-center gap-3 cursor-pointer select-none">
+          <div className="mt-3 space-y-3">
+            <label className="flex cursor-pointer select-none items-center gap-3">
               <div
                 role="switch"
                 aria-checked={timerEnabled}
                 onClick={() => setTimerEnabled(v => !v)}
-                className={`relative w-11 h-6 rounded-full border-2 transition-colors cursor-pointer ${timerEnabled ? 'border-transparent bg-amber-500' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}
+                className={`relative h-6 w-11 cursor-pointer rounded-full border-2 transition-colors ${
+                  timerEnabled
+                    ? 'border-transparent bg-primary'
+                    : 'border-border bg-muted'
+                }`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow ring-1 ring-black/5 transition-transform ${timerEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                <span
+                  className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow ring-1 ring-black/5 transition-transform ${
+                    timerEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
               </div>
-              <span className="text-sm font-medium text-gray-700">
-                {timerEnabled ? 'Dining timer enabled' : 'Dining timer disabled'}
+              <span className="text-sm font-medium text-foreground">
+                {timerEnabled ? 'Enabled' : 'Disabled'}
               </span>
             </label>
 
-            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-opacity ${timerEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+            <div
+              className={`grid grid-cols-2 gap-3 transition-opacity ${
+                timerEnabled ? 'opacity-100' : 'pointer-events-none opacity-40'
+              }`}
+            >
               <div>
-                <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">
-                  Target dining duration (minutes)
+                <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Target (min)
                 </label>
                 <Input
                   type="number"
@@ -563,14 +613,13 @@ export default function RestaurantSetupPage() {
                   max={480}
                   value={targetMinutes}
                   onChange={e => setTargetMinutes(e.target.value)}
-                  className="h-9 text-sm w-32"
+                  className="h-8 w-full max-w-[8rem] text-sm"
                   disabled={!timerEnabled}
                 />
-                <p className="text-xs text-gray-400 mt-1">Timer turns red when exceeded. Default: 60.</p>
               </div>
               <div>
-                <label className="text-xs uppercase text-gray-400 font-semibold block mb-1">
-                  Warning threshold (minutes remaining)
+                <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Warn at (min left)
                 </label>
                 <Input
                   type="number"
@@ -578,34 +627,31 @@ export default function RestaurantSetupPage() {
                   max={parseInt(targetMinutes) - 1 || 59}
                   value={warnMinutes}
                   onChange={e => setWarnMinutes(e.target.value)}
-                  className="h-9 text-sm w-32"
+                  className="h-8 w-full max-w-[8rem] text-sm"
                   disabled={!timerEnabled}
                 />
-                <p className="text-xs text-gray-400 mt-1">Timer turns amber at this many minutes left. Default: 10.</p>
               </div>
             </div>
-
-            {timerEnabled && (
-              <div className="flex gap-3 text-xs text-gray-500 items-start rounded-lg bg-gray-50 border px-3 py-2">
-                <Clock className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                <span>
-                  Tables will show: <span className="text-emerald-600 font-medium">green</span> → <span className="text-amber-600 font-medium">amber</span> (at {warnMinutes || '?'} min left) → <span className="text-red-600 font-medium">red/over</span> (past {targetMinutes || '?'} min).
-                </span>
-              </div>
-            )}
 
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
+                className="h-8 gap-1.5"
                 disabled={saveTimer.isPending}
                 onClick={() => saveTimer.mutate()}
-                className="gap-2"
               >
-                {saveTimer.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Save timer settings
+                {saveTimer.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                Save
               </Button>
               {hasSavedTimer && (
-                <Button type="button" size="sm" variant="outline" disabled={saveTimer.isPending} onClick={cancelTimerEdit}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8"
+                  disabled={saveTimer.isPending}
+                  onClick={cancelTimerEdit}
+                >
                   Cancel
                 </Button>
               )}

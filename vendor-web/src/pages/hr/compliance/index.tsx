@@ -1,4 +1,5 @@
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
@@ -26,30 +27,39 @@ const denseTextareaClass =
 type Tab = 'policies' | 'certifications' | 'audit'
 
 const POLICY_STATUS: Record<string, { label: string; color: string }> = {
-  draft:     { label: 'Draft',     color: 'bg-gray-100 text-gray-600' },
-  published: { label: 'Published', color: 'bg-green-100 text-green-700' },
-  archived:  { label: 'Archived',  color: 'bg-gray-200 text-gray-700' },
+  draft:     { label: 'Draft',     color: 'bg-muted text-muted-foreground' },
+  published: { label: 'Published', color: 'bg-primary/15 text-primary' },
+  archived:  { label: 'Archived',  color: 'bg-muted text-muted-foreground' },
 }
 
 export default function CompliancePage() {
   const [tab, setTab] = useState<Tab>('policies')
   return (
-    <div className="p-6">
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-gray-900">Compliance</h1>
-        <p className="text-sm text-gray-500 mt-1">Policies, Certifications And Audit Trail</p>
+    <div className="flex flex-col gap-3 p-3 md:p-4">
+      <div>
+        <h1 className="text-xl font-bold text-foreground sm:text-2xl">Compliance</h1>
+        <p className="text-xs text-muted-foreground sm:text-sm">
+          Policies, certifications, and audit trail
+        </p>
       </div>
-      <div className="flex border-b mb-5 gap-1">
+      <div className="flex gap-1 border-b border-border">
         {[
           { k: 'policies',       label: 'Policies',       icon: ShieldCheck },
           { k: 'certifications', label: 'Certifications', icon: Award },
           { k: 'audit',          label: 'Audit Logs',     icon: Activity },
         ].map(t => (
-          <button key={t.k} onClick={() => setTab(t.k as Tab)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === t.k ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}>
-            <t.icon className="w-4 h-4" /> {t.label}
+          <button
+            key={t.k}
+            type="button"
+            onClick={() => setTab(t.k as Tab)}
+            className={cn(
+              'relative -mb-px flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors',
+              tab === t.k
+                ? 'border-b-2 border-primary text-primary'
+                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <t.icon className="h-4 w-4" /> {t.label}
           </button>
         ))}
       </div>
@@ -69,81 +79,123 @@ function PoliciesTab() {
   const [showNew, setShowNew] = useState(false)
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border rounded-lg text-sm">
-          <option value="">All statuses</option>
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-          <option value="archived">Archived</option>
-        </select>
-        <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
-          <Plus className="w-4 h-4" /> New Policy
+    <div className="flex min-h-0 flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Select
+          value={statusFilter}
+          onChange={setStatusFilter}
+          aria-label="Filter by status"
+          className="h-8 text-sm"
+          triggerClassName="h-8"
+          wrapperClassName="w-[11rem] shrink-0"
+          menuMinWidth={160}
+          options={[
+            { value: '', label: 'All statuses' },
+            { value: 'draft', label: 'Draft' },
+            { value: 'published', label: 'Published' },
+            { value: 'archived', label: 'Archived' },
+          ]}
+        />
+        <button
+          type="button"
+          onClick={() => setShowNew(true)}
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus className="h-4 w-4" /> New Policy
         </button>
       </div>
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400">Loading…</div>
+          <div className="p-8 text-center text-muted-foreground">Loading…</div>
         ) : (policies as Policy[]).length === 0 ? (
-          <div className="p-12 text-center">
-            <ShieldCheck className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No policies yet.</p>
+          <div className="px-4 py-10 text-center">
+            <ShieldCheck className="mx-auto mb-2 h-9 w-9 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">No policies yet.</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b text-xs uppercase text-gray-500">
-              <tr>{['Title', 'Category', 'Version', 'Effective', 'Status', 'Acks', 'Actions'].map(h =>
-                <th key={h} className="text-left py-3 px-4 font-medium">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {(policies as Policy[]).map(p => {
-                const cfg = POLICY_STATUS[p.status] ?? POLICY_STATUS.draft
-                return (
-                  <tr key={p.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4">
-                      <Link to={`/hr/compliance/policies/${p.id}`} className="text-sm font-medium text-blue-700 hover:underline">{p.title}</Link>
-                      {p.summary && <p className="text-xs text-gray-500 line-clamp-1">{p.summary}</p>}
-                    </td>
-                    <td className="py-3 px-4 text-xs text-gray-500">{p.category ?? '—'}</td>
-                    <td className="py-3 px-4 text-sm text-gray-700">v{p.version}</td>
-                    <td className="py-3 px-4 text-xs text-gray-500">
-                      {p.effective_from ?? '—'}{p.expires_on && <span className="text-gray-400"> → {p.expires_on}</span>}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.label}</span>
-                    </td>
-                    <td className="py-3 px-4 text-xs text-gray-500">{p.acknowledgements?.length ?? 0}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1">
-                        <Link to={`/hr/compliance/policies/${p.id}`}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Open">
-                          <ExternalLink className="w-4 h-4" />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-border bg-muted/40">
+                <tr>
+                  {['Title', 'Category', 'Version', 'Effective', 'Status', 'Acks', 'Actions'].map(h => (
+                    <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {(policies as Policy[]).map(p => {
+                  const cfg = POLICY_STATUS[p.status] ?? POLICY_STATUS.draft
+                  return (
+                    <tr key={p.id} className="transition-colors hover:bg-muted/30">
+                      <td className="px-3 py-2.5">
+                        <Link to={`/hr/compliance/policies/${p.id}`} className="font-medium text-primary hover:underline">
+                          {p.title}
                         </Link>
-                        {p.status === 'draft' && (
-                          <>
-                            <button onClick={() => setEditing(p)}
-                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button onClick={async () => { if (await askConfirm('Publish this policy? Employees will be asked to acknowledge.')) publish.mutate(p.id) }}
-                              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Publish">
-                              <Send className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                        <button onClick={async () => { if (await askConfirm('Delete this policy?')) del.mutate(p.id) }}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                        {p.summary && <p className="line-clamp-1 text-xs text-muted-foreground">{p.summary}</p>}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground">{p.category ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-foreground">v{p.version}</td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                        {p.effective_from ?? '—'}
+                        {p.expires_on && <span className="text-muted-foreground/70"> → {p.expires_on}</span>}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', cfg.color)}>{cfg.label}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground">{p.acknowledgements?.length ?? 0}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-0.5">
+                          <Link
+                            to={`/hr/compliance/policies/${p.id}`}
+                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                            title="Open"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Link>
+                          {p.status === 'draft' && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setEditing(p)}
+                                className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                title="Edit"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (await askConfirm('Publish this policy? Employees will be asked to acknowledge.')) {
+                                    publish.mutate(p.id)
+                                  }
+                                }}
+                                className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                title="Publish"
+                              >
+                                <Send className="h-3.5 w-3.5" />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (await askConfirm('Delete this policy?')) del.mutate(p.id)
+                            }}
+                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       {(showNew || editing) && (
@@ -206,12 +258,16 @@ function PolicyModal({
               </div>
               <div>
                 <Label className={denseLabelClass}>Audience</Label>
-                <select value={form.audience} onChange={e => setForm({ ...form, audience: e.target.value })}
-                  className={denseFieldClass}>
-                  <option value="all">All employees</option>
-                  <option value="department">Specific department</option>
-                  <option value="designation">Specific designation</option>
-                </select>
+                <Select
+                  value={form.audience}
+                  onChange={v => setForm({ ...form, audience: v })}
+                  className={denseFieldClass}
+                  options={[
+                    { value: 'all', label: 'All employees' },
+                    { value: 'department', label: 'Specific department' },
+                    { value: 'designation', label: 'Specific designation' },
+                  ]}
+                />
               </div>
               <div>
                 <Label className={denseLabelClass}>Effective From</Label>
@@ -281,81 +337,120 @@ function CertificationsTab() {
   const [showNew, setShowNew] = useState(false)
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3 gap-2">
-        <div className="flex gap-2">
-          <select value={employeeFilter} onChange={e => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2 border rounded-lg text-sm">
-            <option value="">All employees</option>
-            {(employees as EmployeeProfile[]).map(e =>
-              <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>)}
-          </select>
-          <select value={expiringDays} onChange={e => setExpiringDays(e.target.value)}
-            className="px-3 py-2 border rounded-lg text-sm">
-            <option value="">All</option>
-            <option value="30">Expiring within 30 days</option>
-            <option value="90">Expiring within 90 days</option>
-          </select>
+    <div className="flex min-h-0 flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Select
+            value={employeeFilter}
+            onChange={setEmployeeFilter}
+            aria-label="Filter by employee"
+            className="h-8 text-sm"
+            triggerClassName="h-8"
+            wrapperClassName="w-[12rem] shrink-0"
+            menuMinWidth={180}
+            options={[
+              { value: '', label: 'All employees' },
+              ...(employees as EmployeeProfile[]).map(e => ({
+                value: e.id,
+                label: e.vendor_user?.user?.full_name ?? e.employee_code ?? '',
+              })),
+            ]}
+          />
+          <Select
+            value={expiringDays}
+            onChange={setExpiringDays}
+            aria-label="Filter by expiry"
+            className="h-8 text-sm"
+            triggerClassName="h-8"
+            wrapperClassName="w-[13rem] shrink-0"
+            menuMinWidth={200}
+            options={[
+              { value: '', label: 'Any expiry' },
+              { value: '30', label: 'Expiring in 30 days' },
+              { value: '90', label: 'Expiring in 90 days' },
+            ]}
+          />
         </div>
-        <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
-          <Plus className="w-4 h-4" /> New Certification
+        <button
+          type="button"
+          onClick={() => setShowNew(true)}
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus className="h-4 w-4" /> New Certification
         </button>
       </div>
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400">Loading…</div>
+          <div className="p-8 text-center text-muted-foreground">Loading…</div>
         ) : (certs as ComplianceCertification[]).length === 0 ? (
-          <div className="p-12 text-center">
-            <Award className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No certifications.</p>
+          <div className="px-4 py-10 text-center">
+            <Award className="mx-auto mb-2 h-9 w-9 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">No certifications.</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b text-xs uppercase text-gray-500">
-              <tr>{['Employee', 'Certification', 'Type', 'Issued By', 'Issued', 'Expires', 'Status', 'Actions'].map(h =>
-                <th key={h} className="text-left py-3 px-4 font-medium">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {(certs as ComplianceCertification[]).map(c => {
-                const expiresSoon = c.expires_on && new Date(c.expires_on) < new Date(Date.now() + 30 * 86400000)
-                return (
-                  <tr key={c.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm">{empMap.get(c.employee_id) ?? c.employee_id.slice(0, 8)}</td>
-                    <td className="py-3 px-4">
-                      <p className="text-sm font-medium">{c.name}</p>
-                      {c.cert_number && <p className="text-xs text-gray-500">#{c.cert_number}</p>}
-                    </td>
-                    <td className="py-3 px-4 text-xs text-gray-500">{c.type ?? '—'}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{c.issued_by ?? '—'}</td>
-                    <td className="py-3 px-4 text-xs text-gray-500">{c.issued_on ?? '—'}</td>
-                    <td className={`py-3 px-4 text-xs ${expiresSoon ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
-                      {c.expires_on ?? '—'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        c.status === 'active' ? 'bg-green-100 text-green-700'
-                        : c.status === 'expired' ? 'bg-red-100 text-red-700'
-                        : 'bg-gray-100 text-gray-600'
-                      }`}>{c.status}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => setEditing(c)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={async () => { if (await askConfirm('Delete certification?')) del.mutate(c.id) }}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-border bg-muted/40">
+                <tr>
+                  {['Employee', 'Certification', 'Type', 'Issued By', 'Issued', 'Expires', 'Status', 'Actions'].map(h => (
+                    <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {(certs as ComplianceCertification[]).map(c => {
+                  const expiresSoon = c.expires_on && new Date(c.expires_on) < new Date(Date.now() + 30 * 86400000)
+                  return (
+                    <tr key={c.id} className="transition-colors hover:bg-muted/30">
+                      <td className="px-3 py-2.5">{empMap.get(c.employee_id) ?? c.employee_id.slice(0, 8)}</td>
+                      <td className="px-3 py-2.5">
+                        <p className="font-medium">{c.name}</p>
+                        {c.cert_number && <p className="text-xs text-muted-foreground">#{c.cert_number}</p>}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground">{c.type ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{c.issued_by ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground">{c.issued_on ?? '—'}</td>
+                      <td className={cn('px-3 py-2.5 text-xs', expiresSoon ? 'font-semibold text-red-600' : 'text-muted-foreground')}>
+                        {c.expires_on ?? '—'}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className={cn(
+                          'rounded-full px-2 py-0.5 text-xs font-medium',
+                          c.status === 'active' ? 'bg-primary/15 text-primary'
+                            : c.status === 'expired' ? 'bg-red-100 text-red-700'
+                              : 'bg-muted text-muted-foreground',
+                        )}>
+                          {c.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditing(c)}
+                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (await askConfirm('Delete certification?')) del.mutate(c.id)
+                            }}
+                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       {(showNew || editing) && (
@@ -407,12 +502,18 @@ function CertModal({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 p-5">
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase" required>Employee</Label>
-            <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-              <option value="">— Select —</option>
-              {(employees as EmployeeProfile[]).map(e =>
-                <option key={e.id} value={e.id}>{e.vendor_user?.user?.full_name ?? e.employee_code}</option>)}
-            </select>
+            <Select
+              value={form.employee_id}
+              onChange={v => setForm({ ...form, employee_id: v })}
+              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+              options={[
+                { value: '', label: '— Select —' },
+                ...(employees as EmployeeProfile[]).map(e => ({
+                  value: e.id,
+                  label: e.vendor_user?.user?.full_name ?? e.employee_code ?? '',
+                })),
+              ]}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -459,12 +560,16 @@ function CertModal({
           </div>
           <div>
             <Label className="text-xs font-medium text-gray-600 uppercase">Status</Label>
-            <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as ComplianceCertification['status'] })}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-              <option value="active">Active</option>
-              <option value="expired">Expired</option>
-              <option value="revoked">Revoked</option>
-            </select>
+            <Select
+              value={form.status}
+              onChange={v => setForm({ ...form, status: v as ComplianceCertification['status'] })}
+              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'expired', label: 'Expired' },
+                { value: 'revoked', label: 'Revoked' },
+              ]}
+            />
           </div>
           </div>
           <div className="shrink-0 flex justify-end gap-2 border-t px-5 py-3">
@@ -487,51 +592,78 @@ function AuditTab() {
   const { data: logs = [], isLoading } = useHRAuditLogs(params)
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <select value={entityType} onChange={e => setEntityType(e.target.value)}
-          className="px-3 py-2 border rounded-lg text-sm">
-          <option value="">All entity types</option>
-          <option value="policy">Policy</option>
-          <option value="job_posting">Job Posting</option>
-          <option value="application">Application</option>
-          <option value="review_cycle">Review Cycle</option>
-          <option value="performance_review">Performance Review</option>
-          <option value="training_program">Training Program</option>
-          <option value="announcement">Announcement</option>
-          <option value="expense_claim">Expense Claim</option>
-        </select>
-        <button onClick={vendorApi.hrDownloadAuditCsv}
-          className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm font-medium">
-          <Download className="w-4 h-4" /> Export CSV
+    <div className="flex min-h-0 flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Select
+          value={entityType}
+          onChange={setEntityType}
+          aria-label="Filter by entity type"
+          className="h-8 text-sm"
+          triggerClassName="h-8"
+          wrapperClassName="w-[12rem] shrink-0"
+          menuMinWidth={180}
+          options={[
+            { value: '', label: 'All entity types' },
+            { value: 'policy', label: 'Policy' },
+            { value: 'job_posting', label: 'Job Posting' },
+            { value: 'application', label: 'Application' },
+            { value: 'review_cycle', label: 'Review Cycle' },
+            { value: 'performance_review', label: 'Performance Review' },
+            { value: 'training_program', label: 'Training Program' },
+            { value: 'announcement', label: 'Announcement' },
+            { value: 'expense_claim', label: 'Expense Claim' },
+          ]}
+        />
+        <button
+          type="button"
+          onClick={vendorApi.hrDownloadAuditCsv}
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-muted"
+        >
+          <Download className="h-4 w-4" /> Export CSV
         </button>
       </div>
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400">Loading…</div>
+          <div className="p-8 text-center text-muted-foreground">Loading…</div>
         ) : (logs as ComplianceAuditLog[]).length === 0 ? (
-          <div className="p-12 text-center">
-            <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No audit logs.</p>
+          <div className="px-4 py-10 text-center">
+            <FileText className="mx-auto mb-2 h-9 w-9 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">No audit logs.</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b text-xs uppercase text-gray-500">
-              <tr>{['When', 'Actor', 'Action', 'Entity', 'Summary'].map(h =>
-                <th key={h} className="text-left py-3 px-4 font-medium">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {(logs as ComplianceAuditLog[]).map(l => (
-                <tr key={l.id} className="border-b hover:bg-gray-50">
-                  <td className="py-2 px-4 text-xs text-gray-500">{new Date(l.created_at).toLocaleString()}</td>
-                  <td className="py-2 px-4 text-xs text-gray-700">{l.actor_label ?? l.actor_user_id?.slice(0, 8) ?? '—'}</td>
-                  <td className="py-2 px-4 text-xs"><span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700">{l.action}</span></td>
-                  <td className="py-2 px-4 text-xs text-gray-600">{l.entity_type}{l.entity_id && <span className="text-gray-400"> #{l.entity_id.slice(0, 8)}</span>}</td>
-                  <td className="py-2 px-4 text-sm text-gray-700">{l.summary ?? '—'}</td>
+          <div className="max-h-[min(70vh,40rem)] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 border-b border-border bg-muted/40">
+                <tr>
+                  {['When', 'Actor', 'Action', 'Entity', 'Summary'].map(h => (
+                    <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {(logs as ComplianceAuditLog[]).map(l => (
+                  <tr key={l.id} className="transition-colors hover:bg-muted/30">
+                    <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
+                      {new Date(l.created_at).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-foreground">
+                      {l.actor_label ?? l.actor_user_id?.slice(0, 8) ?? '—'}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      <span className="rounded bg-primary/10 px-2 py-0.5 text-primary">{l.action}</span>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {l.entity_type}
+                      {l.entity_id && <span className="text-muted-foreground/70"> #{l.entity_id.slice(0, 8)}</span>}
+                    </td>
+                    <td className="px-3 py-2 text-foreground">{l.summary ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

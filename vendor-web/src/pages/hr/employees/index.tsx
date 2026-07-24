@@ -13,6 +13,7 @@ import {
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -161,17 +162,18 @@ function FamilyMemberRow({
         </div>
         <div>
           <Label className="mb-0.5 block text-xs text-muted-foreground" required>Relation</Label>
-          <select
+          <Select
             className={hrInputClass}
             value={member.relation}
-            onChange={e => onChange({ ...member, relation: e.target.value })}
-            required
-          >
-            <option value="">— Select —</option>
-            {['Spouse', 'Child', 'Parent', 'Sibling', 'Guardian', 'Other'].map(r => (
-              <option key={r} value={r.toLowerCase()}>{r}</option>
-            ))}
-          </select>
+            onChange={v => onChange({ ...member, relation: v })}
+            options={[
+              { value: '', label: '— Select —' },
+              ...['Spouse', 'Child', 'Parent', 'Sibling', 'Guardian', 'Other'].map(r => ({
+                value: r.toLowerCase(),
+                label: r,
+              })),
+            ]}
+          />
         </div>
         <div>
           <Label className="mb-0.5 block text-xs text-muted-foreground">Date of Birth</Label>
@@ -191,29 +193,29 @@ function FamilyMemberRow({
         </div>
         <div>
           <Label className="mb-0.5 block text-xs text-muted-foreground">Gender</Label>
-          <select
+          <Select
             className={hrInputClass}
             value={member.gender ?? ''}
-            onChange={e => onChange({ ...member, gender: e.target.value })}
-          >
-            <option value="">—</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
+            onChange={v => onChange({ ...member, gender: v })}
+            options={[
+              { value: '', label: '—' },
+              { value: 'male', label: 'Male' },
+              { value: 'female', label: 'Female' },
+              { value: 'other', label: 'Other' },
+            ]}
+          />
         </div>
         <div>
           <Label className="mb-0.5 block text-xs text-muted-foreground">Blood Group</Label>
-          <select
+          <Select
             className={hrInputClass}
             value={member.blood_group ?? ''}
-            onChange={e => onChange({ ...member, blood_group: e.target.value })}
-          >
-            <option value="">—</option>
-            {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
+            onChange={v => onChange({ ...member, blood_group: v })}
+            options={[
+              { value: '', label: '—' },
+              ...['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => ({ value: g, label: g })),
+            ]}
+          />
         </div>
       </div>
     </div>
@@ -514,16 +516,18 @@ function AddEmployeeModal({
                     <label className={cn(denseLabelClass, 'flex items-center gap-1')}>
                       <Building2 className="h-3 w-3" /> Employer / Business Entity
                     </label>
-                    <select
+                    <Select
                       className={denseFieldClass}
                       value={employerStoreId}
-                      onChange={e => { setEmployerStoreId(e.target.value); setEmployeeIdManual(false); setEmployeeIdOverride('') }}
-                    >
-                      <option value="">— No specific entity —</option>
-                      {stores.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}{s.code ? ` · ${s.code}` : ''}</option>
-                      ))}
-                    </select>
+                      onChange={v => { setEmployerStoreId(v); setEmployeeIdManual(false); setEmployeeIdOverride('') }}
+                      options={[
+                        { value: '', label: '— No specific entity —' },
+                        ...stores.map(s => ({
+                          value: s.id,
+                          label: `${s.name}${s.code ? ` · ${s.code}` : ''}`,
+                        })),
+                      ]}
+                    />
                   </div>
                   <div>
                     <div className="mb-0.5 flex items-center justify-between">
@@ -571,10 +575,15 @@ function AddEmployeeModal({
                   <div>
                     <Label className={denseLabelClass}>Department</Label>
                     <div className="flex gap-1">
-                      <select className={cn(denseFieldClass, 'flex-1')} value={departmentId} onChange={e => setDepartmentId(e.target.value)}>
-                        <option value="">— None —</option>
-                        {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
+                      <Select
+                        className={cn(denseFieldClass, 'flex-1')}
+                        value={departmentId}
+                        onChange={setDepartmentId}
+                        options={[
+                          { value: '', label: '— None —' },
+                          ...departments.map(d => ({ value: d.id, label: d.name })),
+                        ]}
+                      />
                       <button type="button" title="Create department" onClick={() => setShowDeptModal(true)} className="flex h-8 items-center rounded-md border border-border px-2 text-primary hover:bg-primary/10">
                         <Plus className="h-3.5 w-3.5" />
                       </button>
@@ -583,10 +592,15 @@ function AddEmployeeModal({
                   <div>
                     <Label className={denseLabelClass}>Designation</Label>
                     <div className="flex gap-1">
-                      <select className={cn(denseFieldClass, 'flex-1')} value={designationId} onChange={e => setDesignationId(e.target.value)}>
-                        <option value="">— None —</option>
-                        {designations.map((d: HRDesignation) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
+                      <Select
+                        className={cn(denseFieldClass, 'flex-1')}
+                        value={designationId}
+                        onChange={setDesignationId}
+                        options={[
+                          { value: '', label: '— None —' },
+                          ...designations.map((d: HRDesignation) => ({ value: d.id, label: d.name })),
+                        ]}
+                      />
                       <button type="button" title="Create designation" onClick={() => setShowDesigModal(true)} className="flex h-8 items-center rounded-md border border-border px-2 text-primary hover:bg-primary/10">
                         <Plus className="h-3.5 w-3.5" />
                       </button>
@@ -614,9 +628,12 @@ function AddEmployeeModal({
                       </div>
                     ) : (
                       <div className="flex gap-1">
-                        <select className={cn(denseFieldClass, 'flex-1')} value={employmentType} onChange={e => setEmploymentType(e.target.value)}>
-                          {empTypeOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                        </select>
+                        <Select
+                          className={cn(denseFieldClass, 'flex-1')}
+                          value={employmentType}
+                          onChange={setEmploymentType}
+                          options={empTypeOptions.map(t => ({ value: t.value, label: t.label }))}
+                        />
                         <button type="button" title="Add custom employment type" onClick={() => setShowNewEmpType(true)} className="flex h-8 items-center rounded-md border border-border px-2 text-primary hover:bg-primary/10">
                           <Plus className="h-3.5 w-3.5" />
                         </button>
@@ -695,10 +712,15 @@ function AddEmployeeModal({
                 </div>
                 <div>
                   <Label className="mb-1 block text-xs font-medium text-muted-foreground">Account Type</Label>
-                  <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={accountType} onChange={e => setAccountType(e.target.value)}>
-                    <option value="savings">Savings</option>
-                    <option value="current">Current</option>
-                  </select>
+                  <Select
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={accountType}
+                    onChange={setAccountType}
+                    options={[
+                      { value: 'savings', label: 'Savings' },
+                      { value: 'current', label: 'Current' },
+                    ]}
+                  />
                 </div>
                 <div className="col-span-2">
                   <Label className="mb-1 block text-xs font-medium text-muted-foreground">Account Holder Name</Label>
@@ -747,30 +769,45 @@ function AddEmployeeModal({
                   </div>
                   <div>
                     <Label className="mb-1 block text-xs font-medium text-muted-foreground">Gender</Label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={gender} onChange={e => setGender(e.target.value)}>
-                      <option value="">—</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                      <option value="prefer_not_to_say">Prefer not to say</option>
-                    </select>
+                    <Select
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={gender}
+                      onChange={setGender}
+                      options={[
+                        { value: '', label: '—' },
+                        { value: 'male', label: 'Male' },
+                        { value: 'female', label: 'Female' },
+                        { value: 'other', label: 'Other' },
+                        { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+                      ]}
+                    />
                   </div>
                   <div>
                     <Label className="mb-1 block text-xs font-medium text-muted-foreground">Blood Group</Label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={bloodGroup} onChange={e => setBloodGroup(e.target.value)}>
-                      <option value="">—</option>
-                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g}>{g}</option>)}
-                    </select>
+                    <Select
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={bloodGroup}
+                      onChange={setBloodGroup}
+                      options={[
+                        { value: '', label: '—' },
+                        ...['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => ({ value: g, label: g })),
+                      ]}
+                    />
                   </div>
                   <div>
                     <Label className="mb-1 block text-xs font-medium text-muted-foreground">Marital Status</Label>
-                    <select className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={maritalStatus} onChange={e => setMaritalStatus(e.target.value)}>
-                      <option value="">—</option>
-                      <option value="single">Single</option>
-                      <option value="married">Married</option>
-                      <option value="divorced">Divorced</option>
-                      <option value="widowed">Widowed</option>
-                    </select>
+                    <Select
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={maritalStatus}
+                      onChange={setMaritalStatus}
+                      options={[
+                        { value: '', label: '—' },
+                        { value: 'single', label: 'Single' },
+                        { value: 'married', label: 'Married' },
+                        { value: 'divorced', label: 'Divorced' },
+                        { value: 'widowed', label: 'Widowed' },
+                      ]}
+                    />
                   </div>
                   <div>
                     <Label className="mb-1 block text-xs font-medium text-muted-foreground">Nationality</Label>
@@ -858,13 +895,12 @@ function AddEmployeeModal({
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="mb-1 block text-xs font-medium text-muted-foreground">Document Type</Label>
-                        <select
+                        <Select
                           className={hrInputClass}
                           value={docType}
-                          onChange={e => setDocType(e.target.value)}
-                        >
-                          {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                        </select>
+                          onChange={setDocType}
+                          options={DOC_TYPES.map(t => ({ value: t.value, label: t.label }))}
+                        />
                       </div>
                       <div>
                         <label className="mb-1 block text-xs font-medium text-muted-foreground">Label <span className="font-normal text-muted-foreground/70">(optional)</span></label>
@@ -1096,21 +1132,36 @@ export default function EmployeesPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select className={cn(hrSelectClass, 'min-w-[10rem]')} value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
-          <option value="">All Departments</option>
-          {departments.map((d: HRDepartment) => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
-        <select className={cn(hrSelectClass, 'min-w-[10rem]')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="probation">Probation</option>
-          <option value="on_notice">On Notice</option>
-          <option value="exited">Exited</option>
-        </select>
-        <select className={cn(hrSelectClass, 'min-w-[10rem]')} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-          <option value="">All Types</option>
-          {allEmpTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
+        <Select
+          className={cn(hrSelectClass, 'min-w-[10rem]')}
+          value={deptFilter}
+          onChange={setDeptFilter}
+          options={[
+            { value: '', label: 'All Departments' },
+            ...departments.map((d: HRDepartment) => ({ value: d.id, label: d.name })),
+          ]}
+        />
+        <Select
+          className={cn(hrSelectClass, 'min-w-[10rem]')}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: '', label: 'All Statuses' },
+            { value: 'active', label: 'Active' },
+            { value: 'probation', label: 'Probation' },
+            { value: 'on_notice', label: 'On Notice' },
+            { value: 'exited', label: 'Exited' },
+          ]}
+        />
+        <Select
+          className={cn(hrSelectClass, 'min-w-[10rem]')}
+          value={typeFilter}
+          onChange={setTypeFilter}
+          options={[
+            { value: '', label: 'All Types' },
+            ...allEmpTypes.map(t => ({ value: t.value, label: t.label })),
+          ]}
+        />
       </div>
 
       {/* Table */}

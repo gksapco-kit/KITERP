@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useParams } from 'react-router-dom'
 import {
@@ -36,6 +37,17 @@ const MOVEMENT_TYPE_LABELS: Record<string, string> = {
   fg_receipt_reversal: 'FG Receipt Reversal',
 }
 const movementTypeLabel = (mt: string) => MOVEMENT_TYPE_LABELS[mt] ?? mt
+
+const BUDGET_CATEGORY_OPTIONS = ['material', 'labor', 'overhead', 'other'].map(c => ({ value: c, label: c }))
+const BUDGET_TYPE_OPTIONS = [
+  { value: 'original', label: 'Original' },
+  { value: 'revised', label: 'Revised' },
+  { value: 'supplement', label: 'Supplement' },
+]
+const ORDER_STATUS_OPTIONS = [
+  { value: '', label: '— select —' },
+  ...(['released', 'in_progress', 'completed', 'closed', 'cancelled'] as const).map(s => ({ value: s, label: s })),
+]
 
 export default function ManufacturingOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -556,16 +568,18 @@ export default function ManufacturingOrderDetailPage() {
           {showBlForm && (
             <form onSubmit={handleAddBl} className="rounded-lg border border-primary/30 bg-accent p-4 space-y-3">
               <div className="grid grid-cols-4 gap-3">
-                <select value={blForm.category} onChange={e => setBlForm(f => ({ ...f, category: e.target.value }))}
-                  className="rounded border border-gray-200 px-2 py-1.5 text-sm">
-                  {['material', 'labor', 'overhead', 'other'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <select value={blForm.budget_type} onChange={e => setBlForm(f => ({ ...f, budget_type: e.target.value }))}
-                  className="rounded border border-gray-200 px-2 py-1.5 text-sm">
-                  <option value="original">Original</option>
-                  <option value="revised">Revised</option>
-                  <option value="supplement">Supplement</option>
-                </select>
+                <Select
+                  value={blForm.category}
+                  onChange={v => setBlForm(f => ({ ...f, category: v }))}
+                  className="rounded border border-gray-200 px-2 py-1.5 text-sm"
+                  options={BUDGET_CATEGORY_OPTIONS}
+                />
+                <Select
+                  value={blForm.budget_type}
+                  onChange={v => setBlForm(f => ({ ...f, budget_type: v }))}
+                  className="rounded border border-gray-200 px-2 py-1.5 text-sm"
+                  options={BUDGET_TYPE_OPTIONS}
+                />
                 <input type="number" step="0.01" placeholder="Amount" value={blForm.amount_budgeted}
                   onChange={e => setBlForm(f => ({ ...f, amount_budgeted: e.target.value }))}
                   className="rounded border border-gray-200 px-2 py-1.5 text-sm" required />
@@ -727,13 +741,13 @@ export default function ManufacturingOrderDetailPage() {
             <p className="text-sm text-gray-500">Current status: <strong>{order.status}</strong></p>
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">New Status</Label>
-              <select value={transitionStatus} onChange={e => setTransitionStatus(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                <option value="">— select —</option>
-                {(['released', 'in_progress', 'completed', 'closed', 'cancelled'] as const).map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+              <Select
+                value={transitionStatus}
+                onChange={setTransitionStatus}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                placeholder="— select —"
+                options={ORDER_STATUS_OPTIONS}
+              />
             </div>
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</Label>

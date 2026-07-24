@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   useStockSummary, useInventoryHistory, useLowStockAlerts,
   useStockIn, useStockOut, useAdjustStock,
@@ -219,18 +220,18 @@ export default function Inventory() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">Product</label>
-                <select
+                <Select
                   value={selectedProduct}
-                  onChange={(e) => setSelectedProduct(e.target.value)}
+                  onChange={setSelectedProduct}
+                  options={selectOptionsWithBlank(
+                    'Select product…',
+                    (products?.items ?? []).map((p) => ({
+                      value: p.id,
+                      label: `${p.name}${p.sku ? ` (${p.sku})` : ''} — Qty: ${p.quantity}`,
+                    })),
+                  )}
                   className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-0 focus:border-primary"
-                >
-                  <option value="">Select product…</option>
-                  {(products?.items ?? []).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} {p.sku ? `(${p.sku})` : ''} — Qty: {p.quantity}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">
@@ -459,27 +460,25 @@ function HistoryTab({
       <div className="p-4 flex items-center gap-3 border-b flex-wrap">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-gray-400" />
-          <select
+          <Select
             value={filter}
-            onChange={(e) => { setFilter(e.target.value); setPage(1) }}
+            onChange={(v) => { setFilter(v); setPage(1) }}
+            options={selectOptionsWithBlank(
+              'All Types',
+              Object.entries(MOVEMENT_LABELS).map(([k, v]) => ({ value: k, label: v.label })),
+            )}
             className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-          >
-            <option value="">All Types</option>
-            {Object.entries(MOVEMENT_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v.label}</option>
-            ))}
-          </select>
+          />
         </div>
-        <select
+        <Select
           value={productFilter}
-          onChange={(e) => { setProductFilter(e.target.value); setPage(1) }}
+          onChange={(v) => { setProductFilter(v); setPage(1) }}
+          options={selectOptionsWithBlank(
+            'All Products',
+            products.map((p) => ({ value: p.id, label: p.name })),
+          )}
           className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm max-w-[240px]"
-        >
-          <option value="">All Products</option>
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+        />
       </div>
 
       <TableToolbar

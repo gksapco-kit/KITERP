@@ -466,7 +466,6 @@ export default function QuotationsPage() {
                   onBusinessUnitChange={(id) => { setStoreFilter(id); setBranchFilter(''); setSalesAreaFilter(''); setPage(1) }}
                   onBranchChange={(id) => { setBranchFilter(id); setSalesAreaFilter(''); setPage(1) }}
                   onSalesAreaChange={(id) => { setSalesAreaFilter(id); setPage(1) }}
-                  itemClassName="w-full min-w-[7rem] sm:w-[8rem]"
                 />
               </div>
             )}

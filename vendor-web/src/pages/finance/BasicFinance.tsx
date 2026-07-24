@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import axios from '@/lib/axios'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
@@ -150,18 +151,17 @@ function TransactionModal({
           {/* Category */}
           <div>
             <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 block">Category</label>
-            <select
+            <Select
               value={form.category}
-              onChange={e => set('category', e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Select category…</option>
-              {CATEGORIES[form.txn_type].map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-              <option value="__other">Other…</option>
-            </select>
+              onChange={v => set('category', v)}
+              placeholder="Select category…"
+              className="w-full border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              options={[
+                { value: '', label: 'Select category…' },
+                ...CATEGORIES[form.txn_type].map(c => ({ value: c, label: c })),
+                { value: '__other', label: 'Other…' },
+              ]}
+            />
             {form.category === '__other' && (
               <input
                 className="w-full mt-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -214,14 +214,15 @@ function TransactionModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 block">Payment</label>
-              <select
+              <Select
                 value={form.payment_method || ''}
-                onChange={e => set('payment_method', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">–</option>
-                {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+                onChange={v => set('payment_method', v)}
+                className="w-full border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                options={[
+                  { value: '', label: '–' },
+                  ...PAYMENT_METHODS.map(m => ({ value: m, label: m })),
+                ]}
+              />
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 block">Reference #</label>

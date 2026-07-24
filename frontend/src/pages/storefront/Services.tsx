@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useStorefrontServices } from '@/hooks/useStorefront'
 import type { StorefrontVendor } from '@/api/storefront.api'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
+import { selectOptionsWithBlank } from '@/components/ui/select'
 
 const MODE_LABELS: Record<string, string> = {
   in_store: 'In-Store',
@@ -28,6 +30,10 @@ export default function StorefrontServices() {
   })
 
   const categories = data ? [...new Set(data.items.map((s) => s.category).filter(Boolean))] : []
+  const categoryOptions = selectOptionsWithBlank(
+    'All Categories',
+    categories.map((c) => ({ value: c!, label: c! })),
+  )
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,10 +59,12 @@ export default function StorefrontServices() {
         {categories.length > 0 && (
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-gray-400" />
-            <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1) }} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="">All Categories</option>
-              {categories.map((c) => <option key={c} value={c!}>{c}</option>)}
-            </select>
+            <ThemeSelect
+              value={category}
+              onChange={(v) => { setCategory(v); setPage(1) }}
+              options={categoryOptions}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
           </div>
         )}
       </div>

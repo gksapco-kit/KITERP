@@ -25,6 +25,7 @@ import {
   BadgeAlert, BadgeCheck, CircleDot, Hammer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   ClickableImageButton,
   ImageLightboxSession,
@@ -564,11 +565,16 @@ function ReportToolbar({ search, onSearch, filterLabel, filterValue, filterOptio
       {filterOptions && filterOptions.length > 0 && (
         <div className="flex items-center gap-1.5">
           <Filter className="w-3.5 h-3.5 text-gray-400" />
-          <select value={filterValue || 'all'} onChange={e => onFilter?.(e.target.value)}
-            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400">
-            <option value="all">{filterLabel || 'All'}</option>
-            {filterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          <Select
+            value={filterValue || 'all'}
+            onChange={v => onFilter?.(v)}
+            options={[
+              { value: 'all', label: filterLabel || 'All' },
+              ...filterOptions.map(o => ({ value: o.value, label: o.label })),
+            ]}
+            className="text-xs"
+            wrapperClassName="min-w-[8rem]"
+          />
         </div>
       )}
     </div>
@@ -1490,15 +1496,18 @@ export default function ReportsPage() {
                           <div className="flex flex-wrap items-center gap-3">
                             <div>
                               <p className="text-xs text-gray-500 mb-1">Frequency</p>
-                              <select value={contact.frequency}
-                                onChange={e => updateContact(contact.id, { frequency: e.target.value as WaContact['frequency'] })}
-                                className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
-                                <option value="hourly">Every N Hours</option>
-                                <option value="twice_daily">Twice Daily (AM + PM)</option>
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="monthly">Monthly</option>
-                              </select>
+                              <Select
+                                value={contact.frequency}
+                                onChange={v => updateContact(contact.id, { frequency: v as WaContact['frequency'] })}
+                                options={[
+                                  { value: 'hourly', label: 'Every N Hours' },
+                                  { value: 'twice_daily', label: 'Twice Daily (AM + PM)' },
+                                  { value: 'daily', label: 'Daily' },
+                                  { value: 'weekly', label: 'Weekly' },
+                                  { value: 'monthly', label: 'Monthly' },
+                                ]}
+                                className="text-xs"
+                              />
                             </div>
 
                             {contact.frequency === 'hourly' && (
@@ -1514,13 +1523,15 @@ export default function ReportsPage() {
                             {contact.frequency === 'weekly' && (
                               <div>
                                 <p className="text-xs text-gray-500 mb-1">Day of week</p>
-                                <select value={contact.day_of_week ?? 'mon'}
-                                  onChange={e => updateContact(contact.id, { day_of_week: e.target.value })}
-                                  className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
-                                  {['mon','tue','wed','thu','fri','sat','sun'].map(d => (
-                                    <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
-                                  ))}
-                                </select>
+                                <Select
+                                  value={contact.day_of_week ?? 'mon'}
+                                  onChange={v => updateContact(contact.id, { day_of_week: v })}
+                                  options={['mon','tue','wed','thu','fri','sat','sun'].map(d => ({
+                                    value: d,
+                                    label: d.charAt(0).toUpperCase() + d.slice(1),
+                                  }))}
+                                  className="text-xs"
+                                />
                               </div>
                             )}
 
@@ -2243,11 +2254,13 @@ export default function ReportsPage() {
 
                 {/* Order number filter */}
                 <div className="relative">
-                  <select value={mrpOrderFilter} onChange={e => setMrpOrderFilter(e.target.value)}
-                    className={`text-xs border rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-ring max-w-[160px] ${mrpOrderFilter ? 'border-primary/60 text-primary font-semibold' : 'border-gray-200'}`}>
-                    <option value="">All Orders</option>
-                    {mrpOrderRefs.map(ref => <option key={ref} value={ref}>{ref}</option>)}
-                  </select>
+                  <Select
+                    value={mrpOrderFilter}
+                    onChange={setMrpOrderFilter}
+                    options={selectOptionsWithBlank('All Orders', mrpOrderRefs.map(ref => ({ value: ref, label: ref })))}
+                    className={cn('text-xs max-w-[160px]', mrpOrderFilter ? 'border-primary/60 text-primary font-semibold' : '')}
+                    wrapperClassName="max-w-[160px]"
+                  />
                   {mrpOrderFilter && (
                     <button type="button" aria-label="Close" onClick={() => setMrpOrderFilter('')} className="absolute right-6 top-1/2 -translate-y-1/2">
                 <X className="w-3 h-3 text-primary/80" />
@@ -2266,13 +2279,17 @@ export default function ReportsPage() {
                 </div>
 
                 {/* Action filter */}
-                <select value={mrpActionFilter} onChange={e => setMrpActionFilter(e.target.value as 'all' | 'buy' | 'produce' | 'sufficient')}
-                  className="text-xs border border-border rounded-lg px-2.5 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option value="all">All Actions</option>
-                  <option value="buy">Buy (PO)</option>
-                  <option value="produce">Produce</option>
-                  <option value="sufficient">Sufficient</option>
-                </select>
+                <Select
+                  value={mrpActionFilter}
+                  onChange={v => setMrpActionFilter(v as 'all' | 'buy' | 'produce' | 'sufficient')}
+                  options={[
+                    { value: 'all', label: 'All Actions' },
+                    { value: 'buy', label: 'Buy (PO)' },
+                    { value: 'produce', label: 'Produce' },
+                    { value: 'sufficient', label: 'Sufficient' },
+                  ]}
+                  className="text-xs"
+                />
 
                 {/* Column config */}
                 <div className="relative">
@@ -2666,11 +2683,15 @@ export default function ReportsPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Payment Terms</label>
-                  <select value={poPaymentTerms} onChange={e => setPoPaymentTerms(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                    <option>Net 30</option><option>Net 15</option><option>Net 60</option>
-                    <option>Immediate</option><option>50% Advance + 50% Delivery</option><option>Cash on Delivery</option>
-                  </select>
+                  <Select
+                    value={poPaymentTerms}
+                    onChange={setPoPaymentTerms}
+                    options={['Net 30', 'Net 15', 'Net 60', 'Immediate', '50% Advance + 50% Delivery', 'Cash on Delivery'].map(t => ({
+                      value: t,
+                      label: t,
+                    }))}
+                    className="text-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">PO Reference</label>
@@ -2804,13 +2825,17 @@ export default function ReportsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Status</label>
-                    <select value={prodStatus} onChange={e => setProdStatus(e.target.value as typeof prodStatus)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-                      <option value="draft">📝 Draft</option>
-                      <option value="in_progress">🔄 In Progress</option>
-                      <option value="on_hold">⏸ On Hold</option>
-                      <option value="completed">✅ Completed</option>
-                    </select>
+                    <Select
+                      value={prodStatus}
+                      onChange={v => setProdStatus(v as typeof prodStatus)}
+                      options={[
+                        { value: 'draft', label: '📝 Draft' },
+                        { value: 'in_progress', label: '🔄 In Progress' },
+                        { value: 'on_hold', label: '⏸ On Hold' },
+                        { value: 'completed', label: '✅ Completed' },
+                      ]}
+                      className="text-sm"
+                    />
                   </div>
                 </div>
 
@@ -2846,10 +2871,17 @@ export default function ReportsPage() {
                                 className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-right text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                             </td>
                             <td className="py-2.5 px-3 text-right hidden sm:table-cell">
-                              <select defaultValue={i === 0 ? 'high' : 'medium'}
-                                className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none">
-                                <option value="high">🔴 High</option><option value="medium">🟡 Medium</option><option value="low">🟢 Low</option>
-                              </select>
+                              <Select
+                                value={i === 0 ? 'high' : 'medium'}
+                                onChange={() => {}}
+                                options={[
+                                  { value: 'high', label: '🔴 High' },
+                                  { value: 'medium', label: '🟡 Medium' },
+                                  { value: 'low', label: '🟢 Low' },
+                                ]}
+                                className="text-xs"
+                                wrapperClassName="inline-block"
+                              />
                             </td>
                           </tr>
                         ))}

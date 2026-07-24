@@ -3,6 +3,7 @@ import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Button } from '@/components/ui/button'
 import { hrInputClass, hrSelectClass, hrTabActiveClass, hrTabInactiveClass, hrTableHeadClass, hrStatusBadge, hrLabelClass, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -109,50 +110,70 @@ function JobModal({
               </div>
               <div>
                 <Label className={denseLabelClass}>Status</Label>
-                <select value={form.status} onChange={e => set('status', e.target.value as JobPosting['status'])}
-                  className={denseFieldClass}>
-                  <option value="draft">Draft</option>
-                  <option value="open">Open (live)</option>
-                  <option value="on_hold">On Hold</option>
-                  <option value="closed">Closed</option>
-                </select>
+                <Select
+                  value={form.status}
+                  onChange={v => set('status', v as JobPosting['status'])}
+                  className={denseFieldClass}
+                  options={[
+                    { value: 'draft', label: 'Draft' },
+                    { value: 'open', label: 'Open (live)' },
+                    { value: 'on_hold', label: 'On Hold' },
+                    { value: 'closed', label: 'Closed' },
+                  ]}
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className={denseLabelClass}>Department</Label>
-                <select value={form.department_id || ''} onChange={e => set('department_id', e.target.value)}
-                  className={denseFieldClass}>
-                  <option value="">— None —</option>
-                  {(depts as HRDepartment[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
+                <Select
+                  value={form.department_id || ''}
+                  onChange={v => set('department_id', v)}
+                  className={denseFieldClass}
+                  options={[
+                    { value: '', label: '— None —' },
+                    ...(depts as HRDepartment[]).map(d => ({ value: d.id, label: d.name })),
+                  ]}
+                />
               </div>
               <div>
                 <Label className={denseLabelClass}>Designation</Label>
-                <select value={form.designation_id || ''} onChange={e => set('designation_id', e.target.value)}
-                  className={denseFieldClass}>
-                  <option value="">— None —</option>
-                  {(desigs as HRDesignation[]).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
+                <Select
+                  value={form.designation_id || ''}
+                  onChange={v => set('designation_id', v)}
+                  className={denseFieldClass}
+                  options={[
+                    { value: '', label: '— None —' },
+                    ...(desigs as HRDesignation[]).map(d => ({ value: d.id, label: d.name })),
+                  ]}
+                />
               </div>
               <div>
                 <Label className={denseLabelClass}>Store</Label>
-                <select value={form.store_id || ''} onChange={e => set('store_id', e.target.value)}
-                  className={denseFieldClass}>
-                  <option value="">— Any —</option>
-                  {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                <Select
+                  value={form.store_id || ''}
+                  onChange={v => set('store_id', v)}
+                  className={denseFieldClass}
+                  options={[
+                    { value: '', label: '— Any —' },
+                    ...stores.map(s => ({ value: s.id, label: s.name })),
+                  ]}
+                />
               </div>
               <div>
                 <Label className={denseLabelClass}>Employment Type</Label>
-                <select value={form.employment_type} onChange={e => set('employment_type', e.target.value)}
-                  className={denseFieldClass}>
-                  <option value="full_time">Full-time</option>
-                  <option value="part_time">Part-time</option>
-                  <option value="contract">Contract</option>
-                  <option value="intern">Intern</option>
-                  <option value="temporary">Temporary</option>
-                </select>
+                <Select
+                  value={form.employment_type}
+                  onChange={v => set('employment_type', v)}
+                  className={denseFieldClass}
+                  options={[
+                    { value: 'full_time', label: 'Full-time' },
+                    { value: 'part_time', label: 'Part-time' },
+                    { value: 'contract', label: 'Contract' },
+                    { value: 'intern', label: 'Intern' },
+                    { value: 'temporary', label: 'Temporary' },
+                  ]}
+                />
               </div>
               <div>
                 <Label className={denseLabelClass}>Openings</Label>
@@ -303,15 +324,19 @@ function CandidateModal({
             </div>
             <div>
               <Label className={hrLabelClass}>Source</Label>
-              <select value={form.source} onChange={e => setForm({ ...form, source: e.target.value })}
-                className={cn(hrInputClass, 'mt-1')}>
-                <option value="direct">Direct</option>
-                <option value="linkedin">LinkedIn</option>
-                <option value="naukri">Naukri</option>
-                <option value="referral">Referral</option>
-                <option value="agency">Agency</option>
-                <option value="other">Other</option>
-              </select>
+              <Select
+                value={form.source}
+                onChange={v => setForm({ ...form, source: v })}
+                className={cn(hrInputClass, 'mt-1')}
+                options={[
+                  { value: 'direct', label: 'Direct' },
+                  { value: 'linkedin', label: 'LinkedIn' },
+                  { value: 'naukri', label: 'Naukri' },
+                  { value: 'referral', label: 'Referral' },
+                  { value: 'agency', label: 'Agency' },
+                  { value: 'other', label: 'Other' },
+                ]}
+              />
             </div>
           </div>
           <div>
@@ -390,14 +415,18 @@ function JobsTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className={cn(hrSelectClass, 'w-auto')}>
-          <option value="">All statuses</option>
-          <option value="draft">Draft</option>
-          <option value="open">Open</option>
-          <option value="on_hold">On Hold</option>
-          <option value="closed">Closed</option>
-        </select>
+        <Select
+          value={statusFilter}
+          onChange={setStatusFilter}
+          className={cn(hrSelectClass, 'w-auto')}
+          options={[
+            { value: '', label: 'All statuses' },
+            { value: 'draft', label: 'Draft' },
+            { value: 'open', label: 'Open' },
+            { value: 'on_hold', label: 'On Hold' },
+            { value: 'closed', label: 'Closed' },
+          ]}
+        />
         <Button type="button" onClick={() => setShowNew(true)}>
           <Plus className="h-4 w-4" /> New Job
         </Button>
@@ -610,15 +639,18 @@ function InterviewsTab() {
                     </td>
                     <td className="py-3 px-4">
                       {iv.status === 'scheduled' && (
-                        <select onChange={e => updateIv.mutate({ id: iv.id, data: { status: e.target.value } })}
-                          defaultValue=""
-                          className={cn(hrSelectClass, 'h-8 w-auto px-2 text-xs')}>
-                          <option value="" disabled>Mark…</option>
-                          <option value="completed">Completed</option>
-                          <option value="no_show">No Show</option>
-                          <option value="cancelled">Cancel</option>
-                          <option value="rescheduled">Reschedule</option>
-                        </select>
+                        <Select
+                          value=""
+                          onChange={v => updateIv.mutate({ id: iv.id, data: { status: v } })}
+                          placeholder="Mark…"
+                          className={cn(hrSelectClass, 'h-8 w-auto px-2 text-xs')}
+                          options={[
+                            { value: 'completed', label: 'Completed' },
+                            { value: 'no_show', label: 'No Show' },
+                            { value: 'cancelled', label: 'Cancel' },
+                            { value: 'rescheduled', label: 'Reschedule' },
+                          ]}
+                        />
                       )}
                     </td>
                   </tr>

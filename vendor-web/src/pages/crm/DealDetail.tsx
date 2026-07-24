@@ -16,6 +16,8 @@ import { useAuthStore } from '@/stores/authStore'
 import type { EmployeeProfile } from '@/types'
 import { CrmModal } from './_shared'
 import { currencySymbol, amountInWords } from './crmExtras'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
+import { selectOptionsWithBlank } from '@/components/ui/select'
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils'
 import {
   Loader2, Plus, Trash2, Check, CheckCircle2, Circle, GitBranch, Trophy, XCircle,
@@ -254,16 +256,26 @@ function NextStageMover({ deal, stages, moveDeal, cf, patchCustom }: {
         <div className="mt-3 space-y-2 border-t pt-3">
           <p className="text-xs font-medium text-gray-500">Create an action item for “{next.name}” (optional)</p>
           <div className="flex flex-wrap gap-2">
-            <select value={type} onChange={e => setType(e.target.value)} className="h-9 w-[150px] rounded-md border border-input bg-background px-2 text-sm">
-              {STEP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            <ThemeSelect
+              value={type}
+              onChange={setType}
+              options={STEP_TYPES.map(t => ({ value: t.value, label: t.label }))}
+              wrapperClassName="w-[150px] shrink-0"
+              className="h-9 text-sm"
+            />
             <Input value={text} onChange={e => setText(e.target.value)} placeholder={`e.g. Work on ${next.name}`} className="h-9 flex-1 min-w-[160px]" />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <select value={assignee} onChange={e => setAssignee(e.target.value)} className="h-9 w-[200px] rounded-md border border-input bg-background px-2 text-sm">
-              <option value="">— Responsible person —</option>
-              {employees.map(e => <option key={e.id} value={empName(e)}>{empName(e)}</option>)}
-            </select>
+            <ThemeSelect
+              value={assignee}
+              onChange={setAssignee}
+              options={selectOptionsWithBlank(
+                '— Responsible person —',
+                employees.map(e => ({ value: empName(e), label: empName(e) })),
+              )}
+              wrapperClassName="w-[200px] shrink-0"
+              className="h-9 text-sm"
+            />
             <label className="flex items-center gap-1 text-xs text-gray-500"><Clock className="w-3.5 h-3.5" />When
               <Input type="datetime-local" value={when} onChange={e => setWhen(e.target.value)} className="h-9 w-[180px]" /></label>
             <label className="flex items-center gap-1 text-xs text-gray-500"><Bell className="w-3.5 h-3.5" />Reminder
@@ -405,21 +417,29 @@ function DealControls({ deal, stages, saveDeal, moveDeal }: {
           <label className="text-xs text-gray-500">Deal owner</label>
           <div className="relative mt-1">
             <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <select value={owner} onChange={e => setOwner(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-background pl-8 pr-2 text-sm">
-              <option value="">— Unassigned —</option>
-              <option value={meName}>{meName} (me)</option>
-              {owner && owner !== meName && !employees.some(e => empName(e) === owner) && <option value={owner}>{owner}</option>}
-              {employees.filter(e => empName(e) !== meName).map(e => <option key={e.id} value={empName(e)}>{empName(e)}</option>)}
-            </select>
+            <ThemeSelect
+              value={owner}
+              onChange={setOwner}
+              options={[
+                { value: '', label: '— Unassigned —' },
+                { value: meName, label: `${meName} (me)` },
+                ...(owner && owner !== meName && !employees.some(e => empName(e) === owner)
+                  ? [{ value: owner, label: owner }]
+                  : []),
+                ...employees.filter(e => empName(e) !== meName).map(e => ({ value: empName(e), label: empName(e) })),
+              ]}
+              className="h-9 pl-8 text-sm"
+            />
           </div>
         </div>
         <div>
           <label className="text-xs text-gray-500">Stage</label>
-          <select value={deal.stage_id} onChange={e => moveDeal.mutate({ id: deal.id, payload: { stage_id: e.target.value } })}
-            className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm">
-            {stages.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
-          </select>
+          <ThemeSelect
+            value={deal.stage_id}
+            onChange={v => moveDeal.mutate({ id: deal.id, payload: { stage_id: v } })}
+            options={stages.map(st => ({ value: st.id, label: st.name }))}
+            className="h-9 mt-1 text-sm"
+          />
         </div>
         <div>
           <label className="text-xs text-gray-500">Probability %</label>
@@ -632,14 +652,18 @@ function Checklist({ cf, patchCustom }: { cf: Record<string, unknown>; patchCust
 
                   {assignEditing === idx && (
                     <div className="mt-1 flex items-center gap-1">
-                      <select autoFocus value={assignDraft} onChange={e => setAssignDraft(e.target.value)}
-                        className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-xs">
-                        <option value="">— Unassigned —</option>
-                        {assignDraft && !employees.some(e => empName(e) === assignDraft) && (
-                          <option value={assignDraft}>{assignDraft}</option>
-                        )}
-                        {employees.map(e => <option key={e.id} value={empName(e)}>{empName(e)}</option>)}
-                      </select>
+                      <ThemeSelect
+                        value={assignDraft}
+                        onChange={setAssignDraft}
+                        options={[
+                          { value: '', label: '— Unassigned —' },
+                          ...(assignDraft && !employees.some(e => empName(e) === assignDraft)
+                            ? [{ value: assignDraft, label: assignDraft }]
+                            : []),
+                          ...employees.map(e => ({ value: empName(e), label: empName(e) })),
+                        ]}
+                        className="h-8 flex-1 text-xs"
+                      />
                       <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={() => commitAssign(idx)}>Save</Button>
                     </div>
                   )}
@@ -716,10 +740,13 @@ function Checklist({ cf, patchCustom }: { cf: Record<string, unknown>; patchCust
       </ul>
       <div className="space-y-2 rounded-lg border border-dashed p-2">
         <div className="flex flex-wrap gap-2">
-          <select value={newType} onChange={e => setNewType(e.target.value)}
-            className="h-9 w-[160px] rounded-md border border-input bg-background px-2 text-sm">
-            {STEP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
+          <ThemeSelect
+            value={newType}
+            onChange={setNewType}
+            options={STEP_TYPES.map(t => ({ value: t.value, label: t.label }))}
+            wrapperClassName="w-[160px] shrink-0"
+            className="h-9 text-sm"
+          />
           <Input value={draft} onChange={e => setDraft(e.target.value)}
             placeholder={`Add ${stepMeta(newType).label.toLowerCase()}…`} className="h-9 flex-1 min-w-[160px]"
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }} />
@@ -791,17 +818,27 @@ function Conversations({ dealId }: { dealId: string }) {
     <div className="rounded-xl border p-4">
       <SectionTitle icon={MessageSquare}>Conversations</SectionTitle>
       <div className="flex flex-wrap gap-2 mb-2">
-        <select value={channel} onChange={e => setChannel(e.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
-          <option value="note">Note</option>
-          <option value="email">Email</option>
-          <option value="call">Call</option>
-          <option value="sms">SMS</option>
-          <option value="whatsapp">WhatsApp</option>
-        </select>
-        <select value={direction} onChange={e => setDirection(e.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
-          <option value="outbound">Outbound</option>
-          <option value="inbound">Inbound</option>
-        </select>
+        <ThemeSelect
+          value={channel}
+          onChange={setChannel}
+          options={[
+            { value: 'note', label: 'Note' },
+            { value: 'email', label: 'Email' },
+            { value: 'call', label: 'Call' },
+            { value: 'sms', label: 'SMS' },
+            { value: 'whatsapp', label: 'WhatsApp' },
+          ]}
+          className="h-9 text-sm"
+        />
+        <ThemeSelect
+          value={direction}
+          onChange={setDirection}
+          options={[
+            { value: 'outbound', label: 'Outbound' },
+            { value: 'inbound', label: 'Inbound' },
+          ]}
+          className="h-9 text-sm"
+        />
       </div>
       <div className="flex gap-2 mb-3">
         <Textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Log what was discussed…" className="min-h-[40px]" />

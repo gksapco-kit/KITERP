@@ -5,6 +5,7 @@ import { useActivityTypes, useCreateActivityType } from '@/hooks/useControlling'
 import { toast } from 'sonner'
 import { Activity, ArrowLeft, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 const fieldClass =
@@ -68,15 +69,12 @@ export default function ActivityTypesPage() {
         {companies.length > 0 && (
           <label className={labelClass}>
             Company
-            <select
+            <Select
               value={activeCo}
-              onChange={e => setCompanyId(e.target.value)}
+              onChange={setCompanyId}
               className={cn(fieldClass, 'min-w-[200px]')}
-            >
-              {companies.map(c => (
-                <option key={c.id} value={c.id}>{c.code}</option>
-              ))}
-            </select>
+              options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+            />
           </label>
         )}
       </div>
@@ -96,15 +94,16 @@ export default function ActivityTypesPage() {
             onChange={e => setActForm(f => ({ ...f, name: e.target.value }))}
             className={cn(fieldClass, 'min-w-[120px] flex-1')}
           />
-          <select
+          <Select
             value={actForm.uom}
-            onChange={e => setActForm(f => ({ ...f, uom: e.target.value }))}
+            onChange={v => setActForm(f => ({ ...f, uom: v }))}
             className={fieldClass}
-          >
-            <option value="H">Hours</option>
-            <option value="MH">Machine hrs</option>
-            <option value="EA">Each</option>
-          </select>
+            options={[
+              { value: 'H', label: 'Hours' },
+              { value: 'MH', label: 'Machine hrs' },
+              { value: 'EA', label: 'Each' },
+            ]}
+          />
           <Button type="button" size="sm" onClick={addActivity} className="h-10 gap-1">
             <Plus className="w-3 h-3" /> Add
           </Button>

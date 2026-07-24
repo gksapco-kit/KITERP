@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   adminApi,
   type AdminVendor,
@@ -221,35 +222,33 @@ export function AssignRmToAccountsModal({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="assign-rm-bulk-action">Action for selected accounts</Label>
-              <select
+              <Select
                 id="assign-rm-bulk-action"
                 className={platformTeamSelectClassName}
                 value={bulkAction}
                 disabled={assigning}
-                onChange={(e) => setBulkAction(e.target.value as BulkAction)}
-              >
-                <option value="assign_here">Assign to {rmName}</option>
-                <option value="clear">Clear relationship manager</option>
-                <option value="assign_other">Assign to another RM…</option>
-              </select>
+                onChange={(v) => setBulkAction(v as BulkAction)}
+                options={[
+                  { value: 'assign_here', label: `Assign to ${rmName}` },
+                  { value: 'clear', label: 'Clear relationship manager' },
+                  { value: 'assign_other', label: 'Assign to another RM…' },
+                ]}
+              />
             </div>
             {bulkAction === 'assign_other' && (
               <div className="space-y-1">
                 <Label htmlFor="assign-rm-other">Relationship manager (login)</Label>
-                <select
+                <Select
                   id="assign-rm-other"
                   className={platformTeamSelectClassName}
                   value={otherRmId}
                   disabled={assigning}
-                  onChange={(e) => setOtherRmId(e.target.value)}
-                >
-                  <option value="">Choose…</option>
-                  {otherRmChoices.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {rmOptionLabel(o)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setOtherRmId}
+                  options={selectOptionsWithBlank(
+                    'Choose…',
+                    otherRmChoices.map((o) => ({ value: o.id, label: rmOptionLabel(o) })),
+                  )}
+                />
                 {otherRmChoices.length === 0 && (
                   <p className="text-xs text-muted-foreground">No other eligible RMs in directory.</p>
                 )}

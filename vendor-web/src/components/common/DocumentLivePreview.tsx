@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect, memo, type ReactNode } from 'react'
 import { Eye, Loader2, Pencil, FilePlus, Trash2, ExternalLink, Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { extractOfferTemplateFromDoc, addOfferPage, removeOfferPage } from '@/lib/offerPages'
 import { createDefaultContinuationPage } from '@/lib/documentPreview'
 
@@ -316,18 +317,18 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
               </Button>
               {multiPage && (
                 <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-0.5">
-                  <select
-                    value={selectedPage}
-                    onChange={e => setSelectedPage(Number(e.target.value))}
-                    className="h-7 rounded-md border-0 bg-white px-2 text-xs font-medium text-gray-800 shadow-sm min-w-[96px] focus:ring-1 focus:ring-blue-400"
+                  <Select
+                    value={String(selectedPage)}
+                    onChange={(v) => setSelectedPage(Number(v))}
+                    wrapperClassName="min-w-[96px]"
+                    className="h-7 rounded-md border-0 bg-white px-2 text-xs font-medium text-gray-800 shadow-sm"
+                    menuMinWidth={140}
                     aria-label="Select page"
-                  >
-                    {Array.from({ length: pageCount }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        Page {i + 1} of {pageCount}
-                      </option>
-                    ))}
-                  </select>
+                    options={Array.from({ length: pageCount }, (_, i) => ({
+                      value: String(i + 1),
+                      label: `Page ${i + 1} of ${pageCount}`,
+                    }))}
+                  />
                   <Button
                     type="button"
                     variant="ghost"

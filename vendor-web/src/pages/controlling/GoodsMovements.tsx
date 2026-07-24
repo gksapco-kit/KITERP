@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Link } from 'react-router-dom'
 import { Plus, RotateCcw, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react'
@@ -161,22 +162,23 @@ export default function GoodsMovementsPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         {companies.length > 1 && (
-          <select
+          <Select
             value={activeCo}
-            onChange={e => setCompanyId(e.target.value)}
+            onChange={setCompanyId}
             className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
-          >
-            {companies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
-          </select>
+            options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+          />
         )}
-        <select
+        <Select
           value={movTypeFilter}
-          onChange={e => setMovTypeFilter(e.target.value)}
+          onChange={setMovTypeFilter}
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
-        >
-          <option value="">All types</option>
-          {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
+          placeholder="All types"
+          options={[
+            { value: '', label: 'All types' },
+            ...MOVEMENT_TYPES.map(t => ({ value: t.value, label: t.label })),
+          ]}
+        />
         <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white" placeholder="From" />
         <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
@@ -255,28 +257,28 @@ export default function GoodsMovementsPage() {
               <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
                 <div>
                   <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>Movement Type</Label>
-                  <select
+                  <Select
                     value={form.movement_type}
-                    onChange={e => setForm(f => ({ ...f, movement_type: e.target.value }))}
+                    onChange={v => setForm(f => ({ ...f, movement_type: v }))}
                     className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
-                    required
-                  >
-                    {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
+                    options={MOVEMENT_TYPES.map(t => ({ value: t.value, label: t.label }))}
+                  />
                 </div>
                 <div>
                   <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>CO Order</Label>
-                  <select
+                  <Select
                     value={form.order_id}
-                    onChange={e => setForm(f => ({ ...f, order_id: e.target.value }))}
+                    onChange={v => setForm(f => ({ ...f, order_id: v }))}
                     className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
-                    required
-                  >
-                    <option value="">— select order —</option>
-                    {(orders as Array<{ id: string; order_no: string; title?: string }>).map(o => (
-                      <option key={o.id} value={o.id}>{o.order_no} {o.title ? `— ${o.title}` : ''}</option>
-                    ))}
-                  </select>
+                    placeholder="— select order —"
+                    options={[
+                      { value: '', label: '— select order —' },
+                      ...(orders as Array<{ id: string; order_no: string; title?: string }>).map(o => ({
+                        value: o.id,
+                        label: `${o.order_no}${o.title ? ` — ${o.title}` : ''}`,
+                      })),
+                    ]}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>

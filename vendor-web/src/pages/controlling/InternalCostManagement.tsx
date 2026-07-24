@@ -6,6 +6,7 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { Select } from '@/components/ui/select'
 import { Building2, GitMerge, TrendingUp, AlertCircle, BarChart2 } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
 import {
@@ -192,19 +193,31 @@ export default function InternalCostManagementPage() {
       {/* Period / company selector */}
       <div className="flex flex-wrap gap-3">
         {companies.length > 1 && (
-          <select value={activeCo} onChange={e => setCompanyId(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-            {companies.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
-          </select>
+          <Select
+            value={activeCo}
+            onChange={setCompanyId}
+            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+            options={companies.map(c => ({
+              value: String(c.id),
+              label: `${c.code} — ${c.name}`,
+            }))}
+          />
         )}
-        <select value={year} onChange={e => setYear(Number(e.target.value))}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-        <select value={month} onChange={e => setMonth(Number(e.target.value))}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-        </select>
+        <Select
+          value={String(year)}
+          onChange={v => setYear(Number(v))}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          options={[currentYear - 1, currentYear, currentYear + 1].map(y => ({
+            value: String(y),
+            label: String(y),
+          }))}
+        />
+        <Select
+          value={String(month)}
+          onChange={v => setMonth(Number(v))}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
+        />
       </div>
 
       {/* KPIs */}

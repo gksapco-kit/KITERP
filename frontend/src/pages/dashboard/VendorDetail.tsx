@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   ArrowLeft,
   Check,
@@ -57,6 +58,12 @@ const statusColors: Record<string, string> = {
   suspended: 'bg-orange-100 text-orange-800',
   deactivated: 'bg-gray-100 text-gray-800',
 }
+
+const RM_QUERY_STATUS_OPTIONS = [
+  { value: 'open', label: 'Open' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'closed', label: 'Closed' },
+]
 
 function EditableField({
   label,
@@ -578,20 +585,16 @@ export default function VendorDetail() {
                     <div key={q.id} className="border rounded-lg p-2.5 space-y-1.5">
                       <div className="flex justify-between gap-2 items-start">
                         <p className="text-sm font-medium">{q.subject}</p>
-                        <select
+                        <Select
                           className="text-xs border rounded px-2 py-1 bg-white shrink-0"
                           value={q.status}
                           disabled={patchRmQuery.isPending}
-                          onChange={(e) => {
-                            const next = e.target.value as 'open' | 'in_progress' | 'closed'
+                          onChange={(next) => {
                             if (next === q.status) return
-                            patchRmQuery.mutate({ queryId: q.id, status: next })
+                            patchRmQuery.mutate({ queryId: q.id, status: next as 'open' | 'in_progress' | 'closed' })
                           }}
-                        >
-                          <option value="open">Open</option>
-                          <option value="in_progress">In progress</option>
-                          <option value="closed">Closed</option>
-                        </select>
+                          options={RM_QUERY_STATUS_OPTIONS}
+                        />
                       </div>
                       <p className="text-xs text-gray-600 whitespace-pre-wrap">{q.body}</p>
                       <div className="text-xs text-gray-400 flex justify-between">
@@ -712,25 +715,23 @@ export default function VendorDetail() {
               {editMode ? (
                 <div>
                   <Label className="text-xs text-gray-500 uppercase tracking-wide">Assigned manager</Label>
-                  <select
+                  <Select
                     className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-0 focus:border-primary"
                     value={selectedRmId ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value
+                    onChange={(v) => {
                       setEditData((prev) => ({
                         ...prev,
                         relationship_manager_user_id: v === '' ? null : v,
                       }))
                     }}
-                  >
-                    <option value="">Unassigned</option>
-                    {relationshipManagers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.full_name}
-                        {m.email ? ` (${m.email})` : m.phone ? ` (${m.phone})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    options={selectOptionsWithBlank(
+                      'Unassigned',
+                      relationshipManagers.map((m) => ({
+                        value: m.id,
+                        label: `${m.full_name}${m.email ? ` (${m.email})` : m.phone ? ` (${m.phone})` : ''}`,
+                      })),
+                    )}
+                  />
                   <p className="text-xs text-gray-500 mt-1">
                     Only platform users with job role “relationship_manager” appear here.
                   </p>

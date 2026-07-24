@@ -13,6 +13,26 @@ import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
+import { selectOptionsWithBlank } from '@/components/ui/select'
+
+const GST_OPTIONS = [
+  { value: '', label: 'No GST' },
+  { value: '0', label: '0% (Exempt)' },
+  { value: '5', label: '5%' },
+  { value: '12', label: '12%' },
+  { value: '18', label: '18%' },
+  { value: '28', label: '28%' },
+]
+
+const STATUS_FILTER_OPTIONS = selectOptionsWithBlank('All Status', [
+  { value: 'draft', label: 'Draft' },
+  { value: 'active', label: 'Active' },
+  { value: 'archived', label: 'Archived' },
+])
+
+const selectFieldClass =
+  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:border-primary'
 type ViewMode = 'list' | 'create' | 'edit'
 
 const statusColors: Record<string, string> = {
@@ -212,15 +232,12 @@ export default function Products() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>GST Rate (%)</Label>
-                <select value={form.tax_rate ?? ''} onChange={(e) => setForm({ ...form, tax_rate: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:border-primary">
-                  <option value="">No GST</option>
-                  <option value="0">0% (Exempt)</option>
-                  <option value="5">5%</option>
-                  <option value="12">12%</option>
-                  <option value="18">18%</option>
-                  <option value="28">28%</option>
-                </select>
+                <ThemeSelect
+                  value={form.tax_rate != null ? String(form.tax_rate) : ''}
+                  onChange={(v) => setForm({ ...form, tax_rate: v ? parseFloat(v) : undefined })}
+                  options={GST_OPTIONS}
+                  className={selectFieldClass}
+                />
               </div>
               <div className="space-y-2">
                 <Label>HSN Code</Label>
@@ -309,16 +326,12 @@ export default function Products() {
             className="pl-9"
           />
         </div>
-        <select
+        <ThemeSelect
           value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-          className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:border-primary"
-        >
-          <option value="">All Status</option>
-          <option value="draft">Draft</option>
-          <option value="active">Active</option>
-          <option value="archived">Archived</option>
-        </select>
+          onChange={(v) => { setStatusFilter(v); setPage(1) }}
+          options={STATUS_FILTER_OPTIONS}
+          className={selectFieldClass}
+        />
       </div>
 
       {/* Product Table */}

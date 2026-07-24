@@ -23,6 +23,7 @@ import {
 } from '@/hooks/useFitnessClasses'
 import type { VendorFitnessClass, VendorFitnessClassCreate } from '@/api/fitnessClasses'
 
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 const CLASS_TYPES = ['Yoga', 'HIIT', 'Cycle', 'Pilates', 'Strength', 'Boxing']
 const INTENSITY_LEVELS = [1, 2, 3, 4, 5]
@@ -121,9 +122,12 @@ function FitnessClassModal({
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Type</Label>
-                <select value={type} onChange={e => setType(e.target.value)} className={selectCls}>
-                  {CLASS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <ThemeSelect
+                  value={type}
+                  onChange={setType}
+                  options={CLASS_TYPES.map(t => ({ value: t, label: t }))}
+                  className={selectCls}
+                />
               </div>
             </div>
 

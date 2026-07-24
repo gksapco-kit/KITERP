@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Play, CheckCircle, AlertTriangle, Clock, TrendingUp, BarChart2, X } from 'lucide-react'
@@ -139,21 +140,28 @@ export default function PeriodEndPage() {
       {/* Period selector */}
       <div className="flex flex-wrap gap-3 items-center">
         {companies.length > 1 && (
-          <select value={activeCo} onChange={e => setCompanyId(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-            {companies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
-          </select>
+          <Select
+            value={activeCo}
+            onChange={setCompanyId}
+            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+            options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+          />
         )}
-        <select value={year} onChange={e => setYear(Number(e.target.value))}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          {[currentYear - 1, currentYear, currentYear + 1].map(y => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
-        <select value={month} onChange={e => setMonth(Number(e.target.value))}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-        </select>
+        <Select
+          value={String(year)}
+          onChange={v => setYear(Number(v))}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          options={[currentYear - 1, currentYear, currentYear + 1].map(y => ({
+            value: String(y),
+            label: String(y),
+          }))}
+        />
+        <Select
+          value={String(month)}
+          onChange={v => setMonth(Number(v))}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
+        />
         <span className="text-sm font-medium text-gray-700 ml-2">
           Period: <strong>{MONTHS[month - 1]} {year}</strong>
         </span>
@@ -338,10 +346,12 @@ export default function PeriodEndPage() {
             </p>
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Run Type</Label>
-              <select value={runType} onChange={e => setRunType(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                {RUN_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
+              <Select
+                value={runType}
+                onChange={setRunType}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                options={RUN_TYPES.map(r => ({ value: r.value, label: r.label }))}
+              />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-3">

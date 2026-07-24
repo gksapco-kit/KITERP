@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Link } from 'react-router-dom'
 import { Plus, SendHorizonal, Trash2 } from 'lucide-react'
@@ -155,28 +156,40 @@ export default function CostAllocationsPage() {
       {/* Period filter */}
       <div className="flex flex-wrap gap-3 items-center">
         {companies.length > 1 && (
-          <select value={activeCo} onChange={e => setCompanyId(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-            {companies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
-          </select>
+          <Select
+            value={activeCo}
+            onChange={setCompanyId}
+            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+            options={companies.map(c => ({ value: String(c.id), label: String(c.code) }))}
+          />
         )}
-        <select value={year} onChange={e => setYear(Number(e.target.value))}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          {[currentYear - 1, currentYear, currentYear + 1].map(y => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
-        <select value={month} onChange={e => setMonth(Number(e.target.value))}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white">
-          <option value="">All statuses</option>
-          <option value="planned">Planned</option>
-          <option value="posted">Posted</option>
-          <option value="reversed">Reversed</option>
-        </select>
+        <Select
+          value={String(year)}
+          onChange={v => setYear(Number(v))}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          options={[currentYear - 1, currentYear, currentYear + 1].map(y => ({
+            value: String(y),
+            label: String(y),
+          }))}
+        />
+        <Select
+          value={String(month)}
+          onChange={v => setMonth(Number(v))}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
+        />
+        <Select
+          value={statusFilter}
+          onChange={setStatusFilter}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+          placeholder="All statuses"
+          options={[
+            { value: '', label: 'All statuses' },
+            { value: 'planned', label: 'Planned' },
+            { value: 'posted', label: 'Posted' },
+            { value: 'reversed', label: 'Reversed' },
+          ]}
+        />
       </div>
 
       {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm p-3">{error}</div>}
@@ -269,20 +282,22 @@ export default function CostAllocationsPage() {
                   </div>
                   <div>
                     <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground" required>Month</Label>
-                    <select value={form.period_month}
-                      onChange={e => setForm(f => ({ ...f, period_month: e.target.value }))}
-                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm">
-                      {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-                    </select>
+                    <Select
+                      value={form.period_month}
+                      onChange={v => setForm(f => ({ ...f, period_month: v }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                      options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
+                    />
                   </div>
                 </div>
                 <div>
                   <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Allocation Method</Label>
-                  <select value={form.allocation_method}
-                    onChange={e => setForm(f => ({ ...f, allocation_method: e.target.value }))}
-                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm">
-                    {METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  <Select
+                    value={form.allocation_method}
+                    onChange={v => setForm(f => ({ ...f, allocation_method: v }))}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                    options={METHODS.map(m => ({ value: m, label: m }))}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>

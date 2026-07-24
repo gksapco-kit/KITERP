@@ -12,6 +12,7 @@ import {
 } from '@/hooks/usePlatformCrm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import CrmSubnav from './CrmSubnav'
 
 function formatMoney(amount: number, currency = 'INR') {
@@ -127,12 +128,11 @@ export default function PlatformCrmPipeline() {
                   <div key={deal.id} className="rounded-lg border bg-white p-3 space-y-2 shadow-sm">
                     <p className="text-sm font-medium text-gray-900">{deal.title}</p>
                     <p className="text-xs text-gray-500">{formatMoney(Number(deal.amount), deal.currency)}</p>
-                    <select
+                    <Select
                       className="w-full text-xs border rounded-md px-2 py-1 bg-white"
                       value={deal.stage_id}
                       disabled={moveMut.isPending}
-                      onChange={async (e) => {
-                        const stage_id = e.target.value
+                      onChange={async (stage_id) => {
                         if (stage_id === deal.stage_id) return
                         try {
                           await moveMut.mutateAsync({ id: deal.id, payload: { stage_id } })
@@ -140,13 +140,11 @@ export default function PlatformCrmPipeline() {
                           toast.error('Could not move deal')
                         }
                       }}
-                    >
-                      {board.columns.map((c) => (
-                        <option key={c.stage.id} value={c.stage.id}>
-                          Move to {c.stage.name}
-                        </option>
-                      ))}
-                    </select>
+                      options={board.columns.map((c) => ({
+                        value: c.stage.id,
+                        label: `Move to ${c.stage.name}`,
+                      }))}
+                    />
                   </div>
                 ))}
               </div>
