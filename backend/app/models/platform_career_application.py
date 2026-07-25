@@ -24,6 +24,9 @@ class PlatformCareerApplication(Base):
     cv_filename = Column(String(255), nullable=True)
     photo_url = Column(String(500), nullable=True)
     photo_filename = Column(String(255), nullable=True)
+    # Optional link to an open HR job posting (Recruitment → Jobs).
+    job_posting_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    position_title = Column(String(200), nullable=True)
     status = Column(String(20), nullable=False, default="new")  # new | reviewed | shortlisted | rejected
     ip_address = Column(String(64), nullable=True)
     user_agent = Column(Text, nullable=True)

@@ -2522,14 +2522,23 @@ export function useHRApplication(id: string | null) {
 export function useCreateHRApplication() {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (d: Record<string, unknown>) => vendorApi.hrCreateApplication(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['hr', 'apps'] }); toast.success('Application created') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['hr', 'apps'] })
+      qc.invalidateQueries({ queryKey: ['hr', 'candidates'] })
+      toast.success('Added to pipeline')
+    },
     onError: apiError('Could not create application') })
 }
 export function useMoveHRStage() {
   const qc = useQueryClient()
   return useMutation({ mutationFn: ({ id, ...rest }: { id: string; stage: string; rejection_reason?: string; rating?: number }) =>
       vendorApi.hrMoveApplicationStage(id, rest),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['hr', 'apps'] }); qc.invalidateQueries({ queryKey: ['hr', 'app'] }); toast.success('Stage updated') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['hr', 'apps'] })
+      qc.invalidateQueries({ queryKey: ['hr', 'app'] })
+      qc.invalidateQueries({ queryKey: ['hr', 'candidates'] })
+      toast.success('Stage updated')
+    },
     onError: apiError('Could not move stage') })
 }
 export function useDeleteHRApplication() {

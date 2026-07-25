@@ -7,6 +7,7 @@ import {
   clearLegacyAuthLocalStorage,
   setAuthTokens,
 } from '@/lib/authTokenStorage'
+import { clearVendorAdminEmbed } from '@/lib/adminEmbed'
 
 clearLegacyAuthLocalStorage()
 
@@ -38,6 +39,7 @@ export const useAuthStore = create<AuthState>()(
       },
       logout: () => {
         clearAuthTokens()
+        clearVendorAdminEmbed()
         try {
           useVendorStore.getState().clearVendor()
         } catch {

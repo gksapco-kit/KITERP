@@ -19,7 +19,14 @@ class JobRepo:
         self.db = db
 
     async def list(self, vendor_id: UUID, status: Optional[str] = None) -> List[JobPosting]:
-        q = select(JobPosting).where(JobPosting.vendor_id == vendor_id)
+        q = (
+            select(JobPosting)
+            .where(JobPosting.vendor_id == vendor_id)
+            .options(
+                selectinload(JobPosting.department),
+                selectinload(JobPosting.designation),
+            )
+        )
         if status:
             q = q.where(JobPosting.status == status)
         q = q.order_by(JobPosting.created_at.desc())
@@ -27,13 +34,51 @@ class JobRepo:
 
     async def get(self, job_id: UUID, vendor_id: UUID) -> Optional[JobPosting]:
         r = await self.db.execute(
-            select(JobPosting).where(JobPosting.id == job_id, JobPosting.vendor_id == vendor_id)
+            select(JobPosting)
+            .where(JobPosting.id == job_id, JobPosting.vendor_id == vendor_id)
+            .options(
+                selectinload(JobPosting.department),
+                selectinload(JobPosting.designation),
+            )
         )
         return r.scalar_one_or_none()
 
     async def get_by_slug(self, slug: str) -> Optional[JobPosting]:
-        r = await self.db.execute(select(JobPosting).where(JobPosting.public_slug == slug))
+        r = await self.db.execute(
+            select(JobPosting)
+            .where(JobPosting.public_slug == slug)
+            .options(
+                selectinload(JobPosting.department),
+                selectinload(JobPosting.designation),
+            )
+        )
         return r.scalar_one_or_none()
+
+    async def list_open_public(self) -> List[JobPosting]:
+        """Open jobs for the public Careers page (all vendors)."""
+        q = (
+            select(JobPosting)
+            .where(JobPosting.status == "open")
+            .options(
+                selectinload(JobPosting.department),
+                selectinload(JobPosting.designation),
+            )
+            .order_by(
+                JobPosting.posted_at.desc().nullslast(),
+                JobPosting.created_at.desc(),
+            )
+        )
+        items = list((await self.db.execute(q)).scalars().all())
+        now = datetime.utcnow()
+        out: List[JobPosting] = []
+        for j in items:
+            closes = j.closes_at
+            if closes is not None:
+                closes_naive = closes.replace(tzinfo=None) if getattr(closes, "tzinfo", None) else closes
+                if closes_naive <= now:
+                    continue
+            out.append(j)
+        return out
 
     async def create(self, vendor_id: UUID, data: dict) -> JobPosting:
         item = JobPosting(vendor_id=vendor_id, **data)
@@ -59,7 +104,14 @@ class CandidateRepo:
         self.db = db
 
     async def list(self, vendor_id: UUID, search: Optional[str] = None) -> List[Candidate]:
-        q = select(Candidate).where(Candidate.vendor_id == vendor_id)
+        q = (
+            select(Candidate)
+            .where(Candidate.vendor_id == vendor_id)
+            .options(
+                selectinload(Candidate.applications).selectinload(JobApplication.job_posting),
+                selectinload(Candidate.applications).selectinload(JobApplication.interviews),
+            )
+        )
         if search:
             s = f"%{search.lower()}%"
             q = q.where(or_(
@@ -167,7 +219,10 @@ class InterviewRepo:
                 InterviewRound.status == "scheduled",
                 InterviewRound.scheduled_at >= datetime.utcnow(),
             )
-            .options(selectinload(InterviewRound.application).selectinload(JobApplication.candidate))
+            .options(
+                selectinload(InterviewRound.application).selectinload(JobApplication.candidate),
+                selectinload(InterviewRound.application).selectinload(JobApplication.job_posting),
+            )
             .order_by(InterviewRound.scheduled_at.asc())
             .limit(limit)
         )

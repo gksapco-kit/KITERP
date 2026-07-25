@@ -77,6 +77,13 @@ class Candidate(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    applications = relationship(
+        "JobApplication",
+        back_populates="candidate",
+        cascade="all, delete-orphan",
+        order_by="JobApplication.applied_at.desc()",
+    )
+
     __table_args__ = (
         Index("ix_hr_candidate_vendor_email", "vendor_id", "email"),
     )
@@ -102,8 +109,14 @@ class JobApplication(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    candidate = relationship("Candidate", foreign_keys=[candidate_id])
+    candidate = relationship("Candidate", foreign_keys=[candidate_id], back_populates="applications")
     job_posting = relationship("JobPosting", foreign_keys=[job_posting_id])
+    interviews = relationship(
+        "InterviewRound",
+        back_populates="application",
+        cascade="all, delete-orphan",
+        order_by="InterviewRound.round_number.asc()",
+    )
 
     __table_args__ = (
         UniqueConstraint("candidate_id", "job_posting_id", name="uq_application_candidate_job"),
@@ -134,7 +147,7 @@ class InterviewRound(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    application = relationship("JobApplication", foreign_keys=[application_id])
+    application = relationship("JobApplication", foreign_keys=[application_id], back_populates="interviews")
 
     __table_args__ = (
         Index("ix_hr_interview_vendor_when", "vendor_id", "scheduled_at"),

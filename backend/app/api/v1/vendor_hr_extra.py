@@ -131,20 +131,36 @@ async def get_job(
     return _d(j)
 
 
+def _job_public_slug(title: str) -> str:
+    import re
+    import uuid as _uuid
+
+    base = re.sub(r"[^a-z0-9]+", "-", (title or "job").lower()).strip("-")[:80] or "job"
+    return f"{base}-{_uuid.uuid4().hex[:6]}"
+
+
 @router.post("/jobs", status_code=201)
 async def create_job(
     body: JobIn,
     vu: VendorUser = Depends(require_permission("hr.recruitment")),
     db: AsyncSession = Depends(get_db),
 ):
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump()
+    # Drop unset optional noise but keep explicit nulls for FK clears.
+    data = {k: v for k, v in data.items() if v is not None or k in {
+        "department_id", "designation_id", "store_id", "location",
+        "salary_min", "salary_max", "description", "requirements", "benefits",
+    }}
     if data.get("status") == "open" and not data.get("posted_at"):
         data["posted_at"] = datetime.utcnow()
+    if data.get("status") == "open" and not data.get("public_slug"):
+        data["public_slug"] = _job_public_slug(str(data.get("title") or "job"))
     data["posted_by"] = vu.id
     j = await JobRepo(db).create(vu.vendor_id, data)
     await AuditRepo(db).log(vu.vendor_id, "create", "job_posting", j.id,
                              summary=f"Posted job '{j.title}'", actor_user_id=vu.id)
     await db.commit()
+    j = await JobRepo(db).get(j.id, vu.vendor_id)
     return _d(j)
 
 
@@ -158,13 +174,20 @@ async def update_job(
     j = await JobRepo(db).get(job_id, vu.vendor_id)
     if not j:
         raise HTTPException(404, "Job not found")
-    data = body.model_dump(exclude_none=True)
+    data = body.model_dump()
+    data = {k: v for k, v in data.items() if v is not None or k in {
+        "department_id", "designation_id", "store_id", "location",
+        "salary_min", "salary_max", "description", "requirements", "benefits",
+    }}
     if data.get("status") == "open" and not j.posted_at:
         data["posted_at"] = datetime.utcnow()
+    if data.get("status") == "open" and not (data.get("public_slug") or j.public_slug):
+        data["public_slug"] = _job_public_slug(str(data.get("title") or j.title or "job"))
     j = await JobRepo(db).update(j, data)
     await AuditRepo(db).log(vu.vendor_id, "update", "job_posting", j.id,
                              summary=f"Updated job '{j.title}'", actor_user_id=vu.id)
     await db.commit()
+    j = await JobRepo(db).get(job_id, vu.vendor_id)
     return _d(j)
 
 
@@ -219,7 +242,35 @@ async def list_candidates(
     db: AsyncSession = Depends(get_db),
 ):
     items = await CandidateRepo(db).list(vu.vendor_id, search=search)
-    return [_d(i) for i in items]
+    out = []
+    for c in items:
+        row = _d(c)
+        apps = []
+        for a in (c.applications or []):
+            app = {
+                k: _d(v)
+                for k, v in a.__dict__.items()
+                if k not in {"_sa_instance_state", "candidate", "job_posting", "interviews"}
+                and not k.startswith("_")
+            }
+            app["job_posting"] = (
+                {"id": str(a.job_posting.id), "title": a.job_posting.title}
+                if a.job_posting else None
+            )
+            app["interviews"] = [
+                {
+                    "id": str(i.id),
+                    "status": i.status,
+                    "round_number": i.round_number,
+                    "round_name": i.round_name,
+                    "scheduled_at": i.scheduled_at.isoformat() if i.scheduled_at else None,
+                }
+                for i in (a.interviews or [])
+            ]
+            apps.append(app)
+        row["applications"] = apps
+        out.append(row)
+    return out
 
 
 @router.get("/candidates/{cid}")
@@ -390,6 +441,22 @@ class InterviewIn(BaseModel):
     recommendation: Optional[str] = None
 
 
+class InterviewPatch(BaseModel):
+    """Partial update for interviews (status, meeting link, etc.)."""
+    application_id: Optional[UUID] = None
+    round_number: Optional[int] = None
+    round_name: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    duration_min: Optional[int] = None
+    mode: Optional[str] = None
+    location_or_link: Optional[str] = None
+    interviewer_user_ids: Optional[List[UUID]] = None
+    status: Optional[str] = None
+    rating: Optional[int] = None
+    feedback: Optional[str] = None
+    recommendation: Optional[str] = None
+
+
 @router.get("/interviews")
 async def list_interviews(
     upcoming: bool = True,
@@ -401,7 +468,10 @@ async def list_interviews(
     else:
         r = await db.execute(
             select(InterviewRound).where(InterviewRound.vendor_id == vu.vendor_id)
-            .options(selectinload(InterviewRound.application).selectinload(JobApplication.candidate))
+            .options(
+                selectinload(InterviewRound.application).selectinload(JobApplication.candidate),
+                selectinload(InterviewRound.application).selectinload(JobApplication.job_posting),
+            )
             .order_by(InterviewRound.scheduled_at.desc())
         )
         items = list(r.scalars().all())
@@ -438,15 +508,15 @@ async def create_interview(
 @router.put("/interviews/{iid}")
 async def update_interview(
     iid: UUID,
-    body: InterviewIn,
+    body: InterviewPatch,
     vu: VendorUser = Depends(require_permission("hr.recruitment")),
     db: AsyncSession = Depends(get_db),
 ):
     item = await InterviewRepo(db).get(iid, vu.vendor_id)
     if not item:
         raise HTTPException(404, "Interview not found")
-    data = body.model_dump(exclude_none=True)
-    if data.get("interviewer_user_ids"):
+    data = body.model_dump(exclude_unset=True)
+    if "interviewer_user_ids" in data and data["interviewer_user_ids"] is not None:
         data["interviewer_user_ids"] = [str(x) for x in data["interviewer_user_ids"]]
     item = await InterviewRepo(db).update(item, data)
     await db.commit()

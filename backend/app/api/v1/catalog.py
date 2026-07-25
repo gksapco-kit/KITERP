@@ -629,6 +629,49 @@ async def submit_platform_contact_query(
     }
 
 
+def _employment_type_label(value: Optional[str]) -> str:
+    raw = (value or "full_time").strip().lower()
+    return {
+        "full_time": "Full time",
+        "part_time": "Part time",
+        "contract": "Contract",
+        "intern": "Internship",
+    }.get(raw, raw.replace("_", " ").title() or "Full time")
+
+
+@router.get("/career-openings")
+async def list_career_openings(db: AsyncSession = Depends(get_db)):
+    """Public Careers page: open job postings from Recruitment (status = open)."""
+    from app.repositories.hr_recruit_repo import JobRepo
+
+    jobs = await JobRepo(db).list_open_public()
+    items = []
+    for j in jobs:
+        dept = getattr(j, "department", None)
+        desig = getattr(j, "designation", None)
+        items.append(
+            {
+                "id": str(j.id),
+                "title": j.title,
+                "department": getattr(dept, "name", None),
+                "designation": getattr(desig, "name", None),
+                "employment_type": j.employment_type or "full_time",
+                "employment_type_label": _employment_type_label(j.employment_type),
+                "location": j.location,
+                "openings": j.openings or 1,
+                "salary_min": float(j.salary_min) if j.salary_min is not None else None,
+                "salary_max": float(j.salary_max) if j.salary_max is not None else None,
+                "description": j.description,
+                "requirements": j.requirements,
+                "benefits": j.benefits,
+                "public_slug": j.public_slug,
+                "posted_at": j.posted_at.isoformat() if j.posted_at else None,
+                "closes_at": j.closes_at.isoformat() if j.closes_at else None,
+            }
+        )
+    return {"items": items, "total": len(items)}
+
+
 @router.post("/career-applications", status_code=status.HTTP_201_CREATED)
 async def submit_career_application(
     request: Request,
@@ -639,13 +682,20 @@ async def submit_career_application(
     course: Optional[str] = Form(None),
     graduation_year: Optional[str] = Form(None),
     city: Optional[str] = Form(None),
+    skills: Optional[str] = Form(None),
     linkedin_url: Optional[str] = Form(None),
     cover_note: Optional[str] = Form(None),
+    job_posting_id: Optional[str] = Form(None),
     cv: Optional[UploadFile] = File(None),
     photo: Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db),
 ):
     """Public Careers page: applicant details + optional CV and passport photo."""
+    from app.models.hr_recruit import JobPosting
+    from app.repositories.hr_recruit_repo import ApplicationRepo, CandidateRepo
+    from sqlalchemy import select as sa_select
+    from sqlalchemy.orm import selectinload
+
     name = (full_name or "").strip()
     email_clean = (email or "").strip().lower()
     if len(name) < 2:
@@ -657,6 +707,12 @@ async def submit_career_application(
     college_clean = (college or "").strip() or None
     course_clean = (course or "").strip() or None
     city_clean = (city or "").strip() or None
+    skills_raw = (skills or "").strip()
+    skills_list = [
+        s.strip()[:80]
+        for s in skills_raw.replace(";", ",").replace("\n", ",").split(",")
+        if s.strip()
+    ][:40]
     linkedin_clean = (linkedin_url or "").strip() or None
     note_clean = (cover_note or "").strip() or None
 
@@ -673,6 +729,25 @@ async def submit_career_application(
 
     if linkedin_clean and not linkedin_clean.startswith(("http://", "https://")):
         linkedin_clean = f"https://{linkedin_clean}"
+
+    job_uuid: Optional[UUID] = None
+    position_title: Optional[str] = None
+    job_row: Optional[JobPosting] = None
+    job_id_raw = (job_posting_id or "").strip()
+    if job_id_raw:
+        try:
+            job_uuid = UUID(job_id_raw)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid job opening selected")
+        result = await db.execute(
+            sa_select(JobPosting)
+            .where(JobPosting.id == job_uuid, JobPosting.status == "open")
+            .options(selectinload(JobPosting.department))
+        )
+        job_row = result.scalar_one_or_none()
+        if not job_row:
+            raise HTTPException(status_code=400, detail="That job opening is no longer available")
+        position_title = (job_row.title or "").strip()[:200] or None
 
     files = FileService()
     cv_url: Optional[str] = None
@@ -732,11 +807,65 @@ async def submit_career_application(
         cv_filename=filename[:255] if filename else None,
         photo_url=photo_url,
         photo_filename=photo_filename[:255] if photo_filename else None,
+        job_posting_id=job_uuid,
+        position_title=position_title,
         status="new",
         ip_address=ip,
         user_agent=ua,
     )
     db.add(row)
+
+    # Mirror into vendor HR recruitment pipeline when a job was selected.
+    if job_row is not None:
+        cand_repo = CandidateRepo(db)
+        existing = None
+        for c in await cand_repo.list(job_row.vendor_id, search=email_clean):
+            if (c.email or "").strip().lower() == email_clean:
+                existing = c
+                break
+        if existing is None:
+            existing = await cand_repo.create(
+                job_row.vendor_id,
+                {
+                    "full_name": name[:200],
+                    "email": email_clean[:255],
+                    "phone": phone_clean[:30] if phone_clean else None,
+                    "resume_url": cv_url,
+                    "current_company": college_clean[:200] if college_clean else None,
+                    "current_designation": course_clean[:150] if course_clean else None,
+                    "total_experience_years": float(year_val) if year_val is not None else None,
+                    "location": city_clean[:200] if city_clean else None,
+                    "skills": skills_list or None,
+                    "source": "portal",
+                    "notes": note_clean[:4000] if note_clean else None,
+                },
+            )
+        else:
+            await cand_repo.update(
+                existing,
+                {
+                    "resume_url": cv_url or existing.resume_url,
+                    "phone": phone_clean[:30] if phone_clean else existing.phone,
+                    "current_company": college_clean[:200] if college_clean else existing.current_company,
+                    "current_designation": course_clean[:150] if course_clean else existing.current_designation,
+                    "location": city_clean[:200] if city_clean else existing.location,
+                    **({"skills": skills_list} if skills_list else {}),
+                },
+            )
+
+        apps = await ApplicationRepo(db).list(job_row.vendor_id, job_id=job_row.id)
+        already = next((a for a in apps if a.candidate_id == existing.id), None)
+        if already is None:
+            await ApplicationRepo(db).create(
+                job_row.vendor_id,
+                {
+                    "candidate_id": existing.id,
+                    "job_posting_id": job_row.id,
+                    "current_stage": "applied",
+                    "cover_letter": note_clean[:4000] if note_clean else None,
+                },
+            )
+
     try:
         await db.commit()
         await db.refresh(row)

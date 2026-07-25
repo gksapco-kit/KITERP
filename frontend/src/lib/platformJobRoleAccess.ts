@@ -44,6 +44,8 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'User Roles',
       'Account activity',
       'CRM',
+      'HR Management',
+      'Careers',
       'Disputes',
       'Table Data',
       'Settings',
@@ -73,6 +75,8 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Website Analytics',
       'Account activity',
       'CRM',
+      'HR Management',
+      'Careers',
     ],
     adminVendorActions: [
       'Browse business accounts (read-focused)',
@@ -97,6 +101,8 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Website Analytics',
       'Account activity',
       'CRM',
+      'HR Management',
+      'Careers',
     ],
     adminVendorActions: [
       'Browse business accounts',
@@ -121,6 +127,8 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Website Analytics',
       'Account activity',
       'CRM',
+      'HR Management',
+      'Careers',
     ],
     adminVendorActions: [
       'Browse business accounts',
@@ -145,6 +153,8 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Website Analytics',
       'Account activity',
       'CRM',
+      'HR Management',
+      'Careers',
     ],
     adminVendorActions: [
       'See only vendors assigned to them',
@@ -172,6 +182,8 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Website Analytics',
       'Account activity',
       'CRM',
+      'HR Management',
+      'Careers',
     ],
     adminVendorActions: [
       'Browse all business accounts',

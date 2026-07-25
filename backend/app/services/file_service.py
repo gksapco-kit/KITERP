@@ -98,6 +98,23 @@ class FileService:
             await self._local_put(key, body)
         return self._public_url(key)
 
+    async def read_bytes(self, file_url: str) -> Optional[bytes]:
+        """Load file contents from S3 or local uploads. Returns None if missing."""
+        key = self.url_to_key(file_url)
+        if not key:
+            return None
+        try:
+            if self._use_s3:
+                return await self._s3_get(key)
+            path = _LOCAL_UPLOAD_ROOT / key
+            if not path.is_file():
+                return None
+            async with aiofiles.open(path, "rb") as f:
+                return await f.read()
+        except Exception:
+            logger.exception("Failed to read file %s", key)
+            return None
+
     async def delete_file(self, file_url: str) -> bool:
         """Delete a file from storage. Returns True if deleted or already absent."""
         key = self.url_to_key(file_url)
@@ -136,6 +153,23 @@ class FileService:
         except Exception:
             logger.exception("Failed to generate presigned URL for %s", key)
             return self._public_url(key)
+
+    async def _s3_get(self, key: str) -> Optional[bytes]:
+        import aioboto3
+
+        session = aioboto3.Session()
+        async with session.client(
+            "s3",
+            region_name=self.region,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        ) as s3:
+            try:
+                resp = await s3.get_object(Bucket=self.bucket, Key=key)
+                return await resp["Body"].read()
+            except Exception:
+                logger.exception("S3 get failed: s3://%s/%s", self.bucket, key)
+                return None
 
     async def _s3_put(self, key: str, body: bytes, content_type: str) -> None:
         import aioboto3

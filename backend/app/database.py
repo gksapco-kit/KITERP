@@ -2690,10 +2690,13 @@ async def ensure_platform_career_application_table() -> None:
         """,
         "ALTER TABLE platform_career_application ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500)",
         "ALTER TABLE platform_career_application ADD COLUMN IF NOT EXISTS photo_filename VARCHAR(255)",
+        "ALTER TABLE platform_career_application ADD COLUMN IF NOT EXISTS job_posting_id UUID",
+        "ALTER TABLE platform_career_application ADD COLUMN IF NOT EXISTS position_title VARCHAR(200)",
         "ALTER TABLE platform_career_application ALTER COLUMN cv_url DROP NOT NULL",
         "CREATE INDEX IF NOT EXISTS ix_platform_career_application_status ON platform_career_application(status)",
         "CREATE INDEX IF NOT EXISTS ix_platform_career_application_created ON platform_career_application(created_at DESC)",
         "CREATE INDEX IF NOT EXISTS ix_platform_career_application_email ON platform_career_application(email)",
+        "CREATE INDEX IF NOT EXISTS ix_platform_career_application_job ON platform_career_application(job_posting_id)",
     ]
     async with engine.begin() as conn:
         for s in stmts:

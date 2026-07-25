@@ -5,6 +5,7 @@ import { Select } from '@/components/ui/select'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Plus, Trash2, X, Layers, ListChecks, Pencil, CheckCircle2, Circle, Clock as ClockIcon } from 'lucide-react'
+import { hrSelectClass } from '../hrFormUi'
 import {
   useHROnbTemplates, useCreateHROnbTemplate, useUpdateHROnbTemplate, useDeleteHROnbTemplate,
   useHRChecklists, useCreateHRChecklist, useUpdateOnbTask,
@@ -62,11 +63,11 @@ function ActiveTab() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
         <Select
           value={statusFilter}
           onChange={setStatusFilter}
-          className="px-3 py-2 border rounded-lg text-sm"
+          className={cn(hrSelectClass, 'w-auto min-w-[12rem] max-w-xs')}
           options={[
             { value: '', label: 'All statuses' },
             { value: 'in_progress', label: 'In progress' },
@@ -74,9 +75,13 @@ function ActiveTab() {
             { value: 'overdue', label: 'Overdue' },
           ]}
         />
-        <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
-          <Plus className="w-4 h-4" /> Start Onboarding
+        <button
+          type="button"
+          onClick={() => setShowNew(true)}
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
+        >
+          <Plus className="h-4 w-4" />
+          Start Onboarding
         </button>
       </div>
 

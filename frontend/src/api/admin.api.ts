@@ -482,6 +482,48 @@ export const adminApi = {
     await apiClient.delete(`/admin/career-applications/${applicationId}`)
   },
 
+  previewCareerApplicationCv: async (
+    applicationId: string,
+  ): Promise<
+    | { mode: 'html'; html: string }
+    | { mode: 'pdf'; blob: Blob }
+    | { mode: 'image'; blob: Blob }
+  > => {
+    const response = await apiClient.get(`/admin/career-applications/${applicationId}/cv-preview`, {
+      responseType: 'arraybuffer',
+      timeout: 120_000,
+    })
+    const contentType = String(response.headers['content-type'] || '')
+    if (contentType.includes('application/pdf')) {
+      return {
+        mode: 'pdf',
+        blob: new Blob([response.data], { type: 'application/pdf' }),
+      }
+    }
+    if (contentType.startsWith('image/')) {
+      return {
+        mode: 'image',
+        blob: new Blob([response.data], { type: contentType.split(';')[0] || 'image/jpeg' }),
+      }
+    }
+    return {
+      mode: 'html',
+      html: new TextDecoder('utf-8').decode(response.data as ArrayBuffer),
+    }
+  },
+
+  previewCareerApplicationPhoto: async (applicationId: string): Promise<Blob> => {
+    const response = await apiClient.get(
+      `/admin/career-applications/${applicationId}/photo-preview`,
+      {
+        responseType: 'arraybuffer',
+        timeout: 60_000,
+      },
+    )
+    const contentType = String(response.headers['content-type'] || 'image/jpeg')
+    return new Blob([response.data], { type: contentType.split(';')[0] || 'image/jpeg' })
+  },
+
   listWebsiteTemplates: async (params?: {
     view?: 'assigned' | 'draft' | 'all'
     search?: string
@@ -628,13 +670,17 @@ export interface CareerApplicationItem {
   email: string
   phone?: string | null
   company?: string | null
+  current_role?: string | null
   experience_years?: number | null
   city?: string | null
+  linkedin_url?: string | null
   cover_note?: string | null
   cv_url: string
   cv_filename?: string | null
   photo_url?: string | null
   photo_filename?: string | null
+  job_posting_id?: string | null
+  position_title?: string | null
   status: string
   created_at: string | null
 }

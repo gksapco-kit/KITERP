@@ -1,0 +1,7 @@
+{
+  "name": "kiterp-backend-scripts",
+  "private": true,
+  "dependencies": {
+    "word-extractor": "^1.0.4"
+  }
+}

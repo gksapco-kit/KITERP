@@ -24,6 +24,7 @@ import {
   ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin, Quote, X,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
+import { isVendorAdminEmbed } from '@/lib/adminEmbed'
 import { FieldMappingProvider } from '@/providers/FieldMappingProvider'
 import { cn, mediaUrl, surfaceBorderClassName } from '@/lib/utils'
 
@@ -3782,6 +3783,20 @@ export default function DashboardLayout() {
     sidebarMode !== 'hidden'
       ? ({ '--sidebar-width': `${sidebarWidthPx}px` } as CSSProperties)
       : undefined
+
+  /** Platform admin iframe: same HR (and other) pages without vendor chrome. */
+  if (isVendorAdminEmbed()) {
+    return (
+      <div className="min-h-screen overflow-x-clip bg-background font-sans text-foreground">
+        <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 sm:p-6 lg:p-8 bg-background font-sans text-sm">
+          <RestaurantScopeBanner />
+          <FieldMappingProvider>
+            <Outlet />
+          </FieldMappingProvider>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div

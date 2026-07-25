@@ -15,6 +15,9 @@ export default function AuthLayout() {
   // Admin → vendor SSO always uses /auth/handoff?token=… — must run even when a session
   // already exists (e.g. switching to another business). Never redirect away before redeem.
   const isVendorHandoffRoute = location.pathname.replace(/\/+$/, '') === '/auth/handoff'
+  const searchParams = new URLSearchParams(location.search)
+  /** Platform admin iframe embed — hide marketing chrome so HR loads full-bleed. */
+  const isAdminEmbed = searchParams.get('embed') === '1'
   /** Vendor login card width (19.05rem base + 15% ≈ 21.91rem). */
   const narrowLoginColumn = location.pathname.replace(/\/+$/, '') === '/login'
   const authPath = location.pathname.replace(/\/+$/, '') || '/'
@@ -36,6 +39,17 @@ export default function AuthLayout() {
   // bounce /login ↔ / with ProtectedRoute (blank thrash after localStorage was cleared elsewhere).
   if (!hydrated) return <PageLoading />
   if (isAuthenticated && accessToken && !isVendorHandoffRoute) return <Navigate to="/" replace />
+
+  // Admin HR iframe: no green "Central Application" panel — just the handoff/login content.
+  if (isAdminEmbed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="w-full max-w-md">
+          <Outlet />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen flex-col lg:h-screen lg:flex-row lg:overflow-hidden">

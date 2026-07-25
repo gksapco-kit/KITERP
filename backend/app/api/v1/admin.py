@@ -1,6 +1,6 @@
 # app/api/v1/admin.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy import select, update, func, or_, and_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -2294,13 +2294,17 @@ async def list_career_applications(
             "email": row.email,
             "phone": row.phone,
             "company": row.college,
+            "current_role": row.course,
             "experience_years": row.graduation_year,
             "city": row.city,
+            "linkedin_url": row.linkedin_url,
             "cover_note": row.cover_note,
             "cv_url": row.cv_url,
             "cv_filename": row.cv_filename,
             "photo_url": row.photo_url,
             "photo_filename": row.photo_filename,
+            "job_posting_id": str(row.job_posting_id) if getattr(row, "job_posting_id", None) else None,
+            "position_title": getattr(row, "position_title", None),
             "status": row.status,
             "created_at": row.created_at.isoformat() if row.created_at else None,
         }
@@ -2313,6 +2317,118 @@ async def list_career_applications(
         "size": size,
         "pages": math.ceil(total / size) if total else 0,
     }
+
+
+def _inline_file_headers(filename: str, mode: str) -> dict:
+    # Force browser display (never attachment/download).
+    safe = (filename or "file").replace('"', "").replace("\n", " ").strip() or "file"
+    return {
+        "Content-Disposition": f'inline; filename="{safe}"',
+        "X-Content-Type-Options": "nosniff",
+        "X-KITERP-Preview-Mode": mode,
+        "Cache-Control": "private, no-store",
+    }
+
+
+def _guess_media_type(filename: str) -> str:
+    lower = (filename or "").lower()
+    if lower.endswith(".pdf"):
+        return "application/pdf"
+    if lower.endswith(".png"):
+        return "image/png"
+    if lower.endswith((".jpg", ".jpeg")):
+        return "image/jpeg"
+    if lower.endswith(".gif"):
+        return "image/gif"
+    if lower.endswith(".webp"):
+        return "image/webp"
+    if lower.endswith(".bmp"):
+        return "image/bmp"
+    if lower.endswith(".docx"):
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    if lower.endswith(".doc"):
+        return "application/msword"
+    return "application/octet-stream"
+
+
+@router.get("/career-applications/{application_id}/cv-preview")
+async def preview_career_application_cv(
+    application_id: UUID,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream an in-browser CV preview (inline PDF/image/HTML — never forces download)."""
+    from app.models.platform_career_application import PlatformCareerApplication
+    from app.services.document_preview import build_word_preview
+    from app.services.file_service import FileService
+
+    result = await db.execute(
+        select(PlatformCareerApplication).where(PlatformCareerApplication.id == application_id)
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Application not found")
+    if not row.cv_url:
+        raise HTTPException(404, "No CV on this application")
+
+    filename = (row.cv_filename or "cv").strip()
+    lower = filename.lower()
+    data = await FileService().read_bytes(row.cv_url)
+    if not data:
+        raise HTTPException(404, "CV file not found in storage")
+
+    # PDF / images: stream bytes with Content-Disposition: inline
+    if lower.endswith(".pdf") or lower.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")):
+        return Response(
+            content=data,
+            media_type=_guess_media_type(filename),
+            headers=_inline_file_headers(filename, "inline-file"),
+        )
+
+    # Word: convert to HTML/PDF for on-site viewing only
+    try:
+        preview = await build_word_preview(filename, data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    headers = _inline_file_headers(
+        filename if preview.media_type.startswith("application/pdf") else f"{filename}.html",
+        preview.mode,
+    )
+    if preview.media_type.startswith("text/html"):
+        return HTMLResponse(content=preview.content.decode("utf-8"), headers=headers)
+    return Response(content=preview.content, media_type=preview.media_type, headers=headers)
+
+
+@router.get("/career-applications/{application_id}/photo-preview")
+async def preview_career_application_photo(
+    application_id: UUID,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream the applicant photo inline for on-site preview (no download)."""
+    from app.models.platform_career_application import PlatformCareerApplication
+    from app.services.file_service import FileService
+
+    result = await db.execute(
+        select(PlatformCareerApplication).where(PlatformCareerApplication.id == application_id)
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Application not found")
+    if not row.photo_url:
+        raise HTTPException(404, "No photo on this application")
+
+    filename = (row.photo_filename or "photo.jpg").strip()
+    data = await FileService().read_bytes(row.photo_url)
+    if not data:
+        raise HTTPException(404, "Photo file not found in storage")
+
+    return Response(
+        content=data,
+        media_type=_guess_media_type(filename),
+        headers=_inline_file_headers(filename, "inline-photo"),
+    )
 
 
 @router.patch("/career-applications/{application_id}")
