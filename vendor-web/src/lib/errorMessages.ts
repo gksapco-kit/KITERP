@@ -125,6 +125,9 @@ export function extractApiError(error: unknown, context: string): string {
 
   if (!ax?.response) {
     if (ax?.code === 'ECONNABORTED' || ax?.message?.includes('timeout')) {
+      if (import.meta.env.DEV) {
+        return `${context}: Request timed out — ensure the backend is running on port 8000 (docker compose up backend) and retry`
+      }
       return `${context}: Request timed out — check your internet connection and try again`
     }
     if (ax?.code === 'ERR_NETWORK' || ax?.message?.includes('Network Error')) {

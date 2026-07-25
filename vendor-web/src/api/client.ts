@@ -9,12 +9,9 @@ import {
 } from '@/lib/authSession'
 import { getAccessToken } from '@/lib/authTokenStorage'
 
-const API_URL = resolveApiBaseUrl()
-
 export const apiClient: AxiosInstance = axios.create({
-  baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  timeout: 30_000,
 })
 
 apiClient.interceptors.request.use((config) => {
@@ -26,6 +23,7 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    config.baseURL = resolveApiBaseUrl()
     const token = getAccessToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`

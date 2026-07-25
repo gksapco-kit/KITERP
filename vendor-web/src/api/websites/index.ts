@@ -65,7 +65,8 @@ export const websiteApi = {
 
   // Sites
   listSites: () => apiClient.get<SiteListItem[]>(`${base}/`).then(r => r.data),
-  createSite: (data: Partial<WebsiteSite>) => apiClient.post<WebsiteSite>(`${base}/`, data).then(r => r.data),
+  createSite: (data: Partial<WebsiteSite>) =>
+    apiClient.post<WebsiteSite>(`${base}/`, data, { timeout: 60_000 }).then(r => r.data),
   getSite: (siteId: string) => apiClient.get<WebsiteSite>(`${base}/${siteId}`).then(r => r.data),
   updateSite: (siteId: string, data: Partial<WebsiteSite>) => apiClient.patch<WebsiteSite>(`${base}/${siteId}`, data).then(r => r.data),
   deleteSite: (siteId: string) => apiClient.delete(`${base}/${siteId}`),
@@ -81,12 +82,14 @@ export const websiteApi = {
     apiClient
       .post<WebsiteSite>(
         `${base}/${siteId}/apply-template/${templateId}${opts?.pagesOnly ? '?pages_only=true' : ''}`,
+        undefined,
+        { timeout: 90_000 },
       )
       .then(r => r.data),
   ensureBlankSite: (siteId: string) =>
-    apiClient.post<WebsiteSite>(`${base}/${siteId}/ensure-blank`).then(r => r.data),
+    apiClient.post<WebsiteSite>(`${base}/${siteId}/ensure-blank`, undefined, { timeout: 60_000 }).then(r => r.data),
   importSite: (payload: { export_version: number; exported_at: string; site: Record<string, unknown> }) =>
-    apiClient.post<WebsiteSite>(`${base}/import`, payload).then(r => r.data),
+    apiClient.post<WebsiteSite>(`${base}/import`, payload, { timeout: 120_000 }).then(r => r.data),
   exportSite: (siteId: string, mode: 'static' | 'dynamic' = 'dynamic') =>
     apiClient
       .get<{ export_version: number; export_mode?: 'static' | 'dynamic'; exported_at: string; site: Record<string, unknown> }>(

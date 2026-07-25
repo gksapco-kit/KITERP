@@ -169,15 +169,22 @@ export default defineConfig({
       '/api': {
         target: BACKEND_URL,
         changeOrigin: true,
+        // Vite can stall proxying while compiling (Windows + Docker); avoid false 15s client timeouts.
+        timeout: 120_000,
+        proxyTimeout: 120_000,
       },
       '/uploads': {
         target: BACKEND_URL,
         changeOrigin: true,
+        timeout: 120_000,
+        proxyTimeout: 120_000,
       },
       // FastAPI /health (not under /api/v1) — used by login connectivity check
       '/health': {
         target: BACKEND_URL,
         changeOrigin: true,
+        timeout: 30_000,
+        proxyTimeout: 30_000,
       },
     },
   },

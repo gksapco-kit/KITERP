@@ -15,7 +15,7 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { toast } from 'sonner'
 import type { SiteTrashItem, WebsiteTemplate } from '@/types/websites'
 
-import { askConfirm } from '@/components/common/ConfirmProvider'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 function TrashRow({
   item,
   vendorSlug,
@@ -126,8 +126,9 @@ export function RecentlyDeletedTemplatesModal({ onClose }: { onClose: () => void
   const restoreSite = useRestoreSite()
   const permanentlyDeleteSite = usePermanentlyDeleteSite()
   const [previewingId, setPreviewingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
 
-  useEscapeToClose(onClose, true)
+  useEscapeToClose(onClose, !deleteTarget)
 
   const handlePreview = useCallback(async (id: string) => {
     if (previewingId) return
@@ -148,15 +149,20 @@ export function RecentlyDeletedTemplatesModal({ onClose }: { onClose: () => void
     }
   }, [restoreSite])
 
-  const handlePermanentDelete = useCallback (async (id: string, name: string) => {
-    if (!await askConfirm(`Permanently delete "${name}"? This cannot be undone.`)) return
+  const handlePermanentDelete = useCallback((id: string, name: string) => {
+    setDeleteTarget({ id, name })
+  }, [])
+
+  const confirmPermanentDelete = useCallback(async () => {
+    if (!deleteTarget) return
     try {
-      await permanentlyDeleteSite.mutateAsync(id)
-      toast.success(`"${name}" permanently deleted`)
+      await permanentlyDeleteSite.mutateAsync(deleteTarget.id)
+      toast.success(`"${deleteTarget.name}" permanently deleted`)
+      setDeleteTarget(null)
     } catch (err) {
       toast.error(extractApiError(err, 'Could not delete permanently'))
     }
-  }, [permanentlyDeleteSite])
+  }, [deleteTarget, permanentlyDeleteSite])
 
   const restoringId = restoreSite.isPending ? restoreSite.variables : null
   const deletingId = permanentlyDeleteSite.isPending ? permanentlyDeleteSite.variables : null
@@ -165,7 +171,7 @@ export function RecentlyDeletedTemplatesModal({ onClose }: { onClose: () => void
     <div
       data-kiterp-modal
       className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      onClick={onClose}
+      onClick={() => !deleteTarget && onClose()}
     >
       <div
         className="flex max-h-[min(90vh,820px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-border dark:bg-card"
@@ -270,6 +276,19 @@ export function RecentlyDeletedTemplatesModal({ onClose }: { onClose: () => void
           </div>
         </div>
       </div>
+
+      {deleteTarget && (
+        <ConfirmDialog
+          open
+          title={`Permanently delete "${deleteTarget.name}"?`}
+          description="This website and all its pages will be removed forever. This cannot be undone."
+          confirmLabel="Delete permanently"
+          variant="danger"
+          busy={permanentlyDeleteSite.isPending}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void confirmPermanentDelete()}
+        />
+      )}
     </div>
   )
 }

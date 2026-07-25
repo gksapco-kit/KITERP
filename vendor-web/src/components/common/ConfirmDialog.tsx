@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ModalOverlay, ModalPanel } from '@/components/ui/Modal'
+import { confirmOverlayClass } from '@/lib/modalUi'
 import { cn } from '@/lib/utils'
 
 type ConfirmVariant = 'default' | 'warning' | 'danger' | 'success'
@@ -50,7 +51,7 @@ export function ConfirmDialog({
   const icon = VARIANT_ICON[variant]
 
   return (
-    <ModalOverlay onClose={busy ? () => {} : onCancel}>
+    <ModalOverlay onClose={busy ? () => {} : onCancel} className={confirmOverlayClass}>
       <ModalPanel className="max-w-sm w-full p-6">
         <div className="flex items-start gap-3 mb-4">
           <div className={cn('w-10 h-10 rounded-full flex items-center justify-center shrink-0', icon.bg)}>

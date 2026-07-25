@@ -23,6 +23,10 @@ export const modalOverlayClass =
 export const modalOverlayCenterClass =
   'fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none pointer-events-auto'
 
+/** Confirm dialogs must sit above all app modals (including z-[220] website trash). */
+export const confirmOverlayClass =
+  'fixed inset-0 z-[230] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-hidden overscroll-none pointer-events-auto'
+
 /**
  * Drop-in classes for handcrafted dialogs (not using ModalOverlay/ModalPanel).
  * Overlay never scrolls; panel is a flex column; put scroll only on dialogBodyClass.
