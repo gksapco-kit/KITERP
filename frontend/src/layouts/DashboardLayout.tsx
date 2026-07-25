@@ -20,7 +20,6 @@ import {
   BarChart3,
   UsersRound,
   ShieldCheck,
-  Briefcase,
   UserCog,
   ChevronDown,
   X,
@@ -61,7 +60,6 @@ const adminNavItemsSuperuser: NavItem[] = [
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: '/dashboard/crm', icon: UsersRound, label: 'CRM' },
   { to: HR_ADMIN_BASE, icon: UserCog, label: 'HR Management', expandableHr: true },
-  { to: '/dashboard/careers', icon: Briefcase, label: 'Careers' },
   { to: '/dashboard/disputes', icon: AlertTriangle, label: 'Disputes' },
   { to: '/dashboard/table-data', icon: Table2, label: 'Table Data' },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
@@ -74,7 +72,6 @@ const adminNavItemsSupport: NavItem[] = [
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: '/dashboard/crm', icon: UsersRound, label: 'CRM' },
   { to: HR_ADMIN_BASE, icon: UserCog, label: 'HR Management', expandableHr: true },
-  { to: '/dashboard/careers', icon: Briefcase, label: 'Careers' },
 ]
 
 function ProfileAvatar({
@@ -118,7 +115,6 @@ const adminPageTitles: Record<string, string> = {
   '/dashboard/account-activity': 'Account Activity',
   '/dashboard/crm': 'CRM',
   '/dashboard/hr': 'HR Management',
-  '/dashboard/careers': 'Careers',
   '/dashboard/disputes': 'Disputes',
   '/dashboard/table-data': 'Table Data',
   '/dashboard/settings': 'Settings',
@@ -209,13 +205,15 @@ export default function DashboardLayout() {
   const displayName = isAdmin ? 'KIT ERP' : vendor?.display_name || 'KIT ERP'
   const roleLabel = getDashboardUserRoleLabel(user)
 
+  const isHrIframeShell =
+    location.pathname === HR_ADMIN_BASE || location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
+
   const hrSlug = location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
     ? location.pathname.slice(HR_ADMIN_BASE.length + 1).split('/')[0]
     : undefined
   const hrItem = getHrAdminNavItem(hrSlug)
 
-  const pageLabel =
-    hrItem
+  const pageLabel = hrItem
       ? `HR · ${hrItem.label}`
       : adminPageTitles[location.pathname]
         || (location.pathname.startsWith('/dashboard/vendors/') ? 'Business Account'
@@ -251,11 +249,11 @@ export default function DashboardLayout() {
         )}
       >
         <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex items-center justify-between gap-2 border-b border-gray-200 px-4 py-4 sm:px-6">
+          {/* Logo — h-14 matches HR Management toolbar and mobile header */}
+          <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-4 sm:px-6">
             <div className="flex min-w-0 items-center gap-2">
-              <Store className="h-8 w-8 shrink-0 text-primary" />
-              <span className="truncate text-lg font-bold">{displayName}</span>
+              <Store className="h-5 w-5 shrink-0 text-primary" />
+              <span className="truncate text-sm font-bold text-gray-900">{displayName}</span>
             </div>
             <button
               type="button"
@@ -344,9 +342,7 @@ export default function DashboardLayout() {
         <main
           className={cn(
             'min-w-0 max-w-none',
-            location.pathname === HR_ADMIN_BASE || location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
-              ? 'p-0'
-              : 'p-4 sm:p-6 lg:p-8',
+            isHrIframeShell ? 'p-0' : 'p-4 sm:p-6 lg:p-8',
           )}
         >
           <Outlet />

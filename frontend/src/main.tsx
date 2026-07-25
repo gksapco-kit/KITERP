@@ -9,6 +9,7 @@ import { Toaster } from 'sonner'
 
 import { router } from './routes'
 import { ConfirmProvider } from './components/common/ConfirmProvider'
+import AdminEmbedAuthBridge from './components/embed/AdminEmbedAuthBridge'
 import { initGlobalEscapeHandler } from './lib/escapeCloseRegistry'
 import { startSessionKeepAlive } from './lib/authSession'
 import './styles/globals.css'
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <ConfirmProvider>
+        <AdminEmbedAuthBridge />
         <RouterProvider router={router} future={{ v7_startTransition: true }} />
         <Toaster position="top-right" richColors closeButton />
       </ConfirmProvider>

@@ -67,6 +67,9 @@ async def main() -> None:
             "ALTER TABLE platform_career_application ADD COLUMN IF NOT EXISTS photo_filename VARCHAR(255)"
         )
         await conn.execute(
+            "ALTER TABLE platform_career_application ADD COLUMN IF NOT EXISTS admin_note TEXT"
+        )
+        await conn.execute(
             "ALTER TABLE platform_career_application ALTER COLUMN cv_url DROP NOT NULL"
         )
         await conn.execute(

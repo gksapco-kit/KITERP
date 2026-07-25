@@ -1148,8 +1148,8 @@ export default function Careers() {
                           ) : (
                             <>
                               <Camera className="w-4 h-4 shrink-0 text-[var(--kiterp-primary)]" />
-                              <span className="text-[12px] font-semibold text-[var(--kiterp-ink)]">
-                                Upload photo
+                              <span className="min-w-0 truncate text-[12px] font-semibold text-[var(--kiterp-ink)]">
+                                Drop image or browse · JPG, PNG, WebP
                               </span>
                             </>
                           )}

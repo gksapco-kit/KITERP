@@ -30,3 +30,12 @@ export function isHrNavVisible(
   if (selectedStoreId) return hr_business_unit_ids.includes(selectedStoreId)
   return hr_business_unit_ids.length > 0
 }
+
+export const HR_RECRUITMENT_COMMON_MEETING_URL_KEY = 'hr_recruitment_common_meeting_url'
+
+export function readRecruitmentCommonMeetingUrl(
+  settings: Record<string, unknown> | undefined | null,
+): string {
+  const raw = settings?.[HR_RECRUITMENT_COMMON_MEETING_URL_KEY]
+  return typeof raw === 'string' ? raw.trim() : ''
+}

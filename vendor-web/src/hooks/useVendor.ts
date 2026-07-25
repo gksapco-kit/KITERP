@@ -2537,6 +2537,12 @@ export function useMoveHRStage() {
       qc.invalidateQueries({ queryKey: ['hr', 'apps'] })
       qc.invalidateQueries({ queryKey: ['hr', 'app'] })
       qc.invalidateQueries({ queryKey: ['hr', 'candidates'] })
+      try {
+        const msg = { type: 'kiterp:hr:careers-refresh' }
+        window.postMessage(msg, window.location.origin)
+      } catch {
+        /* ignore */
+      }
       toast.success('Stage updated')
     },
     onError: apiError('Could not move stage') })

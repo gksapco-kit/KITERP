@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 // Layouts
 import AuthLayout from '@/layouts/AuthLayout'
 import DashboardLayout from '@/layouts/DashboardLayout'
+import EmbedLayout from '@/layouts/EmbedLayout'
 import OnboardingLayout from '@/layouts/OnboardingLayout'
 import StorefrontLayout from '@/layouts/StorefrontLayout'
 
@@ -61,6 +62,7 @@ import StorefrontContact from '@/pages/storefront/Contact'
 // Guards
 import ProtectedRoute from './ProtectedRoute'
 import VendorRoute from './VendorRoute'
+import EmbedAuthGate from './EmbedAuthGate'
 
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 
@@ -95,6 +97,21 @@ export const router = createBrowserRouter([
     ],
   },
 
+  // Embedded admin pages (nested inside vendor-web HR iframe)
+  {
+    path: '/dashboard/embed',
+    element: (
+      <EmbedAuthGate>
+        <ProtectedRoute>
+          <VendorRoute>
+            <EmbedLayout />
+          </VendorRoute>
+        </ProtectedRoute>
+      </EmbedAuthGate>
+    ),
+    children: [{ path: 'hr/careers', element: <CareerApplications embedded /> }],
+  },
+
   // Dashboard Routes
   {
     path: '/dashboard',
@@ -124,9 +141,11 @@ export const router = createBrowserRouter([
       { path: 'crm/contacts', element: <PlatformCrmContacts /> },
       { path: 'crm/pipeline', element: <PlatformCrmPipeline /> },
       { path: 'crm/activities', element: <PlatformCrmActivities /> },
+      { path: 'hr/careers', element: <Navigate to="/dashboard/hr/recruitment" replace /> },
+      { path: 'hr/candidates', element: <Navigate to="/dashboard/hr/recruitment" replace /> },
       { path: 'hr', element: <HrManagement /> },
       { path: 'hr/:section', element: <HrManagement /> },
-      { path: 'careers', element: <CareerApplications /> },
+      { path: 'careers', element: <Navigate to="/dashboard/hr/recruitment" replace /> },
       { path: 'table-data', element: <TableData /> },
       { path: 'products', element: <Products /> },
       { path: 'services', element: <Services /> },

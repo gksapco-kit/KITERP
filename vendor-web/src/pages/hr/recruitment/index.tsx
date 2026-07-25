@@ -5,10 +5,16 @@ import { hrInputClass, hrSelectClass, hrTabActiveClass, hrTabInactiveClass, hrTa
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Plus, Briefcase, Users, Calendar, Copy, ExternalLink, Trash2, Pencil, X, Search } from 'lucide-react'
+import { Plus, Briefcase, Users, Calendar, Copy, ExternalLink, Trash2, Pencil, X, Search, GitBranch } from 'lucide-react'
+import { isVendorAdminEmbed } from '@/lib/adminEmbed'
+import { adminAppOrigin } from '@/lib/adminAppOrigin'
+import {
+  HR_RECRUITMENT_COMMON_MEETING_URL_KEY,
+  readRecruitmentCommonMeetingUrl,
+} from '@/lib/hrModuleSettings'
 import {
   useHRJobs, useCreateHRJob, useUpdateHRJob, useDeleteHRJob,
   useHRCandidates, useCreateHRCandidate, useUpdateHRCandidate, useDeleteHRCandidate,
@@ -17,6 +23,8 @@ import {
   useHRDepartments, useCreateHRDepartment,
   useHRDesignations, useCreateHRDesignation,
   useStores,
+  useMyVendor,
+  useUpdateVendor,
 } from '@/hooks/useVendor'
 import type { JobPosting, Candidate, JobApplication, InterviewRound, HRDepartment, HRDesignation } from '@/types'
 import type { StoreRecord } from '@/api/vendor'
@@ -43,6 +51,20 @@ function normalizeInterviewLink(value: string): string {
     return `https://${v}`
   }
   return v
+}
+
+function formatInterviewWhen(iso?: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
 }
 
 const denseFieldClass =
@@ -581,27 +603,260 @@ function CandidateModal({
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────
-type TabKey = 'jobs' | 'candidates' | 'interviews'
+type TabKey = 'jobs' | 'candidates' | 'careers' | 'interviews'
+
+const HR_EMBED_OPEN_PIPELINE = 'kiterp:hr:open-pipeline'
+const HR_EMBED_CAREERS_REFRESH = 'kiterp:hr:careers-refresh'
+const ADMIN_EMBED_REQUEST_AUTH = 'kiterp:admin:embed-request-auth'
+const ADMIN_EMBED_AUTH_RESPONSE = 'kiterp:admin:embed-auth'
+
+function CareersInboxEmbed() {
+  const navigate = useNavigate()
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [src, setSrc] = useState<string | null>(null)
+  const adminOrigin = adminAppOrigin()
+
+  useEffect(() => {
+    const origin = adminOrigin
+    const base = `${origin}/dashboard/embed/hr/careers`
+
+    const applySrc = (accessToken?: string) => {
+      if (accessToken) {
+        const url = new URL(base)
+        url.searchParams.set('access_token', accessToken)
+        setSrc(url.toString())
+      } else {
+        setSrc(base)
+      }
+    }
+
+    applySrc()
+
+    const topWin = window.top
+    if (!topWin || topWin === window) return
+
+    const onAuthMessage = (event: MessageEvent) => {
+      if (event.origin !== origin) return
+      const data = event.data as { type?: string; accessToken?: string } | null
+      if (data?.type !== ADMIN_EMBED_AUTH_RESPONSE || !data.accessToken) return
+      applySrc(data.accessToken)
+    }
+
+    const requestAuth = () => {
+      topWin.postMessage({ type: ADMIN_EMBED_REQUEST_AUTH }, origin)
+    }
+
+    window.addEventListener('message', onAuthMessage)
+    requestAuth()
+    const retry = window.setInterval(requestAuth, 800)
+
+    return () => {
+      window.clearInterval(retry)
+      window.removeEventListener('message', onAuthMessage)
+    }
+  }, [adminOrigin])
+
+  useEffect(() => {
+    const onRefresh = (event: MessageEvent) => {
+      if (event.data?.type !== HR_EMBED_CAREERS_REFRESH) return
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: HR_EMBED_CAREERS_REFRESH },
+        adminOrigin,
+      )
+    }
+    window.addEventListener('message', onRefresh)
+    return () => window.removeEventListener('message', onRefresh)
+  }, [adminOrigin])
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as {
+        type?: string
+        jobPostingId?: string
+        stage?: string
+        applicationId?: string
+      } | null
+      if (!data || data.type !== HR_EMBED_OPEN_PIPELINE) return
+      const jobId = typeof data.jobPostingId === 'string' ? data.jobPostingId.trim() : ''
+      if (!jobId) return
+      const stage = typeof data.stage === 'string' && data.stage.trim() ? data.stage.trim() : ''
+      const applicationId =
+        typeof data.applicationId === 'string' ? data.applicationId.trim() : ''
+      const params = new URLSearchParams()
+      if (stage) params.set('stage', stage)
+      if (applicationId) params.set('applicationId', applicationId)
+      const qs = params.toString()
+      navigate(`/hr/recruitment/jobs/${jobId}${qs ? `?${qs}` : ''}`)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [navigate])
+
+  if (!src) {
+    return (
+      <div className="flex h-[calc(100vh-15rem)] min-h-[28rem] items-center justify-center rounded-xl border border-border bg-white text-sm text-muted-foreground">
+        Loading careers inbox…
+      </div>
+    )
+  }
+
+  return (
+    <iframe
+      ref={iframeRef}
+      title="Careers inbox"
+      src={src}
+      className="h-[calc(100vh-15rem)] min-h-[28rem] w-full rounded-xl border border-border bg-white"
+      allow="clipboard-read; clipboard-write"
+    />
+  )
+}
+
+function CommonMeetingUrlBar() {
+  const { data: vendor } = useMyVendor()
+  const updateVendor = useUpdateVendor()
+  const saved = readRecruitmentCommonMeetingUrl(
+    vendor?.settings as Record<string, unknown> | undefined,
+  )
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(saved)
+
+  useEffect(() => {
+    if (!editing) setDraft(saved)
+  }, [saved, editing])
+
+  const save = async () => {
+    const normalized = normalizeInterviewLink(draft)
+    const existing = (vendor?.settings || {}) as Record<string, unknown>
+    await updateVendor.mutateAsync({
+      settings: {
+        ...existing,
+        [HR_RECRUITMENT_COMMON_MEETING_URL_KEY]: normalized || null,
+      },
+    } as Partial<import('@/types').Vendor>)
+    setEditing(false)
+  }
+
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-1 lg:max-w-xl">
+      <Label className="text-[11px] font-medium text-muted-foreground">Common meeting URL</Label>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <input
+          readOnly={!editing}
+          value={editing ? draft : saved}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="https://meet.google.com/abc-defg-hij"
+          className={cn(
+            hrInputClass,
+            'min-w-[12rem] flex-1 text-sm',
+            !editing && !saved && 'text-muted-foreground italic',
+          )}
+        />
+        {editing ? (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              disabled={updateVendor.isPending}
+              onClick={() => void save()}
+            >
+              Save
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8"
+              disabled={updateVendor.isPending}
+              onClick={() => {
+                setDraft(saved)
+                setEditing(false)
+              }}
+            >
+              Cancel
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 px-2"
+              disabled={!saved}
+              title="Copy meeting link"
+              onClick={() => copyText(saved, 'Meeting link copied')}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 px-2"
+              title="Edit meeting link"
+              onClick={() => {
+                setDraft(saved)
+                setEditing(true)
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            {saved && isHttpUrl(saved) ? (
+              <a
+                href={saved}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open meeting link"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            ) : null}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function RecruitmentPage() {
+  const adminEmbed = isVendorAdminEmbed()
   const [tab, setTab] = useState<TabKey>('jobs')
+
+  const tabs = useMemo(
+    () =>
+      adminEmbed
+        ? [
+            { k: 'jobs' as const, label: 'Jobs', icon: Briefcase },
+            { k: 'careers' as const, label: 'Careers', icon: Users },
+            { k: 'interviews' as const, label: 'Interviews', icon: Calendar },
+          ]
+        : [
+            { k: 'jobs' as const, label: 'Jobs', icon: Briefcase },
+            { k: 'candidates' as const, label: 'Candidates', icon: Users },
+            { k: 'interviews' as const, label: 'Interviews', icon: Calendar },
+          ],
+    [adminEmbed],
+  )
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-5">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Recruitment</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Manage Jobs, Candidates And Interviews</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {adminEmbed
+              ? 'Manage jobs and interviews · Careers applications from the platform Careers page'
+              : 'Manage Jobs, Candidates And Interviews'}
+          </p>
         </div>
+        <CommonMeetingUrlBar />
       </div>
 
       <div className="mb-5 flex gap-1 border-b border-border">
-        {[
-          { k: 'jobs',       label: 'Jobs',       icon: Briefcase },
-          { k: 'candidates', label: 'Candidates', icon: Users },
-          { k: 'interviews', label: 'Interviews', icon: Calendar },
-        ].map(t => (
-          <button key={t.k} onClick={() => setTab(t.k as TabKey)}
+        {tabs.map(t => (
+          <button key={t.k} onClick={() => setTab(t.k)}
             className={cn(
               '-mb-px flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors focus:outline-none',
               tab === t.k ? hrTabActiveClass : hrTabInactiveClass,
@@ -612,7 +867,8 @@ export default function RecruitmentPage() {
       </div>
 
       {tab === 'jobs' && <JobsTab />}
-      {tab === 'candidates' && <CandidatesTab />}
+      {tab === 'candidates' && !adminEmbed && <CandidatesTab />}
+      {tab === 'careers' && adminEmbed && <CareersInboxEmbed />}
       {tab === 'interviews' && <InterviewsTab />}
     </div>
   )
@@ -1050,7 +1306,7 @@ function InterviewsTab() {
                 return (
                   <tr key={iv.id} className="border-b border-border hover:bg-muted/30">
                     <td className="py-3 px-4 text-sm text-muted-foreground">
-                      {iv.scheduled_at ? new Date(iv.scheduled_at).toLocaleString() : '—'}
+                      {formatInterviewWhen(iv.scheduled_at)}
                       {iv.duration_min ? <p className="text-xs text-muted-foreground">{iv.duration_min} min</p> : null}
                     </td>
                     <td className="py-3 px-4 text-sm">

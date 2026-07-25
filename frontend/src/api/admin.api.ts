@@ -472,10 +472,91 @@ export const adminApi = {
 
   updateCareerApplication: async (
     applicationId: string,
-    data: { status: string },
-  ): Promise<{ ok: boolean; id: string; status: string }> => {
+    data: {
+      status?: string
+      admin_note?: string | null
+      full_name?: string
+      email?: string
+      phone?: string | null
+      company?: string | null
+      current_role?: string | null
+      experience_years?: number | null
+      city?: string | null
+      linkedin_url?: string | null
+      position_title?: string | null
+      cover_note?: string | null
+    },
+  ): Promise<{
+    ok: boolean
+    id: string
+    status: string
+    admin_note?: string | null
+    full_name?: string
+    email?: string
+    phone?: string | null
+    company?: string | null
+    current_role?: string | null
+    experience_years?: number | null
+    city?: string | null
+    linkedin_url?: string | null
+    position_title?: string | null
+    cover_note?: string | null
+  }> => {
     const response = await apiClient.patch(`/admin/career-applications/${applicationId}`, data)
     return response.data
+  },
+
+  syncCareerApplicationToPipeline: async (
+    applicationId: string,
+    status: string,
+  ): Promise<{
+    ok: boolean
+    job_posting_id: string
+    application_id: string
+    candidate_id: string
+    current_stage: string
+  }> => {
+    const syncFromPatch = async () => {
+      const response = await apiClient.patch(`/admin/career-applications/${applicationId}`, { status })
+      const data = response.data as {
+        job_posting_id?: string | null
+        pipeline?: {
+          job_posting_id: string
+          application_id: string
+          candidate_id: string
+          current_stage: string
+        } | null
+      }
+      const pipeline = data.pipeline
+      if (pipeline?.job_posting_id && pipeline?.application_id) {
+        return {
+          ok: true,
+          job_posting_id: pipeline.job_posting_id,
+          application_id: pipeline.application_id,
+          candidate_id: pipeline.candidate_id,
+          current_stage: pipeline.current_stage,
+        }
+      }
+      throw {
+        response: {
+          data: {
+            detail:
+              'Could not sync — link this application to a job opening first (use Edit to set the job title)',
+          },
+        },
+      }
+    }
+
+    try {
+      const response = await apiClient.post(`/admin/career-applications/${applicationId}/sync-pipeline`)
+      return response.data
+    } catch (err: unknown) {
+      const statusCode = (err as { response?: { status?: number } })?.response?.status
+      if (statusCode === 404) {
+        return syncFromPatch()
+      }
+      throw err
+    }
   },
 
   deleteCareerApplication: async (applicationId: string): Promise<void> => {
@@ -675,6 +756,7 @@ export interface CareerApplicationItem {
   city?: string | null
   linkedin_url?: string | null
   cover_note?: string | null
+  admin_note?: string | null
   cv_url: string
   cv_filename?: string | null
   photo_url?: string | null

@@ -55,7 +55,9 @@ export default function VendorHandoff() {
         useVendorStore.getState().setVendor(vendor)
         setVendorAdminEmbed(embed)
 
-        void qc.invalidateQueries({ queryKey: authKeys.me() })
+        const user = await authApi.getMe()
+        useAuthStore.getState().setUser(user)
+        qc.setQueryData(authKeys.me(), user)
         void qc.invalidateQueries({ queryKey: vendorKeys.me() })
       })().finally(() => {
         // Keep map entry briefly so Strict Mode remount reuses success instead of re-redeeming.

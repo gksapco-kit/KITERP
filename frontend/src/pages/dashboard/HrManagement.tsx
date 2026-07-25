@@ -66,6 +66,7 @@ export default function HrManagement() {
   const [selectedVendorId, setSelectedVendorId] = useState(readStoredVendorId)
   const [iframeSrc, setIframeSrc] = useState<string | null>(null)
   const [loadingFrame, setLoadingFrame] = useState(false)
+  const [handoffError, setHandoffError] = useState<string | null>(null)
   const [frameEpoch, setFrameEpoch] = useState(0)
   const sessionVendorIdRef = useRef<string | null>(null)
   const requestSeq = useRef(0)
@@ -103,7 +104,7 @@ export default function HrManagement() {
   }, [vendors, selectedVendorId])
 
   useEffect(() => {
-    if (!selectedVendorId || !getHrAdminNavItem(section)) return
+    if (!selectedVendorId || !getHrAdminNavItem(section) || hrItem.native || !hrItem.vendorPath) return
 
     const seq = ++requestSeq.current
     let cancelled = false
@@ -119,10 +120,11 @@ export default function HrManagement() {
 
     const run = async () => {
       setLoadingFrame(true)
+      setHandoffError(null)
       try {
         const res = await adminApi.createVendorDashboardHandoff(selectedVendorId)
         if (cancelled || seq !== requestSeq.current) return
-        setIframeSrc(buildHandoffUrl(res.handoff_token, hrItem.vendorPath, true))
+        setIframeSrc(buildHandoffUrl(res.handoff_token, hrItem.vendorPath!, true))
         sessionVendorIdRef.current = selectedVendorId
       } catch (err) {
         if (cancelled || seq !== requestSeq.current) return
@@ -135,6 +137,7 @@ export default function HrManagement() {
             : detail != null
               ? JSON.stringify(detail)
               : 'Could not open HR module for this business account'
+        setHandoffError(msg)
         toast.error(msg)
       } finally {
         if (!cancelled && seq === requestSeq.current) setLoadingFrame(false)
@@ -159,11 +162,16 @@ export default function HrManagement() {
     return <Navigate to={hrAdminPath('employees')} replace />
   }
 
+  if (hrItem.native) {
+    return <Navigate to={hrAdminPath(hrItem.slug)} replace />
+  }
+
   const onVendorChange = (id: string) => {
     setSelectedVendorId(id)
     storeVendorId(id)
     sessionVendorIdRef.current = null
     setIframeSrc(null)
+    setHandoffError(null)
   }
 
   const openExternal = async () => {
@@ -171,7 +179,7 @@ export default function HrManagement() {
     try {
       const res = await adminApi.createVendorDashboardHandoff(selectedVendorId)
       window.open(
-        buildHandoffUrl(res.handoff_token, hrItem.vendorPath, false),
+        buildHandoffUrl(res.handoff_token, hrItem.vendorPath!, false),
         '_blank',
         'noopener,noreferrer',
       )
@@ -182,10 +190,10 @@ export default function HrManagement() {
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col bg-gray-50 lg:h-screen">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-3 py-2.5 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2 text-sm text-gray-600">
-          <Store className="h-4 w-4 shrink-0 text-primary" />
-          <span className="hidden sm:inline shrink-0 font-medium text-gray-900">Business account</span>
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2">
+          <Store className="h-5 w-5 shrink-0 text-primary" />
+          <span className="hidden shrink-0 text-sm font-medium text-gray-900 sm:inline">Business account</span>
         </div>
 
         {isLoading ? (
@@ -216,6 +224,7 @@ export default function HrManagement() {
             onClick={() => {
               sessionVendorIdRef.current = null
               setIframeSrc(null)
+              setHandoffError(null)
               setFrameEpoch((k) => k + 1)
             }}
             title="Reload HR module"
@@ -236,12 +245,32 @@ export default function HrManagement() {
       </div>
 
       <div className="relative min-h-0 flex-1 bg-white">
-        {loadingFrame || (!iframeSrc && !!selectedVendorId) ? (
+        {loadingFrame ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
             <div className="flex flex-col items-center gap-2 text-sm text-gray-500">
               <Loader2 className="h-7 w-7 animate-spin text-primary" />
               <p>Loading {hrItem.label}…</p>
             </div>
+          </div>
+        ) : null}
+
+        {!loadingFrame && handoffError ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-sm text-gray-600">
+            <p className="font-medium text-gray-900">Could not open {hrItem.label}</p>
+            <p className="max-w-md">{handoffError}</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                sessionVendorIdRef.current = null
+                setIframeSrc(null)
+                setHandoffError(null)
+                setFrameEpoch((k) => k + 1)
+              }}
+            >
+              Retry
+            </Button>
           </div>
         ) : null}
 

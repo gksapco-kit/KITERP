@@ -3,8 +3,8 @@ import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { useState, useMemo } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useState, useMemo, useEffect } from 'react'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Calendar, X, Star, Briefcase, MapPin,
   Clock, ExternalLink, Mail, Phone, Users as UsersIcon,
@@ -234,132 +234,159 @@ function ScheduleInterviewModal({
   )
 }
 
+const STAGE_SELECT_LABEL: Record<string, string> = {
+  applied: 'Applied',
+  screening: 'Screen',
+  shortlisted: 'Shortlist',
+  interviewing: 'Interview',
+  offer_made: 'Offer',
+  hired: 'Hired',
+  rejected: 'Rejected',
+}
+
+const metaChipClass =
+  'inline-flex max-w-full items-center gap-0.5 rounded bg-muted/80 px-1 py-px text-[9px] leading-3 text-muted-foreground'
+
+const actionBtnClass =
+  'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+
 function PipelineCard({
   app,
   onMove,
   onSchedule,
   moving,
+  highlighted,
 }: {
   app: JobApplication
   onMove: (stage: string) => void
   onSchedule: () => void
   moving?: boolean
+  highlighted?: boolean
 }) {
   const c = app.candidate
   const name = c?.full_name ?? '—'
   const titleLine = [c?.current_designation, c?.current_company].filter(Boolean).join(' · ')
   const applied = formatApplied(app.applied_at)
+  const subtitle = [titleLine, applied ? `Applied ${applied}` : null].filter(Boolean).join(' · ')
   const interview = nextInterview(app.interviews)
   const when = formatWhen(interview?.scheduled_at)
-  const skills = (c?.skills ?? []).slice(0, 2)
+  const skill = (c?.skills ?? [])[0]
+  const extraSkills = Math.max(0, (c?.skills?.length ?? 0) - 1)
+  const hasMeta =
+    c?.total_experience_years != null ||
+    !!c?.location ||
+    c?.notice_period_days != null ||
+    !!skill
 
   return (
-    <div className="group rounded-lg border border-border bg-card p-2.5 shadow-sm transition hover:border-primary/30 hover:shadow-md">
-      <div className="flex items-start gap-2">
-        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+    <div
+      id={`pipeline-application-${app.id}`}
+      className={cn(
+        'group flex flex-col gap-1 rounded-lg border bg-card px-2 py-1.5 shadow-sm transition hover:border-primary/30 hover:shadow-md',
+        highlighted
+          ? 'border-primary ring-2 ring-primary/40 ring-offset-1 shadow-md'
+          : 'border-border',
+      )}
+    >
+      <div className="flex items-start gap-1.5">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
           {initials(name)}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-1">
-            <p className="text-sm font-semibold leading-tight text-foreground truncate" title={name}>
+          <div className="flex items-center justify-between gap-1">
+            <p className="truncate text-xs font-semibold leading-4 text-foreground" title={name}>
               {name}
             </p>
             {app.rating ? (
-              <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-medium text-amber-600">
-                <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+              <span className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-medium text-amber-600">
+                <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
                 {app.rating}
               </span>
             ) : null}
           </div>
-          {titleLine ? (
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={titleLine}>
-              {titleLine}
+          {subtitle ? (
+            <p className="truncate text-[10px] leading-3 text-muted-foreground" title={subtitle}>
+              {subtitle}
             </p>
           ) : null}
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-1">
-        {c?.total_experience_years != null ? (
-          <span className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            <Briefcase className="h-2.5 w-2.5" />
-            {c.total_experience_years}y
-          </span>
-        ) : null}
-        {c?.location ? (
-          <span className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground max-w-[7rem] truncate">
-            <MapPin className="h-2.5 w-2.5 shrink-0" />
-            {c.location}
-          </span>
-        ) : null}
-        {c?.notice_period_days != null ? (
-          <span className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            <Clock className="h-2.5 w-2.5" />
-            {c.notice_period_days}d notice
-          </span>
-        ) : null}
-        {applied ? (
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            Applied {applied}
-          </span>
-        ) : null}
-      </div>
-
-      {skills.length > 0 ? (
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {skills.map(s => (
-            <span key={s} className="rounded border border-border px-1.5 py-0.5 text-[10px] text-foreground/80">
-              {s}
+      {hasMeta ? (
+        <div className="flex flex-wrap gap-0.5">
+          {c?.total_experience_years != null ? (
+            <span className={metaChipClass}>
+              <Briefcase className="h-2 w-2 shrink-0" />
+              {c.total_experience_years}y
             </span>
-          ))}
-          {(c?.skills?.length ?? 0) > 2 ? (
-            <span className="text-[10px] text-muted-foreground">+{(c!.skills!.length - 2)}</span>
+          ) : null}
+          {c?.location ? (
+            <span className={cn(metaChipClass, 'max-w-[5.5rem] truncate')}>
+              <MapPin className="h-2 w-2 shrink-0" />
+              {c.location}
+            </span>
+          ) : null}
+          {c?.notice_period_days != null ? (
+            <span className={metaChipClass}>
+              <Clock className="h-2 w-2 shrink-0" />
+              {c.notice_period_days}d
+            </span>
+          ) : null}
+          {skill ? (
+            <span
+              className="inline-flex max-w-[6.5rem] truncate rounded border border-border/70 bg-background px-1 py-px text-[9px] leading-3 text-foreground/80"
+              title={skill}
+            >
+              {skill}
+            </span>
+          ) : null}
+          {extraSkills > 0 ? (
+            <span className="self-center text-[9px] text-muted-foreground">+{extraSkills}</span>
           ) : null}
         </div>
       ) : null}
 
       {(app.interviews?.length || when) ? (
-        <div className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">
-          <div className="flex items-center gap-1 font-medium">
-            <UsersIcon className="h-3 w-3" />
-            {app.interviews?.length ?? 0} round{(app.interviews?.length ?? 0) === 1 ? '' : 's'}
-            {interview?.round_name ? ` · ${interview.round_name}` : ''}
+        <div className="rounded bg-amber-50 px-1.5 py-0.5 text-[9px] leading-3 text-amber-900">
+          <div className="flex items-center gap-0.5 font-medium">
+            <UsersIcon className="h-2.5 w-2.5 shrink-0" />
+            <span className="truncate">
+              {app.interviews?.length ?? 0} rnd{(app.interviews?.length ?? 0) === 1 ? '' : 's'}
+              {interview?.round_name ? ` · ${interview.round_name}` : ''}
+              {when ? ` · ${when}` : ''}
+            </span>
           </div>
-          {when ? <p className="mt-0.5 text-amber-800/80">{when}</p> : null}
         </div>
       ) : null}
 
-      <div className="mt-2 flex items-center gap-1 border-t border-border pt-2">
+      <div className="flex items-center gap-0.5 border-t border-border/60 pt-1">
         <Select
           value={app.current_stage}
           onChange={onMove}
           disabled={moving}
-          className="h-7 min-w-0 flex-1 text-[11px] border-border rounded-md px-1.5 py-0"
-          options={STAGES.map(s => ({ value: s.key, label: `→ ${s.label}` }))}
+          className="min-w-0 flex-1"
+          triggerClassName="!h-6 !min-h-6 !px-1.5 !py-0 !text-[10px] !leading-none"
+          menuMinWidth={120}
+          options={STAGES.map(s => ({
+            value: s.key,
+            label: STAGE_SELECT_LABEL[s.key] ?? s.label,
+          }))}
         />
         <button
           type="button"
           onClick={onSchedule}
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-primary hover:bg-primary/10"
+          className={cn(actionBtnClass, 'text-primary hover:bg-primary/10')}
           title="Schedule interview"
         >
-          <Calendar className="h-3.5 w-3.5" />
+          <Calendar className="h-3 w-3" />
         </button>
         {c?.email ? (
-          <a
-            href={`mailto:${c.email}`}
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-            title={c.email}
-          >
-            <Mail className="h-3.5 w-3.5" />
+          <a href={`mailto:${c.email}`} className={actionBtnClass} title={c.email}>
+            <Mail className="h-3 w-3" />
           </a>
         ) : c?.phone ? (
-          <a
-            href={`tel:${c.phone}`}
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-            title={c.phone}
-          >
-            <Phone className="h-3.5 w-3.5" />
+          <a href={`tel:${c.phone}`} className={actionBtnClass} title={c.phone}>
+            <Phone className="h-3 w-3" />
           </a>
         ) : null}
         {c?.resume_url ? (
@@ -367,10 +394,10 @@ function PipelineCard({
             href={c.resume_url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+            className={actionBtnClass}
             title="Open resume"
           >
-            <ExternalLink className="h-3.5 w-3.5" />
+            <ExternalLink className="h-3 w-3" />
           </a>
         ) : null}
       </div>
@@ -380,6 +407,9 @@ function PipelineCard({
 
 export default function JobDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const focusStage = searchParams.get('stage')
+  const focusApplicationId = searchParams.get('applicationId')
   const { data: job, isLoading } = useHRJob(id)
   const { data: applications = [] } = useHRApplications({ job_id: id })
   const moveStage = useMoveHRStage()
@@ -397,9 +427,44 @@ export default function JobDetailPage() {
     return g
   }, [apps])
 
+  const validFocusStage =
+    focusStage && STAGES.some(s => s.key === focusStage) ? focusStage : null
+
+  useEffect(() => {
+    if (!validFocusStage && !focusApplicationId) return
+
+    const scrollTarget = () => {
+      if (focusApplicationId) {
+        const card = document.getElementById(`pipeline-application-${focusApplicationId}`)
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+          return true
+        }
+      }
+      if (validFocusStage) {
+        document
+          .getElementById(`pipeline-stage-${validFocusStage}`)
+          ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+        return true
+      }
+      return false
+    }
+
+    if (scrollTarget()) return
+    const retry = window.setInterval(() => {
+      if (scrollTarget()) window.clearInterval(retry)
+    }, 150)
+    const stop = window.setTimeout(() => window.clearInterval(retry), 3000)
+    return () => {
+      window.clearInterval(retry)
+      window.clearTimeout(stop)
+    }
+  }, [validFocusStage, focusApplicationId, id, apps.length])
+
   const totalInPipeline = apps.filter(a => a.current_stage !== 'rejected' && a.current_stage !== 'withdrawn').length
   const hiredCount = grouped.hired?.length ?? 0
   const interviewingCount = grouped.interviewing?.length ?? 0
+  const rejectedCount = grouped.rejected?.length ?? 0
 
   if (isLoading) return <div className="p-6 text-muted-foreground">Loading…</div>
   if (!job) return <div className="p-6 text-muted-foreground">Job not found.</div>
@@ -433,6 +498,9 @@ export default function JobDetailPage() {
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-800">
               {hiredCount} hired
             </span>
+            <span className="rounded-full bg-rose-50 px-2.5 py-1 font-medium text-rose-800">
+              {rejectedCount} rejected
+            </span>
           </div>
         </div>
         <Button onClick={() => setShowAdd(true)} className="shrink-0 gap-1.5">
@@ -447,9 +515,11 @@ export default function JobDetailPage() {
             return (
               <div
                 key={stage.key}
+                id={`pipeline-stage-${stage.key}`}
                 className={cn(
-                  'flex w-[210px] shrink-0 flex-col rounded-xl border',
+                  'flex w-[210px] shrink-0 flex-col rounded-xl border transition-shadow',
                   stage.header,
+                  validFocusStage === stage.key && !focusApplicationId && 'ring-2 ring-primary ring-offset-2 shadow-md',
                 )}
               >
                 <div className="flex items-center gap-2 border-b border-inherit px-2.5 py-2">
@@ -461,7 +531,7 @@ export default function JobDetailPage() {
                     {items.length}
                   </span>
                 </div>
-                <div className="flex-1 space-y-2 overflow-y-auto p-2">
+                <div className="flex-1 space-y-1.5 overflow-y-auto p-1.5">
                   {items.length === 0 ? (
                     <div
                       className={cn(
@@ -476,6 +546,7 @@ export default function JobDetailPage() {
                       <PipelineCard
                         key={app.id}
                         app={app}
+                        highlighted={focusApplicationId === app.id}
                         moving={moveStage.isPending}
                         onMove={v => moveStage.mutate({ id: app.id, stage: v })}
                         onSchedule={() => setScheduleFor(app)}

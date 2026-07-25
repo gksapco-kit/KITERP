@@ -23,8 +23,10 @@ export type HrAdminNavItem = {
   slug: string
   label: string
   icon: LucideIcon
-  /** Vendor-web path opened via handoff */
-  vendorPath: string
+  /** Vendor-web path opened via handoff (omit for native admin pages). */
+  vendorPath?: string
+  /** Native admin page — not loaded inside the vendor HR iframe. */
+  native?: boolean
 }
 
 export const HR_ADMIN_NAV_ITEMS: HrAdminNavItem[] = [

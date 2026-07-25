@@ -400,6 +400,9 @@ async def move_stage(
     if body.stage == "rejected" and body.rejection_reason:
         data["rejection_reason"] = body.rejection_reason
     a = await ApplicationRepo(db).update(a, data)
+    from app.services.career_pipeline_sync import sync_pipeline_stage_to_career_application
+
+    await sync_pipeline_stage_to_career_application(db, a)
     await AuditRepo(db).log(vu.vendor_id, "update", "job_application", a.id,
                              summary=f"Moved to '{body.stage}'", actor_user_id=vu.id)
     cand = await CandidateRepo(db).get(a.candidate_id, vu.vendor_id) if a.candidate_id else None

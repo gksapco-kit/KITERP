@@ -2299,6 +2299,7 @@ async def list_career_applications(
             "city": row.city,
             "linkedin_url": row.linkedin_url,
             "cover_note": row.cover_note,
+            "admin_note": row.admin_note,
             "cv_url": row.cv_url,
             "cv_filename": row.cv_filename,
             "photo_url": row.photo_url,
@@ -2431,21 +2432,33 @@ async def preview_career_application_photo(
     )
 
 
+class CareerApplicationUpdate(BaseModel):
+    status: Optional[str] = None
+    admin_note: Optional[str] = None
+    full_name: Optional[str] = Field(None, max_length=255)
+    email: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=40)
+    company: Optional[str] = Field(None, max_length=255)
+    current_role: Optional[str] = Field(None, max_length=255)
+    experience_years: Optional[int] = Field(None, ge=0, le=80)
+    city: Optional[str] = Field(None, max_length=120)
+    linkedin_url: Optional[str] = Field(None, max_length=500)
+    position_title: Optional[str] = Field(None, max_length=200)
+    cover_note: Optional[str] = Field(None, max_length=4000)
+
+
 @router.patch("/career-applications/{application_id}")
 async def update_career_application(
     application_id: UUID,
-    body: dict,
+    body: CareerApplicationUpdate,
     current_user: User = Depends(get_current_platform_staff),
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.platform_career_application import PlatformCareerApplication
 
-    status = (body.get("status") or "").strip().lower()
-    if status not in {"new", "reviewed", "shortlisted", "rejected"}:
-        raise HTTPException(
-            status_code=422,
-            detail="status must be one of: new, reviewed, shortlisted, rejected",
-        )
+    payload = body.model_dump(exclude_unset=True)
+    if not payload:
+        raise HTTPException(status_code=422, detail="No fields to update")
 
     result = await db.execute(
         select(PlatformCareerApplication).where(PlatformCareerApplication.id == application_id)
@@ -2453,9 +2466,113 @@ async def update_career_application(
     row = result.scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Application not found")
-    row.status = status
+
+    if "status" in payload:
+        status = (payload["status"] or "").strip().lower()
+        if status not in {"new", "reviewed", "shortlisted", "rejected"}:
+            raise HTTPException(
+                status_code=422,
+                detail="status must be one of: new, reviewed, shortlisted, rejected",
+            )
+        row.status = status
+
+    if "admin_note" in payload:
+        raw_note = payload["admin_note"]
+        row.admin_note = raw_note.strip() if raw_note is not None and str(raw_note).strip() else None
+
+    if "full_name" in payload:
+        name = (payload["full_name"] or "").strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="full_name is required")
+        row.full_name = name
+
+    if "email" in payload:
+        email = (payload["email"] or "").strip()
+        if not email:
+            raise HTTPException(status_code=422, detail="email is required")
+        row.email = email
+
+    if "phone" in payload:
+        phone = (payload["phone"] or "").strip()
+        row.phone = phone or None
+
+    if "company" in payload:
+        company = (payload["company"] or "").strip()
+        row.college = company or None
+
+    if "current_role" in payload:
+        role = (payload["current_role"] or "").strip()
+        row.course = role or None
+
+    if "experience_years" in payload:
+        row.graduation_year = payload["experience_years"]
+
+    if "city" in payload:
+        city = (payload["city"] or "").strip()
+        row.city = city or None
+
+    if "linkedin_url" in payload:
+        linkedin = (payload["linkedin_url"] or "").strip()
+        row.linkedin_url = linkedin or None
+
+    if "position_title" in payload:
+        title = (payload["position_title"] or "").strip()
+        row.position_title = title or None
+
+    if "cover_note" in payload:
+        note = payload["cover_note"]
+        row.cover_note = note.strip() if note is not None and str(note).strip() else None
+
+    from app.services.career_pipeline_sync import sync_career_application_to_pipeline
+
+    pipeline = await sync_career_application_to_pipeline(db, row)
     await db.commit()
-    return {"ok": True, "id": str(row.id), "status": row.status}
+    await db.refresh(row)
+    return {
+        "ok": True,
+        "id": str(row.id),
+        "full_name": row.full_name,
+        "email": row.email,
+        "phone": row.phone,
+        "company": row.college,
+        "current_role": row.course,
+        "experience_years": row.graduation_year,
+        "city": row.city,
+        "linkedin_url": row.linkedin_url,
+        "position_title": row.position_title,
+        "cover_note": row.cover_note,
+        "status": row.status,
+        "admin_note": row.admin_note,
+        "job_posting_id": str(row.job_posting_id) if row.job_posting_id else None,
+        "pipeline": pipeline,
+    }
+
+
+@router.post("/career-applications/{application_id}/sync-pipeline")
+async def sync_career_application_pipeline(
+    application_id: UUID,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.platform_career_application import PlatformCareerApplication
+    from app.services.career_pipeline_sync import sync_career_application_to_pipeline
+
+    result = await db.execute(
+        select(PlatformCareerApplication).where(PlatformCareerApplication.id == application_id)
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Application not found")
+
+    pipeline = await sync_career_application_to_pipeline(db, row)
+    if not pipeline:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not sync — link this application to a job opening first",
+        )
+
+    await db.commit()
+    return {"ok": True, **pipeline, "job_posting_id": pipeline["job_posting_id"]}
 
 
 @router.delete("/career-applications/{application_id}", status_code=status.HTTP_204_NO_CONTENT)
