@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { adminApi } from '@/api/admin.api'
 import { useAuthStore } from '@/stores/authStore'
 import { canCreateBusinessAccounts } from '@/lib/platformAccess'
@@ -51,7 +52,11 @@ const addVendorSchema = z
     offering_type: z.enum(['products', 'services', 'both']).default('both'),
     industry: z.string().min(2, 'Min 2 characters').max(100),
     description: z.string().max(2000).optional().or(z.literal('')),
-    primary_phone: z.string().min(10, 'Min 10 digits').max(20),
+    primary_phone: z
+      .string()
+      .min(8, 'Enter a valid phone number with country code')
+      .max(20, 'Phone number is too long')
+      .regex(/^\+\d{7,19}$/, 'Enter a valid phone number with country code'),
     street_address: z.string().min(5, 'Min 5 characters').max(500),
     city: z.string().min(2, 'Min 2 characters').max(100),
     state: z.string().min(2, 'Min 2 characters').max(100),
@@ -111,11 +116,15 @@ export default function AddVendor() {
       offering_type: 'both',
       country: 'India',
       owner_password: generatePassword(),
+      owner_phone: '',
+      primary_phone: '',
     },
   })
 
   const businessType = watch('business_type')
   const offeringType = watch('offering_type')
+  const ownerPhone = watch('owner_phone')
+  const primaryPhone = watch('primary_phone')
 
   const onInvalid = (formErrors: typeof errors) => {
     if (formErrors.owner_email?.message === EMAIL_OR_PHONE_MSG) {
@@ -349,7 +358,14 @@ export default function AddVendor() {
                 <Label htmlFor="owner_phone" className="text-xs">
                   Phone
                 </Label>
-                <Input id="owner_phone" className={inputClass} {...register('owner_phone')} placeholder="+91 9876543210" />
+                <PhoneInput
+                  id="owner_phone"
+                  value={ownerPhone || ''}
+                  onChange={(v) => setValue('owner_phone', v, { shouldValidate: true, shouldDirty: true })}
+                  defaultCountryIso="IN"
+                  autoComplete="tel-national"
+                  compact
+                />
                 <FieldError message={errors.owner_phone?.message} />
               </div>
               <div className="space-y-1">
@@ -481,11 +497,13 @@ export default function AddVendor() {
               <Label htmlFor="primary_phone" className="text-xs">
                 Business Phone *
               </Label>
-              <Input
+              <PhoneInput
                 id="primary_phone"
-                className={inputClass}
-                {...register('primary_phone')}
-                placeholder="+91 9876543210"
+                value={primaryPhone || ''}
+                onChange={(v) => setValue('primary_phone', v, { shouldValidate: true, shouldDirty: true })}
+                defaultCountryIso="IN"
+                autoComplete="tel-national"
+                compact
               />
               <FieldError message={errors.primary_phone?.message} />
             </div>
