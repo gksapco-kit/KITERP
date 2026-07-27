@@ -15,6 +15,7 @@ import {
   useHRMarkAttendance, useHRUpdateAttendance, useHRMarkAttendanceRange,
 } from '@/hooks/useVendor'
 import type { AttendanceRecord } from '@/types'
+import { isVendorAdminEmbed } from '@/lib/adminEmbed'
 import { cn, onModalBackdropClick } from '@/lib/utils'
 import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 
@@ -785,6 +786,7 @@ function QuickApproval({ record }: { record: AttendanceRecord }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────────
 export default function AttendancePage() {
+  const adminEmbed = isVendorAdminEmbed()
   const today        = new Date().toISOString().slice(0, 10)
   const firstOfMonth = today.slice(0, 8) + '01'
 
@@ -835,15 +837,21 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Attendance</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+    <div className={adminEmbed ? 'px-0 pb-6 pt-2' : 'p-6'}>
+      {/* Header — title comes from admin shell when embedded */}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        {!adminEmbed ? (
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Attendance</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isRange ? `${fromDate} → ${toDate}` : `Daily — ${fromDate}`}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
             {isRange ? `${fromDate} → ${toDate}` : `Daily — ${fromDate}`}
           </p>
-        </div>
+        )}
         <div className="flex items-center gap-2">
           <button onClick={() => setShowRange(true)}
             className="flex items-center gap-2 px-4 py-2 border border-primary/40 text-primary bg-primary/10 rounded-lg hover:bg-primary/15 text-sm font-medium transition-colors">

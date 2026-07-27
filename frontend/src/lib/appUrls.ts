@@ -1,6 +1,6 @@
 /**
  * Vendor business dashboard (vendor-web). Local dev defaults to port 3001.
- * Set `VITE_VENDOR_URL` in production, e.g. https://vendor.example.com
+ * Set `VITE_VENDOR_URL` in production, e.g. https://kiterp.com/vendor
  */
 export const vendorAppBaseUrl = (import.meta.env.VITE_VENDOR_URL || 'http://localhost:3001').replace(/\/$/, '')
 
@@ -24,6 +24,38 @@ function rewriteLoopbackOrigin(origin: string): string {
     return u.origin
   } catch {
     return origin
+  }
+}
+
+function adminRouterBasename(): string {
+  return (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
+}
+
+/**
+ * Absolute vendor-web base (no trailing slash), including `/vendor` on the
+ * path-based prod gateway even when `VITE_VENDOR_URL` omits that path.
+ */
+export function vendorAppPublicBaseUrl(): string {
+  let base = vendorAppBaseUrl.replace(/\/$/, '')
+  try {
+    const u = new URL(base, typeof window !== 'undefined' ? window.location.origin : undefined)
+    if (u.hostname === 'localhost' || u.hostname === '[::1]') {
+      u.hostname = '127.0.0.1'
+    }
+
+    const adminBase = adminRouterBasename()
+    // Admin at /admin ⇒ vendor must be at /vendor on the same host.
+    if (adminBase === '/admin') {
+      const path = u.pathname.replace(/\/$/, '') || ''
+      if (path !== '/vendor' && !path.startsWith('/vendor/')) {
+        u.pathname = '/vendor'
+      }
+    }
+
+    const path = u.pathname.replace(/\/$/, '')
+    return `${u.origin}${path && path !== '/' ? path : ''}`
+  } catch {
+    return rewriteLoopbackOrigin(base)
   }
 }
 
@@ -68,7 +100,7 @@ export function getCustomerStorefrontBaseUrl(vendorSlug: string): string {
 export function vendorDashboardLoginUrl(vendorSlug: string): string {
   const slug = vendorSlug.trim()
   const params = new URLSearchParams({ vendor: slug })
-  return `${rewriteLoopbackOrigin(vendorAppBaseUrl)}/login?${params.toString()}`
+  return `${vendorAppPublicBaseUrl()}/login?${params.toString()}`
 }
 
 /**
@@ -94,7 +126,7 @@ export function buildAdminDraftPreviewUrl(
     return `${storeBase}/preview/${encodeURIComponent(token)}${pageSuffix}`
   }
 
-  const vendorOrigin = rewriteLoopbackOrigin(vendorAppBaseUrl)
+  const vendorOrigin = vendorAppPublicBaseUrl()
   const url = new URL(`${vendorOrigin}/preview/draft`)
   url.searchParams.set('token', token)
   if (pageSuffix) {

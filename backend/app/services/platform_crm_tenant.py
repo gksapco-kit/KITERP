@@ -1,8 +1,8 @@
 """
-Platform (KIT ERP) CRM tenant.
+Platform (Kiterp) internal tenant.
 
-CRM tables require a real vendor_id (NOT NULL + FK). We seed one internal
-vendor row used only as the tenant for platform CRM data — never as a
+CRM / HR tables require a real vendor_id (NOT NULL + FK). We seed one internal
+vendor row used only as the tenant for platform CRM and admin HR data — never as a
 storefront / marketplace business account.
 """
 from __future__ import annotations
@@ -14,14 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.vendor import Vendor
 
-# Stable UUID so all environments share the same platform CRM tenant.
+# Stable UUID so all environments share the same platform CRM/HR tenant.
 PLATFORM_CRM_VENDOR_ID = UUID("00000000-0000-4000-8000-0000000000c1")
 PLATFORM_CRM_SLUG = "kiterp-platform"
 PLATFORM_CRM_SUBDOMAIN = "kiterp-platform"
 
 
 async def ensure_platform_crm_vendor(db: AsyncSession) -> Vendor:
-    """Return the platform CRM vendor, creating it if missing."""
+    """Return the platform CRM/HR vendor, creating it if missing."""
     result = await db.execute(select(Vendor).where(Vendor.id == PLATFORM_CRM_VENDOR_ID))
     vendor = result.scalar_one_or_none()
     if vendor:
@@ -34,12 +34,12 @@ async def ensure_platform_crm_vendor(db: AsyncSession) -> Vendor:
 
     vendor = Vendor(
         id=PLATFORM_CRM_VENDOR_ID,
-        business_name="KIT ERP Platform",
-        display_name="KIT ERP",
+        business_name="Kiterp Platform",
+        display_name="Kiterp",
         slug=PLATFORM_CRM_SLUG,
         business_type="platform",
         industry="Software",
-        description="Internal tenant for KIT ERP platform CRM. Not a customer business.",
+        description="Internal tenant for Kiterp platform CRM and HR. Not a customer business.",
         offering_type="services",
         primary_email="crm@kiterp.com",
         primary_phone="+910000000000",

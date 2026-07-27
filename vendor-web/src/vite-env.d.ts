@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_BACKEND_URL?: string
   readonly VITE_ROUTER_BASENAME?: string
   readonly VITE_STOREFRONT_URL?: string
+  readonly VITE_ADMIN_URL?: string
   /** Scopes vendor dashboard login on localhost when one email exists on multiple User rows */
   readonly VITE_VENDOR_LOGIN_SLUG?: string
 }

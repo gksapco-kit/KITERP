@@ -508,26 +508,61 @@ async def create_vendor_dashboard_handoff(
     Issue a short-lived token for opening vendor-web (central app) as this platform user,
     scoped to the given vendor. Logged in platform staff audit and vendor platform audit on redeem.
     """
-    vendor = await db.get(Vendor, vendor_id)
+    from app.services.platform_crm_tenant import PLATFORM_CRM_VENDOR_ID, ensure_platform_crm_vendor
+
+    if vendor_id == PLATFORM_CRM_VENDOR_ID:
+        vendor = await ensure_platform_crm_vendor(db)
+    else:
+        vendor = await db.get(Vendor, vendor_id)
     if not vendor:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Vendor not found",
         )
     await ensure_vendor_visible_to_platform_staff(current_user, vendor, db)
-    token = create_vendor_handoff_token(current_user.id, vendor_id)
+    token = create_vendor_handoff_token(current_user.id, vendor.id)
     await log_platform_staff_audit(
         db,
         subject_user_id=current_user.id,
         actor_user_id=current_user.id,
         action=ACTION_VENDOR_DASHBOARD_HANDOFF,
-        detail={"vendor_id": str(vendor_id), "slug": vendor.slug},
+        detail={"vendor_id": str(vendor.id), "slug": vendor.slug},
         request=request,
     )
     await db.commit()
     return VendorDashboardHandoffResponse(
         handoff_token=token,
-        vendor_id=str(vendor_id),
+        vendor_id=str(vendor.id),
+        vendor_slug=vendor.slug or "",
+    )
+
+
+@router.post("/hr/dashboard-handoff", response_model=VendorDashboardHandoffResponse)
+async def create_platform_hr_dashboard_handoff(
+    request: Request,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Open vendor-web HR for the internal Kiterp platform tenant only
+    (not a customer business account).
+    """
+    from app.services.platform_crm_tenant import ensure_platform_crm_vendor
+
+    vendor = await ensure_platform_crm_vendor(db)
+    token = create_vendor_handoff_token(current_user.id, vendor.id)
+    await log_platform_staff_audit(
+        db,
+        subject_user_id=current_user.id,
+        actor_user_id=current_user.id,
+        action=ACTION_VENDOR_DASHBOARD_HANDOFF,
+        detail={"vendor_id": str(vendor.id), "slug": vendor.slug, "source": "platform_hr"},
+        request=request,
+    )
+    await db.commit()
+    return VendorDashboardHandoffResponse(
+        handoff_token=token,
+        vendor_id=str(vendor.id),
         vendor_slug=vendor.slug or "",
     )
 

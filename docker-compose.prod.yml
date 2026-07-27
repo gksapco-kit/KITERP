@@ -105,6 +105,7 @@ services:
         VITE_PUBLIC_BASE_PATH: ${VITE_VENDOR_BASE_PATH:-/vendor/}
         VITE_ROUTER_BASENAME: ${VITE_VENDOR_ROUTER_BASENAME:-/vendor}
         VITE_STOREFRONT_URL: ${VITE_STOREFRONT_URL:?Set VITE_STOREFRONT_URL in .env.config}
+        VITE_ADMIN_URL: ${VITE_ADMIN_URL:?Set VITE_ADMIN_URL in .env.config}
     container_name: kiterp-vendor
     restart: always
     expose:
