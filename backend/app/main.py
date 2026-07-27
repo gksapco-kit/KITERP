@@ -16,6 +16,7 @@ from app.config import settings
 from app.database import (
     connect_redis,
     close_redis,
+    startup_schema_lock,
     ensure_fiscal_year_schema,
     ensure_vendor_order_acceptance_columns,
     ensure_vendor_external_domain_columns,
@@ -75,41 +76,44 @@ CORS_ORIGINS = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await ensure_fiscal_year_schema()
-    await ensure_vendor_order_acceptance_columns()
-    await ensure_vendor_external_domain_columns()
-    await ensure_product_uom_column()
-    await ensure_service_booking_label_column()
-    await ensure_service_storefront_label_columns()
-    await ensure_variant_pricing_columns()
-    await ensure_goods_movement_codes()
-    await ensure_merchandising_tables()
-    await ensure_loyalty_tables()
-    await ensure_crm_tables()
-    await ensure_pos_transaction_accounting_columns()
-    await ensure_website_tables()
-    await ensure_pm_tables()
-    await ensure_restaurant_schema()
-    await ensure_modifier_schema()
-    await ensure_reservation_schema()
-    await ensure_restaurant_outlet_schema()
-    await ensure_restaurant_order_adjustments()
-    await ensure_purchase_requisition_schema()
-    await ensure_user_contact_not_globally_unique()
-    await ensure_user_platform_staff_role_column()
-    await ensure_customer_verification_columns()
-    await ensure_customer_store_id_column()
-    await ensure_txn_store_id_columns()
-    await ensure_store_hierarchy_columns()
-    await ensure_sales_area_tables()
-    await ensure_controlling_area_tables()
-    await ensure_production_materials_columns()
-    await ensure_production_routing_tables()
-    await ensure_user_contact_change_request_table()
-    await ensure_storefront_contact_query_table()
-    await ensure_platform_job_role_table()
-    await ensure_platform_career_application_table()
-    await ensure_storage_location_plant_nullable()
+    # Production uses uvicorn --workers 4; each worker runs lifespan. Concurrent
+    # ALTER TABLE ... AccessExclusiveLock deadlocks (seen on crm_activity).
+    async with startup_schema_lock():
+        await ensure_fiscal_year_schema()
+        await ensure_vendor_order_acceptance_columns()
+        await ensure_vendor_external_domain_columns()
+        await ensure_product_uom_column()
+        await ensure_service_booking_label_column()
+        await ensure_service_storefront_label_columns()
+        await ensure_variant_pricing_columns()
+        await ensure_goods_movement_codes()
+        await ensure_merchandising_tables()
+        await ensure_loyalty_tables()
+        await ensure_crm_tables()
+        await ensure_pos_transaction_accounting_columns()
+        await ensure_website_tables()
+        await ensure_pm_tables()
+        await ensure_restaurant_schema()
+        await ensure_modifier_schema()
+        await ensure_reservation_schema()
+        await ensure_restaurant_outlet_schema()
+        await ensure_restaurant_order_adjustments()
+        await ensure_purchase_requisition_schema()
+        await ensure_user_contact_not_globally_unique()
+        await ensure_user_platform_staff_role_column()
+        await ensure_customer_verification_columns()
+        await ensure_customer_store_id_column()
+        await ensure_txn_store_id_columns()
+        await ensure_store_hierarchy_columns()
+        await ensure_sales_area_tables()
+        await ensure_controlling_area_tables()
+        await ensure_production_materials_columns()
+        await ensure_production_routing_tables()
+        await ensure_user_contact_change_request_table()
+        await ensure_storefront_contact_query_table()
+        await ensure_platform_job_role_table()
+        await ensure_platform_career_application_table()
+        await ensure_storage_location_plant_nullable()
     await connect_redis()
     from app.services.email_service import email_is_configured, sendgrid_api_key
 

@@ -1,9 +1,10 @@
 # app/database.py
 import logging
+from contextlib import asynccontextmanager
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from typing import AsyncGenerator
+from typing import AsyncGenerator, AsyncIterator
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,31 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 Base = declarative_base()
+
+# Session-level advisory lock: serialize boot DDL across uvicorn --workers N.
+# Must keep the same connection checked out for the lock lifetime.
+_SCHEMA_BOOTSTRAP_LOCK_KEY = 0x4B495445  # "KITE"
+
+
+@asynccontextmanager
+async def startup_schema_lock() -> AsyncIterator[None]:
+    """Run startup schema ensures under one Postgres advisory lock per process fleet."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        yield
+        return
+    conn = await engine.connect()
+    try:
+        await conn.execute(text(f"SELECT pg_advisory_lock({_SCHEMA_BOOTSTRAP_LOCK_KEY})"))
+        await conn.commit()
+        logger.info("Acquired startup schema lock")
+        yield
+    finally:
+        try:
+            await conn.execute(text(f"SELECT pg_advisory_unlock({_SCHEMA_BOOTSTRAP_LOCK_KEY})"))
+            await conn.commit()
+        except Exception:
+            logger.exception("Failed to release startup schema lock")
+        await conn.close()
 
 
 async def ensure_vendor_order_acceptance_columns() -> None:
