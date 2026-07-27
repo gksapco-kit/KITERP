@@ -423,6 +423,12 @@ export const adminApi = {
     return response.data
   },
 
+  /** Handoff into the internal KIT ERP platform tenant for admin HR (not a customer BU). */
+  createPlatformHrDashboardHandoff: async (): Promise<VendorDashboardHandoffResponse> => {
+    const response = await apiClient.post('/admin/hr/dashboard-handoff')
+    return response.data
+  },
+
   listOrderDisputes: async (params?: {
     status?: string
     dispute_type?: string

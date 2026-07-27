@@ -822,7 +822,8 @@ function CommonMeetingUrlBar() {
 
 export default function RecruitmentPage() {
   const adminEmbed = isVendorAdminEmbed()
-  const [tab, setTab] = useState<TabKey>('jobs')
+  // Super Admin embed: open Careers first so KIT ERP career applications are front and center.
+  const [tab, setTab] = useState<TabKey>(adminEmbed ? 'careers' : 'jobs')
 
   const tabs = useMemo(
     () =>
