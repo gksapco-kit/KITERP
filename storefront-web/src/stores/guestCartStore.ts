@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { safeLocalStateStorage } from '@/lib/safeStorage'
 
 export type GuestCartItem = {
   product_id?: string
@@ -59,6 +60,9 @@ export const useGuestCartStore = create<GuestCartState>()(
         set({ byVendor: next })
       },
     }),
-    { name: 'guest-cart-storage' },
+    {
+      name: 'guest-cart-storage',
+      storage: createJSONStorage(() => safeLocalStateStorage),
+    },
   ),
 )

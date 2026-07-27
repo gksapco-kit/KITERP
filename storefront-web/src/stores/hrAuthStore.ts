@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { safeLocalRemove, safeLocalSet, safeLocalStateStorage } from '@/lib/safeStorage'
 
 export type HrEmployeePreview = {
   id: string
@@ -33,7 +34,7 @@ export const useHrAuthStore = create<HrAuthState>()(
       loginBranch: null,
       isAuthenticated: false,
       setSession: (access_token, employee, loginBranch = null) => {
-        localStorage.setItem('employee_access_token', access_token)
+        safeLocalSet('employee_access_token', access_token)
         set({
           accessToken: access_token,
           employee,
@@ -42,19 +43,20 @@ export const useHrAuthStore = create<HrAuthState>()(
         })
       },
       logout: () => {
-        localStorage.removeItem('employee_access_token')
-        localStorage.removeItem('employee-hr-auth-storage')
+        safeLocalRemove('employee_access_token')
+        safeLocalRemove('employee-hr-auth-storage')
         set({ accessToken: null, employee: null, loginBranch: null, isAuthenticated: false })
       },
     }),
     {
       name: 'employee-hr-auth-storage',
+      storage: createJSONStorage(() => safeLocalStateStorage),
       partialize: (s) => ({
         accessToken: s.accessToken,
         employee: s.employee,
         loginBranch: s.loginBranch,
         isAuthenticated: s.isAuthenticated,
       }),
-    }
-  )
+    },
+  ),
 )

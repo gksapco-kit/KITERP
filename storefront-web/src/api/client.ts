@@ -9,6 +9,7 @@ import {
   writeScopedCustomerTokens,
 } from '@/lib/customerAuthStorage'
 import { vendorSlugFromLocation } from '@/lib/vendorScope'
+import { safeLocalGet, safeLocalRemove, safeLocalSet, safeSessionGet, safeSessionRemove, safeSessionSet } from '@/lib/safeStorage'
 
 const API_URL = getStorefrontApiBaseUrl()
 
@@ -24,29 +25,17 @@ const SS_VENDOR_SLUG = 'vendor_slug'
 const SS_VENDOR_ID = 'vendor_id'
 
 function ssGet(key: string): string | null {
-  try {
-    return sessionStorage.getItem(key)?.trim() || null
-  } catch {
-    return null
-  }
+  return safeSessionGet(key)?.trim() || null
 }
 
 function ssSet(key: string, value: string | null) {
-  try {
-    if (!value) sessionStorage.removeItem(key)
-    else sessionStorage.setItem(key, value)
-  } catch {
-    /* private mode */
-  }
+  if (!value) safeSessionRemove(key)
+  else safeSessionSet(key, value)
 }
 
 function clearLegacySharedVendorKeys() {
-  try {
-    localStorage.removeItem('vendor_slug')
-    localStorage.removeItem('vendor_id')
-  } catch {
-    /* private mode */
-  }
+  safeLocalRemove('vendor_slug')
+  safeLocalRemove('vendor_id')
 }
 
 export { readScopedCustomerTokens, writeScopedCustomerTokens } from '@/lib/customerAuthStorage'
@@ -115,46 +104,37 @@ export function setStorefrontBuContext(storeId: string | null, branch: string | 
   if (prevScope === nextScope) return
 
   // Persist current global bag under the previous scope (if any), then load the next.
-  let carriedBag: string | null = null
-  try {
-    carriedBag = localStorage.getItem('customer-auth-storage')
-    if (carriedBag) localStorage.setItem(authBagKey(prevScope), carriedBag)
-  } catch {
-    // ignore
-  }
+  const carriedBag = safeLocalGet('customer-auth-storage')
+  if (carriedBag) safeLocalSet(authBagKey(prevScope), carriedBag)
 
   const prevAccess =
-    localStorage.getItem(`customer_access_token:${prevScope}`)
-    || localStorage.getItem('customer_access_token')
+    safeLocalGet(`customer_access_token:${prevScope}`)
+    || safeLocalGet('customer_access_token')
   const prevRefresh =
-    localStorage.getItem(`customer_refresh_token:${prevScope}`)
-    || localStorage.getItem('customer_refresh_token')
+    safeLocalGet(`customer_refresh_token:${prevScope}`)
+    || safeLocalGet('customer_refresh_token')
 
-  let nextAccess = localStorage.getItem(`customer_access_token:${nextScope}`)
-  let nextRefresh = localStorage.getItem(`customer_refresh_token:${nextScope}`)
-  let nextBag = localStorage.getItem(authBagKey(nextScope))
+  let nextAccess = safeLocalGet(`customer_access_token:${nextScope}`)
+  let nextRefresh = safeLocalGet(`customer_refresh_token:${nextScope}`)
+  let nextBag = safeLocalGet(authBagKey(nextScope))
 
   // No BU-specific session yet — reuse the vendor-wide / previous session.
   if (!nextBag && !nextAccess && (carriedBag || prevAccess)) {
-    nextBag = carriedBag || localStorage.getItem(authBagKey(prevScope))
+    nextBag = carriedBag || safeLocalGet(authBagKey(prevScope))
     nextAccess = prevAccess
     nextRefresh = prevRefresh
-    try {
-      if (nextBag) localStorage.setItem(authBagKey(nextScope), nextBag)
-      if (nextAccess) localStorage.setItem(`customer_access_token:${nextScope}`, nextAccess)
-      if (nextRefresh) localStorage.setItem(`customer_refresh_token:${nextScope}`, nextRefresh)
-    } catch {
-      // ignore
-    }
+    if (nextBag) safeLocalSet(authBagKey(nextScope), nextBag)
+    if (nextAccess) safeLocalSet(`customer_access_token:${nextScope}`, nextAccess)
+    if (nextRefresh) safeLocalSet(`customer_refresh_token:${nextScope}`, nextRefresh)
   }
 
-  if (nextAccess) localStorage.setItem('customer_access_token', nextAccess)
-  else localStorage.removeItem('customer_access_token')
-  if (nextRefresh) localStorage.setItem('customer_refresh_token', nextRefresh)
-  else localStorage.removeItem('customer_refresh_token')
+  if (nextAccess) safeLocalSet('customer_access_token', nextAccess)
+  else safeLocalRemove('customer_access_token')
+  if (nextRefresh) safeLocalSet('customer_refresh_token', nextRefresh)
+  else safeLocalRemove('customer_refresh_token')
 
   if (nextBag) {
-    localStorage.setItem('customer-auth-storage', nextBag)
+    safeLocalSet('customer-auth-storage', nextBag)
     try {
       const parsed = JSON.parse(nextBag)
       const state = parsed?.state
@@ -334,14 +314,14 @@ apiClient.interceptors.response.use(
 
       // Update the Zustand persisted state with new token
       try {
-        const stored = localStorage.getItem('customer-auth-storage')
+        const stored = safeLocalGet('customer-auth-storage')
         if (stored) {
           const parsed = JSON.parse(stored)
           if (parsed.state) {
             parsed.state.accessToken = access_token
             parsed.state.isAuthenticated = true
-            localStorage.setItem('customer-auth-storage', JSON.stringify(parsed))
-            localStorage.setItem(authBagKey(getActiveAuthScope()), JSON.stringify(parsed))
+            safeLocalSet('customer-auth-storage', JSON.stringify(parsed))
+            safeLocalSet(authBagKey(getActiveAuthScope()), JSON.stringify(parsed))
           }
         }
       } catch {

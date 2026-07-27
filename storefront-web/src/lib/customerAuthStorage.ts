@@ -1,5 +1,7 @@
 /** Per vendor + business-unit customer token bags (localStorage). */
 
+import { safeLocalGet, safeLocalRemove, safeLocalSet } from '@/lib/safeStorage'
+
 let _vendorId: string | null = null
 let _storeId: string | null = null
 
@@ -31,13 +33,13 @@ export function getActiveAuthScope(): string {
 
 export function readScopedCustomerTokens(): { access: string | null; refresh: string | null } {
   const scope = activeScope()
-  const access = localStorage.getItem(tokenKey('access', scope))
-  const refresh = localStorage.getItem(tokenKey('refresh', scope))
+  const access = safeLocalGet(tokenKey('access', scope))
+  const refresh = safeLocalGet(tokenKey('refresh', scope))
   // Legacy global tokens only when this tab has no vendor scope yet.
   if (!_vendorId) {
     return {
-      access: access || localStorage.getItem('customer_access_token'),
-      refresh: refresh || localStorage.getItem('customer_refresh_token'),
+      access: access || safeLocalGet('customer_access_token'),
+      refresh: refresh || safeLocalGet('customer_refresh_token'),
     }
   }
   return { access, refresh }
@@ -45,19 +47,19 @@ export function readScopedCustomerTokens(): { access: string | null; refresh: st
 
 export function writeScopedCustomerTokens(access: string, refresh?: string | null) {
   const scope = activeScope()
-  localStorage.setItem(tokenKey('access', scope), access)
-  localStorage.setItem('customer_access_token', access)
+  safeLocalSet(tokenKey('access', scope), access)
+  safeLocalSet('customer_access_token', access)
   if (refresh) {
-    localStorage.setItem(tokenKey('refresh', scope), refresh)
-    localStorage.setItem('customer_refresh_token', refresh)
+    safeLocalSet(tokenKey('refresh', scope), refresh)
+    safeLocalSet('customer_refresh_token', refresh)
   }
 }
 
 export function clearScopedCustomerTokens() {
   const scope = activeScope()
-  localStorage.removeItem(tokenKey('access', scope))
-  localStorage.removeItem(tokenKey('refresh', scope))
-  localStorage.removeItem(authBagKey(scope))
-  localStorage.removeItem('customer_access_token')
-  localStorage.removeItem('customer_refresh_token')
+  safeLocalRemove(tokenKey('access', scope))
+  safeLocalRemove(tokenKey('refresh', scope))
+  safeLocalRemove(authBagKey(scope))
+  safeLocalRemove('customer_access_token')
+  safeLocalRemove('customer_refresh_token')
 }

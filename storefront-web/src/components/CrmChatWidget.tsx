@@ -3,16 +3,8 @@ import { MessageCircle, X, Send, Loader2 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { cn } from '@/lib/utils'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
-const VISITOR_KEY = 'asure_visitor_id'
-
-function ensureVisitorId(): string {
-  let id = localStorage.getItem(VISITOR_KEY)
-  if (!id) {
-    id = `v_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`
-    localStorage.setItem(VISITOR_KEY, id)
-  }
-  return id
-}
+import { getVisitorId } from '@/lib/visitorId'
+import { safeLocalGet, safeLocalSet } from '@/lib/safeStorage'
 
 type Message = {
   id: string
@@ -58,8 +50,8 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    visitorIdRef.current = ensureVisitorId()
-    const cached = localStorage.getItem('asure_visitor_meta')
+    visitorIdRef.current = getVisitorId()
+    const cached = safeLocalGet('asure_visitor_meta')
     if (cached) {
       try {
         const meta = JSON.parse(cached)
@@ -132,7 +124,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
   const submitIntro = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim() && !email.trim()) return
-    localStorage.setItem('asure_visitor_meta', JSON.stringify({ name, email }))
+    safeLocalSet('asure_visitor_meta', JSON.stringify({ name, email }))
     setIntroDone(true)
   }
 

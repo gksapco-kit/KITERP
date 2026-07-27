@@ -26,6 +26,8 @@
  * without a full page reload.
  */
 
+import { safeLocalGet, safeLocalSet } from '@/lib/safeStorage'
+
 export type ConsentState = 'granted' | 'denied' | 'unknown'
 
 export type ConsentRecord = {
@@ -43,7 +45,7 @@ const EVENT_NAME = 'kiterp:consent-change'
 /** Full stored record when present (for debugging / admin). */
 export function getConsentRecord(): ConsentRecord | null {
   if (typeof window === 'undefined') return null
-  const raw = window.localStorage.getItem(STORAGE_KEY)
+  const raw = safeLocalGet(STORAGE_KEY)
   if (!raw) return null
   if (raw === 'granted' || raw === 'accepted') {
     return { status: 'granted', updated_at: '' }
@@ -88,7 +90,7 @@ export function setConsent(next: 'granted' | 'denied', opts?: { siteId?: string 
     updated_at: new Date().toISOString(),
     ...(opts?.siteId ? { site_id: opts.siteId } : {}),
   }
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record))
+  safeLocalSet(STORAGE_KEY, JSON.stringify(record))
   window.dispatchEvent(new CustomEvent<ConsentState>(EVENT_NAME, { detail: next }))
 }
 

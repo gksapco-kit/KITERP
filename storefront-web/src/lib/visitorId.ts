@@ -1,17 +1,15 @@
+import { safeLocalGet, safeLocalSet, safeSessionGet, safeSessionSet } from '@/lib/safeStorage'
+
 const VISITOR_KEY = 'asure_visitor_id'
 
 /** Stable anonymous visitor id shared with journey / CRM beacons. */
 export function getVisitorId(): string {
-  try {
-    let id = localStorage.getItem(VISITOR_KEY)
-    if (!id) {
-      id = `v_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`
-      localStorage.setItem(VISITOR_KEY, id)
-    }
-    return id
-  } catch {
-    return `v_ephemeral_${Date.now().toString(36)}`
+  let id = safeLocalGet(VISITOR_KEY)
+  if (!id) {
+    id = `v_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`
+    safeLocalSet(VISITOR_KEY, id)
   }
+  return id
 }
 
 /**
@@ -20,11 +18,7 @@ export function getVisitorId(): string {
  */
 export function claimSessionTrack(kind: 'partner' | 'product' | 'service', key: string): boolean {
   const storageKey = `kiterp_track:${kind}:${key}`
-  try {
-    if (sessionStorage.getItem(storageKey)) return false
-    sessionStorage.setItem(storageKey, '1')
-    return true
-  } catch {
-    return true
-  }
+  if (safeSessionGet(storageKey)) return false
+  safeSessionSet(storageKey, '1')
+  return true
 }

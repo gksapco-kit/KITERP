@@ -1,10 +1,11 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Customer, Token } from '@/types'
 import {
   clearScopedCustomerTokens,
   writeScopedCustomerTokens,
 } from '@/lib/customerAuthStorage'
+import { safeLocalStateStorage } from '@/lib/safeStorage'
 
 interface AuthState {
   customer: Customer | null; accessToken: string | null; isAuthenticated: boolean
@@ -27,6 +28,10 @@ export const useAuthStore = create<AuthState>()(
         set({ customer: null, accessToken: null, isAuthenticated: false })
       },
     }),
-    { name: 'customer-auth-storage', partialize: (s) => ({ customer: s.customer, accessToken: s.accessToken, isAuthenticated: s.isAuthenticated }) }
-  )
+    {
+      name: 'customer-auth-storage',
+      storage: createJSONStorage(() => safeLocalStateStorage),
+      partialize: (s) => ({ customer: s.customer, accessToken: s.accessToken, isAuthenticated: s.isAuthenticated }),
+    },
+  ),
 )

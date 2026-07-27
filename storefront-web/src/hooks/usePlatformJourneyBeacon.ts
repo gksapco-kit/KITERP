@@ -1,17 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
-
-const VISITOR_KEY = 'asure_visitor_id'
-
-function getVisitorId(): string {
-  let id = localStorage.getItem(VISITOR_KEY)
-  if (!id) {
-    id = `v_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`
-    localStorage.setItem(VISITOR_KEY, id)
-  }
-  return id
-}
+import { getVisitorId } from '@/lib/visitorId'
 
 /**
  * Page views for the platform marketing site (kiterp.com), shown in

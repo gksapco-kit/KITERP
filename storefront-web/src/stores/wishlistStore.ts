@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import type { WishlistItem } from '@/kit/types'
 import { vendorSlugFromLocation } from '@/lib/vendorScope'
+import { safeLocalGet, safeLocalRemove, safeLocalSet } from '@/lib/safeStorage'
 
 interface WishlistState {
   items: WishlistItem[]
@@ -15,15 +16,15 @@ interface WishlistState {
 const vendorScopedStorage: StateStorage = {
   getItem: (name) => {
     const slug = vendorSlugFromLocation() || 'default'
-    return localStorage.getItem(`${name}:${slug}`)
+    return safeLocalGet(`${name}:${slug}`)
   },
   setItem: (name, value) => {
     const slug = vendorSlugFromLocation() || 'default'
-    localStorage.setItem(`${name}:${slug}`, value)
+    safeLocalSet(`${name}:${slug}`, value)
   },
   removeItem: (name) => {
     const slug = vendorSlugFromLocation() || 'default'
-    localStorage.removeItem(`${name}:${slug}`)
+    safeLocalRemove(`${name}:${slug}`)
   },
 }
 

@@ -5,6 +5,7 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useHrAuthStore } from '@/stores/hrAuthStore'
 import hrApiClient from '@/api/hrClient'
 import { PageLoading } from '@/components/common/Loading'
+import { safeLocalSet } from '@/lib/safeStorage'
 
 async function fetchHrMe() {
   const res = await hrApiClient.get('/store/hr/me')
@@ -18,7 +19,7 @@ export default function ProtectedHrRoute({ children }: { children: React.ReactNo
 
   useLayoutEffect(() => {
     if (accessToken) {
-      localStorage.setItem('employee_access_token', accessToken)
+      safeLocalSet('employee_access_token', accessToken)
     }
   }, [accessToken])
 

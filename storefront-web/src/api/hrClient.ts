@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 import { vendorSlugFromLocation } from '@/lib/vendorScope'
+import { safeLocalGet, safeLocalRemove, safeSessionSet } from '@/lib/safeStorage'
 
 const API_URL = getStorefrontApiBaseUrl()
 
@@ -10,14 +11,10 @@ let _vendorId: string | null = null
 export function setHrVendorContext(slug: string, id: string) {
   _vendorSlug = slug.trim()
   _vendorId = id.trim()
-  try {
-    sessionStorage.setItem('vendor_slug', _vendorSlug)
-    sessionStorage.setItem('vendor_id', _vendorId)
-    localStorage.removeItem('vendor_slug')
-    localStorage.removeItem('vendor_id')
-  } catch {
-    /* private mode */
-  }
+  safeSessionSet('vendor_slug', _vendorSlug)
+  safeSessionSet('vendor_id', _vendorId)
+  safeLocalRemove('vendor_slug')
+  safeLocalRemove('vendor_id')
 }
 
 export const hrApiClient = axios.create({
@@ -34,7 +31,7 @@ hrApiClient.interceptors.request.use((config) => {
 })
 
 hrApiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('employee_access_token')
+  const token = safeLocalGet('employee_access_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -54,8 +51,8 @@ hrApiClient.interceptors.request.use((config) => {
 })
 
 function clearHrAuthAndRedirect() {
-  localStorage.removeItem('employee_access_token')
-  localStorage.removeItem('employee-hr-auth-storage')
+  safeLocalRemove('employee_access_token')
+  safeLocalRemove('employee-hr-auth-storage')
   const slug = vendorSlugFromLocation() || _vendorSlug
   window.location.href = slug ? `/store/${slug}/hr/login` : '/'
 }
@@ -69,7 +66,7 @@ hrApiClient.interceptors.response.use(
       clearHrAuthAndRedirect()
     }
     return Promise.reject(error)
-  }
+  },
 )
 
 export default hrApiClient

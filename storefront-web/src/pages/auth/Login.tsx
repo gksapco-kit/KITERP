@@ -19,6 +19,8 @@ import {
 import { useAuthStoreTheme } from './authStoreTheme'
 import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 
+import { safeLocalGet, safeLocalRemove, safeLocalSet } from '@/lib/safeStorage'
+
 function customerLoginStorageKey(vendorId: string | undefined): string {
   return vendorId ? `kiterp_customer_login_${vendorId}` : ''
 }
@@ -26,11 +28,7 @@ function customerLoginStorageKey(vendorId: string | undefined): string {
 function readCustomerSavedLogin(vendorId: string | undefined): string {
   const k = customerLoginStorageKey(vendorId)
   if (!k || typeof window === 'undefined') return ''
-  try {
-    return localStorage.getItem(k) ?? ''
-  } catch {
-    return ''
-  }
+  return safeLocalGet(k) ?? ''
 }
 
 const schema = z.object({
@@ -92,13 +90,9 @@ export default function Login() {
     loginMut.mutate(data, {
       onSuccess: () => {
         if (vendor?.id) {
-          try {
-            const k = customerLoginStorageKey(vendor.id)
-            if (rememberEmail) localStorage.setItem(k, data.login.trim())
-            else localStorage.removeItem(k)
-          } catch {
-            /* ignore */
-          }
+          const k = customerLoginStorageKey(vendor.id)
+          if (rememberEmail) safeLocalSet(k, data.login.trim())
+          else safeLocalRemove(k)
         }
         navigate(from)
       },
