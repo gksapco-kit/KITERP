@@ -641,9 +641,11 @@ def _employment_type_label(value: Optional[str]) -> str:
 
 @router.get("/career-openings")
 async def list_career_openings(db: AsyncSession = Depends(get_db)):
-    """Public Careers page: open job postings from Recruitment (status = open)."""
+    """Public Careers page: open KIT ERP (platform) job postings only."""
     from app.repositories.hr_recruit_repo import JobRepo
+    from app.services.platform_crm_tenant import ensure_platform_crm_vendor
 
+    await ensure_platform_crm_vendor(db)
     jobs = await JobRepo(db).list_open_public()
     items = []
     for j in jobs:
@@ -735,13 +737,19 @@ async def submit_career_application(
     job_row: Optional[JobPosting] = None
     job_id_raw = (job_posting_id or "").strip()
     if job_id_raw:
+        from app.services.platform_crm_tenant import PLATFORM_CRM_VENDOR_ID
+
         try:
             job_uuid = UUID(job_id_raw)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid job opening selected")
         result = await db.execute(
             sa_select(JobPosting)
-            .where(JobPosting.id == job_uuid, JobPosting.status == "open")
+            .where(
+                JobPosting.id == job_uuid,
+                JobPosting.status == "open",
+                JobPosting.vendor_id == PLATFORM_CRM_VENDOR_ID,
+            )
             .options(selectinload(JobPosting.department))
         )
         job_row = result.scalar_one_or_none()

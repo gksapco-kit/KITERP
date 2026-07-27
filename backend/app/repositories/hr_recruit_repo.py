@@ -55,10 +55,15 @@ class JobRepo:
         return r.scalar_one_or_none()
 
     async def list_open_public(self) -> List[JobPosting]:
-        """Open jobs for the public Careers page (all vendors)."""
+        """Open jobs for kiterp.com/careers — KIT ERP platform tenant only (not customer BUs)."""
+        from app.services.platform_crm_tenant import PLATFORM_CRM_VENDOR_ID
+
         q = (
             select(JobPosting)
-            .where(JobPosting.status == "open")
+            .where(
+                JobPosting.status == "open",
+                JobPosting.vendor_id == PLATFORM_CRM_VENDOR_ID,
+            )
             .options(
                 selectinload(JobPosting.department),
                 selectinload(JobPosting.designation),
