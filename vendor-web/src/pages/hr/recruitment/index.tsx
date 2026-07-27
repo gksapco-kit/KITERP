@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Plus, Briefcase, Users, Calendar, Copy, ExternalLink, Trash2, Pencil, X, Search, GitBranch } from 'lucide-react'
 import { isVendorAdminEmbed } from '@/lib/adminEmbed'
@@ -606,108 +606,34 @@ function CandidateModal({
 type TabKey = 'jobs' | 'candidates' | 'careers' | 'interviews'
 
 const HR_EMBED_OPEN_PIPELINE = 'kiterp:hr:open-pipeline'
-const HR_EMBED_CAREERS_REFRESH = 'kiterp:hr:careers-refresh'
-const ADMIN_EMBED_REQUEST_AUTH = 'kiterp:admin:embed-request-auth'
-const ADMIN_EMBED_AUTH_RESPONSE = 'kiterp:admin:embed-auth'
+const HR_EMBED_SET_TAB = 'kiterp:hr:set-tab'
+const ADMIN_EMBED_SHOW_CAREERS = 'kiterp:admin:embed-show-careers'
+const ADMIN_EMBED_HIDE_CAREERS = 'kiterp:admin:embed-hide-careers'
+
+function adminParentOrigin(): string {
+  try {
+    return new URL(adminAppOrigin()).origin
+  } catch {
+    return window.location.origin
+  }
+}
 
 function CareersInboxEmbed() {
-  const navigate = useNavigate()
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [src, setSrc] = useState<string | null>(null)
-  const adminOrigin = adminAppOrigin()
-
+  // Ask the parent admin window to render Careers natively (avoids nested iframe breakage in prod).
   useEffect(() => {
-    const origin = adminOrigin
-    const base = `${origin}/dashboard/embed/hr/careers`
-
-    const applySrc = (accessToken?: string) => {
-      if (accessToken) {
-        const url = new URL(base)
-        url.searchParams.set('access_token', accessToken)
-        setSrc(url.toString())
-      } else {
-        setSrc(base)
-      }
-    }
-
-    applySrc()
-
     const topWin = window.top
     if (!topWin || topWin === window) return
-
-    const onAuthMessage = (event: MessageEvent) => {
-      if (event.origin !== origin) return
-      const data = event.data as { type?: string; accessToken?: string } | null
-      if (data?.type !== ADMIN_EMBED_AUTH_RESPONSE || !data.accessToken) return
-      applySrc(data.accessToken)
-    }
-
-    const requestAuth = () => {
-      topWin.postMessage({ type: ADMIN_EMBED_REQUEST_AUTH }, origin)
-    }
-
-    window.addEventListener('message', onAuthMessage)
-    requestAuth()
-    const retry = window.setInterval(requestAuth, 800)
-
+    const targetOrigin = adminParentOrigin()
+    topWin.postMessage({ type: ADMIN_EMBED_SHOW_CAREERS }, targetOrigin)
     return () => {
-      window.clearInterval(retry)
-      window.removeEventListener('message', onAuthMessage)
+      topWin.postMessage({ type: ADMIN_EMBED_HIDE_CAREERS }, targetOrigin)
     }
-  }, [adminOrigin])
-
-  useEffect(() => {
-    const onRefresh = (event: MessageEvent) => {
-      if (event.data?.type !== HR_EMBED_CAREERS_REFRESH) return
-      iframeRef.current?.contentWindow?.postMessage(
-        { type: HR_EMBED_CAREERS_REFRESH },
-        adminOrigin,
-      )
-    }
-    window.addEventListener('message', onRefresh)
-    return () => window.removeEventListener('message', onRefresh)
-  }, [adminOrigin])
-
-  useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      const data = event.data as {
-        type?: string
-        jobPostingId?: string
-        stage?: string
-        applicationId?: string
-      } | null
-      if (!data || data.type !== HR_EMBED_OPEN_PIPELINE) return
-      const jobId = typeof data.jobPostingId === 'string' ? data.jobPostingId.trim() : ''
-      if (!jobId) return
-      const stage = typeof data.stage === 'string' && data.stage.trim() ? data.stage.trim() : ''
-      const applicationId =
-        typeof data.applicationId === 'string' ? data.applicationId.trim() : ''
-      const params = new URLSearchParams()
-      if (stage) params.set('stage', stage)
-      if (applicationId) params.set('applicationId', applicationId)
-      const qs = params.toString()
-      navigate(`/hr/recruitment/jobs/${jobId}${qs ? `?${qs}` : ''}`)
-    }
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  }, [navigate])
-
-  if (!src) {
-    return (
-      <div className="flex h-[calc(100vh-15rem)] min-h-[28rem] items-center justify-center rounded-xl border border-border bg-white text-sm text-muted-foreground">
-        Loading careers inbox…
-      </div>
-    )
-  }
+  }, [])
 
   return (
-    <iframe
-      ref={iframeRef}
-      title="Careers inbox"
-      src={src}
-      className="h-[calc(100vh-15rem)] min-h-[28rem] w-full rounded-xl border border-border bg-white"
-      allow="clipboard-read; clipboard-write"
-    />
+    <div className="flex h-[calc(100vh-15rem)] min-h-[28rem] items-center justify-center rounded-xl border border-border bg-white text-sm text-muted-foreground">
+      Loading careers inbox…
+    </div>
   )
 }
 
@@ -824,6 +750,44 @@ export default function RecruitmentPage() {
   const adminEmbed = isVendorAdminEmbed()
   // Super Admin embed: open Careers first so KIT ERP career applications are front and center.
   const [tab, setTab] = useState<TabKey>(adminEmbed ? 'careers' : 'jobs')
+
+  useEffect(() => {
+    if (!adminEmbed) return
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; tab?: string } | null
+      if (!data || data.type !== HR_EMBED_SET_TAB) return
+      if (data.tab === 'jobs' || data.tab === 'interviews' || data.tab === 'careers') {
+        setTab(data.tab)
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [adminEmbed])
+
+  useEffect(() => {
+    if (!adminEmbed) return
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as {
+        type?: string
+        jobPostingId?: string
+        stage?: string
+        applicationId?: string
+      } | null
+      if (!data || data.type !== HR_EMBED_OPEN_PIPELINE) return
+      const jobId = typeof data.jobPostingId === 'string' ? data.jobPostingId.trim() : ''
+      if (!jobId) return
+      const stage = typeof data.stage === 'string' && data.stage.trim() ? data.stage.trim() : ''
+      const applicationId =
+        typeof data.applicationId === 'string' ? data.applicationId.trim() : ''
+      const params = new URLSearchParams()
+      if (stage) params.set('stage', stage)
+      if (applicationId) params.set('applicationId', applicationId)
+      const qs = params.toString()
+      window.location.assign(`/hr/recruitment/jobs/${jobId}${qs ? `?${qs}` : ''}`)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [adminEmbed])
 
   const tabs = useMemo(
     () =>

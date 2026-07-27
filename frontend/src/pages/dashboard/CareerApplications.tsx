@@ -119,7 +119,8 @@ function openJobPipeline(
       }
       const stage = synced.current_stage || careerStatusToPipelineStage(app.status)
       if (embedded) {
-        window.parent.postMessage(
+        // Parent admin (HrManagement overlay) or nested vendor frame listens for this.
+        window.postMessage(
           {
             type: HR_EMBED_OPEN_PIPELINE,
             jobPostingId: jobId,
@@ -128,6 +129,17 @@ function openJobPipeline(
           },
           '*',
         )
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(
+            {
+              type: HR_EMBED_OPEN_PIPELINE,
+              jobPostingId: jobId,
+              stage,
+              applicationId: synced.application_id,
+            },
+            '*',
+          )
+        }
         return
       }
       toast.success('Synced to job pipeline')
