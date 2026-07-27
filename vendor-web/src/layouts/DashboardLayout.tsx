@@ -25,7 +25,6 @@ import {
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
 import { isVendorAdminEmbed } from '@/lib/adminEmbed'
-import AdminEmbedNavigateListener from '@/components/AdminEmbedNavigateListener'
 import { FieldMappingProvider } from '@/providers/FieldMappingProvider'
 import { cn, mediaUrl, surfaceBorderClassName } from '@/lib/utils'
 
@@ -3789,8 +3788,7 @@ export default function DashboardLayout() {
   if (isVendorAdminEmbed()) {
     return (
       <div className="min-h-screen overflow-x-clip bg-background font-sans text-foreground">
-        <AdminEmbedNavigateListener />
-        <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] bg-background px-4 pb-4 pt-0 font-sans text-sm sm:px-6 sm:pb-6 lg:px-8 lg:pb-8">
+        <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 sm:p-6 lg:p-8 bg-background font-sans text-sm">
           <RestaurantScopeBanner />
           <FieldMappingProvider>
             <Outlet />

@@ -43,12 +43,6 @@ async def ensure_vendor_visible_to_platform_staff(
     vendor: Vendor,
     db: Optional[AsyncSession] = None,
 ) -> None:
-    from app.services.platform_crm_tenant import is_platform_crm_vendor
-
-    # Internal Kiterp tenant (platform CRM / HR) is visible to all platform staff.
-    if is_platform_crm_vendor(vendor):
-        return
-
     if db is not None:
         scope = await relationship_manager_list_scope_async(db, current_user)
     else:

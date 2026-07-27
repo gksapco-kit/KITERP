@@ -841,16 +841,16 @@ export default function RecruitmentPage() {
   )
 
   return (
-    <div className={adminEmbed ? 'px-0 pb-6 pt-2' : 'p-6'}>
+    <div className="p-6">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        {!adminEmbed ? (
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Recruitment</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Manage Jobs, Candidates And Interviews
-            </p>
-          </div>
-        ) : null}
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Recruitment</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {adminEmbed
+              ? 'Manage jobs and interviews · Careers applications from the platform Careers page'
+              : 'Manage Jobs, Candidates And Interviews'}
+          </p>
+        </div>
         <CommonMeetingUrlBar />
       </div>
 

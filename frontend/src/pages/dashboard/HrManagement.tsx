@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
-import { ExternalLink, Loader2, RefreshCw } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, Navigate, useParams } from 'react-router-dom'
+import { ExternalLink, Loader2, RefreshCw, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { adminApi } from '@/api/admin.api'
 import { Button } from '@/components/ui/button'
-import { vendorAppPublicBaseUrl } from '@/lib/appUrls'
+import { Select } from '@/components/ui/select'
+import { useAdminVendors } from '@/hooks/useAdmin'
+import { vendorAppBaseUrl } from '@/lib/appUrls'
 import {
   HR_ADMIN_NAV_ITEMS,
   getHrAdminNavItem,
@@ -13,56 +15,45 @@ import {
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff } from '@/lib/platformAccess'
 
-const PLATFORM_HR_SESSION_KEY = 'kiterp-platform'
+const HR_VENDOR_STORAGE_KEY = 'kiterp.admin.hrVendorId'
 
-function vendorBase(): string {
-  return vendorAppPublicBaseUrl()
+function vendorAppOrigin(): string {
+  let base = vendorAppBaseUrl.replace(/\/$/, '')
+  try {
+    const u = new URL(base)
+    if (u.hostname === 'localhost' || u.hostname === '[::1]') {
+      u.hostname = '127.0.0.1'
+      base = u.origin
+    }
+  } catch {
+    /* keep base */
+  }
+  return base
 }
 
-function buildHandoffUrl(handoffToken: string, vendorPath: string): string {
+function buildHandoffUrl(handoffToken: string, vendorPath: string, embed: boolean): string {
   const params = new URLSearchParams({
     token: handoffToken,
     next: vendorPath,
-    embed: '1',
   })
-  return `${vendorBase()}/auth/handoff?${params.toString()}`
+  if (embed) params.set('embed', '1')
+  return `${vendorAppOrigin()}/auth/handoff?${params.toString()}`
 }
 
-/** Full browser URL for an already-authenticated embed session (prod: /vendor/hr/...). */
-function buildEmbedPageUrl(vendorPath: string): string {
-  const base = vendorBase()
-  const path = vendorPath.startsWith('/') ? vendorPath : `/${vendorPath}`
-  if (path.includes('embed=')) return `${base}${path}`
-  return `${base}${path}${path.includes('?') ? '&' : '?'}embed=1`
-}
-
-/**
- * Open a vendor HR route in the iframe without a new handoff.
- * Same-origin (kiterp.com/admin + /vendor): location.assign.
- * Cross-origin (local 3000/3001): iframe.src.
- */
-function navigateIframe(iframe: HTMLIFrameElement | null, vendorPath: string) {
-  if (!iframe) return
-  const url = buildEmbedPageUrl(vendorPath)
+function readStoredVendorId(): string {
   try {
-    const win = iframe.contentWindow
-    if (win && win.location.origin === window.location.origin) {
-      const current = `${win.location.pathname}${win.location.search}`
-      const targetPath = new URL(url, window.location.origin)
-      const target = `${targetPath.pathname}${targetPath.search}`
-      if (current !== target) {
-        win.location.assign(url)
-      }
-      return
-    }
+    return localStorage.getItem(HR_VENDOR_STORAGE_KEY) || ''
   } catch {
-    /* cross-origin — fall through */
+    return ''
   }
-  if (iframe.src !== url) {
-    iframe.src = url
-  } else {
-    // Force reload when React kept the same src string but content is stale.
-    iframe.src = url
+}
+
+function storeVendorId(id: string) {
+  try {
+    if (id) localStorage.setItem(HR_VENDOR_STORAGE_KEY, id)
+    else localStorage.removeItem(HR_VENDOR_STORAGE_KEY)
+  } catch {
+    /* ignore */
   }
 }
 
@@ -72,54 +63,80 @@ export default function HrManagement() {
   const { section } = useParams<{ section?: string }>()
   const hrItem = getHrAdminNavItem(section) ?? HR_ADMIN_NAV_ITEMS[0]
 
+  const [selectedVendorId, setSelectedVendorId] = useState(readStoredVendorId)
   const [iframeSrc, setIframeSrc] = useState<string | null>(null)
   const [loadingFrame, setLoadingFrame] = useState(false)
   const [handoffError, setHandoffError] = useState<string | null>(null)
   const [frameEpoch, setFrameEpoch] = useState(0)
-  const sessionReadyRef = useRef(false)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const sessionVendorIdRef = useRef<string | null>(null)
   const requestSeq = useRef(0)
 
+  const { data, isLoading } = useAdminVendors({
+    page: 1,
+    size: 100,
+    status: 'approved',
+  })
+
+  const vendors = data?.items ?? []
+
+  const selectedVendor = useMemo(
+    () => vendors.find((v) => v.id === selectedVendorId) ?? null,
+    [vendors, selectedVendorId],
+  )
+
+  const vendorOptions = useMemo(
+    () =>
+      vendors.length
+        ? vendors.map((v) => ({
+            value: v.id,
+            label: v.slug ? `${v.display_name} (${v.slug})` : v.display_name,
+          }))
+        : [{ value: '', label: 'No approved accounts' }],
+    [vendors],
+  )
+
   useEffect(() => {
-    if (!getHrAdminNavItem(section) || hrItem.native || !hrItem.vendorPath) return
+    if (!vendors.length) return
+    if (selectedVendorId && vendors.some((v) => v.id === selectedVendorId)) return
+    const next = vendors[0].id
+    setSelectedVendorId(next)
+    storeVendorId(next)
+  }, [vendors, selectedVendorId])
 
-    const vendorPath = hrItem.vendorPath
-
-    // After the first handoff, switch menus by navigating the iframe URL directly
-    // (no postMessage). Correct for prod /admin + /vendor on the same host.
-    if (sessionReadyRef.current) {
-      const nextSrc = buildEmbedPageUrl(vendorPath)
-      setIframeSrc(nextSrc)
-      // Defer so the iframe element exists with the latest ref after state commit.
-      requestAnimationFrame(() => {
-        navigateIframe(iframeRef.current, vendorPath)
-      })
-      setLoadingFrame(false)
-      return
-    }
+  useEffect(() => {
+    if (!selectedVendorId || !getHrAdminNavItem(section) || hrItem.native || !hrItem.vendorPath) return
 
     const seq = ++requestSeq.current
     let cancelled = false
+    const targetPath = `${vendorAppOrigin()}${hrItem.vendorPath}`
+    const embedTarget = `${targetPath}${targetPath.includes('?') ? '&' : '?'}embed=1`
+
+    // Already signed into this business account in the iframe — change HR route only.
+    if (sessionVendorIdRef.current === selectedVendorId) {
+      setIframeSrc(embedTarget)
+      setLoadingFrame(false)
+      return
+    }
 
     const run = async () => {
       setLoadingFrame(true)
       setHandoffError(null)
       try {
-        const res = await adminApi.createPlatformHrDashboardHandoff()
+        const res = await adminApi.createVendorDashboardHandoff(selectedVendorId)
         if (cancelled || seq !== requestSeq.current) return
-        setIframeSrc(buildHandoffUrl(res.handoff_token, vendorPath))
-        sessionReadyRef.current = true
+        setIframeSrc(buildHandoffUrl(res.handoff_token, hrItem.vendorPath!, true))
+        sessionVendorIdRef.current = selectedVendorId
       } catch (err) {
         if (cancelled || seq !== requestSeq.current) return
         setIframeSrc(null)
-        sessionReadyRef.current = false
+        sessionVendorIdRef.current = null
         const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
         const msg =
           typeof detail === 'string'
             ? detail
             : detail != null
               ? JSON.stringify(detail)
-              : 'Could not open Kiterp HR module'
+              : 'Could not open HR module for this business account'
         setHandoffError(msg)
         toast.error(msg)
       } finally {
@@ -131,7 +148,7 @@ export default function HrManagement() {
     return () => {
       cancelled = true
     }
-  }, [hrItem.vendorPath, hrItem.native, section, frameEpoch])
+  }, [selectedVendorId, hrItem.vendorPath, section, frameEpoch])
 
   if (!allowed) {
     return <Navigate to="/dashboard" replace />
@@ -149,40 +166,67 @@ export default function HrManagement() {
     return <Navigate to={hrAdminPath(hrItem.slug)} replace />
   }
 
-  const reloadFrame = () => {
-    sessionReadyRef.current = false
+  const onVendorChange = (id: string) => {
+    setSelectedVendorId(id)
+    storeVendorId(id)
+    sessionVendorIdRef.current = null
     setIframeSrc(null)
     setHandoffError(null)
-    setFrameEpoch((k) => k + 1)
   }
 
   const openExternal = async () => {
+    if (!selectedVendorId) return
     try {
-      const res = await adminApi.createPlatformHrDashboardHandoff()
-      const params = new URLSearchParams({
-        token: res.handoff_token,
-        next: hrItem.vendorPath!,
-      })
-      window.open(`${vendorBase()}/auth/handoff?${params.toString()}`, '_blank', 'noopener,noreferrer')
+      const res = await adminApi.createVendorDashboardHandoff(selectedVendorId)
+      window.open(
+        buildHandoffUrl(res.handoff_token, hrItem.vendorPath!, false),
+        '_blank',
+        'noopener,noreferrer',
+      )
     } catch {
       toast.error('Could not open HR in a new tab')
     }
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col bg-white lg:h-screen">
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 px-4 py-4 sm:px-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{hrItem.label}</h1>
-          <p className="mt-1 text-sm text-gray-500">KIT ERP · HR Management</p>
+    <div className="flex h-[calc(100vh-3.5rem)] flex-col bg-gray-50 lg:h-screen">
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2">
+          <Store className="h-5 w-5 shrink-0 text-primary" />
+          <span className="hidden shrink-0 text-sm font-medium text-gray-900 sm:inline">Business account</span>
         </div>
-        <div className="flex items-center gap-1.5 pt-1">
+
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+        ) : (
+          <Select
+            value={selectedVendorId}
+            onChange={onVendorChange}
+            className="h-9 max-w-xs min-w-[12rem] flex-1 sm:flex-none"
+            disabled={!vendors.length}
+            placeholder="Select business account"
+            aria-label="Business account for HR"
+            options={vendorOptions}
+          />
+        )}
+
+        <div className="ml-auto flex items-center gap-1.5">
+          {selectedVendor ? (
+            <Button type="button" variant="outline" size="sm" asChild>
+              <Link to={`/dashboard/vendors/${selectedVendor.id}`}>Account</Link>
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
             size="sm"
-            disabled={loadingFrame}
-            onClick={reloadFrame}
+            disabled={!selectedVendorId || loadingFrame}
+            onClick={() => {
+              sessionVendorIdRef.current = null
+              setIframeSrc(null)
+              setHandoffError(null)
+              setFrameEpoch((k) => k + 1)
+            }}
             title="Reload HR module"
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -191,6 +235,7 @@ export default function HrManagement() {
             type="button"
             variant="outline"
             size="sm"
+            disabled={!selectedVendorId}
             onClick={() => void openExternal()}
             title="Open in new tab"
           >
@@ -213,16 +258,31 @@ export default function HrManagement() {
           <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-sm text-gray-600">
             <p className="font-medium text-gray-900">Could not open {hrItem.label}</p>
             <p className="max-w-md">{handoffError}</p>
-            <Button type="button" size="sm" variant="outline" onClick={reloadFrame}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                sessionVendorIdRef.current = null
+                setIframeSrc(null)
+                setHandoffError(null)
+                setFrameEpoch((k) => k + 1)
+              }}
+            >
               Retry
             </Button>
           </div>
         ) : null}
 
+        {!selectedVendorId && !isLoading ? (
+          <div className="flex h-full items-center justify-center p-8 text-center text-sm text-gray-500">
+            Select a business account to use HR Management.
+          </div>
+        ) : null}
+
         {iframeSrc ? (
           <iframe
-            ref={iframeRef}
-            key={`${PLATFORM_HR_SESSION_KEY}:${frameEpoch}`}
+            key={`${selectedVendorId}:${frameEpoch}`}
             title={`HR · ${hrItem.label}`}
             src={iframeSrc}
             className="h-full w-full border-0"
