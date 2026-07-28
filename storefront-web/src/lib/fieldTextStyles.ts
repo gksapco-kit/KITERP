@@ -181,14 +181,19 @@ export function fieldTextStyle(
   base: CSSProperties = {},
 ): CSSProperties {
   const fs = fieldStyleEntry(props, fieldKey)
+  // Body / multiline fields must wrap on phones — nowrap is applied via desktop
+  // media CSS only (see buildFieldStylesCss) so live inline styles don't clip copy.
+  const allowNowrap = fs.text_wrap === false && !isMultilineCanvasField(fieldKey)
   const wrapStyle =
     fs.text_wrap === true
       ? { whiteSpace: 'pre-wrap' as const, overflowWrap: 'break-word' as const }
-      : fs.text_wrap === false
+      : allowNowrap
         ? { whiteSpace: 'nowrap' as const }
         : fieldHasConstrainedBoxWidth(fs)
           ? { whiteSpace: 'pre-wrap' as const, overflowWrap: 'break-word' as const, wordBreak: 'break-word' as const }
-          : {}
+          : fs.text_wrap === false
+            ? { whiteSpace: 'pre-wrap' as const, overflowWrap: 'break-word' as const }
+            : {}
   return {
     ...base,
     ...(typeof fs.text_color_override === 'string' ? { color: fs.text_color_override } : {}),
@@ -397,7 +402,15 @@ export function buildFieldStylesCss(
       if (fs.text_wrap === true) {
         textRules.push('white-space: pre-wrap !important', 'overflow-wrap: break-word !important')
       } else if (fs.text_wrap === false) {
-        textRules.push('white-space: nowrap !important')
+        if (isMultilineCanvasField(key)) {
+          // Subtitle / eyebrow / body: always wrap (desktop nowrap clips on mobile).
+          textRules.push('white-space: pre-wrap !important', 'overflow-wrap: break-word !important')
+        } else {
+          // Short labels: keep nowrap on desktop only — phones wrap via globals.css.
+          desktopLayoutChunks.push(
+            `  [${bidAttr}="${bid}"] [data-text-key="${selectorKey}"] { white-space: nowrap !important; }\n`,
+          )
+        }
       }
       if (typeof fs.line_height_ratio === 'number' && fs.line_height_ratio > 0) {
         textRules.push(`line-height: ${fs.line_height_ratio} !important`)

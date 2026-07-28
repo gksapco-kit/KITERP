@@ -259,7 +259,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
         fieldKey="eyebrow"
         as="span"
         value={eyebrow}
-        className="inline-block max-w-full w-fit text-xs font-bold uppercase tracking-widest px-3.5 py-2 whitespace-nowrap"
+        className="inline-block max-w-full w-fit text-xs font-bold uppercase tracking-widest px-3.5 py-2 text-center whitespace-normal sm:whitespace-nowrap"
         style={{
           backgroundColor: panelUsesDarkText ? 'rgba(255,255,255,0.15)' : `${style.accent_color}22`,
           color: panelUsesDarkText ? '#fff' : style.accent_color,
@@ -474,7 +474,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
             : isSplit
               ? 'relative z-10 flex flex-1 max-w-xl flex-col gap-5'
               : cn(
-                  'relative z-10 mx-auto flex w-full max-w-3xl min-w-0 flex-col items-center gap-3 sm:gap-5 text-center px-1',
+                  'hero-panel-mobile-center relative z-10 mx-auto flex w-full max-w-3xl min-w-0 flex-col items-center gap-3 sm:gap-5 text-center px-1',
                   // Full-bleed banners: vertical padding so copy doesn’t hug the frame edges.
                   centeredImageTextPanel && 'py-8 sm:py-10 lg:py-12',
                   imageBgTextPassThrough && 'pointer-events-none [&>*]:pointer-events-auto',
@@ -496,6 +496,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
               'text-sm sm:text-base leading-relaxed w-full max-w-lg text-pretty break-words !whitespace-normal [overflow-wrap:anywhere]',
               centeredImageTextPanel && 'px-1',
               isSplit && !panelUsesDarkText && 'opacity-80',
+              (!isSplit || centered) && 'text-center',
             )}
             style={{
               color: heroSubText,

@@ -885,6 +885,18 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     width: 100% !important;
   }
 
+  /*
+   * Eyebrow / welcome chip: keep fit-content so items-center on the hero panel
+   * can actually center it. Width 100% above pins the chip to the left edge.
+   */
+  .builder-page [data-sf-bid] [data-field-layout='eyebrow'],
+  .builder-page [data-bid] [data-field-layout='eyebrow'],
+  .builder-page [data-field-layout='eyebrow'] {
+    width: fit-content !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
   .builder-page [data-sf-bid] [data-field-layout][data-field-width-constrained],
   .builder-page [data-bid] [data-field-layout][data-field-width-constrained],
   .builder-page [data-field-layout][data-field-width-constrained] {
@@ -925,11 +937,35 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     border-radius: 0 !important;
   }
 
-  /* Hero / body copy must wrap — the pill nowrap rule above is for short chips only. */
+  /*
+   * Hero / body copy must wrap — beat both the pill nowrap rule above and
+   * injected [data-sf-bid] [data-text-key] nowrap from builder field styles.
+   */
+  .builder-page [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='headline'],
+  .builder-page [data-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='headline'],
+  .builder-page [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='headline_line2'],
+  .builder-page [data-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='headline_line2'],
+  .builder-page [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='subtitle'],
+  .builder-page [data-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='subtitle'],
+  .builder-page [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='description'],
+  .builder-page [data-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='description'],
+  .builder-page [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='eyebrow'],
+  .builder-page [data-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='eyebrow'],
+  .builder-page [data-sf-bid] [data-text-key='headline'],
+  .builder-page [data-bid] [data-text-key='headline'],
+  .builder-page [data-sf-bid] [data-text-key='headline_line2'],
+  .builder-page [data-bid] [data-text-key='headline_line2'],
+  .builder-page [data-sf-bid] [data-text-key='subtitle'],
+  .builder-page [data-bid] [data-text-key='subtitle'],
+  .builder-page [data-sf-bid] [data-text-key='description'],
+  .builder-page [data-bid] [data-text-key='description'],
+  .builder-page [data-sf-bid] [data-text-key='eyebrow'],
+  .builder-page [data-bid] [data-text-key='eyebrow'],
   .builder-page [data-text-key='headline'],
   .builder-page [data-text-key='headline_line2'],
   .builder-page [data-text-key='subtitle'],
   .builder-page [data-text-key='description'],
+  .builder-page [data-text-key='eyebrow'],
   .builder-page [data-field-layout] > p[data-text-key],
   .builder-page [data-field-layout] > h1[data-text-key],
   .builder-page [data-field-layout] > h2[data-text-key],
@@ -938,6 +974,13 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     overflow-wrap: anywhere !important;
     word-break: break-word !important;
     max-width: 100% !important;
+  }
+
+  /* Centered hero panels: force centered copy on phones (builder left-align overrides). */
+  .builder-page [data-sf-bid] .hero-panel-mobile-center [data-text-key],
+  .builder-page [data-bid] .hero-panel-mobile-center [data-text-key],
+  .builder-page .hero-panel-mobile-center [data-text-key] {
+    text-align: center !important;
   }
 }
 
@@ -990,6 +1033,17 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   width: 100% !important;
 }
 
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout='eyebrow'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout='eyebrow'],
+[data-page-canvas][data-preview-bp='mobile'] [data-bid] [data-field-layout='eyebrow'],
+[data-page-canvas][data-preview-bp='tablet'] [data-bid] [data-field-layout='eyebrow'],
+[data-page-canvas][data-preview-bp='mobile'] [data-field-layout='eyebrow'],
+[data-page-canvas][data-preview-bp='tablet'] [data-field-layout='eyebrow'] {
+  width: fit-content !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
 [data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout][data-field-width-constrained],
 [data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout][data-field-width-constrained],
 [data-page-canvas][data-preview-bp='mobile'] [data-bid] [data-field-layout][data-field-width-constrained],
@@ -1033,6 +1087,26 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   border-radius: 0 !important;
 }
 
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='headline'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='headline'],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='headline_line2'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='headline_line2'],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='subtitle'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='subtitle'],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='description'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='description'],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='eyebrow'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-field-layout][data-field-width-constrained] > [data-text-key='eyebrow'],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-text-key='headline'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-text-key='headline'],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-text-key='headline_line2'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-text-key='headline_line2'],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-text-key='subtitle'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-text-key='subtitle'],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-text-key='description'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-text-key='description'],
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] [data-text-key='eyebrow'],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] [data-text-key='eyebrow'],
 [data-page-canvas][data-preview-bp='mobile'] [data-text-key='headline'],
 [data-page-canvas][data-preview-bp='tablet'] [data-text-key='headline'],
 [data-page-canvas][data-preview-bp='mobile'] [data-text-key='headline_line2'],
@@ -1041,6 +1115,8 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 [data-page-canvas][data-preview-bp='tablet'] [data-text-key='subtitle'],
 [data-page-canvas][data-preview-bp='mobile'] [data-text-key='description'],
 [data-page-canvas][data-preview-bp='tablet'] [data-text-key='description'],
+[data-page-canvas][data-preview-bp='mobile'] [data-text-key='eyebrow'],
+[data-page-canvas][data-preview-bp='tablet'] [data-text-key='eyebrow'],
 [data-page-canvas][data-preview-bp='mobile'] [data-field-layout] > p[data-text-key],
 [data-page-canvas][data-preview-bp='tablet'] [data-field-layout] > p[data-text-key],
 [data-page-canvas][data-preview-bp='mobile'] [data-field-layout] > h1[data-text-key],
@@ -1049,6 +1125,15 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   overflow-wrap: anywhere !important;
   word-break: break-word !important;
   max-width: 100% !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [data-sf-bid] .hero-panel-mobile-center [data-text-key],
+[data-page-canvas][data-preview-bp='tablet'] [data-sf-bid] .hero-panel-mobile-center [data-text-key],
+[data-page-canvas][data-preview-bp='mobile'] [data-bid] .hero-panel-mobile-center [data-text-key],
+[data-page-canvas][data-preview-bp='tablet'] [data-bid] .hero-panel-mobile-center [data-text-key],
+[data-page-canvas][data-preview-bp='mobile'] .hero-panel-mobile-center [data-text-key],
+[data-page-canvas][data-preview-bp='tablet'] .hero-panel-mobile-center [data-text-key] {
+  text-align: center !important;
 }
 
 [data-page-canvas][data-preview-bp='mobile'] [data-text-key],
