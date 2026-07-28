@@ -457,6 +457,7 @@ export default function Customers() {
                     </td>
                     <td className="px-6 py-4 hidden sm:table-cell">
                       <InlineEditCell
+                        type="phone"
                         value={c.phone || ''}
                         saving={isSaving(c.id, 'phone')}
                         onSave={(v) => patchField(c.id, 'phone', String(v).trim())}

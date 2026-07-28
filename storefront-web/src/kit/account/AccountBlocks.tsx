@@ -3,6 +3,7 @@ import { Camera, Trash2, Pencil, Plus, Star, Share2, Grid, List as ListIcon, Sho
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -13,27 +14,17 @@ import { formatPrice } from "../mock";
 
 /* ---------------- Profile Edit ---------------- */
 
-function phoneForDisplay(stored: string | null | undefined): string {
-  const raw = (stored ?? "").trim();
-  if (!raw) return "";
-  const digits = raw.replace(/\D/g, "");
-  if (digits.length === 12 && digits.startsWith("91") && /^[6789]/.test(digits.slice(2))) {
-    return digits.slice(2);
-  }
-  return digits || raw;
-}
-
 export function ProfileEdit({ user, onSave }: { user: AccountUser; onSave?: (u: AccountUser) => void }) {
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
-  const [phone, setPhone] = useState(() => phoneForDisplay(user.phone));
+  const [phone, setPhone] = useState(user.phone ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setName(user.name);
     setEmail(user.email);
-    setPhone(phoneForDisplay(user.phone));
+    setPhone(user.phone ?? "");
     setAvatarUrl(user.avatarUrl);
   }, [user.id, user.name, user.email, user.phone, user.avatarUrl]);
 
@@ -63,7 +54,19 @@ export function ProfileEdit({ user, onSave }: { user: AccountUser; onSave?: (u: 
           <div className="grid sm:grid-cols-2 gap-3">
             <div><Label htmlFor="pf-name">Full name</Label><Input id="pf-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
             <div><Label htmlFor="pf-email">Email</Label><Input id="pf-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1" /></div>
-            <div className="sm:col-span-2"><Label htmlFor="pf-phone">Phone</Label><Input id="pf-phone" type="tel" inputMode="numeric" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="Mobile number" className="mt-1" /></div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="pf-phone">Phone</Label>
+              <PhoneInput
+                id="pf-phone"
+                className="mt-1"
+                value={phone}
+                onChange={setPhone}
+                defaultCountryIso="IN"
+                autoComplete="tel"
+                name="phone"
+                showStatusHints={false}
+              />
+            </div>
           </div>
           <Button type="submit">Save changes</Button>
         </form>
@@ -230,7 +233,19 @@ function AddressForm({ initial, onSave, onCancel, saving }: { initial?: Address;
         <div className="sm:col-span-2"><Label className={labelCls}>State</Label><Input value={a.state ?? ""} onChange={(e) => set("state", e.target.value)} className={inputCls} /></div>
         <div className="sm:col-span-2"><Label className={labelCls}>Postal code</Label><Input required value={a.postalCode} onChange={(e) => set("postalCode", e.target.value)} className={inputCls} /></div>
         <div className="sm:col-span-3"><Label className={labelCls}>Country</Label><Input required value={a.country} onChange={(e) => set("country", e.target.value)} className={inputCls} /></div>
-        <div className="sm:col-span-3"><Label className={labelCls}>Phone</Label><Input value={a.phone ?? ""} onChange={(e) => set("phone", e.target.value)} className={inputCls} /></div>
+        <div className="sm:col-span-3">
+          <Label className={labelCls}>Phone</Label>
+          <PhoneInput
+            className={inputCls}
+            value={a.phone ?? ""}
+            onChange={(v) => set("phone", v)}
+            defaultCountryIso="IN"
+            autoComplete="tel"
+            name="phone"
+            size="sm"
+            showStatusHints={false}
+          />
+        </div>
       </div>
       <div className="flex gap-2"><Button type="submit" size="sm" disabled={saving}>{saving ? "Saving…" : "Save"}</Button><Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={saving}>Cancel</Button></div>
     </form>

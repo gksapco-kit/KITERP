@@ -88,43 +88,46 @@ export function TableToolbar({
       {hint ? (
         <button
           type="button"
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground sm:inline-flex"
           title={hint}
           aria-label={hint}
         >
           <Info className="h-3.5 w-3.5" />
         </button>
       ) : null}
-      <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Sort</span>
-      <ThemeSelect
-        value={sortKey}
-        onChange={onSortKeyChange}
-        options={sortOptions.map((o) => ({ value: o.value, label: o.label }))}
-        aria-label="Sort by column"
-        className="h-8 text-xs"
-        wrapperClassName="w-[7.5rem] shrink-0"
-      />
-      <ThemeSelect
-        value={sortDir}
-        onChange={(v) => onSortDirChange(v as SortDir)}
-        options={[
-          { value: 'asc', label: 'Low → High' },
-          { value: 'desc', label: 'High → Low' },
-        ]}
-        aria-label="Sort direction"
-        className="h-8 text-xs"
-        wrapperClassName="w-[9rem] shrink-0"
-        menuMinWidth={140}
-      />
-      {extra}
+      <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Sort</span>
+      {/* Stay in a 2-col grid until lg — dashboard cards are half-width from lg and overflow with fixed select widths */}
+      <div className="grid min-w-0 w-full flex-1 grid-cols-2 gap-1.5 lg:flex lg:w-auto lg:flex-none lg:items-center">
+        <ThemeSelect
+          value={sortKey}
+          onChange={onSortKeyChange}
+          options={sortOptions.map((o) => ({ value: o.value, label: o.label }))}
+          aria-label="Sort by column"
+          className="h-8 text-xs"
+          wrapperClassName="min-w-0 w-full lg:w-[7.5rem]"
+        />
+        <ThemeSelect
+          value={sortDir}
+          onChange={(v) => onSortDirChange(v as SortDir)}
+          options={[
+            { value: 'asc', label: 'Asc' },
+            { value: 'desc', label: 'Desc' },
+          ]}
+          aria-label="Sort direction"
+          className="h-8 text-xs"
+          wrapperClassName="min-w-0 w-full lg:w-[5.5rem]"
+          menuMinWidth={100}
+        />
+      </div>
+      {extra ? <div className="w-full min-w-0 lg:w-auto">{extra}</div> : null}
     </>
   )
 
   const pushSortRight = hideSearch && !leading && !hasMoreOptions
 
   return (
-    <div className="border-b border-border/60 bg-muted/25">
-      <div className={cn('flex flex-wrap items-center gap-1.5 px-3 py-2 sm:gap-2', className)}>
+    <div className="min-w-0 max-w-full overflow-hidden border-b border-border/60 bg-muted/25">
+      <div className={cn('flex min-w-0 max-w-full flex-wrap items-center gap-1.5 px-3 py-2 sm:gap-2', className)}>
         {(leading || moreOptionsButton) && (
           <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
             {leading}
@@ -132,7 +135,7 @@ export function TableToolbar({
           </div>
         )}
         {!hideSearch && (
-          <div className={`relative min-w-0 ${searchWrapperClassName}`}>
+          <div className={`relative min-w-0 max-w-full ${searchWrapperClassName}`}>
             <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               data-kiterp-search-field
@@ -145,7 +148,12 @@ export function TableToolbar({
           </div>
         )}
         {!hideSort && (
-          <div className={cn('flex shrink-0 items-center gap-1.5', pushSortRight && 'ml-auto')}>
+          <div
+            className={cn(
+              'flex min-w-0 w-full max-w-full items-center gap-1.5 lg:w-auto lg:shrink-0',
+              pushSortRight && 'lg:ml-auto',
+            )}
+          >
             {sortControls}
           </div>
         )}

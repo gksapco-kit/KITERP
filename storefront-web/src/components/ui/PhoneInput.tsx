@@ -132,9 +132,11 @@ function CountryDropdown({
                     isSelected && 'bg-blue-50',
                   )}
                 >
-                  <span className="text-base leading-none w-6 text-center">{c.flag}</span>
+                  <span className="w-7 shrink-0 text-center text-[11px] font-semibold leading-none text-gray-700">
+                    {c.iso}
+                  </span>
                   <span className="flex-1 truncate text-gray-800">{c.name}</span>
-                  <span className="text-xs text-gray-400 font-mono shrink-0">{c.dialCode}</span>
+                  <span className="shrink-0 text-xs text-gray-400">{c.dialCode}</span>
                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
                 </button>
                 {isLastPopular && <div className="border-t border-gray-100 my-0.5" />}
@@ -270,32 +272,56 @@ export function PhoneInput({
 
   return (
     <div className={cn(showStatusHints || showErrorMessage ? 'space-y-1' : undefined, className)}>
-      <div ref={wrapRef} className="relative flex items-stretch">
-        {/* Country trigger */}
+      <div
+        ref={wrapRef}
+        className={cn(
+          'phone-input-shell relative flex items-stretch overflow-hidden rounded-xl border bg-white transition-[border-color,box-shadow]',
+          fieldH,
+          dropOpen
+            ? 'border-[var(--kiterp-primary,#64c3a0)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--kiterp-primary,#64c3a0)_18%,transparent)]'
+            : error
+              ? 'border-red-400'
+              : isOverLimit
+                ? 'border-amber-400'
+                : isFull
+                  ? 'border-[var(--kiterp-primary-deeper,#3d9a7a)]'
+                  : 'border-gray-200 hover:border-gray-300',
+          disabled && 'opacity-50',
+        )}
+      >
+        {/* Country trigger — ISO + dial (flags render as letters on Windows). */}
         <button
           type="button"
           disabled={disabled}
           onClick={() => setDropOpen(v => !v)}
           aria-label={`Country code ${country.dialCode}`}
+          title={`${country.name} (${country.iso})`}
           className={cn(
-            'flex items-center rounded-l-lg border border-r-0 bg-gray-50 hover:bg-gray-100 transition-colors shrink-0 text-sm',
-            isSm ? 'gap-1 px-2' : 'gap-1.5 px-3',
-            fieldH,
+            'phone-input-country inline-flex shrink-0 items-center justify-center self-stretch border-0 border-r border-gray-100 py-0 leading-none transition-colors',
+            'bg-[color-mix(in_srgb,var(--kiterp-mint-bg,#eef9f4)_75%,#f8fafc)] hover:bg-[color-mix(in_srgb,var(--kiterp-mint-soft,#d4f0e8)_50%,#f3f4f6)]',
+            'box-border',
+            isSm ? 'gap-0.5 px-2' : 'gap-1 px-2.5',
             focusRingClassName,
-            dropOpen ? 'border-blue-500 ring-1 ring-blue-400 z-10' : 'border-gray-300',
-            error && 'border-red-400',
-            disabled && 'opacity-50 cursor-not-allowed',
+            disabled && 'cursor-not-allowed',
           )}
         >
-          <span className={cn('leading-none', isSm ? 'text-base' : 'text-lg')}>{country.flag}</span>
-          <span className={cn('font-mono text-gray-700', isSm ? 'text-[11px]' : 'text-xs min-w-[32px]')}>
-            {country.dialCode}
+          <span className={cn('whitespace-nowrap text-xs leading-none text-gray-700', isSm && 'text-[11px]')}>
+            <span className="font-semibold tracking-wide">{country.iso}</span>
+            {' '}
+            <span className="font-medium text-[var(--kiterp-primary-deeper,#3d9a7a)]">{country.dialCode}</span>
           </span>
-          <ChevronDown className={cn('text-gray-400 transition-transform', isSm ? 'w-3 h-3' : 'w-3.5 h-3.5', dropOpen && 'rotate-180')} />
+          <ChevronDown
+            className={cn(
+              'shrink-0 text-gray-400 transition-transform',
+              isSm ? 'h-3 w-3' : 'h-3.5 w-3.5',
+              dropOpen && 'rotate-180',
+            )}
+            aria-hidden
+          />
         </button>
 
         {/* Number input */}
-        <div className="relative flex-1 min-w-0">
+        <div className="relative flex min-w-0 flex-1">
           <input
             id={id}
             name={name}
@@ -309,18 +335,10 @@ export function PhoneInput({
             onBlur={handleBlur}
             placeholder={placeholder ?? (country.iso === 'IN' ? '98765 43210' : 'Phone number')}
             className={cn(
-              'w-full rounded-r-lg border text-sm outline-none transition-all',
-              isSm ? 'px-2.5 pr-10' : 'px-3',
-              fieldH,
-              'focus:ring-0 focus:ring-offset-0 focus:border-primary',
-              error
-                ? 'border-red-400 bg-red-50/30 focus:border-red-500'
-                : isOverLimit
-                  ? 'border-amber-400 bg-amber-50/20 focus:border-amber-500'
-                  : isFull
-                    ? 'border-green-400 bg-green-50/20 focus:border-green-500'
-                    : 'border-gray-300',
-              disabled && 'opacity-50 cursor-not-allowed bg-gray-50',
+              'phone-input-number h-full w-full self-stretch border-0 bg-transparent text-sm outline-none box-border',
+              isSm ? 'px-2.5 pr-10' : 'px-3 pr-11',
+              'focus:ring-0 focus:ring-offset-0',
+              disabled && 'cursor-not-allowed',
             )}
           />
           {/* Digit counter */}
@@ -330,7 +348,9 @@ export function PhoneInput({
               isSm ? 'text-[10px]' : 'text-xs right-2.5',
               isOverLimit || localNumber.length >= maxDigits - 1
                 ? 'text-amber-500'
-                : 'text-gray-300',
+                : isFull
+                  ? 'text-[var(--kiterp-primary-deeper,#3d9a7a)]'
+                  : 'text-gray-300',
             )}>
               {localNumber.length}/{maxDigits}
             </span>

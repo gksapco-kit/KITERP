@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Loader2, Home, ToggleLeft, ToggleRight, ImagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
@@ -286,7 +287,16 @@ function PropertyModal({
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Agent phone</Label>
-                <Input className="h-8 text-sm" value={agentPhone} onChange={e => setAgentPhone(e.target.value)} />
+                <PhoneInput
+                  value={agentPhone}
+                  onChange={setAgentPhone}
+                  defaultCountryIso="IN"
+                  compact
+                  compactCountry
+                  subtleFeedback
+                  autoComplete="tel"
+                  name="phone"
+                />
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Agent email</Label>

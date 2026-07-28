@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Address } from "../types";
 import { useCheckoutConfig } from "../config";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 
 type Props = {
   initial?: Partial<Address>;
@@ -172,14 +173,15 @@ export function AddressForm({ initial, onSubmit, onChange, hideSubmit, formId, f
           </select>
         </Field>
         <Field label={`Phone${requirePhone ? "" : " (optional)"}`} error={displayErrors.phone} fieldKey="phone">
-          <input
-            className="ck-input"
-            autoComplete="tel"
-            type="tel"
+          <PhoneInput
             value={v.phone}
-            aria-invalid={!!displayErrors.phone}
-            data-checkout-field="phone"
-            onChange={(e) => update("phone", e.target.value)}
+            onChange={(phone) => update("phone", phone)}
+            defaultCountryIso="IN"
+            autoComplete="tel"
+            name="phone"
+            showStatusHints={false}
+            showErrorMessage={false}
+            className={displayErrors.phone ? "ck-phone-error" : undefined}
           />
         </Field>
       </div>

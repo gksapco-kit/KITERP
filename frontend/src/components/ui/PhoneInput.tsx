@@ -132,9 +132,11 @@ function CountryDropdown({
                     isSelected && 'bg-blue-50',
                   )}
                 >
-                  <span className="text-base leading-none w-6 text-center">{c.flag}</span>
+                  <span className="w-7 shrink-0 text-center text-[11px] font-semibold leading-none text-gray-700">
+                    {c.iso}
+                  </span>
                   <span className="flex-1 truncate text-gray-800">{c.name}</span>
-                  <span className="text-xs text-gray-400 font-mono shrink-0">{c.dialCode}</span>
+                  <span className="shrink-0 text-xs text-gray-400">{c.dialCode}</span>
                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
                 </button>
                 {isLastPopular && <div className="border-t border-gray-100 my-0.5" />}
@@ -264,40 +266,40 @@ export function PhoneInput({
 
   return (
     <div className={cn(!compact && 'space-y-1', className)}>
-      <div ref={wrapRef} className="relative flex items-stretch">
-        {/* Country trigger */}
+      <div ref={wrapRef} className={cn('relative flex items-stretch', controlH)}>
+        {/* Country trigger — ISO + dial (flags render as letters on Windows). */}
         <button
           type="button"
           disabled={disabled}
           onClick={() => setDropOpen(v => !v)}
           title={`${country.name} (${country.iso})`}
+          aria-label={`Country code ${country.dialCode}`}
           className={cn(
-            'inline-flex items-center rounded-l-lg border border-r-0 bg-gray-50 hover:bg-gray-100 transition-colors shrink-0 text-sm',
-            controlH,
-            compact ? 'gap-0.5 px-1.5' : 'gap-1 px-2',
+            'inline-flex shrink-0 items-center justify-center self-stretch border border-r-0 bg-gray-50 py-0 leading-none hover:bg-gray-100 transition-colors',
+            'rounded-l-lg box-border',
+            compact ? 'gap-0.5 px-1.5' : 'gap-1 px-2.5',
             dropOpen ? 'border-blue-500 ring-1 ring-blue-400 z-10' : 'border-gray-300',
             error && 'border-red-400',
             disabled && 'opacity-50 cursor-not-allowed',
           )}
         >
-          {/* Skip flag in compact mode — on Windows, 🇮🇳 often renders as the letters "IN". */}
-          {!compact && (
-            <span className="text-base leading-none" aria-hidden>
-              {country.flag}
-            </span>
-          )}
-          <span className="font-mono text-xs text-gray-700 tabular-nums">{country.dialCode}</span>
+          <span className={cn('whitespace-nowrap text-xs leading-none text-gray-700', compact && 'text-[11px]')}>
+            <span className="font-semibold">{country.iso}</span>
+            {' '}
+            <span className="font-normal text-gray-600">{country.dialCode}</span>
+          </span>
           <ChevronDown
             className={cn(
-              'text-gray-400 transition-transform shrink-0',
-              compact ? 'w-3 h-3' : 'w-3.5 h-3.5',
+              'shrink-0 text-gray-400 transition-transform',
+              compact ? 'h-3 w-3' : 'h-3.5 w-3.5',
               dropOpen && 'rotate-180',
             )}
+            aria-hidden
           />
         </button>
 
         {/* Number input */}
-        <div className="relative flex-1">
+        <div className="relative flex min-w-0 flex-1">
           <input
             id={id}
             name={name}
@@ -311,8 +313,7 @@ export function PhoneInput({
             onBlur={handleBlur}
             placeholder={placeholder ?? (country.iso === 'IN' ? '98765 43210' : 'Phone number')}
             className={cn(
-              'w-full rounded-r-lg border px-3 text-sm outline-none transition-all',
-              controlH,
+              'h-full w-full self-stretch rounded-r-lg border px-3 text-sm outline-none transition-all box-border',
               'focus:ring-0 focus:ring-offset-0 focus:border-primary',
               error
                 ? 'border-red-400 bg-red-50/30 focus:border-red-500'

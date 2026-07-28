@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { Minus, Plus, Users, Calendar, Mail, Phone, Check } from "lucide-react";
+import { Minus, Plus, Users, Calendar, Mail, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -217,10 +218,16 @@ export function WaitlistFlow({ service, onJoin }: WaitlistProps) {
           </div>
           <div>
             <Label htmlFor="wl-phone">Phone</Label>
-            <div className="relative mt-1">
-              <Phone className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="wl-phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-8" />
-            </div>
+            <PhoneInput
+              id="wl-phone"
+              className="mt-1"
+              value={phone}
+              onChange={setPhone}
+              defaultCountryIso="IN"
+              autoComplete="tel"
+              name="phone"
+              showStatusHints={false}
+            />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Joining..." : "Join waitlist"}

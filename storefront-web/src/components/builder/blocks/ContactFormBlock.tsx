@@ -15,6 +15,7 @@ import { publicSitesApi } from '@/api/publicSites'
 import { cn, imgUrl } from '@/lib/utils'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
@@ -123,7 +124,7 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
   const defaultFields: FormField[] = [
     { name: 'name', label: 'Full Name', type: 'text', required: true, placeholder: 'Your Name', step: 1 },
     { name: 'email', label: 'Email Address', type: 'email', required: true, placeholder: 'your@email.com', step: 1 },
-    { name: 'phone', label: 'Phone (optional)', type: 'tel', required: false, placeholder: '+1 234 567 8900', step: 1 },
+    { name: 'phone', label: 'Phone (optional)', type: 'tel', required: false, placeholder: 'Mobile number', step: 1 },
     { name: 'message', label: 'Message', type: 'textarea', required: true, placeholder: 'How can we help you?', step: 2 },
   ]
   const minimalDefaultFields: FormField[] = [
@@ -293,6 +294,8 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
   // Multi-line / bulky field types don't fit a horizontal "inline" bar — let them
   // break onto their own full-width row instead of squeezing the row's height.
   const isBulkyField = (field: FormField) => ['textarea', 'checkbox', 'file'].includes(field.type)
+  const isPhoneField = (field: FormField) =>
+    field.type === 'tel' || /^(phone|mobile|whatsapp)$/i.test(field.name)
 
   const fieldItemClass = (field: FormField) => cn(
     isInline && (isBulkyField(field) ? 'w-full basis-full' : 'flex-1 min-w-[160px]'),
@@ -401,7 +404,21 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
               </div>
             )}
 
-            {!['textarea', 'select', 'checkbox', 'file', 'hidden'].includes(field.type) && (
+            {isPhoneField(field) && (
+              <PhoneInput
+                id={`contact-${field.name}`}
+                name={field.name}
+                value={values[field.name] || ''}
+                onChange={v => setValue(field.name, v)}
+                placeholder={field.placeholder || 'Mobile number'}
+                defaultCountryIso="IN"
+                autoComplete="tel"
+                showStatusHints={false}
+                showErrorMessage={false}
+              />
+            )}
+
+            {!isPhoneField(field) && !['textarea', 'select', 'checkbox', 'file', 'hidden'].includes(field.type) && (
               <input
                 type={field.type}
                 placeholder={field.placeholder || field.label}

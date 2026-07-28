@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useIntegrations, useUpsertIntegration, useSetIntegrationCheckoutActive } from '@/hooks/useCrm'
 import { crmApi, type Integration } from '@/api/crm'
 import { Plus, Loader2, CheckCircle2, AlertTriangle, Trash2, Zap, Eye, EyeOff, Copy, MessageSquare, CreditCard, Plug2 } from 'lucide-react'
@@ -355,11 +356,15 @@ function IntegrationForm({
             )}
             {showPhoneTest && (
               <Field label="Send test SMS to (E.164)">
-                <Input
-                  type="tel"
-                  placeholder="+919876543210"
+                <PhoneInput
                   value={testPhone}
-                  onChange={e => setTestPhone(e.target.value)}
+                  onChange={setTestPhone}
+                  defaultCountryIso="IN"
+                  compact
+                  compactCountry
+                  subtleFeedback
+                  autoComplete="tel"
+                  name="phone"
                 />
               </Field>
             )}

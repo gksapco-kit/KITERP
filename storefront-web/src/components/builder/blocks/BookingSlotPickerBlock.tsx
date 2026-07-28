@@ -10,6 +10,7 @@ import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { publicSitesApi } from '@/api/publicSites'
 import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 
 interface Props { site: PublicSite; style: StyleConfig; props: Record<string, unknown>; liveItems: LiveItem[]; blockId?: string }
 
@@ -219,7 +220,6 @@ export default function BookingSlotPickerBlock({ site, style, props, liveItems, 
                 {[
                   { key: 'name', label: 'Full Name', type: 'text', required: true },
                   { key: 'email', label: 'Email', type: 'email', required: true },
-                  { key: 'phone', label: 'Phone', type: 'tel', required: false },
                   { key: 'notes', label: 'Notes (optional)', type: 'text', required: false },
                 ].map(({ key, label, type, required }) => (
                   <div key={key}>
@@ -234,6 +234,17 @@ export default function BookingSlotPickerBlock({ site, style, props, liveItems, 
                     />
                   </div>
                 ))}
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">Phone</label>
+                  <PhoneInput
+                    value={form.phone}
+                    onChange={v => setForm(f => ({ ...f, phone: v }))}
+                    defaultCountryIso="IN"
+                    autoComplete="tel"
+                    name="phone"
+                    showStatusHints={false}
+                  />
+                </div>
                 <button
                   onClick={handleConfirm}
                   disabled={submitting || !form.name || !form.email}

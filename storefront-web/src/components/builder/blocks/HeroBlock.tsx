@@ -338,8 +338,11 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
         value={headline ?? ''}
         className={
           isSplit
-            ? cn('text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight', !splitSideBySide && 'mb-5')
-            : 'text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-5'
+            ? cn(
+                'text-3xl sm:text-5xl md:text-6xl font-extrabold leading-tight max-w-full break-words text-balance',
+                !splitSideBySide && 'mb-4 sm:mb-5',
+              )
+            : 'text-2xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-3 sm:mb-5 max-w-full break-words text-balance'
         }
         style={headlineBaseStyle}
       />
@@ -471,7 +474,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
             : isSplit
               ? 'relative z-10 flex flex-1 max-w-xl flex-col gap-5'
               : cn(
-                  'relative z-10 mx-auto flex w-full max-w-3xl flex-col items-center gap-5 text-center',
+                  'relative z-10 mx-auto flex w-full max-w-3xl min-w-0 flex-col items-center gap-3 sm:gap-5 text-center px-1',
                   // Full-bleed banners: vertical padding so copy doesn’t hug the frame edges.
                   centeredImageTextPanel && 'py-8 sm:py-10 lg:py-12',
                   imageBgTextPassThrough && 'pointer-events-none [&>*]:pointer-events-auto',
@@ -488,10 +491,16 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
             fieldKey="subtitle"
             as="p"
             value={subtitle ?? ''}
-            className={`text-base leading-relaxed max-w-lg text-pretty ${isSplit && !panelUsesDarkText ? 'opacity-80' : ''}`}
+            className={cn(
+              // Force wrap on phones — builder nowrap / fixed widths were clipping mid-sentence.
+              'text-sm sm:text-base leading-relaxed w-full max-w-lg text-pretty break-words !whitespace-normal [overflow-wrap:anywhere]',
+              centeredImageTextPanel && 'px-1',
+              isSplit && !panelUsesDarkText && 'opacity-80',
+            )}
             style={{
               color: heroSubText,
               margin: isSplit && !centered ? undefined : '0 auto',
+              whiteSpace: 'normal',
             }}
           />
         )}
@@ -535,7 +544,10 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
 
   if (isOverlap) {
     return (
-      <section className="relative overflow-hidden min-h-[420px] md:min-h-[520px]" style={{ color: heroText }}>
+      <section
+        className="relative overflow-hidden flex flex-col min-h-[min(70vh,520px)] md:min-h-[520px]"
+        style={{ color: heroText }}
+      >
         {showSideImage ? (
         <MediaClipFrame clip={mediaClip} className="absolute inset-0">
           {sideImageUrl ? (
@@ -554,10 +566,17 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
         {showSideImage && props.overlay !== false && (
           <div className="pointer-events-none absolute inset-0 z-0 bg-black/35" />
         )}
-        <div className={cn('absolute bottom-6 z-10', builderSectionInsetClass('left-0 right-0'))}>
-          <div className="rounded-xl bg-white shadow-lg p-6 md:p-8 text-gray-900">
+        {/* Mobile: in-flow card so copy isn't clipped by overflow-hidden + absolute bottom. */}
+        <div
+          className={cn(
+            'z-10 mt-auto w-full',
+            'relative pt-[42%] pb-4 md:absolute md:inset-x-0 md:bottom-6 md:pt-0 md:pb-0',
+            builderSectionInsetClass(),
+          )}
+        >
+          <div className="rounded-xl bg-white shadow-lg p-5 sm:p-6 md:p-8 text-gray-900 max-w-full min-w-0">
             {renderTextPanel({
-              className: 'space-y-5 relative z-10 max-w-3xl',
+              className: 'space-y-4 sm:space-y-5 relative z-10 max-w-3xl min-w-0',
               style: { zIndex: 1 },
             })}
           </div>
@@ -566,16 +585,18 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
     )
   }
 
-  const centeredImageHeroClass =
-    heroUsesImageBg && !splitSideBySide && !isSplit
-      ? cn(
-          BUILDER_SECTION_INSET_X,
-          // Frame follows each banner's natural aspect ratio (see bannerAspect style below).
-          // Vertically center the text cluster over the image (matches legacy HeroSection).
-          'relative flex w-full max-h-[min(70vh,640px)] items-center justify-center overflow-hidden bg-muted/30 transition-[aspect-ratio] duration-500 ease-in-out',
-          !bannerAspect && 'aspect-[3/1]',
-        )
-      : cn(BUILDER_SECTION_INSET_X, 'relative py-24')
+  const isCenteredImageHero = heroUsesImageBg && !splitSideBySide && !isSplit
+
+  const centeredImageHeroClass = isCenteredImageHero
+    ? cn(
+        BUILDER_SECTION_INSET_X,
+        'relative flex w-full flex-col justify-center overflow-hidden bg-muted/30',
+        // Mobile: height follows copy so subtitle/CTA aren't clipped by a short aspect frame.
+        'min-h-[min(52vh,420px)]',
+        // Desktop: banner aspect + max height (spacer below drives the frame).
+        'md:max-h-[min(70vh,640px)] md:transition-[max-height] md:duration-500 md:ease-in-out',
+      )
+    : cn(BUILDER_SECTION_INSET_X, 'relative py-24')
 
   return (
     <section
@@ -608,12 +629,20 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
               backgroundPosition: isEditorCanvas && heroUsesImageBg ? undefined : bgImagePosition,
               backgroundRepeat: isEditorCanvas && heroUsesImageBg ? undefined : 'no-repeat',
               color: heroText,
-              ...(heroUsesImageBg && !splitSideBySide && !isSplit && bannerAspect
-                ? { aspectRatio: String(bannerAspect) }
-                : {}),
             }
       }
     >
+      {/* Desktop-only aspect spacer — keeps banner proportions without clipping mobile copy. */}
+      {isCenteredImageHero ? (
+        <div
+          className={cn(
+            'pointer-events-none w-full max-md:hidden shrink-0',
+            !bannerAspect && 'aspect-[3/1]',
+          )}
+          style={bannerAspect ? { aspectRatio: String(bannerAspect) } : undefined}
+          aria-hidden
+        />
+      ) : null}
       {heroUsesImageBg && heroBackgroundUrls.length > 0 && !bgImageHidden ? (
         <div className="absolute inset-0 z-0">
           {useBannerCarousel ? (
@@ -673,6 +702,10 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
           {renderTextPanel()}
           {renderSideImage()}
         </>
+      ) : isCenteredImageHero ? (
+        <div className="relative z-10 flex w-full min-w-0 flex-1 items-center justify-center md:absolute md:inset-0">
+          {renderTextPanel()}
+        </div>
       ) : (
         <>
           {renderTextPanel()}

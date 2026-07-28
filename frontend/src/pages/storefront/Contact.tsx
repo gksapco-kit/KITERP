@@ -3,6 +3,7 @@ import { useParams, useOutletContext } from 'react-router-dom'
 import { Phone, Mail, MapPin, MessageCircle, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
 import { storefrontApi, type StorefrontVendor } from '@/api/storefront.api'
 
@@ -195,11 +196,14 @@ export default function StorefrontContact() {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">Phone</label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="Phone number"
+              <PhoneInput
                 className="mt-1"
+                value={formData.phone}
+                onChange={(phone) => setFormData({ ...formData, phone })}
+                defaultCountryIso="IN"
+                autoComplete="tel"
+                name="phone"
+                showStatusHints={false}
               />
             </div>
             <div>

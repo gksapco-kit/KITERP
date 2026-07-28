@@ -7,6 +7,7 @@ import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import { useDocumentSeo } from '@/lib/documentSeo'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import '@/styles/kiterp-landing.css'
 
 type PlatformContact = {
@@ -189,11 +190,13 @@ export default function LandingContact() {
 
               <label className="kiterp-contact-field">
                 <span>Phone</span>
-                <input
+                <PhoneInput
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="Mobile number"
+                  onChange={(phone) => setForm({ ...form, phone })}
+                  defaultCountryIso="IN"
                   autoComplete="tel"
+                  name="phone"
+                  showStatusHints={false}
                 />
               </label>
 

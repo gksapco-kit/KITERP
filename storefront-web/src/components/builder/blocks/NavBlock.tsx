@@ -218,7 +218,10 @@ export default function NavBlock({
       'rounded-md font-medium transition-colors',
       mobile
         ? 'block px-3 py-2.5 text-base'
-        : cn('text-sm whitespace-nowrap', compact ? 'px-2 py-1' : 'px-3 py-2'),
+        : cn(
+          'text-sm whitespace-nowrap shrink-0 max-w-[9.5rem] truncate',
+          compact ? 'px-1.5 py-1 xl:px-2' : 'px-2 py-1.5 xl:px-3',
+        ),
       active
         ? mobile
           ? 'font-semibold bg-primary/10'
@@ -257,6 +260,7 @@ export default function NavBlock({
         <a
           key={link.href}
           href={link.href}
+          title={link.label}
           onClick={(e) => {
             if (mobile) closeMobileMenu()
             previewNavClick(e, link.href)
@@ -274,6 +278,7 @@ export default function NavBlock({
       <Link
         key={link.href}
         to={link.href}
+        title={link.label}
         onClick={builderNavClick}
         className={className}
         style={style}
@@ -324,8 +329,9 @@ export default function NavBlock({
 
   const brandTextClass = cn(
     resolveNavBrandTextClass(props, shell.isCompact),
-    // Logo mark already carries the wordmark on small screens — avoid "Sunrise I…" crunch.
-    showLogoImageResolved && 'max-md:hidden',
+    // Logo mark carries the wordmark until xl — keeps brand from colliding with nav links
+    // on typical desktop widths (md–lg) when many pages are in the menu.
+    showLogoImageResolved && 'max-xl:hidden',
   )
   const brandTextStyle = { color: shell.navBrandCol, fontFamily: style.font_heading }
 
@@ -495,7 +501,7 @@ export default function NavBlock({
         <Button
           variant="ghost"
           size="icon"
-          className={cn('shrink-0 h-9 w-9', !narrowNavPreview && 'md:hidden')}
+          className={cn('shrink-0 h-9 w-9', !narrowNavPreview && 'lg:hidden')}
           style={{ color: shell.navTextCol }}
           aria-label="Open menu"
         >
@@ -627,13 +633,13 @@ export default function NavBlock({
   )
 
   const renderMobileHeaderRow = () => searchOpen ? (
-    <div className={cn('flex w-full items-center gap-2 min-w-0', !narrowNavPreview && 'md:hidden')}>
+    <div className={cn('flex w-full items-center gap-2 min-w-0', !narrowNavPreview && 'lg:hidden')}>
       {mobileMenuNode}
       {mobileSearchBarNode}
       {mobileCartNode}
     </div>
   ) : (
-    <div className={cn('flex w-full items-center gap-2 min-w-0', !narrowNavPreview && 'md:hidden')}>
+    <div className={cn('flex w-full items-center gap-2 min-w-0', !narrowNavPreview && 'lg:hidden')}>
       {mobileMenuNode}
       <div className="min-w-0 flex-1 overflow-hidden">
         {logoNode}
@@ -643,12 +649,23 @@ export default function NavBlock({
   )
 
   const linksNode = kitLinks.length > 0 && (
-    <nav className={cn(
-      'flex items-center gap-1 flex-wrap min-w-0',
-      shell.isCentered ? 'justify-center' : 'justify-center',
-      forceNavLinksVisible ? 'flex' : narrowNavPreview ? 'hidden' : 'hidden md:flex',
-    )}>
-      {kitLinks.map(link => renderNavLinkItem(link))}
+    <nav
+      className={cn(
+        // Scroll container only — centering lives on the inner row so "Home" is never
+        // clipped when the link list overflows (justify-center + overflow cuts the start).
+        'min-w-0 max-w-full overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
+        forceNavLinksVisible ? 'block' : narrowNavPreview ? 'hidden' : 'hidden lg:block',
+      )}
+      aria-label="Primary"
+    >
+      <div
+        className={cn(
+          'flex w-max min-w-full items-center gap-0.5 xl:gap-1 flex-nowrap',
+          'justify-center',
+        )}
+      >
+        {kitLinks.map(link => renderNavLinkItem(link))}
+      </div>
     </nav>
   )
 
@@ -719,7 +736,7 @@ export default function NavBlock({
         )
       )}
       {showAccount && (
-        <div className="hidden md:block">
+        <div className="hidden lg:block">
           {builderCanvas?.onNavigate ? (
             <button
               type="button"
@@ -748,7 +765,7 @@ export default function NavBlock({
         </div>
       )}
       {showBranchPicker && !shell.isCentered && (
-        <div className="hidden md:flex items-center shrink-0">
+        <div className="hidden lg:flex items-center shrink-0">
           <StoreBranchPicker />
         </div>
       )}
@@ -760,7 +777,7 @@ export default function NavBlock({
           label={ctaLabel}
           href={ctaUrl}
           className={cn(
-            'hidden md:inline-flex text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity leading-none',
+            'hidden lg:inline-flex text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity leading-none',
             shell.isCompact ? 'px-3 py-1.5' : 'px-3.5 py-2',
             shell.isTransparentCta && 'ring-2 ring-white/30',
           )}
@@ -794,14 +811,13 @@ export default function NavBlock({
             builderSectionContainerClass('relative overflow-visible', navRowPaddingClass),
             shell.isCentered
               ? 'flex flex-col items-center text-center gap-2'
-              : 'flex items-center justify-between gap-3',
+              : 'flex items-center justify-between gap-3 min-w-0',
             shell.isElevated && '!mx-3 sm:!mx-4 !max-w-none mt-2 rounded-xl shadow-lg border border-black/5',
           )}
           style={
             !shell.isCentered
               ? {
-                  // Fixed bar height — logo size can scale without growing the header.
-                  height: navRowMinHeight,
+                  // Min height keeps the bar stable; allow growth if content needs it.
                   minHeight: navRowMinHeight,
                 }
               : undefined
@@ -811,8 +827,8 @@ export default function NavBlock({
             <>
               {renderMobileHeaderRow()}
               <div className={cn(
-                'flex-col items-center text-center gap-2 w-full',
-                narrowNavPreview ? 'hidden' : 'hidden md:flex',
+                'flex-col items-center text-center gap-2 w-full min-w-0',
+                narrowNavPreview ? 'hidden' : 'hidden lg:flex',
               )}>
                 {logoNode}
                 {linksNode}
@@ -823,16 +839,18 @@ export default function NavBlock({
             <>
               {renderMobileHeaderRow()}
               <div className={cn(
-                'w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3',
-                narrowNavPreview ? 'hidden' : 'hidden md:grid',
+                // auto | flexible links | auto — brand & actions keep intrinsic width so
+                // they never collapse under a wide link row and paint on top of it.
+                'w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 xl:gap-4',
+                narrowNavPreview ? 'hidden' : 'hidden lg:grid',
               )}>
-                <div className="col-start-1 flex items-center gap-2 min-w-0 justify-self-start">
+                <div className="col-start-1 flex items-center gap-2 min-w-0 max-w-[min(28vw,200px)] xl:max-w-[min(32vw,280px)] overflow-hidden justify-self-start">
                   {logoNode}
                 </div>
-                <div className="col-start-2 flex min-w-0 justify-center">
+                <div className="col-start-2 flex min-w-0 justify-center px-1">
                   {linksNode}
                 </div>
-                <div className="col-start-3 flex min-w-0 justify-self-end">
+                <div className="col-start-3 flex shrink-0 justify-self-end">
                   {actionsNode}
                 </div>
               </div>

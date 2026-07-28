@@ -412,11 +412,11 @@ function HeaderQuickActionButtons({
   const menuClass =
     'absolute right-0 top-full z-[100] mt-1.5 w-52 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg'
   const iconBtn =
-    'flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground'
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground lg:h-7 lg:w-7'
 
   return (
     <div
-      className={cn(headerBarPillClass, 'gap-0.5 p-0.5')}
+      className={cn(headerBarPillClass, 'h-9 gap-0.5 p-0.5 lg:h-8')}
       aria-label="Page actions"
     >
       <div className="flex items-center gap-0.5" role="group" aria-label="Navigation">
@@ -435,14 +435,14 @@ function HeaderQuickActionButtons({
           onClick={() => window.history.forward()}
           title="Go forward"
           aria-label="Go forward"
-          className={iconBtn}
+          className={cn(iconBtn, 'hidden md:flex')}
         >
           <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
         </button>
 
-        <UniversalSaveToolbarButton className={iconBtn} />
+        <UniversalSaveToolbarButton className={cn(iconBtn, 'hidden md:flex')} />
 
-        <div ref={helpRef} className="relative shrink-0">
+        <div ref={helpRef} className="relative hidden shrink-0 md:block">
           <button
             type="button"
             title="Help & support"
@@ -492,8 +492,18 @@ function HeaderQuickActionButtons({
                 onClick={() => { onOpenSearch(); setMoreOpen(false) }}>
                 <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span className="flex-1 text-left">Search</span>
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
+                <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground md:inline">⌘K</kbd>
               </button>
+              <button type="button"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted md:hidden"
+                onClick={() => { window.history.forward(); setMoreOpen(false) }}>
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" /> Go forward
+              </button>
+              <a href="https://docs.kiterp.com" target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted md:hidden"
+                onClick={() => setMoreOpen(false)}>
+                <HelpCircle className="h-4 w-4 shrink-0 text-muted-foreground" /> Help & support
+              </a>
               <button type="button"
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
                 onClick={() => { onNavigateNotifications(); setMoreOpen(false) }}>
@@ -510,17 +520,17 @@ function HeaderQuickActionButtons({
         </div>
       </div>
 
-      <div className="mx-0.5 h-4 w-px shrink-0 bg-border/80" aria-hidden />
+      <div className="mx-0.5 hidden h-4 w-px shrink-0 bg-border/80 lg:block" aria-hidden />
 
       <button
         type="button"
         onClick={() => { setHelpOpen(false); setMoreOpen(false); onOpenSearch() }}
-        className="flex h-7 min-w-[7.5rem] items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+        className="hidden h-7 min-w-[7.5rem] items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-background hover:text-foreground lg:flex"
         aria-label="Search"
       >
         <Search className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
         <span className="min-w-0 flex-1 truncate text-left text-[11px]">Search…</span>
-        <kbd className="hidden rounded border border-border/80 bg-background/80 px-1 py-px font-mono text-[9px] text-muted-foreground/80 sm:inline">⌘K</kbd>
+        <kbd className="rounded border border-border/80 bg-background/80 px-1 py-px font-mono text-[9px] text-muted-foreground/80">⌘K</kbd>
       </button>
     </div>
   )
@@ -3916,21 +3926,21 @@ export default function DashboardLayout() {
           )}
           aria-hidden={kiterpModalOpen || undefined}
         >
-          <div className="flex h-14 w-full min-w-0 items-center gap-2 px-3">
-            {/* Title — fixed width on the left */}
-            <div className="flex h-8 min-w-0 max-w-[14rem] shrink-0 items-center gap-1.5">
+          <div className="flex h-14 w-full min-w-0 items-center gap-1.5 px-2 sm:gap-2 sm:px-3">
+            {/* Title — flexes on mobile so the toolbar never overflows */}
+            <div className="flex h-9 min-w-0 flex-1 items-center gap-1 sm:h-8 lg:max-w-[14rem] lg:flex-none lg:shrink-0 lg:gap-1.5">
               <button
                 type="button"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted lg:hidden"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted lg:hidden"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open menu"
                 tabIndex={kiterpModalOpen ? -1 : undefined}
               >
-                <Menu className="h-4 w-4" />
+                <Menu className="h-5 w-5" />
               </button>
 
               <h1
-                className="min-w-0 flex-1 truncate text-base font-semibold leading-none text-foreground"
+                className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-tight text-foreground sm:text-base sm:leading-none"
                 title={pageTitle}
               >
                 {location.pathname === '/settings'
@@ -3941,14 +3951,14 @@ export default function DashboardLayout() {
               </h1>
             </div>
 
-            <div className="min-h-px min-w-0 flex-1" aria-hidden />
+            <div className="min-h-px min-w-0 flex-1 max-lg:hidden" aria-hidden />
 
-            {/* Toolbar — pinned to the right end */}
-            <div className="flex shrink-0 items-center gap-1.5">
+            {/* Toolbar — pinned to the right end; condensed below lg */}
+            <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
               {showRmSupportAudit ? (
                 <Link
                   to="/settings/support-activity"
-                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+                  className="hidden h-8 shrink-0 items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10 md:inline-flex"
                 >
                   <HelpCircle className="h-3 w-3 shrink-0" />
                   Support audit
@@ -3975,7 +3985,7 @@ export default function DashboardLayout() {
                   title={storeHeaderName}
                   className={cn(
                     headerBarPillClass,
-                    'w-[min(12rem,28vw)] min-w-[9rem] gap-1 px-2',
+                    'h-9 w-9 justify-center gap-0 p-0 lg:h-8 lg:w-[min(12rem,28vw)] lg:min-w-[9rem] lg:gap-1 lg:px-2',
                     storePillActive
                       ? 'border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/15 hover:bg-primary/90 hover:border-primary'
                       : 'transition-colors hover:bg-muted hover:text-foreground',
@@ -4002,12 +4012,12 @@ export default function DashboardLayout() {
                       <Store className="h-3 w-3 shrink-0" />
                     </span>
                   )}
-                  <span className="min-w-0 flex-1 truncate" title={storeHeaderName}>
+                  <span className="hidden min-w-0 flex-1 truncate lg:block" title={storeHeaderName}>
                     {storeHeaderName}
                   </span>
                   <ChevronDown
                     className={cn(
-                      'h-3 w-3 shrink-0 opacity-70 transition-transform duration-200 motion-reduce:transition-none',
+                      'hidden h-3 w-3 shrink-0 opacity-70 transition-transform duration-200 motion-reduce:transition-none lg:block',
                       storePickerOpen && 'rotate-180',
                     )}
                   />
@@ -4027,7 +4037,7 @@ export default function DashboardLayout() {
                   setMoreOpen(false)
                   navigate('/notifications')
                 }}
-                className="relative z-[81] flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/40 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="relative z-[81] flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/40 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:h-8 lg:w-8"
               >
                 <Bell className="h-3.5 w-3.5" />
                 {unreadCount > 0 && (
@@ -4044,7 +4054,7 @@ export default function DashboardLayout() {
                   title={profileHoverTitle}
                   aria-label={profileHoverTitle ?? 'Open profile menu'}
                   className={cn(
-                    'flex h-8 max-w-[9.5rem] min-w-0 items-center gap-1 rounded-md py-0.5 pl-0.5 pr-1',
+                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-md p-0.5 lg:h-8 lg:w-auto lg:max-w-[9.5rem] lg:min-w-0 lg:gap-1 lg:justify-start lg:py-0.5 lg:pl-0.5 lg:pr-1',
                     profileOpen ? 'bg-muted ring-1 ring-border/60' : 'hover:bg-muted/70',
                   )}
                 >
@@ -4052,11 +4062,11 @@ export default function DashboardLayout() {
                     user={user}
                     className="h-5 w-5 shrink-0 ring-1 ring-primary/20"
                   />
-                  <span className="hidden min-w-0 flex-1 truncate text-left text-[11px] leading-tight sm:block" title={profileHoverTitle}>
+                  <span className="hidden min-w-0 flex-1 truncate text-left text-[11px] leading-tight lg:block" title={profileHoverTitle}>
                     <span className="font-medium text-foreground">{profileDisplayName}</span>
                     <span className="text-muted-foreground"> · {roleBadge}</span>
                   </span>
-                  <ChevronDown className={cn('h-3 w-3 shrink-0 text-muted-foreground', profileOpen && 'rotate-180')} />
+                  <ChevronDown className={cn('hidden h-3 w-3 shrink-0 text-muted-foreground lg:block', profileOpen && 'rotate-180')} />
                 </button>
 
                 {profileOpen && profilePanelPos && createPortal(

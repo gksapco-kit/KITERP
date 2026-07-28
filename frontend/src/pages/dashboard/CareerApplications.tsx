@@ -26,6 +26,7 @@ import {
   type AttachmentPreview,
 } from '@/components/common/AttachmentPreviewModal'
 import { askConfirm } from '@/components/common/ConfirmProvider'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
 import { cn, mediaUrl } from '@/lib/utils'
@@ -396,10 +397,13 @@ function CareerDetailsEditModal({
           </div>
           <div>
             <Label className="text-xs">Phone</Label>
-            <input
+            <PhoneInput
               value={draft.phone}
-              onChange={(e) => set('phone', e.target.value)}
-              className={fieldClass}
+              onChange={(phone) => set('phone', phone)}
+              defaultCountryIso="IN"
+              autoComplete="tel"
+              name="phone"
+              compact
             />
           </div>
           <div>

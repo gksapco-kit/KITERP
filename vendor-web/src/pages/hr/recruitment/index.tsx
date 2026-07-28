@@ -3,6 +3,7 @@ import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Button } from '@/components/ui/button'
 import { hrInputClass, hrSelectClass, hrTabActiveClass, hrTabInactiveClass, hrTableHeadClass, hrStatusBadge, hrLabelClass, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
 import { Label } from '@/components/ui/label'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -474,11 +475,15 @@ function CandidateModal({
               </div>
               <div>
                 <Label className={denseLabelClass}>Phone</Label>
-                <input
+                <PhoneInput
                   value={form.phone}
-                  onChange={e => setForm({ ...form, phone: e.target.value })}
-                  className={denseFieldClass}
-                  placeholder="Mobile"
+                  onChange={v => setForm({ ...form, phone: v })}
+                  defaultCountryIso="IN"
+                  compact
+                  compactCountry
+                  subtleFeedback
+                  autoComplete="tel"
+                  name="phone"
                 />
               </div>
               <div>

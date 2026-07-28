@@ -223,6 +223,7 @@ export default function SuppliersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <InlineEditCell
+                        type="phone"
                         value={s.phone || ''}
                         saving={isSaving(s.id, 'phone')}
                         onSave={(v) => patchField(s.id, 'phone', String(v).trim())}

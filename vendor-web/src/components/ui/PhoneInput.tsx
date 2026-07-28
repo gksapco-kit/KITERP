@@ -179,9 +179,11 @@ function CountryDropdown({
                     isSelected && 'bg-accent',
                   )}
                 >
-                  <span className="text-base leading-none">{c.flag}</span>
+                  <span className="w-7 shrink-0 text-center text-[11px] font-semibold leading-none">
+                    {c.iso}
+                  </span>
                   <span className="flex-1 truncate">{c.name}</span>
-                  <span className="text-xs text-muted-foreground font-mono shrink-0">{c.dialCode}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{c.dialCode}</span>
                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary/80 shrink-0" />}
                 </button>
                 {isLastPopular && <div className="border-t border-border my-0.5" />}
@@ -401,16 +403,17 @@ export function PhoneInput({
           {label}
         </Label>
       ) : null}
-      <div ref={wrapRef} className={phoneInputUi.row} data-phone-input="">
-        {/* Country picker trigger */}
+      <div ref={wrapRef} className={cn(phoneInputUi.row, rowH)} data-phone-input="">
+        {/* Country picker — ISO + dial (flags render as letters on Windows). */}
         <button
           type="button"
           disabled={disabled}
           onClick={() => setDropOpen(v => !v)}
           aria-label={`Country code ${country.dialCode}`}
+          title={`${country.name} (${country.iso})`}
           className={cn(
             phoneInputUi.countryTrigger,
-            rowH,
+            'self-stretch py-0 leading-none box-border',
             focusRingClassName,
             compactCountry
               ? 'min-w-[4.25rem] gap-0.5 px-2'
@@ -420,23 +423,19 @@ export function PhoneInput({
             disabled && 'opacity-50 cursor-not-allowed',
           )}
         >
-          {!compactCountry && (
-            <span
-              className={cn(
-                'inline-flex shrink-0 items-center justify-center leading-none',
-                compact ? 'h-3.5 w-4 text-sm' : comfortable ? (dense ? 'h-3.5 w-4 text-sm' : 'h-4 w-5 text-base') : 'h-4 w-5 text-base',
-              )}
-              aria-hidden
-            >
-              {country.flag}
-            </span>
-          )}
-          <span className={cn('font-mono tabular-nums leading-none', textSize, compactCountry && 'text-[11px]')}>
-            {country.dialCode}
+          <span
+            className={cn(
+              'whitespace-nowrap leading-none text-foreground',
+              compact || compactCountry ? 'text-[11px]' : 'text-xs',
+            )}
+          >
+            <span className="font-semibold">{country.iso}</span>
+            {' '}
+            <span className="font-normal text-muted-foreground">{country.dialCode}</span>
           </span>
           <ChevronDown
             className={cn(
-              'shrink-0 self-center text-muted-foreground transition-transform',
+              'shrink-0 text-muted-foreground transition-transform',
               chevronSize,
               dropOpen && 'rotate-180',
             )}
@@ -445,7 +444,7 @@ export function PhoneInput({
         </button>
 
         {/* Number input */}
-        <div className="relative min-w-[7.5rem] flex-1">
+        <div className="relative flex min-w-[7.5rem] flex-1">
           <input
             id={id}
             name={name}
@@ -460,8 +459,7 @@ export function PhoneInput({
             placeholder={placeholder ?? (country.iso === 'IN' ? '98765 43210' : 'Phone number')}
             className={cn(
               phoneInputUi.numberField,
-              'min-w-0',
-              rowH,
+              'min-w-0 h-full self-stretch box-border',
               textSize,
               compact ? 'px-2.5 sm:px-3' : comfortable ? (dense ? 'px-2.5' : 'px-3') : 'px-3',
               // Counter sits inside the field — reserve space when visible

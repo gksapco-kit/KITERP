@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -36,10 +37,21 @@ type InlineEditSelectProps = InlineEditCellBaseProps & {
   display?: ReactNode
 }
 
-export type InlineEditCellProps = InlineEditTextProps | InlineEditSelectProps
+type InlineEditPhoneProps = InlineEditCellBaseProps & {
+  type: 'phone'
+  value: string
+  onSave: (value: string) => void | Promise<void>
+  validate?: (value: string) => string | null
+}
+
+export type InlineEditCellProps = InlineEditTextProps | InlineEditSelectProps | InlineEditPhoneProps
 
 function isSelectProps(props: InlineEditCellProps): props is InlineEditSelectProps {
   return props.type === 'select'
+}
+
+function isPhoneProps(props: InlineEditCellProps): props is InlineEditPhoneProps {
+  return props.type === 'phone'
 }
 
 export function InlineEditCell(props: InlineEditCellProps) {
@@ -48,6 +60,7 @@ export function InlineEditCell(props: InlineEditCellProps) {
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const phoneWrapperRef = useRef<HTMLDivElement>(null)
   const selectWrapperRef = useRef<HTMLDivElement>(null)
   const skipBlurSave = useRef(false)
 
@@ -56,7 +69,7 @@ export function InlineEditCell(props: InlineEditCellProps) {
       if (readOnly) toast.info(readOnlyMessage ?? 'This value is calculated automatically')
       return
     }
-    if (isSelectProps(props)) {
+    if (isSelectProps(props) || isPhoneProps(props)) {
       setDraft(props.value)
     } else {
       setDraft(String(props.value ?? ''))
@@ -71,6 +84,10 @@ export function InlineEditCell(props: InlineEditCellProps) {
       selectWrapperRef.current?.querySelector('button')?.focus()
       return
     }
+    if (isPhoneProps(props)) {
+      phoneWrapperRef.current?.querySelector<HTMLInputElement>('input[type="tel"]')?.focus()
+      return
+    }
     const el = inputRef.current
     if (!el) return
     el.focus()
@@ -83,6 +100,33 @@ export function InlineEditCell(props: InlineEditCellProps) {
   }, [])
 
   const commit = useCallback(async () => {
+    if (isPhoneProps(props)) {
+      const parsed = draft.trim()
+
+      if (props.validate) {
+        const validationError = props.validate(parsed)
+        if (validationError) {
+          setError(validationError)
+          return
+        }
+      }
+
+      const unchanged = parsed === (props.value || '').trim()
+      if (unchanged) {
+        setEditing(false)
+        return
+      }
+
+      try {
+        await props.onSave(parsed)
+        setEditing(false)
+        setError(null)
+      } catch {
+        setError('Could not save')
+      }
+      return
+    }
+
     if (isSelectProps(props)) {
       if (draft === props.value) {
         setEditing(false)
@@ -144,6 +188,35 @@ export function InlineEditCell(props: InlineEditCellProps) {
   }
 
   if (editing) {
+    if (isPhoneProps(props)) {
+      return (
+        <div
+          ref={phoneWrapperRef}
+          data-stop-row-click
+          className={cn('relative min-w-[11rem]', className)}
+          title={title}
+          tabIndex={-1}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              onBlur()
+            }
+          }}
+          onKeyDown={onKeyDown}
+        >
+          <PhoneInput
+            value={draft}
+            onChange={(v) => { setDraft(v); setError(null) }}
+            defaultCountryIso="IN"
+            compact
+            compactCountry
+            subtleFeedback
+            disabled={saving}
+          />
+          {error && <p className="mt-0.5 text-[10px] text-red-600">{error}</p>}
+        </div>
+      )
+    }
+
     if (isSelectProps(props)) {
       return (
         <div

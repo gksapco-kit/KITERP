@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useAuthStore } from '@/stores/authStore'
 import {
   useMe, useUpdateMe, useChangePassword, useUploadAvatar, useLogout, useDeleteAccount, useRequestAccountDeleteOtp,
@@ -27,6 +28,7 @@ import {
   ExternalLink, RefreshCcw, Info, X, Trash2, SlidersHorizontal,
 } from 'lucide-react'
 import { cn, mediaUrl } from '@/lib/utils'
+import { normalizePhoneE164, isValidPhoneE164 } from '@/lib/phoneE164'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import { toast } from 'sonner'
@@ -332,25 +334,11 @@ function joinPersonName(firstName: string, lastName: string): string {
   return [firstName.trim(), lastName.trim()].filter(Boolean).join(' ')
 }
 
-function phoneForDisplay(stored: string | null | undefined): string {
-  const raw = (stored ?? '').trim()
-  if (!raw) return ''
-  const digits = raw.replace(/\D/g, '')
-  if (digits.length === 12 && digits.startsWith('91') && /^[6789]/.test(digits.slice(2))) {
-    return digits.slice(2)
-  }
-  return digits || raw
-}
-
 function phonesEquivalent(a: string, b: string): boolean {
-  const da = phoneForDisplay(a)
-  const db = phoneForDisplay(b)
-  if (!da && !db) return true
-  if (!da || !db) return false
-  if (da === db) return true
-  const shorter = da.length <= db.length ? da : db
-  const longer = da.length <= db.length ? db : da
-  return shorter.length >= 10 && longer.endsWith(shorter)
+  const na = normalizePhoneE164(a)
+  const nb = normalizePhoneE164(b)
+  if (!na && !nb) return true
+  return na === nb
 }
 
 function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => void }) {
@@ -359,14 +347,14 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
   const level = userVerificationLevel(user)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [phone, setPhone] = useState(() => phoneForDisplay(user?.phone))
+  const [phone, setPhone] = useState(() => (user?.phone ?? '').trim())
   const [phoneVerifiedReadyToSave, setPhoneVerifiedReadyToSave] = useState(false)
 
   useEffect(() => {
     const { firstName: first, lastName: last } = splitPersonName(user?.full_name || '')
     setFirstName(first)
     setLastName(last)
-    setPhone(phoneForDisplay(user?.phone))
+    setPhone((user?.phone ?? '').trim())
   }, [user?.full_name, user?.phone])
 
   const savedFullName = (user?.full_name || '').trim()
@@ -414,7 +402,7 @@ function PersonalInfoSection({ open, toggle }: { open: boolean; toggle: () => vo
     const { firstName: first, lastName: last } = splitPersonName(user?.full_name || '')
     setFirstName(first)
     setLastName(last)
-    setPhone(phoneForDisplay(user?.phone))
+    setPhone((user?.phone ?? '').trim())
     setPhoneVerifiedReadyToSave(false)
   }
 
@@ -1354,15 +1342,17 @@ function ContactChangeRequestPanel({
                 className="mt-0.5 h-9"
               />
             ) : (
-              <Input
+              <PhoneInput
                 id={`new-${fieldType}`}
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel"
                 value={newValue}
-                onChange={(e) => setNewValue(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                placeholder="Mobile number"
-                className="mt-0.5 h-9"
+                onChange={setNewValue}
+                defaultCountryIso="IN"
+                compact
+                compactCountry
+                subtleFeedback
+                autoComplete="tel"
+                name="phone"
+                className="mt-0.5"
               />
             )}
           </div>
@@ -1529,8 +1519,7 @@ function PhoneFieldWithVerification({
   const [hint, setHint] = useState<string | undefined>()
   const [stagingPhone, setStagingPhone] = useState(false)
 
-  const phoneDigits = phone.replace(/\D/g, '')
-  const hasValidPhone = phoneDigits.length === 10
+  const hasValidPhone = Boolean(phone.trim()) && isValidPhoneE164(phone)
   const phoneChanged = phoneDirty
   const showVerifiedBadge = Boolean(user?.is_phone_verified && !phoneChanged && phone.trim())
   const needsOtp = Boolean(phone.trim()) && (!user?.is_phone_verified || phoneChanged)
@@ -1550,7 +1539,7 @@ function PhoneFieldWithVerification({
         try {
           const me = await authApi.getMe()
           setUser(me)
-          if (me.phone) onPhoneChange(phoneForDisplay(me.phone))
+          if (me.phone) onPhoneChange(me.phone.trim())
         } catch {
           /* OTP sent; profile refresh is best-effort */
         }
@@ -1568,7 +1557,7 @@ function PhoneFieldWithVerification({
         setHint(undefined)
         setUser(updatedUser)
         if (updatedUser.phone) {
-          onPhoneChange(phoneForDisplay(updatedUser.phone))
+          onPhoneChange(updatedUser.phone.trim())
         }
         onPhoneVerified?.()
       },
@@ -1601,15 +1590,16 @@ function PhoneFieldWithVerification({
           ) : null
         }
         field={
-          <Input
+          <PhoneInput
             id="phone"
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel"
             value={phone}
-            onChange={(e) => onPhoneChange(e.target.value.replace(/\D/g, '').slice(0, 10))}
-            placeholder="Mobile number"
-            className={cn(verifyRowHeight, 'font-mono tabular-nums')}
+            onChange={onPhoneChange}
+            defaultCountryIso="IN"
+            compact
+            compactCountry
+            subtleFeedback
+            autoComplete="tel"
+            name="phone"
           />
         }
         verify={

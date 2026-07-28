@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +50,7 @@ export function Checkout({
 }: CheckoutProps) {
   const [shipping, setShipping] = useState("standard");
   const [pay, setPay] = useState("card");
+  const [demoPhone, setDemoPhone] = useState("+15550142280");
 
   // mockProducts is a shared, mutable array — a live-synced product block earlier on the
   // same page can replace its contents with real vendor products, so these static demo
@@ -143,7 +145,16 @@ export function Checkout({
           <Field label="City"><Input defaultValue="Brooklyn" /></Field>
           <Field label="State"><Input defaultValue="NY" /></Field>
           <Field label="ZIP code"><Input defaultValue="11221" /></Field>
-          <Field label="Phone"><Input defaultValue="+1 (555) 014-2280" /></Field>
+          <Field label="Phone">
+            <PhoneInput
+              value={demoPhone}
+              onChange={setDemoPhone}
+              defaultCountryIso="US"
+              autoComplete="tel"
+              name="phone"
+              showStatusHints={false}
+            />
+          </Field>
         </div>
       </Section>
 

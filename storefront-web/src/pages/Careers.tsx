@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiClient } from '@/api/client'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
@@ -107,6 +108,13 @@ const FAQS = [
     q: 'What happens after I apply?',
     a: 'You will get a confirmation toast and email when available. Our HR team reviews applications and contacts shortlisted candidates.',
   },
+] as const
+
+const FORM_STEPS = [
+  { id: 'personal', label: 'Personal' },
+  { id: 'work', label: 'Work' },
+  { id: 'links', label: 'Links' },
+  { id: 'docs', label: 'Docs' },
 ] as const
 
 const EMPTY_FORM: FormState = {
@@ -281,6 +289,28 @@ export default function Careers() {
   const selectedJob = openings.find((j) => j.id === selectedJobId) ?? null
   const detailJob = openings.find((j) => j.id === detailJobId) ?? null
   const totalOpenSlots = openings.reduce((sum, j) => sum + (j.openings || 1), 0)
+
+  const formProgress = useMemo(() => {
+    const personalDone =
+      Boolean(form.first_name.trim()) &&
+      Boolean(form.last_name.trim()) &&
+      Boolean(form.email.trim()) &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+    const workDone =
+      Boolean(form.experience_years.trim()) ||
+      Boolean(form.current_role.trim()) ||
+      Boolean(form.company.trim()) ||
+      Boolean(form.skills.trim())
+    const linksDone = Boolean(form.linkedin.trim()) || Boolean(form.portfolio.trim())
+    const docsDone = Boolean(cv) || Boolean(photo)
+    const steps = [personalDone, workDone, linksDone, docsDone]
+    const doneCount = steps.filter(Boolean).length
+    return {
+      steps,
+      doneCount,
+      percent: Math.round((doneCount / steps.length) * 100),
+    }
+  }, [form, cv, photo])
 
   const setField = (key: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -569,7 +599,9 @@ export default function Careers() {
               <div>
                 <p className="kiterp-careers-eyebrow">Current openings</p>
                 <h2 id="openings-title">Find your next role</h2>
-                <p>Filter by department, location, or employment type — then apply in one click.</p>
+                {!openingsLoading && openings.length === 0 ? null : (
+                  <p>Filter by department, location, or employment type — then apply in one click.</p>
+                )}
               </div>
               {!openingsLoading && openings.length > 0 ? (
                 <button type="button" className="kiterp-careers-ghost-btn" onClick={startGeneralApply}>
@@ -578,74 +610,137 @@ export default function Careers() {
               ) : null}
             </header>
 
-            <div className="kiterp-careers-filters">
-              <label className="kiterp-careers-filter-search">
-                <Search className="w-4 h-4" aria-hidden />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search jobs…"
-                  aria-label="Filter jobs by keyword"
-                />
-              </label>
-              <select
-                value={deptFilter}
-                onChange={(e) => setDeptFilter(e.target.value)}
-                aria-label="Department"
-              >
-                <option value="">Department</option>
-                {departments.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={locFilter}
-                onChange={(e) => setLocFilter(e.target.value)}
-                aria-label="Location"
-              >
-                <option value="">Location</option>
-                {locations.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                aria-label="Job type"
-              >
-                <option value="">Job type</option>
-                {employmentTypes.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!openingsLoading && openings.length > 0 ? (
+              <div className="kiterp-careers-filters">
+                <label className="kiterp-careers-filter-search">
+                  <Search className="w-4 h-4" aria-hidden />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search jobs…"
+                    aria-label="Filter jobs by keyword"
+                  />
+                </label>
+                <select
+                  value={deptFilter}
+                  onChange={(e) => setDeptFilter(e.target.value)}
+                  aria-label="Department"
+                >
+                  <option value="">Department</option>
+                  {departments.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={locFilter}
+                  onChange={(e) => setLocFilter(e.target.value)}
+                  aria-label="Location"
+                >
+                  <option value="">Location</option>
+                  {locations.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  aria-label="Job type"
+                >
+                  <option value="">Job type</option>
+                  {employmentTypes.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
 
             {openingsLoading ? (
-              <div className="kiterp-careers-openings-empty">
-                <Loader2 className="w-6 h-6 animate-spin text-[var(--kiterp-primary)]" />
-                <p>Loading openings…</p>
+              <div className="kiterp-careers-openings-empty" role="status">
+                <span className="kiterp-careers-empty-icon kiterp-careers-empty-icon--loading" aria-hidden>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </span>
+                <p className="kiterp-careers-empty-lead">Loading openings…</p>
               </div>
             ) : openings.length === 0 ? (
-              <div className="kiterp-careers-openings-empty">
-                <Briefcase className="w-8 h-8 text-[color-mix(in_srgb,var(--kiterp-ink)_28%,transparent)]" />
-                <p>No open positions right now.</p>
-                <button type="button" className="kiterp-btn-primary mt-3" onClick={startGeneralApply}>
-                  Send a general application
-                </button>
+              <div className="kiterp-careers-empty-band">
+                <div className="kiterp-careers-empty-copy">
+                  <span className="kiterp-careers-empty-status">
+                    <span className="kiterp-careers-empty-status-dot" aria-hidden />
+                    Talent pipeline open
+                  </span>
+                  <h3 className="kiterp-careers-empty-title">
+                    No open roles
+                    <span className="kiterp-careers-empty-title-accent"> right now</span>
+                  </h3>
+                  <p className="kiterp-careers-empty-lead">
+                    We’re not hiring for a specific seat — but exceptional people still catch our eye.
+                    Drop your profile and we’ll reach out when a fit appears.
+                  </p>
+                  <div className="kiterp-careers-empty-actions">
+                    <button
+                      type="button"
+                      className="kiterp-btn-primary kiterp-careers-empty-cta"
+                      onClick={startGeneralApply}
+                    >
+                      Send a general application
+                      <Sparkles className="w-4 h-4" aria-hidden />
+                    </button>
+                    <p className="kiterp-careers-empty-note">Fresh roles land here regularly</p>
+                  </div>
+                </div>
+
+                <div className="kiterp-careers-empty-stage" aria-hidden>
+                  <div className="kiterp-careers-empty-ring kiterp-careers-empty-ring--outer" />
+                  <div className="kiterp-careers-empty-ring kiterp-careers-empty-ring--inner" />
+                  <div className="kiterp-careers-empty-core">
+                    <Briefcase className="w-6 h-6" strokeWidth={1.75} />
+                  </div>
+                  <ul className="kiterp-careers-empty-orbit">
+                    <li className="kiterp-careers-empty-node kiterp-careers-empty-node--1">
+                      <span>
+                        <TrendingUp className="kiterp-careers-empty-node-icon" aria-hidden />
+                        Growth
+                      </span>
+                    </li>
+                    <li className="kiterp-careers-empty-node kiterp-careers-empty-node--2">
+                      <span>
+                        <Laptop className="kiterp-careers-empty-node-icon" aria-hidden />
+                        Hybrid
+                      </span>
+                    </li>
+                    <li className="kiterp-careers-empty-node kiterp-careers-empty-node--3">
+                      <span>
+                        <GraduationCap className="kiterp-careers-empty-node-icon" aria-hidden />
+                        Learning
+                      </span>
+                    </li>
+                    <li className="kiterp-careers-empty-node kiterp-careers-empty-node--4">
+                      <span>
+                        <HeartPulse className="kiterp-careers-empty-node-icon" aria-hidden />
+                        Benefits
+                      </span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             ) : filtered.length === 0 ? (
               <div className="kiterp-careers-openings-empty">
-                <Search className="w-7 h-7 text-[color-mix(in_srgb,var(--kiterp-ink)_28%,transparent)]" />
-                <p>No roles match your filters.</p>
+                <span className="kiterp-careers-empty-icon" aria-hidden>
+                  <Search className="w-6 h-6" strokeWidth={1.75} />
+                </span>
+                <h3 className="kiterp-careers-empty-title">No roles match these filters</h3>
+                <p className="kiterp-careers-empty-lead">
+                  Try a broader search, or clear filters to see every open role.
+                </p>
                 <button
                   type="button"
-                  className="kiterp-careers-ghost-btn mt-2"
+                  className="kiterp-careers-ghost-btn"
                   onClick={() => {
                     setQuery('')
                     setDeptFilter('')
@@ -948,17 +1043,63 @@ export default function Careers() {
                     <ArrowLeft className="w-3.5 h-3.5" />
                     Openings
                   </button>
-                  <h2 id="careers-form-title" className="kiterp-careers-form-title">
-                    Application
-                  </h2>
-                  {selectedJob ? (
-                    <p className="kiterp-careers-form-hint">
-                      Applying for <strong>{selectedJob.title}</strong>
-                      {selectedJob.location ? ` · ${selectedJob.location}` : ''}
-                    </p>
-                  ) : (
-                    <p className="kiterp-careers-form-hint">General application</p>
-                  )}
+                  <div className="kiterp-careers-form-head-row">
+                    <div className="min-w-0">
+                      <h2 id="careers-form-title" className="kiterp-careers-form-title">
+                        Application
+                      </h2>
+                      {selectedJob ? (
+                        <p className="kiterp-careers-form-hint">
+                          Applying for <strong>{selectedJob.title}</strong>
+                          {selectedJob.location ? ` · ${selectedJob.location}` : ''}
+                        </p>
+                      ) : (
+                        <p className="kiterp-careers-form-hint">General application</p>
+                      )}
+                    </div>
+                    <div
+                      className="kiterp-careers-form-progress"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={formProgress.percent}
+                      aria-label="Application completion"
+                    >
+                      <svg viewBox="0 0 48 48" className="kiterp-careers-form-progress-ring" aria-hidden>
+                        <circle className="kiterp-careers-form-progress-track" cx="24" cy="24" r="18" />
+                        <circle
+                          className="kiterp-careers-form-progress-value"
+                          cx="24"
+                          cy="24"
+                          r="18"
+                          style={{
+                            strokeDasharray: `${2 * Math.PI * 18}`,
+                            strokeDashoffset: `${2 * Math.PI * 18 * (1 - formProgress.percent / 100)}`,
+                          }}
+                        />
+                      </svg>
+                      <span className="kiterp-careers-form-progress-pct">{formProgress.percent}%</span>
+                    </div>
+                  </div>
+                  <ol className="kiterp-careers-form-steps">
+                    {FORM_STEPS.map((step, i) => (
+                      <li
+                        key={step.id}
+                        className={
+                          formProgress.steps[i]
+                            ? 'is-done'
+                            : formProgress.doneCount === i
+                              ? 'is-current'
+                              : undefined
+                        }
+                      >
+                        <span className="kiterp-careers-form-step-dot" aria-hidden>
+                          {formProgress.steps[i] ? <CheckCircle2 className="w-3 h-3" /> : i + 1}
+                        </span>
+                        <span>{step.label}</span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
 
                 <div className="kiterp-careers-form-scroll">
@@ -998,11 +1139,14 @@ export default function Careers() {
                       </label>
                       <label className="kiterp-careers-field">
                         <span>Phone</span>
-                        <input
+                        <PhoneInput
                           value={form.phone}
-                          onChange={(e) => setField('phone', e.target.value)}
-                          placeholder="Mobile"
+                          onChange={(phone) => setField('phone', phone)}
+                          defaultCountryIso="IN"
                           autoComplete="tel"
+                          name="phone"
+                          size="sm"
+                          showStatusHints={false}
                         />
                       </label>
                       <label className="kiterp-careers-field kiterp-careers-field--full">

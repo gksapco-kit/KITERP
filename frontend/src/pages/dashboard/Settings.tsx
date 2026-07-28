@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
@@ -391,12 +392,13 @@ export default function Settings() {
                       </div>
                       <div className="space-y-1.5">
                         <Label htmlFor="contact-phone">Phone</Label>
-                        <Input
+                        <PhoneInput
                           id="contact-phone"
-                          type="tel"
                           value={contactPhone}
-                          onChange={(e) => setContactPhone(e.target.value)}
-                          placeholder="+91 98765 43210"
+                          onChange={setContactPhone}
+                          defaultCountryIso="IN"
+                          autoComplete="tel"
+                          name="contact-phone"
                         />
                       </div>
                       <div className="space-y-1.5 sm:col-span-2">

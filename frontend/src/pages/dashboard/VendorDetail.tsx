@@ -21,6 +21,7 @@ import { usePlans, useVendorPlan, useAssignPlan } from '@/hooks/usePlans'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
@@ -73,6 +74,7 @@ function EditableField({
   editData,
   onChange,
   type = 'text',
+  inputKind = 'text',
   className = '',
 }: {
   label: string
@@ -82,6 +84,7 @@ function EditableField({
   editData: AdminVendorUpdatePayload
   onChange: (field: keyof AdminVendorUpdatePayload, value: string | number | boolean) => void
   type?: string
+  inputKind?: 'text' | 'phone'
   className?: string
 }) {
   if (!editing) {
@@ -99,15 +102,27 @@ function EditableField({
   return (
     <div className={className}>
       <Label className="text-xs text-gray-500 uppercase tracking-wide">{label}</Label>
-      <Input
-        type={type}
-        value={currentValue}
-        onChange={(e) => {
-          const val = type === 'number' ? Number(e.target.value) : e.target.value
-          onChange(field, val)
-        }}
-        className="mt-1"
-      />
+      {inputKind === 'phone' ? (
+        <PhoneInput
+          value={currentValue}
+          onChange={(phone) => onChange(field, phone)}
+          defaultCountryIso="IN"
+          autoComplete="tel"
+          name={field}
+          compact
+          className="mt-1"
+        />
+      ) : (
+        <Input
+          type={type}
+          value={currentValue}
+          onChange={(e) => {
+            const val = type === 'number' ? Number(e.target.value) : e.target.value
+            onChange(field, val)
+          }}
+          className="mt-1"
+        />
+      )}
     </div>
   )
 }
@@ -621,11 +636,11 @@ export default function VendorDetail() {
                   <EditableField label="Primary Email" value={vendor.primary_email} field="primary_email"
                     editing={editMode} editData={editData} onChange={handleFieldChange} type="email" />
                   <EditableField label="Primary Phone" value={vendor.primary_phone} field="primary_phone"
-                    editing={editMode} editData={editData} onChange={handleFieldChange} />
+                    editing={editMode} editData={editData} onChange={handleFieldChange} inputKind="phone" />
                   <EditableField label="Support Email" value={vendor.support_email} field="support_email"
                     editing={editMode} editData={editData} onChange={handleFieldChange} type="email" />
                   <EditableField label="Support Phone" value={vendor.support_phone} field="support_phone"
-                    editing={editMode} editData={editData} onChange={handleFieldChange} />
+                    editing={editMode} editData={editData} onChange={handleFieldChange} inputKind="phone" />
                 </>
               ) : (
                 <>

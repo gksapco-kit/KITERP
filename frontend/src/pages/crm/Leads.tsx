@@ -11,6 +11,7 @@ import {
 } from '@/hooks/usePlatformCrm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import CrmSubnav from './CrmSubnav'
 
 const STATUSES = ['', 'new', 'contacted', 'qualified', 'unqualified', 'converted'] as const
@@ -94,10 +95,13 @@ export default function PlatformCrmLeads() {
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           />
-          <Input
-            placeholder="Phone"
+          <PhoneInput
             value={form.phone}
-            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            onChange={(phone) => setForm((f) => ({ ...f, phone }))}
+            defaultCountryIso="IN"
+            autoComplete="tel"
+            name="phone"
+            compact
           />
           <Input
             className="sm:col-span-2"

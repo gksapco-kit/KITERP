@@ -5,6 +5,7 @@ import type { RestaurantOutlet } from '@/types'
 import { useStores } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
@@ -252,7 +253,16 @@ export default function RestaurantsPage() {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Phone</Label>
-                  <Input className="h-8 text-sm" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+91…" />
+                  <PhoneInput
+                    value={form.phone}
+                    onChange={v => setForm(f => ({ ...f, phone: v }))}
+                    defaultCountryIso="IN"
+                    compact
+                    compactCountry
+                    subtleFeedback
+                    autoComplete="tel"
+                    name="phone"
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Email</Label>

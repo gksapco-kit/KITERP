@@ -149,7 +149,7 @@ export function UnifiedNav({
   };
 
   const mobileSearchBarNode = showSearch && searchOpen && (
-    <form onSubmit={submitSearch} className="flex md:hidden flex-1 items-center gap-1.5 min-w-0">
+    <form onSubmit={submitSearch} className="flex lg:hidden flex-1 items-center gap-1.5 min-w-0">
       <Input
         autoFocus
         value={q}
@@ -185,7 +185,7 @@ export function UnifiedNav({
         {/* Mobile menu */}
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden shrink-0" aria-label="Open menu">
+            <Button variant="ghost" size="icon" className="lg:hidden shrink-0" aria-label="Open menu">
               <Menu />
             </Button>
           </SheetTrigger>
@@ -232,7 +232,7 @@ export function UnifiedNav({
         {mobileSearchBarNode ?? (
           <Link
             to={logoHomeTo}
-            className="font-semibold tracking-tight text-base sm:text-lg min-w-0 flex-1 md:flex-initial truncate max-w-[min(100%,56vw)] md:max-w-none [&_img]:max-w-[min(200px,48vw)] sm:[&_img]:max-w-[280px]"
+            className="font-semibold tracking-tight text-base sm:text-lg min-w-0 flex-1 lg:flex-initial truncate max-w-[min(100%,56vw)] lg:max-w-none [&_img]:max-w-[min(200px,48vw)] sm:[&_img]:max-w-[280px]"
           >
             {logo ?? "Acme ERP"}
           </Link>
@@ -240,20 +240,26 @@ export function UnifiedNav({
 
         {afterLogo}
 
-        <nav className={cn(
-          'items-center gap-1 ml-2 lg:ml-4 min-w-0 flex-1 justify-end',
-          linksLayout === 'always-visible' ? 'flex flex-wrap' : 'hidden md:flex flex-wrap',
-        )}>
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              to={l.href}
-              className={navLinkClass(l.href)}
-              aria-current={storePath && currentNavKey && isNavLinkActive(l.href, currentNavKey, storePath) ? 'page' : undefined}
-            >
-              {l.label}
-            </Link>
-          ))}
+        <nav
+          className={cn(
+            'ml-2 lg:ml-4 min-w-0 flex-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
+            linksLayout === 'always-visible' ? 'block' : 'hidden lg:block',
+          )}
+          aria-label="Primary"
+        >
+          <div className="flex w-max min-w-full items-center justify-end gap-0.5 lg:gap-1 flex-nowrap">
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                to={l.href}
+                title={l.label}
+                className={cn(navLinkClass(l.href), 'shrink-0 max-w-[9.5rem] truncate')}
+                aria-current={storePath && currentNavKey && isNavLinkActive(l.href, currentNavKey, storePath) ? 'page' : undefined}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
         </nav>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0">
@@ -262,7 +268,7 @@ export function UnifiedNav({
               type="button"
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="lg:hidden"
               onClick={() => setSearchOpen(true)}
               aria-label="Search"
             >
@@ -323,7 +329,7 @@ export function UnifiedNav({
           )}
 
           {cta && (
-            <Button asChild className="hidden md:inline-flex"><Link to={cta.href}>{cta.label}</Link></Button>
+            <Button asChild className="hidden lg:inline-flex"><Link to={cta.href}>{cta.label}</Link></Button>
           )}
         </div>
       </div>

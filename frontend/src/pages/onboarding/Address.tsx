@@ -1,12 +1,13 @@
 import { useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 
 const LocationPicker = lazy(() => import('@/components/common/LocationPicker'))
 
@@ -36,6 +37,7 @@ export default function OnboardingAddress() {
     register,
     handleSubmit,
     setValue,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -85,7 +87,21 @@ export default function OnboardingAddress() {
           </div>
           <div>
             <Label htmlFor="primary_phone">Phone</Label>
-            <Input id="primary_phone" {...register('primary_phone')} className="mt-1" />
+            <Controller
+              name="primary_phone"
+              control={control}
+              render={({ field }) => (
+                <PhoneInput
+                  id="primary_phone"
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  defaultCountryIso="IN"
+                  autoComplete="tel"
+                  name="primary_phone"
+                  className="mt-1"
+                />
+              )}
+            />
             {errors.primary_phone && <p className="mt-1 text-sm text-red-500">{errors.primary_phone.message}</p>}
           </div>
         </div>

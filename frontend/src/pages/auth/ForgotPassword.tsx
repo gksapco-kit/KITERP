@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import type { UseFormRegisterReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,6 +11,7 @@ import type { AxiosError } from 'axios'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { authApi } from '@/api/auth.api'
 import {
   NOT_REGISTERED_EMAIL,
@@ -394,15 +395,33 @@ export default function ForgotPassword() {
 
       <div>
         <Label htmlFor="contact">{channel === 'email' ? 'Email address' : 'Mobile number'}</Label>
-        <Input
-          id="contact"
-          type={channel === 'email' ? 'email' : 'tel'}
-          inputMode={channel === 'email' ? 'email' : 'tel'}
-          autoComplete={channel === 'email' ? 'email' : 'tel'}
-          placeholder={channel === 'email' ? 'you@company.com' : '+91 98765 43210'}
-          {...requestForm.register('contact')}
-          className="mt-1"
-        />
+        {channel === 'email' ? (
+          <Input
+            id="contact"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="you@company.com"
+            {...requestForm.register('contact')}
+            className="mt-1"
+          />
+        ) : (
+          <Controller
+            name="contact"
+            control={requestForm.control}
+            render={({ field }) => (
+              <PhoneInput
+                id="contact"
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                defaultCountryIso="IN"
+                autoComplete="tel"
+                name="contact"
+                className="mt-1"
+              />
+            )}
+          />
+        )}
         {requestForm.formState.errors.contact && (
           <p className="mt-1 text-sm text-red-500">
             {requestForm.formState.errors.contact.message}

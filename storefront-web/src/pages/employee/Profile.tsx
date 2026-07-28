@@ -6,6 +6,7 @@ import { hrApiClient } from '@/api/hrClient'
 import { useVendor } from '@/contexts/VendorContext'
 import { User, Phone, Mail, AlertCircle, KeyRound, Eye, EyeOff, Loader2, Save, Pencil, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 
 function Section({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
@@ -146,8 +147,15 @@ export default function ESSProfile() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Personal phone</label>
-                <input type="tel" value={contactForm.personal_phone} onChange={e => setContactForm(f => ({ ...f, personal_phone: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
+                <PhoneInput
+                  value={contactForm.personal_phone}
+                  onChange={v => setContactForm(f => ({ ...f, personal_phone: v }))}
+                  defaultCountryIso="IN"
+                  autoComplete="tel"
+                  name="personal_phone"
+                  size="sm"
+                  showStatusHints={false}
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Emergency contact name</label>
@@ -156,8 +164,15 @@ export default function ESSProfile() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Emergency phone</label>
-                <input type="tel" value={contactForm.emergency_contact_phone} onChange={e => setContactForm(f => ({ ...f, emergency_contact_phone: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
+                <PhoneInput
+                  value={contactForm.emergency_contact_phone}
+                  onChange={v => setContactForm(f => ({ ...f, emergency_contact_phone: v }))}
+                  defaultCountryIso="IN"
+                  autoComplete="tel"
+                  name="emergency_contact_phone"
+                  size="sm"
+                  showStatusHints={false}
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Relationship</label>

@@ -14,6 +14,7 @@ import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loader2, ChevronRight, CheckCircle, Repeat } from 'lucide-react'
@@ -249,7 +250,18 @@ export default function ServiceBookingPage() {
                       <div className="grid sm:grid-cols-2 gap-3">
                         <div><Label>Name</Label><Input required value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
                         <div><Label>Email</Label><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1" /></div>
-                        <div className="sm:col-span-2"><Label>Phone</Label><Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1" /></div>
+                        <div className="sm:col-span-2">
+                          <Label>Phone</Label>
+                          <PhoneInput
+                            className="mt-1"
+                            value={phone}
+                            onChange={setPhone}
+                            defaultCountryIso="IN"
+                            autoComplete="tel"
+                            name="phone"
+                            showStatusHints={false}
+                          />
+                        </div>
                         <div className="sm:col-span-2"><Label>Notes (optional)</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" /></div>
                       </div>
                       <Button type="submit" className="w-full" disabled={checkoutPending}>

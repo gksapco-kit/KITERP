@@ -924,6 +924,21 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     overflow-wrap: normal !important;
     border-radius: 0 !important;
   }
+
+  /* Hero / body copy must wrap — the pill nowrap rule above is for short chips only. */
+  .builder-page [data-text-key='headline'],
+  .builder-page [data-text-key='headline_line2'],
+  .builder-page [data-text-key='subtitle'],
+  .builder-page [data-text-key='description'],
+  .builder-page [data-field-layout] > p[data-text-key],
+  .builder-page [data-field-layout] > h1[data-text-key],
+  .builder-page [data-field-layout] > h2[data-text-key],
+  .builder-page [data-field-layout] > h3[data-text-key] {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    max-width: 100% !important;
+  }
 }
 
 @media (max-width: 639px) {
@@ -1016,6 +1031,24 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   white-space: nowrap !important;
   overflow-wrap: normal !important;
   border-radius: 0 !important;
+}
+
+[data-page-canvas][data-preview-bp='mobile'] [data-text-key='headline'],
+[data-page-canvas][data-preview-bp='tablet'] [data-text-key='headline'],
+[data-page-canvas][data-preview-bp='mobile'] [data-text-key='headline_line2'],
+[data-page-canvas][data-preview-bp='tablet'] [data-text-key='headline_line2'],
+[data-page-canvas][data-preview-bp='mobile'] [data-text-key='subtitle'],
+[data-page-canvas][data-preview-bp='tablet'] [data-text-key='subtitle'],
+[data-page-canvas][data-preview-bp='mobile'] [data-text-key='description'],
+[data-page-canvas][data-preview-bp='tablet'] [data-text-key='description'],
+[data-page-canvas][data-preview-bp='mobile'] [data-field-layout] > p[data-text-key],
+[data-page-canvas][data-preview-bp='tablet'] [data-field-layout] > p[data-text-key],
+[data-page-canvas][data-preview-bp='mobile'] [data-field-layout] > h1[data-text-key],
+[data-page-canvas][data-preview-bp='tablet'] [data-field-layout] > h1[data-text-key] {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  max-width: 100% !important;
 }
 
 [data-page-canvas][data-preview-bp='mobile'] [data-text-key],

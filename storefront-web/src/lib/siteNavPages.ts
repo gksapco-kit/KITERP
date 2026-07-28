@@ -61,17 +61,16 @@ export function excludeHomeNavLinks(
 
 /**
  * Always show the home link first (deduped if already present elsewhere).
- * Preserves a custom home-page label (e.g. a renamed homepage) when one exists,
- * falling back to "Home" only when no home link carries a label.
+ * Uses a short "Home" label so the first item stays readable in crowded headers
+ * (long homepage titles were getting clipped to fragments like "me").
  */
 export function applyHomeNavVisibility(
   links: NavLinkItem[],
   _pathname: string,
   storePath: (p: string) => string,
 ): NavLinkItem[] {
-  const existingHome = links.find(l => isStoreHomeNavHref(l.href, storePath))
   const rest = excludeHomeNavLinks(links, storePath)
-  return [{ label: existingHome?.label?.trim() || 'Home', href: storePath('/') }, ...rest]
+  return [{ label: 'Home', href: storePath('/') }, ...rest]
 }
 
 function pagesToNavItems(pages: SitePage[], storePath: (p: string) => string, limit: number): NavLinkItem[] {

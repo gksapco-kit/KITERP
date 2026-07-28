@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
@@ -765,9 +766,23 @@ function PrescriptionPanel({ s, set }: { s: PrescriptionSettings; set: <K extend
       ].map(f => (
         <div key={f.key}>
           <Label className="text-xs text-gray-500">{f.label}</Label>
-          <Input className="mt-0.5 text-sm h-8" placeholder={f.placeholder}
-            value={(s[f.key as keyof PrescriptionSettings] as string) || ''}
-            onChange={e => set(f.key as keyof PrescriptionSettings, e.target.value as never)} />
+          {f.key === 'clinic_phone' || f.key === 'phone' || f.key.endsWith('_phone') ? (
+            <PhoneInput
+              value={(s[f.key as keyof PrescriptionSettings] as string) || ''}
+              onChange={v => set(f.key as keyof PrescriptionSettings, v as never)}
+              defaultCountryIso="IN"
+              compact
+              compactCountry
+              subtleFeedback
+              autoComplete="tel"
+              name={f.key}
+              className="mt-0.5"
+            />
+          ) : (
+            <Input className="mt-0.5 text-sm h-8" placeholder={f.placeholder}
+              value={(s[f.key as keyof PrescriptionSettings] as string) || ''}
+              onChange={e => set(f.key as keyof PrescriptionSettings, e.target.value as never)} />
+          )}
         </div>
       ))}
     </AccordionSection>

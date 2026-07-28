@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Textarea } from "@/components/ui/textarea";
 import { mockAvailability, mockSlots, mockBookingService } from "@/commerce-blocks/mock/bookings";
 import { formatPrice } from "@/commerce-blocks/lib/format";
@@ -221,6 +222,7 @@ export function BookingForm({
   showPhone = true,
   cta = "Confirm booking",
 }: FormProps) {
+  const [phone, setPhone] = useState("");
   return (
     <section className="p-6">
       <form
@@ -245,7 +247,17 @@ export function BookingForm({
         {showPhone && (
           <div className="space-y-1.5">
             <Label htmlFor="bf-phone">Phone</Label>
-            <Input id="bf-phone" type="tel" placeholder="+1 (555) 010-1234" />
+            <PhoneInput
+              id="bf-phone"
+              value={phone}
+              onChange={setPhone}
+              defaultCountryIso="IN"
+              autoComplete="tel"
+              name="phone"
+              compact
+              compactCountry
+              subtleFeedback
+            />
           </div>
         )}
         {showNotes && (

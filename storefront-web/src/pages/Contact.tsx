@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useVendor } from '@/contexts/VendorContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { storeApi } from '@/api/store'
@@ -136,12 +137,15 @@ export default function ContactPage() {
           </div>
           <div>
             <Label htmlFor="cq-phone">Phone</Label>
-            <Input
+            <PhoneInput
               id="cq-phone"
               className="mt-1"
               value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="Mobile number"
+              onChange={(phone) => setForm({ ...form, phone })}
+              defaultCountryIso="IN"
+              autoComplete="tel"
+              name="phone"
+              showStatusHints={false}
             />
           </div>
           <div>

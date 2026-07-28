@@ -3,6 +3,7 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useLeads, useSaveLead, useConvertLead } from '@/hooks/useCrm'
@@ -69,7 +70,18 @@ function LeadForm({ onClose }: { onClose: () => void }) {
         <Field label="Title"><Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Email"><Input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></Field>
-          <Field label="Phone"><Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></Field>
+          <Field label="Phone">
+            <PhoneInput
+              value={form.phone}
+              onChange={v => setForm(p => ({ ...p, phone: v }))}
+              defaultCountryIso="IN"
+              compact
+              compactCountry
+              subtleFeedback
+              autoComplete="tel"
+              name="phone"
+            />
+          </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Source">
