@@ -203,7 +203,7 @@ export default function StorefrontContact() {
                 defaultCountryIso="IN"
                 autoComplete="tel"
                 name="phone"
-                showStatusHints={false}
+                compact
               />
             </div>
             <div>
