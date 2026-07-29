@@ -13,6 +13,14 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useServices, useDeleteService, useUpdateService, useCategories } from '@/hooks/useVendor'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -45,13 +53,12 @@ function shareService(service: Service, action: 'copy' | 'whatsapp' | 'email' | 
   }
 }
 
-function MoreMenu({ service, onDelete }: {
+function MoreMenu({ service, onDeleteRequest }: {
   service: Service
-  onDelete: () => void
+  onDeleteRequest: () => void
 }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ top: 0, right: 0, openUp: false })
@@ -59,7 +66,7 @@ function MoreMenu({ service, onDelete }: {
   useEffect(() => {
     if (!open || !triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
-    const menuHeight = 320
+    const menuHeight = 280
     const openUp = window.innerHeight - rect.bottom < menuHeight && rect.top > menuHeight
     setPos({
       top: openUp ? rect.top + window.scrollY - 4 : rect.bottom + window.scrollY + 4,
@@ -76,7 +83,6 @@ function MoreMenu({ service, onDelete }: {
         menuRef.current?.contains(e.target as Node)
       ) return
       setOpen(false)
-      setConfirmDelete(false)
     }
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
@@ -115,26 +121,10 @@ function MoreMenu({ service, onDelete }: {
         <Share2 className="w-4 h-4 text-primary/80" /> Share
       </button>
       <div className="border-t my-1" />
-      {confirmDelete ? (
-        <div className="px-3 py-2 space-y-2">
-          <p className="text-xs font-medium text-red-600">Delete this service?</p>
-          <div className="flex gap-2">
-            <button className="flex-1 px-2 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
-              onClick={() => { onDelete(); setOpen(false); setConfirmDelete(false) }}>
-              Yes, Delete
-            </button>
-            <button className="btn-cancel flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors"
-              onClick={() => setConfirmDelete(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-          onClick={() => setConfirmDelete(true)}>
-          <Trash2 className="w-4 h-4" /> Delete
-        </button>
-      )}
+      <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+        onClick={() => { setOpen(false); onDeleteRequest() }}>
+        <Trash2 className="w-4 h-4" /> Delete
+      </button>
     </div>,
     document.body,
   ) : null
@@ -145,7 +135,7 @@ function MoreMenu({ service, onDelete }: {
         ref={triggerRef}
         type="button"
         className="inline-flex h-8 w-8 items-center justify-center rounded-md p-0 text-gray-500 hover:bg-gray-100 transition-colors"
-        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); setConfirmDelete(false) }}
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v) }}
       >
         <MoreVertical className="w-4 h-4 text-gray-500" />
       </button>
@@ -191,6 +181,7 @@ export default function Services() {
   const deleteService = useDeleteService()
   const updateService = useUpdateService()
   const { isSaving, patchField } = useInlineFieldPatch(updateService)
+  const [serviceDeleteConfirm, setServiceDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
 
   const activeFilterCount = [status, visibility, category, serviceType, serviceMode].filter(Boolean).length
   const hasActiveQuery = Boolean(search.trim() || activeFilterCount > 0)
@@ -627,7 +618,7 @@ export default function Services() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex flex-col gap-1 min-w-[6.5rem]">
+                        <div className="flex flex-col gap-1.5 min-w-[6.5rem] py-0.5">
                           <InlineEditCell
                             type="select"
                             value={service.status}
@@ -635,8 +626,9 @@ export default function Services() {
                             saving={isSaving(service.id, 'status')}
                             onSave={(v) => patchField(service.id, 'status', v)}
                             title="Edit status"
+                            truncateContent={false}
                           >
-                            <span className={`px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap capitalize ${
+                            <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap capitalize leading-tight ${
                               service.status === 'active' ? 'bg-green-100 text-green-700'
                                 : service.status === 'archived' ? 'bg-red-50 text-red-600'
                                   : 'bg-gray-100 text-gray-700'
@@ -649,8 +641,9 @@ export default function Services() {
                             saving={isSaving(service.id, 'is_visible')}
                             onSave={(v) => patchField(service.id, 'is_visible', v === 'true')}
                             title="Edit visibility"
+                            truncateContent={false}
                           >
-                            <span className={`px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap ${
+                            <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap leading-tight ${
                               service.is_visible
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                                 : 'bg-amber-50 text-amber-800 border border-amber-100'
@@ -668,7 +661,10 @@ export default function Services() {
                             onClick={() => navigate(`/services/${service.id}`)}>
                             <Pencil className="w-4 h-4 text-gray-500" />
                           </Button>
-                          <MoreMenu service={service} onDelete={() => deleteService.mutate(service.id)} />
+                          <MoreMenu
+                            service={service}
+                            onDeleteRequest={() => setServiceDeleteConfirm({ id: service.id, name: service.name })}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -691,6 +687,55 @@ export default function Services() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(serviceDeleteConfirm)}
+        onOpenChange={(open) => {
+          if (!open && !deleteService.isPending) setServiceDeleteConfirm(null)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <Trash2 className="h-4 w-4" />
+              </span>
+              Delete service?
+            </DialogTitle>
+            <DialogDescription className="pt-1">
+              <span className="font-medium text-foreground">{serviceDeleteConfirm?.name}</span>
+              {' '}will be deleted. Services with active bookings may not be removable.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deleteService.isPending}
+              onClick={() => setServiceDeleteConfirm(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteService.isPending || !serviceDeleteConfirm}
+              onClick={() => {
+                if (!serviceDeleteConfirm) return
+                deleteService.mutate(serviceDeleteConfirm.id, {
+                  onSettled: () => setServiceDeleteConfirm(null),
+                })
+              }}
+            >
+              {deleteService.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Delete service'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

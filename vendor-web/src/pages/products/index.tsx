@@ -5,6 +5,14 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { TablePagination } from '@/components/table/TablePagination'
 import { useProducts, useDeleteProduct, useRestoreProduct, useUpdateProduct, useCategoryTree } from '@/hooks/useVendor'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
@@ -21,7 +29,6 @@ import {
 } from '@/components/products/VariantInlineEditor'
 import type { Product } from '@/types'
 import { toast } from 'sonner'
-import { extractApiError } from '@/lib/errorMessages'
 import {
   Plus, Search, Pencil, Trash2, Loader2, X,
   Filter, Copy, Share2, Mail, MessageCircle, MoreVertical, Package, Eye,
@@ -236,9 +243,11 @@ export default function Products() {
   const updateProduct = useUpdateProduct()
   const { savingCellKey, setSavingCellKey, cellKey, patchField: patchProductField } = useInlineFieldPatch(updateProduct)
 
-  const [productDeleteId, setProductDeleteId] = useState<string | null>(null)
-  const [variantDeleteKey, setVariantDeleteKey] = useState<string | null>(null)
-  const [variantDeletingKey, setVariantDeletingKey] = useState<string | null>(null)
+  const [productDeleteConfirm, setProductDeleteConfirm] = useState<{
+    id: string
+    name: string
+    permanent?: boolean
+  } | null>(null)
 
   const activeFilterCount = [status, visibility, category, productType, stock].filter(Boolean).length
   const hasActiveQuery = Boolean(search.trim() || activeFilterCount > 0)
@@ -372,7 +381,7 @@ export default function Products() {
     if (viewMode !== 'variant') return []
     const rows: {
       productId: string; productName: string; productCategory: string; productType: string; thumbUrl: string
-      groupKey: string; variantName: string; variantRawName: string; variantCount: number; variantIds: string[]; canDelete: boolean
+      groupKey: string; variantName: string; variantRawName: string; variantCount: number; variantIds: string[]
       sku: string; uom: string; uom_quantity: number | null
       price: number; priceHigh: number; quantity: number; stock_status: string; low_stock_threshold: number; currency: string; is_active: boolean
     }[] = []
@@ -385,7 +394,7 @@ export default function Products() {
           productId: product.id, productName: product.name,
           productCategory: product.category || 'Uncategorized', productType: product.product_type || 'physical',
           thumbUrl: productThumb,
-          groupKey: 'default', variantName: '—', variantRawName: '', variantCount: 0, variantIds: [], canDelete: false,
+          groupKey: 'default', variantName: '—', variantRawName: '', variantCount: 0, variantIds: [],
           sku: product.sku || '', uom: product.uom || 'piece', uom_quantity: product.uom_quantity ?? null,
           price: product.price, priceHigh: product.price, quantity: product.quantity ?? 0,
           stock_status: product.stock_status || 'in_stock', low_stock_threshold: product.low_stock_threshold ?? 5,
@@ -406,7 +415,6 @@ export default function Products() {
             variantRawName: v.name || '',
             variantCount: 1,
             variantIds: v.id ? [v.id] : [],
-            canDelete: Boolean(v.id),
             sku: v.sku || '',
             uom: v.uom || 'piece',
             uom_quantity: v.uom_quantity ?? null,
@@ -441,40 +449,6 @@ export default function Products() {
     setPage(1)
     try { localStorage.setItem('kiterp:products:viewMode', mode) } catch { /* ignore */ }
   }
-
-  const deleteVariantGroup = useCallback(async (row: {
-    productId: string
-    groupKey: string
-    variantName: string
-    variantIds: string[]
-  }) => {
-    const rowKey = `${row.productId}-${row.groupKey}`
-    const product = displayProducts.find(p => p.id === row.productId)
-    if (!product) {
-      toast.error('Product not found')
-      return
-    }
-    const allVariants = product.variants || []
-    const removeSet = new Set(row.variantIds)
-    const remaining = allVariants.filter(v => !removeSet.has(v.id))
-    if (remaining.length === allVariants.length) {
-      toast.error('No variants matched this row')
-      setVariantDeleteKey(null)
-      return
-    }
-    setVariantDeletingKey(rowKey)
-    try {
-      await updateProduct.mutateAsync({
-        id: row.productId,
-        data: { variants: remaining.map(variantToUpdatePayload) },
-      })
-      setVariantDeleteKey(null)
-    } catch (err) {
-      toast.error(extractApiError(err, 'Could not delete variant'))
-    } finally {
-      setVariantDeletingKey(null)
-    }
-  }, [displayProducts, updateProduct])
 
   return (
     <div className="space-y-5">
@@ -527,7 +501,7 @@ export default function Products() {
             onClick={() => {
               setShowDeleted((v) => !v)
               setPage(1)
-              setProductDeleteId(null)
+              setProductDeleteConfirm(null)
             }}
           >
             <Trash2 className={`w-4 h-4 ${showDeleted ? '' : 'text-red-500'}`} />
@@ -638,7 +612,7 @@ export default function Products() {
 
           {/* ── Product-wise view ── */}
           {listViewMode === 'product' && (
-          <ResizableTable tableId="products" defaultWidths={[280, 120, 90, 100, 110, 90, 110]}>
+          <ResizableTable tableId="products-v2" defaultWidths={[280, 120, 90, 100, 110, 110, 120]}>
             <thead>
               <tr className="border-b bg-gray-50/80">
                 {([
@@ -896,7 +870,7 @@ export default function Products() {
                         )}
                       </div>
                     ) : (
-                    <div className="flex flex-col gap-1 min-w-[6.5rem]">
+                    <div className="flex flex-col gap-1.5 min-w-[6.5rem] py-0.5">
                       <InlineEditCell
                         type="select"
                         value={product.status}
@@ -904,8 +878,9 @@ export default function Products() {
                         saving={savingCellKey === cellKey(product.id, 'status')}
                         onSave={(v) => patchProductField(product.id, 'status', v)}
                         title="Edit status"
+                        truncateContent={false}
                       >
-                        <span className={`px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap capitalize ${
+                        <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap capitalize leading-tight ${
                           product.status === 'active'
                             ? 'bg-green-100 text-green-700'
                             : product.status === 'archived'
@@ -922,8 +897,9 @@ export default function Products() {
                         saving={savingCellKey === cellKey(product.id, 'is_visible')}
                         onSave={(v) => patchProductField(product.id, 'is_visible', v === 'true')}
                         title="Edit visibility"
+                        truncateContent={false}
                       >
-                        <span className={`px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap ${
+                        <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap leading-tight ${
                           product.is_visible
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                             : 'bg-amber-50 text-amber-800 border border-amber-100'
@@ -936,84 +912,27 @@ export default function Products() {
                   </td>
                   <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     {showDeleted ? (
-                      productDeleteId === product.id ? (
-                        <div className="inline-flex flex-col items-end gap-1.5 min-w-[8rem]">
-                          <p className="text-[10px] font-medium text-red-600 text-right leading-tight">
-                            Delete permanently?
-                          </p>
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-7 px-2 text-xs"
-                              disabled={deleteProduct.isPending}
-                              onClick={() => deleteProduct.mutate(
-                                { id: product.id, permanent: true },
-                                { onSettled: () => setProductDeleteId(null) },
-                              )}
-                            >
-                              {deleteProduct.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs"
-                              disabled={deleteProduct.isPending}
-                              onClick={() => setProductDeleteId(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-1 justify-end items-center">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1.5 text-xs"
-                            disabled={restoreProduct.isPending}
-                            title="Restore product"
-                            onClick={() => restoreProduct.mutate(product.id)}
-                          >
-                            {restoreProduct.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
-                            Restore
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                            title="Delete permanently"
-                            onClick={() => setProductDeleteId(product.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )
-                    ) : productDeleteId === product.id ? (
-                      <div className="inline-flex flex-col items-end gap-1.5 min-w-[7.5rem]">
-                        <p className="text-[10px] font-medium text-red-600 text-right leading-tight">
-                          Move to trash?
-                        </p>
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            className="h-7 px-2 text-xs"
-                            disabled={deleteProduct.isPending}
-                            onClick={() => deleteProduct.mutate(product.id, { onSettled: () => setProductDeleteId(null) })}
-                          >
-                            {deleteProduct.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs"
-                            disabled={deleteProduct.isPending}
-                            onClick={() => setProductDeleteId(null)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
+                      <div className="flex gap-1 justify-end items-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 text-xs"
+                          disabled={restoreProduct.isPending}
+                          title="Restore product"
+                          onClick={() => restoreProduct.mutate(product.id)}
+                        >
+                          {restoreProduct.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                          Restore
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          title="Delete permanently"
+                          onClick={() => setProductDeleteConfirm({ id: product.id, name: product.name, permanent: true })}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     ) : (
                       <div className="flex gap-1 justify-end items-center">
@@ -1040,7 +959,7 @@ export default function Products() {
                           size="sm"
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
                           title="Move to trash"
-                          onClick={() => setProductDeleteId(product.id)}
+                          onClick={() => setProductDeleteConfirm({ id: product.id, name: product.name })}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -1062,7 +981,7 @@ export default function Products() {
 
           {/* ── Variant-wise view ── */}
           {listViewMode === 'variant' && (
-          <ResizableTable tableId="products-variant" defaultWidths={[240, 150, 70, 90, 80, 90, 80, 90]}>
+          <ResizableTable tableId="products-variant-v2" defaultWidths={[220, 140, 70, 90, 80, 90, 100, 90, 120]}>
             <thead>
               <tr className="border-b bg-gray-50/80">
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Product</TableColumnLabel></th>
@@ -1073,7 +992,7 @@ export default function Products() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Price</TableColumnLabel></th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Stock</TableColumnLabel></th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Status</TableColumnLabel></th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider"><TableColumnLabel>Actions</TableColumnLabel></th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -1101,9 +1020,6 @@ export default function Products() {
                 // Group header: first row of a new product gets a subtle top border accent
                 const prevProductId = i > 0 ? pagedVariantRows[i - 1].productId : null
                 const isFirstOfProduct = prevProductId !== row.productId
-                const rowKey = `${row.productId}-${row.groupKey}`
-                const isConfirmingDelete = variantDeleteKey === rowKey
-                const isDeleting = variantDeletingKey === rowKey
 
                 const variantId = row.variantIds[0]
                 const variantPriceKey = variantId ? `${row.productId}:variant:${variantId}:price` : cellKey(row.productId, 'price')
@@ -1115,7 +1031,7 @@ export default function Products() {
                     className={`hover:bg-gray-50/80 cursor-pointer transition-colors group ${isFirstOfProduct && i > 0 ? 'border-t-2 border-t-gray-200' : ''}`}
                     onClick={onClickableTableRow(() => navigate(`/products/${row.productId}`))}
                   >
-                    <td className="px-5 py-2.5 max-w-[240px]">
+                    <td className="px-5 py-2.5 max-w-[240px] overflow-hidden">
                       <div className="flex items-center gap-2.5 min-w-0">
                         {row.thumbUrl ? (
                           <img src={row.thumbUrl} alt="" className="w-8 h-8 rounded-md object-cover bg-gray-100 border border-gray-200/80 shrink-0" />
@@ -1133,7 +1049,7 @@ export default function Products() {
                             className="-mx-1"
                             title="Edit product name"
                           >
-                            <span className="text-xs font-semibold text-gray-900">{row.productName}</span>
+                            <span className="text-xs font-semibold text-gray-900 truncate block">{row.productName}</span>
                           </InlineEditCell>
                           <InlineEditCell
                             value={row.productCategory === 'Uncategorized' ? '' : row.productCategory}
@@ -1141,12 +1057,12 @@ export default function Products() {
                             onSave={(v) => patchProductField(row.productId, 'category', String(v).trim())}
                             title="Edit category"
                           >
-                            <span className="text-[10px] text-gray-400">{row.productCategory}</span>
+                            <span className="text-[10px] text-gray-400 truncate block">{row.productCategory}</span>
                           </InlineEditCell>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2.5 overflow-hidden">
                       {variantId ? (
                         <InlineEditCell
                           value={row.variantRawName}
@@ -1155,13 +1071,13 @@ export default function Products() {
                           onSave={(v) => patchVariantFields(row.productId, variantId, { name: String(v).trim() }, 'name')}
                           title="Edit variant name"
                         >
-                          <span className="text-sm text-gray-700 font-medium truncate">{row.variantName}</span>
+                          <span className="text-sm text-gray-700 font-medium truncate block">{row.variantName}</span>
                         </InlineEditCell>
                       ) : (
                         <span className="text-sm text-gray-700 font-medium px-1.5">{row.variantName}</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2.5 overflow-hidden">
                       <InlineEditCell
                         type="number"
                         value={row.variantCount}
@@ -1175,7 +1091,7 @@ export default function Products() {
                         </span>
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2.5 overflow-hidden">
                       {variantId ? (
                         <InlineEditCell
                           value={row.sku}
@@ -1184,7 +1100,7 @@ export default function Products() {
                           title="Edit SKU"
                           inputClassName="font-mono text-xs"
                         >
-                          <span className="text-xs font-mono text-gray-500">{row.sku || '—'}</span>
+                          <span className="text-xs font-mono text-gray-500 truncate block">{row.sku || '—'}</span>
                         </InlineEditCell>
                       ) : (
                         <InlineEditCell
@@ -1194,13 +1110,13 @@ export default function Products() {
                           title="Edit SKU"
                           inputClassName="font-mono text-xs"
                         >
-                          <span className="text-xs font-mono text-gray-500">{row.sku || '—'}</span>
+                          <span className="text-xs font-mono text-gray-500 truncate block">{row.sku || '—'}</span>
                         </InlineEditCell>
                       )}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2.5 overflow-hidden">
                       {variantId ? (
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-0">
                           <InlineEditCell
                             type="number"
                             value={row.uom_quantity ?? 0}
@@ -1218,7 +1134,7 @@ export default function Products() {
                             onSave={(v) => patchVariantFields(row.productId, variantId, { uom: String(v).trim() }, 'uom')}
                             title="Edit unit"
                           >
-                            <span className="text-xs text-gray-500">{row.uom}</span>
+                            <span className="text-xs text-gray-500 truncate block">{row.uom}</span>
                           </InlineEditCell>
                         </div>
                       ) : (
@@ -1228,11 +1144,11 @@ export default function Products() {
                           onSave={(v) => patchProductField(row.productId, 'uom', String(v).trim())}
                           title="Edit unit"
                         >
-                          <span className="text-xs text-gray-600">{packLabel}</span>
+                          <span className="text-xs text-gray-600 truncate block">{packLabel}</span>
                         </InlineEditCell>
                       )}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2.5 overflow-hidden">
                       <InlineEditCell
                         type="number"
                         value={row.price}
@@ -1247,7 +1163,7 @@ export default function Products() {
                         )}
                         title="Edit price"
                       >
-                        <span className="text-sm font-semibold text-gray-900 tabular-nums">
+                        <span className="text-sm font-semibold text-gray-900 tabular-nums truncate block">
                           {row.price > 0
                             ? row.priceHigh > row.price
                               ? `${sym}${row.price.toLocaleString()} – ${sym}${row.priceHigh.toLocaleString()}`
@@ -1256,30 +1172,32 @@ export default function Products() {
                         </span>
                       </InlineEditCell>
                     </td>
-                    <td className="px-4 py-2.5">
-                      <InlineEditCell
-                        type="number"
-                        value={row.quantity}
-                        min={0}
-                        step="1"
-                        saving={savingCellKey === variantQtyKey}
-                        validate={(v) => Number(v) < 0 || !Number.isInteger(Number(v)) ? 'Enter a whole number ≥ 0' : null}
-                        parse={(raw) => Math.max(0, Math.round(Number(raw) || 0))}
-                        onSave={(v) => (
-                          variantId
-                            ? patchVariantField(row.productId, variantId, 'quantity', Number(v))
-                            : patchProductField(row.productId, 'quantity', Number(v))
-                        )}
-                        title="Edit stock"
-                      >
-                        <span className={`text-sm font-semibold tabular-nums ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-800'}`}>
-                          {row.quantity.toLocaleString()}
-                        </span>
-                        {isLow && !isOut && <span className="ml-1 text-[10px] text-amber-500">low</span>}
-                        {isOut && <span className="ml-1 text-[10px] text-red-400">{row.stock_status.replace(/_/g, ' ')}</span>}
-                      </InlineEditCell>
+                    <td className="px-4 py-2.5 overflow-hidden">
+                      <div className="min-w-0 space-y-0.5">
+                        <InlineEditCell
+                          type="number"
+                          value={row.quantity}
+                          min={0}
+                          step="1"
+                          saving={savingCellKey === variantQtyKey}
+                          validate={(v) => Number(v) < 0 || !Number.isInteger(Number(v)) ? 'Enter a whole number ≥ 0' : null}
+                          parse={(raw) => Math.max(0, Math.round(Number(raw) || 0))}
+                          onSave={(v) => (
+                            variantId
+                              ? patchVariantField(row.productId, variantId, 'quantity', Number(v))
+                              : patchProductField(row.productId, 'quantity', Number(v))
+                          )}
+                          title="Edit stock"
+                        >
+                          <span className={`text-sm font-semibold tabular-nums ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-800'}`}>
+                            {row.quantity.toLocaleString()}
+                          </span>
+                        </InlineEditCell>
+                        {isLow && !isOut && <p className="text-[10px] text-amber-500 truncate">low stock</p>}
+                        {isOut && <p className="text-[10px] text-red-400 truncate">{row.stock_status.replace(/_/g, ' ')}</p>}
+                      </div>
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2.5 overflow-hidden">
                       {variantId ? (
                         <InlineEditCell
                           type="select"
@@ -1312,66 +1230,37 @@ export default function Products() {
                         </InlineEditCell>
                       )}
                     </td>
-                    <td className="px-5 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
-                      {isConfirmingDelete ? (
-                        <div className="inline-flex flex-col items-end gap-1.5 min-w-[7.5rem]">
-                          <p className="text-[10px] font-medium text-red-600 text-right leading-tight">
-                            Delete {row.variantName}?
-                          </p>
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-7 px-2 text-xs"
-                              disabled={isDeleting}
-                              onClick={() => deleteVariantGroup(row)}
-                            >
-                              {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs"
-                              disabled={isDeleting}
-                              onClick={() => setVariantDeleteKey(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-0.5">
-                          <Button
-                            variant="ghost" size="sm" className="h-7 w-7 p-0"
-                            title="View product"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              navigate(`/products/${row.productId}`)
-                            }}
-                          >
-                            <Eye className="w-3.5 h-3.5 text-blue-500" />
-                          </Button>
-                          <Button
-                            variant="ghost" size="sm" className="h-7 w-7 p-0"
-                            title="Edit product"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              navigate(`/products/${row.productId}?edit=true`)
-                            }}
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-gray-500" />
-                          </Button>
-                          {row.canDelete ? (
-                            <Button
-                              variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                              title={`Delete variant ${row.variantName}`}
-                              onClick={() => setVariantDeleteKey(rowKey)}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          ) : null}
-                        </div>
-                      )}
+                    <td className="px-5 py-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <div className="inline-flex items-center justify-end gap-0.5">
+                        <Button
+                          variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0"
+                          title="View product"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/products/${row.productId}`)
+                          }}
+                        >
+                          <Eye className="w-3.5 h-3.5 text-blue-500" />
+                        </Button>
+                        <Button
+                          variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0"
+                          title="Edit product"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/products/${row.productId}?edit=true`)
+                          }}
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                        </Button>
+                        <Button
+                          variant="ghost" size="sm"
+                          className="h-7 w-7 p-0 shrink-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          title="Move to trash"
+                          onClick={() => setProductDeleteConfirm({ id: row.productId, name: row.productName })}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -1400,6 +1289,69 @@ export default function Products() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(productDeleteConfirm)}
+        onOpenChange={(open) => {
+          if (!open && !deleteProduct.isPending) setProductDeleteConfirm(null)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <Trash2 className="h-4 w-4" />
+              </span>
+              {productDeleteConfirm?.permanent ? 'Delete permanently?' : 'Move to trash?'}
+            </DialogTitle>
+            <DialogDescription className="pt-1">
+              {productDeleteConfirm?.permanent ? (
+                <>
+                  <span className="font-medium text-foreground">{productDeleteConfirm.name}</span>
+                  {' '}will be permanently deleted. This cannot be undone.
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-foreground">{productDeleteConfirm?.name}</span>
+                  {' '}will be moved to Deleted products. You can restore it later.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deleteProduct.isPending}
+              onClick={() => setProductDeleteConfirm(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteProduct.isPending || !productDeleteConfirm}
+              onClick={() => {
+                if (!productDeleteConfirm) return
+                deleteProduct.mutate(
+                  productDeleteConfirm.permanent
+                    ? { id: productDeleteConfirm.id, permanent: true }
+                    : productDeleteConfirm.id,
+                  { onSettled: () => setProductDeleteConfirm(null) },
+                )
+              }}
+            >
+              {deleteProduct.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : productDeleteConfirm?.permanent ? (
+                'Delete permanently'
+              ) : (
+                'Move to trash'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <BarcodeScannerModal
         open={showScanner}
