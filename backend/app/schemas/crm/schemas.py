@@ -876,12 +876,17 @@ class ChatConversationResponse(BaseModel):
     visitor_id: Optional[str] = None
     visitor_name: Optional[str] = None
     visitor_email: Optional[str] = None
+    visitor_phone: Optional[str] = None  # added sfq004
     channel: str
     status: str
     assigned_to: Optional[UUID] = None
     bot_handled: bool
     last_message_at: datetime
     created_at: datetime
+    converted_lead_id: Optional[UUID] = None
+    converted_at: Optional[datetime] = None
+    converted_ticket_id: Optional[UUID] = None
+    ticket_converted_at: Optional[datetime] = None
 
 
 class JourneyEventBase(BaseModel):
@@ -937,5 +942,6 @@ class WidgetMessagePayload(BaseModel):
     visitor_id: str
     visitor_name: Optional[str] = None
     visitor_email: Optional[EmailStr] = None
+    visitor_phone: Optional[str] = None
     body: str
     metadata: Optional[dict] = None

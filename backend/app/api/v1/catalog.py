@@ -22,7 +22,7 @@ from app.services.file_service import FileService
 from app.repositories.vendor_repo import VendorRepository
 from app.repositories.product_repo import ProductRepository
 from app.repositories.service_repo import ServiceRepository
-from app.api.v1.vendor_products import _product_to_dict
+from app.api.v1.vendor_products import _product_to_dict, _effective_stock_status
 from app.api.v1.vendor_services import _service_to_dict
 from app.repositories.review_repo import ReviewRepository
 from app.utils.geo import haversine_km
@@ -924,6 +924,21 @@ async def submit_storefront_contact_query(
     db.add(row)
     await db.commit()
     await db.refresh(row)
+
+    # Fire event for auto-trigger workflows (best-effort, non-blocking).
+    try:
+        from app.core.events import event_emitter
+        await event_emitter.emit("crm.contact_query.created", {
+            "vendor_id": str(vendor.id),
+            "query_id": str(row.id),
+            "name": row.name,
+            "email": row.email,
+            "phone": row.phone,
+            "message": row.message,
+        })
+    except Exception:
+        pass
+
     return {
         "ok": True,
         "id": str(row.id),
@@ -961,6 +976,21 @@ async def submit_storefront_contact_query_by_tenant(
     db.add(row)
     await db.commit()
     await db.refresh(row)
+
+    # Fire event for auto-trigger workflows (best-effort, non-blocking).
+    try:
+        from app.core.events import event_emitter
+        await event_emitter.emit("crm.contact_query.created", {
+            "vendor_id": str(vendor.id),
+            "query_id": str(row.id),
+            "name": row.name,
+            "email": row.email,
+            "phone": row.phone,
+            "message": row.message,
+        })
+    except Exception:
+        pass
+
     return {
         "ok": True,
         "id": str(row.id),
@@ -1221,7 +1251,13 @@ async def _product_to_card(p, review_repo: ReviewRepository) -> dict:
         "avg_rating": stats["avg_rating"],
         "review_count": stats["review_count"],
         "view_count": int(p.view_count or 0),
-        "stock_status": p.stock_status or "in_stock",
+        "stock_status": _effective_stock_status(
+            quantity=p.quantity,
+            stock_status=p.stock_status,
+            track_inventory=p.track_inventory,
+            allow_backorders=p.allow_backorders,
+            low_stock_threshold=p.low_stock_threshold,
+        ),
         "brand": p.brand,
         "category": p.category,
     }
@@ -1266,7 +1302,7 @@ async def _get_product_merchandising(
         prod_stmt = (
             select(Product)
             .options(selectinload(Product.images))
-            .where(Product.id.in_(target_ids), Product.status == "active", Product.is_visible == True)
+            .where(Product.id.in_(target_ids), Product.status == "active", Product.is_visible == True, Product.deleted_at.is_(None))
         )
         prod_result = await db.execute(prod_stmt)
         products_by_id = {p.id: p for p in prod_result.scalars().all()}
@@ -1298,6 +1334,7 @@ async def _get_product_merchandising(
                 Product.id != product_id,
                 Product.status == "active",
                 Product.is_visible == True,
+                Product.deleted_at.is_(None),
                 Product.category == category,
             )
             .order_by(Product.is_featured.desc(), Product.created_at.desc())
@@ -1318,6 +1355,7 @@ async def _get_product_merchandising(
             Product.id.notin_(seen_ids),
             Product.status == "active",
             Product.is_visible == True,
+            Product.deleted_at.is_(None),
         )
         .order_by(
             Product.is_best_seller.desc(),

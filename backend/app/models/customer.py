@@ -1,6 +1,6 @@
 # app/models/customer.py
 from sqlalchemy import (
-    Column, String, Text, Boolean, DateTime, ForeignKey,
+    Column, String, Text, Boolean, DateTime, Date, ForeignKey,
     Numeric, Integer, Index
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -43,6 +43,10 @@ class Customer(Base):
     billing_address = Column(JSONB, default={})
 
     notes = Column(Text, nullable=True)
+
+    # Stage C — wholesale / GDP license (lite ship gate)
+    wholesale_license_number = Column(String(80), nullable=True)
+    wholesale_license_expires = Column(Date, nullable=True)
 
     # Bank Details
     bank_name = Column(String(100), nullable=True)

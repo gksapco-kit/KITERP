@@ -97,6 +97,8 @@ export const SIDEBAR_APP_DESCRIPTIONS: Record<string, string> = {
   'procurement': 'Purchase orders, requisitions, vendor invoices, and goods management.',
   'finance': 'Accounting, AR/AP, bank, assets, budgets, tax, and financial reports.',
   'controlling': 'Product costing, production orders, variance analysis, and period end.',
+  'production': 'Manufacturing orders, schedule, work centers, and MRP.',
+  'pharma': 'Pharmaceutical manufacturing — batches, QC, eBMR, QMS, genealogy, and serialization.',
   'master-data': 'Customers, suppliers, and review management.',
   'crm': 'Contacts, pipeline, tickets, campaigns, workflows, and CRM reports.',
   'hr': 'Employees, attendance, payroll, recruitment, training, and compliance.',
@@ -111,7 +113,7 @@ export const SIDEBAR_APP_GROUPS: { id: string; title: string; sectionIds: string
   {
     id: 'operations',
     title: 'Inventory & Manufacturing',
-    sectionIds: ['inventory', 'procurement', 'controlling'],
+    sectionIds: ['inventory', 'production', 'pharma', 'procurement', 'controlling'],
   },
   { id: 'finance', title: 'Finance', sectionIds: ['finance'] },
   { id: 'data', title: 'Master Data', sectionIds: ['master-data'] },

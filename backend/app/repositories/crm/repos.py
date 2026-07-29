@@ -4,6 +4,7 @@ ORM models scoped by ``vendor_id`` and provides common list/search helpers.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, Optional, Sequence
 from uuid import UUID
@@ -134,13 +135,36 @@ class ContactRepo(_VendorScopedRepo):
         )
 
     async def find_by_email(self, vendor_id: UUID, email: str):
+        email = (email or "").strip()
+        if not email:
+            return None
         row = await self.db.execute(
             select(CrmContact).where(
                 CrmContact.vendor_id == vendor_id,
-                CrmContact.email == email,
+                func.lower(CrmContact.email) == email.lower(),
             )
         )
         return row.scalar_one_or_none()
+
+    async def find_by_phone(self, vendor_id: UUID, phone: str):
+        """Match contacts whose phone/mobile digits equal the given phone digits."""
+        digits = re.sub(r"\D+", "", phone or "")
+        if len(digits) < 6:
+            return None
+        row = await self.db.execute(
+            select(CrmContact).where(
+                CrmContact.vendor_id == vendor_id,
+                or_(
+                    CrmContact.phone.isnot(None),
+                    CrmContact.mobile.isnot(None),
+                ),
+            )
+        )
+        for contact in row.scalars().all():
+            for candidate in (contact.phone, contact.mobile):
+                if candidate and re.sub(r"\D+", "", candidate) == digits:
+                    return contact
+        return None
 
 
 # ── Leads ────────────────────────────────────────────────────────────────────
@@ -374,7 +398,7 @@ class TicketRepo(_VendorScopedRepo):
 
     async def next_ticket_number(self, vendor_id: UUID) -> str:
         from app.services.crm.numbering import next_crm_number
-        return await next_crm_number(self.db, vendor_id, CrmTicket, "TCK")
+        return await next_crm_number(self.db, vendor_id, CrmTicket, "TCK", entity_type="ticket")
 
 
 class TicketCommentRepo(_VendorScopedRepo):

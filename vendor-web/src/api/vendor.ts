@@ -811,6 +811,59 @@ export const vendorApi = {
     await apiClient.delete(`/vendors/me/categories/${id}`)
   },
 
+  // ── Product Groups ────────────────────────────────────────────
+  listProductGroups: async (params?: Record<string, unknown>): Promise<{ groups: import('@/types').ProductGroup[] }> => {
+    const response = await apiClient.get('/vendors/me/product-groups', { params })
+    return response.data
+  },
+
+  listProductGroupFlatOptions: async (excludeId?: string): Promise<{ options: import('@/types').ProductGroupFlatOption[] }> => {
+    const response = await apiClient.get('/vendors/me/product-groups/flat-options', {
+      params: excludeId ? { exclude_id: excludeId } : undefined,
+    })
+    return response.data
+  },
+
+  getProductGroup: async (id: string): Promise<import('@/types').ProductGroup> => {
+    const response = await apiClient.get(`/vendors/me/product-groups/${id}`)
+    return response.data
+  },
+
+  createProductGroup: async (data: Record<string, unknown>): Promise<import('@/types').ProductGroup> => {
+    const response = await apiClient.post('/vendors/me/product-groups', data)
+    return response.data
+  },
+
+  updateProductGroup: async (id: string, data: Record<string, unknown>): Promise<import('@/types').ProductGroup> => {
+    const response = await apiClient.put(`/vendors/me/product-groups/${id}`, data)
+    return response.data
+  },
+
+  reparentProductGroup: async (id: string, parentId: string | null): Promise<import('@/types').ProductGroup> => {
+    const response = await apiClient.patch(`/vendors/me/product-groups/${id}/reparent`, { parent_id: parentId })
+    return response.data
+  },
+
+  deleteProductGroup: async (id: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/product-groups/${id}`)
+  },
+
+  addProductGroupItems: async (
+    groupId: string,
+    items: { item_type: 'product' | 'service'; item_id: string; quantity?: number }[],
+  ): Promise<{ added: number; skipped: number; not_found: string[] }> => {
+    const response = await apiClient.post(`/vendors/me/product-groups/${groupId}/items`, { items })
+    return response.data
+  },
+
+  updateProductGroupItem: async (groupId: string, itemId: string, data: { quantity?: number; sort_order?: number }): Promise<void> => {
+    await apiClient.put(`/vendors/me/product-groups/${groupId}/items/${itemId}`, data)
+  },
+
+  removeProductGroupItem: async (groupId: string, itemId: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/product-groups/${groupId}/items/${itemId}`)
+  },
+
   // ── Storage Locations ───────────────────────────────────────
   listStorageLocations: async (params: { store_id?: string; plant_id?: string; tree?: boolean; is_active?: boolean }): Promise<{ locations: import('@/types').StorageLocation[] }> => {
     const response = await apiClient.get('/vendors/me/storage-locations', { params })
@@ -907,8 +960,15 @@ export const vendorApi = {
     return response.data
   },
 
-  deleteProduct: async (id: string): Promise<void> => {
-    await apiClient.delete(`/vendors/me/products/${id}`)
+  deleteProduct: async (id: string, opts?: { permanent?: boolean }): Promise<void> => {
+    await apiClient.delete(`/vendors/me/products/${id}`, {
+      params: opts?.permanent ? { permanent: true } : undefined,
+    })
+  },
+
+  restoreProduct: async (id: string): Promise<Product> => {
+    const response = await apiClient.post(`/vendors/me/products/${id}/restore`)
+    return response.data
   },
 
   // ── Services ──────────────────────────────────────────────

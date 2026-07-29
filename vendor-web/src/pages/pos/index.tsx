@@ -55,6 +55,8 @@ import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
 import { POSSearchGrid } from './POSSearchGrid'
 import type { AddToCartItem } from './POSSearchGrid'
+import { useVendorStore } from '@/stores/vendorStore'
+import { isPharmaNavVisible } from '@/lib/vendorModuleSettings'
 import type { Customer } from '@/types'
 import { StaffPicker, type StaffPickerValue } from '@/components/commission/StaffPicker'
 type TxnMode = 'sale' | 'return'
@@ -136,6 +138,9 @@ export default function POS() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tableFromUrl = searchParams.get('table')
   const orderFromUrl = searchParams.get('order')
+
+  const { vendor } = useVendorStore()
+  const pharmaEnabled = isPharmaNavVisible(vendor?.settings as Record<string, unknown> | undefined, vendor?.offering_type)
 
   // ── Locked business unit (store) — POS operates against the staff member's assigned store ──
   const { data: myMembership, isLoading: membershipLoading } = useMyMembership()
@@ -1274,6 +1279,7 @@ export default function POS() {
               products={products}
               services={services}
               externalSearch={search}
+              pharmaEnabled={pharmaEnabled}
               onAddToCart={(item: AddToCartItem) => handleProductAdd({
                 id: item.id,
                 variant_id: item.variant_id,

@@ -21,7 +21,8 @@ export function resolveLiveItemDisplayPrice(item: LiveItem): number | null {
     if (!Number.isNaN(num) && num > 0) return num
   }
 
-  return direct != null && !Number.isNaN(Number(direct)) ? Number(direct) : null
+  // Zero / missing prices stay empty on the business front (no ₹0).
+  return null
 }
 
 /** Storefront path for a live catalog item (/products/{slug} or /services/{slug}). */
@@ -71,6 +72,13 @@ export function normalizeLiveProduct(item: LiveItem): LiveItem {
   const priceFormatted =
     formatLiveProductPrice(resolvedPrice, currency)
     || normalizeLiveProductPriceLabel(item.price_formatted)
+    || null
+
+  // Drop zero / placeholder labels so cards stay empty when unpriced.
+  const safePriceFormatted =
+    priceFormatted && !/^₹?\s*0(\.0+)?$/i.test(priceFormatted.replace(/,/g, '').trim())
+      ? priceFormatted
+      : null
 
   const productUrl = resolveLiveProductUrl(item)
 
@@ -80,8 +88,8 @@ export function normalizeLiveProduct(item: LiveItem): LiveItem {
     image_url: image ? imgUrl(image) : null,
     subtitle: item.subtitle || (meta.brand as string) || null,
     description: item.description || (meta.short_description as string) || null,
-    price: resolvedPrice ?? item.price,
-    price_formatted: priceFormatted,
+    price: resolvedPrice,
+    price_formatted: safePriceFormatted,
   }
 }
 

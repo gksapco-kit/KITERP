@@ -408,6 +408,7 @@ class OrderService:
             qty = item.get("qty", 0)
             if not product_id or qty <= 0:
                 continue
+            product = None
             try:
                 product = await self.db.get(Product, UUID(str(product_id)))
                 if not product or not product.track_inventory:
@@ -420,8 +421,15 @@ class OrderService:
                     reference_id=order.id,
                     reference_type="order",
                     variant_id=vid,
+                    customer_id=order.customer_id,
                 )
             except Exception as e:
+                # Batch/serial-managed products must not sell without traceable lots.
+                if product is not None and (
+                    getattr(product, "batch_managed", False)
+                    or getattr(product, "serial_managed", False)
+                ):
+                    raise ValueError(f"Cannot sell {product.name}: {e}") from e
                 log.warning("Inventory deduction failed for product %s: %s", product_id, e)
 
     @staticmethod
@@ -456,6 +464,8 @@ class OrderService:
                     quantity=qty,
                     reference_id=order.id,
                     variant_id=vid,
+                    original_source_id=order.id,
+                    original_source_type="order",
                 )
             except Exception as e:
                 log.warning("Inventory restoration failed for product %s: %s", product_id, e)

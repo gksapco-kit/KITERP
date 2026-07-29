@@ -85,6 +85,9 @@ export function VariantManagementPanel({
     mutationFn: (ids: string[]) => vendorApi.productBulkDeleteVariants(productId, ids),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey })
+      // Keep the product detail cache in sync so ProductDisplay (view mode)
+      // reflects the deletion without requiring a full page reload.
+      qc.invalidateQueries({ queryKey: ['vendor', 'product', productId] })
       toast.success(`Deleted ${res.deleted_count} variant${res.deleted_count === 1 ? '' : 's'}`)
       setSelected(new Set())
       setConfirmDeleteOpen(false)

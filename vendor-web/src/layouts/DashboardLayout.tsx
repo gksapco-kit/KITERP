@@ -11,7 +11,7 @@ import {
   FolderTree, Truck, ClipboardList, Calendar, Bell, List, PackageSearch, FileCheck, ArrowRightLeft,
   ChevronDown, ChevronRight, Check, Menu, FilePlus, Factory, PieChart,
   UserCog, Clock, Plane, DollarSign, Award, Building2, FileSignature, Dumbbell, Car, Ticket,
-  HelpCircle, Phone, MessageCircle, User as UserIcon, Info,
+  HelpCircle, Phone, MessageCircle, User as UserIcon, Info, AlertCircle,
   Briefcase, Target, ShieldAlert, GraduationCap, Megaphone, Receipt as ReceiptIcon, LifeBuoy, UserCheck,
   Contact2, GitBranch, Workflow, Mail, BookOpen, Bot, Plug, History, Activity,
   Landmark, BookMarked, ArrowLeftRight, Scale, Banknote, TrendingUp, TrendingDown, Calculator,
@@ -20,8 +20,9 @@ import {
   Lock, ListChecks, Boxes, Gauge, Globe, Newspaper, Moon, Sun, Image, Palette,
   UtensilsCrossed, ChefHat, LayoutGrid, RefreshCw, FolderKanban, FileBarChart,
   GripVertical, SlidersHorizontal, Database, Table2, Search, ExternalLink,
-  PanelLeftClose, PanelLeft, Settings2, Hash, QrCode,
+  PanelLeftClose, PanelLeft, Settings2, Hash, QrCode, Pill, FlaskConical, Microscope,
   ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin, Quote, X,
+  ThermometerSnowflake, Network,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
 import { isVendorAdminEmbed } from '@/lib/adminEmbed'
@@ -143,7 +144,7 @@ import { vendorApi } from '@/api/vendor'
 import { toast } from 'sonner'
 import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
-import { useInboxUnreadCount } from '@/hooks/useCrm'
+import { useInboxUnreadCount, useNewLeadCount } from '@/hooks/useCrm'
 import { useNewContactQueryCount } from '@/hooks/useContactQueries'
 import { isAxiosAuthError } from '@/lib/errorMessages'
 import { UniversalSearch } from '@/components/UniversalSearch'
@@ -164,6 +165,7 @@ import {
   isCommissionNavVisible,
   isControllingNavVisible,
   isProductionNavVisible,
+  isPharmaNavVisible,
   isPosNavVisible,
   isRestaurantNavVisible,
   isBookingsNavVisible,
@@ -622,6 +624,7 @@ const allSections: NavSection[] = [
       { to: '/products', icon: Package, label: 'Products', requiresOffering: ['products', 'both'], requiresPermission: 'products.view' },
       { to: '/services', icon: Wrench, label: 'Services', requiresOffering: ['services', 'both'], requiresPermission: 'services.view' },
       { to: '/categories', icon: FolderTree, label: 'Categories' },
+      { to: '/product-groups', icon: Layers, label: 'Product Groups' },
       { to: '/inventory', icon: Warehouse, label: 'Inventory', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/inventory/settings', icon: Settings, label: 'Inventory Config', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/plants', icon: Factory, label: 'Plants', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
@@ -646,6 +649,7 @@ const allSections: NavSection[] = [
       { to: '/crm', icon: LayoutDashboard, label: 'CRM Dashboard', requiresPermission: 'crm.view' },
       { to: '/crm/contacts', icon: Contact2, label: 'Contacts', requiresPermission: 'crm.view' },
       { to: '/crm/leads', icon: Target, label: 'Leads', requiresPermission: 'crm.view' },
+      { to: '/crm/number-ranges', icon: Hash, label: 'Number Ranges', requiresPermission: 'crm.leads.manage' },
       { to: '/crm/pipeline', icon: GitBranch, label: 'Pipeline', requiresPermission: 'crm.view' },
       { to: '/crm/activities', icon: Activity, label: 'Tasks', requiresPermission: 'crm.view' },
       { to: '/crm/tickets', icon: LifeBuoy, label: 'Tickets', requiresPermission: 'crm.view' },
@@ -670,6 +674,34 @@ const allSections: NavSection[] = [
       { to: '/production/work-centers', icon: GitBranch, label: 'Work Centers & Routing', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
       { to: '/production/mrp', icon: Layers, label: 'Material Requirements (MRP)', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
       { to: '/production/analytics', icon: BarChart3, label: 'Analytics', requiresOffering: ['products', 'both'], requiresPermission: 'production.view' },
+    ],
+  },
+  {
+    id: 'pharma',
+    title: 'Pharmaceutical Manufacturing',
+    icon: Pill,
+    items: [
+      { to: '/pharma', icon: Pill, label: 'Overview', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view', groupLabel: 'Foundations', groupColor: 'emerald' },
+      { to: '/pharma/settings', icon: Settings2, label: 'Foundations', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view' },
+      { to: '/pharma/batches', icon: Package, label: 'Batches', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view', groupLabel: 'Lot control', groupColor: 'blue' },
+      { to: '/pharma/movements', icon: ArrowRightLeft, label: 'Lot movements', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view' },
+      { to: '/pharma/fefo', icon: Layers, label: 'FEFO', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view', groupLabel: 'Quarantine', groupColor: 'amber' },
+      { to: '/pharma/quarantine', icon: ShieldAlert, label: 'Quarantine', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view' },
+      { to: '/pharma/mbr', icon: ClipboardList, label: 'Master Batch Record', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage', groupLabel: 'eBMR', groupColor: 'violet' },
+      { to: '/pharma/bpr', icon: FileText, label: 'Batch Production Record', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage' },
+      { to: '/pharma/qc-specs', icon: FlaskConical, label: 'QC Specs', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view', groupLabel: 'Quality', groupColor: 'teal' },
+      { to: '/pharma/inspections', icon: Microscope, label: 'Inspections', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view' },
+      { to: '/pharma/release', icon: ClipboardCheck, label: 'Release & CoA', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.release' },
+      { to: '/pharma/genealogy', icon: GitBranch, label: 'Genealogy', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view', groupLabel: 'Traceability', groupColor: 'rose' },
+      { to: '/pharma/recalls', icon: AlertCircle, label: 'Recalls', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage' },
+      { to: '/pharma/deviations', icon: ShieldAlert, label: 'Deviations', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage', groupLabel: 'QMS', groupColor: 'orange' },
+      { to: '/pharma/capas', icon: ListChecks, label: 'CAPA', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage' },
+      { to: '/pharma/change-control', icon: Workflow, label: 'Change control', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage' },
+      { to: '/pharma/complaints', icon: MessageSquare, label: 'Complaints', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage' },
+      { to: '/pharma/audit', icon: History, label: 'E-sign & audit', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.audit', groupLabel: 'Compliance', groupColor: 'slate' },
+      { to: '/pharma/serialization', icon: QrCode, label: 'Serialization', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage' },
+      { to: '/pharma/gdp', icon: ThermometerSnowflake, label: 'GDP / cold chain', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage', groupLabel: 'Wholesale', groupColor: 'cyan' },
+      { to: '/pharma/track-trace', icon: Network, label: 'Track & trace', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage' },
     ],
   },
   {
@@ -1144,6 +1176,8 @@ const pageTitles: Record<string, string> = {
   '/services': 'Services',
   '/services/new': 'New Service',
   '/categories': 'Categories',
+  '/product-groups': 'Product Groups',
+  '/product-groups/:id': 'Group Detail',
   '/purchase-orders': 'Purchase Orders',
   '/procurement/requisitions': 'Purchase Requisitions',
   '/procurement/sourcing': 'Sourcing Setup',
@@ -1227,6 +1261,7 @@ const pageTitles: Record<string, string> = {
   '/crm': 'CRM Dashboard',
   '/crm/contacts': 'Contacts',
   '/crm/leads': 'Leads',
+  '/crm/number-ranges': 'Number Ranges',
   '/crm/pipeline': 'Sales Pipeline',
   '/crm/activities': 'Tasks',
   '/crm/inbox': 'Inbox',
@@ -1925,11 +1960,16 @@ export default function DashboardLayout() {
   const financeNavVisible = useMemo(() => isFinanceNavVisible(vendorSettings), [vendorSettings])
   const crmNavVisible = useMemo(() => isCrmNavVisible(vendorSettings), [vendorSettings])
   const { data: inboxCount = 0 } = useInboxUnreadCount(sessionReady && crmNavVisible)
+  const { data: newLeadCount = 0 } = useNewLeadCount(sessionReady && crmNavVisible)
   const { data: newQueryCount = 0 } = useNewContactQueryCount(sessionReady)
   const commissionNavVisible = useMemo(() => isCommissionNavVisible(vendorSettings), [vendorSettings])
   const controllingNavVisible = useMemo(() => isControllingNavVisible(vendorSettings), [vendorSettings])
   const productionNavVisible = useMemo(
     () => isProductionNavVisible(vendorSettings, vendor?.offering_type),
+    [vendorSettings, vendor?.offering_type],
+  )
+  const pharmaNavVisible = useMemo(
+    () => isPharmaNavVisible(vendorSettings, vendor?.offering_type),
     [vendorSettings, vendor?.offering_type],
   )
 
@@ -1941,11 +1981,12 @@ export default function DashboardLayout() {
     (to: string) => {
       if (to === '/notifications') return unreadCount
       if (to === '/crm/inbox') return inboxCount
+      if (to === '/crm/leads') return newLeadCount
       if (to === '/orders') return pendingOrderCount
       if (to === '/queries') return newQueryCount
       return 0
     },
-    [unreadCount, inboxCount, pendingOrderCount, newQueryCount],
+    [unreadCount, inboxCount, newLeadCount, pendingOrderCount, newQueryCount],
   )
 
   const filterItem = useCallback(
@@ -1962,9 +2003,7 @@ export default function DashboardLayout() {
       if (item.to === '/bookings' && !isBookingsNavVisible(vendorSettings, vendor?.offering_type)) return false
       if (item.to === '/projects' && !isProjectsNavVisible(vendorSettings)) return false
       if (item.to === '/subscriptions' && !isSubscriptionsNavVisible(vendorSettings)) return false
-      if (item.requiresOffering && vendor?.offering_type) {
-        if (!item.requiresOffering.includes(vendor.offering_type)) return false
-      }
+      // offering_type no longer gates nav — module toggles control visibility instead
       if (item.requiresPermission && vendorRole && !isOwnerOrAdmin) {
         if (!permissions.includes(item.requiresPermission)) return false
       }
@@ -1986,6 +2025,7 @@ export default function DashboardLayout() {
           if (section.id === 'commission' && !commissionNavVisible) return false
           if (section.id === 'controlling' && !controllingNavVisible) return false
           if (section.id === 'production' && !productionNavVisible) return false
+          if (section.id === 'pharma' && !pharmaNavVisible) return false
           if (
             section.id === 'restaurant' &&
             !isRestaurantNavVisible(vendorSettings, vendor?.offering_type, planFeatures)
@@ -1996,7 +2036,7 @@ export default function DashboardLayout() {
         })
         .map((section) => ({ ...section, items: section.items.filter(filterItem) }))
         .filter((section) => section.items.length > 0),
-    [filterItem, hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible, controllingNavVisible, productionNavVisible],
+    [filterItem, hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible, controllingNavVisible, productionNavVisible, pharmaNavVisible],
   )
 
   const { data: essProfile } = useESSProfile()

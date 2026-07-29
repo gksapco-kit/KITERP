@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { TablePagination } from '@/components/table/TablePagination'
-import { useProducts, useDeleteProduct, useUpdateProduct, useCategoryTree } from '@/hooks/useVendor'
+import { useProducts, useDeleteProduct, useRestoreProduct, useUpdateProduct, useCategoryTree } from '@/hooks/useVendor'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { useVendorStore } from '@/stores/vendorStore'
 import { flattenCategoryTree, filterCategoryTree } from '@/lib/categoryHierarchy'
@@ -26,7 +26,7 @@ import {
   Plus, Search, Pencil, Trash2, Loader2, X,
   Filter, Copy, Share2, Mail, MessageCircle, MoreVertical, Package, Eye,
   Image as ImageIcon, ChevronUp, ChevronDown, ChevronsUpDown, ScanLine,
-  Layers,
+  Layers, RotateCcw,
 } from 'lucide-react'
 import { formatVariantDisplayLabel } from '@/lib/productVariantPresets'
 import { variantToUpdatePayload } from '@/lib/productVariants'
@@ -197,6 +197,7 @@ export default function Products() {
   const [viewMode, setViewMode] = useState<'product' | 'variant'>(() => {
     try { return (localStorage.getItem('kiterp:products:viewMode') as 'product' | 'variant') || 'product' } catch { return 'product' }
   })
+  const [showDeleted, setShowDeleted] = useState(false)
   const { data: categoryData } = useCategoryTree()
   const productCategories = useMemo(
     () => flattenCategoryTree(filterCategoryTree(categoryData?.categories || [], 'product')),
@@ -216,9 +217,11 @@ export default function Products() {
 
   // Product view: server-paginated by product. Variant view: load a large product
   // batch, flatten to variant rows, then paginate those rows by pageSize.
+  // Trash view is always product-wise.
+  const listViewMode = showDeleted ? 'product' : viewMode
   const { data, isLoading } = useProducts({
-    page: viewMode === 'variant' ? 1 : page,
-    size: viewMode === 'variant' ? 500 : pageSize,
+    page: listViewMode === 'variant' ? 1 : page,
+    size: listViewMode === 'variant' ? 500 : pageSize,
     search: search || undefined,
     status: status || undefined,
     category: categoryRoot || undefined,
@@ -226,8 +229,10 @@ export default function Products() {
     product_type: productType || undefined,
     stock: stock || undefined,
     store_id: selectedStore?.id || undefined,
+    deleted_only: showDeleted || undefined,
   })
   const deleteProduct = useDeleteProduct()
+  const restoreProduct = useRestoreProduct()
   const updateProduct = useUpdateProduct()
   const { savingCellKey, setSavingCellKey, cellKey, patchField: patchProductField } = useInlineFieldPatch(updateProduct)
 
@@ -428,7 +433,7 @@ export default function Products() {
   }, [viewMode, variantRows, page, pageSize])
 
   useEffect(() => {
-    if (viewMode === 'variant' && page > variantPages) setPage(1)
+    if (listViewMode === 'variant' && page > variantPages) setPage(1)
   }, [viewMode, page, variantPages])
 
   const setViewModePersisted = (mode: 'product' | 'variant') => {
@@ -475,11 +480,18 @@ export default function Products() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{data?.total ?? 0} total products</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {showDeleted ? 'Deleted Products' : 'Products'}
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {showDeleted
+              ? `${data?.total ?? 0} deleted product${(data?.total ?? 0) === 1 ? '' : 's'}`
+              : `${data?.total ?? 0} total products`}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {/* View mode toggle */}
+          {!showDeleted && (
           <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 text-xs">
             <button
               type="button"
@@ -508,11 +520,28 @@ export default function Products() {
               Variant
             </button>
           </div>
+          )}
+          <Button
+            variant={showDeleted ? 'default' : 'outline'}
+            className="gap-2"
+            onClick={() => {
+              setShowDeleted((v) => !v)
+              setPage(1)
+              setProductDeleteId(null)
+            }}
+          >
+            <Trash2 className={`w-4 h-4 ${showDeleted ? '' : 'text-red-500'}`} />
+            {showDeleted ? 'Back to products' : 'Deleted'}
+          </Button>
+          {!showDeleted && (
+            <>
           <Button variant="outline" className="gap-2" onClick={() => setShowScanner(true)} disabled={scanLoading}>
             {scanLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4 text-blue-500" />}
             Scan
           </Button>
           <Button onClick={() => navigate('/products/new')} className="gap-2 shadow-sm"><Plus className="w-4 h-4" />Add Product</Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -608,7 +637,7 @@ export default function Products() {
           <div className="overflow-x-auto">
 
           {/* ── Product-wise view ── */}
-          {viewMode === 'product' && (
+          {listViewMode === 'product' && (
           <ResizableTable tableId="products" defaultWidths={[280, 120, 90, 100, 110, 90, 110]}>
             <thead>
               <tr className="border-b bg-gray-50/80">
@@ -651,7 +680,15 @@ export default function Products() {
                 <tr>
                   <td colSpan={7} className="px-6 py-16 text-center">
                     <Package className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                    {hasActiveQuery ? (
+                    {showDeleted ? (
+                      <>
+                        <p className="text-sm font-medium text-gray-500 mb-1">No deleted products</p>
+                        <p className="text-xs text-gray-400 mb-4">Deleted products will appear here so you can restore them</p>
+                        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowDeleted(false)}>
+                          Back to products
+                        </Button>
+                      </>
+                    ) : hasActiveQuery ? (
                       <>
                         <p className="text-sm font-medium text-gray-500 mb-1">No products found</p>
                         <p className="text-xs text-gray-400 mb-4">
@@ -686,8 +723,8 @@ export default function Products() {
                 return (
                 <tr
                   key={product.id}
-                  className="hover:bg-gray-50/80 cursor-pointer transition-colors group"
-                  onClick={onClickableTableRow(() => navigate(`/products/${product.id}`))}
+                  className={`hover:bg-gray-50/80 transition-colors group ${showDeleted ? '' : 'cursor-pointer'}`}
+                  onClick={showDeleted ? undefined : onClickableTableRow(() => navigate(`/products/${product.id}`))}
                 >
                   <td className="px-5 py-3 max-w-[280px]">
                     <div className="flex items-center gap-3 min-w-0">
@@ -847,6 +884,18 @@ export default function Products() {
                     })()}
                   </td>
                   <td className="px-4 py-3">
+                    {showDeleted ? (
+                      <div className="flex flex-col gap-1 min-w-[6.5rem]">
+                        <span className="px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap bg-red-50 text-red-600 w-fit">
+                          Deleted
+                        </span>
+                        {product.deleted_at && (
+                          <span className="text-[10px] text-gray-400">
+                            {formatDate(product.deleted_at)}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
                     <div className="flex flex-col gap-1 min-w-[6.5rem]">
                       <InlineEditCell
                         type="select"
@@ -883,12 +932,67 @@ export default function Products() {
                         </span>
                       </InlineEditCell>
                     </div>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                    {productDeleteId === product.id ? (
+                    {showDeleted ? (
+                      productDeleteId === product.id ? (
+                        <div className="inline-flex flex-col items-end gap-1.5 min-w-[8rem]">
+                          <p className="text-[10px] font-medium text-red-600 text-right leading-tight">
+                            Delete permanently?
+                          </p>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 px-2 text-xs"
+                              disabled={deleteProduct.isPending}
+                              onClick={() => deleteProduct.mutate(
+                                { id: product.id, permanent: true },
+                                { onSettled: () => setProductDeleteId(null) },
+                              )}
+                            >
+                              {deleteProduct.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              disabled={deleteProduct.isPending}
+                              onClick={() => setProductDeleteId(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1 justify-end items-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs"
+                            disabled={restoreProduct.isPending}
+                            title="Restore product"
+                            onClick={() => restoreProduct.mutate(product.id)}
+                          >
+                            {restoreProduct.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                            Restore
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            title="Delete permanently"
+                            onClick={() => setProductDeleteId(product.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )
+                    ) : productDeleteId === product.id ? (
                       <div className="inline-flex flex-col items-end gap-1.5 min-w-[7.5rem]">
                         <p className="text-[10px] font-medium text-red-600 text-right leading-tight">
-                          Delete this product?
+                          Move to trash?
                         </p>
                         <div className="flex gap-1">
                           <Button
@@ -935,7 +1039,7 @@ export default function Products() {
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                          title="Delete product"
+                          title="Move to trash"
                           onClick={() => setProductDeleteId(product.id)}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -957,7 +1061,7 @@ export default function Products() {
           )}
 
           {/* ── Variant-wise view ── */}
-          {viewMode === 'variant' && (
+          {listViewMode === 'variant' && (
           <ResizableTable tableId="products-variant" defaultWidths={[240, 150, 70, 90, 80, 90, 80, 90]}>
             <thead>
               <tr className="border-b bg-gray-50/80">
@@ -1281,14 +1385,14 @@ export default function Products() {
           {data && (
             <TablePagination
               page={page}
-              pages={viewMode === 'variant' ? variantPages : (data.pages || 1)}
-              total={viewMode === 'variant' ? variantTotal : data.total}
+              pages={listViewMode === 'variant' ? variantPages : (data.pages || 1)}
+              total={listViewMode === 'variant' ? variantTotal : data.total}
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
-              itemLabel={viewMode === 'variant' ? 'variant rows' : 'products'}
+              itemLabel={listViewMode === 'variant' ? 'variant rows' : showDeleted ? 'deleted products' : 'products'}
               countSuffix={
-                viewMode === 'variant' && (data.total ?? 0) > 0
+                listViewMode === 'variant' && (data.total ?? 0) > 0
                   ? ` · ${data.total} product${data.total === 1 ? '' : 's'}`
                   : undefined
               }

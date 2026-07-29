@@ -17,6 +17,18 @@ from app.services.catalog_store_scope import validate_store_ids
 
 router = APIRouter()
 
+VALID_STOCK_TYPES = {"unrestricted", "quarantine", "rejected", "returns"}
+
+
+def _normalize_stock_type(value: str | None) -> str:
+    raw = (value or "unrestricted").strip().lower()
+    if raw not in VALID_STOCK_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"stock_type must be one of: {', '.join(sorted(VALID_STOCK_TYPES))}",
+        )
+    return raw
+
 
 def _location_to_dict(loc: StorageLocation) -> dict:
     return {
@@ -30,6 +42,10 @@ def _location_to_dict(loc: StorageLocation) -> dict:
         "description": loc.description,
         "is_active": loc.is_active,
         "sort_order": loc.sort_order or 0,
+        "stock_type": getattr(loc, "stock_type", None) or "unrestricted",
+        "storage_condition": getattr(loc, "storage_condition", None),
+        "temp_min_c": getattr(loc, "temp_min_c", None),
+        "temp_max_c": getattr(loc, "temp_max_c", None),
         "custom_fields": loc.custom_fields or [],
         "children": [],
         "created_at": loc.created_at.isoformat() if loc.created_at else None,
@@ -155,6 +171,10 @@ async def create_storage_location(
         code=data.code.strip() if data.code else None,
         description=data.description,
         sort_order=data.sort_order,
+        stock_type=_normalize_stock_type(data.stock_type),
+        storage_condition=(data.storage_condition or None),
+        temp_min_c=data.temp_min_c,
+        temp_max_c=data.temp_max_c,
         custom_fields=[f.model_dump() for f in data.custom_fields] if data.custom_fields else [],
     )
     db.add(loc)
@@ -213,6 +233,14 @@ async def update_storage_location(
         loc.is_active = data.is_active
     if data.sort_order is not None:
         loc.sort_order = data.sort_order
+    if data.stock_type is not None:
+        loc.stock_type = _normalize_stock_type(data.stock_type)
+    if data.storage_condition is not None:
+        loc.storage_condition = data.storage_condition or None
+    if data.temp_min_c is not None:
+        loc.temp_min_c = data.temp_min_c
+    if data.temp_max_c is not None:
+        loc.temp_max_c = data.temp_max_c
     if data.custom_fields is not None:
         loc.custom_fields = [f.model_dump() for f in data.custom_fields]
 

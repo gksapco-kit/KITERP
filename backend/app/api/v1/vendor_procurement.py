@@ -256,7 +256,17 @@ async def receive_purchase_order_items(
 ):
     svc = PurchaseOrderService(db)
     payload = {
-        "items": [{"item_id": i.item_id, "quantity": i.quantity} for i in data.items],
+        "items": [
+            {
+                "item_id": i.item_id,
+                "quantity": i.quantity,
+                "batch_number": i.batch_number,
+                "supplier_batch_number": i.supplier_batch_number,
+                "manufacturing_date": i.manufacturing_date,
+                "expiry_date": i.expiry_date,
+            }
+            for i in data.items
+        ],
         "notes": data.notes,
     }
     po = await svc.receive_items(vendor_id, po_id, payload, received_by=current_user.id)

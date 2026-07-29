@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
 import { subscriptionBillingFootnote } from '@/lib/serviceStorefrontCta'
+import { hasStorefrontDisplayPrice } from '@/lib/servicePricing'
 import StarRating from '@/components/StarRating'
 import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
@@ -24,7 +25,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
     displayFields,
     product, selectedVariant, activeVariants, hasVariants,
     setSelectedVariantId, qty, setQty, validateQtyChange, maxAddQty, minAddQty, onHandQty,
-    displayPrice, displayCompare, displayCurrency, displayStock,
+    displayPrice, hasDisplayPrice, displayCompare, displayCurrency, displayStock,
     displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor,
     optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
     selectedImage, setSelectedImage, displayMedia,
@@ -43,7 +44,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
   const qtyMax = maxAddQty ?? 99
 
   const sf = displayFields
-  const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price')
+  const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price') && hasDisplayPrice
   const showVariants = isDisplayFieldEnabled(sf, 'variants') && hasVariants
 
   const intervalLabel: Record<string, string> = {
@@ -54,6 +55,15 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
     daily: '/day', weekly: '/wk', biweekly: '/2wk', monthly: '/mo',
     quarterly: '/qtr', biannual: '/6mo', yearly: '/yr',
   }
+  const billingFootnote = hasDisplayPrice
+    ? subscriptionBillingFootnote({
+        interval: isSubscription ? (intervalLabel[subscriptionInterval!] || subscriptionInterval) : null,
+        priceType: isSubscription ? subscriptionPriceType : null,
+        uom: isSubscription ? subscriptionUom : null,
+        isTaxable,
+        taxRate,
+      })
+    : null
 
   const showShippingSection = isDisplayFieldEnabled(sf, 'shipping_info') && product.requires_shipping !== false
   const showReturnSection = isDisplayFieldEnabled(sf, 'return_policy') && (returnPolicy || returnDays || isReturnable !== undefined)
@@ -136,7 +146,9 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       </div>
 
       {/* Price — Centered */}
+      {(hasDisplayPrice || (isDisplayFieldEnabled(sf, 'offer_label') && displayOfferLabel && displayOnSale) || billingFootnote) && (
       <div className="text-center mb-8">
+        {hasDisplayPrice && (
         <div className="flex items-baseline justify-center gap-3">
           <span className="text-3xl font-bold text-gray-900">
             {formatCurrency(displayPrice, displayCurrency)}
@@ -148,26 +160,24 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
               </span>
             )}
           </span>
-          {showCompare && displayCompare && displayCompare > displayPrice && (
-            <span className="text-lg text-gray-400 line-through">{formatCurrency(displayCompare, displayCurrency)}</span>
+          {showCompare && (displayCompare ?? 0) > displayPrice && (
+            <span className="text-lg text-gray-400 line-through">{formatCurrency(displayCompare!, displayCurrency)}</span>
           )}
           {showCompare && discount > 0 && (
             <span className="text-sm font-bold text-red-500">-{discount}%</span>
           )}
         </div>
+        )}
         {isDisplayFieldEnabled(sf, 'offer_label') && displayOfferLabel && displayOnSale && (
           <span className="inline-block mt-2 text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full">{displayOfferLabel}</span>
         )}
+        {billingFootnote && (
         <p className="text-xs text-gray-400 mt-1">
-          {subscriptionBillingFootnote({
-            interval: isSubscription ? (intervalLabel[subscriptionInterval!] || subscriptionInterval) : null,
-            priceType: isSubscription ? subscriptionPriceType : null,
-            uom: isSubscription ? subscriptionUom : null,
-            isTaxable,
-            taxRate,
-          })}
+          {billingFootnote}
         </p>
+        )}
       </div>
+      )}
 
       {/* Subscription Configurator */}
       {isSubscription && subscriptionInterval && (
@@ -302,10 +312,14 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`text-lg font-extrabold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
-                          {formatCurrency(v.price, v.currency)}
-                        </p>
-                        <p className={`text-xs ${isSelected ? 'text-white/60' : 'text-gray-400'}`}>{vShort}</p>
+                        {hasStorefrontDisplayPrice(v.price, v.price_type) ? (
+                          <>
+                            <p className={`text-lg font-extrabold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                              {formatCurrency(v.price, v.currency)}
+                            </p>
+                            <p className={`text-xs ${isSelected ? 'text-white/60' : 'text-gray-400'}`}>{vShort}</p>
+                          </>
+                        ) : null}
                       </div>
                     </button>
                   )
@@ -323,7 +337,10 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
                       className={`px-5 py-2.5 rounded-full border-2 text-sm font-medium transition-all ${
                         isSelected ? 'border-black bg-black text-white' : 'border-gray-200 text-gray-700 hover:border-gray-400'
                       }`}>
-                      {v.name} · {formatCurrency(v.price, v.currency)}
+                      {v.name}
+                      {hasStorefrontDisplayPrice(v.price, v.price_type)
+                        ? ` · ${formatCurrency(v.price, v.currency)}`
+                        : ''}
                     </button>
                   )
                 })}
@@ -333,8 +350,8 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
         </div>
       )}
 
-      {/* Stock */}
-      {isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
+      {/* Stock — product-level status is only meaningful when variants exist */}
+      {hasVariants && isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
         <div className="text-center mb-6">
           <span className={`text-sm font-medium ${
             displayStock === 'in_stock' ? 'text-green-600' : displayStock === 'low_stock' ? 'text-amber-600' : 'text-red-600'
@@ -345,29 +362,33 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
         </div>
       )}
 
-      {/* Quantity & Buy */}
-      <ProductPurchaseActions
-        qty={qty}
-        setQty={setQty}
-        validateQtyChange={validateQtyChange}
-        maxQty={maxAddQty}
-        minQty={minAddQty}
-        onHandQty={onHandQty}
-        displayPrice={displayPrice}
-        displayCurrency={displayCurrency}
-        displayStock={displayStock}
-        variantValidationValid={variantValidation.valid}
-        addToCartPending={addToCartPending}
-        handleAddToCart={handleAddToCart}
-        handleBuyNow={handleBuyNow}
-        isSubscription={isSubscription}
-        canQuote={canQuote}
-        onRequestQuote={() => setShowQuote(true)}
-        isAuthenticated={isAuthenticated}
-        signInMandatory={signInMandatory}
-        storePath={storePath}
-        className="mx-auto mb-12 max-w-sm space-y-4"
-      />
+      {/* Quantity & Buy — hide purchase controls when product has no variants */}
+      {(hasVariants || canQuote) && (
+        <ProductPurchaseActions
+          qty={qty}
+          setQty={setQty}
+          validateQtyChange={validateQtyChange}
+          maxQty={maxAddQty}
+          minQty={minAddQty}
+          onHandQty={onHandQty}
+          displayPrice={displayPrice}
+          hasDisplayPrice={hasDisplayPrice}
+          displayCurrency={displayCurrency}
+          displayStock={displayStock}
+          variantValidationValid={variantValidation.valid}
+          addToCartPending={addToCartPending}
+          handleAddToCart={handleAddToCart}
+          handleBuyNow={handleBuyNow}
+          isSubscription={isSubscription}
+          canQuote={canQuote}
+          onRequestQuote={() => setShowQuote(true)}
+          isAuthenticated={isAuthenticated}
+          signInMandatory={signInMandatory}
+          storePath={storePath}
+          className="mx-auto mb-12 max-w-sm space-y-4"
+          hidePurchaseControls={!hasVariants}
+        />
+      )}
 
       {/* Trust Row */}
       {trustBadges.length > 0 && (

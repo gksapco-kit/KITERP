@@ -52,6 +52,8 @@ from app.database import (
     ensure_platform_job_role_table,
     ensure_platform_career_application_table,
     ensure_storage_location_plant_nullable,
+    ensure_product_soft_delete,
+    ensure_pharma_schema,
 )
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import CrmAuditMiddleware
@@ -114,6 +116,8 @@ async def lifespan(app: FastAPI):
         await ensure_platform_job_role_table()
         await ensure_platform_career_application_table()
         await ensure_storage_location_plant_nullable()
+        await ensure_product_soft_delete()
+        await ensure_pharma_schema()
     await connect_redis()
     from app.services.email_service import email_is_configured, sendgrid_api_key
 

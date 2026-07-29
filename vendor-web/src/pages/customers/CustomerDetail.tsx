@@ -41,7 +41,13 @@ export default function CustomerDetail() {
   const bal = customer.opening_balance ?? 0
   const notes = cleanPartyNotes(customer.notes)
   const hasBank = !!(customer.bank_name || customer.account_number || customer.account_holder_name || customer.ifsc_code)
-  const hasBusiness = !!(customer.gstin || customer.pan_number || customer.cin || customer.company_name)
+  const hasBusiness = !!(
+    customer.gstin ||
+    customer.pan_number ||
+    customer.cin ||
+    customer.company_name ||
+    customer.wholesale_license_number
+  )
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -120,6 +126,15 @@ export default function CustomerDetail() {
             <InfoRow label="GSTIN" value={customer.gstin} mono />
             <InfoRow label="PAN" value={customer.pan_number} mono />
             <InfoRow label="CIN / LLPIN" value={customer.cin} mono />
+            <InfoRow label="Wholesale license" value={customer.wholesale_license_number} mono />
+            <InfoRow
+              label="License expires"
+              value={
+                customer.wholesale_license_expires
+                  ? formatDate(customer.wholesale_license_expires)
+                  : null
+              }
+            />
           </CardContent>
         </Card>
       )}

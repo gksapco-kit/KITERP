@@ -35,7 +35,6 @@ import {
   variantUiAccentColor,
   isLightAccentColor,
   colorPickerHexValue,
-  normalizeHexColorInput,
 } from './variantPanelUi'
 
 const selectCls = formSelectClass
@@ -129,48 +128,40 @@ function SectionEnablePanel({
   checked,
   onChange,
   children,
+  className,
 }: {
   tone: keyof typeof SECTION_TONE
   label: string
   checked: boolean
   onChange: (v: boolean) => void
   children?: ReactNode
+  className?: string
 }) {
   const cfg = SECTION_TONE[tone]
   const Icon = cfg.icon
   return (
     <div className={cn(
-      'rounded-lg border p-2 transition-colors sm:p-2.5',
-      checked ? cfg.panel : 'border-border bg-muted/25 dark:bg-card/60',
+      'rounded-md border transition-colors',
+      checked
+        ? cn(cfg.panel, 'px-2.5 py-2')
+        : 'border-border/70 bg-card px-2.5 py-1.5',
+      className,
     )}>
-      <div className={cn(
-        'flex gap-2 sm:gap-3',
-        checked && children ? 'flex-col sm:flex-row sm:items-start' : 'items-center',
-      )}>
-        <div className={cn(
-          'flex shrink-0 items-center gap-2',
-          checked && children ? 'sm:w-[9.5rem] sm:flex-col sm:items-start sm:gap-2 sm:pt-0.5' : 'w-full',
+      <div className="flex items-center gap-2">
+        <Toggle tone={tone} checked={checked} onChange={onChange} className="shrink-0" />
+        <Icon className={cn('h-3.5 w-3.5 shrink-0', checked ? cfg.iconColor : 'text-muted-foreground')} />
+        <span className={cn(
+          'text-sm font-semibold',
+          checked ? cfg.labelOn : 'text-muted-foreground',
         )}>
-          <div className="flex min-w-0 items-center gap-2">
-            <Icon className={cn('h-4 w-4 shrink-0', checked ? cfg.iconColor : 'text-muted-foreground')} />
-            <span className={cn(
-              'text-sm font-semibold',
-              checked ? cfg.labelOn : 'text-muted-foreground',
-            )}>
-              {label}
-            </span>
-          </div>
-          <Toggle tone={tone} checked={checked} onChange={onChange} className="shrink-0" />
-        </div>
-        {checked && children ? (
-          <div className={cn(
-            'min-w-0 flex-1 space-y-1.5',
-            'sm:border-l sm:border-border sm:pl-3',
-          )}>
-            {children}
-          </div>
-        ) : null}
+          {label}
+        </span>
       </div>
+      {checked && children ? (
+        <div className="mt-2 space-y-1.5 border-t border-border/60 pt-2">
+          {children}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -286,6 +277,8 @@ export function ServicePlansEditor({
               ? 'Price / Cycle'
               : `Price / ${uomLbl}`
             const pPrice = parseFloat(plan.price || '0')
+            const isFree = plan.plan_price_type === 'free'
+            const pricingLocked = priceNotApplicable || isFree
             const pCompare = parseFloat(plan.compare_at_price || '0')
             const pCost = parseFloat(plan.cost_price || '0')
             const discPct = parseFloat(plan.discount_percentage || '0')
@@ -339,7 +332,9 @@ export function ServicePlansEditor({
                             Inactive
                           </span>
                         )}
-                        <div className="flex shrink-0 items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2 sm:gap-3" onClick={e => e.stopPropagation()}>
+                        <div className="flex shrink-0 items-center gap-1.5">
                           <div
                             className="relative h-7 w-7 shrink-0 cursor-pointer overflow-hidden rounded border-2 border-gray-400 shadow-sm"
                             style={{ backgroundColor: colorPickerHexValue(plan.color) }}
@@ -352,40 +347,7 @@ export function ServicePlansEditor({
                               className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                             />
                           </div>
-                          <Input
-                            value={plan.color || ''}
-                            onBlur={e => {
-                              const normalized = normalizeHexColorInput(e.target.value)
-                              if (normalized) updatePlan(idx, { color: normalized })
-                            }}
-                            onChange={e => updatePlan(idx, { color: e.target.value })}
-                            placeholder="#FFFFFF"
-                            className="h-7 w-[5.25rem] shrink-0 border border-gray-300 bg-white py-0 font-mono text-xs uppercase tracking-tight text-gray-800 focus-visible:border-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
-                            aria-label="Color hex code"
-                          />
-                          {[
-                            { n: 'Red', h: '#EF4444' },
-                            { n: 'Blue', h: '#3B82F6' },
-                            { n: 'Black', h: '#111827' },
-                          ].map(c => {
-                            const selected = plan.color?.toLowerCase() === c.h.toLowerCase()
-                            return (
-                              <button
-                                key={c.h}
-                                type="button"
-                                title={c.n}
-                                className={cn(
-                                  'h-4 w-4 shrink-0 rounded-full border-2 transition-transform hover:scale-110',
-                                  selected ? 'scale-110 border-gray-800 ring-1 ring-gray-400' : 'border-gray-200',
-                                )}
-                                style={{ backgroundColor: c.h }}
-                                onClick={() => updatePlan(idx, { color: c.h })}
-                              />
-                            )
-                          })}
                         </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2 sm:gap-3" onClick={e => e.stopPropagation()}>
                         <Toggle
                           label="Active"
                           tone="active"
@@ -441,20 +403,21 @@ export function ServicePlansEditor({
                 >
                   {isExpanded && (
                     <div className={cn(formEditLayout.sectionContent, variantFormUi.body, '!border-t-0 !px-0 !pb-0 !pt-0')}>
-                      {/* Pricing */}
+                      {/* Pricing — price fields on one row; order + tax on the next */}
                       <div className="space-y-1">
                         <div className={cn(
-                          'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6',
+                          'grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8',
                           variantFormUi.grid,
-                          '[&_label]:whitespace-nowrap [&_input[type=number]]:tabular-nums',
+                          'items-start [&>*]:min-w-0 [&_label]:min-w-0 [&_label]:max-w-full [&_label]:truncate [&_input[type=number]]:tabular-nums',
                         )}>
-                          <FormField label={priceLabel}>
+                          <FormField label={priceLabel} className={cn(pricingLocked && 'opacity-50')}>
                             <Input
                               type="number"
                               step="0.01"
                               min="0"
-                              className="w-full"
-                              value={plan.price}
+                              disabled={pricingLocked}
+                              className="w-full min-w-0"
+                              value={isFree ? '0' : plan.price}
                               onChange={e => {
                                 updatePlan(idx, { price: e.target.value, enable_pricing: true })
                                 syncPlanPrices(idx, parseFloat(e.target.value || '0'), pCompare)
@@ -462,11 +425,128 @@ export function ServicePlansEditor({
                               placeholder="499"
                             />
                           </FormField>
+                          <FormField label="Compare-at (MRP)" className={cn(pricingLocked && 'opacity-50')}>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              disabled={pricingLocked}
+                              className="w-full min-w-0"
+                              value={plan.compare_at_price}
+                              onChange={e => {
+                                updatePlan(idx, { compare_at_price: e.target.value, enable_pricing: true })
+                                syncPlanPrices(idx, pPrice, parseFloat(e.target.value || '0'))
+                              }}
+                            />
+                          </FormField>
+                          <FormField label="Cost Price" className={cn(pricingLocked && 'opacity-50')}>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              disabled={pricingLocked}
+                              className="w-full min-w-0"
+                              value={plan.cost_price}
+                              onChange={e => updatePlan(idx, { cost_price: e.target.value, enable_pricing: true })}
+                            />
+                          </FormField>
+                          <FormField label="Currency" className={cn(pricingLocked && 'opacity-50')}>
+                            <Select
+                              value={plan.currency}
+                              onChange={(v) => updatePlan(idx, { currency: v })}
+                              disabled={pricingLocked}
+                              className={cn(selectCls, 'h-8 min-h-8 w-full min-w-0 sm:h-9')}
+                              options={[
+                                { value: 'INR', label: '₹ INR' },
+                                { value: 'USD', label: '$ USD' },
+                                { value: 'EUR', label: '€ EUR' },
+                                { value: 'GBP', label: '£ GBP' },
+                              ]}
+                            />
+                          </FormField>
+                          <FormField label="Discount %" className={cn(pricingLocked && 'opacity-50')}>
+                            <InputWithSuffix
+                              suffix="%"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              disabled={pricingLocked}
+                              className="w-full min-w-0"
+                              value={plan.discount_percentage}
+                              onChange={e => updatePlan(idx, { discount_percentage: e.target.value })}
+                              placeholder="0"
+                            />
+                          </FormField>
+                          <FormField label="Disc. Amount" className={cn(pricingLocked && 'opacity-50')}>
+                            <InputWithPrefix
+                              prefix={currSym}
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              disabled={pricingLocked}
+                              className="w-full min-w-0"
+                              value={plan.discount_amount}
+                              onChange={e => updatePlan(idx, { discount_amount: e.target.value })}
+                              placeholder="0"
+                            />
+                          </FormField>
+                          <FormField label="Free">
+                            <div className="flex h-8 items-center sm:h-9">
+                              <input
+                                type="checkbox"
+                                className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                                checked={isFree}
+                                disabled={priceNotApplicable}
+                                title="Show as Free on the business front (price is zero)."
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    updatePlan(idx, {
+                                      plan_price_type: 'free',
+                                      price: '0',
+                                      compare_at_price: '',
+                                      cost_price: '',
+                                      discount_percentage: '',
+                                      discount_amount: '',
+                                      enable_pricing: true,
+                                    })
+                                  } else {
+                                    updatePlan(idx, { plan_price_type: 'fixed' })
+                                  }
+                                }}
+                              />
+                            </div>
+                          </FormField>
+                          {onPriceNotApplicableChange ? (
+                            <FormField label="No Price">
+                              <div className="flex h-8 items-center sm:h-9">
+                                <Toggle
+                                  checked={priceNotApplicable}
+                                  onChange={(on) => {
+                                    if (on && isFree) {
+                                      updatePlan(idx, { plan_price_type: 'fixed' })
+                                    }
+                                    onPriceNotApplicableChange(on)
+                                  }}
+                                  title="Hide the PRICE section on the business front. Customers reach you via quotation instead of seeing Get a Quote."
+                                />
+                              </div>
+                            </FormField>
+                          ) : (
+                            <div className="hidden lg:block" aria-hidden />
+                          )}
+                        </div>
+
+                        <div className={cn(
+                          'grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8',
+                          variantFormUi.grid,
+                          'items-start [&>*]:min-w-0 [&_label]:min-w-0 [&_label]:max-w-full [&_label]:truncate [&_input[type=number]]:tabular-nums',
+                        )}>
                           <FormField label="Billing Unit">
                             <Select
                               value={plan.uom}
                               onChange={(v) => updatePlan(idx, { uom: v })}
-                              className={cn(selectCls, 'w-full')}
+                              className={cn(selectCls, 'h-8 min-h-8 w-full min-w-0 sm:h-9')}
                               options={UOM_SELECT_OPTIONS}
                             />
                           </FormField>
@@ -475,121 +555,85 @@ export function ServicePlansEditor({
                               type="number"
                               min="0"
                               step="any"
-                              className="w-full"
+                              className="w-full min-w-0"
                               value={plan.duration_minutes}
                               onChange={e => updatePlan(idx, { duration_minutes: e.target.value })}
                               placeholder="60"
                             />
                           </FormField>
-                          <FormField label="Max per order">
+                          <FormField label="Max / order">
                             <Input
                               type="number"
                               min="1"
-                              className="w-full"
+                              className="w-full min-w-0"
                               value={plan.max_quantity_per_order}
                               onChange={e => updatePlan(idx, { max_quantity_per_order: e.target.value })}
                               placeholder="No limit"
                             />
                           </FormField>
-                          <FormField label="Min per order">
+                          <FormField label="Min / order">
                             <Input
                               type="number"
                               min="1"
-                              className="w-full"
+                              className="w-full min-w-0"
                               value={plan.min_quantity_per_order}
                               onChange={e => updatePlan(idx, { min_quantity_per_order: e.target.value })}
                               placeholder="1"
                             />
                           </FormField>
-                          <FormField label="Compare-at Price (MRP)">
+                          <FormField label="Tax Rate %">
                             <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              className="w-full"
-                              value={plan.compare_at_price}
-                              onChange={e => {
-                                updatePlan(idx, { compare_at_price: e.target.value, enable_pricing: true })
-                                syncPlanPrices(idx, pPrice, parseFloat(e.target.value || '0'))
-                              }}
-                            />
-                          </FormField>
-                          <FormField label="Cost Price">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              className="w-full"
-                              value={plan.cost_price}
-                              onChange={e => updatePlan(idx, { cost_price: e.target.value, enable_pricing: true })}
-                            />
-                          </FormField>
-                          <div className={cn('col-span-2 grid grid-cols-2 items-end', variantFormUi.grid)}>
-                            <FormField label="Currency">
-                              <Select
-                                value={plan.currency}
-                                onChange={(v) => updatePlan(idx, { currency: v })}
-                                className={cn(selectCls, 'w-full')}
-                                options={[
-                                  { value: 'INR', label: '₹ INR' },
-                                  { value: 'USD', label: '$ USD' },
-                                  { value: 'EUR', label: '€ EUR' },
-                                  { value: 'GBP', label: '£ GBP' },
-                                ]}
-                              />
-                            </FormField>
-                            {onPriceNotApplicableChange && (
-                              <div className="flex items-center pb-1.5">
-                                <Toggle
-                                  label="Price not applicable"
-                                  checked={priceNotApplicable}
-                                  onChange={onPriceNotApplicableChange}
-                                  title="Hide the PRICE section on the business front. Customers reach you via quotation instead of seeing Get a Quote."
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className={cn('grid gap-2', hasPromo ? 'grid-cols-3' : 'grid-cols-2')}>
-                          <FormField label="Discount %">
-                            <InputWithSuffix
-                              suffix="%"
                               type="number"
                               step="0.01"
                               min="0"
                               max="100"
-                              className="w-full"
-                              value={plan.discount_percentage}
-                              onChange={e => updatePlan(idx, { discount_percentage: e.target.value })}
+                              className="w-full min-w-0"
+                              value={plan.tax_rate}
+                              onChange={e => updatePlan(idx, { tax_rate: e.target.value, enable_tax: true })}
                               placeholder="0"
                             />
                           </FormField>
-                          <FormField label="Discount Amount">
-                            <InputWithPrefix
-                              prefix={currSym}
+                          <FormField label="GST Rate %">
+                            <Input
                               type="number"
                               step="0.01"
                               min="0"
-                              className="w-full"
-                              value={plan.discount_amount}
-                              onChange={e => updatePlan(idx, { discount_amount: e.target.value })}
+                              max="100"
+                              className="w-full min-w-0"
+                              value={plan.gst_rate}
+                              onChange={e => updatePlan(idx, { gst_rate: e.target.value, enable_tax: true })}
                               placeholder="0"
                             />
                           </FormField>
-                          {hasPromo && (
+                          <FormField label="SAC Code">
+                            <Input
+                              className="w-full min-w-0"
+                              value={plan.sac_code}
+                              onChange={e => updatePlan(idx, { sac_code: e.target.value, enable_tax: true })}
+                              placeholder="998311"
+                              maxLength={8}
+                            />
+                          </FormField>
+                          <FormField label="Taxable">
+                            <div className="flex h-8 items-center sm:h-9">
+                              <Toggle
+                                tone="tax"
+                                checked={plan.is_taxable}
+                                onChange={v => updatePlan(idx, { is_taxable: v, enable_tax: true })}
+                              />
+                            </div>
+                          </FormField>
+                        </div>
+                        {hasPromo && (
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                             <FormField label="Offer Label">
                               <Input
-                                className="w-full"
+                                className="w-full min-w-0"
                                 value={plan.offer_label}
                                 onChange={e => updatePlan(idx, { offer_label: e.target.value })}
                                 placeholder={discPct > 0 ? `${discPct.toFixed(1)}% OFF` : 'Flash Sale'}
                               />
                             </FormField>
-                          )}
-                        </div>
-                        {hasPromo && (
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <FormField label="Promo Start">
                               <Input
                                 type="date"
@@ -625,57 +669,20 @@ export function ServicePlansEditor({
                           </div>
                         )}
 
-                        <div className={cn('grid grid-cols-2 items-end md:grid-cols-4', variantFormUi.grid)}>
-                          <FormField label="Tax Rate %">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max="100"
-                              value={plan.tax_rate}
-                              onChange={e => updatePlan(idx, { tax_rate: e.target.value, enable_tax: true })}
-                              placeholder="0"
-                            />
-                          </FormField>
-                          <FormField label="GST Rate %">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max="100"
-                              value={plan.gst_rate}
-                              onChange={e => updatePlan(idx, { gst_rate: e.target.value, enable_tax: true })}
-                              placeholder="0"
-                            />
-                          </FormField>
-                          <FormField label="SAC Code (GST)">
-                            <Input
-                              value={plan.sac_code}
-                              onChange={e => updatePlan(idx, { sac_code: e.target.value, enable_tax: true })}
-                              placeholder="998311"
-                              maxLength={8}
-                            />
-                          </FormField>
-                          <div className="flex items-center pb-1.5">
-                            <Toggle
-                              label="Taxable"
-                              tone="tax"
-                              checked={plan.is_taxable}
-                              onChange={v => updatePlan(idx, { is_taxable: v, enable_tax: true })}
-                            />
-                          </div>
-                        </div>
-
                         {/* Service config */}
-                        <div className={cn(variantFormUi.sectionRule, 'space-y-1')}>
+                        <div className={cn(variantFormUi.sectionRule, 'space-y-1.5')}>
                           <p className={variantFormUi.sectionHeading}>Service</p>
-                          <div className={cn('grid grid-cols-3 items-end', variantFormUi.grid)}>
+                          <div className={cn(
+                            'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(10rem,12rem)_minmax(10rem,14rem)_minmax(0,1fr)]',
+                            variantFormUi.grid,
+                            'items-start [&>*]:min-w-0',
+                          )}>
                             <FormField label="Billing Type">
-                              <div className="inline-flex w-full overflow-hidden rounded-lg border border-border text-xs">
+                              <div className="inline-flex h-8 w-full overflow-hidden rounded-md border border-border text-xs sm:h-9">
                                 <button
                                   type="button"
                                   className={cn(
-                                    'flex-1 px-3 py-1.5 font-medium transition-colors',
+                                    'flex-1 px-2.5 font-medium transition-colors',
                                     plan.service_frequency === 'once'
                                       ? 'bg-primary text-white'
                                       : 'text-muted-foreground hover:bg-accent',
@@ -687,7 +694,7 @@ export function ServicePlansEditor({
                                 <button
                                   type="button"
                                   className={cn(
-                                    'flex-1 px-3 py-1.5 font-medium transition-colors',
+                                    'flex-1 px-2.5 font-medium transition-colors',
                                     plan.service_frequency === 'recurring'
                                       ? 'bg-primary text-white'
                                       : 'text-muted-foreground hover:bg-accent',
@@ -702,13 +709,13 @@ export function ServicePlansEditor({
                               <Select
                                 value={plan.service_mode}
                                 onChange={(v) => updatePlan(idx, { service_mode: v })}
-                                className={cn(selectCls, 'w-full')}
+                                className={cn(selectCls, 'h-8 min-h-8 w-full min-w-0 sm:h-9')}
                                 options={SERVICE_MODE_OPTIONS.map((m) => ({ value: m.value, label: m.label }))}
                               />
                             </FormField>
-                            <FormField label="Description">
+                            <FormField label="Description" className="sm:col-span-2 lg:col-span-1">
                               <Input
-                                className="w-full"
+                                className="w-full min-w-0"
                                 value={plan.description}
                                 onChange={e => updatePlan(idx, { description: e.target.value })}
                                 placeholder="Short plan description"
@@ -823,110 +830,116 @@ export function ServicePlansEditor({
 
                       </div>
 
-                      {/* Optional sections — inline expand in same box */}
-                      <div className={cn(variantFormUi.sectionRule, 'space-y-2 pt-2.5 sm:pt-3')}>
-                        <SectionEnablePanel
-                          tone="booking"
-                          label="Booking"
-                          checked={plan.enable_booking}
-                          onChange={v => updatePlan(idx, { enable_booking: v })}
-                        >
-                          <Toggle
-                            label="Requires Booking"
+                      {/* Optional sections — compact toggles; expand only when on */}
+                      <div className={cn(variantFormUi.sectionRule, 'space-y-1.5 pt-2')}>
+                        <p className={variantFormUi.sectionHeading}>Options</p>
+                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                          <SectionEnablePanel
                             tone="booking"
-                            checked={plan.requires_booking}
-                            onChange={v => updatePlan(idx, { requires_booking: v })}
-                          />
-                          <div className={cn('grid grid-cols-2 md:grid-cols-3', variantFormUi.grid)}>
-                            <FormField label="Max Bookings per Slot">
-                              <Input
-                                type="number"
-                                min="1"
-                                value={plan.max_bookings_per_slot}
-                                onChange={e => updatePlan(idx, { max_bookings_per_slot: e.target.value })}
-                              />
-                            </FormField>
-                            <FormField label="Bookable up to (days ahead)">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={plan.advance_booking_days}
-                                onChange={e => updatePlan(idx, { advance_booking_days: e.target.value })}
-                              />
-                            </FormField>
-                            <FormField label="Minimum Notice Before Booking">
-                              <div className="flex gap-1.5">
+                            label="Booking"
+                            checked={plan.enable_booking}
+                            onChange={v => updatePlan(idx, { enable_booking: v })}
+                            className={plan.enable_booking ? 'sm:col-span-3' : undefined}
+                          >
+                            <Toggle
+                              label="Requires Booking"
+                              tone="booking"
+                              checked={plan.requires_booking}
+                              onChange={v => updatePlan(idx, { requires_booking: v })}
+                            />
+                            <div className={cn('grid grid-cols-1 sm:grid-cols-2', variantFormUi.grid)}>
+                              <FormField label="Max Bookings / Slot">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={plan.max_bookings_per_slot}
+                                  onChange={e => updatePlan(idx, { max_bookings_per_slot: e.target.value })}
+                                />
+                              </FormField>
+                              <FormField label="Bookable days ahead">
                                 <Input
                                   type="number"
                                   min="0"
-                                  className="w-20"
-                                  value={plan.booking_lead_time_value}
-                                  onChange={e => updatePlan(idx, { booking_lead_time_value: e.target.value })}
-                                  placeholder="0"
+                                  value={plan.advance_booking_days}
+                                  onChange={e => updatePlan(idx, { advance_booking_days: e.target.value })}
                                 />
-                                <Select
-                                  value={plan.booking_lead_time_unit}
-                                  onChange={(v) => updatePlan(idx, { booking_lead_time_unit: v })}
-                                  className={selectCls}
-                                  options={LEAD_TIME_UNITS.map((u) => ({ value: u.value, label: u.label }))}
-                                />
-                              </div>
-                            </FormField>
-                          </div>
-                          <FormField label="Cancellation Policy">
-                            <textarea
-                              value={plan.cancellation_policy}
-                              rows={2}
-                              className={textareaCls}
-                              onChange={e => updatePlan(idx, { cancellation_policy: e.target.value })}
-                              placeholder="Free cancellation up to 24 hours before"
-                            />
-                          </FormField>
-                        </SectionEnablePanel>
-
-                        <SectionEnablePanel
-                          tone="availability"
-                          label="Availability"
-                          checked={plan.enable_availability}
-                          onChange={v => updatePlan(idx, { enable_availability: v })}
-                        >
-                          <AvailabilityEditor
-                            availability={plan.availability}
-                            onChange={newAvail => updatePlan(idx, { availability: newAvail })}
-                          />
-                        </SectionEnablePanel>
-
-                        <SectionEnablePanel
-                          tone="lifecycle"
-                          label="Lifecycle"
-                          checked={plan.enable_lifecycle}
-                          onChange={v => updatePlan(idx, { enable_lifecycle: v })}
-                        >
-                          <div className={cn('grid max-w-md grid-cols-2', variantFormUi.grid)}>
-                            <FormField label="Expiry Date">
-                              <Input
-                                type="date"
-                                value={plan.service_expiry_date}
-                                onChange={e => updatePlan(idx, { service_expiry_date: e.target.value })}
+                              </FormField>
+                              <FormField label="Min. notice" className="sm:col-span-2">
+                                <div className="flex gap-1.5">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    className="w-20"
+                                    value={plan.booking_lead_time_value}
+                                    onChange={e => updatePlan(idx, { booking_lead_time_value: e.target.value })}
+                                    placeholder="0"
+                                  />
+                                  <Select
+                                    value={plan.booking_lead_time_unit}
+                                    onChange={(v) => updatePlan(idx, { booking_lead_time_unit: v })}
+                                    className={selectCls}
+                                    options={LEAD_TIME_UNITS.map((u) => ({ value: u.value, label: u.label }))}
+                                  />
+                                </div>
+                              </FormField>
+                            </div>
+                            <FormField label="Cancellation Policy">
+                              <textarea
+                                value={plan.cancellation_policy}
+                                rows={2}
+                                className={textareaCls}
+                                onChange={e => updatePlan(idx, { cancellation_policy: e.target.value })}
+                                placeholder="Free cancellation up to 24 hours before"
                               />
                             </FormField>
-                            <FormField label="Valid For (days after purchase)">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={plan.validity_period_days}
-                                onChange={e => updatePlan(idx, { validity_period_days: e.target.value })}
-                                placeholder="30"
-                              />
-                            </FormField>
-                          </div>
-                          <Toggle
-                            label="Renewal Required"
+                          </SectionEnablePanel>
+
+                          <SectionEnablePanel
                             tone="lifecycle"
-                            checked={plan.renewal_required}
-                            onChange={v => updatePlan(idx, { renewal_required: v })}
-                          />
-                        </SectionEnablePanel>
+                            label="Lifecycle"
+                            checked={plan.enable_lifecycle}
+                            onChange={v => updatePlan(idx, { enable_lifecycle: v })}
+                            className={plan.enable_lifecycle ? 'sm:col-span-3' : undefined}
+                          >
+                            <div className={cn('grid grid-cols-1 sm:grid-cols-2', variantFormUi.grid)}>
+                              <FormField label="Expiry Date">
+                                <Input
+                                  type="date"
+                                  value={plan.service_expiry_date}
+                                  onChange={e => updatePlan(idx, { service_expiry_date: e.target.value })}
+                                />
+                              </FormField>
+                              <FormField label="Valid for (days)">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={plan.validity_period_days}
+                                  onChange={e => updatePlan(idx, { validity_period_days: e.target.value })}
+                                  placeholder="30"
+                                />
+                              </FormField>
+                            </div>
+                            <Toggle
+                              label="Renewal Required"
+                              tone="lifecycle"
+                              checked={plan.renewal_required}
+                              onChange={v => updatePlan(idx, { renewal_required: v })}
+                            />
+                          </SectionEnablePanel>
+
+                          <SectionEnablePanel
+                            tone="availability"
+                            label="Availability"
+                            checked={plan.enable_availability}
+                            onChange={v => updatePlan(idx, { enable_availability: v })}
+                            className={plan.enable_availability ? 'sm:col-span-3' : undefined}
+                          >
+                            <AvailabilityEditor
+                              availability={plan.availability}
+                              onChange={newAvail => updatePlan(idx, { availability: newAvail })}
+                            />
+                          </SectionEnablePanel>
+                        </div>
                       </div>
                     </div>
                   )}

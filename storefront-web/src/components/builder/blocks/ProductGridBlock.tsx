@@ -1037,7 +1037,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                   </p>
                   {!(featuredOne.meta as Record<string, unknown>)?.is_category_showcase && (
                     <div className="text-2xl mb-8" style={{ fontFamily: style.font_heading, color: textColor }}>
-                      {featuredOne.price_formatted || '—'}
+                      {featuredOne.price_formatted ? featuredOne.price_formatted : null}
                     </div>
                   )}
                   <div className="flex flex-wrap gap-3">
@@ -1195,7 +1195,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       <div className="font-medium text-sm truncate" style={{ color: textColor }}>{item.title}</div>
                       {item.subtitle && <div className="text-xs opacity-60 truncate">{item.subtitle}</div>}
                     </div>
-                    <span className="text-sm shrink-0" style={{ color: textColor }}>{item.price_formatted || '—'}</span>
+                    <span className="text-sm shrink-0" style={{ color: textColor }}>{item.price_formatted || ''}</span>
                   </div>
                   {!isPh && (
                     <div className="mt-3">

@@ -214,6 +214,11 @@ export function CatalogEditStickyBar({
             {backLabel}
           </Button>
           <h1 className="min-w-0 truncate text-base font-bold text-foreground sm:text-xl">{title}</h1>
+          {isEdit ? (
+            <span className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">
+              Editing
+            </span>
+          ) : null}
         </div>
 
         <div className="hidden shrink-0 items-center gap-2.5 sm:flex">

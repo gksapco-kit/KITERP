@@ -336,10 +336,25 @@ interface POSSearchGridProps {
   onAddToCart: (item: AddToCartItem) => void
   onVariantPick: (product: POSGridProduct) => void
   externalSearch?: string   // syncs the Name filter from the top POS search bar
+  pharmaEnabled?: boolean   // when true, enables batch/expiry columns by default on first load
 }
 
-export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, externalSearch }: POSSearchGridProps) {
-  const [config, setConfig] = useState<GridConfig>(loadConfig)
+export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, externalSearch, pharmaEnabled }: POSSearchGridProps) {
+  const [config, setConfig] = useState<GridConfig>(() => {
+    const cfg = loadConfig()
+    // On first load (no saved config), auto-enable batch/expiry when pharma module is on
+    if (pharmaEnabled && !localStorage.getItem(CFG_KEY)) {
+      return {
+        filters: cfg.filters.map(f =>
+          (f.key === 'batch_no' || f.key === 'expiry') ? { ...f, enabled: true } : f
+        ),
+        columns: cfg.columns.map(c =>
+          (c.key === 'batch' || c.key === 'expiry') ? { ...c, enabled: true } : c
+        ),
+      }
+    }
+    return cfg
+  })
   const [showConfig, setShowConfig] = useState(false)
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [sortKey, setSortKey] = useState<string>('name')

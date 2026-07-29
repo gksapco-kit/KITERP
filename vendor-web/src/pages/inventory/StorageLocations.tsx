@@ -260,6 +260,10 @@ export default function StorageLocationsPage() {
   const [description, setDescription] = useState('')
   const [parentId, setParentId] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState(0)
+  const [stockType, setStockType] = useState('unrestricted')
+  const [storageCondition, setStorageCondition] = useState('')
+  const [tempMinC, setTempMinC] = useState<string>('')
+  const [tempMaxC, setTempMaxC] = useState<string>('')
   const [customFields, setCustomFields] = useState<CustomField[]>([])
   const [search, setSearch] = useState('')
 
@@ -278,6 +282,10 @@ export default function StorageLocationsPage() {
     setDescription('')
     setParentId(null)
     setSortOrder(0)
+    setStockType('unrestricted')
+    setStorageCondition('')
+    setTempMinC('')
+    setTempMaxC('')
     setCustomFields([])
   }
 
@@ -287,6 +295,10 @@ export default function StorageLocationsPage() {
     setCode('')
     setDescription('')
     setSortOrder(0)
+    setStockType('unrestricted')
+    setStorageCondition('')
+    setTempMinC('')
+    setTempMaxC('')
     setCustomFields([])
     setFormStoreId(selectedStoreId)
     // Mirror filter bar Branch / Plant choice into the create form.
@@ -314,6 +326,10 @@ export default function StorageLocationsPage() {
     setDescription(loc.description || '')
     setParentId(loc.parent_id || null)
     setSortOrder(loc.sort_order || 0)
+    setStockType(loc.stock_type || 'unrestricted')
+    setStorageCondition((loc as any).storage_condition || '')
+    setTempMinC((loc as any).temp_min_c != null ? String((loc as any).temp_min_c) : '')
+    setTempMaxC((loc as any).temp_max_c != null ? String((loc as any).temp_max_c) : '')
     setCustomFields(loc.custom_fields || [])
     setShowForm(true)
   }
@@ -331,6 +347,10 @@ export default function StorageLocationsPage() {
       description: description.trim() || undefined,
       parent_id: parentId || undefined,
       sort_order: sortOrder,
+      stock_type: stockType,
+      storage_condition: storageCondition || null,
+      temp_min_c: tempMinC !== '' ? Number(tempMinC) : null,
+      temp_max_c: tempMaxC !== '' ? Number(tempMaxC) : null,
       custom_fields: customFields.filter(f => f.name.trim()),
     }
 
@@ -564,6 +584,57 @@ export default function StorageLocationsPage() {
                   <Label className="text-xs">Description</Label>
                   <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional notes" />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Stock type (pharma)</Label>
+                  <Select
+                    value={stockType}
+                    onChange={setStockType}
+                    options={[
+                      { value: 'unrestricted', label: 'Unrestricted' },
+                      { value: 'quarantine', label: 'Quarantine' },
+                      { value: 'rejected', label: 'Rejected' },
+                      { value: 'returns', label: 'Returns' },
+                    ]}
+                    aria-label="Stock type"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Storage condition (GDP)</Label>
+                  <Select
+                    value={storageCondition}
+                    onChange={setStorageCondition}
+                    options={[
+                      { value: '', label: '— None —' },
+                      { value: 'ambient', label: 'Ambient' },
+                      { value: 'controlled_room', label: 'CRT (controlled room temp)' },
+                      { value: 'refrigerated', label: 'Refrigerated (2–8 °C)' },
+                      { value: 'frozen', label: 'Frozen' },
+                    ]}
+                    aria-label="Storage condition"
+                  />
+                </div>
+                {storageCondition && (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Min temp (°C)</Label>
+                      <Input
+                        type="number"
+                        value={tempMinC}
+                        onChange={e => setTempMinC(e.target.value)}
+                        placeholder="e.g. 2"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Max temp (°C)</Label>
+                      <Input
+                        type="number"
+                        value={tempMaxC}
+                        onChange={e => setTempMaxC(e.target.value)}
+                        placeholder="e.g. 8"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <Label className="text-xs">Parent location</Label>
                   <Select

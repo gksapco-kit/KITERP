@@ -84,7 +84,7 @@ class AccountService:
 
     async def create(self, vendor_id: UUID, data, *, actor_id: Optional[UUID] = None,
                      request: Optional[Request] = None) -> CrmAccount:
-        number = await next_crm_number(self.db, vendor_id, CrmAccount, "ACC")
+        number = await next_crm_number(self.db, vendor_id, CrmAccount, "ACC", entity_type="account")
         obj = CrmAccount(vendor_id=vendor_id, number=number, **data.model_dump(exclude_unset=True))
         self.db.add(obj)
         await self.db.commit()
@@ -164,7 +164,7 @@ class ContactService:
                 if contact.number and not acc.number:
                     acc.number = contact.number
         else:
-            number = contact.number or await next_crm_number(self.db, vendor_id, CrmAccount, "ACC")
+            number = contact.number or await next_crm_number(self.db, vendor_id, CrmAccount, "ACC", entity_type="account")
             acc = CrmAccount(vendor_id=vendor_id, number=number, **payload)
             self.db.add(acc)
             await self.db.flush()
@@ -187,7 +187,7 @@ class ContactService:
         record_type = payload.get("record_type") or "person"
         payload["record_type"] = record_type
         if record_type == "company" and not payload.get("number"):
-            payload["number"] = await next_crm_number(self.db, vendor_id, CrmContact, "ACC")
+            payload["number"] = await next_crm_number(self.db, vendor_id, CrmContact, "ACC", entity_type="contact")
         obj = CrmContact(vendor_id=vendor_id, **payload)
         self.db.add(obj)
         await self.db.flush()
@@ -329,9 +329,19 @@ class LeadService:
 
     async def create(self, vendor_id: UUID, data, *, actor_id: Optional[UUID] = None,
                      request: Optional[Request] = None) -> CrmLead:
-        number = await next_crm_number(self.db, vendor_id, CrmLead, "LED")
-        obj = CrmLead(vendor_id=vendor_id, number=number, **data.model_dump(exclude_unset=True))
+        number = await next_crm_number(self.db, vendor_id, CrmLead, "LED", entity_type="lead")
+        payload = data.model_dump(exclude_unset=True)
+        obj = CrmLead(vendor_id=vendor_id, number=number, **payload)
         self.db.add(obj)
+        await self.db.flush()
+
+        # Always mirror the lead into Contacts when no matching contact exists.
+        contact = await self._ensure_contact_for_lead(vendor_id, obj, actor_id=actor_id)
+        if contact:
+            fields = dict(obj.custom_fields or {})
+            fields["contact_id"] = str(contact.id)
+            obj.custom_fields = fields
+
         await self.db.commit()
         await self.db.refresh(obj)
         await self._auto_score(obj)
@@ -342,8 +352,76 @@ class LeadService:
         )
         await event_emitter.emit("crm.lead.created", {
             "vendor_id": str(vendor_id), "lead_id": str(obj.id),
+            "contact_id": str(contact.id) if contact else None,
         })
         return obj
+
+    async def _ensure_contact_for_lead(
+        self,
+        vendor_id: UUID,
+        lead: CrmLead,
+        *,
+        actor_id: Optional[UUID] = None,
+    ) -> Optional[CrmContact]:
+        """Find an existing contact by email/phone, or create one from the lead.
+
+        Returns the contact (existing or new), or ``None`` when the lead has
+        insufficient identity (no name/email/phone).
+        """
+        contact_repo = ContactRepo(self.db)
+        email = (lead.email or "").strip() or None
+        phone = (lead.phone or "").strip() or None
+
+        existing = None
+        if email:
+            existing = await contact_repo.find_by_email(vendor_id, email)
+        if not existing and phone:
+            existing = await contact_repo.find_by_phone(vendor_id, phone)
+        if existing:
+            return existing
+
+        first = (lead.first_name or "").strip()
+        last = (lead.last_name or "").strip() or None
+        if not first and not email and not phone:
+            return None
+        if not first:
+            # Derive a usable first name from email local-part or fallback.
+            if email and "@" in email:
+                first = email.split("@", 1)[0][:120] or "Lead"
+            else:
+                first = "Lead"
+
+        contact = CrmContact(
+            vendor_id=vendor_id,
+            record_type="person",
+            first_name=first[:120],
+            last_name=last[:120] if last else None,
+            email=email,
+            phone=phone,
+            title=lead.title,
+            website=lead.website,
+            notes=lead.notes,
+            lifecycle_stage="lead",
+            lead_source=lead.source,
+            owner_id=lead.assigned_to,
+            tags=list(lead.tags or []),
+            custom_fields={
+                "lead_id": str(lead.id),
+                "lead_number": lead.number,
+                **({"company": lead.company} if lead.company else {}),
+            },
+        )
+        # Assign a contact number for person records that share ACC series historically
+        contact.number = await next_crm_number(
+            self.db, vendor_id, CrmContact, "ACC", entity_type="contact",
+        )
+        self.db.add(contact)
+        await self.db.flush()
+        await self.audit.log(
+            vendor_id=vendor_id, entity="crm_contact", entity_id=contact.id,
+            action="create", actor_id=actor_id, after=contact, commit=False,
+        )
+        return contact
 
     async def _auto_score(self, lead: CrmLead) -> None:
         """Background lead scoring (best-effort)."""
@@ -413,7 +491,7 @@ class LeadService:
         elif lead.company:
             account = CrmAccount(
                 vendor_id=vendor_id,
-                number=await next_crm_number(self.db, vendor_id, CrmAccount, "ACC"),
+                number=await next_crm_number(self.db, vendor_id, CrmAccount, "ACC", entity_type="account"),
                 name=lead.company,
                 owner_id=lead.assigned_to,
             )
@@ -423,20 +501,34 @@ class LeadService:
         if payload.contact_id:
             contact = await ContactRepo(self.db).get(vendor_id, payload.contact_id)
         else:
-            contact = CrmContact(
-                vendor_id=vendor_id,
-                first_name=lead.first_name or "Lead",
-                last_name=lead.last_name,
-                email=lead.email,
-                phone=lead.phone,
-                title=lead.title,
-                lifecycle_stage="customer",
-                lead_source=lead.source,
-                account_id=account.id if account else None,
-                owner_id=lead.assigned_to,
-            )
-            self.db.add(contact)
-            await self.db.flush()
+            # Prefer contact already linked / created when the lead was opened
+            linked_id = (lead.custom_fields or {}).get("contact_id")
+            if linked_id:
+                try:
+                    contact = await ContactRepo(self.db).get(vendor_id, UUID(str(linked_id)))
+                except Exception:
+                    contact = None
+            if not contact:
+                contact = await self._ensure_contact_for_lead(vendor_id, lead, actor_id=actor_id)
+            if contact and contact.lifecycle_stage == "lead":
+                contact.lifecycle_stage = "customer"
+            if contact and account and not contact.account_id:
+                contact.account_id = account.id
+            if not contact:
+                contact = CrmContact(
+                    vendor_id=vendor_id,
+                    first_name=lead.first_name or "Lead",
+                    last_name=lead.last_name,
+                    email=lead.email,
+                    phone=lead.phone,
+                    title=lead.title,
+                    lifecycle_stage="customer",
+                    lead_source=lead.source,
+                    account_id=account.id if account else None,
+                    owner_id=lead.assigned_to,
+                )
+                self.db.add(contact)
+                await self.db.flush()
 
         if payload.create_deal:
             pipeline_id = payload.pipeline_id
@@ -451,7 +543,7 @@ class LeadService:
                 raise HTTPException(status_code=400, detail="No pipeline stage available")
             deal = CrmDeal(
                 vendor_id=vendor_id,
-                number=await next_crm_number(self.db, vendor_id, CrmDeal, "DEAL"),
+                number=await next_crm_number(self.db, vendor_id, CrmDeal, "DEAL", entity_type="deal"),
                 pipeline_id=pipeline_id,
                 stage_id=stage_id,
                 title=payload.deal_title or (lead.company or f"{lead.first_name or 'Lead'} opportunity"),
@@ -674,7 +766,7 @@ class DealService:
 
     async def create(self, vendor_id: UUID, data, *, actor_id: Optional[UUID] = None,
                      request: Optional[Request] = None) -> CrmDeal:
-        number = await next_crm_number(self.db, vendor_id, CrmDeal, "DEAL")
+        number = await next_crm_number(self.db, vendor_id, CrmDeal, "DEAL", entity_type="deal")
         obj = CrmDeal(vendor_id=vendor_id, number=number, **data.model_dump(exclude_unset=True))
         self.db.add(obj)
         await self.db.commit()
@@ -774,7 +866,7 @@ class ActivityService:
         payload = data.model_dump(exclude_unset=True)
         if "owner_id" not in payload or payload["owner_id"] is None:
             payload["owner_id"] = actor_id
-        number = await next_crm_number(self.db, vendor_id, CrmActivity, "TSK")
+        number = await next_crm_number(self.db, vendor_id, CrmActivity, "TSK", entity_type="activity")
         obj = CrmActivity(vendor_id=vendor_id, number=number, **payload)
         self.db.add(obj)
         await self.db.commit()
@@ -1745,13 +1837,26 @@ class ChatService:
 
     async def get_or_create_for_visitor(self, vendor_id: UUID, visitor_id: str,
                                         visitor_name: str | None = None,
-                                        visitor_email: str | None = None) -> CrmChatConversation:
+                                        visitor_email: str | None = None,
+                                        visitor_phone: str | None = None) -> CrmChatConversation:
         existing = await self.repo.by_visitor(vendor_id, visitor_id)
         if existing:
+            # Update contact details if the visitor provides them on a returning visit
+            changed = False
+            if visitor_name and not existing.visitor_name:
+                existing.visitor_name = visitor_name; changed = True
+            if visitor_email and not existing.visitor_email:
+                existing.visitor_email = visitor_email; changed = True
+            if visitor_phone and not existing.visitor_phone:
+                existing.visitor_phone = visitor_phone; changed = True
+            if changed:
+                await self.db.commit()
+                await self.db.refresh(existing)
             return existing
         obj = CrmChatConversation(
             vendor_id=vendor_id, visitor_id=visitor_id,
             visitor_name=visitor_name, visitor_email=visitor_email,
+            visitor_phone=visitor_phone,
         )
         self.db.add(obj)
         await self.db.commit()

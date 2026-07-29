@@ -107,7 +107,7 @@ const variantRowSchema = z.object({
   barcode: optStr,
   uom: z.string().default('piece'),
   uom_quantity: optNum,
-  price_type: z.string().default('per_unit'),
+  price_type: z.string().default('per_unit'), // per_unit | per_cycle | not_applicable | free
   price: z.coerce.number().min(0).default(0),
   compare_at_price: optNum,
   cost_price: optNum,
@@ -129,6 +129,16 @@ const variantRowSchema = z.object({
   reorder_quantity: optInt,
   allow_backorders: z.boolean().default(false),
   track_inventory: z.boolean().default(true),
+  batch_managed: z.boolean().default(false),
+  serial_managed: z.boolean().default(false),
+  requires_cold_chain: z.boolean().default(false),
+  shelf_life_days: optInt,
+  retest_days: optInt,
+  qc_required_on_receipt: z.boolean().default(false),
+  qc_required_on_production: z.boolean().default(false),
+  gtin: optStr,
+  ndc: optStr,
+  storage_condition: optStr,
   max_quantity_per_order: optOrderLimitInt,
   min_quantity_per_order: optOrderLimitInt,
   // Shipping (per variant)
@@ -193,6 +203,16 @@ const schema = z.object({
   sku: optStr,
   barcode: optStr,
   track_inventory: z.boolean().default(true),
+  batch_managed: z.boolean().default(false),
+  serial_managed: z.boolean().default(false),
+  requires_cold_chain: z.boolean().default(false),
+  shelf_life_days: optInt,
+  retest_days: optInt,
+  qc_required_on_receipt: z.boolean().default(false),
+  qc_required_on_production: z.boolean().default(false),
+  gtin: optStr,
+  ndc: optStr,
+  storage_condition: optStr,
   quantity: z.coerce.number().int().min(0).default(0),
   low_stock_threshold: z.coerce.number().int().min(0).default(5),
   reorder_point: optInt,
@@ -479,7 +499,11 @@ const variantFormUi = {
     '[&_input:not([type=color]):not([type=hidden])]:!h-7 [&_input:not([type=color]):not([type=hidden])]:!min-h-7',
     '[&_input:not([type=color]):not([type=hidden])]:!py-0 [&_input:not([type=color]):not([type=hidden])]:!text-xs',
     '[&_input:not([type=color]):not([type=hidden])]:!px-1.5 [&_input:not([type=color]):not([type=hidden])]:!rounded-md',
+    // ThemeSelect (.form-select) must match compact inputs — native <select> rules alone leave UOM/Currency tall
     '[&_select]:!h-7 [&_select]:!min-h-7 [&_select]:!text-xs [&_select]:!px-1.5 [&_select]:!py-0 [&_select]:!rounded-md',
+    '[&_.form-select]:!h-7 [&_.form-select]:!min-h-7 [&_.form-select]:!max-h-7 [&_.form-select]:!py-0',
+    '[&_.form-select]:!px-1.5 [&_.form-select]:!text-xs [&_.form-select]:!rounded-md [&_.form-select]:!leading-none',
+    '[&_.form-select_svg]:!h-3 [&_.form-select_svg]:!w-3',
     '[&_input[type=datetime-local]]:!text-[11px] [&_input[type=datetime-local]]:!px-1 [&_input[type=datetime-local]]:!pr-7',
     '[&_input[type=datetime-local]::-webkit-calendar-picker-indicator]:![width:0.9rem] [&_input[type=datetime-local]::-webkit-calendar-picker-indicator]:![height:0.9rem]',
   ].join(' '),
@@ -504,15 +528,22 @@ function VariantFormSection({
   className,
 }: {
   title: string
-  hint?: string
+  hint?: React.ReactNode
   children: React.ReactNode
   className?: string
 }) {
+  const hintIsControl = hint != null && typeof hint !== 'string'
   return (
     <section className={cn('space-y-1', className)}>
-      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
-        <h5 className={variantFormUi.sectionHeading}>{title}</h5>
-        {hint ? <span className={variantFormUi.sectionHint}>{hint}</span> : null}
+      <div className={cn(
+        'flex flex-wrap gap-x-2 gap-y-1',
+        hintIsControl ? 'items-center justify-between' : 'items-baseline',
+      )}>
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0">
+          <h5 className={variantFormUi.sectionHeading}>{title}</h5>
+          {!hintIsControl && hint ? <span className={variantFormUi.sectionHint}>{hint}</span> : null}
+        </div>
+        {hintIsControl ? hint : null}
       </div>
       {children}
     </section>
@@ -671,6 +702,29 @@ const VARIANT_STOCK_STATUS_OPTIONS = [
   { value: 'backorder', label: 'Backorder' },
   { value: 'discontinued', label: 'Discontinued' },
 ]
+
+/** Keep Status dropdown aligned with Qty when inventory is tracked. */
+function deriveStockStatusFromQty(opts: {
+  quantity: number
+  currentStatus?: string | null
+  trackInventory?: boolean | null
+  allowBackorders?: boolean | null
+  lowStockThreshold?: number | null
+}): string {
+  const stored = opts.currentStatus || 'in_stock'
+  if (stored === 'discontinued') return 'discontinued'
+  const qty = Number(opts.quantity) || 0
+  const track = opts.trackInventory !== false
+  const backorders = !!opts.allowBackorders
+  if (backorders) return qty <= 0 ? 'backorder' : stored === 'out_of_stock' ? 'in_stock' : stored
+  if (!track) return stored
+  if (qty <= 0) return 'out_of_stock'
+  const thresh = opts.lowStockThreshold ?? 5
+  if (stored === 'out_of_stock') return qty <= thresh ? 'low_stock' : 'in_stock'
+  if ((stored === 'in_stock' || stored === 'low_stock') && qty <= thresh) return 'low_stock'
+  if (stored === 'low_stock' && qty > thresh) return 'in_stock'
+  return stored
+}
 const REFUND_POLICY_OPTIONS = selectOptionsWithBlank('Select...', [
   { value: 'full_refund', label: 'Full Refund' },
   { value: 'store_credit', label: 'Store Credit' },
@@ -1000,9 +1054,14 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
   const symbol = product.currency === 'INR' ? '\u20B9' : '$'
   const images = (product.images || []).sort((a: any, b: any) => a.position - b.position)
   const uomLabel = formatUomDisplay(product.uom_quantity, product.uom || 'piece')
-  const hasVariants = (product.variants?.length || 0) > 0
+  const activeVariants = (product.variants || []).filter((v: { is_active?: boolean }) => v.is_active !== false)
+  const hasVariants = activeVariants.length > 0
   const hasBasePrice = product.price > 0
   const hasBasePricing = hasBasePrice || product.compare_at_price || product.cost_price || product.is_on_sale || product.discount_percentage || product.discount_amount
+  const allVariantsNoPrice = hasVariants && activeVariants.every(
+    (v: { price_type?: string; price?: number }) =>
+      v.price_type === 'not_applicable' || !(Number(v.price) > 0),
+  )
   const pType = product.product_type || 'physical'
   const isBundleView = pType === 'bundle'
   const isDigital = pType === 'digital' || isBundleView || product.is_digital
@@ -1025,15 +1084,16 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
     { key: 'shipping',          label: 'Shipping',          icon: Truck, visible: pType !== 'digital', hint: 'Weight, dimensions, shipping class, and delivery.' },
     { key: 'storefrontOptions', label: 'Business Front',    icon: Globe, hint: 'Quote requests and customer-facing options.' },
     { key: 'addons',            label: 'Add-ons',           icon: Link2, hint: 'Linked products or services sold with this item.' },
-    { key: 'merch',             label: 'Merchandising',     icon: Tag, visible: merchMappings.length > 0, hint: 'Cross-sell and upsell relationships.' },
+    { key: 'merch',             label: 'Merchandising',     icon: Tag, hint: 'Cross-sell and upsell relationships.' },
     { key: 'seo',               label: 'SEO',               icon: Search, hint: 'Search titles, descriptions, and social preview.' },
     { key: 'advanced',          label: 'Advanced',          icon: Settings, hint: 'Custom attributes, specifications, and JSON fields.' },
     { key: 'digital',           label: 'Digital',           icon: Download, visible: isDigital, hint: 'Download limits, expiry, and file delivery.' },
+    { key: 'bom',               label: 'BOM',               icon: Factory, visible: !isBundleView, hint: 'Manufacturing components and quantities.' },
     { key: 'reports',           label: 'Reports',           icon: BarChart3, hint: 'Views, purchases, and version summary.' },
-    { key: 'pricing-rules',     label: 'Pricing Rules',     icon: DollarSign, visible: priceRules.length > 0, hint: 'Party, location, quantity, and channel price rules.' },
+    { key: 'pricing-rules',     label: 'Pricing Rules',     icon: DollarSign, hint: 'Party, location, quantity, and channel price rules.' },
     { key: 'modifiers',         label: 'Modifiers',         icon: Plus, hint: 'Custom options shown when adding this product to POS.' },
     { key: 'history',           label: 'History',           icon: Clock, hint: 'Who changed what and when — open the full report to export.' },
-  ], [isBundleView, isSubscription, isDigital, pType, product, merchMappings.length, priceRules.length])
+  ], [isBundleView, isSubscription, isDigital, pType, product])
 
   useEffect(() => {
     const visible = viewSections.filter((s) => s.visible !== false)
@@ -1183,37 +1243,55 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
           </CardContent>
         </Card>
       )}
-      {/* Pricing — hide when variants carry all pricing and base is zero */}
-      {(!hasVariants || hasBasePricing) && (
+      {/* Pricing / Tax / Inventory — only when at least one active variant exists */}
+      {hasVariants && (hasBasePricing || allVariantsNoPrice) && (
         <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
               <IndianRupee className={formDisplayCompact.sectionHeaderIcon} />
               <span className={formDisplayCompact.sectionHeaderTitle}>Pricing</span>
-              {hasVariants && <span className="text-xs text-gray-400">(base product)</span>}
+              {!allVariantsNoPrice && <span className="text-xs text-gray-400">(base product)</span>}
+              {(allVariantsNoPrice || !hasBasePrice) && (
+                <span className="text-xs font-medium text-muted-foreground">No price</span>
+              )}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
-              <DisplayField label="Price" value={<span className="text-lg font-bold text-gray-900">{symbol}{product.price?.toLocaleString()}</span>} />
-              <DisplayField label="Compare at Price" value={product.compare_at_price ? `${symbol}${product.compare_at_price.toLocaleString()}` : null} />
-              <DisplayField label="Cost Price" value={product.cost_price ? `${symbol}${product.cost_price.toLocaleString()}` : null} />
-              <DisplayField label="Currency" value={product.currency} />
-            </div>
-            {(product.is_on_sale || product.discount_percentage || product.discount_amount) && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5 pt-2 border-t">
-                <DisplayField label="On Sale" value={product.is_on_sale ? 'Yes' : 'No'} />
-                <DisplayField label="Discount %" value={product.discount_percentage ? `${product.discount_percentage}%` : null} />
-                <DisplayField label="Discount Amount" value={product.discount_amount ? `${symbol}${product.discount_amount}` : null} />
-                <DisplayField label="Offer Label" value={product.offer_label} />
-                {product.discount_start_date && <DisplayField label="Sale Starts" value={product.discount_start_date} />}
-                {product.discount_end_date && <DisplayField label="Sale Ends" value={product.discount_end_date} />}
-              </div>
+            {allVariantsNoPrice ? (
+              <p className="text-sm text-muted-foreground">
+                No selling price — variants are marked No price (hidden on the business front).
+                {product.currency ? ` Currency: ${product.currency}.` : ''}
+              </p>
+            ) : hasBasePrice ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
+                  <DisplayField label="Price" value={<span className="text-lg font-bold text-gray-900">{symbol}{product.price?.toLocaleString()}</span>} />
+                  <DisplayField label="Compare at Price" value={product.compare_at_price ? `${symbol}${product.compare_at_price.toLocaleString()}` : null} />
+                  <DisplayField label="Cost Price" value={product.cost_price ? `${symbol}${product.cost_price.toLocaleString()}` : null} />
+                  <DisplayField label="Currency" value={product.currency} />
+                </div>
+                {(product.is_on_sale || product.discount_percentage || product.discount_amount) && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5 pt-2 border-t">
+                    <DisplayField label="On Sale" value={product.is_on_sale ? 'Yes' : 'No'} />
+                    <DisplayField label="Discount %" value={product.discount_percentage ? `${product.discount_percentage}%` : null} />
+                    <DisplayField label="Discount Amount" value={product.discount_amount ? `${symbol}${product.discount_amount}` : null} />
+                    <DisplayField label="Offer Label" value={product.offer_label} />
+                    {product.discount_start_date && <DisplayField label="Sale Starts" value={product.discount_start_date} />}
+                    {product.discount_end_date && <DisplayField label="Sale Ends" value={product.discount_end_date} />}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No selling price on the base product
+                {product.currency ? ` · ${product.currency}` : ''}.
+                {' '}Prices are set per variant (or marked No price).
+              </p>
             )}
           </CardContent>
         </Card>
       )}
 
-      {/* Tax — only show if there's actual tax info */}
-      {(product.is_taxable || product.tax_rate || product.gst_rate) && (
+      {/* Tax — only with active variants and actual tax info */}
+      {hasVariants && (product.is_taxable || product.tax_rate || product.gst_rate) && (
         <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
@@ -1224,38 +1302,6 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
               <DisplayField label="Taxable" value={product.is_taxable ? 'Yes' : 'No'} />
               <DisplayField label="Tax Rate" value={product.tax_rate != null ? `${product.tax_rate}%` : null} />
               <DisplayField label="GST Rate" value={product.gst_rate != null ? `${product.gst_rate}%` : null} />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Inventory — hide base inventory when variants carry all stock */}
-      {!hasVariants && (
-        <Card>
-          <CardContent className={formDisplayCompact.cardBody}>
-            <div className={formDisplayCompact.sectionHeader}>
-              <Boxes className={formDisplayCompact.sectionHeaderIcon} />
-              <span className={formDisplayCompact.sectionHeaderTitle}>Inventory</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
-              <DisplayField label="Quantity" value={
-                <span className={`font-semibold ${product.quantity <= (product.low_stock_threshold || 5) ? 'text-red-600' : 'text-gray-900'}`}>
-                  {product.quantity}
-                </span>
-              } />
-              <DisplayField label="Stock Status" value={
-                <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                  product.stock_status === 'in_stock' ? 'bg-green-100 text-green-700' :
-                  product.stock_status === 'out_of_stock' ? 'bg-red-100 text-red-700' :
-                  product.stock_status === 'backorder' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>{(product.stock_status || 'in_stock').replace('_', ' ')}</span>
-              } />
-              <DisplayField label="Low Stock Threshold" value={product.low_stock_threshold} />
-              <DisplayField label="Track Inventory" value={product.track_inventory ? 'Yes' : 'No'} />
-              <DisplayField label="Allow Backorders" value={product.allow_backorders ? 'Yes' : 'No'} />
-              <DisplayField label="Reorder Point" value={product.reorder_point} />
-              <DisplayField label="Reorder Qty" value={product.reorder_quantity} />
             </div>
           </CardContent>
         </Card>
@@ -1336,7 +1382,7 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
                           )}
                           <span className="font-medium text-gray-900 leading-tight">{v.name}</span>
                         </div>
-                        {v.is_on_sale && v.discount_percentage && (
+                        {v.is_on_sale && v.discount_percentage && v.price_type !== 'not_applicable' && Number(v.price) > 0 && (
                           <span className="inline-block mt-0.5 bg-orange-100 text-orange-700 text-xs font-medium px-1.5 py-0.5 rounded-full">
                             {v.discount_percentage}% OFF
                           </span>
@@ -1353,12 +1399,18 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
 
                       {/* Price / Compare / Cost stacked */}
                       <td className="px-2 py-2 min-w-[110px]">
-                        <p className="font-semibold text-gray-900">{symbol}{v.price?.toLocaleString()}</p>
-                        {v.compare_at_price && (
-                          <p className="text-gray-400 line-through text-xs">{symbol}{v.compare_at_price?.toLocaleString()}</p>
-                        )}
-                        {v.cost_price && (
-                          <p className="text-gray-400 text-xs">Cost: {symbol}{v.cost_price?.toLocaleString()}</p>
+                        {v.price_type === 'not_applicable' || !(Number(v.price) > 0) ? (
+                          <p className="font-medium text-muted-foreground">No price</p>
+                        ) : (
+                          <>
+                            <p className="font-semibold text-gray-900">{symbol}{Number(v.price).toLocaleString()}</p>
+                            {v.compare_at_price && Number(v.compare_at_price) > 0 && (
+                              <p className="text-gray-400 line-through text-xs">{symbol}{Number(v.compare_at_price).toLocaleString()}</p>
+                            )}
+                            {v.cost_price && Number(v.cost_price) > 0 && (
+                              <p className="text-gray-400 text-xs">Cost: {symbol}{Number(v.cost_price).toLocaleString()}</p>
+                            )}
+                          </>
                         )}
                       </td>
 
@@ -1544,6 +1596,21 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
       <Card>
         <CardContent className={formDisplayCompact.cardBody}>
           <div className={formDisplayCompact.sectionHeader}>
+            <Eye className={formDisplayCompact.sectionHeaderIcon} />
+            <span className={formDisplayCompact.sectionHeaderTitle}>Visibility & Marketing</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
+            <DisplayField label="Status" value={product.status ? product.status.charAt(0).toUpperCase() + product.status.slice(1) : null} />
+            <DisplayField label="Visible" value={product.is_visible ? 'Yes' : 'No'} />
+            <DisplayField label="Featured" value={product.is_featured ? 'Yes' : 'No'} />
+            <DisplayField label="New Arrival" value={product.is_new_arrival ? 'Yes' : 'No'} />
+            <DisplayField label="Best Seller" value={product.is_best_seller ? 'Yes' : 'No'} />
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className={formDisplayCompact.cardBody}>
+          <div className={formDisplayCompact.sectionHeader}>
             <Store className={formDisplayCompact.sectionHeaderIcon} />
             <span className={formDisplayCompact.sectionHeaderTitle}>Business Unit Availability</span>
           </div>
@@ -1559,21 +1626,6 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
                 : 'All business units'
             }
           />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className={formDisplayCompact.cardBody}>
-          <div className={formDisplayCompact.sectionHeader}>
-            <Eye className={formDisplayCompact.sectionHeaderIcon} />
-            <span className={formDisplayCompact.sectionHeaderTitle}>Visibility & Marketing</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
-            <DisplayField label="Status" value={product.status ? product.status.charAt(0).toUpperCase() + product.status.slice(1) : null} />
-            <DisplayField label="Visible" value={product.is_visible ? 'Yes' : 'No'} />
-            <DisplayField label="Featured" value={product.is_featured ? 'Yes' : 'No'} />
-            <DisplayField label="New Arrival" value={product.is_new_arrival ? 'Yes' : 'No'} />
-            <DisplayField label="Best Seller" value={product.is_best_seller ? 'Yes' : 'No'} />
-          </div>
         </CardContent>
       </Card>
       </>
@@ -1661,6 +1713,7 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
               {product.variants.filter((v: { is_active?: boolean }) => v.is_active !== false).map((v: { id: string; name?: string; price?: number; uom?: string; price_type?: string; subscription_interval?: string; subscription_trial_days?: number; subscription_setup_fee?: number; subscription_billing_cycles?: number; subscription_schedule_modes?: string[] }) => {
                 const interval = v.subscription_interval || product.subscription_interval
                 const vPriceType = (v as any).price_type || 'per_unit'
+                const noPrice = vPriceType === 'not_applicable' || !(Number(v.price) > 0)
                 const vUom = v.uom || 'piece'
                 const uomLbl = formatUomDisplay((v as { uom_quantity?: number }).uom_quantity, vUom)
                 const priceSuffix = vPriceType === 'per_cycle' && interval ? `/${interval}` : `/${uomLbl}`
@@ -1669,9 +1722,17 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-primary">{v.name || 'Default Plan'}</span>
-                        <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-primary/20 text-primary uppercase">{vPriceType === 'per_cycle' ? 'Per Cycle' : `Per ${uomLbl}`}</span>
+                        {noPrice ? (
+                          <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">No price</span>
+                        ) : (
+                          <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-primary/20 text-primary uppercase">{vPriceType === 'per_cycle' ? 'Per Cycle' : `Per ${uomLbl}`}</span>
+                        )}
                       </div>
-                      <span className="text-lg font-bold text-primary">{symbol}{(v.price ?? 0).toLocaleString()}{priceSuffix}</span>
+                      {noPrice ? (
+                        <span className="text-sm font-medium text-muted-foreground">No price</span>
+                      ) : (
+                        <span className="text-lg font-bold text-primary">{symbol}{(v.price ?? 0).toLocaleString()}{priceSuffix}</span>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                       <div><span className="text-gray-500">Interval:</span> <span className="font-medium">{interval ? interval.charAt(0).toUpperCase() + interval.slice(1) : '—'}</span></div>
@@ -1782,14 +1843,16 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
       </Card>
       )}
 
-      {showTab('merch') && merchMappings.length > 0 && (
+      {showTab('merch') && (
         <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
               <Link2 className={formDisplayCompact.sectionHeaderIcon} />
               <span className={formDisplayCompact.sectionHeaderTitle}>Merchandising</span>
             </div>
-            {(['cross_sell', 'upsell'] as const).map(relType => {
+            {merchMappings.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No cross-sell or upsell relationships configured.</p>
+            ) : (['cross_sell', 'upsell'] as const).map(relType => {
               const rows = merchMappings.filter(m => m.relation_type === relType)
               if (rows.length === 0) return null
               const meta = relType === 'cross_sell'
@@ -1823,15 +1886,19 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
         </Card>
       )}
 
-      {showTab('pricing-rules') && priceRules.length > 0 && (
+      {showTab('pricing-rules') && (
         <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
               <DollarSign className={formDisplayCompact.sectionHeaderIcon} />
               <span className={formDisplayCompact.sectionHeaderTitle}>Advanced Pricing Rules</span>
-              <span className="text-xs bg-indigo-100 text-indigo-700 rounded-full px-2 py-0.5 font-medium">{priceRules.length}</span>
+              {priceRules.length > 0 && (
+                <span className="text-xs bg-indigo-100 text-indigo-700 rounded-full px-2 py-0.5 font-medium">{priceRules.length}</span>
+              )}
             </div>
-            {(['party', 'location', 'scheduled', 'quantity', 'channel'] as const).map(ruleType => {
+            {priceRules.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No pricing rules configured.</p>
+            ) : (['party', 'location', 'scheduled', 'quantity', 'channel'] as const).map(ruleType => {
               const typeRules = priceRules.filter((r: any) => r.rule_type === ruleType)
               if (typeRules.length === 0) return null
               const typeLabel: Record<string, string> = { party: 'Party / Customer', location: 'Location', scheduled: 'Scheduled', quantity: 'Quantity Tiers', channel: 'Channel' }
@@ -1881,32 +1948,48 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
         </Card>
       )}
 
-      {showTab('addons') && productAddons.length > 0 && (
+      {showTab('addons') && (
         <Card>
           <CardContent className={formDisplayCompact.cardBodyTight}>
             <div className="flex items-center gap-3 mb-1">
               <Link2 className={formDisplayCompact.sectionHeaderIcon} />
               <span className={formDisplayCompact.sectionHeaderTitle}>Add-ons & Linked Services</span>
             </div>
-            <div className="space-y-2">
-              {productAddons.map((addon, i) => (
-                <div key={addon.id || i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <CatalogItemLink
-                      id={addon.id}
-                      name={addon.name}
-                      itemType={addon.item_type}
-                      className="text-foreground"
-                    />
-                    {addon.addon_type && <span className="ml-2 text-xs text-muted-foreground capitalize">{addon.addon_type}</span>}
+            {productAddons.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No add-ons configured.</p>
+            ) : (
+              <div className="space-y-2">
+                {productAddons.map((addon, i) => (
+                  <div key={addon.id || i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
+                    <div className="min-w-0">
+                      <CatalogItemLink
+                        id={addon.id}
+                        name={addon.name}
+                        itemType={addon.item_type}
+                        className="text-foreground"
+                      />
+                      {addon.addon_type && <span className="ml-2 text-xs text-muted-foreground capitalize">{addon.addon_type}</span>}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {addon.optional !== undefined && <span>{addon.optional ? 'Optional' : 'Required'}</span>}
+                      {addon.booking_trigger && <span className="capitalize">{addon.booking_trigger.replace(/_/g, ' ')}</span>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {addon.optional !== undefined && <span>{addon.optional ? 'Optional' : 'Required'}</span>}
-                    {addon.booking_trigger && <span className="capitalize">{addon.booking_trigger.replace(/_/g, ' ')}</span>}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {showTab('bom') && !isBundleView && product.id && (
+        <Card>
+          <CardContent className={formDisplayCompact.cardBody}>
+            <div className={formDisplayCompact.sectionHeader}>
+              <Factory className={formDisplayCompact.sectionHeaderIcon} />
+              <span className={formDisplayCompact.sectionHeaderTitle}>Bill of Materials (BOM)</span>
             </div>
+            <BOMEditor productId={product.id} productName={product.name} />
           </CardContent>
         </Card>
       )}
@@ -2307,14 +2390,19 @@ function fieldPathToSection(path: string): string | null {
 }
 
 function isAutoSeededPlaceholderVariant(
-  v: { name?: string; sku?: string; barcode?: string; quantity?: number },
+  v: { id?: string; name?: string; sku?: string; barcode?: string; quantity?: number; attributes_json?: string },
   isSubscription: boolean,
 ): boolean {
+  // DB-persisted variants (have a real id) are never considered placeholders
+  if (v.id) return false
   const defaultName = isSubscription ? 'Plan 1' : 'Variant 1'
-  return v.name?.trim() === defaultName
-    && !v.sku?.trim()
-    && !v.barcode?.trim()
-    && (v.quantity ?? 0) === 0
+  if (v.name?.trim() !== defaultName) return false
+  if (v.sku?.trim() || v.barcode?.trim()) return false
+  if ((v.quantity ?? 0) !== 0) return false
+  // Non-empty attribute object means the user intentionally configured this row
+  const attrs = v.attributes_json
+  if (attrs && attrs !== '{}' && attrs.trim() !== '') return false
+  return true
 }
 
 export default function ProductForm() {
@@ -2381,6 +2469,8 @@ export default function ProductForm() {
       status: 'active', quantity: 0, price: 0, currency: 'INR', product_type: 'physical', uom: 'piece', uom_quantity: undefined,
       material_code: '',
       is_taxable: true, track_inventory: true, is_returnable: true, requires_shipping: true,
+      batch_managed: false, serial_managed: false, requires_cold_chain: false,
+      qc_required_on_receipt: false, qc_required_on_production: false,
       weight_unit: 'kg', length_unit: 'cm', width_unit: 'cm', height_unit: 'cm',
       is_visible: true, low_stock_threshold: 5, stock_status: 'in_stock',
       allow_quote_request: false, quote_form_config: [],
@@ -2766,6 +2856,16 @@ export default function ProductForm() {
       hsn_code: product.hsn_code || '', gst_rate: product.gst_rate ?? undefined,
       sku: product.sku || '', barcode: product.barcode || '',
       track_inventory: product.track_inventory, quantity: product.quantity,
+      batch_managed: !!(product as any).batch_managed,
+      serial_managed: !!(product as any).serial_managed,
+      requires_cold_chain: !!(product as any).requires_cold_chain,
+      shelf_life_days: (product as any).shelf_life_days ?? undefined,
+      retest_days: (product as any).retest_days ?? undefined,
+      qc_required_on_receipt: !!(product as any).qc_required_on_receipt,
+      qc_required_on_production: !!(product as any).qc_required_on_production,
+      gtin: (product as any).gtin ?? undefined,
+      ndc: (product as any).ndc ?? undefined,
+      storage_condition: (product as any).storage_condition ?? undefined,
       low_stock_threshold: product.low_stock_threshold,
       reorder_point: product.reorder_point ?? undefined,
       reorder_quantity: product.reorder_quantity ?? undefined,
@@ -3048,10 +3148,42 @@ export default function ProductForm() {
     data.custom_fields = parseJsonField(raw.custom_fields) || {}
 
     let substantiveVariants = (variantRows || []).filter(v => v.name?.trim())
-    if (opts?.omitPlaceholderVariants && !isEdit) {
+    if (opts?.omitPlaceholderVariants) {
+      // Strip auto-seeded rows that were never meaningfully edited.
+      // isAutoSeededPlaceholderVariant guards DB-persisted rows (id present) so existing
+      // real variants named "Variant 1" are never dropped on edits.
       substantiveVariants = substantiveVariants.filter(
         v => !isAutoSeededPlaceholderVariant(v, isSubscriptionType),
       )
+    }
+
+    // Promote the lowest active variant price to product-level so list cards
+    // and POS lookups always have a canonical price when variants are present.
+    // When every variant is "No price" / zero, clear the base price so display
+    // mode and the business front stay consistent.
+    if (
+      substantiveVariants.length > 0 &&
+      raw.product_type !== 'subscription' &&
+      raw.product_type !== 'bundle'
+    ) {
+      const activePriced = substantiveVariants.filter(
+        v =>
+          (v.is_active ?? true) &&
+          v.price_type !== 'not_applicable' &&
+          Number(v.price) > 0,
+      )
+      const activePrices = activePriced.map(v => Number(v.price))
+      if (activePrices.length > 0) {
+        data.price = Math.min(...activePrices)
+      } else {
+        data.price = 0
+        data.compare_at_price = undefined
+        data.cost_price = undefined
+        data.discount_percentage = undefined
+        data.discount_amount = undefined
+        data.offer_label = undefined
+        data.is_on_sale = false
+      }
     }
 
     data.variants = substantiveVariants
@@ -3198,7 +3330,7 @@ export default function ProductForm() {
 
   const onSubmit = async (raw: FormData) => {
     try {
-      const saved = await persistProduct(raw)
+      const saved = await persistProduct(raw, { omitPlaceholderVariants: true })
       if (!saved) return
       allowLeaveRef.current = true
       unsavedDirtyRef.current = false
@@ -3215,7 +3347,7 @@ export default function ProductForm() {
   const handleOpenVariantConfig = handleSubmit(async (raw) => {
     try {
       setIsOpeningVariantConfig(true)
-      const saved = await persistProduct(raw, { omitPlaceholderVariants: !isEdit })
+      const saved = await persistProduct(raw, { omitPlaceholderVariants: true })
       if (!saved) return
       const hasRealVariants = (raw.variants || []).some(
         v => v.name?.trim() && (!isEdit || !isAutoSeededPlaceholderVariant(v, isSubscriptionType)),
@@ -3406,7 +3538,9 @@ export default function ProductForm() {
     is_active: true,
   })
 
-  // Create page: start with one variant/plan row so fields are immediately editable
+  // Create page: seed Plan 1 only for subscriptions so the row is immediately editable.
+  // Physical/digital products start with no variants — users set base pricing directly,
+  // then add variants manually or via Configure & Manage Variants.
   useEffect(() => {
     if (isEdit) return
     if (isBundleType) {
@@ -3414,11 +3548,9 @@ export default function ProductForm() {
       createVariantSeeded.current = false
       return
     }
+    if (!isSubscriptionType) return
     if (variantFields.length === 0 && !createVariantSeeded.current) {
-      appendVariant(makeVariantDefaults(
-        isSubscriptionType ? 'Plan 1' : 'Variant 1',
-        {},
-      ))
+      appendVariant(makeVariantDefaults('Plan 1', {}))
       setExpandedVariants({ 0: true })
       setVisitedSections(s => new Set(s).add('variants'))
       createVariantSeeded.current = true
@@ -3437,7 +3569,7 @@ export default function ProductForm() {
   useEffect(() => {
     if (isEdit || isBundleType || variantFields.length !== 1) return
     const v0 = getValues('variants.0')
-    if (isSubscriptionType && (v0?.name === 'Default' || v0?.name === 'Variant')) {
+    if (isSubscriptionType && (v0?.name === 'Default' || v0?.name === 'Variant' || v0?.name === 'Variant 1')) {
       setValue('variants.0.name', 'Plan 1')
       setValue('variants.0.price_type', 'per_cycle')
       setValue('variants.0.subscription_interval', 'monthly')
@@ -3447,7 +3579,7 @@ export default function ProductForm() {
   const formValues = watch()
   const productSections: FormSectionDef[] = useMemo(() => [
     { key: 'basic',            label: 'Basic',             icon: Package, hint: 'Name, type, category, descriptions, and media.' },
-    { key: 'variants',         label: isBundleType ? 'Bundle' : isSubscriptionType ? 'Price & Plans' : 'Price & Variants', icon: Layers, visible: !isBundleType, hint: 'SKUs, pricing, options, stock, and per-variant settings.' },
+    { key: 'variants',         label: isBundleType ? 'Bundle' : isSubscriptionType ? 'Price & Plans' : 'Price & Variants', icon: Layers, visible: !isBundleType },
     { key: 'tax',              label: 'Tax',               icon: Receipt, hint: 'GST, tax rates, and HSN/SAC codes per product or variant.' },
     { key: 'bundle',           label: 'Bundle Items',      icon: Layers, visible: isBundleType, hint: 'Products included in this bundle.' },
     { key: 'visibility',       label: 'Visibility',        icon: Eye, hint: 'Status, visibility toggle, and marketing flags.' },
@@ -3598,7 +3730,7 @@ export default function ProductForm() {
     >
       <CatalogEditStickyBar
         onBack={leaveProductForm}
-        title={isEdit ? 'Edit Product' : 'New Product'}
+        title={isEdit ? (watchedName?.trim() || product?.name || 'Edit Product') : 'New Product'}
         status={formValues.status ?? 'draft'}
         onStatusChange={(value) => setValue('status', value as 'active' | 'draft' | 'archived')}
         visibleControl={(
@@ -3634,9 +3766,13 @@ export default function ProductForm() {
         {/* 1. Basic */}
         <Section title="Basic" icon={Package} open={activeTab === 'basic'} onToggle={() => toggle('basic')} surface="product" sectionId="basic">
           <div className={formEditLayout.sectionBody}>
-            <div className={cn(formEditLayout.fieldGridWide, 'items-start')}>
-              <FormField label="Name" required><Input className="w-full min-w-0" {...register('name')} placeholder="Product name" /></FormField>
-              <FormField label="Brand"><Input className="w-full min-w-0" {...register('brand')} placeholder="e.g. Samsung" /></FormField>
+            <div className={cn(formEditLayout.fieldGrid3, 'items-start')}>
+              <FormField label="Name" required>
+                <Input className="w-full min-w-0" {...register('name')} placeholder="Product name" />
+              </FormField>
+              <FormField label="Brand">
+                <Input className="w-full min-w-0" {...register('brand')} placeholder="e.g. Samsung" />
+              </FormField>
               <FormField label="Product Type">
                 <Controller
                   name="product_type"
@@ -3646,40 +3782,92 @@ export default function ProductForm() {
                       value={String(field.value ?? '')}
                       onChange={field.onChange}
                       options={PRODUCT_TYPE_FILTER_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
-                      className={cn(selectCls, 'w-full min-w-0')}
+                      className={cn(selectCls, 'h-8 min-h-8 w-full min-w-0 sm:h-9')}
                     />
                   )}
                 />
               </FormField>
-              <FormField label="Tags (comma separated)"><Input {...register('tags')} placeholder="tag1, tag2, tag3" /></FormField>
               <FormField label="Material Code">
-                <div className="space-y-1">
-                  <div className="relative">
-                    <Hash className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      {...register('material_code')}
-                      readOnly
-                      placeholder="Auto-generated on save"
-                      className="w-full min-w-0 cursor-default bg-gray-50 pl-8 pr-9 font-mono text-gray-700"
-                    />
-                    {isEdit && watch('material_code') ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard?.writeText(String(getValues('material_code') || ''))
-                          toast.success('Material code copied')
-                        }}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                        title="Copy material code"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-gray-400">Unique item code, assigned automatically.</p>
+                <div className="relative">
+                  <Hash className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    {...register('material_code')}
+                    readOnly
+                    title="Unique item code, assigned automatically."
+                    placeholder="Auto-generated on save"
+                    className="w-full min-w-0 cursor-default bg-gray-50 pl-8 pr-9 font-mono text-gray-700"
+                  />
+                  {isEdit && watch('material_code') ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(String(getValues('material_code') || ''))
+                        toast.success('Material code copied')
+                      }}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      title="Copy material code"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
                 </div>
               </FormField>
+              <FormField
+                label="Category"
+                action={
+                  <button
+                    type="button"
+                    className="inline-flex h-5 items-center gap-0.5 text-[0.6875rem] font-medium text-blue-600 hover:text-blue-700 sm:text-xs"
+                    onClick={() => {
+                      setShowCreateCategory((v) => !v)
+                      if (showCreateCategory) setNewCategoryName('')
+                    }}
+                  >
+                    <Plus className="h-3 w-3" />
+                    {showCreateCategory ? 'Cancel' : 'Create category'}
+                  </button>
+                }
+              >
+                <CategoryHierarchyPicker
+                  tree={productCategories}
+                  category={watchedCategory || ''}
+                  subcategory={watchedSubcategory || ''}
+                  onChange={(cat, sub) => {
+                    setValue('category', cat)
+                    setValue('subcategory', sub)
+                  }}
+                  className={cn(selectCls, 'h-8 min-h-8 w-full min-w-0 sm:h-9')}
+                />
+              </FormField>
+              <FormField label="Tags (comma separated)">
+                <Input className="w-full min-w-0" {...register('tags')} placeholder="tag1, tag2, tag3" />
+              </FormField>
             </div>
+            {showCreateCategory && (
+              <div className="flex flex-col gap-2 rounded-lg border border-dashed border-blue-200 bg-blue-50/70 p-3 sm:flex-row sm:items-center">
+                <Input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="New category name"
+                  className="h-8 min-h-8 w-full text-sm sm:h-9 sm:flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void handleQuickCreateCategory()
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 shrink-0 sm:h-9"
+                  disabled={createCategory.isPending}
+                  onClick={() => void handleQuickCreateCategory()}
+                >
+                  {createCategory.isPending ? 'Creating…' : 'Create & select'}
+                </Button>
+              </div>
+            )}
             {/* Product type context banner */}
             {productType && productType !== 'physical' && (
               <div className={cn(
@@ -3735,65 +3923,6 @@ export default function ProductForm() {
                   }}
                 />
               </FormField>
-            </div>
-            <div className={cn(formEditLayout.fieldGrid, 'items-start')}>
-              <div className="space-y-1.5 sm:col-span-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label>Category</Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 shrink-0 px-2 text-xs text-blue-600 hover:text-blue-700"
-                    onClick={() => {
-                      setShowCreateCategory((v) => !v)
-                      if (showCreateCategory) setNewCategoryName('')
-                    }}
-                  >
-                    <Plus className="w-3.5 h-3.5 mr-1" />
-                    {showCreateCategory ? 'Cancel' : 'Create category'}
-                  </Button>
-                </div>
-                {showCreateCategory && (
-                  <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50/70 p-3 space-y-2">
-                    <Input
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder="New category name"
-                      className="h-9 text-sm"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          void handleQuickCreateCategory()
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="w-full"
-                      disabled={createCategory.isPending}
-                      onClick={() => void handleQuickCreateCategory()}
-                    >
-                      {createCategory.isPending ? 'Creating…' : 'Create & select'}
-                    </Button>
-                  </div>
-                )}
-                <CategoryHierarchyPicker
-                  tree={productCategories}
-                  category={watchedCategory || ''}
-                  subcategory={watchedSubcategory || ''}
-                  onChange={(cat, sub) => {
-                    setValue('category', cat)
-                    setValue('subcategory', sub)
-                  }}
-                />
-                {(watchedCategory || watchedSubcategory) && (
-                  <p className="text-xs text-gray-500">
-                    Selected: {[watchedCategory, watchedSubcategory].filter(Boolean).join(' › ')}
-                  </p>
-                )}
-              </div>
             </div>
             {(() => {
               const allFields = collectCustomFieldsFromSelection(
@@ -3870,21 +3999,23 @@ export default function ProductForm() {
             id="form-section-variants"
             className={cn(formDisplayCompact.scrollMarginEdit, 'flex flex-col gap-1.5 sm:gap-2')}
           >
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {isSubscriptionType
-                    ? 'Each plan has its own pricing, stock, and media.'
-                    : isEdit
-                      ? 'Add variants manually, or use Fast entry variants for prices & stock in bulk.'
-                      : 'Add variants manually, or open Configure & Manage Variants to set up options in bulk (saves the product first).'}
-                </p>
-                <div className="flex shrink-0 gap-2 self-end sm:self-auto">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="truncate text-xs text-muted-foreground">
+                    {isSubscriptionType
+                      ? 'Each plan has its own pricing, stock, and media.'
+                      : isEdit
+                        ? 'SKUs, pricing & stock — add manually or use Fast entry for bulk.'
+                        : 'SKUs, pricing & stock — add manually, or Configure & Manage Variants (saves first).'}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1.5 self-end sm:self-auto">
                 {!isSubscriptionType && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="h-7 gap-1 px-2.5 text-xs"
                     disabled={isOpeningVariantConfig || isSaving}
                     onClick={() => void handleOpenVariantConfig()}
                     title={variantFields.length > 0
@@ -3894,11 +4025,11 @@ export default function ProductForm() {
                         : 'Save this product and open the guided variant setup wizard'}
                   >
                     {(isOpeningVariantConfig || isSaving) ? (
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : variantFields.length > 0 ? (
-                      <Zap className="w-4 h-4 mr-1" />
+                      <Zap className="w-3.5 h-3.5" />
                     ) : (
-                      <Layers className="w-4 h-4 mr-1" />
+                      <Layers className="w-3.5 h-3.5" />
                     )}
                     {variantFields.length > 0 ? 'Fast entry variants' : 'Configure & Manage Variants'}
                   </Button>
@@ -3907,6 +4038,7 @@ export default function ProductForm() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="h-7 gap-1 px-2.5 text-xs"
                   onClick={() => {
                     const nextIndex = (getValues('variants') || []).length
                     appendVariant(makeVariantDefaults(
@@ -3917,11 +4049,10 @@ export default function ProductForm() {
                     setVariantsPage(Math.floor(nextIndex / variantsPageSize) + 1)
                   }}
                 >
-                  <Plus className="w-4 h-4 mr-1" />{isSubscriptionType ? 'Add plan' : 'Add variant'}
+                  <Plus className="w-3.5 h-3.5" />{isSubscriptionType ? 'Add plan' : 'Add variant'}
                 </Button>
                 </div>
               </div>
-            </div>
 
             <div className="flex flex-col gap-2 sm:gap-2.5">
             {variantFields.length === 0 ? (
@@ -4028,8 +4159,12 @@ export default function ProductForm() {
                         )}
                         {!isExpanded && (
                           <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
-                            <span className="font-medium text-foreground tabular-nums">{vCurrSym}{vPrice.toLocaleString()}</span>
-                            <span className="text-border">·</span>
+                            {vPrice > 0 ? (
+                              <>
+                                <span className="font-medium text-foreground tabular-nums">{vCurrSym}{vPrice.toLocaleString()}</span>
+                                <span className="text-border">·</span>
+                              </>
+                            ) : null}
                             <span>{vPackLabel}</span>
                             <span className="text-border">·</span>
                             <span>Stock {vQtyOnHand}</span>
@@ -4077,7 +4212,10 @@ export default function ProductForm() {
                       <VariantFormSection title="Billing">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
                           <p className="text-[10px] text-muted-foreground">Per-cycle or per-UOM pricing</p>
-                          <div className="inline-flex rounded border border-primary/30 overflow-hidden text-xs">
+                          <div className={cn(
+                            'inline-flex rounded border border-primary/30 overflow-hidden text-xs',
+                            watch(`variants.${index}.price_type`) === 'not_applicable' && 'pointer-events-none opacity-50',
+                          )}>
                             <button type="button"
                               className={`px-2.5 py-1 font-medium ${watch(`variants.${index}.price_type`) === 'per_cycle' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-accent'}`}
                               onClick={() => setValue(`variants.${index}.price_type`, 'per_cycle')}
@@ -4143,12 +4281,15 @@ export default function ProductForm() {
                     {/* ── Pricing + Discount (merged, compact) ── */}
                     {(() => {
                       const vPriceType = watch(`variants.${index}.price_type`) || 'per_unit'
+                      const noPrice = vPriceType === 'not_applicable'
+                      const isFree = vPriceType === 'free'
+                      const pricingLocked = noPrice || isFree
                       const priceLabel = isSubscriptionType
                         ? (vPriceType === 'per_cycle' ? 'Price / Cycle' : 'Price')
                         : 'Price'
-                      const price     = parseFloat(String(watch(`variants.${index}.price`) || 0))
-                      const compareAt = parseFloat(String(watch(`variants.${index}.compare_at_price`) || 0))
-                      const cost      = parseFloat(String(watch(`variants.${index}.cost_price`) || 0))
+                      const price     = pricingLocked ? 0 : parseFloat(String(watch(`variants.${index}.price`) || 0))
+                      const compareAt = pricingLocked ? 0 : parseFloat(String(watch(`variants.${index}.compare_at_price`) || 0))
+                      const cost      = pricingLocked ? 0 : parseFloat(String(watch(`variants.${index}.cost_price`) || 0))
                       const discPct   = parseFloat(String(watch(`variants.${index}.discount_percentage`) || 0))
                       const discAmt   = parseFloat(String(watch(`variants.${index}.discount_amount`) || 0))
                       const promoStart = watch(`variants.${index}.discount_start_date` as any) as string | undefined
@@ -4178,14 +4319,82 @@ export default function ProductForm() {
                       }
                       return (
                         <>
-                          <VariantFormSection title="Pricing">
+                          <VariantFormSection
+                            title="Pricing"
+                            hint={
+                              <div className="flex flex-wrap items-center gap-3">
+                                <label className="inline-flex cursor-pointer select-none items-center gap-1.5 text-[11px] font-medium text-foreground">
+                                  <input
+                                    type="checkbox"
+                                    className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                                    checked={isFree}
+                                    disabled={noPrice}
+                                    title="Show as Free on the business front (price is zero)."
+                                    onChange={(e) => {
+                                      const on = e.target.checked
+                                      if (on) {
+                                        setValue(`variants.${index}.price_type`, 'free', { shouldDirty: true })
+                                        setValue(`variants.${index}.price`, 0, { shouldDirty: true })
+                                        setValue(`variants.${index}.compare_at_price`, undefined, { shouldDirty: true })
+                                        setValue(`variants.${index}.cost_price`, undefined, { shouldDirty: true })
+                                        setValue(`variants.${index}.discount_percentage`, undefined, { shouldDirty: true })
+                                        setValue(`variants.${index}.discount_amount`, undefined, { shouldDirty: true })
+                                        setValue(`variants.${index}.offer_label`, '', { shouldDirty: true })
+                                        setValue(`variants.${index}.is_on_sale`, false, { shouldDirty: true })
+                                        setValue(`variants.${index}.discount_start_date` as any, '', { shouldDirty: true })
+                                        setValue(`variants.${index}.discount_end_date` as any, '', { shouldDirty: true })
+                                      } else {
+                                        setValue(
+                                          `variants.${index}.price_type`,
+                                          isSubscriptionType ? 'per_cycle' : 'per_unit',
+                                          { shouldDirty: true },
+                                        )
+                                      }
+                                    }}
+                                  />
+                                  Free
+                                </label>
+                                <label className="inline-flex cursor-pointer select-none items-center gap-1.5 text-[11px] font-medium text-foreground">
+                                  <input
+                                    type="checkbox"
+                                    className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                                    checked={noPrice}
+                                    disabled={isFree}
+                                    onChange={(e) => {
+                                      const on = e.target.checked
+                                      if (on) {
+                                        setValue(`variants.${index}.price_type`, 'not_applicable', { shouldDirty: true })
+                                        setValue(`variants.${index}.price`, 0, { shouldDirty: true })
+                                        setValue(`variants.${index}.compare_at_price`, undefined, { shouldDirty: true })
+                                        setValue(`variants.${index}.cost_price`, undefined, { shouldDirty: true })
+                                        setValue(`variants.${index}.discount_percentage`, undefined, { shouldDirty: true })
+                                        setValue(`variants.${index}.discount_amount`, undefined, { shouldDirty: true })
+                                        setValue(`variants.${index}.offer_label`, '', { shouldDirty: true })
+                                        setValue(`variants.${index}.is_on_sale`, false, { shouldDirty: true })
+                                        setValue(`variants.${index}.discount_start_date` as any, '', { shouldDirty: true })
+                                        setValue(`variants.${index}.discount_end_date` as any, '', { shouldDirty: true })
+                                      } else {
+                                        setValue(
+                                          `variants.${index}.price_type`,
+                                          isSubscriptionType ? 'per_cycle' : 'per_unit',
+                                          { shouldDirty: true },
+                                        )
+                                      }
+                                    }}
+                                  />
+                                  No price
+                                </label>
+                              </div>
+                            }
+                          >
                             <div className={cn(
                               variantFormUi.pricingGrid,
                               variantFormUi.grid,
                               '[&_input[type=number]]:tabular-nums',
+                              pricingLocked && '[&_input[type=number]:not([data-keep-enabled])]:opacity-50 [&_input[type=number]:not([data-keep-enabled])]:bg-muted/40 [&_input[type=number]:not([data-keep-enabled])]:cursor-not-allowed',
                             )}>
                               <FormField label="Qty">
-                                <Input type="number" min="0" step="any" className="w-full"
+                                <Input type="number" min="0" step="any" className="w-full" data-keep-enabled
                                   {...register(`variants.${index}.uom_quantity`)} placeholder="1" />
                               </FormField>
                               <FormField label="UOM">
@@ -4202,26 +4411,31 @@ export default function ProductForm() {
                                   )}
                                 />
                               </FormField>
-                              <FormField label={priceLabel}>
+                              <FormField label={pricingLocked ? 'Price' : priceLabel}>
                                 <Input type="number" step="0.01" min="0" className="w-full"
+                                  disabled={pricingLocked}
                                   {...register(`variants.${index}.price`)}
                                   onChange={e => {
+                                    if (pricingLocked) return
                                     register(`variants.${index}.price`).onChange(e)
                                     syncPriceFields(parseFloat(e.target.value||'0'), parseFloat(String(watch(`variants.${index}.compare_at_price`)||0)))
                                   }}
-                                  placeholder={isSubscriptionType && vPriceType === 'per_cycle' ? '499' : '99'} />
+                                  placeholder={pricingLocked ? (isFree ? 'Free' : '—') : (isSubscriptionType && vPriceType === 'per_cycle' ? '499' : '99')} />
                               </FormField>
                               <FormField label="Compare at">
                                 <Input type="number" step="0.01" min="0" className="w-full"
+                                  disabled={pricingLocked}
                                   {...register(`variants.${index}.compare_at_price`)}
                                   onChange={e => {
+                                    if (pricingLocked) return
                                     register(`variants.${index}.compare_at_price`).onChange(e)
                                     syncPriceFields(parseFloat(String(watch(`variants.${index}.price`)||0)), parseFloat(e.target.value||'0'))
-                                  }} placeholder="MRP" />
+                                  }} placeholder={pricingLocked ? '—' : 'MRP'} />
                               </FormField>
                               <FormField label="Cost">
                                 <Input type="number" step="0.01" min="0" className="w-full"
-                                  {...register(`variants.${index}.cost_price`)} placeholder="0" />
+                                  disabled={pricingLocked}
+                                  {...register(`variants.${index}.cost_price`)} placeholder={pricingLocked ? '—' : '0'} />
                               </FormField>
                               <FormField label="Currency">
                                 <Controller
@@ -4233,12 +4447,13 @@ export default function ProductForm() {
                                       onChange={field.onChange}
                                       options={CURRENCY_SELECT_OPTIONS}
                                       className={cn(selectCls, 'w-full')}
+                                      disabled={pricingLocked}
                                     />
                                   )}
                                 />
                               </FormField>
                             </div>
-                            {(autoDiscPct > 0 || profit != null) && (
+                            {!pricingLocked && (autoDiscPct > 0 || profit != null) && (
                               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                 {autoDiscPct > 0 && (
                                   <VariantMetricChip tone="discount" icon={Tag}>
@@ -4257,25 +4472,32 @@ export default function ProductForm() {
                           </VariantFormSection>
 
                           <VariantFormSection title="Promotion">
-                            <div className={cn(variantFormUi.promoGrid, variantFormUi.grid, 'min-w-0 [&>div]:min-w-0')}>
+                            <div className={cn(
+                              variantFormUi.promoGrid,
+                              variantFormUi.grid,
+                              'min-w-0 [&>div]:min-w-0',
+                              pricingLocked && 'pointer-events-none opacity-50',
+                            )}>
                               <FormField label="Disc %" name={`variants.${index}.discount_percentage`} className="min-w-0">
                                 <InputWithSuffix suffix="%" type="number" step="0.01" min="0" max="100" className="w-full"
+                                  disabled={pricingLocked}
                                   {...register(`variants.${index}.discount_percentage`)} placeholder="0" />
                               </FormField>
                               <FormField label="Disc Amt" name={`variants.${index}.discount_amount`} className="min-w-0">
                                 <InputWithPrefix prefix={currSym} type="number" step="0.01" min="0" className="w-full"
+                                  disabled={pricingLocked}
                                   {...register(`variants.${index}.discount_amount`)} placeholder="0" />
                               </FormField>
                               <FormField label="Offer Label" className="min-w-0">
-                                <Input className="w-full min-w-0" {...register(`variants.${index}.offer_label`)}
+                                <Input className="w-full min-w-0" disabled={pricingLocked} {...register(`variants.${index}.offer_label`)}
                                   placeholder={autoDiscPct > 0 ? `${autoDiscPct.toFixed(1)}% OFF` : 'Flash Sale'} />
                               </FormField>
                               <FormField label="Promo Start" className="min-w-0">
-                                <Input type="datetime-local" className="w-full min-w-0"
+                                <Input type="datetime-local" className="w-full min-w-0" disabled={pricingLocked}
                                   {...register(`variants.${index}.discount_start_date` as any)} />
                               </FormField>
                               <FormField label="Promo End" className="min-w-0">
-                                <Input type="datetime-local" className="w-full min-w-0"
+                                <Input type="datetime-local" className="w-full min-w-0" disabled={pricingLocked}
                                   {...register(`variants.${index}.discount_end_date` as any)} />
                               </FormField>
                               <div className="flex min-w-0 items-end pb-0.5">
@@ -4284,7 +4506,7 @@ export default function ProductForm() {
                                 )} />
                               </div>
                             </div>
-                            {(discPct > 0 || discAmt > 0 || hasPromoDates) && (
+                            {!pricingLocked && (discPct > 0 || discAmt > 0 || hasPromoDates) && (
                               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
                                 {discPct > 0 && <span className="font-medium text-orange-700">{discPct.toFixed(1)}% OFF</span>}
                                 {discAmt > 0 && <span className="font-medium text-orange-700">{currSym}{discAmt.toLocaleString()} off</span>}
@@ -4316,8 +4538,28 @@ export default function ProductForm() {
                           />
                         </FormField>
                         <FormField label="Qty on hand">
-                          <Input type="number" min="0" {...register(`variants.${index}.quantity`)}
-                            className="font-semibold bg-primary/10 border-primary/30 dark:bg-primary/15 dark:border-primary/40" />
+                          <Input
+                            type="number"
+                            min="0"
+                            {...register(`variants.${index}.quantity`, {
+                              onChange: (e) => {
+                                register(`variants.${index}.quantity`).onChange(e)
+                                const qty = Number(e.target.value) || 0
+                                const v = getValues(`variants.${index}`)
+                                const next = deriveStockStatusFromQty({
+                                  quantity: qty,
+                                  currentStatus: v?.stock_status,
+                                  trackInventory: v?.track_inventory,
+                                  allowBackorders: v?.allow_backorders,
+                                  lowStockThreshold: v?.low_stock_threshold,
+                                })
+                                if (next !== v?.stock_status) {
+                                  setValue(`variants.${index}.stock_status`, next, { shouldDirty: true })
+                                }
+                              },
+                            })}
+                            className="font-semibold bg-primary/10 border-primary/30 dark:bg-primary/15 dark:border-primary/40"
+                          />
                         </FormField>
                         <FormField label="Low stock at"><Input type="number" min="0" {...register(`variants.${index}.low_stock_threshold`)} placeholder="5" /></FormField>
                         <FormField label="Status">
@@ -4745,13 +4987,74 @@ export default function ProductForm() {
                     <Controller name="allow_backorders" control={control} render={({ field }) => (
                       <Toggle label="Allow Backorders" checked={field.value} onChange={field.onChange} />
                     )} />
+                    <Controller name="batch_managed" control={control} render={({ field }) => (
+                      <Toggle label="Batch managed" checked={!!field.value} onChange={field.onChange} />
+                    )} />
+                    <Controller name="serial_managed" control={control} render={({ field }) => (
+                      <Toggle label="Serial managed" checked={!!field.value} onChange={field.onChange} />
+                    )} />
+                    <Controller name="requires_cold_chain" control={control} render={({ field }) => (
+                      <Toggle label="Cold chain" checked={!!field.value} onChange={field.onChange} />
+                    )} />
+                    <Controller name="qc_required_on_receipt" control={control} render={({ field }) => (
+                      <Toggle label="QC on receipt" checked={!!field.value} onChange={field.onChange} />
+                    )} />
+                    <Controller name="qc_required_on_production" control={control} render={({ field }) => (
+                      <Toggle label="QC on production" checked={!!field.value} onChange={field.onChange} />
+                    )} />
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <FormField label="Quantity"><Input type="number" min="0" {...register('quantity')} placeholder="0" /></FormField>
+                    <FormField label="Quantity">
+                      <Input
+                        type="number"
+                        min="0"
+                        {...register('quantity', {
+                          onChange: (e) => {
+                            register('quantity').onChange(e)
+                            const qty = Number(e.target.value) || 0
+                            const next = deriveStockStatusFromQty({
+                              quantity: qty,
+                              currentStatus: getValues('stock_status'),
+                              trackInventory: getValues('track_inventory'),
+                              allowBackorders: getValues('allow_backorders'),
+                              lowStockThreshold: getValues('low_stock_threshold'),
+                            })
+                            if (next !== getValues('stock_status')) {
+                              setValue('stock_status', next, { shouldDirty: true })
+                            }
+                          },
+                        })}
+                        placeholder="0"
+                      />
+                    </FormField>
                     <FormField label="Low Stock Alert (qty)"><Input type="number" min="0" {...register('low_stock_threshold')} placeholder="5" /></FormField>
                     <FormField label="Reorder Point"><Input type="number" min="0" {...register('reorder_point')} placeholder="e.g. 10" /></FormField>
                     <FormField label="Reorder Qty"><Input type="number" min="0" {...register('reorder_quantity')} placeholder="e.g. 50" /></FormField>
+                    <FormField label="Shelf life (days)"><Input type="number" min="0" {...register('shelf_life_days')} placeholder="e.g. 365" /></FormField>
+                    <FormField label="Retest (days)"><Input type="number" min="0" {...register('retest_days')} placeholder="e.g. 180" /></FormField>
+                    <FormField label="GTIN"><Input {...register('gtin')} placeholder="e.g. 00012345600012" /></FormField>
+                    <FormField label="NDC"><Input {...register('ndc')} placeholder="e.g. 0123-4567-89" /></FormField>
                   </div>
+                  <FormField label="Storage condition (pharma)">
+                    <Controller
+                      name="storage_condition"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ?? ''}
+                          onChange={field.onChange}
+                          options={[
+                            { value: '', label: '— None —' },
+                            { value: 'ambient', label: 'Ambient' },
+                            { value: 'controlled_room', label: 'CRT (controlled room temp)' },
+                            { value: 'refrigerated', label: 'Refrigerated (2–8 °C)' },
+                            { value: 'frozen', label: 'Frozen' },
+                          ]}
+                          className={selectCls}
+                        />
+                      )}
+                    />
+                  </FormField>
                   <FormField label="Stock Status">
                     <Controller
                       name="stock_status"
@@ -5174,21 +5477,7 @@ export default function ProductForm() {
           </div>
         </Section>
 
-        {/* 8. Business unit availability */}
-        <Section title="Business Unit Availability" icon={Store} open={activeTab === 'visibility'} onToggle={() => toggle('visibility')} sectionId="visibility-bu">
-          <div className={formEditLayout.sectionBody}>
-            <BusinessUnitScopePicker
-              stores={businessUnits}
-              scope={catalogStoreScope}
-              selectedIds={catalogStoreIds}
-              onScopeChange={setCatalogStoreScope}
-              onSelectedChange={setCatalogStoreIds}
-              hideHeader
-            />
-          </div>
-        </Section>
-
-        {/* 8b. Visibility & Marketing — status + business front visibility live in sticky header */}
+        {/* 8. Visibility & Marketing — status + business front visibility live in sticky header */}
         <Section title="Visibility & Marketing" icon={Eye} open={activeTab === 'visibility'} onToggle={() => toggle('visibility')} sectionId="visibility">
           <div className={formEditLayout.sectionBody}>
             <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
@@ -5205,6 +5494,20 @@ export default function ProductForm() {
                 <Toggle label="Best Seller" checked={field.value} onChange={field.onChange} />
               )} />
             </div>
+          </div>
+        </Section>
+
+        {/* 8b. Business unit availability */}
+        <Section title="Business Unit Availability" icon={Store} open={activeTab === 'visibility'} onToggle={() => toggle('visibility')} sectionId="visibility-bu">
+          <div className={formEditLayout.sectionBody}>
+            <BusinessUnitScopePicker
+              stores={businessUnits}
+              scope={catalogStoreScope}
+              selectedIds={catalogStoreIds}
+              onScopeChange={setCatalogStoreScope}
+              onSelectedChange={setCatalogStoreIds}
+              hideHeader
+            />
           </div>
         </Section>
 

@@ -6,6 +6,7 @@ export type StockEntity = {
   allow_backorders?: boolean
   quantity?: number
   stock_status?: string
+  low_stock_threshold?: number | null
   max_quantity_per_order?: number | null
   min_quantity_per_order?: number | null
 }
@@ -57,6 +58,8 @@ function resolveStockContext(product: StockEntity, variant?: StockEntity) {
   const stockStatus = variant?.stock_status ?? product.stock_status ?? 'in_stock'
   const maxPerOrder = variant?.max_quantity_per_order ?? product.max_quantity_per_order ?? null
   const minPerOrder = variant?.min_quantity_per_order ?? product.min_quantity_per_order ?? null
+  const lowStockThreshold =
+    variant?.low_stock_threshold ?? product.low_stock_threshold ?? null
   const explicitTrack = variant?.track_inventory ?? product.track_inventory
   const hasOnHandQty = variant?.quantity != null || product.quantity != null
   // Enforce on-hand quantity unless backorders are allowed; respect explicit track_inventory=false only when no qty is set.
@@ -71,13 +74,53 @@ function resolveStockContext(product: StockEntity, variant?: StockEntity) {
     stockStatus,
     maxPerOrder,
     minPerOrder,
+    lowStockThreshold,
   }
+}
+
+/**
+ * Stock label for UI: prefer on-hand qty when inventory is tracked.
+ * Fixes stale stock_status="in_stock" while quantity is 0 (common after editing qty without updating status).
+ */
+export function getEffectiveStockStatus(product: StockEntity, variant?: StockEntity): string {
+  const { track, allowBackorders, quantity, stockStatus, lowStockThreshold } = resolveStockContext(
+    product,
+    variant,
+  )
+
+  if (stockStatus === 'discontinued') return 'discontinued'
+
+  if (allowBackorders) {
+    if (quantity <= 0) return stockStatus === 'backorder' ? 'backorder' : 'backorder'
+    return stockStatus === 'out_of_stock' ? 'in_stock' : stockStatus
+  }
+
+  if (track) {
+    if (quantity <= 0) return 'out_of_stock'
+    if (stockStatus === 'out_of_stock') {
+      const thresh = lowStockThreshold ?? 5
+      return quantity <= thresh ? 'low_stock' : 'in_stock'
+    }
+    if (
+      (stockStatus === 'in_stock' || stockStatus === 'low_stock') &&
+      lowStockThreshold != null &&
+      quantity <= lowStockThreshold
+    ) {
+      return 'low_stock'
+    }
+    if (stockStatus === 'low_stock' && (lowStockThreshold == null || quantity > lowStockThreshold)) {
+      return 'in_stock'
+    }
+    return stockStatus
+  }
+
+  return stockStatus
 }
 
 /** On-hand quantity for the selected product/variant, or null when unlimited. */
 export function getOnHandQuantity(product: StockEntity, variant?: StockEntity): number | null {
-  const { track, allowBackorders, quantity, stockStatus } = resolveStockContext(product, variant)
-  if (stockStatus === 'out_of_stock') return 0
+  const { track, allowBackorders, quantity } = resolveStockContext(product, variant)
+  if (getEffectiveStockStatus(product, variant) === 'out_of_stock') return 0
   if (!track || allowBackorders) return null
   return Math.max(0, quantity)
 }
@@ -86,7 +129,7 @@ export function getOnHandQuantity(product: StockEntity, variant?: StockEntity): 
 export function canPurchaseProduct(product: StockEntity, variant?: StockEntity): boolean {
   const onHand = getOnHandQuantity(product, variant)
   if (onHand !== null) return onHand > 0
-  return (variant?.stock_status ?? product.stock_status ?? 'in_stock') !== 'out_of_stock'
+  return getEffectiveStockStatus(product, variant) !== 'out_of_stock'
 }
 
 function capByOrderLimit(available: number, maxPerOrder: number | null | undefined, cartQtyExcludingLine: number): number {
@@ -127,12 +170,12 @@ export function validateAddToCartStock(input: {
   cartQty: number
 }): StockValidationResult {
   const label = input.variantLabel?.trim() || input.productName
-  const { track, allowBackorders, quantity, stockStatus, maxPerOrder, minPerOrder } = resolveStockContext(
+  const { track, allowBackorders, quantity, maxPerOrder, minPerOrder } = resolveStockContext(
     input.product,
     input.variant,
   )
 
-  if (stockStatus === 'out_of_stock') {
+  if (getEffectiveStockStatus(input.product, input.variant) === 'out_of_stock') {
     return { ok: false, message: `${label} is out of stock.` }
   }
 
@@ -207,11 +250,11 @@ export function getMaxLineQuantity(input: {
   const cartLines = getCurrentCartStockLines(input.vendorSlug, input.isAuthenticated)
   const cartQty = getCartQtyForVariant(cartLines, input.productId, input.variant?.id)
   const cartQtyExcludingLine = Math.max(0, cartQty - input.currentLineQty)
-  const { track, allowBackorders, quantity, stockStatus, maxPerOrder } = resolveStockContext(
+  const { track, allowBackorders, quantity, maxPerOrder } = resolveStockContext(
     input.product,
     input.variant,
   )
-  if (stockStatus === 'out_of_stock') return 0
+  if (getEffectiveStockStatus(input.product, input.variant) === 'out_of_stock') return 0
   const orderCap = capByOrderLimit(Number.MAX_SAFE_INTEGER, maxPerOrder, cartQtyExcludingLine)
   if (!track || allowBackorders) return Math.min(99, orderCap)
   return capByOrderLimit(Math.max(0, quantity), maxPerOrder, cartQtyExcludingLine)
@@ -227,11 +270,11 @@ export function getMaxAddQuantity(input: {
 }): number | null {
   const cartLines = getCurrentCartStockLines(input.vendorSlug, input.isAuthenticated)
   const cartQty = getCartQtyForVariant(cartLines, input.productId, input.variant?.id)
-  const { track, allowBackorders, quantity, stockStatus, maxPerOrder } = resolveStockContext(
+  const { track, allowBackorders, quantity, maxPerOrder } = resolveStockContext(
     input.product,
     input.variant,
   )
-  if (stockStatus === 'out_of_stock') return 0
+  if (getEffectiveStockStatus(input.product, input.variant) === 'out_of_stock') return 0
   const orderCap = capByOrderLimit(Number.MAX_SAFE_INTEGER, maxPerOrder, cartQty)
   if (!track || allowBackorders) return orderCap >= Number.MAX_SAFE_INTEGER ? null : orderCap
   const stockCap = Math.max(0, Math.max(0, quantity) - cartQty)

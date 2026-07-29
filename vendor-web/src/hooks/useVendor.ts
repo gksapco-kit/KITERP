@@ -228,6 +228,111 @@ export function useDeleteCategory() {
   })
 }
 
+// ── Product Groups ────────────────────────────────────────────────
+export function useProductGroups(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: [...vendorKeys.all, 'product-groups', params],
+    queryFn: () => vendorApi.listProductGroups(params),
+    staleTime: 30 * 1000,
+  })
+}
+
+export function useProductGroupFlatOptions(excludeId?: string) {
+  return useQuery({
+    queryKey: [...vendorKeys.all, 'product-groups', 'flat-options', excludeId ?? ''],
+    queryFn: () => vendorApi.listProductGroupFlatOptions(excludeId),
+    staleTime: 30 * 1000,
+  })
+}
+
+export function useProductGroup(id: string, opts?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: [...vendorKeys.all, 'product-group', id],
+    queryFn: () => vendorApi.getProductGroup(id),
+    enabled: !!id && (opts?.enabled ?? true),
+  })
+}
+
+export function useCreateProductGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createProductGroup(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'product-groups'] }); toast.success('Product group created!') },
+    onError: apiError('Could not create product group'),
+  })
+}
+
+export function useUpdateProductGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateProductGroup(id, data),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'product-groups'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'product-group', vars.id] })
+      toast.success('Product group updated!')
+    },
+    onError: apiError('Could not update product group'),
+  })
+}
+
+export function useReparentProductGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, parentId }: { id: string; parentId: string | null }) =>
+      vendorApi.reparentProductGroup(id, parentId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'product-groups'] }); toast.success('Group moved') },
+    onError: apiError('Could not move group'),
+  })
+}
+
+export function useDeleteProductGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteProductGroup(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'product-groups'] }); toast.success('Product group deleted') },
+    onError: apiError('Could not delete product group — it may have sub-groups'),
+  })
+}
+
+export function useAddProductGroupItems() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, items }: { groupId: string; items: { item_type: 'product' | 'service'; item_id: string; quantity?: number }[] }) =>
+      vendorApi.addProductGroupItems(groupId, items),
+    onSuccess: (res, vars) => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'product-groups'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'product-group', vars.groupId] })
+      toast.success(`Added ${res.added} item${res.added === 1 ? '' : 's'} to group${res.skipped ? ` (${res.skipped} already in group)` : ''}`)
+    },
+    onError: apiError('Could not add items to group'),
+  })
+}
+
+export function useUpdateProductGroupItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, itemId, data }: { groupId: string; itemId: string; data: { quantity?: number; sort_order?: number } }) =>
+      vendorApi.updateProductGroupItem(groupId, itemId, data),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'product-group', vars.groupId] })
+    },
+    onError: apiError('Could not update item'),
+  })
+}
+
+export function useRemoveProductGroupItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, itemId }: { groupId: string; itemId: string }) => vendorApi.removeProductGroupItem(groupId, itemId),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'product-groups'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'product-group', vars.groupId] })
+      toast.success('Item removed from group')
+    },
+    onError: apiError('Could not remove item'),
+  })
+}
+
 export function useStorageLocationTree(storeId?: string | null, plantId?: string | null) {
   const storeScope = storeId || undefined
   const plantScope = plantId || undefined
@@ -541,6 +646,8 @@ export function useUpdateProduct() {
       qc.setQueryData(vendorKeys.product(id), updatedProduct)
       qc.invalidateQueries({ queryKey: vendorKeys.products() })
       qc.invalidateQueries({ queryKey: vendorKeys.product(id) })
+      // Keep VariantManagementPanel in sync — it uses its own query key
+      qc.invalidateQueries({ queryKey: ['product-variants', id] })
       toast.success('Product updated!')
     },
     onError: apiError('Could not update product — check your changes and try again'),
@@ -550,9 +657,28 @@ export function useUpdateProduct() {
 export function useDeleteProduct() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => vendorApi.deleteProduct(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'products'] }); toast.success('Product deleted') },
+    mutationFn: (vars: string | { id: string; permanent?: boolean }) => {
+      if (typeof vars === 'string') return vendorApi.deleteProduct(vars)
+      return vendorApi.deleteProduct(vars.id, { permanent: vars.permanent })
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'products'] })
+      const permanent = typeof variables === 'object' && Boolean(variables.permanent)
+      toast.success(permanent ? 'Product permanently deleted' : 'Product moved to trash')
+    },
     onError: apiError('Could not delete product — it may be referenced in active orders'),
+  })
+}
+
+export function useRestoreProduct() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.restoreProduct(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'products'] })
+      toast.success('Product restored')
+    },
+    onError: apiError('Could not restore product'),
   })
 }
 

@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/lib/utils'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 import { getVisitorId } from '@/lib/visitorId'
 import { safeLocalGet, safeLocalSet } from '@/lib/safeStorage'
+
+const META_KEY = 'asure_visitor_meta'
 
 type Message = {
   id: string
@@ -39,11 +42,14 @@ function useChatDarkMode(): boolean {
 
 export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#2563eb' }: Props) {
   const isDark = useChatDarkMode()
+  const customer = useAuthStore((s) => s.customer)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [introDone, setIntroDone] = useState(false)
   const [sending, setSending] = useState(false)
   const visitorIdRef = useRef<string>('')
@@ -51,16 +57,41 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
 
   useEffect(() => {
     visitorIdRef.current = getVisitorId()
-    const cached = safeLocalGet('asure_visitor_meta')
+    const cached = safeLocalGet(META_KEY)
     if (cached) {
       try {
         const meta = JSON.parse(cached)
         if (meta.name) setName(meta.name)
         if (meta.email) setEmail(meta.email)
+        if (meta.phone) setPhone(meta.phone)
         if (meta.name || meta.email) setIntroDone(true)
       } catch { /* ignore */ }
     }
   }, [])
+
+  // Signed-in customers: prefill from profile and skip the intro form.
+  useEffect(() => {
+    if (!isAuthenticated || !customer) return
+    const nextName = (customer.full_name || '').trim()
+    const nextEmail = (customer.email || '').trim()
+    const nextPhone = (customer.phone || '').trim()
+    if (!nextName && !nextEmail && !nextPhone) return
+
+    setName((prev) => prev || nextName)
+    setEmail((prev) => prev || nextEmail)
+    setPhone((prev) => prev || nextPhone)
+    setIntroDone(true)
+
+    try {
+      const cached = safeLocalGet(META_KEY)
+      const prev = cached ? JSON.parse(cached) as { name?: string; email?: string; phone?: string } : {}
+      safeLocalSet(META_KEY, JSON.stringify({
+        name: prev.name || nextName || '',
+        email: prev.email || nextEmail || '',
+        phone: prev.phone || nextPhone || '',
+      }))
+    } catch { /* ignore */ }
+  }, [isAuthenticated, customer])
 
   const loadHistory = useCallback(async () => {
     if (!visitorIdRef.current) return
@@ -108,6 +139,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
           visitor_id: visitorIdRef.current,
           visitor_name: name || undefined,
           visitor_email: email || undefined,
+          visitor_phone: phone || undefined,
           body,
         }),
       })
@@ -124,7 +156,7 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
   const submitIntro = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim() && !email.trim()) return
-    safeLocalSet('asure_visitor_meta', JSON.stringify({ name, email }))
+    safeLocalSet(META_KEY, JSON.stringify({ name, email, phone }))
     setIntroDone(true)
   }
 
@@ -181,12 +213,19 @@ export default function CrmChatWidget({ vendorId, vendorName, themeColor = '#256
               <p className={cn('text-sm', isDark ? 'text-slate-300' : 'text-gray-700')}>
                 Hi! Tell us a bit about yourself so we can help.
               </p>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" className={fieldClass} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name *" className={fieldClass} />
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Phone number"
+                className={fieldClass}
+              />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email (optional)"
+                placeholder="Email address (optional)"
                 className={fieldClass}
               />
               <button type="submit" className="h-10 rounded-md text-white text-sm font-medium" style={{ backgroundColor: themeColor }}>

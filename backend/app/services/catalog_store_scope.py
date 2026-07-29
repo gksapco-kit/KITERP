@@ -102,7 +102,12 @@ async def resolve_store_id(
     store_id: Optional[str] = None,
     branch: Optional[str] = None,
 ) -> Optional[UUID]:
-    """Resolve store UUID from store_id param or branch code/id string."""
+    """Resolve store UUID from store_id param or branch code/id string.
+
+    When multiple active stores share the same code, prefer an exact UUID match,
+    then the default unit, then the oldest (stable). Duplicate codes must not 409
+    the public catalog.
+    """
     if store_id:
         try:
             sid = UUID(store_id)
@@ -119,17 +124,34 @@ async def resolve_store_id(
         return sid
     if branch:
         cleaned = branch.strip()
-        filters = [func.lower(Store.code) == cleaned.lower()]
+        # Prefer exact UUID match first (unique even when codes collide).
         try:
-            filters.append(Store.id == UUID(cleaned))
+            sid = UUID(cleaned)
         except ValueError:
-            pass
+            sid = None
+        if sid is not None:
+            row = await db.execute(
+                select(Store.id, Store.is_open).where(
+                    Store.vendor_id == vendor_id,
+                    Store.id == sid,
+                    Store.is_active == True,
+                )
+            )
+            result_row = row.one_or_none()
+            if result_row:
+                if result_row[1] is False:
+                    raise HTTPException(422, "This business unit is currently closed")
+                return result_row[0]
+
         row = await db.execute(
-            select(Store.id, Store.is_open).where(
+            select(Store.id, Store.is_open)
+            .where(
                 Store.vendor_id == vendor_id,
                 Store.is_active == True,
-                or_(*filters),
+                func.lower(Store.code) == cleaned.lower(),
             )
+            .order_by(Store.is_default.desc(), Store.created_at.asc())
+            .limit(1)
         )
         result_row = row.one_or_none()
         if not result_row:

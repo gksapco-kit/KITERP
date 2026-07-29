@@ -64,6 +64,7 @@ export interface Product {
   brand?: string; product_type?: string
   category?: string; subcategory?: string; tags?: string[]
   uom?: string
+  price_type?: string
   price: number; compare_at_price?: number; cost_price?: number
   currency?: string; discount_percentage?: number; discount_amount?: number
   offer_label?: string; is_on_sale?: boolean

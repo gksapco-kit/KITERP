@@ -4,23 +4,44 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PhoneInput } from '@/components/ui/PhoneInput'
-import { Select } from '@/components/ui/select'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useLeads, useSaveLead, useConvertLead } from '@/hooks/useCrm'
 import { crmApi, type Lead } from '@/api/crm'
 import { Plus, Loader2, Target, Sparkles, ArrowRight } from 'lucide-react'
 import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
+import { useAssigneeOptions } from './crmFormShared'
 import { modalWidthMd } from '@/lib/modalUi'
 import { formatDateTime } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
-const STATUSES = ['new', 'contacted', 'qualified', 'unqualified', 'converted'] as const
+const STATUSES = ['new', 'working', 'contacted', 'qualified', 'unqualified', 'converted'] as const
+
+const STATUS_OPTIONS = STATUSES.map((s) => ({ value: s, label: s }))
+
+function statusTriggerClass(status: string) {
+  switch (status) {
+    case 'qualified':
+      return 'border-emerald-300 bg-emerald-50 text-emerald-800'
+    case 'unqualified':
+      return 'border-red-300 bg-red-50 text-red-800'
+    case 'converted':
+      return 'border-violet-300 bg-violet-50 text-violet-800'
+    case 'contacted':
+    case 'working':
+      return 'border-sky-300 bg-sky-50 text-sky-800'
+    default:
+      return 'border-gray-200 bg-white text-gray-700'
+  }
+}
 
 function LeadForm({ onClose }: { onClose: () => void }) {
   const save = useSaveLead()
+  const { options: assigneeOptions, isLoading: assigneesLoading } = useAssigneeOptions()
   const [form, setForm] = useState({
     first_name: '', last_name: '', company: '', email: '', phone: '',
-    title: '', source: 'website', status: 'new', notes: '',
+    title: '', source: 'website', status: 'new', notes: '', assigned_to: '',
   })
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,6 +58,7 @@ function LeadForm({ onClose }: { onClose: () => void }) {
           source: form.source,
           status: form.status,
           notes: form.notes || undefined,
+          assigned_to: form.assigned_to || undefined,
         },
       },
       { onSuccess: onClose },
@@ -91,10 +113,22 @@ function LeadForm({ onClose }: { onClose: () => void }) {
             <Select
               value={form.status}
               onChange={v => setForm(p => ({ ...p, status: v }))}
-              options={STATUSES.map(s => ({ value: s, label: s }))}
+              options={STATUS_OPTIONS.filter((o) => o.value !== 'converted')}
             />
           </Field>
         </div>
+        <Field label="Assigned to">
+          <Select
+            value={form.assigned_to}
+            onChange={v => setForm(p => ({ ...p, assigned_to: v }))}
+            disabled={assigneesLoading}
+            options={selectOptionsWithBlank(
+              assigneesLoading ? 'Loading…' : '— Unassigned —',
+              assigneeOptions,
+            )}
+            placeholder={assigneesLoading ? 'Loading…' : '— Unassigned —'}
+          />
+        </Field>
         <Field label="Notes">
           <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
             className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
@@ -163,6 +197,88 @@ function ConvertModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   )
 }
 
+function LeadStatusSelect({
+  lead,
+  onConvert,
+}: {
+  lead: Lead
+  onConvert: () => void
+}) {
+  const save = useSaveLead()
+  const current = lead.status || 'new'
+
+  return (
+    <div className="min-w-[8.5rem] max-w-[10rem]">
+      <Select
+        value={current}
+        options={STATUS_OPTIONS}
+        disabled={save.isPending}
+        aria-label={`Status for ${lead.number || lead.id}`}
+        className="h-8 text-xs"
+        triggerClassName={statusTriggerClass(current)}
+        menuMinWidth={140}
+        onChange={(next) => {
+          if (next === current) return
+          if (next === 'converted' && current !== 'converted') {
+            onConvert()
+            return
+          }
+          save.mutate(
+            { id: lead.id, data: { status: next } },
+            {
+              onSuccess: () => toast.success(`Status updated to ${next}`),
+              onError: () => toast.error('Failed to update status'),
+            },
+          )
+        }}
+      />
+    </div>
+  )
+}
+
+function LeadAssigneeSelect({
+  lead,
+  options,
+  loading,
+}: {
+  lead: Lead
+  options: { value: string; label: string }[]
+  loading?: boolean
+}) {
+  const save = useSaveLead()
+  const current = lead.assigned_to || ''
+  const known = options.some((o) => o.value === current)
+
+  return (
+    <div className="min-w-[9rem] max-w-[12rem]">
+      <Select
+        value={current}
+        disabled={save.isPending || loading}
+        aria-label={`Assignee for ${lead.number || lead.id}`}
+        className="h-8 text-xs"
+        menuMinWidth={200}
+        options={selectOptionsWithBlank(
+          loading ? 'Loading…' : '— Unassigned —',
+          [
+            ...(current && !known ? [{ value: current, label: 'Assigned user' }] : []),
+            ...options,
+          ],
+        )}
+        onChange={(next) => {
+          if (next === current) return
+          save.mutate(
+            { id: lead.id, data: { assigned_to: next || null } },
+            {
+              onSuccess: () => toast.success(next ? 'Assignee updated' : 'Lead unassigned'),
+              onError: () => toast.error('Failed to update assignee'),
+            },
+          )
+        }}
+      />
+    </div>
+  )
+}
+
 export default function LeadsPage() {
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
@@ -172,6 +288,7 @@ export default function LeadsPage() {
   const [status, setStatus] = useState<string>('')
   const [showCreate, setShowCreate] = useState(false)
   const [convertLead, setConvertLead] = useState<Lead | null>(null)
+  const { options: assigneeOptions, isLoading: assigneesLoading } = useAssigneeOptions()
 
   const { data, isLoading } = useLeads({ page, size: pageSize, q: search || undefined, status: status || undefined })
 
@@ -215,14 +332,15 @@ export default function LeadsPage() {
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Company</TableColumnLabel></th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Source</TableColumnLabel></th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Assigned to</TableColumnLabel></th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell"><TableColumnLabel>Score</TableColumnLabel></th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell"><TableColumnLabel>Created</TableColumnLabel></th>
                 <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {isLoading ? <LoadingRow cols={7} /> : !data?.items?.length ? (
-                <EmptyRow cols={7} message="No leads yet" action={
+              {isLoading ? <LoadingRow cols={8} /> : !data?.items?.length ? (
+                <EmptyRow cols={8} message="No leads yet" action={
                   <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>
                     <Target className="w-4 h-4 mr-1" /> Capture your first lead
                   </Button>
@@ -241,9 +359,17 @@ export default function LeadsPage() {
                     {l.source ? <Badge variant="soft">{l.source}</Badge> : '—'}
                   </td>
                   <td className="px-6 py-4">
-                    <Badge variant={l.status === 'qualified' ? 'success' : l.status === 'unqualified' ? 'destructive' : 'secondary'}>
-                      {l.status || 'new'}
-                    </Badge>
+                    <LeadStatusSelect
+                      lead={l}
+                      onConvert={() => setConvertLead(l)}
+                    />
+                  </td>
+                  <td className="px-6 py-4 hidden lg:table-cell">
+                    <LeadAssigneeSelect
+                      lead={l}
+                      options={assigneeOptions}
+                      loading={assigneesLoading}
+                    />
                   </td>
                   <td className="px-6 py-4 text-sm font-mono hidden xl:table-cell">{l.score ?? '—'}</td>
                   <td className="px-6 py-4 text-xs text-gray-500 hidden xl:table-cell">{formatDateTime(l.created_at)}</td>

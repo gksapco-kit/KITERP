@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useContacts } from '@/hooks/useCrm'
-import { useTeamMembers } from '@/hooks/useVendor'
+import { useHREmployees, useTeamMembers } from '@/hooks/useVendor'
 import type { EmployeeProfile, TeamMember } from '@/types'
 import { Search } from 'lucide-react'
 import { Field } from './_shared'
@@ -29,6 +29,34 @@ export function empOptionLabel(e: EmployeeProfile) {
   const name = empDisplayName(e)
   const email = empEmail(e)
   return email ? `${name} · ${email}` : name
+}
+
+/** User-id options for CRM `assigned_to` (employees with login + team members). */
+export function useAssigneeOptions() {
+  const { data: empData, isLoading: empLoading } = useHREmployees({ limit: 200 })
+  const team = useTeamMembers({ size: 100 })
+
+  const options = useMemo(() => {
+    const out: { value: string; label: string }[] = []
+    const seen = new Set<string>()
+    const push = (id: string | undefined | null, label: string) => {
+      if (!id || seen.has(id)) return
+      seen.add(id)
+      out.push({ value: id, label: label.trim() || id })
+    }
+    for (const e of empData?.items ?? []) {
+      push(e.vendor_user?.user?.id, empOptionLabel(e))
+    }
+    for (const m of team.data?.items ?? []) {
+      push(
+        m.user_id,
+        m.user?.full_name || m.user?.email || m.role_name || 'Team member',
+      )
+    }
+    return out.sort((a, b) => a.label.localeCompare(b.label))
+  }, [empData?.items, team.data?.items])
+
+  return { options, isLoading: empLoading || team.isLoading }
 }
 
 export function findMyEmployee(

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
 import { subscriptionBillingFootnote } from '@/lib/serviceStorefrontCta'
+import { hasStorefrontDisplayPrice } from '@/lib/servicePricing'
 import StarRating from '@/components/StarRating'
 import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
@@ -28,7 +29,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
     displayFields,
     product, selectedVariant, activeVariants, hasVariants,
     setSelectedVariantId, qty, setQty, validateQtyChange, maxAddQty, minAddQty, onHandQty,
-    displayPrice, displayCompare, displayCurrency, displayStock,
+    displayPrice, hasDisplayPrice, displayCompare, displayCurrency, displayStock,
     displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor,
     optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
     selectedImage, setSelectedImage, displayMedia,
@@ -47,7 +48,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
   const qtyMax = maxAddQty ?? 99
 
   const sf = displayFields
-  const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price')
+  const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price') && hasDisplayPrice
   const showVariants = isDisplayFieldEnabled(sf, 'variants') && hasVariants
 
   const intervalLabel: Record<string, string> = {
@@ -58,6 +59,15 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
     daily: '/day', weekly: '/wk', biweekly: '/2wk', monthly: '/mo',
     quarterly: '/qtr', biannual: '/6mo', yearly: '/yr',
   }
+  const billingFootnote = hasDisplayPrice
+    ? subscriptionBillingFootnote({
+        interval: isSubscription ? (intervalLabel[subscriptionInterval!] || subscriptionInterval) : null,
+        priceType: isSubscription ? subscriptionPriceType : null,
+        uom: isSubscription ? subscriptionUom : null,
+        isTaxable,
+        taxRate,
+      })
+    : null
 
   const hasSpecsContent = Boolean(specs && Object.keys(specs).length > 0)
   const showWeight = isDisplayFieldEnabled(sf, 'weight') && Boolean(product.weight_kg)
@@ -265,14 +275,18 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className={`text-lg font-extrabold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
-                                {formatCurrency(v.price, v.currency)}
-                              </p>
-                              <p className="text-xs text-gray-400">{vShort}</p>
+                              {hasStorefrontDisplayPrice(v.price, v.price_type) ? (
+                                <>
+                                  <p className={`text-lg font-extrabold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
+                                    {formatCurrency(v.price, v.currency)}
+                                  </p>
+                                  <p className="text-xs text-gray-400">{vShort}</p>
+                                </>
+                              ) : null}
                             </div>
                           </div>
-                          {showCompare && v.compare_at_price && v.compare_at_price > v.price && (
-                            <p className="text-xs text-gray-400 line-through mt-1">{formatCurrency(v.compare_at_price, v.currency)}</p>
+                          {showCompare && hasStorefrontDisplayPrice(v.price, v.price_type) && (v.compare_at_price ?? 0) > v.price && (
+                            <p className="text-xs text-gray-400 line-through mt-1">{formatCurrency(v.compare_at_price!, v.currency)}</p>
                           )}
                           {isSelected && (
                             <div className="absolute top-3 right-3">
@@ -296,9 +310,11 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                             isSelected ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'
                           }`}>
                           <p className="text-sm font-semibold text-gray-900">{v.name}</p>
-                          <p className="text-sm font-bold mt-0.5">{formatCurrency(v.price, v.currency)}</p>
-                          {showCompare && v.compare_at_price && v.compare_at_price > v.price && (
-                            <p className="text-xs text-gray-400 line-through">{formatCurrency(v.compare_at_price, v.currency)}</p>
+                          {hasStorefrontDisplayPrice(v.price, v.price_type) && (
+                            <p className="text-sm font-bold mt-0.5">{formatCurrency(v.price, v.currency)}</p>
+                          )}
+                          {showCompare && hasStorefrontDisplayPrice(v.price, v.price_type) && (v.compare_at_price ?? 0) > v.price && (
+                            <p className="text-xs text-gray-400 line-through">{formatCurrency(v.compare_at_price!, v.currency)}</p>
                           )}
                         </button>
                       )
@@ -420,10 +436,12 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
         <div className="lg:col-span-3">
           <div className={`lg:sticky lg:top-4 rounded-2xl border p-5 space-y-4 ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             {/* Price */}
+            {(hasDisplayPrice || (isDisplayFieldEnabled(sf, 'offer_label') && displayOfferLabel && displayOnSale)) && (
             <div>
               {isDisplayFieldEnabled(sf, 'offer_label') && displayOfferLabel && displayOnSale && (
                 <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full mb-2 inline-block">{displayOfferLabel}</span>
               )}
+              {hasDisplayPrice && (
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-gray-900">
                   {formatCurrency(displayPrice, displayCurrency)}
@@ -436,22 +454,20 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                   )}
                 </span>
               </div>
-              {showCompare && displayCompare && displayCompare > displayPrice && (
+              )}
+              {showCompare && (displayCompare ?? 0) > displayPrice && (
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm text-gray-400 line-through">M.R.P.: {formatCurrency(displayCompare, displayCurrency)}</span>
+                  <span className="text-sm text-gray-400 line-through">M.R.P.: {formatCurrency(displayCompare!, displayCurrency)}</span>
                   {discount > 0 && <span className="text-sm font-bold text-red-600">Save {discount}%</span>}
                 </div>
               )}
+              {billingFootnote && (
               <p className="text-xs text-gray-500 mt-1">
-                {subscriptionBillingFootnote({
-                  interval: isSubscription ? (intervalLabel[subscriptionInterval!] || subscriptionInterval) : null,
-                  priceType: isSubscription ? subscriptionPriceType : null,
-                  uom: isSubscription ? subscriptionUom : null,
-                  isTaxable,
-                  taxRate,
-                })}
+                {billingFootnote}
               </p>
+              )}
             </div>
+            )}
 
             {/* Subscription Configurator */}
             {isSubscription && subscriptionInterval && (
@@ -474,8 +490,8 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
               />
             )}
 
-            {/* Stock */}
-            {isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
+            {/* Stock — product-level status is only meaningful when variants exist */}
+            {hasVariants && isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
               <div className={`text-sm font-semibold ${
                 displayStock === 'in_stock' ? 'text-green-600' : displayStock === 'low_stock' ? 'text-amber-600' : 'text-red-600'
               }`}>
@@ -497,28 +513,32 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
               </div>
             )}
 
-            <ProductPurchaseActions
-              qty={qty}
-              setQty={setQty}
-              validateQtyChange={validateQtyChange}
-              maxQty={maxAddQty}
-              minQty={minAddQty}
-              onHandQty={onHandQty}
-              displayPrice={displayPrice}
-              displayCurrency={displayCurrency}
-              displayStock={displayStock}
-              variantValidationValid={variantValidation.valid}
-              addToCartPending={addToCartPending}
-              handleAddToCart={handleAddToCart}
-              handleBuyNow={handleBuyNow}
-              isSubscription={isSubscription}
-              canQuote={canQuote}
-              onRequestQuote={() => setShowQuote(true)}
-              isAuthenticated={isAuthenticated}
-              signInMandatory={signInMandatory}
-              storePath={storePath}
-              className="space-y-4 border-t pt-4"
-            />
+            {(hasVariants || canQuote) && (
+              <ProductPurchaseActions
+                qty={qty}
+                setQty={setQty}
+                validateQtyChange={validateQtyChange}
+                maxQty={maxAddQty}
+                minQty={minAddQty}
+                onHandQty={onHandQty}
+                displayPrice={displayPrice}
+                hasDisplayPrice={hasDisplayPrice}
+                displayCurrency={displayCurrency}
+                displayStock={displayStock}
+                variantValidationValid={variantValidation.valid}
+                addToCartPending={addToCartPending}
+                handleAddToCart={handleAddToCart}
+                handleBuyNow={handleBuyNow}
+                isSubscription={isSubscription}
+                canQuote={canQuote}
+                onRequestQuote={() => setShowQuote(true)}
+                isAuthenticated={isAuthenticated}
+                signInMandatory={signInMandatory}
+                storePath={storePath}
+                className="space-y-4 border-t pt-4"
+                hidePurchaseControls={!hasVariants}
+              />
+            )}
 
             {/* Trust strip */}
             <div className="border-t pt-4 space-y-2.5">

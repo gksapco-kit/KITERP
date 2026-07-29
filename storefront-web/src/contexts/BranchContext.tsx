@@ -153,14 +153,27 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   )
 
   // Replace stale ?branch= values with the default open unit once stores are loaded.
+  // Also rewrite duplicate branch codes to a unique store id so catalog APIs don't 409.
   useEffect(() => {
-    if (!vendorSlug || loading || !branchesLoaded || !branchCode || selectedBranch) return
-    const fallback = pickDefaultOpenBranch(branches)
-    if (!fallback) return
-    const resolved = branchCodeForStore(fallback)
-    if (!resolved || branchKey(resolved) === branchKey(branchCode)) return
+    if (!vendorSlug || loading || !branchesLoaded || !branchCode) return
+
+    if (!selectedBranch) {
+      const fallback = pickDefaultOpenBranch(branches)
+      if (!fallback) return
+      const resolved = branchCodeForStore(fallback, branches)
+      if (!resolved || branchKey(resolved) === branchKey(branchCode)) return
+      const next = new URLSearchParams(searchParams)
+      next.set('branch', resolved)
+      const qs = next.toString()
+      navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true })
+      return
+    }
+
+    const canonical = branchCodeForStore(selectedBranch, branches)
+    if (!canonical || branchKey(canonical) === branchKey(branchCode)) return
     const next = new URLSearchParams(searchParams)
-    next.set('branch', resolved)
+    next.set('branch', canonical)
+    writeSavedBranch(vendorSlug, canonical)
     const qs = next.toString()
     navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true })
   }, [

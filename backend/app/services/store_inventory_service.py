@@ -149,5 +149,8 @@ async def sync_product_quantity_from_stores(
 
     if entity:
         entity.quantity = total
-        if total > 0 and getattr(entity, "stock_status", None) == "out_of_stock":
+        if total <= 0 and not getattr(entity, "allow_backorders", False):
+            if getattr(entity, "stock_status", None) != "discontinued":
+                entity.stock_status = "out_of_stock"
+        elif total > 0 and getattr(entity, "stock_status", None) == "out_of_stock":
             entity.stock_status = "in_stock"

@@ -23,6 +23,7 @@ ALL_PERMISSIONS = [
     "subscriptions.view", "subscriptions.manage",
     "rentals.view", "rentals.manage",
     "production.view", "production.manage",
+    "pharma.view", "pharma.manage", "pharma.release", "pharma.audit",
     # Project management
     "projects.view", "projects.manage",
     # Customers & reviews
@@ -112,6 +113,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "memos.view", "memos.manage",
         "coupons.view", "coupons.manage",
         "production.view", "production.manage",
+        "pharma.view", "pharma.manage", "pharma.release", "pharma.audit",
         "projects.view", "projects.manage",
         "customers.view", "customers.manage",
         "reviews.view", "reviews.reply",

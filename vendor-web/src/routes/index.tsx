@@ -29,6 +29,8 @@ import SettingsPage from '@/pages/settings/index'
 import SupportActivityPage from '@/pages/settings/SupportActivity'
 import AboutPage from '@/pages/about/index'
 import CategoriesPage from '@/pages/categories/index'
+import ProductGroupsPage from '@/pages/productGroups/index'
+import ProductGroupDetailPage from '@/pages/productGroups/ProductGroupDetail'
 import Inventory from '@/pages/inventory/index'
 import StorageLocationsPage from '@/pages/inventory/StorageLocations'
 import PlantsPage from '@/pages/inventory/Plants'
@@ -76,6 +78,39 @@ import ProductionSchedulePage from '@/pages/production/Schedule'
 import ProductionWorkCentersPage from '@/pages/production/WorkCenters'
 import ProductionMRPPage from '@/pages/production/MRP'
 import ProductionAnalyticsPage from '@/pages/production/Analytics'
+import PharmaOverviewPage from '@/pages/pharma/Overview'
+import PharmaSettingsPage from '@/pages/pharma/Settings'
+import PharmaSettingsBatchNumberingPage from '@/pages/pharma/SettingsBatchNumbering'
+import PharmaSettingsSequenceDetailPage from '@/pages/pharma/SettingsSequenceDetail'
+import PharmaSettingsEsignPage from '@/pages/pharma/SettingsEsign'
+import PharmaSettingsStoragePage from '@/pages/pharma/SettingsStorage'
+import PharmaSettingsRegulatoryPage from '@/pages/pharma/SettingsRegulatory'
+import PharmaSettingsProductsPage from '@/pages/pharma/SettingsProducts'
+import PharmaBatchDetailPage from '@/pages/pharma/BatchDetail'
+import {
+  PharmaBatchesPage,
+  PharmaMovementsPage,
+  PharmaFefoPage,
+  PharmaQuarantinePage,
+} from '@/pages/pharma/Batches'
+import {
+  PharmaMbrPage,
+  PharmaBprPage,
+  PharmaQcSpecsPage,
+  PharmaInspectionsPage,
+  PharmaReleasePage,
+} from '@/pages/pharma/Quality'
+import {
+  PharmaGenealogyPage,
+  PharmaRecallsPage,
+  PharmaComplaintsPage,
+  PharmaDeviationsPage,
+  PharmaCapasPage,
+  PharmaChangeControlPage,
+  PharmaAuditPage,
+  PharmaSerializationPage,
+} from '@/pages/pharma/TraceQms'
+import { PharmaGdpPage, PharmaTrackTracePage } from '@/pages/pharma/StageC'
 import StoresPage from '@/pages/stores/index'
 import ProfilePage from '@/pages/profile/index'
 import RelationshipManagerPage from '@/pages/relationship-manager/index'
@@ -183,6 +218,7 @@ import CrmDashboard from '@/pages/crm/index'
 import CrmContacts from '@/pages/crm/Contacts'
 import CrmAccounts from '@/pages/crm/Accounts'
 import CrmLeads from '@/pages/crm/Leads'
+import CrmNumberRanges from '@/pages/crm/NumberRanges'
 import CrmPipeline from '@/pages/crm/Pipeline'
 import CrmActivities from '@/pages/crm/Activities'
 import CrmInbox from '@/pages/crm/Inbox'
@@ -320,6 +356,8 @@ export const router = createBrowserRouter([
       { path: 'services/:id/audit', element: <ServiceAuditReport /> },
       { path: 'services/:id', element: <ServiceForm /> },
       { path: 'categories', element: <CategoriesPage /> },
+      { path: 'product-groups', element: <ProductGroupsPage /> },
+      { path: 'product-groups/:id', element: <ProductGroupDetailPage /> },
       { path: 'master-data', element: <MasterDataReport /> },
       { path: 'master-data/new', element: <MasterDataNew /> },
       { path: 'suppliers', element: <Navigate to="/master-data" replace /> },
@@ -337,6 +375,34 @@ export const router = createBrowserRouter([
       { path: 'production/work-centers', element: <ProductionWorkCentersPage /> },
       { path: 'production/mrp', element: <ProductionMRPPage /> },
       { path: 'production/analytics', element: <ProductionAnalyticsPage /> },
+      { path: 'pharma', element: <PharmaOverviewPage /> },
+      { path: 'pharma/settings', element: <PharmaSettingsPage /> },
+      { path: 'pharma/settings/batch-numbering', element: <PharmaSettingsBatchNumberingPage /> },
+      { path: 'pharma/settings/batch-numbering/:sequenceId', element: <PharmaSettingsSequenceDetailPage /> },
+      { path: 'pharma/settings/esign', element: <PharmaSettingsEsignPage /> },
+      { path: 'pharma/settings/storage', element: <PharmaSettingsStoragePage /> },
+      { path: 'pharma/settings/regulatory', element: <PharmaSettingsRegulatoryPage /> },
+      { path: 'pharma/settings/products', element: <PharmaSettingsProductsPage /> },
+      { path: 'pharma/batches', element: <PharmaBatchesPage /> },
+      { path: 'pharma/batches/:batchId', element: <PharmaBatchDetailPage /> },
+      { path: 'pharma/movements', element: <PharmaMovementsPage /> },
+      { path: 'pharma/fefo', element: <PharmaFefoPage /> },
+      { path: 'pharma/quarantine', element: <PharmaQuarantinePage /> },
+      { path: 'pharma/mbr', element: <PharmaMbrPage /> },
+      { path: 'pharma/bpr', element: <PharmaBprPage /> },
+      { path: 'pharma/qc-specs', element: <PharmaQcSpecsPage /> },
+      { path: 'pharma/inspections', element: <PharmaInspectionsPage /> },
+      { path: 'pharma/release', element: <PharmaReleasePage /> },
+      { path: 'pharma/genealogy', element: <PharmaGenealogyPage /> },
+      { path: 'pharma/recalls', element: <PharmaRecallsPage /> },
+      { path: 'pharma/complaints', element: <PharmaComplaintsPage /> },
+      { path: 'pharma/deviations', element: <PharmaDeviationsPage /> },
+      { path: 'pharma/capas', element: <PharmaCapasPage /> },
+      { path: 'pharma/change-control', element: <PharmaChangeControlPage /> },
+      { path: 'pharma/audit', element: <PharmaAuditPage /> },
+      { path: 'pharma/serialization', element: <PharmaSerializationPage /> },
+      { path: 'pharma/gdp', element: <PharmaGdpPage /> },
+      { path: 'pharma/track-trace', element: <PharmaTrackTracePage /> },
       { path: 'inventory', element: <Inventory /> },
       { path: 'inventory/settings', element: <InventorySettingsPage /> },
       { path: 'storage-locations', element: <StorageLocationsPage /> },
@@ -545,6 +611,7 @@ export const router = createBrowserRouter([
       { path: 'crm/contacts',       element: <CrmContacts /> },
       { path: 'crm/accounts',       element: <CrmAccounts /> },
       { path: 'crm/leads',          element: <CrmLeads /> },
+      { path: 'crm/number-ranges',  element: <CrmNumberRanges /> },
       { path: 'crm/pipeline',       element: <CrmPipeline /> },
       { path: 'crm/activities',     element: <CrmActivities /> },
       { path: 'crm/inbox',          element: <CrmInbox /> },

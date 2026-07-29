@@ -17,7 +17,7 @@ import { useServices, useDeleteService, useUpdateService, useCategories } from '
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { useVendorStore } from '@/stores/vendorStore'
 import { formatCurrency, mediaUrl } from '@/lib/utils'
-import { TableToolbar } from '@/components/table/TableToolbar'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { TablePagination } from '@/components/table/TablePagination'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
@@ -25,7 +25,7 @@ import { processRows, type SortDir } from '@/lib/tableList'
 import type { Service } from '@/types'
 import {
   Plus, Search, Pencil, Trash2, Loader2, X, Eye,
-  Filter, MoreVertical,
+  Filter, MoreVertical, Info,
   Copy, Share2, Mail, MessageCircle, Clock, MapPin,
   Wrench, Image as ImageIcon, Layers,
 } from 'lucide-react'
@@ -264,49 +264,86 @@ export default function Services() {
   }, [data?.items, sortKey, sortDir])
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Services</h1>
           <p className="text-sm text-gray-500 mt-0.5">{data?.total ?? 0} total services</p>
         </div>
-        <Button onClick={() => navigate('/services/new')} className="gap-2 shadow-sm">
+        <Button onClick={() => navigate('/services/new')} className="shrink-0 gap-2 shadow-sm">
           <Plus className="w-4 h-4" />Add Service
         </Button>
       </div>
 
-      {/* Search + Filters */}
+      {/* Search + Filters + Sort */}
       <Card className="border-gray-200/80">
-        <CardContent className="pt-5 pb-4 space-y-3">
-          <div className="flex gap-2">
-            <div className="flex gap-2 flex-1">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search services…"
-                  value={searchInput}
-                  onChange={e => setSearchInput(e.target.value)}
-                  className="pl-10 pr-8"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  aria-label="Search services"
-                />
-                {searchInput && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchInput('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
+        <CardContent className="p-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[12rem] flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search services…"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                className="h-9 pl-10 pr-8"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-label="Search services"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-            <Button type="button" variant="outline" className="gap-2" onClick={() => setShowFilters(!showFilters)}>
+            <Button type="button" variant="outline" className="h-9 gap-2 shrink-0" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="w-4 h-4" />Filters
               {activeFilterCount > 0 && <span className="ml-1 px-1.5 py-0.5 text-xs leading-none font-bold bg-primary text-white rounded-full">{activeFilterCount}</span>}
             </Button>
+            <div className="flex items-center gap-1.5 ml-auto shrink-0">
+              <button
+                type="button"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                title={INLINE_EDIT_HINT}
+                aria-label={INLINE_EDIT_HINT}
+              >
+                <Info className="h-3.5 w-3.5" />
+              </button>
+              <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Sort</span>
+              <ThemeSelect
+                value={sortKey}
+                onChange={setSortKey}
+                options={[
+                  { value: 'created_at', label: 'Newest' },
+                  { value: 'name', label: 'Service' },
+                  { value: 'service_type', label: 'Type' },
+                  { value: 'service_mode', label: 'Mode' },
+                  { value: 'price', label: 'Price' },
+                  { value: 'duration_minutes', label: 'Duration' },
+                  { value: 'status', label: 'Status' },
+                ]}
+                aria-label="Sort by column"
+                className="h-8 text-xs"
+                wrapperClassName="w-[7.5rem] shrink-0"
+              />
+              <ThemeSelect
+                value={sortDir}
+                onChange={(v) => setSortDir(v as SortDir)}
+                options={[
+                  { value: 'asc', label: 'Low → High' },
+                  { value: 'desc', label: 'High → Low' },
+                ]}
+                aria-label="Sort direction"
+                className="h-8 text-xs"
+                wrapperClassName="w-[9rem] shrink-0"
+                menuMinWidth={140}
+              />
+            </div>
           </div>
           {showFilters && (
             <CatalogListFiltersPanel activeFilters={activeFilters} onClearAll={clearFilters}>
@@ -348,7 +385,7 @@ export default function Services() {
             </CatalogListFiltersPanel>
           )}
           {!showFilters && activeFilters.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2">
               {activeFilters.map((filter) => (
                 <button
                   key={filter.key}
@@ -365,28 +402,12 @@ export default function Services() {
               </Button>
             </div>
           )}
-          <p className="text-xs text-gray-400 px-1">{INLINE_EDIT_HINT}</p>
         </CardContent>
       </Card>
 
       {/* Table */}
       <Card className="border-gray-200/80 overflow-hidden">
         <CardContent className="p-0">
-          <TableToolbar
-            search="" onSearchChange={() => {}} hideSearch
-            hint={INLINE_EDIT_HINT}
-            sortOptions={[
-              { value: 'created_at', label: 'Newest' },
-              { value: 'name', label: 'Service' },
-              { value: 'service_type', label: 'Type' },
-              { value: 'service_mode', label: 'Mode' },
-              { value: 'price', label: 'Price' },
-              { value: 'duration_minutes', label: 'Duration' },
-              { value: 'status', label: 'Status' },
-            ]}
-            sortKey={sortKey} sortDir={sortDir}
-            onSortKeyChange={setSortKey} onSortDirChange={setSortDir}
-          />
           <div className="overflow-x-auto">
             <ResizableTable tableId="services" defaultWidths={[240, 90, 90, 90, 70, 90, 80, 80]}>
               <thead>

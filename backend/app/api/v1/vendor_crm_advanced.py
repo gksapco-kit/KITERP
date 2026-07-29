@@ -235,6 +235,105 @@ async def close_conversation(
     return ChatConversationResponse.model_validate(obj)
 
 
+@router.post("/chat/conversations/{conv_id}/convert-to-lead", status_code=201)
+async def convert_chat_conversation_to_lead(
+    conv_id: UUID,
+    body: dict = Body(default={}),
+    vu: VendorUser = Depends(require_permission("crm.leads.manage")),
+    db: AsyncSession = Depends(get_db),
+    request: Request = None,
+):
+    """Move a chat conversation into CRM as a lead (idempotent).
+
+    Optional body fields: assigned_to (UUID), rating ("hot"|"warm"|"cold").
+    Returns the CRM lead plus the conversation's updated converted_lead_id.
+    """
+    from sqlalchemy.future import select as sa_select
+    from app.models.crm import CrmChatConversation
+    from app.schemas.crm.schemas import LeadResponse
+    from app.services.contact_query_actions import convert_chat_to_lead
+
+    conv = (
+        await db.execute(
+            sa_select(CrmChatConversation).where(
+                CrmChatConversation.id == conv_id,
+                CrmChatConversation.vendor_id == vu.vendor_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+
+    assigned_to = None
+    if body.get("assigned_to"):
+        try:
+            assigned_to = UUID(str(body["assigned_to"]))
+        except ValueError:
+            raise HTTPException(422, "assigned_to must be a valid UUID")
+
+    lead = await convert_chat_to_lead(
+        db, conv, vu.vendor_id,
+        actor_id=vu.user_id,
+        request=request,
+        override_assigned_to=assigned_to,
+        override_rating=body.get("rating") or None,
+    )
+    return {
+        **LeadResponse.model_validate(lead).model_dump(),
+        "chat_conversation_id": str(conv_id),
+        "converted_lead_id": str(conv.converted_lead_id) if conv.converted_lead_id else None,
+    }
+
+
+@router.post("/chat/conversations/{conv_id}/convert-to-ticket", status_code=201)
+async def convert_chat_conversation_to_ticket(
+    conv_id: UUID,
+    body: dict = Body(default={}),
+    vu: VendorUser = Depends(require_permission("crm.tickets.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Move a chat conversation into CRM as a support ticket (idempotent).
+
+    Optional body fields: assigned_to (UUID), priority (str), notes (str).
+    Returns the CRM ticket plus the conversation's updated converted_ticket_id.
+    """
+    from sqlalchemy.future import select as sa_select
+    from app.models.crm import CrmChatConversation
+    from app.schemas.crm.schemas import TicketResponse
+    from app.services.contact_query_actions import convert_chat_to_ticket
+
+    conv = (
+        await db.execute(
+            sa_select(CrmChatConversation).where(
+                CrmChatConversation.id == conv_id,
+                CrmChatConversation.vendor_id == vu.vendor_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+
+    assigned_to = None
+    if body.get("assigned_to"):
+        try:
+            assigned_to = UUID(str(body["assigned_to"]))
+        except ValueError:
+            raise HTTPException(422, "assigned_to must be a valid UUID")
+
+    ticket = await convert_chat_to_ticket(
+        db, conv, vu.vendor_id,
+        actor_id=vu.user_id,
+        override_assigned_to=assigned_to,
+        override_priority=body.get("priority") or None,
+        override_notes=body.get("notes") or None,
+    )
+    return {
+        **TicketResponse.model_validate(ticket).model_dump(),
+        "chat_conversation_id": str(conv_id),
+        "converted_ticket_id": str(conv.converted_ticket_id) if conv.converted_ticket_id else None,
+    }
+
+
 # ── Chat WebSocket (agents) ──────────────────────────────────────────────────
 
 class _ChatHub:
@@ -404,6 +503,7 @@ async def widget_post_message(
         vendor_id, payload.visitor_id,
         visitor_name=payload.visitor_name,
         visitor_email=payload.visitor_email,
+        visitor_phone=payload.visitor_phone,
     )
     msg = await chat.post_message(
         vendor_id, conv.id, sender="customer", body=payload.body,

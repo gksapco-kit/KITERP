@@ -95,27 +95,25 @@ async def submit_website_contact_form(
 
     lead_id_str: Optional[str] = None
     try:
-        from app.models.crm import CrmLead
-        from app.services.crm.numbering import next_crm_number
+        from app.schemas.crm.schemas import LeadCreate
+        from app.services.crm.services import LeadService
 
         raw_name = (body.get("name") or "Website Visitor").strip()
         first, _, last = raw_name.partition(" ")
-        lead = CrmLead(
-            vendor_id=site.vendor_id,
-            number=await next_crm_number(db, site.vendor_id, CrmLead, "LED"),
-            first_name=(first or "Website")[:120],
-            last_name=(last or "Visitor")[:120],
-            email=(body.get("email") or None),
-            phone=(body.get("phone") or None),
-            notes=(body.get("message") or None),
-            source="website",
-            source_campaign=f"website:{site.id}",
-            status="new",
-            intake_payload=payload_for_storage,
+        lead = await LeadService(db).create(
+            site.vendor_id,
+            LeadCreate(
+                first_name=(first or "Website")[:120],
+                last_name=(last or "Visitor")[:120],
+                email=(body.get("email") or None),
+                phone=(body.get("phone") or None),
+                notes=(body.get("message") or None),
+                source="website",
+                source_campaign=f"website:{site.id}",
+                status="new",
+                intake_payload=payload_for_storage,
+            ),
         )
-        db.add(lead)
-        await db.commit()
-        await db.refresh(lead)
         await db.refresh(submission)
         lead_id_str = str(lead.id)
         submission.crm_lead_id = lead.id

@@ -36,6 +36,34 @@ import { vendorDashboardUrl } from '@/lib/vendorDashboardUrl'
 
 type FilterType = 'products' | 'services' | 'both'
 
+function catalogEffectivePrice(
+  item: { price?: number; price_min?: number; price_type?: string; variants?: Array<{ price?: number; price_type?: string; is_active?: boolean }> },
+  isProduct: boolean,
+  variants: Array<{ price?: number; price_type?: string }>,
+): number | null {
+  if (isProduct) {
+    const activeVariants = variants.length
+      ? variants
+      : (item.variants || []).filter((v) => v.is_active !== false)
+    // Prefer priced variants; ignore not_applicable / zero
+    const priced = activeVariants
+      .filter((v) => v.price_type !== 'not_applicable' && Number(v.price) > 0)
+      .map((v) => Number(v.price))
+    if (priced.length > 0) return Math.min(...priced)
+    if (item.price_type === 'not_applicable') return null
+    if (Number(item.price) > 0) return Number(item.price)
+    return null
+  }
+  if ((item as { price_type?: string }).price_type === 'not_applicable') return null
+  const servicePrice = Number(item.price || item.price_min || 0)
+  return servicePrice > 0 ? servicePrice : null
+}
+
+type CatalogListProps = {
+  /** Page default for the Type filter (products page → products, services page → services). */
+  defaultFilterType?: Exclude<FilterType, 'both'>
+}
+
 function catalogCountLabel(count: number, filterType: FilterType): string {
   if (filterType === 'products') return count === 1 ? 'product' : 'products'
   if (filterType === 'services') return count === 1 ? 'service' : 'services'
@@ -56,7 +84,7 @@ function CatalogCountBadge({
 
   return (
     <div
-      className="inline-flex items-center gap-2.5 rounded-xl border px-3 py-2 shadow-sm transition-shadow hover:shadow-md"
+      className="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 shadow-sm transition-shadow hover:shadow-md"
       style={{
         borderColor: `${primaryColor}22`,
         background: `linear-gradient(145deg, ${primaryColor}0c 0%, ${primaryColor}04 100%)`,
@@ -66,16 +94,16 @@ function CatalogCountBadge({
       aria-label={`${count.toLocaleString()} ${label}`}
     >
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
         style={{ backgroundColor: `${primaryColor}18`, color: primaryColor }}
       >
-        <Icon className="h-4 w-4" aria-hidden />
+        <Icon className="h-3.5 w-3.5" aria-hidden />
       </div>
-      <div className="min-w-[3rem] text-left">
-        <span className="block text-xl font-bold leading-none tabular-nums tracking-tight text-gray-900">
+      <div className="min-w-[2.5rem] text-left">
+        <span className="block text-base font-bold leading-none tabular-nums tracking-tight text-gray-900">
           {count.toLocaleString()}
         </span>
-        <span className="mt-1 block text-[11px] font-medium capitalize leading-none text-gray-500">
+        <span className="mt-0.5 block text-[10px] font-medium capitalize leading-none text-gray-500">
           {label}
         </span>
       </div>
@@ -190,7 +218,7 @@ async function addProductToCart(input: {
   }
 }
 
-export default function ProductList() {
+export default function ProductList({ defaultFilterType = 'products' }: CatalogListProps) {
   const { storePath } = useBranch()
   const navigate = useNavigate()
   const { vendorSlug, displayFields } = useVendor()
@@ -216,13 +244,14 @@ export default function ProductList() {
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
-  // Filter state
-  const [filterType, setFilterType] = useState<FilterType>('both')
+  // Filter state — page default is Products or Services only
+  const [filterType, setFilterType] = useState<FilterType>(defaultFilterType)
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory)
   const [minPrice, setMinPrice] = useState<string>('')
   const [maxPrice, setMaxPrice] = useState<string>('')
   const [inStockOnly, setInStockOnly] = useState(false)
 
+  const pageTitle = defaultFilterType === 'services' ? 'Services' : 'Products'
   const { data: catData } = useStoreCategories({ tree: true })
   const categories = catData?.categories || []
 
@@ -247,14 +276,18 @@ export default function ProductList() {
   }), [page, search, selectedCategory, minPrice, maxPrice, filterType, pageSize])
 
   const { data: productsData, isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = useProducts(
-    filterType === 'services' ? undefined : productParams
+    filterType === 'services' ? null : productParams
   )
   const { data: servicesData, isLoading: servicesLoading, isError: servicesError, refetch: refetchServices } = useServices(
-    filterType === 'products' ? undefined : serviceParams
+    filterType === 'products' ? null : serviceParams
   )
 
-  const isLoading = productsLoading || servicesLoading
-  const catalogError = productsError || servicesError
+  const isLoading =
+    (filterType !== 'services' && productsLoading) ||
+    (filterType !== 'products' && servicesLoading)
+  const catalogError =
+    (filterType !== 'services' && productsError) ||
+    (filterType !== 'products' && servicesError)
 
   // Combine and filter results
   const allCombinedItems = useMemo(() => {
@@ -326,7 +359,7 @@ export default function ProductList() {
 
   // Radix trigger + content styling: keeps the dropdown inside the viewport on
   // mobile (native <select> popups overflow/overlap on small screens).
-  const selectTriggerCls = `h-9 w-full min-w-0 rounded-lg border-gray-200 bg-white px-2.5 text-sm text-gray-700 font-normal`
+  const selectTriggerCls = `h-7 w-full min-w-0 rounded-lg border-gray-200 bg-white px-2.5 text-sm text-gray-700 font-normal`
   const selectContentCls = 'max-w-[calc(100vw-1.5rem)]'
 
   const hasActiveFilters =
@@ -335,9 +368,16 @@ export default function ProductList() {
     Boolean(minPrice) ||
     Boolean(maxPrice) ||
     inStockOnly ||
-    filterType !== 'both'
+    filterType !== defaultFilterType
 
-  const filterTypeLabel = filterType === 'products' ? 'Products only' : filterType === 'services' ? 'Services only' : null
+  const filterTypeLabel =
+    filterType === defaultFilterType
+      ? null
+      : filterType === 'products'
+        ? 'Products only'
+        : filterType === 'services'
+          ? 'Services only'
+          : 'Products & Services'
 
   return (
     <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
@@ -345,7 +385,7 @@ export default function ProductList() {
       <nav className={`${themeUi.breadcrumbNav} mb-4`}>
         <Link to={storePath('/')} className={themeUi.linkOnPage}>Home</Link>
         <span className={themeUi.pageTextMuted}>/</span>
-        <span className={themeUi.breadcrumbCurrent}>Products</span>
+        <span className={themeUi.breadcrumbCurrent}>{pageTitle}</span>
       </nav>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -443,23 +483,23 @@ export default function ProductList() {
         <div className="flex-1 min-w-0">
           {/* Unified toolbar: search + sort + view + count + active chips */}
           <div className={`mb-4 rounded-xl border shadow-sm overflow-hidden ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
-            <div className="flex flex-col gap-3 p-3 sm:p-4">
-              <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+            <div className="flex flex-col gap-2 p-2.5 sm:p-3">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-2">
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="gap-1.5"
+                    className="h-8 gap-1.5"
                     onClick={() => setShowFilters(!showFilters)}
                   >
-                    <SlidersHorizontal className="w-4 h-4" />
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">{showFilters ? 'Hide' : 'Show'}</span> filters
                   </Button>
                 </div>
 
                 <form
-                  className="flex flex-1 min-w-0 flex-col gap-2 sm:flex-row"
+                  className="flex flex-1 min-w-0 flex-col gap-2 sm:flex-row sm:items-center"
                   onSubmit={(e) => {
                     e.preventDefault()
                     setSearch(searchInput.trim())
@@ -467,31 +507,35 @@ export default function ProductList() {
                   }}
                 >
                   <div className="relative flex-1 min-w-0 max-w-2xl">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
                     <Input
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
-                      placeholder="Search products and services…"
-                      className="h-10 pl-10 pr-10 text-sm border-gray-200 bg-gray-50/80 focus:bg-white"
+                      placeholder={
+                        defaultFilterType === 'services'
+                          ? 'Search services and products…'
+                          : 'Search products and services…'
+                      }
+                      className="h-8 pl-9 pr-9 text-sm border-gray-200 bg-gray-50/80 focus:bg-white"
                       aria-label="Search catalogue"
                     />
                     {searchInput ? (
                       <button
                         type="button"
                         onClick={clearSearch}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
                         aria-label="Clear search"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3.5 w-3.5" />
                       </button>
                     ) : null}
                   </div>
-                  <Button type="submit" size="sm" className="shrink-0 h-10 w-full px-4 text-white hover:opacity-95 sm:w-auto" style={{ backgroundColor: theme.colors.primary }}>
+                  <Button type="submit" size="sm" className="shrink-0 h-8 w-full px-4 text-white hover:opacity-95 sm:w-auto" style={{ backgroundColor: theme.colors.primary }}>
                     Search
                   </Button>
                 </form>
 
-                <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:flex-wrap sm:items-center sm:gap-2 lg:justify-end lg:shrink-0 lg:w-auto">
+                <div className="grid grid-cols-2 gap-1.5 w-full sm:flex sm:flex-wrap sm:items-center sm:gap-2 lg:justify-end lg:shrink-0 lg:w-auto">
                   <span className="col-span-2 hidden text-xs font-medium uppercase tracking-wide text-gray-400 sm:col-span-1 sm:inline">Sort</span>
                   <div className="min-w-0">
                     <Select value={sortKey} onValueChange={setSortKey}>
@@ -518,26 +562,26 @@ export default function ProductList() {
                   </div>
 
                   <div className="col-span-2 flex items-center justify-between gap-2 sm:col-span-1 sm:contents">
-                    <div className="mx-1 hidden h-8 w-px bg-gray-200 sm:block" aria-hidden />
+                    <div className="mx-1 hidden h-6 w-px bg-gray-200 sm:block" aria-hidden />
 
                     <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50/80">
                       <button
                         type="button"
                         onClick={() => setViewMode('grid')}
-                        className={`rounded-md p-2 transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
+                        className={`rounded-md p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
                         aria-pressed={viewMode === 'grid'}
                         aria-label="Grid view"
                       >
-                        <Grid3X3 className="h-4 w-4" />
+                        <Grid3X3 className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => setViewMode('list')}
-                        className={`rounded-md p-2 transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
+                        className={`rounded-md p-1.5 transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
                         aria-pressed={viewMode === 'list'}
                         aria-label="List view"
                       >
-                        <LayoutList className="h-4 w-4" />
+                        <LayoutList className="h-3.5 w-3.5" />
                       </button>
                     </div>
 
@@ -550,8 +594,8 @@ export default function ProductList() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+              <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Refine</span>
                   <div className="min-w-0 w-full sm:w-[11rem]">
                     <Select value={sortBy} onValueChange={setSortBy}>
@@ -576,7 +620,7 @@ export default function ProductList() {
                         <button
                           type="button"
                           className="rounded p-0.5 hover:bg-amber-100"
-                          onClick={() => { setFilterType('both'); setPage(1) }}
+                          onClick={() => { setFilterType(defaultFilterType); setPage(1) }}
                           aria-label="Clear type filter"
                         >
                           <X className="h-3 w-3" />
@@ -630,7 +674,7 @@ export default function ProductList() {
                         </button>
                       </span>
                     ) : null}
-                    <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-500 hover:text-gray-800" onClick={clearFilters}>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-gray-500 hover:text-gray-800" onClick={clearFilters}>
                       Clear all
                     </Button>
                   </div>
@@ -653,10 +697,12 @@ export default function ProductList() {
               </h3>
               <p className="text-gray-500 text-sm mb-4">
                 {catalogError
-                  ? 'Your products are still in the store — try refreshing the page.'
+                  ? `Your ${defaultFilterType === 'services' ? 'services' : 'products'} are still in the store — try refreshing the page.`
                   : (search || selectedCategory || minPrice || maxPrice || inStockOnly)
                     ? 'Try adjusting your search or filters'
-                    : 'Add products in your dashboard and they will appear here automatically.'}
+                    : defaultFilterType === 'services'
+                      ? 'Add services in your dashboard and they will appear here automatically.'
+                      : 'Add products in your dashboard and they will appear here automatically.'}
               </p>
               {catalogError ? (
                 <Button
@@ -667,19 +713,19 @@ export default function ProductList() {
                     void refetchServices()
                   }}
                 >
-                  Refresh products
+                  Refresh {defaultFilterType === 'services' ? 'services' : 'products'}
                 </Button>
               ) : (search || selectedCategory || minPrice || maxPrice || inStockOnly) ? (
                 <Button variant="outline" size="sm" onClick={clearFilters}>Clear Filters</Button>
               ) : (
                 <a
-                  href={vendorDashboardUrl('/products/new')}
+                  href={vendorDashboardUrl(defaultFilterType === 'services' ? '/services/new' : '/products/new')}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90"
                   style={{ backgroundColor: theme.colors.primary }}
                 >
-                  Add a product
+                  Add a {defaultFilterType === 'services' ? 'service' : 'product'}
                 </a>
               )}
             </div>
@@ -695,10 +741,9 @@ export default function ProductList() {
                 const hasStock = isProduct ? productHasStock(item as Product) : true
 
                 const variants = isProduct ? (item.variants || []).filter((v: any) => v.is_active !== false) : []
-                const effectivePrice = isProduct
-                  ? (item.price > 0 ? item.price : variants.length > 0 ? Math.min(...variants.map((v: any) => v.price)) : 0)
-                  : (item.price || item.price_min || 0)
-                const showFrom = isProduct && item.price === 0 && variants.length > 0
+                const effectivePrice = catalogEffectivePrice(item, isProduct, variants)
+                const showFrom = isProduct && !(Number(item.price) > 0) && effectivePrice != null && variants.some((v: any) => Number(v.price) > 0)
+                const hasPrice = effectivePrice != null
 
                 if (cardStyle === 'modern') {
                   // Dark overlay card: image fills the card, gradient overlay at bottom, text over image
@@ -720,9 +765,9 @@ export default function ProductList() {
                         <span className="text-white text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: isProduct ? theme.colors.primary : theme.colors.accent }}>
                           {isProduct ? 'Product' : 'Service'}
                         </span>
-                        {isProduct && item.compare_at_price && item.compare_at_price > item.price && (
+                        {isProduct && (item.compare_at_price ?? 0) > item.price && (
                           <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                            -{Math.round((1 - item.price / item.compare_at_price) * 100)}%
+                            -{Math.round((1 - item.price / item.compare_at_price!) * 100)}%
                           </span>
                         )}
                       </div>
@@ -730,10 +775,14 @@ export default function ProductList() {
                       <div className="absolute bottom-0 left-0 right-0 p-3">
                         <h3 className="text-white text-sm font-semibold line-clamp-2 leading-snug">{item.name}</h3>
                         <div className="mt-1.5 flex items-center justify-between">
-                          <span className="text-white font-bold text-base">
-                            {showFrom && <span className="text-xs font-normal mr-1 opacity-80">From</span>}
-                            {formatCurrency(effectivePrice)}
-                          </span>
+                          {hasPrice ? (
+                            <span className="text-white font-bold text-base">
+                              {showFrom && <span className="text-xs font-normal mr-1 opacity-80">From</span>}
+                              {formatCurrency(effectivePrice!)}
+                            </span>
+                          ) : (
+                            <span className="min-h-[1.25rem]" aria-hidden />
+                          )}
                           {(item.avg_rating ?? 0) > 0 && (
                             <StarRating rating={item.avg_rating!} size="sm" />
                           )}
@@ -756,7 +805,7 @@ export default function ProductList() {
                           description: item.description || '',
                           image: imageUrl || undefined,
                           durationMinutes: resolveServiceDuration(item),
-                          price: effectivePrice,
+                          price: effectivePrice ?? 0,
                           currency: item.currency || 'INR',
                           features: item.features || [],
                           allowQuoteRequest: !!item.allow_quote_request,
@@ -795,14 +844,18 @@ export default function ProductList() {
                         {(item.avg_rating ?? 0) > 0 && (
                           <div className="mt-1"><StarRating rating={item.avg_rating!} size="sm" /></div>
                         )}
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <span className={`text-base ${themeUi.priceOnSurface}`}>
-                            {showFrom && <span className="text-xs font-normal mr-0.5 text-gray-500">From</span>}
-                            {formatCurrency(effectivePrice)}
-                          </span>
-                          {isProduct && item.compare_at_price && item.compare_at_price > effectivePrice && (
-                            <span className="text-xs text-gray-400 line-through">{formatCurrency(item.compare_at_price)}</span>
-                          )}
+                        <div className="mt-1.5 flex items-center gap-2 min-h-[1.25rem]">
+                          {hasPrice ? (
+                            <>
+                              <span className={`text-base ${themeUi.priceOnSurface}`}>
+                                {showFrom && <span className="text-xs font-normal mr-0.5 text-gray-500">From</span>}
+                                {formatCurrency(effectivePrice!)}
+                              </span>
+                              {isProduct && (item.compare_at_price ?? 0) > effectivePrice! && (
+                                <span className="text-xs text-gray-400 line-through">{formatCurrency(item.compare_at_price!)}</span>
+                              )}
+                            </>
+                          ) : null}
                         </div>
                       </div>
                     </Link>
@@ -822,7 +875,7 @@ export default function ProductList() {
                         description: item.description || '',
                         image: imageUrl || undefined,
                         durationMinutes: resolveServiceDuration(item),
-                        price: effectivePrice,
+                        price: effectivePrice ?? 0,
                         currency: item.currency || 'INR',
                         features: item.features || [],
                         allowQuoteRequest: !!item.allow_quote_request,
@@ -905,10 +958,9 @@ export default function ProductList() {
                   : item.image_url
                 const hasStock = isProduct ? productHasStock(item as Product) : true
                 const variants = isProduct ? (item.variants || []).filter((v: any) => v.is_active !== false) : []
-                const effectivePrice = isProduct
-                  ? (item.price > 0 ? item.price : variants.length > 0 ? Math.min(...variants.map((v: any) => v.price)) : 0)
-                  : (item.price || item.price_min || 0)
-                const showFrom = isProduct && item.price === 0 && variants.length > 0
+                const effectivePrice = catalogEffectivePrice(item, isProduct, variants)
+                const showFrom = isProduct && !(Number(item.price) > 0) && effectivePrice != null && variants.some((v: any) => Number(v.price) > 0)
+                const hasPrice = effectivePrice != null
                 const listCartQty = isProduct ? (cartQtyByProduct.get(String(item.id)) ?? 0) : 0
                 const showServiceBook = !isProduct && shouldShowServiceBookCta(
                   { allow_quote_request: item.allow_quote_request, requires_booking: item.requires_booking },
@@ -925,7 +977,7 @@ export default function ProductList() {
                     kitVariant: variants.length === 1 ? { id: variants[0].id } : undefined,
                     name: item.name,
                     slug: item.slug,
-                    price: effectivePrice,
+                    price: effectivePrice ?? 0,
                     image: imageUrl ? imgUrl(imageUrl) : undefined,
                     addToCart,
                   })
@@ -943,7 +995,7 @@ export default function ProductList() {
                       variant_id: variantId,
                       name: item.name,
                       qty: 1,
-                      price: effectivePrice,
+                      price: effectivePrice ?? 0,
                       image_url: imageUrl ? imgUrl(imageUrl) : undefined,
                       slug: item.slug,
                     },
@@ -983,31 +1035,33 @@ export default function ProductList() {
                       {(item.description || item.short_description) && (
                         <p className={`text-sm mt-2 line-clamp-2 ${themeUi.mutedOnSurface}`}>{item.description || item.short_description}</p>
                       )}
-                      <div className="mt-3">
-                        {isProduct ? (
-                          <>
-                            {showFrom && <span className="text-sm text-gray-500 mr-1">From</span>}
-                            <span className={`text-xl ${themeUi.priceOnSurface}`}>{formatCurrency(effectivePrice)}</span>
-                            {item.compare_at_price && item.compare_at_price > effectivePrice && (
-                              <>
-                                <span className="text-sm text-gray-400 line-through ml-2">{formatCurrency(item.compare_at_price)}</span>
-                                <span className="text-sm text-red-500 ml-2">
-                                  ({Math.round((1 - effectivePrice / item.compare_at_price) * 100)}% off)
-                                </span>
-                              </>
-                            )}
-                            {variants.length > 1 && (
-                              <span className="text-xs text-gray-500 ml-2">({variants.length} options)</span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <span className={`text-xl ${themeUi.priceOnSurface}`}>{formatCurrency(effectivePrice)}</span>
-                            {item.price_min && item.price_max && item.price_min !== item.price_max && (
-                              <span className="text-sm text-gray-500 ml-2">- {formatCurrency(item.price_max)}</span>
-                            )}
-                          </>
-                        )}
+                      <div className="mt-3 min-h-[1.75rem]">
+                        {hasPrice ? (
+                          isProduct ? (
+                            <>
+                              {showFrom && <span className="text-sm text-gray-500 mr-1">From</span>}
+                              <span className={`text-xl ${themeUi.priceOnSurface}`}>{formatCurrency(effectivePrice!)}</span>
+                              {item.compare_at_price != null && item.compare_at_price > effectivePrice! && (
+                                <>
+                                  <span className="text-sm text-gray-400 line-through ml-2">{formatCurrency(item.compare_at_price)}</span>
+                                  <span className="text-sm text-red-500 ml-2">
+                                    ({Math.round((1 - effectivePrice! / item.compare_at_price) * 100)}% off)
+                                  </span>
+                                </>
+                              )}
+                              {variants.length > 1 && (
+                                <span className="text-xs text-gray-500 ml-2">({variants.length} options)</span>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span className={`text-xl ${themeUi.priceOnSurface}`}>{formatCurrency(effectivePrice!)}</span>
+                              {item.price_min && item.price_max && item.price_min !== item.price_max && (
+                                <span className="text-sm text-gray-500 ml-2">- {formatCurrency(item.price_max)}</span>
+                              )}
+                            </>
+                          )
+                        ) : null}
                       </div>
                       {isProduct && (
                         <p className="text-xs text-green-600 font-medium mt-1">Free Delivery</p>

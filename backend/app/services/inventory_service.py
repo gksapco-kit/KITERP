@@ -273,8 +273,14 @@ class InventoryService:
         self, vendor_id: UUID, product_id: UUID, quantity: int,
         reference_id: UUID | None = None, reference_type: str = "order",
         variant_id: UUID | None = None, auto_commit: bool = False,
+        customer_id: UUID | None = None,
     ) -> InventoryMovement:
         """Auto-deduct stock when a sale/order occurs."""
+        await self._consume_pharma_lots_for_sale(
+            vendor_id, product_id, quantity,
+            reference_id=reference_id, reference_type=reference_type,
+            customer_id=customer_id,
+        )
         return await self.record_movement(
             vendor_id=vendor_id,
             product_id=product_id,
@@ -291,8 +297,16 @@ class InventoryService:
         self, vendor_id: UUID, product_id: UUID, quantity: int,
         reference_id: UUID | None = None, variant_id: UUID | None = None,
         auto_commit: bool = False,
+        original_source_id: UUID | None = None,
+        original_source_type: str | None = None,
     ) -> InventoryMovement:
-        """Return stock from a sale return or cancelled order."""
+        """Return stock from a sale return or cancelled order (restores pharma lots)."""
+        await self._restore_pharma_lots_for_return(
+            vendor_id, product_id, quantity,
+            reference_id=reference_id,
+            original_source_id=original_source_id or reference_id,
+            original_source_type=original_source_type or "order",
+        )
         return await self.record_movement(
             vendor_id=vendor_id,
             product_id=product_id,
@@ -373,10 +387,15 @@ class InventoryService:
     async def deduct_for_sale_at_store(
         self, vendor_id: UUID, store_id: UUID, product_id: UUID, quantity: int,
         reference_id: UUID | None = None, reference_type: str = "pos_transaction",
-        variant_id: UUID | None = None,
+        variant_id: UUID | None = None, customer_id: UUID | None = None,
     ) -> InventoryMovement:
         """Deduct sold stock from a specific business unit's StoreInventory and
         re-derive the global product quantity. Never auto-commits (POS owns the txn)."""
+        await self._consume_pharma_lots_for_sale(
+            vendor_id, product_id, quantity,
+            reference_id=reference_id, reference_type=reference_type,
+            customer_id=customer_id,
+        )
         row = await self._ensure_store_row(vendor_id, store_id, product_id, variant_id)
         qty_before = int(row.quantity or 0)
         await apply_store_inventory_delta(
@@ -390,12 +409,95 @@ class InventoryService:
             reason="Sold", reference_type=reference_type, reference_id=reference_id,
         )
 
+    async def _consume_pharma_lots_for_sale(
+        self,
+        vendor_id: UUID,
+        product_id: UUID,
+        quantity: int,
+        *,
+        reference_id: UUID | None = None,
+        reference_type: str = "sale",
+        serial_numbers: list[str] | None = None,
+        customer_id: UUID | None = None,
+    ) -> None:
+        """FEFO-consume unrestricted lots; ship serials when serial_managed."""
+        product = await self.db.get(Product, product_id)
+        if not product:
+            return
+        from decimal import Decimal
+        if customer_id:
+            from app.services.pharma_esign import load_pharma_settings
+            from app.services.pharma_gdp import assert_customer_wholesale_license
+            from app.models.customer import Customer
+            cfg = await load_pharma_settings(self.db, vendor_id)
+            if cfg.get("wholesale_license_check"):
+                cust = await self.db.get(Customer, customer_id)
+                assert_customer_wholesale_license(cust, required=True)
+        if getattr(product, "batch_managed", False):
+            from app.services.pharma_batch import consume_batches_for_sale
+            await consume_batches_for_sale(
+                self.db,
+                vendor_id=vendor_id,
+                product_id=product_id,
+                quantity=Decimal(abs(quantity)),
+                source_id=reference_id,
+                source_type=reference_type,
+            )
+        if getattr(product, "serial_managed", False):
+            from app.services.pharma_serial import consume_serials_for_sale
+            await consume_serials_for_sale(
+                self.db,
+                vendor_id=vendor_id,
+                product_id=product_id,
+                quantity=abs(quantity),
+                source_id=reference_id,
+                source_type=reference_type,
+                serial_numbers=serial_numbers,
+            )
+
+    async def _restore_pharma_lots_for_return(
+        self,
+        vendor_id: UUID,
+        product_id: UUID,
+        quantity: int,
+        *,
+        reference_id: UUID | None = None,
+        reference_type: str = "sale_return",
+        original_source_id: UUID | None = None,
+        original_source_type: str | None = None,
+    ) -> None:
+        """Restore lot qty for batch-managed products on return / cancel."""
+        product = await self.db.get(Product, product_id)
+        if not product or not getattr(product, "batch_managed", False):
+            return
+        from decimal import Decimal
+        from app.services.pharma_batch import restore_batches_for_return
+        await restore_batches_for_return(
+            self.db,
+            vendor_id=vendor_id,
+            product_id=product_id,
+            quantity=Decimal(abs(quantity)),
+            source_id=reference_id,
+            source_type=reference_type,
+            original_source_id=original_source_id,
+            original_source_type=original_source_type,
+        )
+
     async def return_stock_at_store(
         self, vendor_id: UUID, store_id: UUID, product_id: UUID, quantity: int,
         reference_id: UUID | None = None, reference_type: str = "pos_transaction",
         variant_id: UUID | None = None,
+        original_source_id: UUID | None = None,
+        original_source_type: str | None = None,
     ) -> InventoryMovement:
         """Return stock to a specific business unit and re-derive global quantity."""
+        await self._restore_pharma_lots_for_return(
+            vendor_id, product_id, quantity,
+            reference_id=reference_id,
+            reference_type=reference_type,
+            original_source_id=original_source_id,
+            original_source_type=original_source_type or "pos_transaction",
+        )
         row = await self._ensure_store_row(vendor_id, store_id, product_id, variant_id)
         qty_before = int(row.quantity or 0)
         await apply_store_inventory_delta(

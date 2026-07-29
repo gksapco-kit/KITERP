@@ -13,6 +13,7 @@ import { QuoteFormFieldInput } from '@/components/quote/QuoteFormFieldInput'
 import { isQuoteFieldEmpty } from '@/components/quote/quoteFieldHelpers'
 import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
 import { subscriptionBillingFootnote } from '@/lib/serviceStorefrontCta'
+import { hasStorefrontDisplayPrice } from '@/lib/servicePricing'
 import StarRating from '@/components/StarRating'
 import ReviewSection from '@/components/ReviewSection'
 import MerchProductGrid from './MerchProductGrid'
@@ -21,6 +22,7 @@ import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
 import { ProductPurchaseActions } from '@/components/products/ProductPurchaseActions'
 import { ProductMediaWishlistOverlay } from '@/components/products/ProductMediaWishlistOverlay'
 import { isCombinationAvailable } from '@/lib/variantOptions'
+import { getEffectiveStockStatus } from '@/lib/stockValidation'
 import type { ProductDetailTemplateProps } from './types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 import { themeUi } from '@/lib/themeColors'
@@ -145,7 +147,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
     displayFields,
     product, selectedVariant, activeVariants, hasVariants,
     setSelectedVariantId, qty, setQty, validateQtyChange, maxAddQty, minAddQty, onHandQty,
-    displayPrice, displayCompare, displayCurrency, displayStock,
+    displayPrice, hasDisplayPrice, displayCompare, displayCurrency, displayStock,
     displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor,
     optionRows, selections, onSelectSize, selectedColorName, variantValidation, hasStructuredOptions,
     selectedImage, setSelectedImage, displayMedia,
@@ -165,7 +167,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
   const qtyMax = maxAddQty ?? 99
 
   const sf = displayFields
-  const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price')
+  const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price') && hasDisplayPrice
   const showVariants = isDisplayFieldEnabled(sf, 'variants') && hasVariants
 
   const intervalLabel: Record<string, string> = {
@@ -176,6 +178,15 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
     daily: '/day', weekly: '/wk', biweekly: '/2wk', monthly: '/mo',
     quarterly: '/qtr', biannual: '/6mo', yearly: '/yr',
   }
+  const billingFootnote = hasDisplayPrice
+    ? subscriptionBillingFootnote({
+        interval: isSubscription ? (intervalLabel[subscriptionInterval!] || subscriptionInterval) : null,
+        priceType: isSubscription ? subscriptionPriceType : null,
+        uom: isSubscription ? subscriptionUom : null,
+        isTaxable,
+        taxRate,
+      })
+    : null
 
   return (
     <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
@@ -261,10 +272,13 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
             <div className="border-t mt-4 pt-4" />
 
             {/* Price */}
+            {(hasDisplayPrice || billingFootnote) && (
+            <>
             <div className="flex items-baseline gap-3 flex-wrap">
               {showCompare && discount > 0 && (
                 <span className="bg-red-500 text-white text-sm font-bold px-2 py-0.5 rounded">-{discount}%</span>
               )}
+              {hasDisplayPrice && (
               <span className="text-2xl sm:text-3xl font-bold text-gray-900">
                 {formatCurrency(displayPrice, displayCurrency)}
                 {isSubscription && subscriptionInterval && (
@@ -275,19 +289,18 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                   </span>
                 )}
               </span>
-              {showCompare && displayCompare && displayCompare > displayPrice && (
-                <span className="text-base text-gray-400 line-through">M.R.P.: {formatCurrency(displayCompare, displayCurrency)}</span>
+              )}
+              {showCompare && (displayCompare ?? 0) > displayPrice && (
+                <span className="text-base text-gray-400 line-through">M.R.P.: {formatCurrency(displayCompare!, displayCurrency)}</span>
               )}
             </div>
+            {billingFootnote && (
             <p className="text-sm text-gray-500 mt-1">
-              {subscriptionBillingFootnote({
-                interval: isSubscription ? (intervalLabel[subscriptionInterval!] || subscriptionInterval) : null,
-                priceType: isSubscription ? subscriptionPriceType : null,
-                uom: isSubscription ? subscriptionUom : null,
-                isTaxable,
-                taxRate,
-              })}
+              {billingFootnote}
             </p>
+            )}
+            </>
+            )}
 
             {/* Subscription Configurator */}
             {isSubscription && subscriptionInterval && (
@@ -312,8 +325,8 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
               </div>
             )}
 
-            {/* Stock */}
-            {isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
+            {/* Stock — product-level status is only meaningful when variants exist */}
+            {hasVariants && isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
               <div className="mt-3 flex items-center gap-2">
                 <span className={`inline-flex items-center gap-1 text-sm font-medium px-2.5 py-0.5 rounded-full ${
                   displayStock === 'in_stock' ? 'text-green-700 bg-green-50' :
@@ -428,10 +441,14 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className={`text-lg font-extrabold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
-                                  {formatCurrency(v.price, v.currency)}
-                                </p>
-                                <p className="text-xs text-gray-400">{vShort}</p>
+                                {hasStorefrontDisplayPrice(v.price, v.price_type) ? (
+                                  <>
+                                    <p className={`text-lg font-extrabold ${isSelected ? 'text-primary' : 'text-gray-900'}`}>
+                                      {formatCurrency(v.price, v.currency)}
+                                    </p>
+                                    <p className="text-xs text-gray-400">{vShort}</p>
+                                  </>
+                                ) : null}
                               </div>
                             </div>
                             {(hasTrial || hasSetup) && (
@@ -448,8 +465,8 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                                 )}
                               </div>
                             )}
-                            {showCompare && v.compare_at_price && v.compare_at_price > v.price && (
-                              <p className="text-xs text-gray-400 line-through mt-1">{formatCurrency(v.compare_at_price, v.currency)}</p>
+                            {showCompare && hasStorefrontDisplayPrice(v.price, v.price_type) && (v.compare_at_price ?? 0) > v.price && (
+                              <p className="text-xs text-gray-400 line-through mt-1">{formatCurrency(v.compare_at_price!, v.currency)}</p>
                             )}
                             {isSelected && (
                               <div className="absolute top-2 right-2">
@@ -469,7 +486,8 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                     <div className="flex flex-wrap gap-2">
                       {activeVariants.map(v => {
                         const isSelected = selectedVariant?.id === v.id
-                        const vDiscount = v.compare_at_price && v.compare_at_price > v.price
+                        const showVPrice = hasStorefrontDisplayPrice(v.price, v.price_type)
+                        const vDiscount = showVPrice && v.compare_at_price && v.compare_at_price > v.price
                           ? Math.round((1 - v.price / v.compare_at_price) * 100) : 0
                         return (
                           <button key={v.id} onClick={() => setSelectedVariantId(v.id)}
@@ -480,13 +498,20 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">-{vDiscount}%</span>
                             )}
                             <p className={`text-sm font-semibold ${isSelected ? 'text-blue-700' : 'text-gray-800'}`}>{v.name}</p>
-                            <p className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>{formatCurrency(v.price, v.currency)}</p>
-                            {showCompare && v.compare_at_price && v.compare_at_price > v.price && (
-                              <p className="text-xs text-gray-400 line-through">{formatCurrency(v.compare_at_price, v.currency)}</p>
+                            {showVPrice && (
+                              <p className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>{formatCurrency(v.price, v.currency)}</p>
                             )}
-                            {v.stock_status && v.stock_status !== 'in_stock' && (
-                              <p className="text-xs text-amber-600 font-medium mt-0.5">{v.stock_status === 'out_of_stock' ? 'Out of stock' : v.stock_status.replace(/_/g, ' ')}</p>
+                            {showCompare && showVPrice && (v.compare_at_price ?? 0) > v.price && (
+                              <p className="text-xs text-gray-400 line-through">{formatCurrency(v.compare_at_price!, v.currency)}</p>
                             )}
+                            {(() => {
+                              const status = getEffectiveStockStatus(product, v)
+                              return status !== 'in_stock' ? (
+                                <p className="text-xs text-amber-600 font-medium mt-0.5">
+                                  {status === 'out_of_stock' ? 'Out of stock' : status.replace(/_/g, ' ')}
+                                </p>
+                              ) : null
+                            })()}
                           </button>
                         )
                       })}
@@ -509,29 +534,35 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
               </div>
             )}
 
-            {/* Quantity + Add to Cart */}
-            <div className="border-t mt-6 pt-6" />
-            <ProductPurchaseActions
-              qty={qty}
-              setQty={setQty}
-              validateQtyChange={validateQtyChange}
-              maxQty={maxAddQty}
-              minQty={minAddQty}
-              onHandQty={onHandQty}
-              displayPrice={displayPrice}
-              displayCurrency={displayCurrency}
-              displayStock={displayStock}
-              variantValidationValid={variantValidation.valid}
-              addToCartPending={addToCartPending}
-              handleAddToCart={handleAddToCart}
-              handleBuyNow={handleBuyNow}
-              isSubscription={isSubscription}
-              canQuote={canQuote}
-              onRequestQuote={() => setShowQuote(true)}
-              isAuthenticated={isAuthenticated}
-              signInMandatory={signInMandatory}
-              storePath={storePath}
-            />
+            {/* Quantity + Add to Cart — hide purchase controls when product has no variants */}
+            {(hasVariants || canQuote) && (
+              <>
+                <div className="border-t mt-6 pt-6" />
+                <ProductPurchaseActions
+                  qty={qty}
+                  setQty={setQty}
+                  validateQtyChange={validateQtyChange}
+                  maxQty={maxAddQty}
+                  minQty={minAddQty}
+                  onHandQty={onHandQty}
+                  displayPrice={displayPrice}
+                  hasDisplayPrice={hasDisplayPrice}
+                  displayCurrency={displayCurrency}
+                  displayStock={displayStock}
+                  variantValidationValid={variantValidation.valid}
+                  addToCartPending={addToCartPending}
+                  handleAddToCart={handleAddToCart}
+                  handleBuyNow={handleBuyNow}
+                  isSubscription={isSubscription}
+                  canQuote={canQuote}
+                  onRequestQuote={() => setShowQuote(true)}
+                  isAuthenticated={isAuthenticated}
+                  signInMandatory={signInMandatory}
+                  storePath={storePath}
+                  hidePurchaseControls={!hasVariants}
+                />
+              </>
+            )}
 
             {/* Trust badges */}
             <div className="mt-5 grid grid-cols-3 gap-3">
@@ -682,11 +713,21 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                       </td>
                     )}
                     <td className="py-3 pr-4">
-                      <span className="font-bold text-gray-900">{formatCurrency(v.price, v.currency)}</span>
-                      {isSubscription && <span className="text-xs text-gray-400 ml-0.5">{priceUnit}</span>}
+                      {hasStorefrontDisplayPrice(v.price, v.price_type) ? (
+                        <>
+                          <span className="font-bold text-gray-900">{formatCurrency(v.price, v.currency)}</span>
+                          {isSubscription && <span className="text-xs text-gray-400 ml-0.5">{priceUnit}</span>}
+                        </>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                     {showCompare && activeVariants.some(av => av.compare_at_price) && (
-                      <td className="py-3 pr-4 text-gray-400 line-through">{v.compare_at_price ? formatCurrency(v.compare_at_price, v.currency) : '—'}</td>
+                      <td className="py-3 pr-4 text-gray-400 line-through">{
+                        hasStorefrontDisplayPrice(v.price, v.price_type) && v.compare_at_price
+                          ? formatCurrency(v.compare_at_price, v.currency)
+                          : '—'
+                      }</td>
                     )}
                     {isSubscription && activeVariants.some(av => av.subscription_trial_days) && (
                       <td className="py-3 pr-4">
@@ -704,9 +745,18 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                     )}
                     {!isSubscription && (
                       <td className="py-3 pr-4">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${v.stock_status === 'in_stock' ? 'text-green-700 bg-green-50' : v.stock_status === 'out_of_stock' ? 'text-red-700 bg-red-50' : 'text-amber-700 bg-amber-50'}`}>
-                          {(v.stock_status || 'in_stock').replace(/_/g, ' ')}
-                        </span>
+                        {(() => {
+                          const status = getEffectiveStockStatus(product, v)
+                          return (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                              status === 'in_stock' ? 'text-green-700 bg-green-50'
+                                : status === 'out_of_stock' ? 'text-red-700 bg-red-50'
+                                : 'text-amber-700 bg-amber-50'
+                            }`}>
+                              {status.replace(/_/g, ' ')}
+                            </span>
+                          )
+                        })()}
                       </td>
                     )}
                     {!isSubscription && activeVariants.some(av => av.color) && (

@@ -217,6 +217,12 @@ export interface Product {
   sku?: string
   barcode?: string
   track_inventory: boolean
+  batch_managed?: boolean
+  serial_managed?: boolean
+  shelf_life_days?: number | null
+  retest_days?: number | null
+  qc_required_on_receipt?: boolean
+  qc_required_on_production?: boolean
   quantity: number
   low_stock_threshold: number
   reorder_point?: number
@@ -293,6 +299,7 @@ export interface Product {
   created_at: string
   updated_at?: string
   published_at?: string
+  deleted_at?: string | null
 }
 
 export type PriceRuleType = 'party' | 'location' | 'scheduled' | 'quantity' | 'channel'
@@ -554,6 +561,8 @@ export interface Customer {
   pan_number?: string
   cin?: string
   company_name?: string
+  wholesale_license_number?: string | null
+  wholesale_license_expires?: string | null
   notes?: string
   billing_address?: {
     street?: string
@@ -770,6 +779,78 @@ export interface VendorCategory {
   updated_at?: string
 }
 
+// ── Product Group ───────────────────────────────────────────────
+export type ProductGroupType = 'general' | 'pricing' | 'bundle' | 'reporting'
+
+export interface ProductGroupItem {
+  id: string
+  group_id: string
+  item_type: 'product' | 'service'
+  item_id: string | null
+  name: string
+  sku?: string | null
+  price: number
+  image_url?: string | null
+  status?: string | null
+  quantity: number
+  sort_order: number
+  created_at?: string
+}
+
+export interface ProductGroupAncestor {
+  id: string
+  name: string
+  slug: string
+}
+
+export interface ProductGroupEffectivePricing {
+  source_id: string | null
+  source_name: string | null
+  discount_type: 'none' | 'percentage' | 'fixed'
+  discount_value: number
+  inherited: boolean
+}
+
+export interface ProductGroup {
+  id: string
+  vendor_id: string
+  // ── Hierarchy ────────────────────────────────────────────────
+  parent_id?: string | null
+  code?: string | null
+  level: number
+  path: string
+  // ── Basic info ───────────────────────────────────────────────
+  name: string
+  slug: string
+  description?: string | null
+  image_url?: string | null
+  group_types: ProductGroupType[]
+  is_active: boolean
+  sort_order: number
+  // ── Pricing ──────────────────────────────────────────────────
+  discount_type: 'none' | 'percentage' | 'fixed'
+  discount_value: number
+  bundle_price?: number | null
+  bundle_discount_type: 'none' | 'percentage' | 'fixed'
+  bundle_discount_value: number
+  // ── Relations (returned on detail endpoint) ───────────────────
+  item_count: number
+  items?: ProductGroupItem[]
+  children?: ProductGroup[]
+  ancestors?: ProductGroupAncestor[]
+  effective_pricing?: ProductGroupEffectivePricing
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ProductGroupFlatOption {
+  id: string
+  name: string
+  code?: string | null
+  level: number
+  label: string
+}
+
 // ── Storage Location ────────────────────────────────────────────
 export interface StorageLocation {
   id: string
@@ -782,6 +863,8 @@ export interface StorageLocation {
   description?: string | null
   is_active: boolean
   sort_order: number
+  /** unrestricted | quarantine | rejected | returns */
+  stock_type?: string
   custom_fields: CustomField[]
   children: StorageLocation[]
   created_at?: string

@@ -218,6 +218,40 @@ async def stock_in(
                 except ValueError:
                     pass
 
+        # Pharma: create GoodsBatch when stock-in is for a batch-managed product.
+        product_for_lot = entity if isinstance(entity, Product) else (
+            await db.get(Product, product_id) if product_id else None
+        )
+        if product_for_lot and getattr(product_for_lot, "batch_managed", False):
+            from decimal import Decimal
+            from app.services.pharma_batch import create_receipt_batch
+            mfg = None
+            exp = None
+            if data.manufacture_date:
+                try:
+                    mfg = date.fromisoformat(data.manufacture_date)
+                except ValueError:
+                    pass
+            if data.expiration_date:
+                try:
+                    exp = date.fromisoformat(data.expiration_date)
+                except ValueError:
+                    pass
+            await create_receipt_batch(
+                db,
+                vendor_id=vendor_id,
+                product_id=product_id,
+                quantity=Decimal(abs(data.quantity)),
+                source_id=ref_id,
+                source_type="stock_in" if not ref_id else "purchase",
+                variant_id=variant_id,
+                storage_location_id=storage_location_id,
+                batch_number=data.batch_number,
+                manufacturing_date=mfg,
+                expiry_date=exp,
+                qc_required=bool(getattr(product_for_lot, "qc_required_on_receipt", False)),
+            )
+
         await db.commit()
         loc_map = await _location_name_map(db, [m])
         return JSONResponse(content=_movement_to_dict(m, loc_map), status_code=201)

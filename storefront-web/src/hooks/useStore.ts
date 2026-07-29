@@ -134,12 +134,12 @@ export function useStoreCategories(params?: Record<string, unknown>) {
   })
 }
 
-export function useProducts(params?: Record<string, unknown>) {
+export function useProducts(params?: Record<string, unknown> | null) {
   const { vendorSlug } = useVendor()
   return useQuery({
-    queryKey: [...storeKeys.products(params), vendorSlug],
-    queryFn: () => storeApi.listProducts(params),
-    enabled: !!vendorSlug,
+    queryKey: [...storeKeys.products(params ?? undefined), vendorSlug],
+    queryFn: () => storeApi.listProducts(params ?? undefined),
+    enabled: !!vendorSlug && params !== null,
     // Do not keep previous vendor's products while switching /store/:slug in the same tab.
   })
 }
@@ -150,15 +150,18 @@ export function useProduct(slug: string) {
     queryKey: [...storeKeys.product(slug), vendorSlug],
     queryFn: () => storeApi.getProduct(slug),
     enabled: !!slug && !!vendorSlug,
+    // Always treat product data as stale so any admin change (price, stock,
+    // variants added/removed) is picked up immediately on mount or window focus.
+    staleTime: 0,
   })
 }
 
-export function useServices(params?: Record<string, unknown>) {
+export function useServices(params?: Record<string, unknown> | null) {
   const { vendorSlug } = useVendor()
   return useQuery({
-    queryKey: [...storeKeys.services(params), vendorSlug],
-    queryFn: () => storeApi.listServices(params),
-    enabled: !!vendorSlug,
+    queryKey: [...storeKeys.services(params ?? undefined), vendorSlug],
+    queryFn: () => storeApi.listServices(params ?? undefined),
+    enabled: !!vendorSlug && params !== null,
   })
 }
 

@@ -10,7 +10,7 @@ conversations/messages, journey events.
 """
 from sqlalchemy import (
     Column, String, Text, Boolean, DateTime, ForeignKey, Integer,
-    Numeric, Index,
+    Numeric, Index, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -554,6 +554,33 @@ class CrmSuppressionEntry(Base):
     __table_args__ = (Index("ix_crm_suppression_unique", "vendor_id", "channel", "address", unique=True),)
 
 
+# ── Number ranges (document series for leads, contacts, deals, …) ─────────────
+
+class CrmNumberRange(Base):
+    """Per-vendor sequential number series for CRM entities (leads, contacts, …)."""
+    __tablename__ = "crm_number_range"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    # lead | account | contact | deal | activity | ticket
+    entity_type = Column(String(40), nullable=False)
+    name = Column(String(120), nullable=False)
+    prefix = Column(String(20), nullable=False, default="LED")
+    number_from = Column(Integer, nullable=False, default=1)
+    number_to = Column(Integer, nullable=False, default=999999)
+    # Next number to issue (Finance-style). Starts at number_from.
+    current_number = Column(Integer, nullable=False, default=1)
+    pad_width = Column(Integer, nullable=False, default=6)
+    is_active = Column(Boolean, default=True, server_default="true")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "entity_type", name="uq_crm_nr_vendor_entity"),
+        Index("ix_crm_nr_vendor_entity", "vendor_id", "entity_type"),
+    )
+
+
 # ── Workflow automation ──────────────────────────────────────────────────────
 
 class CrmWorkflow(Base):
@@ -665,6 +692,7 @@ class CrmChatConversation(Base):
     visitor_id = Column(String(120))  # cookie/anon id from widget
     visitor_name = Column(String(120))
     visitor_email = Column(String(255))
+    visitor_phone = Column(String(40))
     channel = Column(String(20), default="widget")  # widget/whatsapp/sms/email
     status = Column(String(20), default="open")  # open/awaiting_agent/closed
     assigned_to = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
@@ -672,6 +700,14 @@ class CrmChatConversation(Base):
     last_message_at = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Lead conversion tracking
+    converted_lead_id = Column(UUID(as_uuid=True), ForeignKey("crm_lead.id", ondelete="SET NULL"), nullable=True, index=True)
+    converted_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Ticket conversion tracking
+    converted_ticket_id = Column(UUID(as_uuid=True), ForeignKey("crm_ticket.id", ondelete="SET NULL"), nullable=True, index=True)
+    ticket_converted_at = Column(DateTime(timezone=True), nullable=True)
 
     messages = relationship("CrmChatMessage", back_populates="conversation", cascade="all, delete-orphan", order_by="CrmChatMessage.created_at")
 

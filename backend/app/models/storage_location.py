@@ -26,6 +26,16 @@ class StorageLocation(Base):
     is_active = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0)
 
+    # Pharma / GMP stock type (Phase 0):
+    # unrestricted | quarantine | rejected | returns
+    stock_type = Column(String(30), nullable=False, default="unrestricted")
+
+    # Stage C GDP — storage condition + temperature band (°C)
+    # ambient | refrigerated | frozen | controlled_room
+    storage_condition = Column(String(30), nullable=True)
+    temp_min_c = Column(Integer, nullable=True)
+    temp_max_c = Column(Integer, nullable=True)
+
     # Field schema for this location, e.g. [{"name": "Temperature", "type": "text"}]
     custom_fields = Column(JSONB, default=[])
 

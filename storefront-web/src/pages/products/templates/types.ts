@@ -18,6 +18,8 @@ export interface ProductDetailTemplateProps {
   minAddQty?: number
   onHandQty?: number | null
   displayPrice: number
+  /** False when price_type is not_applicable or amount is ≤ 0 — hide ₹0 on storefront. */
+  hasDisplayPrice: boolean
   displayCompare?: number
   displayCurrency: string
   displayStock?: string

@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useBranch } from '@/contexts/BranchContext'
 import { useVendor } from '@/contexts/VendorContext'
+import { branchCodeForStore, branchKey } from '@/lib/branchMatching'
 import { resolveStorefrontLinkMode } from '@/lib/storefrontTemplateAssignment'
 import { cn } from '@/lib/utils'
 
@@ -61,20 +62,25 @@ export function StoreBranchPicker({ className, compact = false }: Props) {
           </div>
         )}
         <DropdownMenuItem onClick={() => setBranchCode(null)}>All locations</DropdownMenuItem>
-        {openBranches.map((b) => (
+        {openBranches.map((b) => {
+          const value = branchCodeForStore(b, branches)
+          const selected =
+            branchKey(branchCode) === branchKey(value) ||
+            branchKey(branchCode) === branchKey(b.id) ||
+            branchKey(branchCode) === branchKey(b.code)
+          return (
           <DropdownMenuItem
             key={b.id}
-            onClick={() => setBranchCode(b.code || b.id)}
-            className={cn(
-              (branchCode === b.code || branchCode === b.id) && 'bg-accent font-medium',
-            )}
+            onClick={() => setBranchCode(value)}
+            className={cn(selected && 'bg-accent font-medium')}
           >
             <span className="truncate">{b.name}</span>
             {b.code ? (
               <span className="ml-auto pl-2 font-mono text-[10px] text-muted-foreground">{b.code}</span>
             ) : null}
           </DropdownMenuItem>
-        ))}
+          )
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -1,6 +1,8 @@
 # app/repositories/product_repo.py
 from typing import Optional, List
 from uuid import UUID
+from datetime import datetime, timezone
+import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, exists, cast, String
 from sqlalchemy.orm import selectinload
@@ -8,6 +10,23 @@ from sqlalchemy.orm import selectinload
 from app.models.vendor_product import Product, ProductVariant, ProductImage
 from app.services.catalog_store_scope import product_available_at_store
 from app.repositories.base import BaseRepository
+
+_DEL_SUFFIX_RE = re.compile(r"__del_[0-9a-f]{8}$", re.I)
+
+
+def _trash_unique_value(value: Optional[str], product_id: UUID) -> Optional[str]:
+    """Free unique slug/material_code while product is in trash."""
+    if not value:
+        return value
+    base = _DEL_SUFFIX_RE.sub("", value)[:240]
+    short = str(product_id).replace("-", "")[:8]
+    return f"{base}__del_{short}"
+
+
+def _restore_unique_value(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return value
+    return _DEL_SUFFIX_RE.sub("", value) or value
 
 
 class ProductRepository(BaseRepository[Product]):
@@ -32,9 +51,17 @@ class ProductRepository(BaseRepository[Product]):
     async def get_by_vendor_and_id(
         self,
         vendor_id: UUID,
-        product_id: UUID
+        product_id: UUID,
+        *,
+        include_deleted: bool = False,
     ) -> Optional[Product]:
         """Get product by vendor ID and product ID."""
+        conds = [
+            Product.vendor_id == vendor_id,
+            Product.id == product_id,
+        ]
+        if not include_deleted:
+            conds.append(Product.deleted_at.is_(None))
         result = await self.db.execute(
             select(Product)
             .options(
@@ -42,12 +69,7 @@ class ProductRepository(BaseRepository[Product]):
                 selectinload(Product.images),
                 selectinload(Product.store_assignments),
             )
-            .where(
-                and_(
-                    Product.vendor_id == vendor_id,
-                    Product.id == product_id
-                )
-            )
+            .where(and_(*conds))
         )
         return result.scalar_one_or_none()
     
@@ -67,7 +89,8 @@ class ProductRepository(BaseRepository[Product]):
             .where(
                 and_(
                     Product.vendor_id == vendor_id,
-                    Product.slug == slug
+                    Product.slug == slug,
+                    Product.deleted_at.is_(None),
                 )
             )
         )
@@ -83,7 +106,8 @@ class ProductRepository(BaseRepository[Product]):
         query = select(func.count()).select_from(Product).where(
             and_(
                 Product.vendor_id == vendor_id,
-                Product.slug == slug
+                Product.slug == slug,
+                Product.deleted_at.is_(None),
             )
         )
         if exclude_id:
@@ -106,6 +130,7 @@ class ProductRepository(BaseRepository[Product]):
             and_(
                 Product.vendor_id == vendor_id,
                 func.lower(Product.name) == normalized,
+                Product.deleted_at.is_(None),
             )
         )
         if exclude_id:
@@ -126,12 +151,21 @@ class ProductRepository(BaseRepository[Product]):
         product_type: Optional[str] = None,
         stock: Optional[str] = None,
         store_id: Optional[UUID] = None,
+        pharma_managed: Optional[bool] = None,
+        deleted_only: bool = False,
     ) -> tuple[List[Product], int]:
         """List products for a vendor with filters."""
         query = select(Product).where(Product.vendor_id == vendor_id)
         count_query = select(func.count()).select_from(Product).where(
             Product.vendor_id == vendor_id
         )
+
+        if deleted_only:
+            query = query.where(Product.deleted_at.is_not(None))
+            count_query = count_query.where(Product.deleted_at.is_not(None))
+        else:
+            query = query.where(Product.deleted_at.is_(None))
+            count_query = count_query.where(Product.deleted_at.is_(None))
 
         if store_id:
             store_filter = product_available_at_store(store_id)
@@ -234,12 +268,17 @@ class ProductRepository(BaseRepository[Product]):
             search_filter = or_(*search_clauses)
             query = query.where(search_filter)
             count_query = count_query.where(search_filter)
-        
+
+        if pharma_managed is not None:
+            query = query.where(Product.pharma_managed == pharma_managed)
+            count_query = count_query.where(Product.pharma_managed == pharma_managed)
+
         # Get total count
         count_result = await self.db.execute(count_query)
         total = count_result.scalar_one()
         
         # Get items with relationships
+        order_col = Product.deleted_at.desc() if deleted_only else Product.created_at.desc()
         query = (
             query
             .options(
@@ -247,7 +286,7 @@ class ProductRepository(BaseRepository[Product]):
                 selectinload(Product.images),
                 selectinload(Product.store_assignments),
             )
-            .order_by(Product.created_at.desc())
+            .order_by(order_col)
             .offset(skip)
             .limit(limit)
         )
@@ -255,3 +294,28 @@ class ProductRepository(BaseRepository[Product]):
         items = list(result.scalars().all())
         
         return items, total
+
+    async def soft_delete(self, product: Product) -> None:
+        """Move product to trash (soft delete)."""
+        product.deleted_at = datetime.now(timezone.utc)
+        product.slug = _trash_unique_value(product.slug, product.id) or product.slug
+        if product.material_code:
+            product.material_code = _trash_unique_value(product.material_code, product.id)
+        await self.db.flush()
+
+    async def restore(self, product: Product) -> Product:
+        """Restore a soft-deleted product; resolve slug/material_code conflicts."""
+        restored_slug = _restore_unique_value(product.slug) or product.slug
+        if await self.slug_exists(product.vendor_id, restored_slug, exclude_id=product.id):
+            restored_slug = f"{restored_slug}-restored"
+        product.slug = restored_slug
+        if product.material_code:
+            product.material_code = _restore_unique_value(product.material_code)
+        product.deleted_at = None
+        await self.db.flush()
+        return product
+
+    async def hard_delete(self, product: Product) -> None:
+        """Permanently remove a product."""
+        await self.db.delete(product)
+        await self.db.flush()

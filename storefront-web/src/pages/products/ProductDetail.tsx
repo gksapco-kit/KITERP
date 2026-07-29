@@ -22,12 +22,13 @@ import {
 import { ClassicDetail, ModernDetail, MinimalDetail, ProductQuoteModal } from './templates'
 import { trackView } from '@/lib/recentlyViewed'
 import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
-import { assertCanAddToCart, getMaxAddQuantity, getMinAddQuantity, getOnHandQuantity } from '@/lib/stockValidation'
+import { assertCanAddToCart, getMaxAddQuantity, getMinAddQuantity, getOnHandQuantity, getEffectiveStockStatus } from '@/lib/stockValidation'
 import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
 import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
 import { useQueryClient } from '@tanstack/react-query'
 import { setPendingBuyNow } from '@/lib/pendingBuyNow'
 import { isSignInMandatory } from '@/lib/deliveryConditions'
+import { hasStorefrontDisplayPrice } from '@/lib/servicePricing'
 import { storeApi } from '@/api/store'
 import { toast } from 'sonner'
 
@@ -127,10 +128,17 @@ export default function ProductDetail() {
     )
   }, [hasVariants, product, activeVariants, optionRows, selections, selectedColorName, selectedVariant])
 
-  const displayPrice = pricingVariant?.price ?? product?.price ?? 0
-  const displayCompare = pricingVariant?.compare_at_price ?? product?.compare_at_price
+  const displayPriceType = pricingVariant?.price_type ?? product?.price_type
+  const rawDisplayPrice = pricingVariant?.price ?? product?.price
+  const hasDisplayPrice = hasStorefrontDisplayPrice(rawDisplayPrice, displayPriceType)
+  const displayPrice = hasDisplayPrice ? Number(rawDisplayPrice) : 0
+  const displayCompare = hasDisplayPrice
+    ? (pricingVariant?.compare_at_price ?? product?.compare_at_price)
+    : undefined
   const displayCurrency = pricingVariant?.currency ?? product?.currency ?? 'INR'
-  const displayStock = pricingVariant?.stock_status ?? product?.stock_status
+  const displayStock = product
+    ? getEffectiveStockStatus(product, pricingVariant ?? undefined)
+    : undefined
   const displayOfferLabel = pricingVariant?.offer_label ?? product?.offer_label
   const displayOnSale = pricingVariant?.is_on_sale ?? product?.is_on_sale
 
@@ -386,7 +394,7 @@ export default function ProductDetail() {
     product, selectedVariant, activeVariants, hasVariants,
     selectedVariantId, setSelectedVariantId: handleSelectVariant,
     qty, setQty: handleSetQty, validateQtyChange, maxAddQty, minAddQty, onHandQty,
-    displayPrice, displayCompare, displayCurrency, displayStock,
+    displayPrice, hasDisplayPrice, displayCompare, displayCurrency, displayStock,
     displayOfferLabel, displayOnSale, discount, variantColors, onSelectColor: handleSelectColor,
     optionRows, selections, onSelectSize: handleSelectSize, selectedColorName,
     variantValidation, hasStructuredOptions,
@@ -404,7 +412,7 @@ export default function ProductDetail() {
     isSubscription: !!product.is_subscription,
     subscriptionInterval: selectedVariant?.subscription_interval || product.subscription_interval,
     subscriptionPrice: displayPrice,
-    subscriptionPriceType: selectedVariant?.price_type || 'per_unit',
+    subscriptionPriceType: displayPriceType || selectedVariant?.price_type || 'per_unit',
     subscriptionUom: selectedVariant?.uom || product.uom || 'piece',
     subscriptionTrialDays: selectedVariant?.subscription_trial_days ?? product.subscription_trial_days,
     subscriptionSetupFee: selectedVariant?.subscription_setup_fee ?? product.subscription_setup_fee,

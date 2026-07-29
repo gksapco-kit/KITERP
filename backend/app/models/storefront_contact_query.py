@@ -1,5 +1,5 @@
 """Customer contact-us queries from the storefront Contact page."""
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
@@ -22,3 +22,15 @@ class StorefrontContactQuery(Base):
     user_agent = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Lead conversion tracking
+    converted_lead_id = Column(UUID(as_uuid=True), ForeignKey("crm_lead.id", ondelete="SET NULL"), nullable=True, index=True)
+    converted_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Ticket conversion tracking
+    converted_ticket_id = Column(UUID(as_uuid=True), ForeignKey("crm_ticket.id", ondelete="SET NULL"), nullable=True, index=True)
+    ticket_converted_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Reply tracking (logged to crm_communication_log; these are counters for quick display)
+    reply_count = Column(Integer, nullable=False, default=0)
+    last_reply_at = Column(DateTime(timezone=True), nullable=True)

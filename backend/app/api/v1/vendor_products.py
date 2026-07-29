@@ -34,6 +34,41 @@ DATE_FIELDS = {"expiration_date", "manufacture_date", "best_before_date"}
 DATETIME_FIELDS = {"discount_start_date", "discount_end_date"}
 
 
+def _effective_stock_status(
+    *,
+    quantity: int | None,
+    stock_status: str | None,
+    track_inventory: bool | None = True,
+    allow_backorders: bool | None = False,
+    low_stock_threshold: int | None = 5,
+) -> str:
+    """Derive display/API stock status from qty when inventory is tracked.
+
+    Prevents stale stock_status='in_stock' while quantity is 0.
+    """
+    stored = (stock_status or "in_stock").strip() or "in_stock"
+    if stored == "discontinued":
+        return "discontinued"
+    qty = int(quantity or 0)
+    track = True if track_inventory is None else bool(track_inventory)
+    backorders = bool(allow_backorders)
+    if backorders:
+        return "backorder" if qty <= 0 else ("in_stock" if stored == "out_of_stock" else stored)
+    if track:
+        if qty <= 0:
+            return "out_of_stock"
+        if stored == "out_of_stock":
+            thresh = 5 if low_stock_threshold is None else int(low_stock_threshold)
+            return "low_stock" if qty <= thresh else "in_stock"
+        thresh = low_stock_threshold
+        if stored in ("in_stock", "low_stock") and thresh is not None and qty <= int(thresh):
+            return "low_stock"
+        if stored == "low_stock" and (thresh is None or qty > int(thresh)):
+            return "in_stock"
+        return stored
+    return stored
+
+
 def _parse_date(v):
     if v is None or isinstance(v, date_type):
         return v
@@ -113,7 +148,13 @@ def _product_to_dict(p) -> dict:
         "low_stock_threshold": p.low_stock_threshold or 5,
         "reorder_point": p.reorder_point,
         "reorder_quantity": p.reorder_quantity,
-        "stock_status": p.stock_status or "in_stock",
+        "stock_status": _effective_stock_status(
+            quantity=p.quantity,
+            stock_status=p.stock_status,
+            track_inventory=p.track_inventory,
+            allow_backorders=p.allow_backorders,
+            low_stock_threshold=p.low_stock_threshold,
+        ),
         "allow_backorders": p.allow_backorders or False,
         # Lifecycle
         "expiration_date": str(p.expiration_date) if p.expiration_date else None,
@@ -121,6 +162,18 @@ def _product_to_dict(p) -> dict:
         "best_before_date": str(p.best_before_date) if p.best_before_date else None,
         "warranty_period_days": p.warranty_period_days,
         "warranty_type": p.warranty_type,
+        # Pharma / batch control
+        "pharma_managed": bool(getattr(p, "pharma_managed", False)),
+        "batch_managed": bool(getattr(p, "batch_managed", False)),
+        "serial_managed": bool(getattr(p, "serial_managed", False)),
+        "shelf_life_days": getattr(p, "shelf_life_days", None),
+        "retest_days": getattr(p, "retest_days", None),
+        "qc_required_on_receipt": bool(getattr(p, "qc_required_on_receipt", False)),
+        "qc_required_on_production": bool(getattr(p, "qc_required_on_production", False)),
+        "gtin": getattr(p, "gtin", None),
+        "ndc": getattr(p, "ndc", None),
+        "requires_cold_chain": bool(getattr(p, "requires_cold_chain", False)),
+        "storage_condition": getattr(p, "storage_condition", None),
         # Return
         "return_policy": p.return_policy,
         "return_days": p.return_days,
@@ -200,7 +253,13 @@ def _product_to_dict(p) -> dict:
                 "gst_rate": _num(v.gst_rate),
                 "quantity": v.quantity or 0,
                 "low_stock_threshold": v.low_stock_threshold or 5,
-                "stock_status": v.stock_status or "in_stock",
+                "stock_status": _effective_stock_status(
+                    quantity=v.quantity,
+                    stock_status=v.stock_status,
+                    track_inventory=v.track_inventory,
+                    allow_backorders=v.allow_backorders,
+                    low_stock_threshold=v.low_stock_threshold,
+                ),
                 "reorder_point": v.reorder_point,
                 "reorder_quantity": v.reorder_quantity,
                 "allow_backorders": v.allow_backorders or False,
@@ -244,11 +303,16 @@ def _product_to_dict(p) -> dict:
         "created_at": _dt(p.created_at),
         "updated_at": _dt(p.updated_at),
         "published_at": _dt(p.published_at),
+        "deleted_at": _dt(getattr(p, "deleted_at", None)),
     }
 
 def _build_variant(product_id, vc) -> ProductVariant:
     """Construct a ProductVariant from a dict or Pydantic schema."""
     g = vc.get if isinstance(vc, dict) else lambda k, d=None: getattr(vc, k, d)
+    qty = g("quantity") or 0
+    track = g("track_inventory") if g("track_inventory") is not None else True
+    backorders = g("allow_backorders") or False
+    low_thresh = g("low_stock_threshold") or 5
     return ProductVariant(
         product_id=product_id,
         name=g("name"),
@@ -269,13 +333,19 @@ def _build_variant(product_id, vc) -> ProductVariant:
         tax_rate=g("tax_rate"),
         hsn_code=g("hsn_code"),
         gst_rate=g("gst_rate"),
-        quantity=g("quantity") or 0,
-        low_stock_threshold=g("low_stock_threshold") or 5,
-        stock_status=g("stock_status") or "in_stock",
+        quantity=qty,
+        low_stock_threshold=low_thresh,
+        stock_status=_effective_stock_status(
+            quantity=qty,
+            stock_status=g("stock_status") or "in_stock",
+            track_inventory=track,
+            allow_backorders=backorders,
+            low_stock_threshold=low_thresh,
+        ),
         reorder_point=g("reorder_point"),
         reorder_quantity=g("reorder_quantity"),
-        allow_backorders=g("allow_backorders") or False,
-        track_inventory=g("track_inventory") if g("track_inventory") is not None else True,
+        allow_backorders=backorders,
+        track_inventory=track,
         max_quantity_per_order=g("max_quantity_per_order"),
         min_quantity_per_order=g("min_quantity_per_order"),
         weight_kg=g("weight_kg"),
@@ -322,6 +392,7 @@ async def barcode_lookup(
         .options(selectinload(ProductVariant.product).options(selectinload(Product.variants), selectinload(Product.images)))
         .where(
             Product.vendor_id == vendor_id,
+            Product.deleted_at.is_(None),
             ProductVariant.is_active == True,
             or_(ProductVariant.barcode == code, ProductVariant.sku == code),
         )
@@ -357,6 +428,7 @@ async def barcode_lookup(
         .options(selectinload(Product.variants), selectinload(Product.images))
         .where(
             Product.vendor_id == vendor_id,
+            Product.deleted_at.is_(None),
             or_(Product.barcode == code, Product.sku == code),
         )
     )
@@ -379,6 +451,8 @@ async def list_products(
     product_type: Optional[str] = Query(None),
     stock: Optional[str] = Query(None, description="in_stock | low_stock | out_of_stock"),
     store_id: Optional[str] = Query(None, description="Filter by business unit availability"),
+    pharma_managed: Optional[bool] = Query(None, description="Filter by pharma enrollment status"),
+    deleted_only: bool = Query(False, description="When true, list soft-deleted products only"),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
@@ -403,6 +477,8 @@ async def list_products(
         product_type=product_type,
         stock=stock,
         store_id=sid,
+        pharma_managed=pharma_managed,
+        deleted_only=deleted_only,
     )
     
     return JSONResponse(content={
@@ -576,6 +652,19 @@ async def update_product(
     if not product.material_code and "material_code" not in update_data:
         update_data["material_code"] = await generate_product_material_code(db, vendor_id)
 
+    # Keep stock_status aligned with on-hand qty when inventory is tracked
+    if any(
+        k in update_data
+        for k in ("quantity", "track_inventory", "allow_backorders", "low_stock_threshold", "stock_status")
+    ):
+        update_data["stock_status"] = _effective_stock_status(
+            quantity=update_data.get("quantity", product.quantity),
+            stock_status=update_data.get("stock_status", product.stock_status),
+            track_inventory=update_data.get("track_inventory", product.track_inventory),
+            allow_backorders=update_data.get("allow_backorders", product.allow_backorders),
+            low_stock_threshold=update_data.get("low_stock_threshold", product.low_stock_threshold),
+        )
+
     # Build change diff for audit history
     # Fields that are internal/noisy and should never appear in user-visible history
     skip_diff = {
@@ -686,21 +775,60 @@ async def update_product(
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: UUID,
+    permanent: bool = Query(False, description="Permanently delete instead of moving to trash"),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete a product."""
+    """Soft-delete a product (trash), or permanently delete when permanent=true."""
     repo = ProductRepository(db)
-    product = await repo.get_by_vendor_and_id(vendor_id, product_id)
+    product = await repo.get_by_vendor_and_id(
+        vendor_id, product_id, include_deleted=permanent,
+    )
     
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found"
         )
-    
-    await db.delete(product)
+
+    if permanent:
+        if not product.deleted_at:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only trashed products can be permanently deleted",
+            )
+        await repo.hard_delete(product)
+    else:
+        if product.deleted_at:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Product is already in trash",
+            )
+        await repo.soft_delete(product)
+
     await db.commit()
+
+
+@router.post("/{product_id}/restore")
+async def restore_product(
+    product_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Restore a soft-deleted product from trash."""
+    repo = ProductRepository(db)
+    product = await repo.get_by_vendor_and_id(
+        vendor_id, product_id, include_deleted=True,
+    )
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    if not product.deleted_at:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Product is not in trash")
+
+    await repo.restore(product)
+    await db.commit()
+    product = await repo.get_by_vendor_and_id(vendor_id, product_id)
+    return JSONResponse(content=_product_to_dict(product))
 
 
 # ── Price Rule helpers ──────────────────────────────────────────

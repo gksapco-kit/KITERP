@@ -2,6 +2,8 @@
 
 > **Last updated:** 2026-06-05 — Tiers A/B/C+ and follow-up dev work landed (Razorpay webhooks, wishlist sync, marketplace API + storefront UI, subscriptions, public booking slots, DNS verify, 2FA, rentals, disputes, Alembic merge `d002_merge_all_heads`). Many rows below are **stale**; treat the tier summary as source of truth for recent work.
 
+> **Pharma module:** Competitive roadmap (phases 0–10, Stage A/B/C) lives in [`docs/PHARMA_ROADMAP.md`](./PHARMA_ROADMAP.md). Live phase status: `GET /vendors/me/pharma/overview`.
+
 ## Recent completion summary (Tiers A → C+)
 
 | Tier | Focus | Status |

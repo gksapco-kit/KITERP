@@ -118,29 +118,45 @@ async def list_my_storefront_contact_queries(
 
     count_stmt = select(func.count(StorefrontContactQuery.id)).where(*filters)
     total = (await db.execute(count_stmt)).scalar() or 0
+
+    from app.models.crm import CrmLead, CrmTicket as _CrmTicket
+
+    lead_alias = CrmLead
+    ticket_alias = _CrmTicket
+
     rows = (
         await db.execute(
-            select(StorefrontContactQuery)
+            select(StorefrontContactQuery, lead_alias.number, ticket_alias.number)
+            .outerjoin(lead_alias, lead_alias.id == StorefrontContactQuery.converted_lead_id)
+            .outerjoin(ticket_alias, ticket_alias.id == StorefrontContactQuery.converted_ticket_id)
             .where(*filters)
             .order_by(StorefrontContactQuery.created_at.desc())
             .offset((page - 1) * size)
             .limit(size)
         )
-    ).scalars().all()
+    ).all()
 
     return {
         "items": [
             {
                 "id": str(q.id),
-                "vendor_id": str(q.vendor_id),
+                "vendor_id": str(q.vendor_id) if q.vendor_id else None,
                 "name": q.name,
                 "email": q.email,
                 "phone": q.phone,
                 "message": q.message,
                 "status": q.status,
                 "created_at": q.created_at.isoformat() if q.created_at else None,
+                "converted_lead_id": str(q.converted_lead_id) if q.converted_lead_id else None,
+                "converted_lead_number": lead_number,
+                "converted_at": q.converted_at.isoformat() if q.converted_at else None,
+                "converted_ticket_id": str(q.converted_ticket_id) if q.converted_ticket_id else None,
+                "converted_ticket_number": ticket_number,
+                "ticket_converted_at": q.ticket_converted_at.isoformat() if q.ticket_converted_at else None,
+                "reply_count": q.reply_count or 0,
+                "last_reply_at": q.last_reply_at.isoformat() if q.last_reply_at else None,
             }
-            for q in rows
+            for q, lead_number, ticket_number in rows
         ],
         "total": total,
         "page": page,
@@ -176,6 +192,337 @@ async def update_my_storefront_contact_query(
     row.status = parsed.status
     await db.commit()
     return {"ok": True, "id": str(row.id), "status": row.status}
+
+
+@router.post("/me/contact-queries/{query_id}/convert-to-lead", status_code=201)
+async def convert_contact_query_to_lead(
+    query_id: UUID,
+    body: dict = Body(default={}),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    request: Request = None,
+):
+    """Move a storefront contact query into CRM as a lead (idempotent).
+
+    Optional body fields to override the auto-mapped values:
+      first_name, last_name, company, notes, assigned_to (UUID), rating, source.
+    Returns the CRM lead plus the query's updated converted_lead_id.
+    """
+    from app.models.storefront_contact_query import StorefrontContactQuery
+    from app.services.contact_query_actions import convert_contact_query_to_lead
+    from app.schemas.crm.schemas import LeadResponse
+
+    result = await db.execute(
+        select(StorefrontContactQuery).where(
+            StorefrontContactQuery.id == query_id,
+            StorefrontContactQuery.vendor_id == vendor_id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Query not found")
+
+    assigned_to = None
+    if body.get("assigned_to"):
+        try:
+            assigned_to = UUID(str(body["assigned_to"]))
+        except ValueError:
+            raise HTTPException(422, "assigned_to must be a valid UUID")
+
+    notes_override = body.get("notes")
+    lead = await convert_contact_query_to_lead(
+        db, row, vendor_id,
+        actor_id=None,
+        request=request,
+        override_first_name=body.get("first_name") or None,
+        override_last_name=body.get("last_name") or None,
+        override_company=body.get("company") or None,
+        override_assigned_to=assigned_to,
+        override_rating=body.get("rating") or None,
+        override_source=body.get("source") or None,
+        override_notes=notes_override if notes_override is not None else None,
+    )
+    return {
+        **LeadResponse.model_validate(lead).model_dump(),
+        "contact_query_id": str(query_id),
+    }
+
+
+@router.post("/me/contact-queries/{query_id}/convert-to-ticket", status_code=201)
+async def convert_contact_query_to_ticket_endpoint(
+    query_id: UUID,
+    body: dict = Body(default={}),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Move a storefront contact query into CRM as a support ticket (idempotent).
+
+    Optional body fields:
+      subject (str), description (str), priority (str), assigned_to (UUID), notes (str).
+    Returns the CRM ticket plus the query's updated converted_ticket_id.
+    """
+    from app.models.storefront_contact_query import StorefrontContactQuery
+    from app.services.contact_query_actions import convert_contact_query_to_ticket
+    from app.schemas.crm.schemas import TicketResponse
+
+    result = await db.execute(
+        select(StorefrontContactQuery).where(
+            StorefrontContactQuery.id == query_id,
+            StorefrontContactQuery.vendor_id == vendor_id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Query not found")
+
+    assigned_to = None
+    if body.get("assigned_to"):
+        try:
+            assigned_to = UUID(str(body["assigned_to"]))
+        except ValueError:
+            raise HTTPException(422, "assigned_to must be a valid UUID")
+
+    ticket = await convert_contact_query_to_ticket(
+        db, row, vendor_id,
+        actor_id=None,
+        override_subject=body.get("subject") or None,
+        override_description=body.get("description") if "description" in body else None,
+        override_priority=body.get("priority") or None,
+        override_assigned_to=assigned_to,
+        override_notes=body.get("notes") or None,
+    )
+    return {
+        **TicketResponse.model_validate(ticket).model_dump(),
+        "contact_query_id": str(query_id),
+    }
+
+
+@router.post("/me/contact-queries/{query_id}/reply")
+async def reply_to_contact_query(
+    query_id: UUID,
+    body: dict = Body(...),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send an outbound reply (email / sms / whatsapp) for a contact query.
+
+    Required body fields: channel ("email" | "sms" | "whatsapp"), body (str).
+    Optional: subject (str), template_id (UUID), mark_resolved (bool).
+    Each send is logged to crm_communication_log.
+    """
+    from app.models.storefront_contact_query import StorefrontContactQuery
+    from app.services.contact_query_actions import reply_to_contact_query
+
+    channel = body.get("channel", "")
+    if channel not in ("email", "sms", "whatsapp"):
+        raise HTTPException(422, "channel must be 'email', 'sms', or 'whatsapp'")
+    message_body = (body.get("body") or "").strip()
+    if not message_body:
+        raise HTTPException(422, "body is required")
+
+    result = await db.execute(
+        select(StorefrontContactQuery).where(
+            StorefrontContactQuery.id == query_id,
+            StorefrontContactQuery.vendor_id == vendor_id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Query not found")
+
+    template_id = None
+    if body.get("template_id"):
+        try:
+            template_id = UUID(str(body["template_id"]))
+        except ValueError:
+            raise HTTPException(422, "template_id must be a valid UUID")
+
+    send_result = await reply_to_contact_query(
+        db, row, vendor_id,
+        channel=channel,
+        body=message_body,
+        subject=body.get("subject") or None,
+        template_id=template_id,
+        mark_resolved=bool(body.get("mark_resolved", False)),
+    )
+    return {
+        "ok": send_result.get("ok", False),
+        "channel": channel,
+        "reply_count": row.reply_count,
+        "last_reply_at": row.last_reply_at.isoformat() if row.last_reply_at else None,
+        "status": row.status,
+        "provider_response": send_result,
+    }
+
+
+@router.get("/me/contact-queries/{query_id}/replies")
+async def list_contact_query_replies(
+    query_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return outbound replies previously sent for this contact query."""
+    from app.models.storefront_contact_query import StorefrontContactQuery
+    from app.models.crm import CrmCommunicationLog
+
+    result = await db.execute(
+        select(StorefrontContactQuery).where(
+            StorefrontContactQuery.id == query_id,
+            StorefrontContactQuery.vendor_id == vendor_id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Query not found")
+
+    logs = (
+        await db.execute(
+            select(CrmCommunicationLog)
+            .where(
+                CrmCommunicationLog.vendor_id == vendor_id,
+                CrmCommunicationLog.related_type == "contact_query",
+                CrmCommunicationLog.related_id == query_id,
+            )
+            .order_by(CrmCommunicationLog.occurred_at.desc())
+        )
+    ).scalars().all()
+
+    return {
+        "items": [
+            {
+                "id": str(log.id),
+                "channel": log.channel,
+                "direction": log.direction,
+                "subject": log.subject,
+                "body": log.body,
+                "status": log.status,
+                "provider": log.provider,
+                "occurred_at": log.occurred_at.isoformat() if log.occurred_at else None,
+            }
+            for log in logs
+        ],
+        "total": len(logs),
+    }
+
+
+@router.get("/me/contact-queries/auto-reply-workflow")
+async def get_auto_reply_workflow(
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the auto-acknowledge workflow status (active / paused) so the UI
+    can render the toggle correctly. Seeds the workflow if it doesn't exist yet."""
+    from app.models.crm import CrmWorkflow
+    from app.services.contact_query_actions import ensure_auto_ack_workflow
+
+    await ensure_auto_ack_workflow(db, vendor_id)
+
+    row = (
+        await db.execute(
+            select(CrmWorkflow).where(
+                CrmWorkflow.vendor_id == vendor_id,
+                CrmWorkflow.trigger["event"].astext == "crm.contact_query.created",
+            )
+        )
+    ).scalar_one_or_none()
+
+    return {
+        "workflow_id": str(row.id) if row else None,
+        "status": row.status if row else "paused",
+        "name": row.name if row else None,
+    }
+
+
+@router.patch("/me/contact-queries/auto-reply-workflow")
+async def toggle_auto_reply_workflow(
+    body: dict = Body(...),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle the auto-acknowledge workflow active / paused."""
+    from app.models.crm import CrmWorkflow
+    from app.services.contact_query_actions import ensure_auto_ack_workflow
+
+    await ensure_auto_ack_workflow(db, vendor_id)
+
+    new_status = body.get("status")
+    if new_status not in ("active", "paused"):
+        raise HTTPException(422, "status must be 'active' or 'paused'")
+
+    row = (
+        await db.execute(
+            select(CrmWorkflow).where(
+                CrmWorkflow.vendor_id == vendor_id,
+                CrmWorkflow.trigger["event"].astext == "crm.contact_query.created",
+            )
+        )
+    ).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Workflow not found")
+
+    row.status = new_status
+    await db.commit()
+    return {"ok": True, "workflow_id": str(row.id), "status": row.status}
+
+
+@router.get("/me/contact-queries/ticket-ack-workflow")
+async def get_ticket_ack_workflow(
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the ticket-acknowledgement workflow status (active / paused).
+    Seeds the workflow if it doesn't exist yet."""
+    from app.models.crm import CrmWorkflow
+    from app.services.contact_query_actions import ensure_ticket_ack_workflow
+
+    await ensure_ticket_ack_workflow(db, vendor_id)
+
+    row = (
+        await db.execute(
+            select(CrmWorkflow).where(
+                CrmWorkflow.vendor_id == vendor_id,
+                CrmWorkflow.trigger["event"].astext == "crm.contact_query.ticket_created",
+            )
+        )
+    ).scalar_one_or_none()
+
+    return {
+        "workflow_id": str(row.id) if row else None,
+        "status": row.status if row else "paused",
+        "name": row.name if row else None,
+    }
+
+
+@router.patch("/me/contact-queries/ticket-ack-workflow")
+async def toggle_ticket_ack_workflow(
+    body: dict = Body(...),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle the ticket-acknowledgement workflow active / paused."""
+    from app.models.crm import CrmWorkflow
+    from app.services.contact_query_actions import ensure_ticket_ack_workflow
+
+    await ensure_ticket_ack_workflow(db, vendor_id)
+
+    new_status = body.get("status")
+    if new_status not in ("active", "paused"):
+        raise HTTPException(422, "status must be 'active' or 'paused'")
+
+    row = (
+        await db.execute(
+            select(CrmWorkflow).where(
+                CrmWorkflow.vendor_id == vendor_id,
+                CrmWorkflow.trigger["event"].astext == "crm.contact_query.ticket_created",
+            )
+        )
+    ).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Workflow not found")
+
+    row.status = new_status
+    await db.commit()
+    return {"ok": True, "workflow_id": str(row.id), "status": row.status}
 
 
 @router.post("/me/ai/business-description", response_model=BusinessDescriptionAIResponse)

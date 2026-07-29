@@ -15,6 +15,25 @@ from app.worker import CELERY_AVAILABLE, celery_app
 logger = logging.getLogger(__name__)
 
 
+def _resolve_context_vars(value: str, context: dict) -> str:
+    """Replace {{event.key}} placeholders with values from the event context."""
+    if not isinstance(value, str):
+        return value
+    import re
+    def _sub(m: re.Match) -> str:
+        key = m.group(1).strip()
+        # Support dot-path lookups: event.name → context["name"]
+        if key.startswith("event."):
+            return str(context.get(key[6:], "") or "")
+        return str(context.get(key, "") or "")
+    return re.sub(r"\{\{([^}]+)\}\}", _sub, value)
+
+
+def _resolve_params(params: dict, context: dict) -> dict:
+    return {k: _resolve_context_vars(v, context) if isinstance(v, str) else v
+            for k, v in params.items()}
+
+
 async def _run(workflow_id: UUID, entity_type: str, entity_id: UUID, context: dict[str, Any] | None = None) -> dict:
     from app.models.crm import (
         CrmWorkflow, CrmWorkflowRun, CrmActivity, CrmCampaignEnrollment,
@@ -45,24 +64,27 @@ async def _run(workflow_id: UUID, entity_type: str, entity_id: UUID, context: di
                 outcome = {"step": idx, "action": action, "ok": True}
 
                 if action == "send_email":
+                    rp = _resolve_params(params, context)
                     outcome["result"] = send_email_now(
                         vendor_id=wf.vendor_id,
-                        contact_id=UUID(params["contact_id"]) if params.get("contact_id") else None,
-                        subject=params.get("subject", "Notification"),
-                        body_html=params.get("body_html", params.get("body", "")),
+                        contact_id=UUID(rp["contact_id"]) if rp.get("contact_id") else None,
+                        subject=rp.get("subject", "Notification"),
+                        body_html=rp.get("body_html", rp.get("body", "")),
+                        to_email=rp.get("to_email") or None,
                     )
                 elif action == "send_sms":
+                    rp = _resolve_params(params, context)
                     outcome["result"] = send_sms_now(
                         vendor_id=wf.vendor_id,
-                        contact_id=UUID(params["contact_id"]) if params.get("contact_id") else None,
-                        body=params.get("body", ""),
-                        to_phone=params.get("to_phone"),
+                        contact_id=UUID(rp["contact_id"]) if rp.get("contact_id") else None,
+                        body=rp.get("body", ""),
+                        to_phone=rp.get("to_phone") or None,
                     )
                 elif action == "create_activity":
                     from app.services.crm.numbering import next_crm_number
                     db.add(CrmActivity(
                         vendor_id=wf.vendor_id,
-                        number=await next_crm_number(db, wf.vendor_id, CrmActivity, "TSK"),
+                        number=await next_crm_number(db, wf.vendor_id, CrmActivity, "TSK", entity_type="activity"),
                         owner_id=UUID(params["owner_id"]) if params.get("owner_id") else None,
                         type=params.get("type", "task"),
                         subject=params.get("subject", "Workflow task"),

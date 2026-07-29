@@ -46,6 +46,14 @@ export function isPriceNotApplicable(priceType?: string | null): boolean {
   return priceType === 'not_applicable'
 }
 
+/** True when a product/variant should show a currency amount on the storefront. */
+export function hasStorefrontDisplayPrice(
+  price?: number | null,
+  priceType?: string | null,
+): boolean {
+  return !isPriceNotApplicable(priceType) && isPricedAmount(price)
+}
+
 /**
  * Storefront price label when currency should not be shown.
  * free → "Free", zero/null/quote → quote fallback.

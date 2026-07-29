@@ -60,7 +60,7 @@ class ProductVariantCreate(BaseModel):
     barcode: Optional[str] = None
     uom: Optional[str] = "piece"
     uom_quantity: Optional[float] = Field(None, ge=0)
-    price_type: Optional[str] = "per_unit"  # per_unit | per_cycle
+    price_type: Optional[str] = "per_unit"  # per_unit | per_cycle | not_applicable
     price: float = Field(..., ge=0)
     compare_at_price: Optional[float] = None
     cost_price: Optional[float] = None
@@ -234,6 +234,19 @@ class ProductCreate(BaseModel):
     warranty_period_days: Optional[int] = None
     warranty_type: Optional[str] = None
 
+    # Pharma / batch control
+    pharma_managed: bool = False
+    batch_managed: bool = False
+    serial_managed: bool = False
+    shelf_life_days: Optional[int] = None
+    retest_days: Optional[int] = None
+    qc_required_on_receipt: bool = False
+    qc_required_on_production: bool = False
+    gtin: Optional[str] = None
+    ndc: Optional[str] = None
+    requires_cold_chain: bool = False
+    storage_condition: Optional[str] = None
+
     # Return
     return_policy: Optional[str] = None
     return_days: Optional[int] = None
@@ -350,6 +363,19 @@ class ProductUpdate(BaseModel):
     best_before_date: Optional[str] = None
     warranty_period_days: Optional[int] = None
     warranty_type: Optional[str] = None
+
+    # Pharma / batch control
+    pharma_managed: Optional[bool] = None
+    batch_managed: Optional[bool] = None
+    serial_managed: Optional[bool] = None
+    shelf_life_days: Optional[int] = None
+    retest_days: Optional[int] = None
+    qc_required_on_receipt: Optional[bool] = None
+    qc_required_on_production: Optional[bool] = None
+    gtin: Optional[str] = None
+    ndc: Optional[str] = None
+    requires_cold_chain: Optional[bool] = None
+    storage_condition: Optional[str] = None
 
     # Return
     return_policy: Optional[str] = None
@@ -471,6 +497,19 @@ class ProductResponse(BaseModel):
     best_before_date: Optional[str] = None
     warranty_period_days: Optional[int] = None
     warranty_type: Optional[str] = None
+
+    # Pharma / batch control
+    pharma_managed: bool = False
+    batch_managed: bool = False
+    serial_managed: bool = False
+    shelf_life_days: Optional[int] = None
+    retest_days: Optional[int] = None
+    qc_required_on_receipt: bool = False
+    qc_required_on_production: bool = False
+    gtin: Optional[str] = None
+    ndc: Optional[str] = None
+    requires_cold_chain: bool = False
+    storage_condition: Optional[str] = None
 
     # Return
     return_policy: Optional[str] = None

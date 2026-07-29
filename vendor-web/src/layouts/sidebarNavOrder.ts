@@ -8,7 +8,7 @@ const LS_SECTION_VERSION = 'kiterp.vendor.sidebar.section-order-version'
  * Bump when the built-in top-level module order changes.
  * Users below this version get the canonical order on next load (fixes stale prod localStorage).
  */
-export const SIDEBAR_SECTION_ORDER_VERSION = 2
+export const SIDEBAR_SECTION_ORDER_VERSION = 3
 
 /** Canonical module order — must match `allSections` in DashboardLayout.tsx. */
 export const CANONICAL_SIDEBAR_SECTION_IDS = [
@@ -19,6 +19,7 @@ export const CANONICAL_SIDEBAR_SECTION_IDS = [
   'master-data',
   'crm',
   'production',
+  'pharma',
   'restaurant',
   'commission',
   'procurement',
@@ -40,6 +41,7 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/system/storefront-display': 'website-management',
   '/system/social-links': 'website-management',
   '/blog': 'website-management',
+  '/queries': 'my-kit',
   '/system/messages': 'system',
   '/crm/integrations': 'system',
   '/team': 'system',
@@ -61,6 +63,11 @@ const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/roles': '/team',
   '/system/upi-checkout': '/roles',
   '/system/assets/images': '/system/upi-checkout',
+}
+
+/** When pinning, insert before this sibling route (wins over INSERT_AFTER when both resolve). */
+const NAV_PINNED_INSERT_BEFORE: Record<string, string> = {
+  '/queries': '/relationship-manager',
 }
 
 export type NavOrderScope = {
@@ -309,6 +316,12 @@ export function reconcileNavPlacements(
     }
     if (!out[homeId]) out[homeId] = []
     if (out[homeId].includes(to)) continue
+    const before = NAV_PINNED_INSERT_BEFORE[to]
+    const beforeIdx = before ? out[homeId].indexOf(before) : -1
+    if (beforeIdx >= 0) {
+      out[homeId].splice(beforeIdx, 0, to)
+      continue
+    }
     const after = NAV_PINNED_INSERT_AFTER[to]
     const afterIdx = after ? out[homeId].indexOf(after) : -1
     if (afterIdx >= 0) {
@@ -431,6 +444,41 @@ export function reconcileNavPlacements(
       out[sid] = out[sid].filter((to) => !productionOrder.includes(to))
     }
     out.production = productionRoutes
+  }
+
+  // Pharmaceutical Manufacturing routes stay under Pharma.
+  const pharmaOrder = [
+    '/pharma',
+    '/pharma/settings',
+    '/pharma/batches',
+    '/pharma/movements',
+    '/pharma/fefo',
+    '/pharma/quarantine',
+    '/pharma/mbr',
+    '/pharma/bpr',
+    '/pharma/qc-specs',
+    '/pharma/inspections',
+    '/pharma/release',
+    '/pharma/genealogy',
+    '/pharma/recalls',
+    '/pharma/deviations',
+    '/pharma/capas',
+    '/pharma/change-control',
+    '/pharma/complaints',
+    '/pharma/audit',
+    '/pharma/serialization',
+    '/pharma/gdp',
+    '/pharma/track-trace',
+  ]
+  const pharmaRoutes = [...validTos].filter((to) => to === '/pharma' || to.startsWith('/pharma/'))
+  if (pharmaRoutes.length && out.pharma) {
+    for (const sid of Object.keys(out)) {
+      if (sid === 'pharma') continue
+      out[sid] = out[sid].filter((to) => to !== '/pharma' && !to.startsWith('/pharma/'))
+    }
+    const ordered = pharmaOrder.filter((to) => pharmaRoutes.includes(to))
+    const rest = pharmaRoutes.filter((to) => !ordered.includes(to))
+    out.pharma = [...ordered, ...rest]
   }
 
   // Controlling (CO) routes keep canonical order (Integration before Cost Centres, etc.).

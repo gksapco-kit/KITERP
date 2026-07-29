@@ -56,7 +56,7 @@ export default function MerchProductGrid({ title, subtitle, products, storePath 
                 )}
                 <div className="mt-1.5 flex items-baseline gap-1.5">
                   <span className="text-sm font-bold text-gray-900">{formatCurrency(p.price, p.currency)}</span>
-                  {p.compare_at_price && p.compare_at_price > p.price && (
+                  {p.compare_at_price != null && p.compare_at_price > p.price && (
                     <span className="text-xs text-gray-400 line-through">{formatCurrency(p.compare_at_price, p.currency)}</span>
                   )}
                 </div>

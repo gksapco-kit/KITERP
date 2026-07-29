@@ -50,6 +50,8 @@ from app.api.v1 import (
     vendor_procurement_goods,
     vendor_procurement_special,
     vendor_business_partners,
+    vendor_pharma,
+    vendor_product_groups,
 )
 
 api_router = APIRouter()
@@ -93,6 +95,7 @@ api_router.include_router(vendor_variant_generator.router, prefix="/vendors/me/p
 api_router.include_router(vendor_variant_management.router, prefix="/vendors/me/products", tags=["Variant Management"])
 api_router.include_router(vendor_services.router, prefix="/vendors/me/services", tags=["Vendor Services"])
 api_router.include_router(vendor_categories.router, prefix="/vendors/me/categories", tags=["Vendor Categories"])
+api_router.include_router(vendor_product_groups.router, prefix="/vendors/me/product-groups", tags=["Product Groups"])
 api_router.include_router(vendor_orders.router, prefix="/vendors/me/orders", tags=["Vendor Orders"])
 api_router.include_router(vendor_customers.router, prefix="/vendors/me/customers", tags=["Vendor Customers"])
 api_router.include_router(vendor_reviews.router, prefix="/vendors/me/reviews", tags=["Vendor Reviews"])
@@ -130,6 +133,7 @@ api_router.include_router(vendor_stores.router, prefix="/vendors/me", tags=["Ven
 api_router.include_router(vendor_sales_area.router, prefix="/vendors/me/sales-config", tags=["Sales & Distribution"])
 api_router.include_router(vendor_message_config.router, prefix="/vendors/me", tags=["Vendor Message Config"])
 api_router.include_router(vendor_production.router, prefix="/vendors/me", tags=["Production Orders"])
+api_router.include_router(vendor_pharma.router, prefix="/vendors/me/pharma", tags=["Pharmaceutical Manufacturing"])
 api_router.include_router(vendor_production_ops.router, prefix="/vendors/me", tags=["Production Routing"])
 api_router.include_router(vendor_production_analytics.router, prefix="/vendors/me", tags=["Production Analytics"])
 api_router.include_router(vendor_marketplace.router, prefix="/vendors/me/marketplace", tags=["Vendor Marketplace"])

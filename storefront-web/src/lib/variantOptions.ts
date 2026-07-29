@@ -332,6 +332,15 @@ export function validateVariantCombination(
     return { valid: true, variant: normalized[0] }
   }
 
+  // Fallback: variants whose names serve as option labels (e.g. "Variant 1" / "Variant 2"
+  // rendered as size chips with no structured attributes). stripSpuriousSizeSelections will
+  // have removed the Size key from merged, so consult the original selections directly.
+  const nameBasedSizeSel = getSizeSelection(selections)
+  if (nameBasedSizeSel && !colorName) {
+    const byName = normalized.find((v) => v.name?.trim() === nameBasedSizeSel)
+    if (byName) return { valid: true, variant: byName }
+  }
+
   const size = getSizeSelection(merged)
   const color = colorName || (colorDim ? merged[colorDim] : undefined)
 

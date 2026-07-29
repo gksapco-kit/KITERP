@@ -494,3 +494,125 @@ async def delete_activity(
 ):
     await ActivityService(db).delete(vu.vendor_id, activity_id, actor_id=vu.user_id)
     return None
+
+
+# ── Number ranges ────────────────────────────────────────────────────────────
+
+def _serialize_nr(nr) -> dict:
+    return {
+        "id": str(nr.id),
+        "entity_type": nr.entity_type,
+        "name": nr.name,
+        "prefix": nr.prefix,
+        "number_from": nr.number_from,
+        "number_to": nr.number_to,
+        "current_number": nr.current_number,
+        "pad_width": nr.pad_width,
+        "is_active": bool(nr.is_active),
+        "preview": f"{(nr.prefix or '').upper()}-{nr.current_number:0{max(1, nr.pad_width or 6)}d}",
+    }
+
+
+@router.get("/number-ranges")
+async def list_number_ranges(
+    vu: VendorUser = Depends(require_permission("crm.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """List CRM number ranges (seeds defaults including Leads on first call)."""
+    from app.services.crm.numbering import ensure_crm_number_ranges
+
+    rows = await ensure_crm_number_ranges(db, vu.vendor_id)
+    await db.commit()
+    # Re-fetch ordered
+    from sqlalchemy import select
+    from app.models.crm import CrmNumberRange
+
+    rows = (
+        await db.execute(
+            select(CrmNumberRange)
+            .where(CrmNumberRange.vendor_id == vu.vendor_id)
+            .order_by(CrmNumberRange.entity_type)
+        )
+    ).scalars().all()
+    return [_serialize_nr(r) for r in rows]
+
+
+@router.post("/number-ranges/seed")
+async def seed_number_ranges(
+    vu: VendorUser = Depends(require_permission("crm.leads.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ensure default ranges exist (Leads, Contacts, Deals, …)."""
+    from app.services.crm.numbering import ensure_crm_number_ranges
+
+    rows = await ensure_crm_number_ranges(db, vu.vendor_id)
+    await db.commit()
+    return {"ok": True, "count": len(rows), "items": [_serialize_nr(r) for r in rows]}
+
+
+@router.put("/number-ranges/{entity_type}")
+async def update_number_range(
+    entity_type: str,
+    payload: dict,
+    vu: VendorUser = Depends(require_permission("crm.leads.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a CRM number range (prefix, from/to, next, padding).
+
+    Body fields (all optional): name, prefix, number_from, number_to,
+    current_number, pad_width, is_active.
+    """
+    from sqlalchemy import select
+    from app.models.crm import CrmNumberRange
+    from app.services.crm.numbering import ensure_crm_number_ranges, CRM_NUMBER_RANGE_DEFAULTS
+
+    entity_type = (entity_type or "").strip().lower()
+    if entity_type not in CRM_NUMBER_RANGE_DEFAULTS:
+        raise HTTPException(400, f"Unknown entity_type '{entity_type}'")
+
+    await ensure_crm_number_ranges(db, vu.vendor_id)
+    nr = (
+        await db.execute(
+            select(CrmNumberRange).where(
+                CrmNumberRange.vendor_id == vu.vendor_id,
+                CrmNumberRange.entity_type == entity_type,
+            )
+        )
+    ).scalar_one_or_none()
+    if not nr:
+        raise HTTPException(404, "Number range not found")
+
+    if "name" in payload and payload["name"] is not None:
+        nr.name = str(payload["name"]).strip()[:120] or nr.name
+    if "prefix" in payload and payload["prefix"] is not None:
+        pref = str(payload["prefix"]).strip().upper().replace(" ", "")[:20]
+        if not pref:
+            raise HTTPException(422, "prefix cannot be empty")
+        nr.prefix = pref
+    if "number_from" in payload and payload["number_from"] is not None:
+        nr.number_from = int(payload["number_from"])
+    if "number_to" in payload and payload["number_to"] is not None:
+        nr.number_to = int(payload["number_to"])
+    if "current_number" in payload and payload["current_number"] is not None:
+        nr.current_number = int(payload["current_number"])
+    if "pad_width" in payload and payload["pad_width"] is not None:
+        pw = int(payload["pad_width"])
+        if pw < 1 or pw > 12:
+            raise HTTPException(422, "pad_width must be between 1 and 12")
+        nr.pad_width = pw
+    if "is_active" in payload and payload["is_active"] is not None:
+        nr.is_active = bool(payload["is_active"])
+
+    if nr.number_from < 1:
+        raise HTTPException(422, "number_from must be >= 1")
+    if nr.number_to < nr.number_from:
+        raise HTTPException(422, "number_to must be >= number_from")
+    if nr.current_number < nr.number_from or nr.current_number > nr.number_to + 1:
+        raise HTTPException(
+            422,
+            f"current_number must be between {nr.number_from} and {nr.number_to + 1}",
+        )
+
+    await db.commit()
+    await db.refresh(nr)
+    return _serialize_nr(nr)

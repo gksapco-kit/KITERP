@@ -73,6 +73,23 @@ class Product(Base):
     warranty_period_days = Column(Integer)
     warranty_type = Column(String(30))
 
+    # ── Pharma / batch control (Phase 0) ───────────────────────────
+    # True = product is enrolled in pharma manufacturing (shown in Foundations
+    # and eligible for batch/serial tracking, QC gating, GTIN/NDC assignment).
+    pharma_managed = Column(Boolean, default=False, nullable=False)
+    batch_managed = Column(Boolean, default=False, nullable=False)
+    serial_managed = Column(Boolean, default=False, nullable=False)
+    shelf_life_days = Column(Integer, nullable=True)
+    retest_days = Column(Integer, nullable=True)
+    qc_required_on_receipt = Column(Boolean, default=False, nullable=False)
+    qc_required_on_production = Column(Boolean, default=False, nullable=False)
+    # Stage C — track & trace / GDP identifiers
+    gtin = Column(String(14), nullable=True)
+    ndc = Column(String(20), nullable=True)
+    requires_cold_chain = Column(Boolean, default=False, nullable=False)
+    # ambient | refrigerated | frozen | controlled_room
+    storage_condition = Column(String(30), nullable=True)
+
     # ── Return & Warranty ─────────────────────────────────────────
     return_policy = Column(Text)
     return_days = Column(Integer)
@@ -141,6 +158,8 @@ class Product(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     published_at = Column(DateTime(timezone=True))
+    # Soft delete — set on trash; null means active in catalogs/lists
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     # Relationships
     vendor = relationship("Vendor", back_populates="products")
@@ -178,7 +197,7 @@ class ProductVariant(Base):
     barcode = Column(String(100))
     uom = Column(String(30), default="piece")
     uom_quantity = Column(Numeric(12, 4), nullable=True)
-    price_type = Column(String(20), default="per_unit")  # per_unit | per_cycle
+    price_type = Column(String(20), default="per_unit")  # per_unit | per_cycle | not_applicable
     price = Column(Numeric(12, 2), nullable=False)
     compare_at_price = Column(Numeric(12, 2))
     cost_price = Column(Numeric(12, 2))

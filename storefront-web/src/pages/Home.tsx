@@ -110,7 +110,7 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-secondary to-muted group-hover:scale-105 transition-transform duration-700" />
                   )}
-                  {p.compare_at_price && p.compare_at_price > p.price && (
+                  {p.compare_at_price != null && p.compare_at_price > p.price && (
                     <span className="absolute top-3 left-3 text-xs uppercase tracking-widest bg-retail-ink text-retail-bg px-2 py-1 rounded-full">Sale</span>
                   )}
                 </div>
@@ -155,7 +155,7 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
                 ) : (
                   <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-12 h-12 text-gray-200" /></div>
                 )}
-                {p.compare_at_price && p.compare_at_price > p.price && (
+                {p.compare_at_price != null && p.compare_at_price > p.price && (
                   <span className="absolute top-2 left-2 text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c.accent }}>
                     -{Math.round((1 - p.price / p.compare_at_price) * 100)}%
                   </span>
@@ -175,7 +175,7 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
                       <>
                         {showFrom && <span className="text-xs text-gray-500">From</span>}
                         <span className="text-lg font-bold text-gray-900">{formatCurrency(effectivePrice)}</span>
-                        {p.compare_at_price && p.compare_at_price > effectivePrice && (
+                        {p.compare_at_price != null && p.compare_at_price > effectivePrice && (
                           <span className="text-sm text-gray-400 line-through">{formatCurrency(p.compare_at_price)}</span>
                         )}
                       </>

@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KITERP — Business Made Operable (Explainer)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      /* KIT ERP brand palette */
+      --bg: #0f3d32;
+      --bg2: #13624A;
+      --ink: #f2fbf7;
+      --muted: rgba(242, 251, 247, 0.62);
+      --accent: #64C3A0;
+      --warm: #FF8A3D;
+      --secondary: #6F5AE8;
+      --stage-w: min(1120px, 96vw);
+      --stage-h: min(630px, 54vw);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #070f0d;
+      color: var(--ink);
+      font-family: "DM Sans", system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 1.25rem;
+    }
+
+    .chrome {
+      width: var(--stage-w);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .chrome strong { color: var(--ink); font-weight: 600; }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid rgba(242, 247, 245, 0.18);
+      background: rgba(242, 247, 245, 0.06);
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.55rem 0.9rem;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    button:hover { border-color: var(--accent); color: var(--accent); }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #06241d;
+    }
+    button.primary:hover { filter: brightness(1.05); color: #06241d; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .stage-shell {
+      width: var(--stage-w);
+      height: var(--stage-h);
+      position: relative;
+      background: var(--bg);
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(242, 247, 245, 0.08);
+    }
+
+    .stage {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1.03);
+      transition: opacity 0.55s ease, transform 0.7s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 8% 9%;
+      background:
+        radial-gradient(ellipse 80% 60% at 100% 0%, rgba(26, 92, 80, 0.55), transparent 55%),
+        radial-gradient(ellipse 60% 50% at 0% 100%, rgba(42, 64, 60, 0.45), transparent 50%),
+        var(--bg);
+    }
+
+    .stage.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    .eyebrow {
+      font-size: clamp(0.7rem, 1.4vw, 0.85rem);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    .stage.active .eyebrow {
+      animation: rise 0.6s 0.1s ease forwards;
+    }
+
+    h1, h2 {
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.12;
+      max-width: 16ch;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 4.6vw, 3.1rem);
+      margin-bottom: 0.85rem;
+      opacity: 0;
+      transform: translateY(14px);
+    }
+
+    h2 {
+      font-size: clamp(1.55rem, 3.8vw, 2.55rem);
+      margin-bottom: 0.65rem;
+      opacity: 0;
+      transform: translateY(14px);
+    }
+
+    .stage.active h1,
+    .stage.active h2 {
+      animation: rise 0.65s 0.2s ease forwards;
+    }
+
+    .sub {
+      font-size: clamp(0.95rem, 1.8vw, 1.2rem);
+      color: var(--muted);
+      max-width: 36ch;
+      line-height: 1.45;
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    .stage.active .sub {
+      animation: rise 0.65s 0.35s ease forwards;
+    }
+
+    @keyframes rise {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .stage-layout {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 1.5rem;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    .stage-layout.solo {
+      grid-template-columns: 1fr;
+      justify-items: start;
+    }
+
+    .visual {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      opacity: 0;
+      transform: translateY(18px) scale(0.96);
+    }
+
+    .stage.active .visual {
+      animation: riseScale 0.75s 0.25s ease forwards;
+    }
+
+    @keyframes riseScale {
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .visual img {
+      width: min(100%, 320px);
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 22px 36px rgba(0, 0, 0, 0.55));
+    }
+
+    .visual.pair {
+      gap: 0.75rem;
+    }
+
+    .visual.pair img {
+      width: min(46%, 170px);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-top: 1.25rem;
+      max-width: 42ch;
+      opacity: 0;
+    }
+
+    .stage.active .chips {
+      animation: rise 0.6s 0.45s ease forwards;
+    }
+
+    .chip {
+      border: 1px solid rgba(242, 247, 245, 0.16);
+      padding: 0.35rem 0.65rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .end-brand {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 0.75rem;
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    .stage.active .end-brand {
+      animation: rise 0.65s 0.15s ease forwards;
+    }
+
+    .cta {
+      display: inline-block;
+      margin-top: 1.25rem;
+      padding: 0.7rem 1.15rem;
+      background: var(--accent);
+      color: #06241d;
+      font-weight: 700;
+      font-size: 0.92rem;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    .stage.active .cta {
+      animation: rise 0.55s 0.5s ease forwards;
+    }
+
+    .progress {
+      width: var(--stage-w);
+      height: 3px;
+      background: rgba(242, 247, 245, 0.1);
+      overflow: hidden;
+    }
+
+    .progress > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.1s linear;
+    }
+
+    .hint {
+      width: var(--stage-w);
+      font-size: 0.78rem;
+      color: rgba(242, 247, 245, 0.45);
+      line-height: 1.4;
+    }
+
+    .vo-line {
+      position: absolute;
+      left: 9%;
+      right: 9%;
+      bottom: 7%;
+      font-size: clamp(0.78rem, 1.4vw, 0.92rem);
+      color: rgba(242, 247, 245, 0.72);
+      border-left: 2px solid var(--warm);
+      padding-left: 0.75rem;
+      max-width: 52ch;
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    .stage.active .vo-line {
+      animation: rise 0.55s 0.5s ease forwards;
+    }
+
+    @media (max-width: 720px) {
+      .stage-layout { grid-template-columns: 1fr; }
+      .visual { order: -1; }
+      .visual img { width: min(58%, 200px); }
+      .stage { padding: 10% 7% 18%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="chrome">
+    <div><strong>KITERP Explainer</strong> · ~80s · Talliant-style beat</div>
+    <div class="controls">
+      <button type="button" class="primary" id="btnPlay">Play</button>
+      <button type="button" id="btnPause" disabled>Pause</button>
+      <button type="button" id="btnRestart">Restart</button>
+      <button type="button" id="btnRecord">Record</button>
+      <span id="timeLabel">0:00 / 1:22</span>
+    </div>
+  </div>
+
+  <div class="stage-shell" id="stageShell">
+    <!-- 1 Problem -->
+    <section class="stage active" data-dur="10" data-start="0">
+      <div class="stage-layout solo">
+        <div>
+          <p class="eyebrow">The problem</p>
+          <h1>Running a business shouldn’t mean running ten apps.</h1>
+          <p class="sub">Sales here. Stock there. Finance somewhere else.</p>
+          <p class="vo-line">Sound familiar?</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 Meet KITERP -->
+    <section class="stage" data-dur="10" data-start="10">
+      <div class="stage-layout">
+        <div>
+          <p class="eyebrow">The platform</p>
+          <h2>Meet KITERP</h2>
+          <p class="sub">One modular SaaS ERP — sales, operations, finance, people, and regulated manufacturing.</p>
+          <p class="vo-line">Enable only what your business needs.</p>
+        </div>
+        <div class="visual">
+          <img src="assets/cover-hero.jpg" alt="" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 Sales -->
+    <section class="stage" data-dur="8" data-start="20">
+      <div class="stage-layout">
+        <div>
+          <p class="eyebrow">01 · Sales</p>
+          <h2>Sell &amp; serve from one cockpit</h2>
+          <p class="sub">Quote to cash, POS, bookings, and subscriptions.</p>
+          <p class="vo-line">Products, services, or both — without juggling tools.</p>
+        </div>
+        <div class="visual">
+          <img src="assets/mod-sales.jpg" alt="" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 Inventory -->
+    <section class="stage" data-dur="8" data-start="28">
+      <div class="stage-layout">
+        <div>
+          <p class="eyebrow">02 · Inventory</p>
+          <h2>Stock that tells the truth</h2>
+          <p class="sub">Products, plants, and storage locations — always know what you have, and where.</p>
+          <p class="vo-line">From a single shop to multi-plant warehouses.</p>
+        </div>
+        <div class="visual">
+          <img src="assets/mod-inventory.jpg" alt="" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 Finance -->
+    <section class="stage" data-dur="8" data-start="36">
+      <div class="stage-layout">
+        <div>
+          <p class="eyebrow">03 · Finance</p>
+          <h2>Books that grow with you</h2>
+          <p class="sub">Start simple, or go full ledger — AR, AP, assets, and board-ready reports.</p>
+          <p class="vo-line">Owners get clarity. Accountants get control.</p>
+        </div>
+        <div class="visual">
+          <img src="assets/mod-finance.jpg" alt="" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 Production + Pharma -->
+    <section class="stage" data-dur="8" data-start="44">
+      <div class="stage-layout">
+        <div>
+          <p class="eyebrow">04 · Production &amp; Pharma</p>
+          <h2>Make it. Trace it. Release it.</h2>
+          <p class="sub">Manufacturing plus pharma-ready lot control, QC release, and audit trails.</p>
+          <p class="vo-line">Regulated ops — same platform as commercial ops.</p>
+        </div>
+        <div class="visual pair">
+          <img src="assets/mod-production.jpg" alt="" />
+          <img src="assets/mod-pharma.jpg" alt="" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 CRM + HR -->
+    <section class="stage" data-dur="8" data-start="52">
+      <div class="stage-layout">
+        <div>
+          <p class="eyebrow">05 · CRM &amp; HR</p>
+          <h2>Customers &amp; your team</h2>
+          <p class="sub">Pipelines, tickets, and people ops in the same workspace.</p>
+          <p class="vo-line">One record for relationships. One place for your workforce.</p>
+        </div>
+        <div class="visual pair">
+          <img src="assets/mod-crm.jpg" alt="" />
+          <img src="assets/mod-hr.jpg" alt="" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 Modular -->
+    <section class="stage" data-dur="8" data-start="60">
+      <div class="stage-layout solo">
+        <div>
+          <p class="eyebrow">Modular by design</p>
+          <h2>Enable only what you need</h2>
+          <p class="sub">Turn apps on when you’re ready. One tenant. One source of truth.</p>
+          <div class="chips">
+            <span class="chip">Sales</span>
+            <span class="chip">Inventory</span>
+            <span class="chip">Procurement</span>
+            <span class="chip">Finance</span>
+            <span class="chip">Controlling</span>
+            <span class="chip">Production</span>
+            <span class="chip">Pharma</span>
+            <span class="chip">CRM</span>
+            <span class="chip">HR</span>
+            <span class="chip">Restaurant</span>
+            <span class="chip">Website</span>
+          </div>
+          <p class="vo-line">Retail today. Manufacturing tomorrow. Same backbone.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 Benefit -->
+    <section class="stage" data-dur="10" data-start="68">
+      <div class="stage-layout">
+        <div>
+          <p class="eyebrow">The outcome</p>
+          <h2>Business, made operable</h2>
+          <p class="sub">Multi-vendor SaaS ERP — vendor admin, storefront, and mobile.</p>
+          <p class="vo-line">Run your business. Not your tool stack.</p>
+        </div>
+        <div class="visual">
+          <img src="assets/mod-system.jpg" alt="" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 End -->
+    <section class="stage" data-dur="4" data-start="78">
+      <div class="stage-layout solo">
+        <div>
+          <div class="end-brand">KITERP</div>
+          <p class="sub">Multi-vendor SaaS ERP</p>
+          <div class="cta">Book a demo</div>
+          <p class="vo-line">Feature brochure available · modular apps · role-based access</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="progress"><i id="progressBar"></i></div>
+  <p class="hint">
+    Press <strong>Play</strong> then fullscreen (F11). Record with Win+G / OBS, or use <strong>Record</strong> (Chrome) to save a WebM of the stage.
+    Full VO script: <code>docs/KITERP_EXPLAINER_SCRIPT.md</code>
+  </p>
+
+  <script>
+    const TOTAL = 82;
+    const stages = [...document.querySelectorAll(".stage")];
+    const progressBar = document.getElementById("progressBar");
+    const timeLabel = document.getElementById("timeLabel");
+    const btnPlay = document.getElementById("btnPlay");
+    const btnPause = document.getElementById("btnPause");
+    const btnRestart = document.getElementById("btnRestart");
+    const btnRecord = document.getElementById("btnRecord");
+    const shell = document.getElementById("stageShell");
+
+    let playing = false;
+    let t0 = 0;
+    let elapsed = 0;
+    let raf = 0;
+    let recorder = null;
+    let recordedChunks = [];
+
+    function fmt(s) {
+      const m = Math.floor(s / 60);
+      const r = Math.floor(s % 60);
+      return m + ":" + String(r).padStart(2, "0");
+    }
+
+    function showScene(time) {
+      let active = stages[0];
+      for (const stage of stages) {
+        const start = Number(stage.dataset.start);
+        const dur = Number(stage.dataset.dur);
+        if (time >= start && time < start + dur) active = stage;
+      }
+      // end card holds after finish
+      if (time >= TOTAL - 0.05) active = stages[stages.length - 1];
+      for (const stage of stages) {
+        const on = stage === active;
+        if (on && !stage.classList.contains("active")) {
+          stage.classList.remove("active");
+          void stage.offsetWidth;
+          stage.classList.add("active");
+        } else if (!on) {
+          stage.classList.remove("active");
+        }
+      }
+      if (!active.classList.contains("active")) active.classList.add("active");
+    }
+
+    function tick(now) {
+      if (!playing) return;
+      elapsed = Math.min(TOTAL, (now - t0) / 1000);
+      progressBar.style.width = (elapsed / TOTAL) * 100 + "%";
+      timeLabel.textContent = fmt(elapsed) + " / " + fmt(TOTAL);
+      showScene(elapsed);
+      if (elapsed >= TOTAL) {
+        playing = false;
+        btnPlay.disabled = false;
+        btnPause.disabled = true;
+        if (recorder && recorder.state === "recording") recorder.stop();
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+
+    function play() {
+      if (playing) return;
+      if (elapsed >= TOTAL) elapsed = 0;
+      playing = true;
+      t0 = performance.now() - elapsed * 1000;
+      btnPlay.disabled = true;
+      btnPause.disabled = false;
+      raf = requestAnimationFrame(tick);
+    }
+
+    function pause() {
+      playing = false;
+      btnPlay.disabled = false;
+      btnPause.disabled = true;
+      cancelAnimationFrame(raf);
+    }
+
+    function restart() {
+      pause();
+      elapsed = 0;
+      progressBar.style.width = "0%";
+      timeLabel.textContent = "0:00 / " + fmt(TOTAL);
+      stages.forEach((s, i) => s.classList.toggle("active", i === 0));
+    }
+
+    btnPlay.addEventListener("click", play);
+    btnPause.addEventListener("click", pause);
+    btnRestart.addEventListener("click", restart);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        playing ? pause() : play();
+      }
+    });
+
+    async function startRecord() {
+      if (recorder && recorder.state === "recording") {
+        recorder.stop();
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: 30 },
+          audio: false,
+        });
+        recordedChunks = [];
+        recorder = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp9" });
+        recorder.ondataavailable = (e) => {
+          if (e.data.size) recordedChunks.push(e.data);
+        };
+        recorder.onstop = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          const blob = new Blob(recordedChunks, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "kiterp-explainer.webm";
+          a.click();
+          URL.revokeObjectURL(url);
+          btnRecord.textContent = "Record";
+        };
+        recorder.start(250);
+        btnRecord.textContent = "Stop & save";
+        restart();
+        play();
+      } catch (err) {
+        alert("Recording needs Chrome screen share. Or use Win+G / OBS while Play runs.\n\n" + err.message);
+      }
+    }
+
+    btnRecord.addEventListener("click", startRecord);
+    showScene(0);
+  </script>
+</body>
+</html>

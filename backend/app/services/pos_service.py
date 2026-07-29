@@ -365,6 +365,7 @@ class POSService:
                 pid = item.get("product_id")
                 if not pid or item.get("item_type") == "service":
                     continue
+                product = None
                 try:
                     async with self.db.begin_nested():
                         product = await self.db.get(Product, UUID(item["product_id"]))
@@ -381,8 +382,17 @@ class POSService:
                             variant_id=UUID(item["variant_id"]) if item.get("variant_id") else None,
                             reference_id=txn.id,
                             reference_type="pos_transaction",
+                            customer_id=customer_id,
                         )
                 except Exception as e:
+                    # Batch/serial-managed products must not sell without traceable lots.
+                    if product and (
+                        getattr(product, "batch_managed", False)
+                        or getattr(product, "serial_managed", False)
+                    ):
+                        raise ValueError(
+                            f"Cannot sell {product.name}: {e}"
+                        ) from e
                     log.warning("POS inventory deduction failed for %s: %s", item.get("product_id"), e)
         elif transaction_type in ("return", "credit_memo"):
             for item in items:
@@ -401,6 +411,8 @@ class POSService:
                             quantity=item["qty"],
                             variant_id=UUID(item["variant_id"]) if item.get("variant_id") else None,
                             reference_id=txn.id,
+                            original_source_id=return_of,
+                            original_source_type="pos_transaction",
                         )
                 except Exception as e:
                     log.warning("POS inventory return failed for %s: %s", item.get("product_id"), e)
@@ -790,6 +802,8 @@ class POSService:
                             quantity=int(item.get("qty") or 0),
                             variant_id=vid,
                             reference_id=txn.id,
+                            original_source_id=getattr(txn, "return_of", None),
+                            original_source_type="pos_transaction",
                         )
             except Exception as e:
                 log.warning("void/update memo: inventory undo for %s: %s", pid, e)
@@ -803,6 +817,7 @@ class POSService:
             for item in raw_items:
                 if not item.get("product_id") or item.get("item_type") == "service":
                     continue
+                product = None
                 try:
                     async with self.db.begin_nested():
                         product = await self.db.get(Product, UUID(str(item["product_id"])))
@@ -818,6 +833,8 @@ class POSService:
                             reference_type="pos_transaction",
                         )
                 except Exception as e:
+                    if product and getattr(product, "batch_managed", False):
+                        raise ValueError(f"Cannot sell {product.name}: {e}") from e
                     log.warning("memo inv deduct %s: %s", item.get("product_id"), e)
         elif ttype in ("return", "credit_memo"):
             for item in raw_items:
@@ -835,6 +852,8 @@ class POSService:
                             quantity=item.get("qty") or 0,
                             variant_id=UUID(str(item["variant_id"])) if item.get("variant_id") else None,
                             reference_id=txn.id,
+                            original_source_id=getattr(txn, "return_of", None),
+                            original_source_type="pos_transaction",
                         )
                 except Exception as e:
                     log.warning("memo inv return %s: %s", item.get("product_id"), e)

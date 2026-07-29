@@ -23,6 +23,7 @@ export type VendorModuleId =
   | 'commission'
   | 'controlling'
   | 'production'
+  | 'pharma'
   | 'pos'
   | 'restaurant'
   | 'bookings'
@@ -85,6 +86,13 @@ export const VENDOR_MODULE_TILES: VendorModuleTile[] = [
     id: 'production',
     label: 'Production',
     description: 'Manufacturing orders, schedule, work centers, and MRP.',
+    icon: Factory,
+    configurable: true,
+  },
+  {
+    id: 'pharma',
+    label: 'Pharma',
+    description: 'Batch control, QC release, eBMR, QMS, genealogy, and serialization.',
     icon: Factory,
     configurable: true,
   },
@@ -155,18 +163,23 @@ export function isControllingNavVisible(settings: Record<string, unknown> | unde
 
 export function isProductionNavVisible(
   settings: Record<string, unknown> | undefined | null,
-  offeringType?: string,
+  _offeringType?: string,
 ): boolean {
-  if (!offeringIncludes(offeringType, ['products', 'both'])) return false
   return flagEnabled(settings, 'production_enabled')
+}
+
+export function isPharmaNavVisible(
+  settings: Record<string, unknown> | undefined | null,
+  _offeringType?: string,
+): boolean {
+  return flagEnabled(settings, 'pharma_enabled')
 }
 
 export function isPosNavVisible(
   settings: Record<string, unknown> | undefined | null,
-  offeringType?: string,
+  _offeringType?: string,
   planFeatures?: Record<string, unknown> | null,
 ): boolean {
-  if (!offeringIncludes(offeringType, ['products', 'both'])) return false
   if (!flagEnabled(settings, 'pos_enabled')) return false
   if (planFeatures && planFeatures.pos === false) return false
   return true
@@ -174,10 +187,9 @@ export function isPosNavVisible(
 
 export function isRestaurantNavVisible(
   settings: Record<string, unknown> | undefined | null,
-  offeringType?: string,
+  _offeringType?: string,
   planFeatures?: Record<string, unknown> | null,
 ): boolean {
-  if (!offeringIncludes(offeringType, ['products', 'both'])) return false
   if (!flagEnabled(settings, 'restaurant_enabled')) return false
   if (planFeatures && planFeatures.restaurant === false) return false
   return true
@@ -185,9 +197,9 @@ export function isRestaurantNavVisible(
 
 export function isBookingsNavVisible(
   settings: Record<string, unknown> | undefined | null,
-  offeringType?: string,
+  _offeringType?: string,
 ): boolean {
-  return offeringIncludes(offeringType, ['services', 'both']) && flagEnabled(settings, 'bookings_enabled')
+  return flagEnabled(settings, 'bookings_enabled')
 }
 
 export function isSubscriptionsNavVisible(settings: Record<string, unknown> | undefined | null): boolean {
@@ -238,30 +250,21 @@ export function moduleEnabledStatus(
       return { enabled: isCommissionNavVisible(settings) }
     case 'controlling':
       return { enabled: isControllingNavVisible(settings) }
+    case 'pharma': {
+      return { enabled: isPharmaNavVisible(settings), detail: 'Pharmaceutical manufacturing' }
+    }
     case 'production': {
-      if (!offeringIncludes(vendor.offering_type, ['products', 'both'])) {
-        return { enabled: false, detail: 'Needs products catalog' }
-      }
-      return { enabled: isProductionNavVisible(settings, vendor.offering_type) }
+      return { enabled: isProductionNavVisible(settings) }
     }
     case 'pos': {
-      if (!offeringIncludes(vendor.offering_type, ['products', 'both'])) {
-        return { enabled: false, detail: 'Needs products catalog' }
-      }
       if (!flagEnabled(settings, 'pos_enabled')) return { enabled: false }
       return { enabled: true, detail: 'Point of sale' }
     }
     case 'restaurant': {
-      if (!offeringIncludes(vendor.offering_type, ['products', 'both'])) {
-        return { enabled: false, detail: 'Needs products catalog' }
-      }
       if (!flagEnabled(settings, 'restaurant_enabled')) return { enabled: false }
       return { enabled: true, detail: 'Floor & kitchen' }
     }
     case 'bookings': {
-      if (!offeringIncludes(vendor.offering_type, ['services', 'both'])) {
-        return { enabled: false, detail: 'Needs services catalog' }
-      }
       if (!flagEnabled(settings, 'bookings_enabled')) return { enabled: false }
       return { enabled: true, detail: 'Appointments' }
     }

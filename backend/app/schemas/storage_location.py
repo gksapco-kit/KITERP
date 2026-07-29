@@ -15,6 +15,16 @@ class StorageLocationCreate(BaseModel):
     description: Optional[str] = None
     parent_id: Optional[str] = None
     sort_order: int = 0
+    stock_type: Optional[str] = Field(
+        "unrestricted",
+        description="unrestricted | quarantine | rejected | returns",
+    )
+    storage_condition: Optional[str] = Field(
+        None,
+        description="ambient | refrigerated | frozen | controlled_room",
+    )
+    temp_min_c: Optional[int] = None
+    temp_max_c: Optional[int] = None
     custom_fields: Optional[List[CustomFieldSchema]] = None
 
 
@@ -26,4 +36,14 @@ class StorageLocationUpdate(BaseModel):
     plant_id: Optional[str] = None
     parent_id: Optional[str] = None
     sort_order: Optional[int] = None
+    stock_type: Optional[str] = Field(
+        None,
+        description="unrestricted | quarantine | rejected | returns",
+    )
+    storage_condition: Optional[str] = Field(
+        None,
+        description="ambient | refrigerated | frozen | controlled_room",
+    )
+    temp_min_c: Optional[int] = None
+    temp_max_c: Optional[int] = None
     custom_fields: Optional[List[CustomFieldSchema]] = None

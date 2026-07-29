@@ -202,10 +202,15 @@ apiClient.interceptors.request.use((config) => {
     config.headers['X-Branch'] = _branchQuery
   }
 
-  if (_branchQuery && typeof config.url === 'string' && config.url.startsWith('/catalog/')) {
+  if (typeof config.url === 'string' && config.url.startsWith('/catalog/')) {
     const params = (config.params && typeof config.params === 'object' ? config.params : {}) as Record<string, unknown>
     if (params.branch == null && params.store_id == null) {
-      config.params = { ...params, branch: _branchQuery }
+      // Prefer store UUID — branch codes can collide across business units.
+      if (_storeId) {
+        config.params = { ...params, store_id: _storeId }
+      } else if (_branchQuery) {
+        config.params = { ...params, branch: _branchQuery }
+      }
     }
   }
 

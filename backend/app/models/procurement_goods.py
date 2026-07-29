@@ -54,6 +54,10 @@ class GoodsBatch(Base):
     # Stock quality classification
     quality_status = Column(String(30), nullable=False, default="unrestricted")
 
+    # Stage C GDP — lot storage condition (copied from product/SLoc on create when set)
+    # ambient | refrigerated | frozen | controlled_room
+    storage_condition = Column(String(30), nullable=True)
+
     supplier_batch_number = Column(String(50), nullable=True)  # as printed on supplier label
     notes = Column(Text, nullable=True)
 

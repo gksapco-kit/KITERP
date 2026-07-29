@@ -2035,7 +2035,7 @@ export default function ServiceForm() {
       <CatalogEditStickyBar
         backLabel={isEdit ? 'View' : 'Back'}
         onBack={() => (isEdit ? setViewMode(true) : navigate('/services'))}
-        title={isEdit ? (service?.name || 'Edit Service') : 'New Service'}
+        title={isEdit ? (watchedName?.trim() || service?.name || 'Edit Service') : 'New Service'}
         status={formValues.status ?? 'draft'}
         onStatusChange={(value) => setValue('status', value as 'active' | 'draft' | 'archived')}
         visibleControl={(
@@ -2070,9 +2070,10 @@ export default function ServiceForm() {
         {/* 1. Basic */}
         <Section title="Basic" icon={Briefcase} open={activeTab === 'basic'} onToggle={() => toggle('basic')} sectionId="basic">
           <div className={formEditLayout.sectionBody}>
-            <div className={formEditLayout.fieldGridWide}>
+            <div className="grid grid-cols-1 gap-x-2 gap-y-1 items-start sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
               <FormField label="Service Name" name="name" required>
                 <Input
+                  className="w-full min-w-0"
                   {...register('name')}
                   placeholder="e.g. AC Repair & Service"
                   maxLength={SERVICE_NAME_MAX}
@@ -2101,34 +2102,31 @@ export default function ServiceForm() {
                 />
               </FormField>
               <FormField label="Service Code">
-                <div className="space-y-1">
-                  <div className="relative">
-                    <Hash className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      {...register('material_code')}
-                      readOnly
-                      placeholder="Auto-generated on save"
-                      className="w-full min-w-0 cursor-default bg-gray-50 pl-8 pr-9 font-mono text-gray-700"
-                    />
-                    {isEdit && watch('material_code') ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard?.writeText(String(watch('material_code') || ''))
-                          toast.success('Material code copied')
-                        }}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                        title="Copy material code"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-gray-400">Unique item code, assigned automatically.</p>
+                <div className="relative">
+                  <Hash className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    {...register('material_code')}
+                    readOnly
+                    title="Unique item code, assigned automatically."
+                    placeholder="Auto-generated on save"
+                    className="w-full min-w-0 cursor-default bg-gray-50 pl-8 pr-9 font-mono text-gray-700"
+                  />
+                  {isEdit && watch('material_code') ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(String(watch('material_code') || ''))
+                        toast.success('Material code copied')
+                      }}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      title="Copy material code"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
                 </div>
               </FormField>
-              <div className="sm:col-span-2 space-y-1.5">
-                <Label>Category</Label>
+              <FormField label="Category">
                 <CategoryHierarchyPicker
                   tree={serviceCategories}
                   category={watchedCategory || ''}
@@ -2137,15 +2135,11 @@ export default function ServiceForm() {
                     setValue('category', cat)
                     setValue('subcategory', sub)
                   }}
+                  className={cn(selectCls, 'h-8 min-h-8 w-full min-w-0 sm:h-9')}
                 />
-                {(watchedCategory || watchedSubcategory) && (
-                  <p className="text-xs text-gray-500">
-                    Selected: {[watchedCategory, watchedSubcategory].filter(Boolean).join(' › ')}
-                  </p>
-                )}
-              </div>
+              </FormField>
               <FormField label="Tags (comma separated)">
-                <Input {...register('tags')} placeholder="repair, home-service, ac" />
+                <Input className="w-full min-w-0" {...register('tags')} placeholder="repair, home-service, ac" />
               </FormField>
             </div>
             <div className={formEditLayout.fieldGrid3}>
@@ -2270,22 +2264,6 @@ export default function ServiceForm() {
                 <Controller name="allow_quote_request" control={control} render={({ field }) => (
                   <Toggle checked={field.value} onChange={field.onChange} small />
                 )} />
-              </div>
-              <div className="flex items-center justify-between px-3 py-2 gap-3">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <Gift className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-800">Free</p>
-                    <p className="text-xs text-gray-400">Show &quot;Free&quot; on the business front instead of a price or quote label.</p>
-                  </div>
-                </div>
-                <Toggle
-                  checked={watchedPriceType === 'free'}
-                  onChange={(on) => {
-                    setValue('price_type', on ? 'free' : 'fixed', { shouldDirty: true })
-                  }}
-                  small
-                />
               </div>
             </div>
 

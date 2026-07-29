@@ -13,7 +13,6 @@ import type { HrScope } from '@/lib/hrModuleSettings'
 import {
   VENDOR_MODULE_TILES,
   moduleEnabledStatus,
-  offeringIncludes,
   type VendorModuleId,
 } from '@/lib/vendorModuleSettings'
 import {
@@ -161,6 +160,7 @@ function applyFormState(
     setCommissionEnabled: (v: boolean) => void
     setControllingEnabled: (v: boolean) => void
     setProductionEnabled: (v: boolean) => void
+    setPharmaEnabled: (v: boolean) => void
     setPosEnabled: (v: boolean) => void
     setRestaurantEnabled: (v: boolean) => void
     setBookingsEnabled: (v: boolean) => void
@@ -178,6 +178,7 @@ function applyFormState(
   setters.setCommissionEnabled(state.commissionEnabled)
   setters.setControllingEnabled(state.controllingEnabled)
   setters.setProductionEnabled(state.productionEnabled)
+  setters.setPharmaEnabled(state.pharmaEnabled)
   setters.setPosEnabled(state.posEnabled)
   setters.setRestaurantEnabled(state.restaurantEnabled)
   setters.setBookingsEnabled(state.bookingsEnabled)
@@ -216,14 +217,13 @@ export default function ModulesPage() {
   const [commissionEnabled, setCommissionEnabled] = useState(true)
   const [controllingEnabled, setControllingEnabled] = useState(true)
   const [productionEnabled, setProductionEnabled] = useState(true)
+  const [pharmaEnabled, setPharmaEnabled] = useState(true)
   const [posEnabled, setPosEnabled] = useState(true)
   const [restaurantEnabled, setRestaurantEnabled] = useState(true)
   const [bookingsEnabled, setBookingsEnabled] = useState(true)
   const [subscriptionsEnabled, setSubscriptionsEnabled] = useState(true)
   const [projectsEnabled, setProjectsEnabled] = useState(true)
 
-  const productsCatalog = offeringIncludes(offeringType, ['products', 'both'])
-  const servicesCatalog = offeringIncludes(offeringType, ['services', 'both'])
 
   const formSetters = useMemo(
     () => ({
@@ -237,6 +237,7 @@ export default function ModulesPage() {
       setCommissionEnabled,
       setControllingEnabled,
       setProductionEnabled,
+      setPharmaEnabled,
       setPosEnabled,
       setRestaurantEnabled,
       setBookingsEnabled,
@@ -258,6 +259,7 @@ export default function ModulesPage() {
       commissionEnabled,
       controllingEnabled,
       productionEnabled,
+      pharmaEnabled,
       posEnabled,
       restaurantEnabled,
       bookingsEnabled,
@@ -275,6 +277,7 @@ export default function ModulesPage() {
       commissionEnabled,
       controllingEnabled,
       productionEnabled,
+      pharmaEnabled,
       posEnabled,
       restaurantEnabled,
       bookingsEnabled,
@@ -563,36 +566,32 @@ export default function ModulesPage() {
         break
       case 'production':
         panelBody = (
-          <div className="space-y-2">
-            {!productsCatalog && (
-              <p className="text-[0.7rem] text-muted-foreground rounded-md border border-border bg-muted/30 px-2.5 py-1.5 leading-snug">
-                Set <strong>Catalog</strong> to Products only or Products &amp; services to use Production.
-              </p>
-            )}
-            <EnableRow
-              label="Enable Production"
-              hint="Turn off to hide Production Management (orders, schedule, work centers, MRP) from the sidebar."
-              enabled={productionEnabled && productsCatalog}
-              onToggle={() => setProductionEnabled((v) => !v)}
-            />
-          </div>
+          <EnableRow
+            label="Enable Production"
+            hint="Turn off to hide Production Management (orders, schedule, work centers, MRP) from the sidebar."
+            enabled={productionEnabled}
+            onToggle={() => setProductionEnabled((v) => !v)}
+          />
+        )
+        break
+      case 'pharma':
+        panelBody = (
+          <EnableRow
+            label="Enable Pharmaceutical Manufacturing"
+            hint="Turn off to hide the Pharma module (batches, QC, eBMR, QMS, genealogy) from the sidebar."
+            enabled={pharmaEnabled}
+            onToggle={() => setPharmaEnabled((v) => !v)}
+          />
         )
         break
       case 'pos':
         panelBody = (
-          <div className="space-y-2">
-            {!productsCatalog && (
-              <p className="text-[0.7rem] text-muted-foreground rounded-md border border-border bg-muted/30 px-2.5 py-1.5 leading-snug">
-                Set <strong>Catalog</strong> to Products only or Products &amp; services to use POS.
-              </p>
-            )}
-            <EnableRow
-              label="Enable POS"
-              hint="Checkout and register flows under Sales Management."
-              enabled={posEnabled && productsCatalog}
-              onToggle={() => setPosEnabled((v) => !v)}
-            />
-          </div>
+          <EnableRow
+            label="Enable POS"
+            hint="Checkout and register flows under Sales Management."
+            enabled={posEnabled}
+            onToggle={() => setPosEnabled((v) => !v)}
+          />
         )
         break
       case 'restaurant':
@@ -603,15 +602,10 @@ export default function ModulesPage() {
                 Your subscription plan does not include Restaurant. Upgrade your plan to enable floor, kitchen, and QR ordering.
               </p>
             )}
-            {!productsCatalog && (
-              <p className="text-[0.7rem] text-muted-foreground rounded-md border border-border bg-muted/30 px-2.5 py-1.5 leading-snug">
-                Set <strong>Catalog</strong> to Products only or Products &amp; services to use Restaurant.
-              </p>
-            )}
             <EnableRow
               label="Enable Restaurant"
               hint="Floor, kitchen board, and table setup in the sidebar."
-              enabled={restaurantEnabled && productsCatalog && planAllowsRest}
+              enabled={restaurantEnabled && planAllowsRest}
               onToggle={() => {
                 if (!planAllowsRest) return
                 setRestaurantEnabled((v) => !v)
@@ -622,19 +616,12 @@ export default function ModulesPage() {
         break
       case 'bookings':
         panelBody = (
-          <div className="space-y-2">
-            {!servicesCatalog && (
-              <p className="text-[0.7rem] text-muted-foreground rounded-md border border-border bg-muted/30 px-2.5 py-1.5 leading-snug">
-                Set <strong>Catalog</strong> to Services only or Products &amp; services to use Bookings.
-              </p>
-            )}
-            <EnableRow
-              label="Enable Bookings"
-              hint="Service appointments and calendar under Sales Management."
-              enabled={bookingsEnabled && servicesCatalog}
-              onToggle={() => setBookingsEnabled((v) => !v)}
-            />
-          </div>
+          <EnableRow
+            label="Enable Bookings"
+            hint="Service appointments and calendar under Sales Management."
+            enabled={bookingsEnabled}
+            onToggle={() => setBookingsEnabled((v) => !v)}
+          />
         )
         break
       case 'subscriptions':

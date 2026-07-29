@@ -142,11 +142,17 @@ export function ProductCard({
 
   const displayPrice = pricingVariant?.price ?? product.price;
   const displayCompare = pricingVariant?.compareAtPrice ?? product.compareAtPrice;
-  const variantPrices = allVariants.map((v) => v.price).filter((p): p is number => p != null);
+  const variantPrices = allVariants.map((v) => v.price).filter((p): p is number => p != null && p > 0);
   const minPrice = variantPrices.length ? Math.min(...variantPrices) : displayPrice;
   const maxPrice = variantPrices.length ? Math.max(...variantPrices) : displayPrice;
+  const hasDisplayPrice = displayPrice != null && Number(displayPrice) > 0;
   const showFrom =
-    !!product.showFromPrice && minPrice !== maxPrice && !pricingVariant && optionRows.length === 0;
+    !!product.showFromPrice &&
+    variantPrices.length > 1 &&
+    minPrice !== maxPrice &&
+    !pricingVariant &&
+    optionRows.length === 0;
+  const showPriceRow = hasDisplayPrice || (showFrom && minPrice != null && minPrice > 0);
   const canAdd =
     !addToCartPending &&
     (optionRows.length === 0
@@ -228,9 +234,9 @@ export function ProductCard({
             <Badge className="capitalize">{product.tags[0]}</Badge>
           )}
         </div>
-        {displayCompare && displayCompare > displayPrice && (
+        {hasDisplayPrice && (displayCompare ?? 0) > displayPrice && (
           <Badge variant="destructive" className="absolute bottom-2 left-2 z-10 pointer-events-none">
-            -{Math.round(((displayCompare - displayPrice) / displayCompare) * 100)}%
+            -{Math.round(((displayCompare! - displayPrice) / displayCompare!) * 100)}%
           </Badge>
         )}
         <div className="absolute top-3 right-3 z-20">
@@ -269,15 +275,19 @@ export function ProductCard({
             stopPropagation
           />
         )}
-        <div className="flex flex-wrap items-baseline gap-2">
-          {showFrom && <span className="text-xs font-normal text-muted-foreground">From</span>}
-          <span className="font-semibold">{formatPrice(displayPrice, product.currency)}</span>
-          {displayCompare && displayCompare > displayPrice && (
-            <span className="text-xs text-muted-foreground line-through">
-              {formatPrice(displayCompare, product.currency)}
-            </span>
-          )}
-        </div>
+        {showPriceRow ? (
+          <div className="flex flex-wrap items-baseline gap-2">
+            {showFrom && <span className="text-xs font-normal text-muted-foreground">From</span>}
+            <span className="font-semibold">{formatPrice(showFrom ? minPrice : displayPrice, product.currency)}</span>
+            {hasDisplayPrice && (displayCompare ?? 0) > displayPrice && (
+              <span className="text-xs text-muted-foreground line-through">
+                {formatPrice(displayCompare!, product.currency)}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="min-h-[1.25rem]" aria-hidden />
+        )}
         <div className={cn("mt-auto flex items-center gap-2 pt-2", !cardLayout.showAddButton && "hidden")}>
           {cardLayout.showAddButton && (
             <CatalogAddOrQtyControl

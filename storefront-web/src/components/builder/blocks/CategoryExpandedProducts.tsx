@@ -67,10 +67,10 @@ export default function CategoryExpandedProducts({
 
   const isServiceCategory = appliesTo === 'service'
   const { data: productsData, isLoading: productsLoading } = useProducts(
-    isServiceCategory ? undefined : { category: categoryName, page: 1, size: limit },
+    isServiceCategory ? null : { category: categoryName, page: 1, size: limit },
   )
   const { data: servicesData, isLoading: servicesLoading } = useServices(
-    isServiceCategory ? { category: categoryName, page: 1, size: limit } : undefined,
+    isServiceCategory ? { category: categoryName, page: 1, size: limit } : null,
   )
 
   const isLoading = isServiceCategory ? servicesLoading : productsLoading

@@ -18,6 +18,7 @@ import {
   UserCog, Clock, Plane, ArrowUpRight, ArrowDownRight, Wallet,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
+import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
 import { DashboardWelcomeBanner } from '@/components/dashboard/DashboardWelcomeBanner'
 
 type TopProductRow = { id: string; name: string; price: number; stock: number }
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { vendor, selectedStore } = useVendorStore()
   const storeId = selectedStore?.id
+  const { heading: scopeHeading, mode: scopeMode } = useBusinessUnitScopeLabel()
   const { user } = useAuthStore()
   const isHRAdmin = ['owner', 'admin', 'manager'].includes(user?.vendor_role?.role ?? '')
 
@@ -251,15 +253,12 @@ export default function Dashboard() {
     return 'Good evening'
   })()
 
-  const showProducts = vendor?.offering_type === 'products' || vendor?.offering_type === 'both'
-  const showServices = vendor?.offering_type === 'services' || vendor?.offering_type === 'both'
-
   const quickActions = [
-    showProducts && { label: 'New Product', icon: Package, to: '/products/new', color: 'border border-white/25 bg-white/10 hover:bg-white/20' },
-    showServices && { label: 'New Service', icon: Wrench, to: '/services/new', color: 'border border-white/25 bg-white/10 hover:bg-white/20' },
+    { label: 'New Product', icon: Package, to: '/products/new', color: 'border border-white/25 bg-white/10 hover:bg-white/20' },
+    { label: 'New Service', icon: Wrench, to: '/services/new', color: 'border border-white/25 bg-white/10 hover:bg-white/20' },
     { label: 'View Orders', icon: ShoppingCart, to: '/orders', color: 'bg-primary hover:bg-primary/90' },
     { label: 'Reports', icon: BarChart3, to: '/reports', color: 'bg-[hsl(var(--hero-cta))] hover:brightness-110' },
-  ].filter(Boolean) as { label: string; icon: React.ElementType; to: string; color: string }[]
+  ]
 
   if (dashLoading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
 
@@ -279,7 +278,13 @@ export default function Dashboard() {
 
       <DashboardWelcomeBanner
         greeting={greeting}
-        title={vendor?.display_name || 'Welcome'}
+        title={
+          selectedStore?.name
+          || (scopeMode === 'all' ? 'All business units' : null)
+          || scopeHeading
+          || vendor?.display_name
+          || 'Welcome'
+        }
         description={selectedStore
           ? `Showing performance for ${selectedStore.name}. Insights, analytics, and trends at a glance.`
           : "Here's a complete overview across all business units. Insights, analytics, and trends at a glance."}
@@ -450,30 +455,26 @@ export default function Dashboard() {
 
       {/* Catalog summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {showProducts && (
-          <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-info/30 hover:shadow-md" onClick={() => navigate('/products')}>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
-              <Package className="h-5 w-5 text-info" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-2xl font-bold text-foreground">{productData?.total ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Products</p>
-            </div>
-            <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-info" />
+        <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-info/30 hover:shadow-md" onClick={() => navigate('/products')}>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
+            <Package className="h-5 w-5 text-info" />
           </div>
-        )}
-        {showServices && (
-          <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md" onClick={() => navigate('/services')}>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
-              <Wrench className="h-5 w-5 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-2xl font-bold text-foreground">{serviceData?.total ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Services</p>
-            </div>
-            <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary/80" />
+          <div className="min-w-0 flex-1">
+            <p className="text-2xl font-bold text-foreground">{productData?.total ?? 0}</p>
+            <p className="text-xs text-muted-foreground">Products</p>
           </div>
-        )}
+          <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-info" />
+        </div>
+        <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md" onClick={() => navigate('/services')}>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
+            <Wrench className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-2xl font-bold text-foreground">{serviceData?.total ?? 0}</p>
+            <p className="text-xs text-muted-foreground">Services</p>
+          </div>
+          <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary/80" />
+        </div>
         <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-success/30 hover:shadow-md" onClick={() => navigate('/invoices')}>
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
             <Receipt className="h-5 w-5 text-success" />

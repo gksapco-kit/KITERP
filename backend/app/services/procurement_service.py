@@ -353,6 +353,7 @@ class PurchaseOrderService:
                 "quantity_received": entry["quantity"],
             })
 
+            product = None
             try:
                 product = await self.db.get(Product, po_item.product_id)
                 if product and product.track_inventory:
@@ -367,8 +368,39 @@ class PurchaseOrderService:
                         variant_id=po_item.variant_id,
                         auto_commit=False,
                     )
+                # Pharma: create lot on GR for batch-managed products (QI when required).
+                if product and getattr(product, "batch_managed", False):
+                    from decimal import Decimal
+                    from app.services.pharma_batch import create_receipt_batch
+                    qc_req = bool(getattr(product, "qc_required_on_receipt", False))
+                    await create_receipt_batch(
+                        self.db,
+                        vendor_id=vendor_id,
+                        product_id=po_item.product_id,
+                        quantity=Decimal(str(entry["quantity"])),
+                        source_id=po.id,
+                        source_type="purchase",
+                        document_number=po.po_number,
+                        variant_id=po_item.variant_id,
+                        batch_number=entry.get("batch_number"),
+                        supplier_batch_number=entry.get("supplier_batch_number"),
+                        manufacturing_date=entry.get("manufacturing_date"),
+                        expiry_date=entry.get("expiry_date"),
+                        qc_required=qc_req,
+                    )
+                    receipt_items_log[-1]["batch_managed"] = True
+                    receipt_items_log[-1]["qc_required_on_receipt"] = qc_req
+            except HTTPException:
+                raise
+            except ValueError as e:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
             except Exception as e:
                 log.warning("Inventory update failed for PO item %s: %s", entry["item_id"], e)
+                if product and getattr(product, "batch_managed", False):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Failed to create goods batch for PO item: {e}",
+                    ) from e
 
         receipt = PurchaseOrderReceipt(
             purchase_order_id=po.id,

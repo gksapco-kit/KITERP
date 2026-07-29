@@ -13,7 +13,8 @@ import { useUpdateVendor } from '@/hooks/useVendor'
 import {
   Send, Loader2, MessageSquare, CheckCircle2, User,
   Calendar, ChevronDown, ChevronRight, ExternalLink, Trash2,
-  Globe, Filter, RefreshCw, Inbox as InboxIcon,
+  Globe, Filter, RefreshCw, Inbox as InboxIcon, UserPlus, LifeBuoy,
+  Mail, Phone,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { formatDateTime } from '@/lib/utils'
@@ -338,6 +339,34 @@ function ChatsTab() {
     qc.invalidateQueries({ queryKey: ['crm', 'conversation', selected] })
   }
 
+  const selectedConv = convList?.items?.find((c: any) => c.id === selected)
+
+  const convertToLead = useMutation({
+    mutationFn: (convId: string) =>
+      apiClient
+        .post(`/vendors/me/crm/chat/conversations/${convId}/convert-to-lead`, {})
+        .then((r) => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['crm', 'conversations'] })
+      qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      toast.success(`Lead ${data.number ?? 'created'} — view in CRM Leads`)
+    },
+    onError: () => toast.error('Failed to create lead'),
+  })
+
+  const convertToTicket = useMutation({
+    mutationFn: (convId: string) =>
+      apiClient
+        .post(`/vendors/me/crm/chat/conversations/${convId}/convert-to-ticket`, {})
+        .then((r) => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['crm', 'conversations'] })
+      qc.invalidateQueries({ queryKey: ['crm', 'tickets'] })
+      toast.success(`Ticket ${data.number ?? 'created'} — view in CRM Tickets`)
+    },
+    onError: () => toast.error('Failed to create ticket'),
+  })
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 h-[calc(100vh-260px)]">
       {/* Conversation list */}
@@ -404,18 +433,90 @@ function ChatsTab() {
         ) : (
           <>
             <div className="px-4 py-3 border-b flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
                   <User className="w-5 h-5 text-gray-400" />
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{convo?.conversation.visitor_name || convo?.conversation.visitor_email || 'Visitor'}</p>
-                  <p className="text-xs text-gray-400">{convo?.conversation.channel || 'widget'}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    {convo?.conversation.visitor_name || convo?.conversation.visitor_email || 'Visitor'}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                    {convo?.conversation.visitor_email && (
+                      <a
+                        href={`mailto:${convo.conversation.visitor_email}`}
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        <Mail className="w-3 h-3" />
+                        {convo.conversation.visitor_email}
+                      </a>
+                    )}
+                    {convo?.conversation.visitor_phone && (
+                      <a
+                        href={`tel:${convo.conversation.visitor_phone}`}
+                        className="inline-flex items-center gap-1 text-xs text-gray-500 hover:underline"
+                      >
+                        <Phone className="w-3 h-3" />
+                        {convo.conversation.visitor_phone}
+                      </a>
+                    )}
+                    {!convo?.conversation.visitor_email && !(convo?.conversation as any)?.visitor_phone && (
+                      <span className="text-xs text-gray-400">{convo?.conversation.channel || 'widget'}</span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={closeConv}>
-                <CheckCircle2 className="w-4 h-4 mr-1" /> Resolve
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Lead badge / button */}
+                {selectedConv?.converted_lead_id ? (
+                  <a
+                    href="/crm/leads"
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-green-500/10 text-green-700 border border-green-500/20 hover:bg-green-500/20 transition-colors"
+                  >
+                    <UserPlus className="w-3 h-3" /> Lead <ExternalLink className="w-3 h-3" />
+                  </a>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={convertToLead.isPending || !selected}
+                    onClick={() => selected && convertToLead.mutate(selected)}
+                    className="border-primary/40 text-primary hover:bg-primary/10"
+                  >
+                    {convertToLead.isPending
+                      ? <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                      : <UserPlus className="w-4 h-4 mr-1" />}
+                    Move as Lead
+                  </Button>
+                )}
+
+                {/* Ticket badge / button */}
+                {selectedConv?.converted_ticket_id ? (
+                  <a
+                    href="/crm/tickets"
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
+                  >
+                    <LifeBuoy className="w-3 h-3" /> Ticket <ExternalLink className="w-3 h-3" />
+                  </a>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={convertToTicket.isPending || !selected}
+                    onClick={() => selected && convertToTicket.mutate(selected)}
+                    className="border-amber-500/40 text-amber-700 hover:bg-amber-500/10"
+                  >
+                    {convertToTicket.isPending
+                      ? <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                      : <LifeBuoy className="w-4 h-4 mr-1" />}
+                    Move as Ticket
+                  </Button>
+                )}
+
+                <Button variant="outline" size="sm" onClick={closeConv}>
+                  <CheckCircle2 className="w-4 h-4 mr-1" /> Resolve
+                </Button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
@@ -472,30 +573,19 @@ function LiveChatToggle() {
   }
 
   return (
-    <Card className="flex items-start justify-between gap-4 p-4">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-primary shrink-0" />
-          <h2 className="text-sm font-semibold text-foreground">Live chat widget</h2>
-          <Badge variant={enabled ? 'default' : 'secondary'} className="text-[10px]">
-            {enabled ? 'On' : 'Off'}
-          </Badge>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-          When on, a live chat button appears on your website (Website Management → Business Website Templates).
-          Turn it off to hide the widget from visitors.
-        </p>
+    <div className="flex items-center gap-2.5 shrink-0">
+      <div className="text-right">
+        <p className="text-sm font-medium text-foreground leading-none">Live chat widget</p>
+        <p className="text-xs text-muted-foreground mt-1">Show chat button on your website</p>
       </div>
-      <div className="flex items-center gap-2 shrink-0 pt-0.5">
-        {updateVendor.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-        <Switch
-          checked={enabled}
-          disabled={!vendor || updateVendor.isPending}
-          onCheckedChange={handleToggle}
-          aria-label="Toggle live chat widget"
-        />
-      </div>
-    </Card>
+      {updateVendor.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+      <Switch
+        checked={enabled}
+        disabled={!vendor || updateVendor.isPending}
+        onCheckedChange={handleToggle}
+        aria-label="Toggle live chat widget"
+      />
+    </div>
   )
 }
 
@@ -503,12 +593,14 @@ function LiveChatToggle() {
 export default function InboxPage() {
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">Overview</p>
-        <h1 className="text-2xl font-bold text-foreground">Inbox</h1>
-        <p className="text-sm text-muted-foreground mt-1">Live chat conversations from your Business Front widget.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">Overview</p>
+          <h1 className="text-2xl font-bold text-foreground">Inbox</h1>
+          <p className="text-sm text-muted-foreground mt-1">Live chat conversations from your Business Front widget.</p>
+        </div>
+        <LiveChatToggle />
       </div>
-      <LiveChatToggle />
       <ChatsTab />
     </div>
   )

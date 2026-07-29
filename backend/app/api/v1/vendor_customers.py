@@ -4,6 +4,7 @@ import math
 import re
 import logging
 import httpx
+from datetime import date
 from typing import Optional
 from uuid import UUID
 
@@ -113,6 +114,8 @@ class VendorCreateCustomer(BaseModel):
     pan_number: Optional[str] = Field(None, max_length=10)
     cin: Optional[str] = Field(None, max_length=21)
     company_name: Optional[str] = Field(None, max_length=255)
+    wholesale_license_number: Optional[str] = Field(None, max_length=80)
+    wholesale_license_expires: Optional[str] = None  # YYYY-MM-DD
     billing_address: Optional[BillingAddress] = None
     notes: Optional[str] = None
     # Accounting
@@ -161,6 +164,8 @@ class VendorUpdateCustomer(BaseModel):
     pan_number: Optional[str] = Field(None, max_length=10)
     cin: Optional[str] = Field(None, max_length=21)
     company_name: Optional[str] = Field(None, max_length=255)
+    wholesale_license_number: Optional[str] = Field(None, max_length=80)
+    wholesale_license_expires: Optional[str] = None  # YYYY-MM-DD
     billing_address: Optional[BillingAddress] = None
     notes: Optional[str] = None
     # Accounting
@@ -205,6 +210,12 @@ def _customer_dict(customer: Customer) -> dict:
         "pan_number": customer.pan_number,
         "cin": customer.cin,
         "company_name": customer.company_name,
+        "wholesale_license_number": getattr(customer, "wholesale_license_number", None),
+        "wholesale_license_expires": (
+            customer.wholesale_license_expires.isoformat()
+            if getattr(customer, "wholesale_license_expires", None)
+            else None
+        ),
         "billing_address": customer.billing_address or {},
         "shipping_addresses": customer.shipping_addresses or [],
         "notes": customer.notes,
@@ -392,6 +403,12 @@ async def create_customer(
         pan_number=data.pan_number,
         cin=data.cin,
         company_name=data.company_name,
+        wholesale_license_number=data.wholesale_license_number,
+        wholesale_license_expires=(
+            date.fromisoformat(data.wholesale_license_expires)
+            if data.wholesale_license_expires
+            else None
+        ),
         billing_address=data.billing_address.model_dump() if data.billing_address else {},
         notes=data.notes,
         opening_balance=data.opening_balance or 0,
@@ -461,6 +478,14 @@ async def update_customer(
         customer.cin = data.cin
     if data.company_name is not None:
         customer.company_name = data.company_name
+    if data.wholesale_license_number is not None:
+        customer.wholesale_license_number = data.wholesale_license_number or None
+    if data.wholesale_license_expires is not None:
+        customer.wholesale_license_expires = (
+            date.fromisoformat(data.wholesale_license_expires)
+            if data.wholesale_license_expires
+            else None
+        )
     if data.billing_address is not None:
         customer.billing_address = data.billing_address.model_dump()
     if data.notes is not None:

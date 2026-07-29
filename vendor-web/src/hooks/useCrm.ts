@@ -41,6 +41,22 @@ export const useSaveContact = () => {
 export const useLeads = (params: Record<string, unknown> = {}) =>
   useQuery({ queryKey: KEY('leads', params), queryFn: () => crmApi.listLeads(params) })
 
+/** Count of CRM leads still in `new` status (sidebar badge on Leads). */
+export const useNewLeadCount = (enabled = true) =>
+  useQuery({
+    queryKey: KEY('leads', 'new-count'),
+    queryFn: async () => {
+      const data = await crmApi.listLeads({ status: 'new', page: 1, size: 1 })
+      return data.total ?? 0
+    },
+    enabled,
+    staleTime: 0,
+    refetchInterval: (query) =>
+      query.state.error && isAxiosAuthError(query.state.error) ? false : 5_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+  })
+
 export const useLead = (id?: string) =>
   useQuery({ queryKey: KEY('lead', id), queryFn: () => crmApi.getLead(id!), enabled: !!id })
 
@@ -49,7 +65,10 @@ export const useSaveLead = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id?: string; data: Record<string, unknown> }) =>
       id ? crmApi.updateLead(id, data) : crmApi.createLead(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'leads'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      qc.invalidateQueries({ queryKey: KEY('leads', 'new-count') })
+    },
   })
 }
 
@@ -60,6 +79,7 @@ export const useConvertLead = () => {
       crmApi.convertLead(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      qc.invalidateQueries({ queryKey: KEY('leads', 'new-count') })
       qc.invalidateQueries({ queryKey: ['crm', 'deals'] })
       qc.invalidateQueries({ queryKey: ['crm', 'contacts'] })
     },

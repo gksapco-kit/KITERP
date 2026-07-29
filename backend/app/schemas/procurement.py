@@ -224,6 +224,10 @@ class PurchaseOrderUpdate(BaseModel):
 class ReceiveItemEntry(BaseModel):
     item_id: str
     quantity: int = Field(..., gt=0)
+    batch_number: Optional[str] = None
+    supplier_batch_number: Optional[str] = None
+    manufacturing_date: Optional[date] = None
+    expiry_date: Optional[date] = None
 
 
 class ReceiveItemsRequest(BaseModel):

@@ -34,6 +34,7 @@ from app.models.booking import Booking
 from app.models.project import Project, ProjectTask
 from app.models.notification import Notification
 from app.models.vendor_category import VendorCategory
+from app.models.product_group import ProductGroup, ProductGroupItem
 from app.models.procurement import (
     Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderReceipt,
     PurchaseOrderDeliverySchedule,
@@ -44,6 +45,18 @@ from app.models.procurement_requisition import (
 )
 from app.models.procurement_invoice import VendorInvoice, VendorInvoiceItem
 from app.models.procurement_goods import GoodsBatch, GoodsMovementDocument
+from app.models.pharma import (
+    PharmaBatchNumberModel,
+    PharmaBatchSequence, BatchTransaction, PharmaMbr, PharmaBpr,
+    PharmaQcSpec, PharmaInspectionLot, PharmaRecall,
+    PharmaDeviation, PharmaCapa, PharmaChangeControl,
+    PharmaAuditEvent, PharmaSerialUnit,
+    PharmaTempExcursion, PharmaEpcisEvent, PharmaTradingPartner,
+    PharmaComplaint,
+    PharmaSignerGroup, PharmaSignerGroupMember,
+    PharmaApprovalRule, PharmaApprovalRuleStep,
+    PharmaOrgRegion,
+)
 from app.models.procurement_special import (
     MaterialValuation, SubcontractingOrder, ConsignmentStock, ServiceEntrySheet,
 )
@@ -97,7 +110,7 @@ from app.models.crm import (
     CrmWorkflow, CrmWorkflowRun,
     CrmIntegration, CrmAuditLog, CrmAiInsight,
     CrmChatConversation, CrmChatMessage, CrmJourneyEvent,
-    CrmLeadIntakeToken,
+    CrmLeadIntakeToken, CrmNumberRange,
 )
 
 from app.models.commission import (
@@ -203,6 +216,8 @@ __all__ = [
     "ProjectTask",
     "Notification",
     "VendorCategory",
+    "ProductGroup",
+    "ProductGroupItem",
     "Supplier",
     "PurchaseOrder",
     "PurchaseOrderItem",
@@ -221,6 +236,27 @@ __all__ = [
     # Goods
     "GoodsBatch",
     "GoodsMovementDocument",
+    "PharmaBatchNumberModel",
+    "PharmaBatchSequence",
+    "BatchTransaction",
+    "PharmaMbr",
+    "PharmaBpr",
+    "PharmaQcSpec",
+    "PharmaInspectionLot",
+    "PharmaRecall",
+    "PharmaDeviation",
+    "PharmaCapa",
+    "PharmaChangeControl",
+    "PharmaAuditEvent",
+    "PharmaSerialUnit",
+    "PharmaTempExcursion",
+    "PharmaEpcisEvent",
+    "PharmaTradingPartner",
+    "PharmaSignerGroup",
+    "PharmaSignerGroupMember",
+    "PharmaApprovalRule",
+    "PharmaApprovalRuleStep",
+    "PharmaOrgRegion",
     # Special procurement
     "MaterialValuation",
     "SubcontractingOrder",
@@ -293,6 +329,7 @@ __all__ = [
     "CrmIntegration", "CrmAuditLog", "CrmAiInsight",
     "CrmChatConversation", "CrmChatMessage", "CrmJourneyEvent",
     "CrmLeadIntakeToken",
+    "CrmNumberRange",
     # Finance — dimensions
     "FinCompany", "FinCostCenter", "FinProject", "FinIntercompanyPartner",
     # Finance

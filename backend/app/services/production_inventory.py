@@ -82,6 +82,8 @@ async def post_production_completion(db: AsyncSession, vendor_id: UUID, order: P
 
     now = datetime.now(timezone.utc)
     lines: list[str] = []
+    # Component lots consumed this posting — linked into each FG batch for genealogy.
+    consumed_component_links: list[dict[str, Any]] = []
 
     # 1. Consume leaf materials from the snapshot taken when materials were reserved.
     for comp in order.material_requirements or []:
@@ -114,6 +116,27 @@ async def post_production_completion(db: AsyncSession, vendor_id: UUID, order: P
             store_id=order.store_id,
         ))
         lines.append(f"-{qty_int} x {comp.get('component_name', 'component')}")
+
+        # Pharma: FEFO-consume GoodsBatch when component is batch-managed (hard fail).
+        from app.models.vendor_product import Product as _Product
+        from app.services.pharma_batch import consume_batches_for_production
+        prod_row = (
+            await db.execute(
+                select(_Product).where(_Product.id == component_id, _Product.vendor_id == vendor_id)
+            )
+        ).scalar_one_or_none()
+        if prod_row and getattr(prod_row, "batch_managed", False):
+            batch_details = await consume_batches_for_production(
+                db,
+                vendor_id=vendor_id,
+                product_id=component_id,
+                quantity=Decimal(qty_int),
+                production_order_id=order.id,
+                plant_id=order.plant_id,
+            )
+            consumed_component_links.extend(batch_details)
+            lot_bits = ", ".join(f"{d['batch_number']}({d['qty']})" for d in batch_details)
+            lines.append(f"  lots: {lot_bits}")
 
         resv_result = await db.execute(select(StockReservation).where(
             StockReservation.vendor_id == vendor_id,
@@ -153,6 +176,29 @@ async def post_production_completion(db: AsyncSession, vendor_id: UUID, order: P
             store_id=order.store_id, storage_location_id=output_location,
         ))
         lines.append(f"+{qty_int} x {fg.get('name', 'product')}")
+
+        # Pharma: create FG GoodsBatch when product is batch-managed (hard fail + genealogy).
+        from app.models.vendor_product import Product as _Product
+        from app.services.pharma_batch import create_production_batch
+        fg_prod = (
+            await db.execute(
+                select(_Product).where(_Product.id == product_id, _Product.vendor_id == vendor_id)
+            )
+        ).scalar_one_or_none()
+        if fg_prod and getattr(fg_prod, "batch_managed", False):
+            qc_req = bool(getattr(fg_prod, "qc_required_on_production", False))
+            fg_batch = await create_production_batch(
+                db,
+                vendor_id=vendor_id,
+                product_id=product_id,
+                quantity=Decimal(qty_int),
+                production_order_id=order.id,
+                plant_id=order.plant_id,
+                storage_location_id=output_location,
+                qc_required=qc_req,
+                component_links=consumed_component_links,
+            )
+            lines.append(f"  FG batch {fg_batch.batch_number} ({fg_batch.quality_status})")
 
     order.inventory_posted_at = now
     recalculate_actual_material_cost(order)

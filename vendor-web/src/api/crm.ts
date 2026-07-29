@@ -68,6 +68,19 @@ export type Contact = {
   updated_at: string
 }
 
+export type CrmNumberRange = {
+  id: string
+  entity_type: string
+  name: string
+  prefix: string
+  number_from: number
+  number_to: number
+  current_number: number
+  pad_width: number
+  is_active: boolean
+  preview?: string
+}
+
 export type Lead = {
   id: string
   vendor_id: string
@@ -394,12 +407,17 @@ export type ChatConversation = {
   visitor_id?: string | null
   visitor_name?: string | null
   visitor_email?: string | null
+  visitor_phone?: string | null
   channel: string
   status: string
   assigned_to?: string | null
   bot_handled: boolean
   last_message_at: string
   created_at: string
+  converted_lead_id?: string | null
+  converted_at?: string | null
+  converted_ticket_id?: string | null
+  ticket_converted_at?: string | null
 }
 
 export type ChatMessage = {
@@ -495,6 +513,14 @@ export const crmApi = {
   convertLead: (id: string, payload: Record<string, unknown>) =>
     apiClient.post(`${BASE}/leads/${id}/convert`, payload).then(r => r.data),
   scoreLead: (id: string) => apiClient.post(`${BASE}/leads/${id}/score`).then(r => r.data),
+
+  // Number ranges (Leads, Contacts, Deals, …)
+  listNumberRanges: () =>
+    apiClient.get<CrmNumberRange[]>(`${BASE}/number-ranges`).then(r => r.data),
+  seedNumberRanges: () =>
+    apiClient.post<{ ok: boolean; count: number; items: CrmNumberRange[] }>(`${BASE}/number-ranges/seed`).then(r => r.data),
+  updateNumberRange: (entityType: string, data: Partial<CrmNumberRange>) =>
+    apiClient.put<CrmNumberRange>(`${BASE}/number-ranges/${entityType}`, data).then(r => r.data),
 
   // Pipelines
   listPipelines: () => apiClient.get<Pipeline[]>(`${BASE}/pipelines`).then(r => r.data),

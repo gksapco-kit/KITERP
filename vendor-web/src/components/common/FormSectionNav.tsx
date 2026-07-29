@@ -146,6 +146,7 @@ export function FormField({
   error: errorOverride,
   children,
   className,
+  action,
 }: {
   label: string
   name?: string
@@ -153,6 +154,8 @@ export function FormField({
   error?: string
   children: ReactNode
   className?: string
+  /** Optional control aligned to the label row (e.g. “+ Create”). */
+  action?: ReactNode
 }) {
   const { formState: { errors } } = useFormContext()
   const fieldName = name ?? findRegisteredFieldName(children)
@@ -178,9 +181,12 @@ export function FormField({
         className,
       )}
     >
-      <Label className={formLabelClass} required={required}>
-        {label}
-      </Label>
+      <div className="mb-0.5 flex min-h-5 items-center justify-between gap-2">
+        <Label className={cn(formLabelClass, 'mb-0')} required={required}>
+          {label}
+        </Label>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
       <div className={cn(invalid && formFieldInvalidChildClass)}>{enhancedChild}</div>
       {error && (
         <p className="text-xs text-red-600" role="alert">
