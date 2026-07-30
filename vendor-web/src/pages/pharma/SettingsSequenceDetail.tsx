@@ -5,6 +5,7 @@ import { ArrowLeft, GitBranch, History, Package } from 'lucide-react'
 import { pharmaApi } from '@/api/pharma'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
+  fmtErr,
   PharmaCard,
   PharmaEmpty,
   PharmaPageHeader,
@@ -27,7 +28,7 @@ export default function PharmaSettingsSequenceDetailPage() {
         setData(d)
         setError('')
       })
-      .catch((e: any) => setError(e?.response?.data?.detail || e.message || 'Failed to load'))
+      .catch((e: unknown) => setError(fmtErr(e, 'Failed to load')))
       .finally(() => setLoading(false))
   }, [sequenceId])
 

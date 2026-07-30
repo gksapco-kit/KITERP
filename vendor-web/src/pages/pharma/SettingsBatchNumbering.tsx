@@ -12,9 +12,11 @@ import {
   X,
 } from 'lucide-react'
 import { pharmaApi } from '@/api/pharma'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
+import { extractApiError } from '@/lib/errorMessages'
 import { useHasPermission } from '@/hooks/usePermissions'
 import { PharmaCard } from './pharmaShared'
 
@@ -184,8 +186,7 @@ export default function PharmaSettingsBatchNumberingPage() {
       const seqRes = await pharmaApi.sequences(scopePlantId ? { plant_id: scopePlantId } : undefined)
       setSequences(seqRes?.sequences || [])
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      toast.error(msg || 'Failed to load sequences')
+      toast.error(extractApiError(e, 'Failed to load sequences'))
     } finally {
       setLoading(false)
     }
@@ -267,8 +268,7 @@ export default function PharmaSettingsBatchNumberingPage() {
         })
       }
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      toast.error(msg || 'Allocation failed')
+      toast.error(extractApiError(e, 'Allocation failed'))
     }
   }
 
@@ -382,15 +382,19 @@ export default function PharmaSettingsBatchNumberingPage() {
       setPanelMode(null)
       await loadModels()
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      toast.error(msg || 'Save failed')
+      toast.error(extractApiError(e, 'Save failed'))
     } finally {
       setSaving(false)
     }
   }
 
   const deleteModel = async (id: string) => {
-    if (!window.confirm('Delete this batch number model? This cannot be undone.')) return
+    const ok = await askConfirm({
+      title: 'Delete this batch number model?',
+      description: 'This cannot be undone. Existing sequences and allocated numbers are not removed.',
+      variant: 'danger',
+    })
+    if (!ok) return
     setDeletingId(id)
     try {
       await pharmaApi.deleteModel(id)
@@ -399,8 +403,7 @@ export default function PharmaSettingsBatchNumberingPage() {
       if (editingModel?.id === id) closePanel()
       await loadModels()
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      toast.error(msg || 'Delete failed')
+      toast.error(extractApiError(e, 'Delete failed'))
     } finally {
       setDeletingId(null)
     }

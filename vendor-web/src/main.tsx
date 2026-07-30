@@ -5,7 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { attachAutoRefreshInterceptor, createAppQueryClient } from '@/lib/queryClient'
 import { RouterProvider } from 'react-router-dom'
-import { Toaster } from 'sonner'
+import { Toaster, toast as sonnerToast } from 'sonner'
 
 import { router } from './routes'
 import { ThemeSync } from './components/ThemeSync'
@@ -19,8 +19,18 @@ import { ensureAppFavicon } from './lib/appFavicon'
 import { refreshAuthSessionDeduped } from './lib/authSession'
 import { installAuthFocusQuerySync } from './lib/authFocusQuerySync'
 import { getAccessToken } from './lib/authTokenStorage'
-import { isAxiosNetworkError } from './lib/errorMessages'
+import { coerceToastMessage, isAxiosNetworkError } from './lib/errorMessages'
 import './styles/globals.css'
+
+// Prevent React #31 when callers pass FastAPI validation objects to toast.error().
+const toastError = sonnerToast.error.bind(sonnerToast)
+sonnerToast.error = (message, data) => {
+  const safe =
+    typeof message === 'string' || typeof message === 'number'
+      ? message
+      : coerceToastMessage(message)
+  return toastError(safe, data)
+}
 
 initGlobalEscapeHandler()
 initPreviewTabOpenerBridge()

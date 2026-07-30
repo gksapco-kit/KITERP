@@ -713,7 +713,7 @@ export function PharmaESignDialog({
       })
       onClose()
     } catch (e: any) {
-      setError(e?.response?.data?.detail || e?.message || 'Signature failed')
+      setError(fmtErr(e, 'Signature failed'))
     } finally {
       setBusy(false)
     }

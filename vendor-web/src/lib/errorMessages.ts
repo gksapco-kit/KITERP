@@ -222,6 +222,36 @@ export function apiError(context: string) {
   }
 }
 
+/** Coerce any value to a string safe for Sonner — never pass API detail objects/arrays as React children. */
+export function coerceToastMessage(message: unknown, fallback = 'Something went wrong'): string {
+  if (message == null || message === '') return fallback
+  if (typeof message === 'string') return message
+  if (typeof message === 'number' || typeof message === 'boolean') return String(message)
+  if (Array.isArray(message)) {
+    const parts = message.map((item) => {
+      if (typeof item === 'string') return item
+      if (item && typeof item === 'object') {
+        const o = item as ApiErrorDetail & Record<string, unknown>
+        const field =
+          (typeof o.field === 'string' && o.field) ||
+          (Array.isArray(o.loc) ? o.loc.filter((p) => p !== 'body').join('.') : '')
+        const msg = o.message ?? o.msg ?? o.detail
+        if (field && msg) return humanizeValidationMessage(field, String(msg))
+        if (msg) return String(msg)
+      }
+      return JSON.stringify(item)
+    })
+    return parts.filter(Boolean).join(' · ') || fallback
+  }
+  if (typeof message === 'object') {
+    const o = message as Record<string, unknown>
+    if (typeof o.message === 'string') return o.message
+    if (typeof o.detail === 'string') return o.detail
+    return JSON.stringify(message)
+  }
+  return fallback
+}
+
 export type AmbiguousVendorOption = { slug: string; name: string }
 
 /** When /auth/login returns ambiguous_login, use this to show a business picker instead of a generic toast. */
