@@ -56,8 +56,10 @@ function splitSelectClassName(className?: string) {
   const wrapper: string[] = []
   const trigger: string[] = []
   for (const token of (className ?? '').split(/\s+/).filter(Boolean)) {
+    // Width/layout utilities must hit the wrapper — trigger-only `w-*` leaves
+    // the default `w-full` wrapper and forces each select onto its own row.
     const onWrapper =
-      /^(relative|w-full|min-w-|max-w-|flex-1|flex-shrink|shrink|grow|basis-|mt-|mb-|ml-|mr-|mx-|my-|self-)/.test(
+      /^(relative|w-|min-w-|max-w-|flex-1|flex-shrink|shrink|grow|basis-|mt-|mb-|ml-|mr-|mx-|my-|self-)/.test(
         token,
       )
     if (onWrapper) wrapper.push(token)

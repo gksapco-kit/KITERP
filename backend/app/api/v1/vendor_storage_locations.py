@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.storage_location import StorageLocation
 from app.models.store import Store
 from app.schemas.storage_location import StorageLocationCreate, StorageLocationUpdate
@@ -15,7 +15,7 @@ from app.repositories.storage_location_repo import StorageLocationRepository
 from app.repositories.plant_repo import PlantRepository
 from app.services.catalog_store_scope import validate_store_ids
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("masterdata.view"))])
 
 VALID_STOCK_TYPES = {"unrestricted", "quarantine", "rejected", "returns"}
 

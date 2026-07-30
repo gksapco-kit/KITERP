@@ -17,12 +17,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.production import ProductionOrder
 from app.models.production_routing import ProductionOperation, WorkCenter
 from app.models.store import Store
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("production.view"))])
 
 
 def _f(v) -> float:

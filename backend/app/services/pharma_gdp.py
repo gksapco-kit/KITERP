@@ -166,6 +166,79 @@ def assert_customer_wholesale_license(
         raise HTTPException(400, f"Customer wholesale license expired on {expires.isoformat()}")
 
 
+async def record_wholesale_license_history(
+    db: AsyncSession,
+    *,
+    vendor_id: UUID,
+    customer_id: UUID,
+    action: str,
+    license_number: Optional[str] = None,
+    license_expires: Optional[date] = None,
+    previous_license_number: Optional[str] = None,
+    previous_license_expires: Optional[date] = None,
+    check_ok: Optional[bool] = None,
+    detail: Optional[str] = None,
+    created_by: Optional[UUID] = None,
+) -> Any:
+    from app.models.pharma import PharmaWholesaleLicenseHistory
+
+    row = PharmaWholesaleLicenseHistory(
+        vendor_id=vendor_id,
+        customer_id=customer_id,
+        action=action,
+        license_number=(license_number or None),
+        license_expires=license_expires,
+        previous_license_number=(previous_license_number or None),
+        previous_license_expires=previous_license_expires,
+        check_ok=check_ok,
+        detail=(detail[:500] if detail else None),
+        created_by=created_by,
+    )
+    db.add(row)
+    return row
+
+
+def wholesale_license_history_dict(row: Any) -> dict[str, Any]:
+    return {
+        "id": str(row.id),
+        "customer_id": str(row.customer_id),
+        "action": row.action,
+        "license_number": row.license_number,
+        "license_expires": row.license_expires.isoformat() if row.license_expires else None,
+        "previous_license_number": row.previous_license_number,
+        "previous_license_expires": (
+            row.previous_license_expires.isoformat() if row.previous_license_expires else None
+        ),
+        "check_ok": row.check_ok,
+        "detail": row.detail,
+        "created_by": str(row.created_by) if row.created_by else None,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+async def list_wholesale_license_history(
+    db: AsyncSession,
+    vendor_id: UUID,
+    customer_id: UUID,
+    *,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    from app.models.pharma import PharmaWholesaleLicenseHistory
+
+    rows = (
+        await db.execute(
+            select(PharmaWholesaleLicenseHistory)
+            .where(
+                PharmaWholesaleLicenseHistory.vendor_id == vendor_id,
+                PharmaWholesaleLicenseHistory.customer_id == customer_id,
+            )
+            .order_by(PharmaWholesaleLicenseHistory.created_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return [wholesale_license_history_dict(r) for r in rows]
+
+
 async def count_open_excursions(db: AsyncSession, vendor_id: UUID) -> int:
     from sqlalchemy import func
     return int(

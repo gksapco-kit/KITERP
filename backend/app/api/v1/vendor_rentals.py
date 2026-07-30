@@ -3,12 +3,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
 from app.database import get_db
 from app.models.user import User
 from app.services.rental_service import RentalService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("rentals.view"))])
 
 
 @router.get("/assets")

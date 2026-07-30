@@ -111,6 +111,8 @@ import {
   PharmaSerializationPage,
 } from '@/pages/pharma/TraceQms'
 import { PharmaGdpPage, PharmaTrackTracePage } from '@/pages/pharma/StageC'
+import PharmaWholesaleLicensePage from '@/pages/pharma/WholesaleLicense'
+import PharmaReportingManagerPage from '@/pages/pharma/ReportingManager'
 import StoresPage from '@/pages/stores/index'
 import ProfilePage from '@/pages/profile/index'
 import RelationshipManagerPage from '@/pages/relationship-manager/index'
@@ -402,7 +404,9 @@ export const router = createBrowserRouter([
       { path: 'pharma/audit', element: <PharmaAuditPage /> },
       { path: 'pharma/serialization', element: <PharmaSerializationPage /> },
       { path: 'pharma/gdp', element: <PharmaGdpPage /> },
+      { path: 'pharma/wholesale-license', element: <PharmaWholesaleLicensePage /> },
       { path: 'pharma/track-trace', element: <PharmaTrackTracePage /> },
+      { path: 'pharma/reports', element: <PharmaReportingManagerPage /> },
       { path: 'inventory', element: <Inventory /> },
       { path: 'inventory/settings', element: <InventorySettingsPage /> },
       { path: 'storage-locations', element: <StorageLocationsPage /> },

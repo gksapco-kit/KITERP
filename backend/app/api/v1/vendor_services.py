@@ -11,7 +11,7 @@ import math
 import uuid as uuid_mod
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
 from app.models.user import User
 from app.models.vendor_service import Service, ServiceAvailability, ServicePlan, ServiceBOMItem, ServiceResource
 from app.models.vendor_product import Product
@@ -29,7 +29,7 @@ from app.services.material_code import generate_service_material_code
 
 from datetime import date as date_type, datetime
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("services.view"))])
 
 DATE_FIELDS = {"service_expiry_date"}
 DATETIME_FIELDS = {"discount_start_date", "discount_end_date"}

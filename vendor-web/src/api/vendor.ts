@@ -1559,6 +1559,7 @@ export const vendorApi = {
     name: string
     description?: string
     permissions: string[]
+    copy_from_builtin?: string
   }): Promise<VendorRole> => {
     const response = await apiClient.post('/vendors/me/roles', data)
     return response.data

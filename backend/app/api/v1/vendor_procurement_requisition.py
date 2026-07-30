@@ -9,7 +9,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id, get_current_vendor_user
+from app.api.deps import get_current_vendor_id, get_current_vendor_user, require_permission
 from app.models.vendor_user import VendorUser
 from app.models.vendor_product import Product, ProductVariant
 from app.models.store import Store, StoreInventory, ProductStore
@@ -27,7 +27,7 @@ from app.schemas.procurement_requisition import (
 )
 from app.repositories.procurement_requisition_repo import PurchaseRequisitionRepository
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("procurement.view"))])
 
 
 def _normalize_uom(uom: str | None) -> str:

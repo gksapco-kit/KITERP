@@ -51,6 +51,7 @@ from app.api.v1 import (
     vendor_procurement_special,
     vendor_business_partners,
     vendor_pharma,
+    vendor_pharma_reports,
     vendor_product_groups,
 )
 
@@ -134,6 +135,7 @@ api_router.include_router(vendor_sales_area.router, prefix="/vendors/me/sales-co
 api_router.include_router(vendor_message_config.router, prefix="/vendors/me", tags=["Vendor Message Config"])
 api_router.include_router(vendor_production.router, prefix="/vendors/me", tags=["Production Orders"])
 api_router.include_router(vendor_pharma.router, prefix="/vendors/me/pharma", tags=["Pharmaceutical Manufacturing"])
+api_router.include_router(vendor_pharma_reports.router, prefix="/vendors/me/pharma-reports", tags=["Pharma Reporting Manager"])
 api_router.include_router(vendor_production_ops.router, prefix="/vendors/me", tags=["Production Routing"])
 api_router.include_router(vendor_production_analytics.router, prefix="/vendors/me", tags=["Production Analytics"])
 api_router.include_router(vendor_marketplace.router, prefix="/vendors/me/marketplace", tags=["Vendor Marketplace"])

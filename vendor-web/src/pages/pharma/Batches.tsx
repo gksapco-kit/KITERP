@@ -18,6 +18,7 @@ import {
   PharmaStatusBadge,
   PharmaToolbar,
   isUuid,
+  fmtErr,
 } from './pharmaShared'
 
 export function PharmaBatchesPage() {
@@ -40,7 +41,7 @@ export function PharmaBatchesPage() {
       setBatches(res.batches || [])
       setTotal(res.total ?? (res.batches || []).length)
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Failed to load batches')
+      toast.error(fmtErr(e, 'Failed to load batches'))
     } finally {
       setLoading(false)
     }
@@ -56,7 +57,7 @@ export function PharmaBatchesPage() {
       toast.success('Status updated')
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Update failed')
+      toast.error(fmtErr(e, 'Update failed'))
     }
   }
 
@@ -77,8 +78,8 @@ export function PharmaBatchesPage() {
         title="Batches"
         subtitle="Lot register — GR and production create lots for batch-managed products. Formal release is via Inspections."
       />
-      <PharmaToolbar>
-        <div className="relative">
+      <PharmaToolbar className="mb-4 flex-nowrap">
+        <div className="relative shrink-0">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="w-52 pl-8"
@@ -89,6 +90,7 @@ export function PharmaBatchesPage() {
           />
         </div>
         <Select
+          className="w-48"
           value={status}
           onChange={setStatus}
           options={[
@@ -102,7 +104,7 @@ export function PharmaBatchesPage() {
           <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
-        <span className="text-xs text-muted-foreground">{total} lot(s)</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{total} lot(s)</span>
       </PharmaToolbar>
       <PharmaCard>
         {loading ? (
@@ -287,7 +289,7 @@ export function PharmaFefoPage() {
       const res = await pharmaApi.fefo({ product_id: productId.trim(), qty: Number(qty) || 1 })
       setResult(res)
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'FEFO failed')
+      toast.error(fmtErr(e, 'FEFO failed'))
       setResult(null)
     } finally {
       setRunning(false)

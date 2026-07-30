@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
 from app.models.user import User
 from app.models.vendor_category import VendorCategory
 from app.models.vendor_product import Product
@@ -18,7 +18,7 @@ from app.repositories.vendor_category_repo import VendorCategoryRepository
 from app.services.vendor_service import VendorService
 from app.services.media_upload import delete_stored_file
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("products.view"))])
 
 
 def _slugify(name: str) -> str:

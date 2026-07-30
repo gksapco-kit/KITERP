@@ -13,7 +13,7 @@ from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.store import Store
 from app.models.sales_area import SalesDivision, DistributionChannel, DeliveryChannel, SalesArea
 from app.schemas.sales_area import (
@@ -23,7 +23,7 @@ from app.schemas.sales_area import (
     SalesAreaCreate, SalesAreaUpdate,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("orders.view"))])
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

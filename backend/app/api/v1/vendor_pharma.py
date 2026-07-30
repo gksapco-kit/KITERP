@@ -20,6 +20,8 @@ from app.api.deps import get_current_vendor_id, require_permission
 from app.models.vendor_user import VendorUser
 from app.models.vendor_product import Product
 from app.models.procurement_goods import GoodsBatch
+from app.models.procurement import PurchaseOrder
+from app.models.production import ProductionOrder
 from app.models.storage_location import StorageLocation
 from app.models.vendor import Vendor
 from app.models.pharma import (
@@ -126,7 +128,31 @@ def _require_uuid(value: Optional[str], field: str) -> UUID:
 
 # ── serializers ───────────────────────────────────────────────────────────────
 
-def _batch_dict(b: GoodsBatch, product_name: Optional[str] = None) -> dict:
+def _batch_source_label(
+    source_type: Optional[str],
+    source_ref: Optional[str],
+) -> Optional[str]:
+    kind = (source_type or "").lower()
+    if kind in ("purchase", "stock_in") and source_ref:
+        return f"PO {source_ref}"
+    if kind == "production" and source_ref:
+        return f"Production {source_ref}"
+    if kind == "transfer" and source_ref:
+        return f"Transfer {source_ref}"
+    if source_ref:
+        return source_ref
+    if kind:
+        return kind.replace("_", " ").title()
+    return None
+
+
+def _batch_dict(
+    b: GoodsBatch,
+    product_name: Optional[str] = None,
+    *,
+    source_ref: Optional[str] = None,
+) -> dict:
+    source_label = _batch_source_label(b.source_type, source_ref)
     return {
         "id": str(b.id),
         "product_id": str(b.product_id),
@@ -145,12 +171,47 @@ def _batch_dict(b: GoodsBatch, product_name: Optional[str] = None) -> dict:
         "quantity_consumed": float(b.quantity_consumed or 0),
         "source_type": b.source_type,
         "source_id": str(b.source_id) if b.source_id else None,
+        "source_ref": source_ref,
+        "source_label": source_label,
         "quality_status": b.quality_status,
         "supplier_batch_number": b.supplier_batch_number,
         "notes": b.notes,
         "is_active": b.is_active,
         "created_at": b.created_at.isoformat() if b.created_at else None,
     }
+
+
+async def _resolve_batch_source_refs(
+    db: AsyncSession,
+    batches: list[GoodsBatch],
+) -> dict:
+    """Map source_id → human ref (PO number / production order ref)."""
+    po_ids = {
+        b.source_id
+        for b in batches
+        if b.source_id and (b.source_type or "").lower() in ("purchase", "stock_in")
+    }
+    prod_ids = {
+        b.source_id
+        for b in batches
+        if b.source_id and (b.source_type or "").lower() == "production"
+    }
+    ref_map: dict = {}
+    if po_ids:
+        for row in (
+            await db.execute(
+                select(PurchaseOrder.id, PurchaseOrder.po_number).where(PurchaseOrder.id.in_(po_ids))
+            )
+        ).all():
+            ref_map[row[0]] = row[1]
+    if prod_ids:
+        for row in (
+            await db.execute(
+                select(ProductionOrder.id, ProductionOrder.ref).where(ProductionOrder.id.in_(prod_ids))
+            )
+        ).all():
+            ref_map[row[0]] = row[1]
+    return ref_map
 
 
 def _txn_dict(t: BatchTransaction) -> dict:
@@ -666,6 +727,9 @@ async def create_approval_rule(
         ))
         db.add(step_objs[-1])
     await db.commit()
+    await db.refresh(rule)
+    for s in step_objs:
+        await db.refresh(s)
     return JSONResponse(_rule_to_dict(rule, step_objs), status_code=201)
 
 
@@ -897,6 +961,9 @@ async def update_approval_rule(
         ))
         db.add(step_objs[-1])
     await db.commit()
+    await db.refresh(rule)
+    for s in step_objs:
+        await db.refresh(s)
     return JSONResponse(_rule_to_dict(rule, step_objs))
 
 
@@ -1858,8 +1925,16 @@ async def list_pharma_batches(
             await db.execute(select(Product.id, Product.name).where(Product.id.in_(product_ids)))
         ).all()
         name_map = {row[0]: row[1] for row in name_rows}
+    ref_map = await _resolve_batch_source_refs(db, list(rows))
     return JSONResponse({
-        "batches": [_batch_dict(b, product_name=name_map.get(b.product_id)) for b in rows],
+        "batches": [
+            _batch_dict(
+                b,
+                product_name=name_map.get(b.product_id),
+                source_ref=ref_map.get(b.source_id) if b.source_id else None,
+            )
+            for b in rows
+        ],
         "total": total,
     })
 
@@ -1881,7 +1956,14 @@ async def get_pharma_batch(
     if batch.product_id:
         row = (await db.execute(select(Product.name).where(Product.id == batch.product_id))).scalar_one_or_none()
         product_name = row
-    return JSONResponse(_batch_dict(batch, product_name=product_name))
+    ref_map = await _resolve_batch_source_refs(db, [batch])
+    return JSONResponse(
+        _batch_dict(
+            batch,
+            product_name=product_name,
+            source_ref=ref_map.get(batch.source_id) if batch.source_id else None,
+        )
+    )
 
 
 class BatchStatusUpdate(BaseModel):
@@ -2663,10 +2745,17 @@ class QcSpecCreate(BaseModel):
     notes: Optional[str] = None
 
 
-def _qc_spec_dict(s: PharmaQcSpec) -> dict:
+def _qc_spec_dict(
+    s: PharmaQcSpec,
+    *,
+    product_name: Optional[str] = None,
+    product_sku: Optional[str] = None,
+) -> dict:
     return {
         "id": str(s.id),
         "product_id": str(s.product_id),
+        "product_name": product_name,
+        "product_sku": product_sku,
         "code": s.code,
         "title": s.title,
         "version": s.version,
@@ -2675,6 +2764,18 @@ def _qc_spec_dict(s: PharmaQcSpec) -> dict:
         "notes": s.notes,
         "created_at": s.created_at.isoformat() if s.created_at else None,
     }
+
+
+def _suggest_next_qc_code(codes: list[str]) -> str:
+    """Next sequential numeric code from existing specs (e.g. 00042 → 00043)."""
+    max_n = 0
+    width = 5
+    for raw in codes:
+        c = (raw or "").strip()
+        if c.isdigit():
+            max_n = max(max_n, int(c))
+            width = max(width, len(c))
+    return str(max_n + 1).zfill(width)
 
 
 @router.get("/qc-specs")
@@ -2687,7 +2788,34 @@ async def list_qc_specs(
     if product_id:
         q = q.where(PharmaQcSpec.product_id == _require_uuid(product_id, "product_id"))
     rows = (await db.execute(q.order_by(PharmaQcSpec.code))).scalars().all()
-    return JSONResponse({"items": [_qc_spec_dict(r) for r in rows]})
+    # Always suggest from the full vendor code space (not the filtered subset).
+    all_codes = (
+        await db.execute(select(PharmaQcSpec.code).where(PharmaQcSpec.vendor_id == vendor_id))
+    ).scalars().all()
+    name_map: dict = {}
+    sku_map: dict = {}
+    product_ids = {r.product_id for r in rows if r.product_id}
+    if product_ids:
+        for row in (
+            await db.execute(
+                select(Product.id, Product.name, Product.sku, Product.material_code).where(
+                    Product.id.in_(product_ids)
+                )
+            )
+        ).all():
+            name_map[row[0]] = row[1]
+            sku_map[row[0]] = row[2] or row[3]
+    return JSONResponse({
+        "items": [
+            _qc_spec_dict(
+                r,
+                product_name=name_map.get(r.product_id),
+                product_sku=sku_map.get(r.product_id),
+            )
+            for r in rows
+        ],
+        "suggested_code": _suggest_next_qc_code(list(all_codes)),
+    })
 
 
 @router.post("/qc-specs", status_code=201)
@@ -2823,15 +2951,44 @@ class InspectionCreate(BaseModel):
     sample_qty: Optional[float] = None
 
 
-def _insp_dict(i: PharmaInspectionLot, *, batch_number: Optional[str] = None, product_name: Optional[str] = None) -> dict:
+def _insp_dict(
+    i: PharmaInspectionLot,
+    *,
+    batch_number: Optional[str] = None,
+    product_name: Optional[str] = None,
+    source_type: Optional[str] = None,
+    source_id: Optional[str] = None,
+    source_ref: Optional[str] = None,
+    supplier_batch_number: Optional[str] = None,
+) -> dict:
+    origin = i.origin or ""
+    # Prefer lot source; fall back to inspection origin for label kind.
+    kind = (source_type or "").lower() or (
+        "purchase" if origin == "receipt" else "production" if origin == "production" else origin or None
+    )
+    if kind in ("purchase", "stock_in") and source_ref:
+        source_label = f"PO {source_ref}"
+    elif kind == "production" and source_ref:
+        source_label = f"Production {source_ref}"
+    elif kind == "transfer" and source_ref:
+        source_label = f"Transfer {source_ref}"
+    elif kind:
+        source_label = kind.replace("_", " ").title()
+    else:
+        source_label = None
     return {
         "id": str(i.id),
         "goods_batch_id": str(i.goods_batch_id),
         "batch_number": batch_number,
+        "supplier_batch_number": supplier_batch_number,
         "product_id": str(i.product_id),
         "product_name": product_name,
         "qc_spec_id": str(i.qc_spec_id) if i.qc_spec_id else None,
         "origin": i.origin,
+        "source_type": source_type or kind,
+        "source_id": source_id,
+        "source_ref": source_ref,
+        "source_label": source_label,
         "status": i.status,
         "sample_qty": float(i.sample_qty) if i.sample_qty is not None else None,
         "results": i.results or [],
@@ -2863,22 +3020,63 @@ async def list_inspections(
     product_ids = {r.product_id for r in rows}
     batch_map: dict = {}
     name_map: dict = {}
+    po_map: dict = {}
+    prod_map: dict = {}
     if batch_ids:
         for b in (await db.execute(select(GoodsBatch).where(GoodsBatch.id.in_(batch_ids)))).scalars().all():
-            batch_map[b.id] = b.batch_number
+            batch_map[b.id] = b
     if product_ids:
         for row in (await db.execute(select(Product.id, Product.name).where(Product.id.in_(product_ids)))).all():
             name_map[row[0]] = row[1]
-    return JSONResponse({
-        "items": [
+    purchase_ids = {
+        b.source_id
+        for b in batch_map.values()
+        if b.source_id and (b.source_type or "").lower() in ("purchase", "stock_in")
+    }
+    production_ids = {
+        b.source_id
+        for b in batch_map.values()
+        if b.source_id and (b.source_type or "").lower() == "production"
+    }
+    if purchase_ids:
+        for row in (
+            await db.execute(
+                select(PurchaseOrder.id, PurchaseOrder.po_number).where(PurchaseOrder.id.in_(purchase_ids))
+            )
+        ).all():
+            po_map[row[0]] = row[1]
+    if production_ids:
+        for row in (
+            await db.execute(
+                select(ProductionOrder.id, ProductionOrder.ref).where(ProductionOrder.id.in_(production_ids))
+            )
+        ).all():
+            prod_map[row[0]] = row[1]
+
+    items = []
+    for r in rows:
+        b = batch_map.get(r.goods_batch_id)
+        source_type = b.source_type if b else None
+        source_id = b.source_id if b else None
+        source_ref = None
+        if source_id:
+            st = (source_type or "").lower()
+            if st in ("purchase", "stock_in"):
+                source_ref = po_map.get(source_id)
+            elif st == "production":
+                source_ref = prod_map.get(source_id)
+        items.append(
             _insp_dict(
                 r,
-                batch_number=batch_map.get(r.goods_batch_id),
+                batch_number=b.batch_number if b else None,
                 product_name=name_map.get(r.product_id),
+                source_type=source_type,
+                source_id=str(source_id) if source_id else None,
+                source_ref=source_ref,
+                supplier_batch_number=b.supplier_batch_number if b else None,
             )
-            for r in rows
-        ]
-    })
+        )
+    return JSONResponse({"items": items})
 
 
 @router.post("/inspections", status_code=201)
@@ -3728,6 +3926,7 @@ def _complaint_dict(c: PharmaComplaint) -> dict:
         "title": c.title,
         "description": c.description,
         "goods_batch_id": str(c.goods_batch_id) if c.goods_batch_id else None,
+        "customer_id": str(c.customer_id) if c.customer_id else None,
         "reported_by": c.reported_by,
         "status": c.status,
         "investigation_notes": c.investigation_notes,
@@ -3744,6 +3943,7 @@ class ComplaintCreate(BaseModel):
     title: str
     description: Optional[str] = None
     goods_batch_id: Optional[str] = None
+    customer_id: Optional[str] = None
     reported_by: Optional[str] = None
 
 
@@ -3791,6 +3991,18 @@ async def create_complaint(
     n = int((await db.execute(count_q)).scalar() or 0) + 1
     number = f"{prefix}{n:04d}"
 
+    customer_uuid = None
+    if data.customer_id:
+        from app.models.customer import Customer
+        customer_uuid = _require_uuid(data.customer_id, "customer_id")
+        cust = (
+            await db.execute(
+                select(Customer).where(Customer.id == customer_uuid, Customer.vendor_id == vendor_id)
+            )
+        ).scalar_one_or_none()
+        if not cust:
+            raise HTTPException(404, "Customer not found")
+
     complaint = PharmaComplaint(
         vendor_id=vendor_id,
         number=number,
@@ -3799,13 +4011,20 @@ async def create_complaint(
         title=data.title,
         description=data.description,
         goods_batch_id=_require_uuid(data.goods_batch_id, "goods_batch_id") if data.goods_batch_id else None,
+        customer_id=customer_uuid,
         reported_by=data.reported_by,
         created_by=vu.id,
     )
     db.add(complaint)
+    await db.flush()  # assign complaint.id before audit (entity_id is NOT NULL)
     await append_pharma_audit(
         db, vendor_id=vendor_id, entity_type="pharma_complaint", entity_id=complaint.id,
-        action="create", actor_id=vu.id, new_value={"number": number, "title": data.title},
+        action="create", actor_id=vu.id,
+        new_value={
+            "number": number,
+            "title": data.title,
+            "customer_id": str(customer_uuid) if customer_uuid else None,
+        },
     )
     await db.commit()
     await db.refresh(complaint)
@@ -4762,9 +4981,13 @@ async def check_wholesale_license(
     data: WholesaleLicenseCheck,
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
+    vu: VendorUser = Depends(require_permission("pharma.manage")),
 ):
     from app.models.customer import Customer
-    from app.services.pharma_gdp import assert_customer_wholesale_license
+    from app.services.pharma_gdp import (
+        assert_customer_wholesale_license,
+        record_wholesale_license_history,
+    )
     cfg = await load_pharma_settings(db, vendor_id)
     cust = (
         await db.execute(
@@ -4783,6 +5006,18 @@ async def check_wholesale_license(
     except HTTPException as exc:
         ok = False
         detail = str(exc.detail)
+    await record_wholesale_license_history(
+        db,
+        vendor_id=vendor_id,
+        customer_id=cust.id,
+        action="checked",
+        license_number=cust.wholesale_license_number,
+        license_expires=cust.wholesale_license_expires,
+        check_ok=ok,
+        detail=detail,
+        created_by=vu.id,
+    )
+    await db.commit()
     return JSONResponse({
         "ok": ok,
         "detail": detail,
@@ -4790,6 +5025,155 @@ async def check_wholesale_license(
         "license_number": cust.wholesale_license_number,
         "license_expires": cust.wholesale_license_expires.isoformat() if cust.wholesale_license_expires else None,
     })
+
+
+@router.get("/gdp/license-history")
+async def wholesale_license_history(
+    customer_id: str = Query(...),
+    limit: int = Query(50, ge=1, le=200),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _perm: VendorUser = Depends(require_permission("pharma.manage")),
+):
+    from app.models.customer import Customer
+    from app.services.pharma_gdp import list_wholesale_license_history
+
+    cust = (
+        await db.execute(
+            select(Customer).where(
+                Customer.id == _require_uuid(customer_id, "customer_id"),
+                Customer.vendor_id == vendor_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not cust:
+        raise HTTPException(404, "Customer not found")
+    items = await list_wholesale_license_history(
+        db, vendor_id, cust.id, limit=limit
+    )
+    return JSONResponse({
+        "customer_id": str(cust.id),
+        "customer_name": cust.company_name or cust.full_name,
+        "items": items,
+    })
+
+
+def _license_document_dict(row) -> dict:
+    return {
+        "id": str(row.id),
+        "customer_id": str(row.customer_id),
+        "file_url": row.file_url,
+        "filename": row.filename,
+        "content_type": row.content_type,
+        "size_bytes": row.size_bytes,
+        "created_by": str(row.created_by) if row.created_by else None,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+@router.get("/gdp/license-documents")
+async def list_wholesale_license_documents(
+    customer_id: str = Query(...),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _perm: VendorUser = Depends(require_permission("pharma.manage")),
+):
+    from app.models.customer import Customer
+    from app.models.pharma import PharmaWholesaleLicenseDocument
+
+    cust = (
+        await db.execute(
+            select(Customer).where(
+                Customer.id == _require_uuid(customer_id, "customer_id"),
+                Customer.vendor_id == vendor_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not cust:
+        raise HTTPException(404, "Customer not found")
+    rows = (
+        await db.execute(
+            select(PharmaWholesaleLicenseDocument)
+            .where(
+                PharmaWholesaleLicenseDocument.vendor_id == vendor_id,
+                PharmaWholesaleLicenseDocument.customer_id == cust.id,
+            )
+            .order_by(PharmaWholesaleLicenseDocument.created_at.desc())
+        )
+    ).scalars().all()
+    return JSONResponse({
+        "customer_id": str(cust.id),
+        "customer_name": cust.company_name or cust.full_name,
+        "items": [_license_document_dict(r) for r in rows],
+    })
+
+
+@router.post("/gdp/license-documents")
+async def upload_wholesale_license_document(
+    customer_id: str = Query(...),
+    file: UploadFile = File(...),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    vu: VendorUser = Depends(require_permission("pharma.manage")),
+):
+    from app.models.customer import Customer
+    from app.models.pharma import PharmaWholesaleLicenseDocument
+    from app.services.media_upload import save_wholesale_license_document
+
+    cust = (
+        await db.execute(
+            select(Customer).where(
+                Customer.id == _require_uuid(customer_id, "customer_id"),
+                Customer.vendor_id == vendor_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not cust:
+        raise HTTPException(404, "Customer not found")
+    payload = await save_wholesale_license_document(file, vendor_id, cust.id)
+    row = PharmaWholesaleLicenseDocument(
+        vendor_id=vendor_id,
+        customer_id=cust.id,
+        file_url=payload["url"],
+        filename=payload["filename"][:255],
+        content_type=payload.get("content_type"),
+        size_bytes=payload.get("size"),
+        created_by=vu.id,
+    )
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return JSONResponse(_license_document_dict(row), status_code=201)
+
+
+@router.delete("/gdp/license-documents/{document_id}", status_code=204)
+async def delete_wholesale_license_document(
+    document_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _perm: VendorUser = Depends(require_permission("pharma.manage")),
+):
+    from app.models.pharma import PharmaWholesaleLicenseDocument
+    from app.services.media_upload import get_file_service
+
+    row = (
+        await db.execute(
+            select(PharmaWholesaleLicenseDocument).where(
+                PharmaWholesaleLicenseDocument.id == document_id,
+                PharmaWholesaleLicenseDocument.vendor_id == vendor_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Document not found")
+    file_url = row.file_url
+    await db.delete(row)
+    await db.commit()
+    try:
+        await get_file_service().delete_file(file_url)
+    except Exception:
+        pass
+    return Response(status_code=204)
 
 
 class PartnerCreate(BaseModel):

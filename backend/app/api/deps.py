@@ -202,18 +202,30 @@ def vendor_member_role_display_name(vendor_user: VendorUser) -> str:
 
 
 def get_effective_permissions(vendor_user: VendorUser) -> List[str]:
-    """Compute the effective permissions for a vendor user."""
+    """Compute the effective permissions for a vendor user.
+
+    Custom-role base permissions are resolved only when the role is active.
+    An inactive custom role falls back to the 'staff' baseline so access is
+    revoked without needing to touch the individual membership row.
+    Per-user additive overrides in vendor_user.permissions are always applied
+    on top of the base set.
+    """
     role = normalized_vendor_role(vendor_user)
 
     # System role permissions
     if role in DEFAULT_ROLE_PERMISSIONS:
         base_perms = set(DEFAULT_ROLE_PERMISSIONS[role])
     elif role == "custom" and vendor_user.custom_role:
-        base_perms = set(vendor_user.custom_role.permissions or [])
+        custom_role = vendor_user.custom_role
+        if getattr(custom_role, "is_active", True):
+            base_perms = set(custom_role.permissions or [])
+        else:
+            # Deactivated custom role → minimal safe fallback
+            base_perms = set(DEFAULT_ROLE_PERMISSIONS.get("staff", []))
     else:
         base_perms = set(DEFAULT_ROLE_PERMISSIONS.get("staff", []))
 
-    # Merge any per-user override permissions
+    # Merge any per-user additive override permissions
     if vendor_user.permissions:
         base_perms.update(vendor_user.permissions)
 

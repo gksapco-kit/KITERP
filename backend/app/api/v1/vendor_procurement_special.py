@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id, get_current_vendor_user
+from app.api.deps import get_current_vendor_id, get_current_vendor_user, require_permission
 from app.models.vendor_user import VendorUser
 from app.models.procurement_special import (
     MaterialValuation, SubcontractingOrder, ConsignmentStock, ServiceEntrySheet,
@@ -23,7 +23,7 @@ from app.repositories.procurement_special_repo import (
     ConsignmentStockRepository, ServiceEntrySheetRepository,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("procurement.view"))])
 
 
 # ── Material Valuation ────────────────────────────────────────────

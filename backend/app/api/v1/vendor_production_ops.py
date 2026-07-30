@@ -11,13 +11,13 @@ from sqlalchemy import select, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.plant import Plant
 from app.models.production import ProductionOrder
 from app.models.production_routing import WorkCenter, ProductionOperation
 from app.services.production_costing import recalculate_labor_cost
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("production.view"))])
 
 _OP_STATUSES = ("pending", "in_progress", "completed", "skipped")
 

@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
 import { Label } from '@/components/ui/label'
@@ -10,7 +11,7 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { formatCurrency, cn, searchFieldInnerInputClassName, searchFieldShellClassName } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
-  Factory, Plus, Search, X, ChevronDown, Filter,
+  Factory, Plus, Search, X, ChevronDown, ChevronLeft, Filter,
   Package, Users, RefreshCw, Calendar, CheckCircle, Hammer,
   ShoppingCart, User, Paperclip, ClipboardList, CircleDot, AlertCircle,
   ChevronRight, PackagePlus,
@@ -155,6 +156,7 @@ export default function ProductionOrdersPage() {
   const [itemTab,             setItemTab]             = useState<'product' | 'service'>('product')
   // Variant picker — shown when a product has active variants
   const [variantPickerProduct, setVariantPickerProduct] = useState<any | null>(null)
+  const [variantPickerSearch,  setVariantPickerSearch]  = useState('')
   // Barcode scanner
   const [showCameraScanner,   setShowCameraScanner]   = useState(false)
   const [scanLoading,         setScanLoading]         = useState(false)
@@ -163,6 +165,8 @@ export default function ProductionOrdersPage() {
   const [assigneeDropOpen,    setAssigneeDropOpen]    = useState(false)
   const [assigneeTab,         setAssigneeTab]         = useState<'team' | 'supplier'>('team')
   const [formAssignees,       setFormAssignees]       = useState<Assignee[]>([])
+  const assigneeAnchorRef                             = useRef<HTMLDivElement>(null)
+  const [assigneeDropStyle,   setAssigneeDropStyle]   = useState<React.CSSProperties>({})
 
   const closeCreateModal = useCallback(() => {
     setShowCreate(false)
@@ -170,7 +174,7 @@ export default function ProductionOrdersPage() {
   }, [])
 
   // Background handlers — disabled while the create modal is open so Esc closes the modal.
-  useEscapeToClose(() => setVariantPickerProduct(null), !!variantPickerProduct)
+  // Variant picker Escape is handled by its ModalOverlay (portaled above create).
   useEscapeToClose(() => setShowNewCustomer(false), showNewCustomer)
   useEscapeToClose(() => setMrpOrder(null), !!mrpOrder)
   // Create modal — register before inner dropdowns so nested pickers close first on Esc.
@@ -350,6 +354,21 @@ export default function ProductionOrdersPage() {
       }
     }
     setScanLoading(false)
+  }
+
+  function openAssigneeDrop() {
+    const el = assigneeAnchorRef.current
+    if (el) {
+      const rect = el.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      if (spaceBelow >= 180) {
+        setAssigneeDropStyle({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+      } else {
+        setAssigneeDropStyle({ bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width })
+      }
+    }
+    setAssigneeDropOpen(true)
+    setCustomerDropOpen(false)
   }
 
   function addAssignee(a: Assignee) {
@@ -690,12 +709,12 @@ export default function ProductionOrdersPage() {
                     <span className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{formRef}</span>
                     <span className="hidden text-[10px] text-muted-foreground sm:inline">· {createType === 'mto' ? 'Customer-specific' : 'Stock replenishment'}</span>
                   </div>
-                  <button type="button" onClick={() => setCreateType(null)} className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground">
-                    <ChevronDown className="h-3 w-3 rotate-90" /> Back
+                  <button type="button" onClick={() => setCreateType(null)} className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground rounded px-1 py-0.5 hover:bg-black/5 transition-colors">
+                    <ChevronLeft className="h-3 w-3" /> Back
                   </button>
                   <ModalCloseButton onClose={() => { setShowCreate(false); setCreateType(null); resetForm() }} showEscHint={false} />
                 </div>
-                <ModalBody className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-3 pt-2">
+                <ModalBody className="min-h-0 flex-1 space-y-2 overflow-x-hidden overflow-y-auto px-3 pb-3 pt-2">
 
                   {/* Template — inline single row */}
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -738,8 +757,18 @@ export default function ProductionOrdersPage() {
                     </div>
                     <div className="col-span-6 sm:col-span-2">
                       <label className="block text-[10px] font-medium text-muted-foreground mb-0.5">Work Order Ref</label>
-                      <input value={formRef} onChange={e => setFormRef(e.target.value)}
-                        className={`${CREATE_INPUT_CLS} font-mono`} />
+                      <div className="flex gap-1">
+                        <input value={formRef} onChange={e => setFormRef(e.target.value)}
+                          className={`${CREATE_INPUT_CLS} font-mono flex-1 min-w-0`} />
+                        <button
+                          type="button"
+                          onClick={() => setFormRef(genRef(createType!))}
+                          title="Generate new reference"
+                          className={`${CREATE_FIELD_H} w-8 flex items-center justify-center rounded-md border border-border bg-card hover:bg-accent shrink-0 transition-colors`}
+                        >
+                          <RefreshCw className="w-3 h-3 text-muted-foreground" />
+                        </button>
+                      </div>
                     </div>
                     <div className="col-span-6 sm:col-span-2">
                       <label className="block text-[10px] font-medium text-muted-foreground mb-0.5">Priority</label>
@@ -747,14 +776,20 @@ export default function ProductionOrdersPage() {
                         value={formPriority}
                         onChange={(v) => setFormPriority(v as Priority)}
                         options={[
-                          { value: 'low', label: '🟢 Low' },
-                          { value: 'medium', label: '🔵 Medium' },
-                          { value: 'high', label: '🟠 High' },
-                          { value: 'urgent', label: '🔴 Urgent' },
+                          { value: 'low',    label: '● Low' },
+                          { value: 'medium', label: '● Medium' },
+                          { value: 'high',   label: '● High' },
+                          { value: 'urgent', label: '● Urgent' },
                         ]}
                         aria-label="Priority"
                         className="w-full"
-                        triggerClassName={CREATE_SELECT_TRIGGER_CLS}
+                        triggerClassName={cn(
+                          CREATE_SELECT_TRIGGER_CLS,
+                          formPriority === 'low'    && '[&>span:first-child]:text-green-500',
+                          formPriority === 'medium' && '[&>span:first-child]:text-blue-500',
+                          formPriority === 'high'   && '[&>span:first-child]:text-orange-500',
+                          formPriority === 'urgent' && '[&>span:first-child]:text-red-500',
+                        )}
                       />
                     </div>
                     {formStoreId && formPlants.length > 0 && (
@@ -802,54 +837,80 @@ export default function ProductionOrdersPage() {
                     )}
                   </div>
 
-                  {/* MTO — customer row integrated into same grid density */}
+                  {/* MTO — customer row */}
                   {createType === 'mto' && (
                     <div className="grid grid-cols-12 gap-x-2 gap-y-1.5 rounded-lg border border-indigo-100 bg-indigo-50/50 p-2">
-                      <div className="col-span-12 sm:col-span-5 relative">
+                      <div
+                        className={cn(
+                          'col-span-12 sm:col-span-5 relative',
+                          customerDropOpen && !selectedCustomerId && 'z-50',
+                        )}
+                      >
                         <label className="block text-[10px] font-medium text-indigo-800 mb-0.5">Customer</label>
                         <div className={`flex items-center ${CREATE_FIELD_H} border border-border rounded-md overflow-hidden bg-card focus-within:ring-1 focus-within:ring-indigo-400/60`}>
-                          <Search className="w-3 h-3 text-muted-foreground ml-2 shrink-0" />
+                          <Search className="w-3 h-3 text-muted-foreground ml-2 shrink-0 pointer-events-none" />
                           <input
                             value={customerSearch}
                             onChange={e => { setCustomerSearch(e.target.value); setCustomerDropOpen(true); setSelectedCustomerId('') }}
-                            onFocus={() => setCustomerDropOpen(true)}
+                            onFocus={() => { if (!selectedCustomerId) setCustomerDropOpen(true) }}
                             placeholder="Search name, phone, email…"
                             className="flex-1 px-1.5 text-sm outline-none bg-transparent min-w-0 h-full"
                           />
                           {selectedCustomerId && <CheckCircle className="w-3 h-3 text-green-500 mr-1.5 shrink-0" />}
-                          {customerSearch && !selectedCustomerId && (
-                            <button type="button" aria-label="Clear" onClick={() => { setCustomerSearch(''); setSelectedCustomerId(''); setFormCustomerName(''); setFormCustomerPhone(''); setFormCustomerEmail('') }} className="pr-1.5">
-                <X className="w-3 h-3 text-muted-foreground" />
+                          {(customerSearch || selectedCustomerId) && (
+                            <button
+                              type="button"
+                              aria-label="Clear"
+                              onClick={() => {
+                                setCustomerSearch('')
+                                setSelectedCustomerId('')
+                                setFormCustomerName('')
+                                setFormCustomerPhone('')
+                                setFormCustomerEmail('')
+                                setCustomerDropOpen(false)
+                              }}
+                              className="pr-1.5"
+                            >
+                              <X className="w-3 h-3 text-muted-foreground" />
                             </button>
                           )}
                         </div>
-                        {/* Customer dropdown */}
                         {customerDropOpen && !selectedCustomerId && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl z-30 overflow-hidden max-h-52 overflow-y-auto">
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-48 overflow-y-auto">
                             {filteredCustomers.length > 0 ? filteredCustomers.map((c: { id: string; full_name: string; phone?: string; email?: string }) => (
-                              <button key={c.id} onClick={() => selectCustomer(c)}
-                                className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 border-b last:border-b-0 flex items-start gap-2.5">
-                                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                              <button key={c.id} type="button" onClick={() => selectCustomer(c)}
+                                className="w-full text-left px-3 py-2 hover:bg-indigo-50 border-b last:border-b-0 flex items-center gap-2.5">
+                                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
                                   <span className="text-xs font-bold text-indigo-600">{c.full_name?.[0]?.toUpperCase()}</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-gray-800">{c.full_name}</p>
+                                  <p className="text-sm font-semibold text-gray-800 truncate">{c.full_name}</p>
                                   <p className="text-xs text-gray-400 truncate">{c.phone || ''}{c.phone && c.email ? ' · ' : ''}{c.email || ''}</p>
-                                  <p className="text-xs font-mono text-gray-300">{c.id}</p>
                                 </div>
                               </button>
                             )) : (
                               <div className="px-3 py-3 text-xs text-muted-foreground text-center">No customers found</div>
                             )}
-                            <button onClick={() => { setCustomerDropOpen(false); setShowNewCustomer(true) }}
+                            <button type="button" onClick={() => { setCustomerDropOpen(false); setShowNewCustomer(true) }}
                               className="w-full text-left px-3 py-2.5 bg-indigo-50 text-indigo-700 text-xs font-medium flex items-center gap-2 hover:bg-indigo-100 transition-colors border-t">
                               <Plus className="w-3.5 h-3.5" /> Create new customer
                             </button>
                           </div>
                         )}
-                        {customerDropOpen && <div className="fixed inset-0 z-20" onClick={() => setCustomerDropOpen(false)} />}
+                        {customerDropOpen && !selectedCustomerId && (
+                          <div className="fixed inset-0 z-40" onClick={() => setCustomerDropOpen(false)} />
+                        )}
                         {selectedCustomerId && (
-                          <p className="text-[10px] text-indigo-700 mt-0.5 truncate">{formCustomerName}{formCustomerPhone ? ` · ${formCustomerPhone}` : ''}</p>
+                          <div className="mt-1 flex items-center gap-1.5 bg-indigo-100/60 border border-indigo-200 rounded-md px-2 py-1">
+                            <div className="w-5 h-5 bg-indigo-200 rounded-full flex items-center justify-center shrink-0">
+                              <span className="text-[10px] font-bold text-indigo-700">{formCustomerName?.[0]?.toUpperCase()}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-indigo-900 truncate leading-none">{formCustomerName}</p>
+                              {formCustomerPhone && <p className="text-[10px] text-indigo-600 truncate leading-none mt-0.5">{formCustomerPhone}</p>}
+                            </div>
+                            <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                          </div>
                         )}
                       </div>
                       <div className="col-span-6 sm:col-span-2">
@@ -880,98 +941,148 @@ export default function ProductionOrdersPage() {
                               className={CREATE_INPUT_CLS} />
                           </div>
                           <div className="col-span-12 sm:col-span-2 flex items-end gap-1">
-                            <button onClick={createNewCustomer} disabled={createCustomer.isPending}
+                            <button type="button" onClick={createNewCustomer} disabled={createCustomer.isPending}
                               className={`flex-1 flex items-center justify-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-2 ${CREATE_FIELD_H} rounded-md text-[11px] font-semibold disabled:opacity-50`}>
                               {createCustomer.isPending ? <RefreshCw className="w-3 h-3 animate-spin" /> : 'Add'}
                             </button>
-                            <button onClick={() => setShowNewCustomer(false)} className={`px-2 ${CREATE_FIELD_H} text-[11px] border border-border rounded-md`}>✕</button>
+                            <button type="button" onClick={() => setShowNewCustomer(false)} className={`px-2 ${CREATE_FIELD_H} text-[11px] border border-border rounded-md`}>✕</button>
                           </div>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* Items + Assign + Notes — one dense row block */}
-                  <div className="grid grid-cols-12 gap-x-2 gap-y-1.5">
-                    <div className="col-span-12 lg:col-span-6">
-                      <label className="block text-[10px] font-medium text-muted-foreground mb-0.5 flex items-center gap-1"><Hammer className="w-3 h-3" /> Items to Produce</label>
+                  {/* Items — full width so search/results never collide with Assign/Notes */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <label className="block text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                        <Hammer className="w-3 h-3" /> Items to Produce
+                        <span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      {formItems.length > 0 && (
+                        <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none">
+                          {formItems.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-1">
                       <div className="flex gap-1.5 items-center">
-                        <div className={`flex items-center bg-muted rounded-md p-0.5 shrink-0 ${CREATE_FIELD_H}`}>
-                          <button onClick={() => setItemTab('product')}
-                            className={`px-2.5 h-full rounded text-xs font-medium min-w-[3.25rem] ${itemTab === 'product' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>Product</button>
-                          <button onClick={() => setItemTab('service')}
-                            className={`px-2.5 h-full rounded text-xs font-medium min-w-[3.25rem] ${itemTab === 'service' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>Service</button>
-                        </div>
                         <div className="flex-1 relative min-w-0">
-                          <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                          <input value={itemSearch} onChange={e => setItemSearch(e.target.value)}
+                          <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+                          <input
+                            value={itemSearch}
+                            onChange={e => {
+                              setItemSearch(e.target.value)
+                              setCustomerDropOpen(false)
+                              setAssigneeDropOpen(false)
+                            }}
+                            onFocus={() => {
+                              setCustomerDropOpen(false)
+                              setAssigneeDropOpen(false)
+                            }}
                             placeholder="Search product or SKU…"
-                            className={`w-full ${CREATE_FIELD_H} border border-border rounded-md pl-6 pr-6 text-sm focus:outline-none focus:ring-1 focus:ring-ring`} />
-                          {itemSearch && <button type="button" aria-label="Clear" onClick={() => setItemSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2">
-                <X className="w-3 h-3 text-muted-foreground" /></button>}
+                            className={`w-full ${CREATE_FIELD_H} border border-border rounded-md pl-6 pr-6 text-sm focus:outline-none focus:ring-1 focus:ring-ring`}
+                          />
+                          {itemSearch && (
+                            <button type="button" aria-label="Clear" onClick={() => setItemSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                              <X className="w-3 h-3 text-muted-foreground" />
+                            </button>
+                          )}
                         </div>
-                        <input type="number" min={1} value={itemQty} onChange={e => setItemQty(e.target.value)}
-                          className={`w-16 ${CREATE_FIELD_H} border border-border rounded-md px-2 text-sm text-center shrink-0`} />
+                        <div className="flex flex-col items-center shrink-0 gap-0">
+                          <span className="text-[9px] text-muted-foreground font-medium leading-none mb-0.5">Qty</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={itemQty}
+                            onChange={e => setItemQty(e.target.value)}
+                            title="Quantity to add"
+                            className={`w-16 ${CREATE_FIELD_H} border border-border rounded-md px-2 text-sm text-center`}
+                          />
+                        </div>
                         <button type="button" onClick={() => setShowCameraScanner(true)} title="Scan"
                           className={`${CREATE_FIELD_H} w-8 flex items-center justify-center rounded-md border border-border bg-card hover:bg-accent shrink-0`}>
                           {scanLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <ScanLine className="w-3 h-3" />}
                         </button>
                       </div>
-                    {/* Results list — only when searching */}
-                    {itemSearch.trim() && (itemTab === 'product' ? filteredProducts : filteredServices).length > 0 && (
-                      <div className="border border-border rounded-md overflow-hidden mt-1 max-h-24 overflow-y-auto">
-                        {(itemTab === 'product' ? filteredProducts : filteredServices).map((p: any) => {
-                          const activeVariants = (p.variants || []).filter((v: any) => v.is_active !== false)
-                          const hasVariants = activeVariants.length > 0
-                          return (
-                            <button key={p.id} onClick={() => {
-                              if (hasVariants) {
-                                setVariantPickerProduct(p)
-                              } else {
-                                addItem({ id: p.id, name: p.name, sku: p.sku, type: itemTab })
-                              }
-                            }}
-                              className="w-full text-left px-2 py-1 text-xs hover:bg-accent border-b last:border-b-0 flex items-center gap-1.5">
-                              <span className="flex-1 font-medium truncate">{p.name}</span>
-                              {hasVariants && (
-                                <span className="text-[10px] font-bold bg-primary/12 text-primary px-1 py-0.5 rounded-full shrink-0">
-                                  {activeVariants.length} var
-                                </span>
-                              )}
-                              <Plus className="w-3 h-3 text-primary/70 shrink-0" />
-                            </button>
-                          )
-                        })}
+                      {itemSearch.trim() && filteredProducts.length > 0 && (
+                        <div className="border border-border rounded-md overflow-hidden max-h-28 overflow-y-auto bg-card">
+                          {filteredProducts.map((p: any) => {
+                            const activeVariants = (p.variants || []).filter((v: any) => v.is_active !== false)
+                            const hasVariants = activeVariants.length > 0
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  setCustomerDropOpen(false)
+                                  setAssigneeDropOpen(false)
+                                  if (hasVariants) {
+                                    setVariantPickerSearch('')
+                                    setVariantPickerProduct(p)
+                                  } else {
+                                    addItem({ id: p.id, name: p.name, sku: p.sku, type: 'product' })
+                                  }
+                                }}
+                                className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-accent border-b last:border-b-0 flex items-center gap-1.5"
+                              >
+                                <span className="flex-1 font-medium truncate">{p.name}</span>
+                                {hasVariants && (
+                                  <span className="text-[10px] font-bold bg-primary/12 text-primary px-1 py-0.5 rounded-full shrink-0">
+                                    {activeVariants.length} var
+                                  </span>
+                                )}
+                                <Plus className="w-3 h-3 text-primary/70 shrink-0" />
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {formItems.length === 0 && !itemSearch && (
+                      <div className="border border-dashed border-border rounded-md py-4 flex flex-col items-center justify-center gap-1 text-center">
+                        <Hammer className="w-5 h-5 text-muted-foreground/30" />
+                        <p className="text-[11px] text-muted-foreground">Search above and click a product to add items</p>
                       </div>
                     )}
                     {formItems.length > 0 && (
-                      <div className="border border-border rounded-md overflow-hidden mt-1">
+                      <div className="border border-border rounded-md overflow-hidden">
                         <table className="w-full text-xs">
-                          <thead className="bg-muted/40 border-b"><tr className="text-[10px] font-medium text-muted-foreground uppercase">
-                            <th className="py-1 px-2 text-left">Item</th>
-                            <th className="py-1 px-2 text-right w-24">Qty</th>
-                            <th className="py-1 w-8" />
-                          </tr></thead>
+                          <thead className="bg-muted/40 border-b">
+                            <tr className="text-[10px] font-medium text-muted-foreground uppercase">
+                              <th className="py-1 px-2 text-left">Item</th>
+                              <th className="py-1 px-2 text-right w-24">Qty</th>
+                              <th className="py-1 w-8" />
+                            </tr>
+                          </thead>
                           <tbody className="divide-y">
                             {formItems.map((item) => {
                               const rowKey = `${item.product_id}__${item.variant_id ?? ''}`
                               return (
                                 <tr key={rowKey}>
-                                  <td className="py-1 px-2 font-medium truncate max-w-[160px]">{item.name}</td>
-                                  <td className="py-1 px-2 text-right">
-                                    <input type="number" min={1} value={item.qty}
+                                  <td className="py-1.5 px-2 font-medium truncate max-w-[240px]">{item.name}</td>
+                                  <td className="py-1.5 px-2 text-right">
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={item.qty}
                                       onChange={e => setFormItems(prev => prev.map(i =>
                                         i.product_id === item.product_id && (i.variant_id ?? '') === (item.variant_id ?? '')
                                           ? { ...i, qty: Number(e.target.value) }
                                           : i,
                                       ))}
-                                      className={`w-16 ${CREATE_FIELD_H} border border-border rounded px-2 text-right text-sm ml-auto`} />
+                                      className={`w-16 ${CREATE_FIELD_H} border border-border rounded px-2 text-right text-sm ml-auto`}
+                                    />
                                   </td>
-                                  <td className="py-1 px-1">
-                                    <button type="button" aria-label="Remove" onClick={() => setFormItems(prev => prev.filter(i =>
-                                      !(i.product_id === item.product_id && (i.variant_id ?? '') === (item.variant_id ?? '')),
-                                    ))}>
-                <X className="w-3 h-3 text-red-400" />
+                                  <td className="py-1.5 px-1">
+                                    <button
+                                      type="button"
+                                      aria-label="Remove"
+                                      onClick={() => setFormItems(prev => prev.filter(i =>
+                                        !(i.product_id === item.product_id && (i.variant_id ?? '') === (item.variant_id ?? '')),
+                                      ))}
+                                    >
+                                      <X className="w-3 h-3 text-red-400" />
                                     </button>
                                   </td>
                                 </tr>
@@ -981,52 +1092,125 @@ export default function ProductionOrdersPage() {
                         </table>
                       </div>
                     )}
-                    </div>
+                  </div>
 
-                    <div className="col-span-12 lg:col-span-3">
-                      <label className="block text-[10px] font-medium text-muted-foreground mb-0.5 flex items-center gap-1"><Users className="w-3 h-3" /> Assign To</label>
+                  {/* Assign + Notes — separate row below items */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
+                    <div className="min-w-0">
+                      <label className="block text-[10px] font-medium text-muted-foreground mb-0.5 flex items-center gap-1">
+                        <Users className="w-3 h-3" /> Assign To
+                      </label>
                       <div className="flex gap-1.5 items-center">
                         <div className={`flex items-center bg-muted rounded-md p-0.5 shrink-0 ${CREATE_FIELD_H}`}>
-                          <button onClick={() => setAssigneeTab('team')}
+                          <button type="button" onClick={() => setAssigneeTab('team')}
                             className={`px-2.5 h-full rounded text-xs font-medium min-w-[2.75rem] ${assigneeTab === 'team' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>Emp</button>
-                          <button onClick={() => setAssigneeTab('supplier')}
+                          <button type="button" onClick={() => setAssigneeTab('supplier')}
                             className={`px-2.5 h-full rounded text-xs font-medium min-w-[2.75rem] ${assigneeTab === 'supplier' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground'}`}>Vendor</button>
                         </div>
-                        <div className="relative flex-1 min-w-0">
-                          <input value={assigneeSearch} onChange={e => { setAssigneeSearch(e.target.value); setAssigneeDropOpen(true) }}
-                            onFocus={() => setAssigneeDropOpen(true)}
+                        <div ref={assigneeAnchorRef} className="relative flex-1 min-w-0">
+                          <input
+                            value={assigneeSearch}
+                            onChange={e => { setAssigneeSearch(e.target.value); openAssigneeDrop() }}
+                            onFocus={() => openAssigneeDrop()}
                             placeholder="Search…"
-                            className={`w-full ${CREATE_FIELD_H} border border-border rounded-md px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring`} />
-                          {assigneeDropOpen && (
-                            <div className="absolute left-0 right-0 top-full mt-0.5 bg-card border border-border rounded-md shadow-xl z-30 overflow-hidden max-h-32 overflow-y-auto">
-                              {(assigneeTab === 'team' ? filteredTeam : filteredSuppliers).map((m: { id: string; full_name?: string; company_name?: string; role?: string; email?: string }) => (
-                                <button key={m.id}
-                                  onClick={() => addAssignee({ id: m.id, name: assigneeTab === 'team' ? (m.full_name || '') : (m.company_name || ''), role: m.role || (assigneeTab === 'team' ? 'Team Member' : 'Vendor'), type: assigneeTab })}
-                                  className="w-full text-left px-2 py-1.5 hover:bg-accent border-b last:border-b-0 text-xs truncate">
-                                  {assigneeTab === 'team' ? m.full_name : m.company_name}
-                                </button>
-                              ))}
-                            </div>
+                            className={`w-full ${CREATE_FIELD_H} border border-border rounded-md px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring`}
+                          />
+                          {assigneeDropOpen && createPortal(
+                            <>
+                              {/* Backdrop — closes on outside click */}
+                              <div className="fixed inset-0 z-[299]" onClick={() => setAssigneeDropOpen(false)} />
+                              {/* Dropdown — always above modal */}
+                              <div
+                                className="fixed bg-card border border-border rounded-xl shadow-2xl z-[300] overflow-hidden"
+                                style={{ ...assigneeDropStyle, maxHeight: '12rem' }}
+                              >
+                                {(assigneeTab === 'team' ? filteredTeam : filteredSuppliers).length === 0 ? (
+                                  <div className="px-3 py-4 text-xs text-muted-foreground text-center">
+                                    {assigneeSearch.trim()
+                                      ? `No ${assigneeTab === 'team' ? 'employees' : 'vendors'} match "${assigneeSearch}"`
+                                      : `No ${assigneeTab === 'team' ? 'employees' : 'vendors'} found`}
+                                  </div>
+                                ) : (
+                                  <div className="overflow-y-auto max-h-[12rem]">
+                                    {(assigneeTab === 'team' ? filteredTeam : filteredSuppliers).map((m: { id: string; full_name?: string; name?: string; company_name?: string; contact_name?: string; role?: string; email?: string }) => {
+                                      const displayName = assigneeTab === 'team'
+                                        ? (m.full_name || m.name || '')
+                                        : (m.company_name || m.contact_name || '')
+                                      const subtitle = assigneeTab === 'team'
+                                        ? (m.role || m.email || 'Team Member')
+                                        : (m.contact_name || 'Vendor')
+                                      return (
+                                        <button
+                                          key={m.id}
+                                          type="button"
+                                          onClick={() => addAssignee({
+                                            id: m.id,
+                                            name: displayName,
+                                            role: m.role || (assigneeTab === 'team' ? 'Team Member' : 'Vendor'),
+                                            type: assigneeTab,
+                                          })}
+                                          className="w-full text-left px-3 py-2 hover:bg-accent border-b last:border-b-0 flex items-center gap-2.5 transition-colors"
+                                        >
+                                          <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${assigneeTab === 'team' ? 'bg-primary/10 text-primary' : 'bg-blue-100 text-blue-700'}`}>
+                                            {displayName?.[0]?.toUpperCase() || '?'}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-semibold text-foreground truncate">{displayName || <span className="italic text-muted-foreground">No name</span>}</p>
+                                            <p className="text-[10px] text-muted-foreground truncate">{subtitle}</p>
+                                          </div>
+                                          <Plus className="w-3 h-3 text-primary/50 shrink-0" />
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </>,
+                            document.body,
                           )}
-                          {assigneeDropOpen && <div className="fixed inset-0 z-20" onClick={() => setAssigneeDropOpen(false)} />}
                         </div>
                       </div>
                       {formAssignees.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
                           {formAssignees.map(a => (
-                            <div key={a.id} className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${a.type === 'team' ? 'bg-primary/10 text-primary' : 'bg-blue-100 text-blue-800'}`}>
-                              {a.name}
-                              <button type="button" aria-label="Remove" onClick={() => removeAssignee(a.id)}><X className="w-2.5 h-2.5" /></button>
+                            <div
+                              key={a.id}
+                              className={`flex items-center gap-1.5 pl-1 pr-1.5 py-0.5 rounded-full border text-xs font-medium ${
+                                a.type === 'team'
+                                  ? 'bg-primary/8 border-primary/25 text-primary'
+                                  : 'bg-blue-50 border-blue-200 text-blue-800'
+                              }`}
+                            >
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${a.type === 'team' ? 'bg-primary/20' : 'bg-blue-100'}`}>
+                                {a.name?.[0]?.toUpperCase() || '?'}
+                              </div>
+                              <span className="truncate max-w-[90px]">{a.name || 'Unknown'}</span>
+                              {a.role && a.role !== 'Team Member' && a.role !== 'Vendor' && (
+                                <span className="opacity-60 text-[9px] hidden sm:inline">· {a.role}</span>
+                              )}
+                              <button
+                                type="button"
+                                aria-label={`Remove ${a.name}`}
+                                onClick={() => removeAssignee(a.id)}
+                                className="ml-0.5 rounded-full hover:bg-black/10 p-0.5 transition-colors shrink-0"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
                             </div>
                           ))}
                         </div>
                       )}
                     </div>
 
-                    <div className="col-span-12 lg:col-span-3">
-                      <label className="block text-[10px] font-medium text-muted-foreground mb-0.5">Notes &amp; Attachments</label>
-                      <input value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Instructions…"
-                        className={`${CREATE_INPUT_CLS} mb-1`} />
+                    <div className="min-w-0 space-y-1">
+                      <label className="block text-[10px] font-medium text-muted-foreground">Notes &amp; Attachments</label>
+                      <textarea
+                        value={formNotes}
+                        onChange={e => setFormNotes(e.target.value)}
+                        placeholder="Instructions, production notes…"
+                        rows={2}
+                        className="w-full border border-border rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-snug"
+                      />
                       <div className="flex items-center gap-1 flex-wrap">
                         {formAttachments.map((a, i) => (
                           <div key={i} className="flex items-center gap-0.5 bg-muted rounded px-1 py-0.5 text-[10px]">
@@ -1048,7 +1232,7 @@ export default function ProductionOrdersPage() {
                   </div>
 
                 </ModalBody>
-                <div className="flex shrink-0 gap-2 bg-card px-3 py-2">
+                <div className="relative z-[60] flex shrink-0 gap-2 border-t border-border bg-card px-3 py-2">
                   <button
                     type="button"
                     onClick={() => { setShowCreate(false); setCreateType(null); resetForm() }}
@@ -1059,9 +1243,16 @@ export default function ProductionOrdersPage() {
                   <button
                     type="button"
                     onClick={submitCreate}
-                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-sm font-semibold text-white ${createType === 'mto' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-teal-600 hover:bg-teal-700'}`}
+                    disabled={createOrder.isPending}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-sm font-semibold text-white disabled:opacity-60 ${createType === 'mto' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-teal-600 hover:bg-teal-700'}`}
                   >
-                    <Factory className="h-3.5 w-3.5" /> Create {createType.toUpperCase()} Order
+                    {createOrder.isPending
+                      ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      : createType === 'mto'
+                        ? <ShoppingCart className="h-3.5 w-3.5" />
+                        : <Package className="h-3.5 w-3.5" />
+                    }
+                    {createOrder.isPending ? 'Creating…' : `Create ${createType.toUpperCase()} Order`}
                   </button>
                 </div>
               </>
@@ -1070,25 +1261,53 @@ export default function ProductionOrdersPage() {
         </ModalOverlay>
       )}
 
-      {/* ── Variant Picker Modal ─────────────────────────────────────────────── */}
+      {/* ── Variant Picker Modal (portaled above create modal) ───────────────── */}
       {variantPickerProduct && (
-        <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={() => setVariantPickerProduct(null)}>
-          <div className="bg-card rounded-xl shadow-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm">{variantPickerProduct.name}</h3>
+        <ModalOverlay
+          onClose={() => { setVariantPickerProduct(null); setVariantPickerSearch('') }}
+          className="z-[120] overflow-y-auto overscroll-contain bg-black/50 p-4"
+        >
+          <ModalPanel className="w-full max-w-sm max-h-[90vh] overflow-hidden rounded-xl shadow-xl flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+              <div className="min-w-0">
+                <h3 className="font-semibold text-gray-900 text-sm truncate">{variantPickerProduct.name}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Select a variant to add to the order</p>
               </div>
-              <button type="button" aria-label="Close" onClick={() => setVariantPickerProduct(null)} className="p-1 rounded hover:bg-gray-100">
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
+              <ModalCloseButton onClose={() => { setVariantPickerProduct(null); setVariantPickerSearch('') }} showEscHint={false} />
             </div>
-            <div className="p-3 space-y-1 max-h-72 overflow-y-auto">
-              {(variantPickerProduct.variants || [])
-                .filter((v: any) => v.is_active !== false)
-                .map((v: any) => (
+            <div className="px-3 pt-2 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <input
+                  autoFocus
+                  value={variantPickerSearch}
+                  onChange={e => setVariantPickerSearch(e.target.value)}
+                  placeholder="Search variant name, SKU, barcode…"
+                  className="w-full h-8 border border-border rounded-md pl-7 pr-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            </div>
+            <div className="p-3 space-y-1 max-h-72 overflow-y-auto min-h-0 flex-1">
+              {(() => {
+                const q = variantPickerSearch.trim().toLowerCase()
+                const variants = (variantPickerProduct.variants || [])
+                  .filter((v: any) => v.is_active !== false)
+                  .filter((v: any) => {
+                    if (!q) return true
+                    return (
+                      (v.name || '').toLowerCase().includes(q) ||
+                      (v.sku || '').toLowerCase().includes(q) ||
+                      (v.barcode || '').toLowerCase().includes(q)
+                    )
+                  })
+                  .slice(0, q ? 100 : 50)
+                if (variants.length === 0) {
+                  return <p className="text-xs text-muted-foreground text-center py-6">No variants match</p>
+                }
+                return variants.map((v: any) => (
                   <button
                     key={v.id}
+                    type="button"
                     onClick={() => {
                       addItem({
                         id: variantPickerProduct.id,
@@ -1101,6 +1320,7 @@ export default function ProductionOrdersPage() {
                         variant_barcode: v.barcode,
                       })
                       setVariantPickerProduct(null)
+                      setVariantPickerSearch('')
                     }}
                     className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-accent hover:border-primary/30 transition-colors text-left"
                   >
@@ -1116,10 +1336,11 @@ export default function ProductionOrdersPage() {
                       <Plus className="w-3.5 h-3.5 text-primary/70 ml-auto mt-1" />
                     </div>
                   </button>
-                ))}
+                ))
+              })()}
             </div>
-          </div>
-        </div>
+          </ModalPanel>
+        </ModalOverlay>
       )}
 
       {/* ── Camera Barcode Scanner ───────────────────────────────────────────── */}

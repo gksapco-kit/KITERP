@@ -16,13 +16,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.database import get_db
 from app.models.vendor_recurring_plan import VendorRecurringPlan
 from app.models.user import User
 from app.services.vendor_service import VendorService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("subscriptions.view"))])
 
 
 class RecurringPresetIn(BaseModel):

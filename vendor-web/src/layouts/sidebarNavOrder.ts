@@ -468,6 +468,7 @@ export function reconcileNavPlacements(
     '/pharma/audit',
     '/pharma/serialization',
     '/pharma/gdp',
+    '/pharma/wholesale-license',
     '/pharma/track-trace',
   ]
   const pharmaRoutes = [...validTos].filter((to) => to === '/pharma' || to.startsWith('/pharma/'))

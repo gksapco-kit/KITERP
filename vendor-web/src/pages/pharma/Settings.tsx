@@ -13,6 +13,7 @@ import { PlantSelect } from '@/components/common/PlantSelect'
 import {
   PharmaCard,
   PharmaPageHeader,
+  fmtErr,
 } from './pharmaShared'
 
 type ProductRow = {
@@ -151,7 +152,7 @@ export default function PharmaSettingsPage() {
       setSequences(seqRes?.sequences || [])
       setEsignCfg(settings || {})
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Failed to load foundations')
+      toast.error(fmtErr(e, 'Failed to load foundations'))
     } finally {
       setLoading(false)
     }
@@ -215,7 +216,7 @@ export default function PharmaSettingsPage() {
       toast.success('Product updated')
       await load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Update failed')
+      toast.error(fmtErr(e, 'Update failed'))
     }
   }
 

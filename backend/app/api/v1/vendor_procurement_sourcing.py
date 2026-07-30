@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.procurement_sourcing import PurchasingInfoRecord, SourceList
 from app.schemas.procurement_sourcing import (
     PurchasingInfoRecordCreate, PurchasingInfoRecordUpdate,
@@ -16,7 +16,7 @@ from app.repositories.procurement_sourcing_repo import (
     PurchasingInfoRecordRepository, SourceListRepository,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("procurement.view"))])
 
 
 # ── Helper serialisers ────────────────────────────────────────────

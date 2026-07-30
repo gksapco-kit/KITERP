@@ -22,9 +22,18 @@ interface Props {
   onSearch: (q: string) => Promise<PickerOption[]>
   onSelect: (opt: PickerOption | null) => void
   disabled?: boolean
+  /** Single-line chip / search field sized to match form inputs (h-10). */
+  compact?: boolean
 }
 
-export function MasterDataPicker({ placeholder = 'Search…', selected, onSearch, onSelect, disabled }: Props) {
+export function MasterDataPicker({
+  placeholder = 'Search…',
+  selected,
+  onSearch,
+  onSelect,
+  disabled,
+  compact = false,
+}: Props) {
   const [query, setQuery] = useState('')
   const [options, setOptions] = useState<PickerOption[]>([])
   const [open, setOpen] = useState(false)
@@ -77,17 +86,31 @@ export function MasterDataPicker({ placeholder = 'Search…', selected, onSearch
 
   if (selected) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg">
-        <div className="w-7 h-7 rounded-full bg-blue-200 flex items-center justify-center text-xs font-medium text-blue-700 flex-shrink-0">
+      <div
+        className={cn(
+          'flex min-w-0 items-center gap-2 border border-blue-300 bg-blue-50',
+          compact ? 'h-10 rounded-md px-2.5' : 'rounded-lg px-3 py-2',
+        )}
+      >
+        <div
+          className={cn(
+            'flex flex-shrink-0 items-center justify-center rounded-full bg-blue-200 font-medium text-blue-700',
+            compact ? 'h-6 w-6 text-[10px]' : 'h-7 w-7 text-xs',
+          )}
+        >
           {selected.initials || selected.label.charAt(0).toUpperCase()}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-900 truncate">{selected.label}</div>
-          {selected.sub && <div className="text-xs text-gray-500 truncate">{selected.sub}</div>}
+        <div className="min-w-0 flex-1">
+          <div className={cn('truncate font-medium text-gray-900', compact ? 'text-sm' : 'text-sm')}>
+            {selected.label}
+          </div>
+          {!compact && selected.sub ? (
+            <div className="truncate text-xs text-gray-500">{selected.sub}</div>
+          ) : null}
         </div>
         {!disabled && (
-          <button type="button" onClick={clear} className="text-gray-400 hover:text-red-500 flex-shrink-0">
-            <X className="h-4 w-4" />
+          <button type="button" onClick={clear} className="flex-shrink-0 text-gray-400 hover:text-red-500">
+            <X className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
           </button>
         )}
       </div>
@@ -98,9 +121,9 @@ export function MasterDataPicker({ placeholder = 'Search…', selected, onSearch
     <div ref={wrapRef} className="relative">
       <div
         data-kiterp-search-field
-        className={cn(searchFieldShellClassName, 'px-3 py-2')}
+        className={cn(searchFieldShellClassName, compact ? 'h-10 px-3 py-0' : 'px-3 py-2')}
       >
-        <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <Search className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
         <input
           data-kiterp-no-field-focus
           value={query}
@@ -110,30 +133,30 @@ export function MasterDataPicker({ placeholder = 'Search…', selected, onSearch
           disabled={disabled}
           className={cn(searchFieldInnerInputClassName, 'text-sm')}
         />
-        {loading && <ChevronDown className="h-4 w-4 text-gray-400 animate-pulse" />}
+        {loading && <ChevronDown className="h-4 w-4 animate-pulse text-gray-400" />}
       </div>
       {open && options.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-popover text-popover-foreground border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-popover text-popover-foreground shadow-lg">
           {options.map(opt => (
             <button
               key={opt.id}
               type="button"
               onClick={() => pick(opt)}
-              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-50 text-left"
+              className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-blue-50"
             >
-              <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
+              <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600">
                 {opt.initials || opt.label.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">{opt.label}</div>
-                {opt.sub && <div className="text-xs text-gray-500 truncate">{opt.sub}</div>}
+                <div className="truncate text-sm font-medium text-gray-900">{opt.label}</div>
+                {opt.sub && <div className="truncate text-xs text-gray-500">{opt.sub}</div>}
               </div>
             </button>
           ))}
         </div>
       )}
       {open && !loading && options.length === 0 && query.trim() && (
-        <div className="absolute z-50 mt-1 w-full bg-popover text-popover-foreground border border-border rounded-lg shadow-lg px-4 py-3 text-sm text-gray-500 max-h-[90vh] overflow-y-auto">
+        <div className="absolute z-50 mt-1 max-h-[90vh] w-full overflow-y-auto rounded-lg border border-border bg-popover px-4 py-3 text-sm text-gray-500 text-popover-foreground shadow-lg">
           No results found
         </div>
       )}

@@ -346,11 +346,50 @@ class PurchaseOrderService:
 
             po_item.quantity_received += entry["quantity"]
 
+            track_id = (entry.get("track_id") or "").strip() or None
+            reference = (entry.get("reference") or "").strip() or None
+            note_bits = [p for p in [
+                f"Track: {track_id}" if track_id else None,
+                f"Ref: {reference}" if reference else None,
+            ] if p]
+            lot_notes = " · ".join(note_bits) if note_bits else None
+
+            def _as_uuid(raw):
+                if not raw:
+                    return None
+                try:
+                    return UUID(str(raw))
+                except (TypeError, ValueError):
+                    return None
+
+            plant_id = _as_uuid(entry.get("plant_id")) or po_item.plant_id or _as_uuid(data.get("plant_id"))
+            storage_location_id = (
+                _as_uuid(entry.get("storage_location_id"))
+                or po_item.storage_location_id
+                or _as_uuid(data.get("storage_location_id"))
+            )
+
             receipt_items_log.append({
                 "item_id": str(po_item.id),
                 "product_id": str(po_item.product_id),
                 "variant_id": str(po_item.variant_id) if po_item.variant_id else None,
                 "quantity_received": entry["quantity"],
+                "batch_number": entry.get("batch_number"),
+                "supplier_batch_number": entry.get("supplier_batch_number"),
+                "manufacturing_date": (
+                    entry["manufacturing_date"].isoformat()
+                    if hasattr(entry.get("manufacturing_date"), "isoformat")
+                    else entry.get("manufacturing_date")
+                ),
+                "expiry_date": (
+                    entry["expiry_date"].isoformat()
+                    if hasattr(entry.get("expiry_date"), "isoformat")
+                    else entry.get("expiry_date")
+                ),
+                "track_id": track_id,
+                "reference": reference,
+                "plant_id": str(plant_id) if plant_id else None,
+                "storage_location_id": str(storage_location_id) if storage_location_id else None,
             })
 
             product = None
@@ -382,11 +421,14 @@ class PurchaseOrderService:
                         source_type="purchase",
                         document_number=po.po_number,
                         variant_id=po_item.variant_id,
+                        plant_id=plant_id,
+                        storage_location_id=storage_location_id,
                         batch_number=entry.get("batch_number"),
                         supplier_batch_number=entry.get("supplier_batch_number"),
                         manufacturing_date=entry.get("manufacturing_date"),
                         expiry_date=entry.get("expiry_date"),
                         qc_required=qc_req,
+                        notes=lot_notes,
                     )
                     receipt_items_log[-1]["batch_managed"] = True
                     receipt_items_log[-1]["qc_required_on_receipt"] = qc_req
@@ -402,10 +444,38 @@ class PurchaseOrderService:
                         detail=f"Failed to create goods batch for PO item: {e}",
                     ) from e
 
+        # Receipt header destination: explicit request → first line → None
+        hdr_plant = None
+        hdr_sloc = None
+        try:
+            hdr_plant = UUID(str(data["plant_id"])) if data.get("plant_id") else None
+        except (TypeError, ValueError):
+            hdr_plant = None
+        try:
+            hdr_sloc = UUID(str(data["storage_location_id"])) if data.get("storage_location_id") else None
+        except (TypeError, ValueError):
+            hdr_sloc = None
+        if not hdr_plant and receipt_items_log:
+            try:
+                hdr_plant = UUID(receipt_items_log[0]["plant_id"]) if receipt_items_log[0].get("plant_id") else None
+            except (TypeError, ValueError):
+                hdr_plant = None
+        if not hdr_sloc and receipt_items_log:
+            try:
+                hdr_sloc = (
+                    UUID(receipt_items_log[0]["storage_location_id"])
+                    if receipt_items_log[0].get("storage_location_id") else None
+                )
+            except (TypeError, ValueError):
+                hdr_sloc = None
+
         receipt = PurchaseOrderReceipt(
             purchase_order_id=po.id,
             received_by=received_by,
             notes=data.get("notes"),
+            plant_id=hdr_plant,
+            storage_location_id=hdr_sloc,
+            posting_date=data.get("posting_date"),
             items=receipt_items_log,
         )
         self.db.add(receipt)

@@ -44,9 +44,65 @@ const BUILTIN_ROLE_STYLES: Record<string, { container: string; header: string }>
     container: 'border-pink-200 dark:border-pink-500/30 bg-pink-50 dark:bg-pink-500/10',
     header: 'text-pink-700 dark:text-pink-200',
   },
+  cashier: {
+    container: 'border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10',
+    header: 'text-amber-700 dark:text-amber-200',
+  },
+  technician: {
+    container: 'border-teal-200 dark:border-teal-500/30 bg-teal-50 dark:bg-teal-500/10',
+    header: 'text-teal-700 dark:text-teal-200',
+  },
+  delivery_staff: {
+    container: 'border-slate-200 dark:border-slate-500/30 bg-slate-50 dark:bg-slate-500/10',
+    header: 'text-slate-700 dark:text-slate-200',
+  },
   accountant: {
     container: 'border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10',
     header: 'text-violet-700 dark:text-violet-200',
+  },
+  warehouse: {
+    container: 'border-yellow-200 dark:border-yellow-500/30 bg-yellow-50 dark:bg-yellow-500/10',
+    header: 'text-yellow-700 dark:text-yellow-200',
+  },
+  purchaser: {
+    container: 'border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10',
+    header: 'text-sky-700 dark:text-sky-200',
+  },
+  production_planner: {
+    container: 'border-lime-200 dark:border-lime-500/30 bg-lime-50 dark:bg-lime-500/10',
+    header: 'text-lime-700 dark:text-lime-200',
+  },
+  qa_officer: {
+    container: 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10',
+    header: 'text-emerald-700 dark:text-emerald-200',
+  },
+  hr_manager: {
+    container: 'border-purple-200 dark:border-purple-500/30 bg-purple-50 dark:bg-purple-500/10',
+    header: 'text-purple-700 dark:text-purple-200',
+  },
+  project_manager: {
+    container: 'border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10',
+    header: 'text-indigo-700 dark:text-indigo-200',
+  },
+  restaurant_manager: {
+    container: 'border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10',
+    header: 'text-rose-700 dark:text-rose-200',
+  },
+  waiter: {
+    container: 'border-fuchsia-200 dark:border-fuchsia-500/30 bg-fuchsia-50 dark:bg-fuchsia-500/10',
+    header: 'text-fuchsia-700 dark:text-fuchsia-200',
+  },
+  kitchen_staff: {
+    container: 'border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10',
+    header: 'text-red-700 dark:text-red-200',
+  },
+  finance_controller: {
+    container: 'border-green-200 dark:border-green-600/30 bg-green-50 dark:bg-green-600/10',
+    header: 'text-green-800 dark:text-green-300',
+  },
+  platform_staff: {
+    container: 'border-gray-300 dark:border-gray-500/30 bg-gray-100 dark:bg-gray-500/10',
+    header: 'text-gray-700 dark:text-gray-300',
   },
 }
 
@@ -88,6 +144,7 @@ export default function RolesPage() {
   const [formName, setFormName] = useState('')
   const [formDesc, setFormDesc] = useState('')
   const [formPerms, setFormPerms] = useState<string[]>([])
+  const [formTemplate, setFormTemplate] = useState<string>('')
 
   const roles = rolesData?.roles || []
   const allPerms = permData?.permissions || {}
@@ -101,6 +158,7 @@ export default function RolesPage() {
     setFormName('')
     setFormDesc('')
     setFormPerms([])
+    setFormTemplate('')
     setShowForm(true)
   }
 
@@ -109,7 +167,15 @@ export default function RolesPage() {
     setFormName(role.name)
     setFormDesc(role.description || '')
     setFormPerms([...role.permissions])
+    setFormTemplate('')
     setShowForm(true)
+  }
+
+  const applyTemplate = (templateName: string) => {
+    setFormTemplate(templateName)
+    if (!templateName) return
+    const tpl = defaultRoles.find((r) => r.name === templateName)
+    if (tpl) setFormPerms([...tpl.permissions])
   }
 
   const togglePerm = (perm: string) => {
@@ -136,15 +202,24 @@ export default function RolesPage() {
       )
     } else {
       createMutation.mutate(
-        { name: formName, description: formDesc || undefined, permissions: formPerms },
+        {
+          name: formName,
+          description: formDesc || undefined,
+          permissions: formPerms,
+          copy_from_builtin: formTemplate || undefined,
+        },
         { onSuccess: () => setShowForm(false) }
       )
     }
   }
 
-  const handleDelete = async (roleId: string) => {
-    if (await askConfirm('Delete this role? Team members using it will lose their custom permissions.')) {
-      deleteMutation.mutate(roleId)
+  const handleDelete = async (role: VendorRole) => {
+    const assignedCount = role.assigned_users ?? 0
+    const warning = assignedCount > 0
+      ? `${assignedCount} team member(s) are still using this role and will fall back to the Staff baseline. Reassign them first for a cleaner transition.`
+      : 'This role has no assigned members.'
+    if (await askConfirm(`Delete role "${role.name}"? ${warning}`)) {
+      deleteMutation.mutate(role.id)
     }
   }
 
@@ -284,6 +359,11 @@ export default function RolesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {role.assigned_users != null && (
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                      {role.assigned_users} member{role.assigned_users === 1 ? '' : 's'}
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground">{role.permissions.length} permissions</span>
                   {canManageRoles && !role.is_system && (
                     <>
@@ -294,7 +374,7 @@ export default function RolesPage() {
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(role.id) }}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(role) }}
                         className="p-1.5 rounded hover:bg-red-500/10 text-red-500 dark:text-red-400"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -372,6 +452,32 @@ export default function RolesPage() {
                   rows={2}
                 />
               </div>
+
+              {/* Template picker — create mode only */}
+              {!editRole && (
+                <div>
+                  <label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">
+                    Start from a built-in template (optional)
+                  </label>
+                  <select
+                    className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    value={formTemplate}
+                    onChange={(e) => applyTemplate(e.target.value)}
+                  >
+                    <option value="">— Start blank —</option>
+                    {defaultRoles
+                      .filter((r) => !['owner', 'platform_staff'].includes(r.name))
+                      .map((r) => (
+                        <option key={r.name} value={r.name}>
+                          {r.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} ({r.permissions.length} permissions)
+                        </option>
+                      ))}
+                  </select>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    Copies that template's permissions as your starting point. You can adjust them below.
+                  </p>
+                </div>
+              )}
 
               {/* Permissions */}
               <div>

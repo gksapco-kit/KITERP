@@ -10,12 +10,12 @@ from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.controlling_area import CoControllingArea
 from app.models.finance import FinCompany
 from app.schemas.controlling_area import ControllingAreaCreate, ControllingAreaUpdate
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("controlling.costcenter.manage"))])
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

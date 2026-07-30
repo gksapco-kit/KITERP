@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.vendor_product import Product, ProductVariant
 from app.repositories.product_config_repo import (
     ConfigAttributeRepository, ConfigOptionRepository, ConfigRuleRepository,
@@ -33,7 +33,7 @@ from app.services.variant_generator import (
 from app.models.vendor import Vendor
 from app.services.inventory_settings import is_auto_generate_barcode
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("products.view"))])
 
 PREVIEW_ITEMS_CAP = 9999
 

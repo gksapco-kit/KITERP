@@ -10,7 +10,7 @@ import re
 
 from app.database import get_db
 from app.models.procurement import Supplier
-from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
 from app.models.user import User
 from app.services.vendor_service import VendorService
 from app.services.procurement_service import SupplierService, PurchaseOrderService
@@ -20,7 +20,7 @@ from app.schemas.procurement import (
     PurchaseOrderResponse, PurchaseOrderItemResponse, PurchaseOrderReceiptResponse,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("procurement.view"))])
 
 
 def _supplier_to_dict(s) -> dict:
@@ -264,10 +264,17 @@ async def receive_purchase_order_items(
                 "supplier_batch_number": i.supplier_batch_number,
                 "manufacturing_date": i.manufacturing_date,
                 "expiry_date": i.expiry_date,
+                "track_id": i.track_id,
+                "reference": i.reference,
+                "plant_id": i.plant_id,
+                "storage_location_id": i.storage_location_id,
             }
             for i in data.items
         ],
         "notes": data.notes,
+        "plant_id": data.plant_id,
+        "storage_location_id": data.storage_location_id,
+        "posting_date": data.posting_date,
     }
     po = await svc.receive_items(vendor_id, po_id, payload, received_by=current_user.id)
     return JSONResponse(content=_po_to_dict(po, include_receipts=True))

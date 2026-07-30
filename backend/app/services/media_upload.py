@@ -256,6 +256,9 @@ ALLOWED_DOC_TYPES_CRM = ALLOWED_IMAGE_TYPES | {
 }
 MAX_DOC_SIZE_CRM = 15 * 1024 * 1024
 
+ALLOWED_DOC_TYPES_WHOLESALE_LICENSE = ALLOWED_DOC_TYPES_CRM
+MAX_DOC_SIZE_WHOLESALE_LICENSE = 15 * 1024 * 1024
+
 
 async def save_crm_document(file: UploadFile, vendor_id: UUID) -> dict:
     """Persist a CRM attachment (image / PDF / Word / Excel / CSV / text)."""
@@ -269,6 +272,33 @@ async def save_crm_document(file: UploadFile, vendor_id: UUID) -> dict:
     if len(contents) > MAX_DOC_SIZE_CRM:
         raise HTTPException(status_code=413, detail="File too large (max 15 MB).")
     url = await get_file_service().upload_file(file, f"crm/{vendor_id}", content=contents)
+    return {
+        "url": url,
+        "filename": file.filename or "document",
+        "content_type": ct,
+        "size": len(contents),
+        "is_image": ct in ALLOWED_IMAGE_TYPES,
+    }
+
+
+async def save_wholesale_license_document(
+    file: UploadFile, vendor_id: UUID, customer_id: UUID
+) -> dict:
+    """Persist a wholesale-license attachment (image / PDF / Word / Excel / CSV / text)."""
+    ct = file.content_type or ""
+    if ct not in ALLOWED_DOC_TYPES_WHOLESALE_LICENSE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Allowed: images, PDF, Word, Excel, CSV or text files.",
+        )
+    contents = await file.read()
+    if len(contents) > MAX_DOC_SIZE_WHOLESALE_LICENSE:
+        raise HTTPException(status_code=413, detail="File too large (max 15 MB).")
+    url = await get_file_service().upload_file(
+        file,
+        f"pharma/wholesale-license/{vendor_id}/{customer_id}",
+        content=contents,
+    )
     return {
         "url": url,
         "filename": file.filename or "document",

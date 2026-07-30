@@ -16,14 +16,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.blog import VendorBlogPost
 from app.services.vendor_service import VendorService
 from app.utils.blog_settings import is_blog_enabled, set_blog_enabled
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("websites.manage"))])
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

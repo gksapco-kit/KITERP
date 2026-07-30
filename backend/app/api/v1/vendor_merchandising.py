@@ -9,7 +9,7 @@ from slugify import slugify
 import uuid as uuid_mod
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.models.vendor_product import Product
 from app.models.merchandising import Bundle, BundleItem, UpsellMapping
@@ -21,7 +21,7 @@ from app.schemas.merchandising import (
 )
 from app.services.vendor_service import VendorService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("merchandising.view"))])
 
 
 async def _get_vendor_id(user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)) -> UUID:

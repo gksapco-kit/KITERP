@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.vendor_product import Product
 from app.models.product_config import ProductConfigAttribute, ProductConfigOption, ProductConfigRule
 from app.schemas.product_config import (
@@ -31,7 +31,7 @@ from app.repositories.product_config_repo import (
 )
 from app.services.rule_engine import evaluate_rules
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("settings.view"))])
 
 
 # ── Serializers ───────────────────────────────────────────────────

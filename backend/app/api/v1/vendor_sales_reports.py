@@ -18,14 +18,14 @@ from uuid import UUID
 from datetime import date, datetime, timedelta
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.models.order import Order
 from app.models.customer import Customer
 from app.models.store import Store
 from app.services.vendor_service import VendorService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("reports.view"))])
 
 # Statuses that count as realised sales (everything except cancelled/refunded/returned).
 CANCELLED_STATUSES = ("cancelled", "refunded", "returned")

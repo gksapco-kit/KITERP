@@ -223,16 +223,23 @@ class PurchaseOrderUpdate(BaseModel):
 
 class ReceiveItemEntry(BaseModel):
     item_id: str
-    quantity: int = Field(..., gt=0)
+    quantity: float = Field(..., gt=0)
     batch_number: Optional[str] = None
-    supplier_batch_number: Optional[str] = None
+    supplier_batch_number: Optional[str] = None  # external / supplier lot ID
     manufacturing_date: Optional[date] = None
     expiry_date: Optional[date] = None
+    track_id: Optional[str] = None
+    reference: Optional[str] = None
+    plant_id: Optional[str] = None
+    storage_location_id: Optional[str] = None
 
 
 class ReceiveItemsRequest(BaseModel):
     items: List[ReceiveItemEntry] = Field(..., min_length=1)
     notes: Optional[str] = None
+    plant_id: Optional[str] = None
+    storage_location_id: Optional[str] = None
+    posting_date: Optional[date] = None
 
 
 class PurchaseOrderReceiptResponse(BaseModel):

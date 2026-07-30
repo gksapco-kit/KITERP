@@ -20,6 +20,7 @@ import {
   PharmaToolbar,
   isUuid,
   type PharmaESignPayload,
+  fmtErr,
 } from './pharmaShared'
 
 const VERIFY_REASONS: Record<string, string> = {
@@ -58,10 +59,6 @@ export function PharmaGdpPage() {
     severity: 'minor',
     notes: '',
   })
-  const [licenseCustomerId, setLicenseCustomerId] = useState('')
-  const [licenseResult, setLicenseResult] = useState<any>(null)
-  const [licenseChecking, setLicenseChecking] = useState(false)
-  const [customerOptions, setCustomerOptions] = useState<{ value: string; label: string }[]>([])
 
   const load = () => {
     setLoading(true)
@@ -69,16 +66,6 @@ export function PharmaGdpPage() {
   }
   useEffect(() => {
     load()
-    vendorApi
-      .listCustomers?.({ limit: 200 })
-      .then((r: any) => {
-        const customers = r?.items || r?.customers || []
-        setCustomerOptions([
-          { value: '', label: 'Select customer…' },
-          ...customers.map((c: any) => ({ value: c.id, label: c.name || c.company_name || c.id })),
-        ])
-      })
-      .catch(() => {})
   }, [])
 
   const openCount = items.filter((e) => e.status === 'open' || e.status === 'investigating').length
@@ -104,71 +91,92 @@ export function PharmaGdpPage() {
 
       {canManage ? (
         <PharmaCard className="mb-4">
-          <h2 className="mb-1 text-sm font-medium">Log excursion</h2>
+          <h2 className="mb-1 text-sm font-semibold">Log excursion</h2>
           <p className="mb-3 text-xs text-muted-foreground">
             Use when a fridge, freezer, or CRT area goes outside the allowed band.
           </p>
-          <PharmaToolbar>
-            <PharmaBatchSelect
-              className="w-72"
-              value={form.goods_batch_id}
-              onChange={(goods_batch_id) => setForm({ ...form, goods_batch_id })}
-            />
-            <Input
-              className="w-28"
-              type="number"
-              step="0.1"
-              placeholder="Temp °C"
-              value={form.temp_c}
-              onChange={(e) => setForm({ ...form, temp_c: e.target.value })}
-            />
-            <Input
-              className="w-28"
-              type="number"
-              placeholder="Minutes"
-              value={form.duration_minutes}
-              onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })}
-            />
-            <Select
-              value={form.severity}
-              onChange={(severity) => setForm({ ...form, severity })}
-              options={[
-                { value: 'minor', label: 'Minor' },
-                { value: 'major', label: 'Major' },
-                { value: 'critical', label: 'Critical' },
-              ]}
-            />
-            <Input
-              className="w-56"
-              placeholder="What happened?"
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-            <Button
-              onClick={() => {
-                if (!isUuid(form.goods_batch_id) || form.temp_c === '') {
-                  toast.error('Select a batch and enter temperature')
-                  return
-                }
-                pharmaApi
-                  .createExcursion({
-                    goods_batch_id: form.goods_batch_id,
-                    temp_c: Number(form.temp_c),
-                    duration_minutes: form.duration_minutes ? Number(form.duration_minutes) : undefined,
-                    severity: form.severity,
-                    notes: form.notes || undefined,
-                  })
-                  .then(() => {
-                    toast.success('Excursion logged')
-                    setForm({ ...form, temp_c: '', notes: '', duration_minutes: '' })
-                    load()
-                  })
-                  .catch((e: any) => toast.error(e?.response?.data?.detail || 'Failed'))
-              }}
-            >
-              Log excursion
-            </Button>
-          </PharmaToolbar>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-[minmax(0,1.6fr)_6.5rem_6.5rem_7.5rem]">
+              <div className="col-span-2 min-w-0 sm:col-span-2 lg:col-span-1">
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Batch *</label>
+                <PharmaBatchSelect
+                  className="w-full"
+                  value={form.goods_batch_id}
+                  onChange={(goods_batch_id) => setForm({ ...form, goods_batch_id })}
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Temp (°C) *</label>
+                <Input
+                  className="w-full"
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g. 8.5"
+                  value={form.temp_c}
+                  onChange={(e) => setForm({ ...form, temp_c: e.target.value })}
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Duration (min)</label>
+                <Input
+                  className="w-full"
+                  type="number"
+                  placeholder="e.g. 30"
+                  value={form.duration_minutes}
+                  onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })}
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Severity</label>
+                <Select
+                  className="w-full"
+                  value={form.severity}
+                  onChange={(severity) => setForm({ ...form, severity })}
+                  options={[
+                    { value: 'minor', label: 'Minor' },
+                    { value: 'major', label: 'Major' },
+                    { value: 'critical', label: 'Critical' },
+                  ]}
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <div className="min-w-0">
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">What happened?</label>
+                <Input
+                  className="w-full"
+                  placeholder="Brief description of the excursion…"
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
+              </div>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  if (!isUuid(form.goods_batch_id) || form.temp_c === '') {
+                    toast.error('Select a batch and enter temperature')
+                    return
+                  }
+                  pharmaApi
+                    .createExcursion({
+                      goods_batch_id: form.goods_batch_id,
+                      temp_c: Number(form.temp_c),
+                      duration_minutes: form.duration_minutes ? Number(form.duration_minutes) : undefined,
+                      severity: form.severity,
+                      notes: form.notes || undefined,
+                    })
+                    .then(() => {
+                      toast.success('Excursion logged')
+                      setForm({ ...form, temp_c: '', notes: '', duration_minutes: '' })
+                      load()
+                    })
+                    .catch((e: any) => toast.error(fmtErr(e, 'Failed')))
+                }}
+              >
+                Log excursion
+              </Button>
+            </div>
+          </div>
         </PharmaCard>
       ) : null}
 
@@ -201,7 +209,7 @@ export function PharmaGdpPage() {
                     }
                     ev.target.value = ''
                   })
-                  .catch((e: any) => toast.error(e?.response?.data?.detail || 'Import failed'))
+                  .catch((e: any) => toast.error(fmtErr(e, 'Import failed')))
               }}
             />
           </div>
@@ -268,65 +276,6 @@ export function PharmaGdpPage() {
             </li>
           ))}
         </ul>
-      </PharmaCard>
-
-      <PharmaCard>
-        <h2 className="mb-1 text-sm font-medium">Wholesale license check</h2>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Verify a customer's wholesale distributor license before shipping. Enable the gate in{' '}
-          <Link to="/pharma/settings" className="text-primary hover:underline">Foundations</Link>{' '}
-          to block shipments automatically when the license is expired or missing.
-        </p>
-        <PharmaToolbar>
-          <Select
-            className="w-72"
-            value={licenseCustomerId}
-            onChange={setLicenseCustomerId}
-            options={customerOptions}
-            placeholder="Select customer…"
-          />
-          <Button
-            disabled={!licenseCustomerId || licenseChecking}
-            onClick={async () => {
-              if (!licenseCustomerId) return
-              setLicenseChecking(true)
-              setLicenseResult(null)
-              try {
-                const res = await pharmaApi.checkWholesaleLicense(licenseCustomerId)
-                setLicenseResult(res)
-              } catch (e: any) {
-                toast.error(e?.response?.data?.detail || 'License check failed')
-              } finally {
-                setLicenseChecking(false)
-              }
-            }}
-          >
-            {licenseChecking ? 'Checking…' : 'Check license'}
-          </Button>
-        </PharmaToolbar>
-        {licenseResult ? (
-          <div
-            className={`mt-2 rounded-md border px-4 py-3 text-sm ${
-              licenseResult.ok
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                : 'border-red-200 bg-red-50 text-red-800'
-            }`}
-          >
-            <div className="font-medium">{licenseResult.ok ? 'License valid' : 'License invalid or missing'}</div>
-            {licenseResult.license_number ? (
-              <div className="mt-1 text-xs opacity-80">
-                License: {licenseResult.license_number}
-                {licenseResult.license_expires ? ` · expires ${licenseResult.license_expires}` : ''}
-              </div>
-            ) : null}
-            {!licenseResult.ok && licenseResult.detail ? (
-              <div className="mt-1 text-xs opacity-80">{licenseResult.detail}</div>
-            ) : null}
-            {!licenseResult.enforced ? (
-              <div className="mt-1 text-xs opacity-60 italic">Gate not enforced — enable "Block ship without valid wholesale license" in Foundations.</div>
-            ) : null}
-          </div>
-        ) : null}
       </PharmaCard>
     </div>
   )
@@ -399,7 +348,7 @@ export function PharmaTrackTracePage() {
         URL.revokeObjectURL(url)
         toast.success(toastMsg)
       })
-      .catch((e: any) => toast.error(e?.response?.data?.detail || 'Export failed'))
+      .catch((e: any) => toast.error(fmtErr(e, 'Export failed')))
   }
 
   const load = async () => {
@@ -447,7 +396,7 @@ export function PharmaTrackTracePage() {
         if (r.verified) toast.success('Verified')
         else toast.message(r.message || 'Not verified')
       })
-      .catch((e: any) => toast.error(e?.response?.data?.detail || 'Verify failed'))
+      .catch((e: any) => toast.error(fmtErr(e, 'Verify failed')))
       .finally(() => setVerifying(false))
   }
 
@@ -464,7 +413,7 @@ export function PharmaTrackTracePage() {
               : 'Track region cleared',
         )
       })
-      .catch((e: any) => toast.error(e?.response?.data?.detail || 'Could not update region'))
+      .catch((e: any) => toast.error(fmtErr(e, 'Could not update region')))
   }
 
   return (
@@ -493,7 +442,7 @@ export function PharmaTrackTracePage() {
         </Link>
       </div>
 
-      <div className="mb-4 grid gap-4 lg:grid-cols-2">
+      <div className="mb-4 grid gap-4">
         <PharmaCard>
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-medium">Verify serial (saleable return)</h2>
@@ -620,10 +569,9 @@ export function PharmaTrackTracePage() {
             </Link>
           </div>
           {canManage ? (
-          <div className="mb-3 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">Master type</span>
+          <div className="mb-3 flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-0.5">
               <Select
+                className="w-36 shrink-0"
                 value={masterKind}
                 onChange={(next) => {
                   setMasterKind(next as 'customer' | 'vendor' | 'other')
@@ -641,111 +589,112 @@ export function PharmaTrackTracePage() {
                   { value: 'other', label: 'Other (partner / contractor)' },
                 ]}
               />
-            </div>
-            <MasterDataPicker
-              key={masterKind}
-              placeholder={
-                masterKind === 'customer'
-                  ? 'Search customers by name, email or phone…'
-                  : masterKind === 'vendor'
-                    ? 'Search vendors / suppliers by name, email or phone…'
-                    : 'Search partners, contractors and other parties…'
-              }
-              selected={selectedMaster}
-              onSearch={async (q) => {
-                if (masterKind === 'customer') {
-                  const customers = await vendorApi.listCustomers({ search: q, size: 20 })
-                  return (customers?.items || []).map((c: any) => ({
-                    id: `cust:${c.id}`,
-                    label: c.company_name || c.full_name,
-                    sub: ['Customer', c.phone, c.email, c.wholesale_license_number]
-                      .filter(Boolean)
-                      .join(' • '),
-                    phone: c.phone ?? undefined,
-                    email: c.email ?? undefined,
-                    meta: { source: 'customer' as const, id: c.id, record: c },
-                  }))
+            <div className="min-w-[14rem] flex-1">
+              <MasterDataPicker
+                key={masterKind}
+                placeholder={
+                  masterKind === 'customer'
+                    ? 'Search customers by name, email or phone…'
+                    : masterKind === 'vendor'
+                      ? 'Search vendors / suppliers by name, email or phone…'
+                      : 'Search partners, contractors and other parties…'
                 }
-                if (masterKind === 'vendor') {
-                  const [bps, suppliers] = await Promise.all([
-                    vendorApi.listBusinessPartners({ search: q, role: 'vendor', size: 15 }),
-                    vendorApi.listSuppliers({ search: q, size: 15 }),
-                  ])
-                  const bpOpts: PickerOption[] = (bps?.items || []).map((bp) => ({
-                    id: `bp:${bp.id}`,
-                    label: bp.name,
-                    sub: ['Vendor', bp.phone, bp.email].filter(Boolean).join(' • '),
-                    phone: bp.phone ?? undefined,
-                    email: bp.email ?? undefined,
-                    meta: { source: 'bp' as const, id: bp.id, record: bp },
-                  }))
-                  const seen = new Set(bpOpts.map((o) => o.label.toLowerCase()))
-                  const supplierOpts: PickerOption[] = (suppliers?.items || [])
-                    .filter((s) => !seen.has((s.name || '').toLowerCase()))
-                    .map((s) => ({
-                      id: `sup:${s.id}`,
-                      label: s.name,
-                      sub: ['Supplier', s.phone, s.email].filter(Boolean).join(' • '),
-                      phone: s.phone ?? undefined,
-                      email: s.email ?? undefined,
-                      meta: { source: 'supplier' as const, id: s.id, record: s },
+                selected={selectedMaster}
+                onSearch={async (q) => {
+                  if (masterKind === 'customer') {
+                    const customers = await vendorApi.listCustomers({ search: q, size: 20 })
+                    return (customers?.items || []).map((c: any) => ({
+                      id: `cust:${c.id}`,
+                      label: c.company_name || c.full_name,
+                      sub: ['Customer', c.phone, c.email, c.wholesale_license_number]
+                        .filter(Boolean)
+                        .join(' • '),
+                      phone: c.phone ?? undefined,
+                      email: c.email ?? undefined,
+                      meta: { source: 'customer' as const, id: c.id, record: c },
                     }))
-                  return [...bpOpts, ...supplierOpts].slice(0, 25)
-                }
-                // other — partner / contractor / remaining business partners
-                const [partners, contractors] = await Promise.all([
-                  vendorApi.listBusinessPartners({ search: q, role: 'partner', size: 12 }),
-                  vendorApi.listBusinessPartners({ search: q, role: 'contractor', size: 12 }),
-                ])
-                const byId = new Map<string, PickerOption>()
-                for (const bp of [...(partners?.items || []), ...(contractors?.items || [])]) {
-                  const roles = (bp.roles || []).map((r) => r.role).filter(Boolean).join(', ')
-                  byId.set(bp.id, {
-                    id: `bp:${bp.id}`,
-                    label: bp.name,
-                    sub: [roles || 'Other', bp.phone, bp.email].filter(Boolean).join(' • '),
-                    phone: bp.phone ?? undefined,
-                    email: bp.email ?? undefined,
-                    meta: { source: 'bp' as const, id: bp.id, record: bp },
-                  })
-                }
-                return Array.from(byId.values()).slice(0, 25)
-              }}
-              onSelect={(opt) => {
-                setSelectedMaster(opt)
-                if (!opt?.meta) return
-                const meta = opt.meta as {
-                  source: 'bp' | 'customer' | 'supplier'
-                  id: string
-                  record: any
-                }
-                if (meta.source === 'customer') {
-                  const c = meta.record
-                  setPartnerForm((f) => ({
-                    ...f,
-                    license_number: c.wholesale_license_number || f.license_number,
-                  }))
-                } else if (meta.source === 'bp') {
-                  const bp = meta.record
-                  const custRole = (bp.roles || []).find((r: any) => r.role === 'customer' && r.customer_id)
-                  if (custRole?.customer_id) {
-                    vendorApi
-                      .getCustomer(custRole.customer_id)
-                      .then((c) => {
-                        if (c?.wholesale_license_number) {
-                          setPartnerForm((f) => ({
-                            ...f,
-                            license_number: c.wholesale_license_number || '',
-                          }))
-                        }
-                      })
-                      .catch(() => {})
                   }
-                }
-              }}
-            />
-            <div className="flex flex-wrap gap-2">
+                  if (masterKind === 'vendor') {
+                    const [bps, suppliers] = await Promise.all([
+                      vendorApi.listBusinessPartners({ search: q, role: 'vendor', size: 15 }),
+                      vendorApi.listSuppliers({ search: q, size: 15 }),
+                    ])
+                    const bpOpts: PickerOption[] = (bps?.items || []).map((bp) => ({
+                      id: `bp:${bp.id}`,
+                      label: bp.name,
+                      sub: ['Vendor', bp.phone, bp.email].filter(Boolean).join(' • '),
+                      phone: bp.phone ?? undefined,
+                      email: bp.email ?? undefined,
+                      meta: { source: 'bp' as const, id: bp.id, record: bp },
+                    }))
+                    const seen = new Set(bpOpts.map((o) => o.label.toLowerCase()))
+                    const supplierOpts: PickerOption[] = (suppliers?.items || [])
+                      .filter((s) => !seen.has((s.name || '').toLowerCase()))
+                      .map((s) => ({
+                        id: `sup:${s.id}`,
+                        label: s.name,
+                        sub: ['Supplier', s.phone, s.email].filter(Boolean).join(' • '),
+                        phone: s.phone ?? undefined,
+                        email: s.email ?? undefined,
+                        meta: { source: 'supplier' as const, id: s.id, record: s },
+                      }))
+                    return [...bpOpts, ...supplierOpts].slice(0, 25)
+                  }
+                  // other — partner / contractor / remaining business partners
+                  const [partners, contractors] = await Promise.all([
+                    vendorApi.listBusinessPartners({ search: q, role: 'partner', size: 12 }),
+                    vendorApi.listBusinessPartners({ search: q, role: 'contractor', size: 12 }),
+                  ])
+                  const byId = new Map<string, PickerOption>()
+                  for (const bp of [...(partners?.items || []), ...(contractors?.items || [])]) {
+                    const roles = (bp.roles || []).map((r) => r.role).filter(Boolean).join(', ')
+                    byId.set(bp.id, {
+                      id: `bp:${bp.id}`,
+                      label: bp.name,
+                      sub: [roles || 'Other', bp.phone, bp.email].filter(Boolean).join(' • '),
+                      phone: bp.phone ?? undefined,
+                      email: bp.email ?? undefined,
+                      meta: { source: 'bp' as const, id: bp.id, record: bp },
+                    })
+                  }
+                  return Array.from(byId.values()).slice(0, 25)
+                }}
+                onSelect={(opt) => {
+                  setSelectedMaster(opt)
+                  if (!opt?.meta) return
+                  const meta = opt.meta as {
+                    source: 'bp' | 'customer' | 'supplier'
+                    id: string
+                    record: any
+                  }
+                  if (meta.source === 'customer') {
+                    const c = meta.record
+                    setPartnerForm((f) => ({
+                      ...f,
+                      license_number: c.wholesale_license_number || f.license_number,
+                    }))
+                  } else if (meta.source === 'bp') {
+                    const bp = meta.record
+                    const custRole = (bp.roles || []).find((r: any) => r.role === 'customer' && r.customer_id)
+                    if (custRole?.customer_id) {
+                      vendorApi
+                        .getCustomer(custRole.customer_id)
+                        .then((c) => {
+                          if (c?.wholesale_license_number) {
+                            setPartnerForm((f) => ({
+                              ...f,
+                              license_number: c.wholesale_license_number || '',
+                            }))
+                          }
+                        })
+                        .catch(() => {})
+                    }
+                  }
+                }}
+              />
+            </div>
               <Select
+                className="w-32 shrink-0"
                 value={partnerForm.partner_type}
                 onChange={(partner_type) => setPartnerForm({ ...partnerForm, partner_type })}
                 options={[
@@ -755,18 +704,19 @@ export function PharmaTrackTracePage() {
                 ]}
               />
               <Input
-                className="w-36"
+                className="w-28 shrink-0"
                 placeholder="GLN (optional)"
                 value={partnerForm.gln}
                 onChange={(e) => setPartnerForm({ ...partnerForm, gln: e.target.value })}
               />
               <Input
-                className="w-40"
+                className="w-32 shrink-0"
                 placeholder="License # (optional)"
                 value={partnerForm.license_number}
                 onChange={(e) => setPartnerForm({ ...partnerForm, license_number: e.target.value })}
               />
               <Button
+                className="shrink-0"
                 onClick={() => {
                   if (!selectedMaster?.meta) {
                     toast.error('Select a partner from Master Data')
@@ -805,12 +755,11 @@ export function PharmaTrackTracePage() {
                       setSelectedMaster(null)
                       load()
                     })
-                    .catch((e: any) => toast.error(e?.response?.data?.detail || 'Failed'))
+                    .catch((e: any) => toast.error(fmtErr(e, 'Failed')))
                 }}
               >
                 Add partner
               </Button>
-            </div>
           </div>
           ) : null}
           {partners.length === 0 ? (
@@ -833,7 +782,16 @@ export function PharmaTrackTracePage() {
                   {partners.map((p) => (
                     <tr key={p.id} className="border-b border-border/50">
                       <td className="py-2 pr-3 font-medium">
-                        {p.name}
+                        {p.meta?.customer_id ? (
+                          <Link
+                            to={`/customers/${p.meta.customer_id}`}
+                            className="text-primary hover:underline"
+                          >
+                            {p.name}
+                          </Link>
+                        ) : (
+                          p.name
+                        )}
                         {p.meta?.business_partner_id || p.meta?.customer_id || p.meta?.supplier_id ? (
                           <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">
                             Master Data
@@ -901,8 +859,9 @@ export function PharmaTrackTracePage() {
               EPCIS events created when you commission, pack, ship, recall, or destroy serials.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-nowrap items-center gap-2">
             <Select
+              className="w-40 shrink-0"
               value={stepFilter}
               onChange={setStepFilter}
               options={[
@@ -916,6 +875,7 @@ export function PharmaTrackTracePage() {
               ]}
             />
             <Select
+              className="w-52 shrink-0"
               value={exportFormat}
               onChange={(v) => setExportFormat(v as typeof exportFormat)}
               options={[
@@ -926,7 +886,7 @@ export function PharmaTrackTracePage() {
                 { value: 'pdf', label: 'PDF report' },
               ]}
             />
-            <Button size="sm" variant="outline" onClick={downloadPartnerExport}>
+            <Button size="sm" variant="outline" className="shrink-0" onClick={downloadPartnerExport}>
               Download for partners
             </Button>
           </div>

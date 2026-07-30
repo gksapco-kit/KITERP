@@ -8,14 +8,15 @@ import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { modalWidthMd } from '@/lib/modalUi'
-import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import {
-  BranchPlantSelect,
-  type BranchPlantSelection,
-} from '@/components/common/BranchPlantSelect'
+  PoDestinationFields,
+  emptyPoDestination,
+  poDestinationToPayload,
+  type PoDestinationValue,
+} from '@/components/procurement/PoDestinationFields'
 import {
   usePurchaseOrders, useCreatePurchaseOrder, useSuppliers, useProducts, useServices,
-  useCreateSupplier, useUpdatePurchaseOrder, usePlants, useStorageLocationTree,
+  useCreateSupplier, useUpdatePurchaseOrder,
 } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useQuery } from '@tanstack/react-query'
@@ -24,7 +25,7 @@ import { cn, formatDate, formatCurrency } from '@/lib/utils'
 import { dedupeSuppliers, findExistingSupplier } from '@/lib/supplierUtils'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { ResizableTable } from '@/components/table/ResizableTable'
-import type { Product, Service, PurchaseOrder, StorageLocation } from '@/types'
+import type { Product, Service, PurchaseOrder } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { TablePagination } from '@/components/table/TablePagination'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
@@ -59,21 +60,6 @@ interface BarcodePrefill {
   productName: string
   variantName?: string
   unitCost?: number
-}
-
-function flattenStorageLocations(
-  nodes: StorageLocation[],
-  prefix = '',
-): { value: string; label: string }[] {
-  const out: { value: string; label: string }[] = []
-  for (const node of nodes) {
-    const label = prefix ? `${prefix} / ${node.name}` : node.name
-    out.push({ value: node.id, label })
-    if (node.children?.length) {
-      out.push(...flattenStorageLocations(node.children, label))
-    }
-  }
-  return out
 }
 
 export default function PurchaseOrdersPage() {
@@ -420,29 +406,12 @@ function CreatePOModal({
   const [supplierId, setSupplierId] = useState(pendingSupplier?.id || '')
   const [expectedDate, setExpectedDate] = useState('')
   const [notes, setNotes] = useState('')
-  const [storeId, setStoreId] = useState(selectedStore?.id || '')
-  const [scope, setScope] = useState<BranchPlantSelection>(() => (
-    selectedBranch?.id
+  const [dest, setDest] = useState<PoDestinationValue>(() => ({
+    ...emptyPoDestination(selectedStore?.id || ''),
+    scope: selectedBranch?.id
       ? { kind: 'branch', id: selectedBranch.id }
-      : { kind: '' }
-  ))
-  const [storageLocationId, setStorageLocationId] = useState('')
-
-  const plantId = scope.kind === 'plant' ? scope.id : ''
-  const branchId = scope.kind === 'branch' ? scope.id : ''
-  const { data: plantsData } = usePlants(storeId || null)
-  const plants = plantsData?.plants ?? []
-  const selectedPlant = plants.find((p) => p.id === plantId)
-  // Locations under a plant use the plant's BU; under a branch use the branch store id.
-  const locationStoreId = branchId || selectedPlant?.store_id || storeId || null
-  const { data: locationsData, isLoading: locationsLoading } = useStorageLocationTree(
-    locationStoreId,
-    plantId || null,
-  )
-  const locationOptions = useMemo(
-    () => flattenStorageLocations(locationsData?.locations ?? []),
-    [locationsData?.locations],
-  )
+      : { kind: '' },
+  }))
 
   // Quick-create supplier mini-panel state
   const [showQuickSupplier, setShowQuickSupplier] = useState(false)
@@ -457,14 +426,16 @@ function CreatePOModal({
 
   // Keep form in sync if header BU / branch changes while modal is open
   useEffect(() => {
-    if (selectedStore?.id && !storeId) setStoreId(selectedStore.id)
-  }, [selectedStore?.id, storeId])
+    if (selectedStore?.id && !dest.storeId) {
+      setDest((prev) => ({ ...prev, storeId: selectedStore.id }))
+    }
+  }, [selectedStore?.id, dest.storeId])
 
   useEffect(() => {
-    if (selectedBranch?.id && !scope.kind) {
-      setScope({ kind: 'branch', id: selectedBranch.id })
+    if (selectedBranch?.id && !dest.scope.kind) {
+      setDest((prev) => ({ ...prev, scope: { kind: 'branch', id: selectedBranch.id } }))
     }
-  }, [selectedBranch?.id, scope.kind])
+  }, [selectedBranch?.id, dest.scope.kind])
 
   const handleQuickCreateSupplier = async () => {
     if (!qsName.trim()) return
@@ -597,8 +568,7 @@ function CreatePOModal({
           quantity: parseInt(i.quantity),
           unit_cost: parseFloat(i.unit_cost),
           description: i.item_note || undefined,
-          plant_id: plantId || undefined,
-          storage_location_id: storageLocationId || undefined,
+          ...poDestinationToPayload(dest),
         })),
         expected_delivery_date: expectedDate || undefined,
         notes: notes || undefined,
@@ -608,7 +578,7 @@ function CreatePOModal({
     } catch {
       // handled by hook
     }
-  }, [canSubmit, supplierId, items, expectedDate, notes, plantId, storageLocationId, createMut, onClose, navigate])
+  }, [canSubmit, supplierId, items, expectedDate, notes, dest, createMut, onClose, navigate])
 
   return (
     <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
@@ -717,66 +687,7 @@ function CreatePOModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex h-5 items-center">
-                <Label className="text-xs">Business Unit</Label>
-              </div>
-              <BusinessUnitSelect
-                value={storeId}
-                onChange={(id) => {
-                  setStoreId(id)
-                  setScope({ kind: '' })
-                  setStorageLocationId('')
-                }}
-                autoSelectDefault={false}
-                className="w-full min-w-0"
-                triggerClassName="h-9"
-              />
-            </div>
-
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex h-5 items-center">
-                <Label className="text-xs">Storage Location</Label>
-              </div>
-              <Select
-                value={storageLocationId}
-                onChange={setStorageLocationId}
-                options={selectOptionsWithBlank(
-                  !scope.kind
-                    ? 'Select Branch or Plant first…'
-                    : locationsLoading
-                      ? 'Loading…'
-                      : locationOptions.length
-                        ? 'Select location…'
-                        : 'No locations found',
-                  locationOptions,
-                )}
-                placeholder={
-                  !scope.kind
-                    ? 'Select Branch or Plant first…'
-                    : locationsLoading
-                      ? 'Loading…'
-                      : 'Select location…'
-                }
-                disabled={!scope.kind || locationsLoading}
-                aria-label="Storage location"
-                className="w-full min-w-0"
-                triggerClassName="h-9"
-              />
-            </div>
-          </div>
-
-          <BranchPlantSelect
-            businessUnitId={storeId || null}
-            value={scope}
-            onChange={(next) => {
-              setScope(next)
-              setStorageLocationId('')
-            }}
-            allowAll={false}
-            className="w-full"
-          />
+          <PoDestinationFields value={dest} onChange={setDest} />
 
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">

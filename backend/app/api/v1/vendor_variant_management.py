@@ -14,7 +14,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.vendor_product import ProductVariant
 from app.api.v1.vendor_variant_generator import _get_owned_product
 from app.schemas.variant_management import (
@@ -23,7 +23,7 @@ from app.schemas.variant_management import (
     PriceAdjustMode,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("products.view"))])
 
 
 def _num(v):

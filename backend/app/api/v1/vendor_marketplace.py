@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
 from app.database import get_db
 from app.models.user import User
 from app.models.vendor import Vendor
@@ -11,7 +11,7 @@ from app.repositories.vendor_repo import VendorRepository
 from app.schemas.marketplace import MarketplaceLeadResponse, MarketplaceQuoteCreate, MarketplaceQuoteResponse
 from app.services.marketplace_service import MarketplaceService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("orders.view"))])
 
 
 async def _vendor(db: AsyncSession, vendor_id: UUID) -> Vendor:

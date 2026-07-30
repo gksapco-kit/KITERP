@@ -6,13 +6,13 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.plant import Plant
 from app.schemas.plant import PlantCreate, PlantUpdate
 from app.repositories.plant_repo import PlantRepository
 from app.services.catalog_store_scope import validate_store_ids
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("masterdata.view"))])
 
 
 def _plant_to_dict(plant: Plant) -> dict:

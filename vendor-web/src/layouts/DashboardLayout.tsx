@@ -575,13 +575,13 @@ const allSections: NavSection[] = [
     title: 'Website Management',
     icon: Globe,
     items: [
-      { to: '/websites', icon: Globe, label: 'Business Website Builder', alwaysShow: true },
-      { to: '/websites/templates', icon: Sparkles, label: 'Business Website Templates', alwaysShow: true },
-      { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', alwaysShow: true },
-      { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', alwaysShow: true },
-      { to: '/blog', icon: Newspaper, label: 'Blog Manager', alwaysShow: true },
-      { to: '/websites/seo', icon: Search, label: 'SEO Management', alwaysShow: true },
-      { to: '/websites/analytics', icon: BarChart3, label: 'Website Analytics', alwaysShow: true },
+      { to: '/websites', icon: Globe, label: 'Business Website Builder', requiresPermission: 'websites.view' },
+      { to: '/websites/templates', icon: Sparkles, label: 'Business Website Templates', requiresPermission: 'websites.view' },
+      { to: '/system/storefront-display', icon: SlidersHorizontal, label: 'Business Front Display', requiresPermission: 'websites.view' },
+      { to: '/system/social-links', icon: Globe, label: 'Social & Web Links', requiresPermission: 'websites.view' },
+      { to: '/blog', icon: Newspaper, label: 'Blog Manager', requiresPermission: 'websites.manage' },
+      { to: '/websites/seo', icon: Search, label: 'SEO Management', requiresPermission: 'websites.manage' },
+      { to: '/websites/analytics', icon: BarChart3, label: 'Website Analytics', requiresPermission: 'reports.view' },
     ],
   },
   {
@@ -591,7 +591,7 @@ const allSections: NavSection[] = [
     items: [
       { to: '/sales/manager', icon: BarChart3, label: 'Sales Reporting Manager', requiresPermission: 'reports.view' },
       { to: '/orders', icon: ShoppingCart, label: 'Orders', requiresPermission: 'orders.view', groupLabel: 'Core Sales', groupColor: 'blue' },
-      { to: '/quotations', icon: ScrollText, label: 'Quotations', requiresPermission: 'orders.view' },
+      { to: '/quotations', icon: ScrollText, label: 'Quotations', requiresPermission: 'quotations.view' },
       { to: '/bookings', icon: Calendar, label: 'Bookings', requiresOffering: ['services', 'both'], requiresPermission: 'bookings.view' },
       { to: '/sales/delivery-conditions', icon: PackageSearch, label: 'Delivery Conditions', requiresPermission: 'orders.view' },
       { to: '/projects', icon: FolderKanban, label: 'Projects', requiresPermission: 'projects.view' },
@@ -603,17 +603,17 @@ const allSections: NavSection[] = [
       { to: '/memos', icon: FilePlus, label: 'Credit / Debit Memos', requiresPermission: 'memos.view' },
       { to: '/coupons', icon: Tag, label: 'Coupons', requiresPermission: 'coupons.view' },
       { to: '/rental', icon: Truck, label: 'Rentals', requiresPermission: 'rentals.view' },
-      { to: '/sales/properties', icon: Building2, label: 'Property Listings', requiresPermission: 'orders.view', groupLabel: 'Industry Catalogs', groupColor: 'indigo' },
-      { to: '/sales/courses', icon: GraduationCap, label: 'Course Catalog', requiresPermission: 'orders.view' },
-      { to: '/sales/fitness-classes', icon: Dumbbell, label: 'Fitness Schedule', requiresPermission: 'orders.view' },
-      { to: '/sales/vehicles', icon: Car, label: 'Vehicle Inventory', requiresPermission: 'orders.view' },
+      { to: '/sales/properties', icon: Building2, label: 'Property Listings', requiresPermission: 'products.view', groupLabel: 'Industry Catalogs', groupColor: 'indigo' },
+      { to: '/sales/courses', icon: GraduationCap, label: 'Course Catalog', requiresPermission: 'products.view' },
+      { to: '/sales/fitness-classes', icon: Dumbbell, label: 'Fitness Schedule', requiresPermission: 'bookings.view' },
+      { to: '/sales/vehicles', icon: Car, label: 'Vehicle Inventory', requiresPermission: 'products.view' },
       { to: '/sales/events', icon: Ticket, label: 'Ticketed Events', requiresPermission: 'orders.view' },
-      { to: '/sales/booking-wizard', icon: Workflow, label: 'Booking Wizard', requiresPermission: 'orders.view' },
-      { to: '/sales/booking-resources', icon: Warehouse, label: 'Resources', requiresPermission: 'orders.view' },
+      { to: '/sales/booking-wizard', icon: Workflow, label: 'Booking Wizard', requiresPermission: 'bookings.view' },
+      { to: '/sales/booking-resources', icon: Warehouse, label: 'Resources', requiresPermission: 'bookings.view' },
       { to: '/sales/coverage', icon: MapPin, label: 'Store Coverage', requiresPermission: 'orders.view', groupLabel: 'Territory & Coverage', groupColor: 'emerald' },
       { to: '/sales/sales-area', icon: LayoutGrid, label: 'Sales Area', requiresPermission: 'orders.view' },
       { to: '/marketplace', icon: Target, label: 'Marketplace Leads', requiresPermission: 'orders.view', groupLabel: 'Growth & Social Proof', groupColor: 'rose' },
-      { to: '/sales/testimonials', icon: Quote, label: 'Testimonials', requiresPermission: 'orders.view' },
+      { to: '/sales/testimonials', icon: Quote, label: 'Testimonials', requiresPermission: 'reviews.view' },
     ],
   },
   {
@@ -637,7 +637,7 @@ const allSections: NavSection[] = [
     title: 'Master Data Management',
     icon: Database,
     items: [
-      { to: '/master-data', icon: PieChart, label: 'Master Data — Customers & Suppliers', labelSize: 'text-sm', alwaysShow: true },
+      { to: '/master-data', icon: PieChart, label: 'Master Data — Customers & Suppliers', labelSize: 'text-sm', requiresPermission: 'masterdata.view' },
       { to: '/reviews', icon: MessageSquare, label: 'Reviews', requiresPermission: 'reviews.view' },
     ],
   },
@@ -682,6 +682,7 @@ const allSections: NavSection[] = [
     icon: Pill,
     items: [
       { to: '/pharma', icon: Pill, label: 'Overview', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view', groupLabel: 'Foundations', groupColor: 'emerald' },
+      { to: '/pharma/reports', icon: BarChart3, label: 'Reporting Manager', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view' },
       { to: '/pharma/settings', icon: Settings2, label: 'Foundations', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view' },
       { to: '/pharma/batches', icon: Package, label: 'Batches', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view', groupLabel: 'Lot control', groupColor: 'blue' },
       { to: '/pharma/movements', icon: ArrowRightLeft, label: 'Lot movements', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.view' },
@@ -701,6 +702,7 @@ const allSections: NavSection[] = [
       { to: '/pharma/audit', icon: History, label: 'E-sign & audit', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.audit', groupLabel: 'Compliance', groupColor: 'slate' },
       { to: '/pharma/serialization', icon: QrCode, label: 'Serialization', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage' },
       { to: '/pharma/gdp', icon: ThermometerSnowflake, label: 'GDP / cold chain', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage', groupLabel: 'Wholesale', groupColor: 'cyan' },
+      { to: '/pharma/wholesale-license', icon: FileCheck, label: 'Wholesale license', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage' },
       { to: '/pharma/track-trace', icon: Network, label: 'Track & trace', requiresOffering: ['products', 'both'], requiresPermission: 'pharma.manage' },
     ],
   },
@@ -756,7 +758,7 @@ const allSections: NavSection[] = [
       // ── Advanced Finance mode ──────────────────────────────────────────────
       { to: '/finance', icon: Landmark, label: 'Finance Dashboard', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       // ── General Accounting
-      { to: '/stores', icon: Building2, label: 'Business Units', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced', groupLabel: 'General Accounting', groupColor: 'blue' },
+      { to: '/stores', icon: Building2, label: 'Business Units', requiresPermission: 'settings.edit', requiresFinanceMode: 'advanced', groupLabel: 'General Accounting', groupColor: 'blue' },
       { to: '/finance/coa', icon: BookMarked, label: 'Chart of Accounts', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/journal', icon: ScrollText, label: 'Journal Entries', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/trial-balance', icon: Scale, label: 'Trial Balance', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
@@ -801,35 +803,35 @@ const allSections: NavSection[] = [
     title: 'Controlling Management',
     icon: Gauge,
     items: [
-      { to: '/controlling', icon: Gauge, label: 'CO Dashboard', requiresPermission: 'finance.view' },
+      { to: '/controlling', icon: Gauge, label: 'CO Dashboard', requiresPermission: 'controlling.view' },
       // ── Organization
-      { to: '/controlling/controlling-areas',        icon: Building2,     label: 'Controlling Areas',           requiresPermission: 'finance.view', groupLabel: 'Organization', groupColor: 'indigo' },
+      { to: '/controlling/controlling-areas',        icon: Building2,     label: 'Controlling Areas',           requiresPermission: 'controlling.costcenter.manage', groupLabel: 'Organization', groupColor: 'indigo' },
       // ── Integration
-      { to: '/controlling/finance-integration',      icon: Landmark,      label: 'Finance Integration',        requiresPermission: 'finance.view', groupLabel: 'Integration', groupColor: 'violet' },
+      { to: '/controlling/finance-integration',      icon: Landmark,      label: 'Finance Integration',        requiresPermission: 'controlling.view', groupLabel: 'Integration', groupColor: 'violet' },
       // ── Cost Centres
-      { to: '/controlling/cost-centers',             icon: Layers,        label: 'Cost Centers',               requiresPermission: 'finance.view', groupLabel: 'Cost Centres', groupColor: 'blue' },
-      { to: '/controlling/activity-types',           icon: Activity,      label: 'Activity Types',             requiresPermission: 'finance.view' },
+      { to: '/controlling/cost-centers',             icon: Layers,        label: 'Cost Centers',               requiresPermission: 'controlling.costcenter.manage', groupLabel: 'Cost Centres', groupColor: 'blue' },
+      { to: '/controlling/activity-types',           icon: Activity,      label: 'Activity Types',             requiresPermission: 'controlling.costcenter.manage' },
       // ── Cost Planning
-      { to: '/controlling/product-costs',            icon: Boxes,         label: 'Product Cost Planning',      requiresPermission: 'finance.view', groupLabel: 'Cost Planning', groupColor: 'blue' },
-      { to: '/controlling/routing',                  icon: GitBranch,     label: 'Work Centres & Routing',     requiresPermission: 'finance.view' },
-      { to: '/controlling/setup',                    icon: Percent,       label: 'Overhead Setup',             requiresPermission: 'finance.view' },
+      { to: '/controlling/product-costs',            icon: Boxes,         label: 'Product Cost Planning',      requiresPermission: 'controlling.view', groupLabel: 'Cost Planning', groupColor: 'blue' },
+      { to: '/controlling/routing',                  icon: GitBranch,     label: 'Work Centres & Routing',     requiresPermission: 'controlling.view' },
+      { to: '/controlling/setup',                    icon: Percent,       label: 'Overhead Setup',             requiresPermission: 'controlling.costcenter.manage' },
       // ── Production Orders
-      { to: '/controlling/orders',                   icon: Factory,       label: 'All Orders',                 requiresPermission: 'finance.view', groupLabel: 'Production Orders',     groupColor: 'amber' },
-      { to: '/controlling/orders?kind=assembly',     icon: Workflow,      label: 'Assembly Orders',            requiresPermission: 'finance.view' },
-      { to: '/controlling/orders?kind=process',      icon: ArrowLeftRight,label: 'Process Orders',             requiresPermission: 'finance.view' },
-      { to: '/controlling/internal-orders',          icon: Boxes,         label: 'Internal & Project Orders',  requiresPermission: 'finance.view', labelSize: 'text-sm' },
+      { to: '/controlling/orders',                   icon: Factory,       label: 'All Orders',                 requiresPermission: 'controlling.view', groupLabel: 'Production Orders',     groupColor: 'amber' },
+      { to: '/controlling/orders?kind=assembly',     icon: Workflow,      label: 'Assembly Orders',            requiresPermission: 'controlling.view' },
+      { to: '/controlling/orders?kind=process',      icon: ArrowLeftRight,label: 'Process Orders',             requiresPermission: 'controlling.view' },
+      { to: '/controlling/internal-orders',          icon: Boxes,         label: 'Internal & Project Orders',  requiresPermission: 'controlling.view', labelSize: 'text-sm' },
       // ── Production Execution
-      { to: '/controlling/production-process',       icon: TrendingUp,    label: 'Production Process',         requiresPermission: 'finance.view', groupLabel: 'Production Execution',  groupColor: 'emerald' },
-      { to: '/controlling/goods-movements',          icon: Package,       label: 'Goods Movements',            requiresPermission: 'finance.view' },
-      { to: '/controlling/activity-confirmations',   icon: Clock,         label: 'Activity Confirmations',     requiresPermission: 'finance.view', labelSize: 'text-sm' },
-      { to: '/controlling/cost-bookings',            icon: Receipt,       label: 'Cost Bookings',              requiresPermission: 'finance.view' },
+      { to: '/controlling/production-process',       icon: TrendingUp,    label: 'Production Process',         requiresPermission: 'controlling.view', groupLabel: 'Production Execution',  groupColor: 'emerald' },
+      { to: '/controlling/goods-movements',          icon: Package,       label: 'Goods Movements',            requiresPermission: 'controlling.view' },
+      { to: '/controlling/activity-confirmations',   icon: Clock,         label: 'Activity Confirmations',     requiresPermission: 'controlling.view', labelSize: 'text-sm' },
+      { to: '/controlling/cost-bookings',            icon: Receipt,       label: 'Cost Bookings',              requiresPermission: 'controlling.view' },
       // ── Analysis & Reporting
-      { to: '/controlling/wip',                      icon: ClipboardList, label: 'WIP Report',                 requiresPermission: 'finance.view', groupLabel: 'Analysis & Reporting', groupColor: 'indigo' },
-      { to: '/controlling/variance-analysis',        icon: BarChart3,     label: 'Variance Analysis',          requiresPermission: 'finance.view' },
-      { to: '/controlling/internal-cost',            icon: BookOpen,      label: 'Internal Cost Mgmt',         requiresPermission: 'finance.view' },
+      { to: '/controlling/wip',                      icon: ClipboardList, label: 'WIP Report',                 requiresPermission: 'controlling.variance.view', groupLabel: 'Analysis & Reporting', groupColor: 'indigo' },
+      { to: '/controlling/variance-analysis',        icon: BarChart3,     label: 'Variance Analysis',          requiresPermission: 'controlling.variance.view' },
+      { to: '/controlling/internal-cost',            icon: BookOpen,      label: 'Internal Cost Mgmt',         requiresPermission: 'controlling.variance.view' },
       // ── Period End
-      { to: '/controlling/cost-allocations',         icon: GitBranch,     label: 'Cost Allocations',           requiresPermission: 'finance.view', groupLabel: 'Period End',            groupColor: 'rose' },
-      { to: '/controlling/period-end',               icon: Calendar,      label: 'Period-End Closing',         requiresPermission: 'finance.view' },
+      { to: '/controlling/cost-allocations',         icon: GitBranch,     label: 'Cost Allocations',           requiresPermission: 'controlling.period_close', groupLabel: 'Period End',            groupColor: 'rose' },
+      { to: '/controlling/period-end',               icon: Calendar,      label: 'Period-End Closing',         requiresPermission: 'controlling.period_close' },
     ],
   },
   {
@@ -859,11 +861,11 @@ const allSections: NavSection[] = [
     title: 'System Configuration',
     icon: Settings2,
     items: [
-      { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', alwaysShow: true },
-      { to: '/system/modules', icon: Layers, label: 'Module Settings', alwaysShow: true },
+      { to: '/document-templates', icon: LayoutTemplate, label: 'Document Templates', requiresPermission: 'documents.templates.manage' },
+      { to: '/system/modules', icon: Layers, label: 'Module Settings', requiresPermission: 'system.modules' },
       { to: '/crm/integrations', icon: Plug, label: 'Integrations', requiresPermission: 'crm.integrations.manage' },
-      { to: '/system/messages', icon: MessageSquare, label: 'Create Messages', alwaysShow: true },
-      { to: '/system/models', icon: Database, label: 'Models', alwaysShow: true, groupLabel: 'Database', groupColor: 'indigo' },
+      { to: '/system/messages', icon: MessageSquare, label: 'Create Messages', requiresPermission: 'settings.edit' },
+      { to: '/system/models', icon: Database, label: 'Models', requiresVendorAdmin: true, groupLabel: 'Database', groupColor: 'indigo' },
       { to: '/system/table-data', icon: Table2, label: 'Table Data', requiresVendorAdmin: true },
       { to: '/system/browse-table', icon: List, label: 'Browse Table', requiresVendorAdmin: true },
       { to: '/team', icon: UsersRound, label: 'Staff Access Control', requiresPermission: 'team.view', groupLabel: 'Access Control', groupColor: 'emerald' },
@@ -3552,7 +3554,6 @@ export default function DashboardLayout() {
                                             className={cn(
                                               'relative flex w-full min-w-0 flex-1 items-center gap-0.5',
                                               NAV_ROW_MIN_H,
-                                              tree === 'sub' && 'pl-[calc(var(--tree-sub-x)-var(--tree-x))]',
                                             )}
                                           >
                                             <span aria-hidden className={elbow} />
@@ -3670,7 +3671,8 @@ export default function DashboardLayout() {
                                           }
                                           aria-expanded={!isGroupCollapsed}
                                           className={cn(
-                                            'relative flex w-full items-center gap-1.5 rounded-md pr-1 pl-[calc(var(--tree-x)+0.5rem)] text-left text-xs uppercase tracking-wide',
+                                            // Clear trunk + elbow (link-gap + elbow-r) so the rail never clips the label.
+                                            'relative flex w-full items-center gap-1.5 rounded-md pr-1 pl-[calc(var(--tree-x)+var(--tree-link-gap)+0.5rem)] text-left text-xs uppercase tracking-wide',
                                             NAV_GROUP_ROW_MIN_H,
                                             NAV_ROW_PAD_Y,
                                             NAV_FONT_GROUP,
@@ -3682,7 +3684,7 @@ export default function DashboardLayout() {
                                           )}
                                         >
                                           <span aria-hidden className={navTreeElbowLine} />
-                                          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                                          <span className="relative z-[2] flex min-w-0 flex-1 items-center gap-1.5">
                                             {groupHasActive && (
                                               <span className="h-1 w-1 shrink-0 rounded-full bg-accent dark:bg-primary/50" />
                                             )}
@@ -3698,7 +3700,7 @@ export default function DashboardLayout() {
                                           </span>
                                         </button>
                                         {!isGroupCollapsed && (
-                                          <div className={cn('relative ml-[calc(var(--tree-sub-x)-var(--tree-x))]', isTemplate2 ? NAV_SUB_STACK : 'space-y-px')}>
+                                          <div className={cn('relative', isTemplate2 ? NAV_SUB_STACK : 'space-y-px')}>
                                             <span aria-hidden className={navTreeSubgroupTrunk} />
                                             {block.entries.map(({ item }) =>
                                               renderNavRow(item, 'sub', isSectionCollapsed),

@@ -6,7 +6,9 @@ from app.core.security import (
     get_password_hash,
     decode_token,
 )
-from app.core.permissions import Permission, has_permission
+# Legacy colon-format Permission enum kept for import compatibility only.
+# All active RBAC uses vendor_role.ALL_PERMISSIONS (dot-format) via deps.require_permission.
+from app.core.permissions import Permission, has_permission  # noqa: F401
 from app.core.exceptions import (
     AppException,
     NotFoundException,

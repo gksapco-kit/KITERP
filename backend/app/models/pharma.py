@@ -699,6 +699,50 @@ class PharmaTradingPartner(Base):
     )
 
 
+class PharmaWholesaleLicenseHistory(Base):
+    """Audit trail for customer wholesale license changes and checks."""
+    __tablename__ = "pharma_wholesale_license_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id", ondelete="CASCADE"), nullable=False)
+    # set | updated | cleared | checked
+    action = Column(String(30), nullable=False)
+    license_number = Column(String(80), nullable=True)
+    license_expires = Column(Date, nullable=True)
+    previous_license_number = Column(String(80), nullable=True)
+    previous_license_expires = Column(Date, nullable=True)
+    check_ok = Column(Boolean, nullable=True)
+    detail = Column(String(500), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_pharma_wlic_hist_vendor", "vendor_id"),
+        Index("ix_pharma_wlic_hist_customer", "vendor_id", "customer_id"),
+    )
+
+
+class PharmaWholesaleLicenseDocument(Base):
+    """File attachments for a customer's wholesale license (certificates, scans, etc.)."""
+    __tablename__ = "pharma_wholesale_license_document"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id", ondelete="CASCADE"), nullable=False)
+    file_url = Column(String(1000), nullable=False)
+    filename = Column(String(255), nullable=False)
+    content_type = Column(String(120), nullable=True)
+    size_bytes = Column(Integer, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_pharma_wlic_doc_vendor", "vendor_id"),
+        Index("ix_pharma_wlic_doc_customer", "vendor_id", "customer_id"),
+    )
+
+
 # ── Stage B: complaints ───────────────────────────────────────────────────────
 
 class PharmaComplaint(Base):
@@ -718,6 +762,7 @@ class PharmaComplaint(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     goods_batch_id = Column(UUID(as_uuid=True), ForeignKey("goods_batch.id", ondelete="SET NULL"), nullable=True)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id", ondelete="SET NULL"), nullable=True)
     reported_by = Column(String(255), nullable=True)
     status = Column(String(30), nullable=False, default="open")
     investigation_notes = Column(Text, nullable=True)
@@ -730,5 +775,6 @@ class PharmaComplaint(Base):
     __table_args__ = (
         Index("ix_pharma_complaint_vendor", "vendor_id"),
         Index("ix_pharma_complaint_status", "vendor_id", "status"),
+        Index("ix_pharma_complaint_customer", "customer_id"),
         UniqueConstraint("vendor_id", "number", name="uq_pharma_complaint_number"),
     )

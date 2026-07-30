@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core.security import get_password_hash
 from app.database import AsyncSessionLocal, get_db
 from app.services.sms_service import normalize_e164, is_valid_e164
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.models.customer import Customer
 from app.models.platform_setting import PlatformSetting
@@ -27,7 +27,7 @@ from app.repositories.customer_repo import CustomerRepository
 from app.repositories.order_repo import OrderRepository
 from app.utils.validators import validate_gstin
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("customers.view"))])
 _log = logging.getLogger(__name__)
 
 _PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$")
@@ -431,6 +431,20 @@ async def create_customer(
             raise HTTPException(status_code=409, detail="A customer with this phone number already exists")
         raise HTTPException(status_code=409, detail="A customer with this information already exists")
 
+    if customer.wholesale_license_number:
+        from app.services.pharma_gdp import record_wholesale_license_history
+
+        await record_wholesale_license_history(
+            db,
+            vendor_id=vendor_id,
+            customer_id=customer.id,
+            action="set",
+            license_number=customer.wholesale_license_number,
+            license_expires=customer.wholesale_license_expires,
+            detail="Wholesale license set on customer create",
+        )
+        await db.commit()
+
     background_tasks.add_task(_sync_crm_contact_after_customer, vendor_id, customer.id)
     return JSONResponse(status_code=201, content=_customer_dict(customer))
 
@@ -478,14 +492,45 @@ async def update_customer(
         customer.cin = data.cin
     if data.company_name is not None:
         customer.company_name = data.company_name
+
+    license_changed = False
+    prev_license_number = getattr(customer, "wholesale_license_number", None)
+    prev_license_expires = getattr(customer, "wholesale_license_expires", None)
     if data.wholesale_license_number is not None:
         customer.wholesale_license_number = data.wholesale_license_number or None
+        license_changed = True
     if data.wholesale_license_expires is not None:
         customer.wholesale_license_expires = (
             date.fromisoformat(data.wholesale_license_expires)
             if data.wholesale_license_expires
             else None
         )
+        license_changed = True
+    if license_changed and (
+        (prev_license_number or None) != (customer.wholesale_license_number or None)
+        or prev_license_expires != customer.wholesale_license_expires
+    ):
+        from app.services.pharma_gdp import record_wholesale_license_history
+
+        new_num = customer.wholesale_license_number
+        if not new_num:
+            action = "cleared"
+        elif not prev_license_number:
+            action = "set"
+        else:
+            action = "updated"
+        await record_wholesale_license_history(
+            db,
+            vendor_id=vendor_id,
+            customer_id=customer.id,
+            action=action,
+            license_number=new_num,
+            license_expires=customer.wholesale_license_expires,
+            previous_license_number=prev_license_number,
+            previous_license_expires=prev_license_expires,
+            detail=f"Wholesale license {action}",
+        )
+
     if data.billing_address is not None:
         customer.billing_address = data.billing_address.model_dump()
     if data.notes is not None:

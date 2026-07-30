@@ -8,7 +8,7 @@ from decimal import Decimal
 from datetime import datetime, timezone
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
 from app.models.user import User
 from app.models.mrp import ProductBOMItem, StockReservation
 from app.models.vendor_product import Product
@@ -25,7 +25,7 @@ from app.schemas.mrp import (
     ReservationCreate, ReservationOut,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("production.view"))])
 
 
 # ── BOM helpers ───────────────────────────────────────────────────────────────

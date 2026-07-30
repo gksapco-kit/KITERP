@@ -10,7 +10,7 @@ from datetime import datetime
 import math
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.models.order import Order
 from app.models.store import Store
@@ -29,7 +29,7 @@ from app.services.vendor_service import VendorService
 from app.repositories.order_repo import OrderRepository
 from app.services.order_media import save_order_media_file
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("orders.view"))])
 
 
 def _safe(v):

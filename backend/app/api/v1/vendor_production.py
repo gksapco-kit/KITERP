@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, get_current_vendor_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_user, get_current_vendor_id, require_permission
 from app.models.user import User
 from app.models.vendor_user import VendorUser
 from app.models.customer import Customer
@@ -26,7 +26,7 @@ from app.services.production_inventory import post_production_completion, revers
 # Statuses that no longer represent "work in progress" for materials purposes.
 _TERMINAL_STATUSES = ("completed", "cancelled")
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("production.view"))])
 
 
 def _parse_date(v: Any) -> Optional[date]:

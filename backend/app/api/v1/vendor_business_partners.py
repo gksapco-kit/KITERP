@@ -7,13 +7,13 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.schemas.business_partner import (
     BusinessPartnerCreate, BusinessPartnerUpdate, RoleIn,
 )
 from app.services.business_partner_service import BusinessPartnerService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("masterdata.view"))])
 
 
 @router.get("")

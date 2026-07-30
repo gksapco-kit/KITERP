@@ -1,10 +1,11 @@
 # app/repositories/vendor_role_repo.py
 from typing import Optional, List
 from uuid import UUID
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.vendor_role import VendorRole
+from app.models.vendor_user import VendorUser
 from app.repositories.base import BaseRepository
 
 
@@ -45,3 +46,16 @@ class VendorRoleRepository(BaseRepository[VendorRole]):
             select(VendorRole.id).where(and_(*conditions)).limit(1)
         )
         return result.scalar_one_or_none() is not None
+
+    async def count_assigned_users(self, vendor_id: UUID, role_id: UUID) -> int:
+        """Return the number of active vendor users currently assigned to this custom role."""
+        result = await self.db.execute(
+            select(func.count()).where(
+                and_(
+                    VendorUser.vendor_id == vendor_id,
+                    VendorUser.role_id == role_id,
+                    VendorUser.is_active == True,
+                )
+            )
+        )
+        return result.scalar_one()

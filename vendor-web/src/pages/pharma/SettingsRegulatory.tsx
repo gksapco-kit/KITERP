@@ -6,7 +6,7 @@ import { pharmaApi } from '@/api/pharma'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useHasPermission } from '@/hooks/usePermissions'
-import { PharmaCard, PharmaPageHeader } from './pharmaShared'
+import { PharmaCard, PharmaPageHeader, fmtErr } from './pharmaShared'
 
 export default function PharmaSettingsRegulatoryPage() {
   const canManage = useHasPermission('pharma.manage')
@@ -32,7 +32,7 @@ export default function PharmaSettingsRegulatoryPage() {
         setNmvsKey(settings.nmvs_api_key || '')
         setGs1Prefix(settings.gs1_company_prefix || '')
       })
-      .catch((e: any) => toast.error(e?.response?.data?.detail || 'Failed to load settings'))
+      .catch((e: any) => toast.error(fmtErr(e, 'Failed to load settings')))
       .finally(() => setLoading(false))
   }, [])
 
@@ -49,7 +49,7 @@ export default function PharmaSettingsRegulatoryPage() {
       setCfg(next)
       toast.success('Regulatory integration credentials saved')
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Save failed')
+      toast.error(fmtErr(e, 'Save failed'))
     } finally {
       setCredSaving(false)
     }

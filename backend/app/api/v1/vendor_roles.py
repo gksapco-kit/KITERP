@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
 from slugify import slugify
 
 from app.database import get_db
@@ -23,6 +25,8 @@ class RoleCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = None
     permissions: List[str] = Field(default=[])
+    # Optionally seed permissions from a built-in role template
+    copy_from_builtin: Optional[str] = Field(None, description="Built-in role slug to copy permissions from")
 
 
 class RoleUpdate(BaseModel):
@@ -32,9 +36,14 @@ class RoleUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class UserPermissionOverride(BaseModel):
+    """Per-user additive permission overrides stored on vendor_user.permissions."""
+    grant: List[str] = Field(default=[], description="Extra permissions to add on top of the role")
+
+
 # ── Helpers ─────────────────────────────────────────────────────
 
-def _role_to_dict(role: VendorRole) -> dict:
+def _role_to_dict(role: VendorRole, assigned_users: int = 0) -> dict:
     return {
         "id": str(role.id),
         "vendor_id": str(role.vendor_id),
@@ -44,17 +53,27 @@ def _role_to_dict(role: VendorRole) -> dict:
         "permissions": role.permissions or [],
         "is_system": role.is_system,
         "is_active": role.is_active,
+        "assigned_users": assigned_users,
         "created_at": role.created_at.isoformat() if role.created_at else None,
         "updated_at": role.updated_at.isoformat() if role.updated_at else None,
     }
+
+
+def _validate_permissions(perms: List[str]) -> None:
+    invalid = [p for p in perms if p not in ALL_PERMISSIONS]
+    if invalid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid permissions: {', '.join(invalid)}",
+        )
 
 
 # ── Endpoints ───────────────────────────────────────────────────
 
 @router.get("/permissions")
 async def list_all_permissions():
-    """List all available permissions that can be assigned to roles."""
-    grouped = {}
+    """List all available permissions grouped by module."""
+    grouped: dict = {}
     for perm in ALL_PERMISSIONS:
         module, action = perm.split(".", 1)
         if module not in grouped:
@@ -66,13 +85,10 @@ async def list_all_permissions():
 @router.get("/defaults")
 async def list_default_roles():
     """List built-in system role definitions with their permissions."""
-    defaults = []
-    for role_name, perms in DEFAULT_ROLE_PERMISSIONS.items():
-        defaults.append({
-            "name": role_name,
-            "permissions": perms,
-            "is_system": True,
-        })
+    defaults = [
+        {"name": role_name, "permissions": list(perms), "is_system": True}
+        for role_name, perms in DEFAULT_ROLE_PERMISSIONS.items()
+    ]
     return JSONResponse({"roles": defaults})
 
 
@@ -81,10 +97,15 @@ async def list_roles(
     vu: VendorUser = Depends(require_permission("roles.view")),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all custom roles for this vendor."""
+    """List all custom roles for this vendor, including inactive ones."""
     repo = VendorRoleRepository(db)
     roles = await repo.list_by_vendor(vu.vendor_id, include_inactive=True)
-    return JSONResponse({"roles": [_role_to_dict(r) for r in roles]})
+    # Attach assigned-user counts so the UI can show them without extra requests
+    result = []
+    for role in roles:
+        count = await repo.count_assigned_users(vu.vendor_id, role.id)
+        result.append(_role_to_dict(role, assigned_users=count))
+    return JSONResponse({"roles": result})
 
 
 @router.post("", status_code=201)
@@ -93,37 +114,45 @@ async def create_role(
     vu: VendorUser = Depends(require_permission("roles.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new custom role."""
+    """Create a new custom role.
+
+    Pass `copy_from_builtin` with a built-in role slug to pre-populate
+    permissions from that template (useful for cloning e.g. 'manager').
+    Any explicit `permissions` in the payload are merged on top.
+    """
     repo = VendorRoleRepository(db)
     slug = slugify(data.name, lowercase=True)
 
-    # Prevent name collisions with system roles
     if slug in DEFAULT_ROLE_PERMISSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"'{data.name}' conflicts with a built-in role name.",
         )
-
     if await repo.slug_exists(vu.vendor_id, slug):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"A role with name '{data.name}' already exists.",
         )
 
-    # Validate permissions
-    invalid = [p for p in data.permissions if p not in ALL_PERMISSIONS]
-    if invalid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid permissions: {', '.join(invalid)}",
-        )
+    # Seed from built-in template if requested
+    base_perms: List[str] = []
+    if data.copy_from_builtin:
+        base_perms = list(DEFAULT_ROLE_PERMISSIONS.get(data.copy_from_builtin, []))
+        if not base_perms and data.copy_from_builtin:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Built-in role '{data.copy_from_builtin}' not found.",
+            )
+
+    merged = list(dict.fromkeys(base_perms + data.permissions))  # preserve order, deduplicate
+    _validate_permissions(merged)
 
     role = VendorRole(
         vendor_id=vu.vendor_id,
         name=data.name,
         slug=slug,
         description=data.description,
-        permissions=data.permissions,
+        permissions=merged,
         is_system=False,
     )
     db.add(role)
@@ -144,7 +173,8 @@ async def get_role(
     role = await repo.get_by_vendor_and_id(vu.vendor_id, role_id)
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
-    return JSONResponse(_role_to_dict(role))
+    count = await repo.count_assigned_users(vu.vendor_id, role_id)
+    return JSONResponse(_role_to_dict(role, assigned_users=count))
 
 
 @router.put("/{role_id}")
@@ -174,16 +204,15 @@ async def update_role(
     if data.description is not None:
         role.description = data.description
     if data.permissions is not None:
-        invalid = [p for p in data.permissions if p not in ALL_PERMISSIONS]
-        if invalid:
-            raise HTTPException(status_code=400, detail=f"Invalid permissions: {', '.join(invalid)}")
+        _validate_permissions(data.permissions)
         role.permissions = data.permissions
     if data.is_active is not None:
         role.is_active = data.is_active
 
     await db.commit()
     await db.refresh(role)
-    return JSONResponse(_role_to_dict(role))
+    count = await repo.count_assigned_users(vu.vendor_id, role_id)
+    return JSONResponse(_role_to_dict(role, assigned_users=count))
 
 
 @router.delete("/{role_id}")
@@ -192,7 +221,11 @@ async def delete_role(
     vu: VendorUser = Depends(require_permission("roles.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete a custom role. System roles cannot be deleted."""
+    """Delete a custom role.
+
+    Raises 400 if any active team members are still assigned to this role.
+    Deactivate or reassign them first, or deactivate the role instead.
+    """
     repo = VendorRoleRepository(db)
     role = await repo.get_by_vendor_and_id(vu.vendor_id, role_id)
     if not role:
@@ -200,6 +233,117 @@ async def delete_role(
     if role.is_system:
         raise HTTPException(status_code=400, detail="System roles cannot be deleted.")
 
+    assigned = await repo.count_assigned_users(vu.vendor_id, role_id)
+    if assigned > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Cannot delete role '{role.name}': {assigned} active team member(s) are still assigned. "
+                "Reassign or deactivate them first, or deactivate the role instead."
+            ),
+        )
+
     await db.delete(role)
     await db.commit()
     return JSONResponse({"message": "Role deleted"})
+
+
+@router.get("/{role_id}/assigned-users")
+async def list_role_assigned_users(
+    role_id: UUID,
+    vu: VendorUser = Depends(require_permission("roles.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """List active team members currently using this custom role."""
+    repo = VendorRoleRepository(db)
+    role = await repo.get_by_vendor_and_id(vu.vendor_id, role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    result = await db.execute(
+        select(VendorUser)
+        .options(selectinload(VendorUser.user))
+        .where(
+            and_(
+                VendorUser.vendor_id == vu.vendor_id,
+                VendorUser.role_id == role_id,
+                VendorUser.is_active == True,
+            )
+        )
+    )
+    members = result.scalars().all()
+    return JSONResponse({
+        "role_id": str(role_id),
+        "role_name": role.name,
+        "members": [
+            {
+                "vendor_user_id": str(m.id),
+                "user_id": str(m.user_id),
+                "full_name": m.user.full_name if m.user else None,
+                "email": m.user.email if m.user else None,
+            }
+            for m in members
+        ],
+    })
+
+
+# ── Per-user permission overrides ───────────────────────────────
+
+@router.get("/member/{vendor_user_id}/permission-overrides")
+async def get_member_permission_overrides(
+    vendor_user_id: UUID,
+    vu: VendorUser = Depends(require_permission("team.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the per-user additive permission overrides for a team member."""
+    result = await db.execute(
+        select(VendorUser)
+        .options(selectinload(VendorUser.custom_role))
+        .where(
+            and_(VendorUser.vendor_id == vu.vendor_id, VendorUser.id == vendor_user_id)
+        )
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="Team member not found")
+
+    return JSONResponse({
+        "vendor_user_id": str(member.id),
+        "role": member.role,
+        "role_id": str(member.role_id) if member.role_id else None,
+        "permission_overrides": member.permissions or [],
+    })
+
+
+@router.put("/member/{vendor_user_id}/permission-overrides")
+async def update_member_permission_overrides(
+    vendor_user_id: UUID,
+    data: UserPermissionOverride,
+    vu: VendorUser = Depends(require_permission("team.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Replace the per-user additive permission overrides for a team member.
+
+    These are merged *on top* of whatever the user's role provides.
+    Owners cannot have their overrides edited by non-owners.
+    """
+    result = await db.execute(
+        select(VendorUser).where(
+            and_(VendorUser.vendor_id == vu.vendor_id, VendorUser.id == vendor_user_id)
+        )
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="Team member not found")
+    if member.role == "owner":
+        raise HTTPException(status_code=400, detail="Cannot set permission overrides on owner accounts.")
+
+    _validate_permissions(data.grant)
+    member.permissions = data.grant
+    await db.commit()
+
+    return JSONResponse({
+        "vendor_user_id": str(member.id),
+        "permission_overrides": member.permissions or [],
+        "message": "Permission overrides updated.",
+    })

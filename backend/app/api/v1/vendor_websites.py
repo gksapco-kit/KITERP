@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload, with_loader_criteria
 from uuid import UUID
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, resolve_dashboard_vendor
+from app.api.deps import get_current_active_user, resolve_dashboard_vendor, require_permission
 from app.middleware.vendor_dashboard_context import get_preferred_vendor_id_from_context
 from app.models.user import User
 from app.models.vendor import Vendor
@@ -49,7 +49,7 @@ from app.schemas.website import (
     MediaUpdateBody,
 )
 
-router = APIRouter(redirect_slashes=False)
+router = APIRouter(redirect_slashes=False, dependencies=[Depends(require_permission("websites.view"))])
 
 PAGE_TRASH_RETENTION_DAYS = 7
 SITE_TRASH_RETENTION_DAYS = 30

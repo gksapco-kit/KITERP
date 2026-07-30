@@ -5,13 +5,13 @@ from uuid import UUID
 import math
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.services.vendor_service import VendorService
 from app.services.coupon_service import CouponService
 from app.schemas.coupon import CouponCreate, CouponUpdate, CouponValidate
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("coupons.view"))])
 
 
 async def _vendor_id(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)) -> UUID:

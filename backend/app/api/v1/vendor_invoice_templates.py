@@ -7,12 +7,12 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.models.invoice_template import InvoiceTemplate
 from app.services.vendor_service import VendorService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("documents.templates.manage"))])
 
 DEFAULT_SECTIONS = {
     "show_logo": True,

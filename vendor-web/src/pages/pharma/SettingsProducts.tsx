@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import { BusinessUnitSelect, useResolveBuBranch } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
 import { PlantSelect } from '@/components/common/PlantSelect'
-import { PharmaCard, PharmaPageHeader } from './pharmaShared'
+import { PharmaCard, PharmaPageHeader, fmtErr } from './pharmaShared'
 
 type ProductRow = {
   id: string
@@ -112,7 +112,7 @@ export default function PharmaSettingsProductsPage() {
       }
       setStockMap(sm)
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Failed to load products')
+      toast.error(fmtErr(e, 'Failed to load products'))
     } finally {
       setLoading(false)
     }
@@ -134,7 +134,7 @@ export default function PharmaSettingsProductsPage() {
       setSelectedCandidates(new Set())
       await load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Enrollment failed')
+      toast.error(fmtErr(e, 'Enrollment failed'))
     } finally {
       setEnrolling(false)
     }
@@ -150,7 +150,7 @@ export default function PharmaSettingsProductsPage() {
       setSelectedEnrolled(new Set())
       await load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Unenroll failed')
+      toast.error(fmtErr(e, 'Unenroll failed'))
     } finally {
       setUnenrolling(false)
     }

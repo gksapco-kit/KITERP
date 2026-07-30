@@ -7,8 +7,10 @@ interface PlantSelectProps {
   onChange: (plantId: string) => void
   /** Scope plants to this business unit; omit / empty string loads all vendor plants. */
   storeId?: string | null
-  /** Adds an "All plants" option (value ""). */
+  /** Adds an empty option (value ""). */
   allowAll?: boolean
+  /** Label for the empty option when allowAll is true. */
+  emptyLabel?: string
   className?: string
   disabled?: boolean
   id?: string
@@ -20,6 +22,7 @@ export function PlantSelect({
   onChange,
   storeId,
   allowAll = false,
+  emptyLabel = 'All plants',
   className,
   disabled,
   id,
@@ -37,7 +40,7 @@ export function PlantSelect({
   const options = useMemo((): ThemeSelectOption[] => {
     const list: ThemeSelectOption[] = []
     if (allowAll) {
-      list.push({ value: '', label: 'All plants', hint: 'No filter applied' })
+      list.push({ value: '', label: emptyLabel, hint: 'No plant selected' })
     }
     const showStoreSuffix = !storeId && activeStores.length > 1
     for (const p of plants) {
@@ -56,7 +59,7 @@ export function PlantSelect({
       })
     }
     return list
-  }, [plants, allowAll, storeId, activeStores])
+  }, [plants, allowAll, emptyLabel, storeId, activeStores])
 
   return (
     <ThemeSelect
@@ -68,7 +71,7 @@ export function PlantSelect({
         isLoading
           ? 'Loading…'
           : allowAll
-            ? 'All plants'
+            ? emptyLabel
             : 'Select a plant…'
       }
       disabled={disabled || isLoading}

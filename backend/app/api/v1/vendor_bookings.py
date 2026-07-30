@@ -10,7 +10,7 @@ import math
 import uuid as uuid_mod
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.models.booking import Booking
 from app.models.order import Order
@@ -18,7 +18,7 @@ from app.services.vendor_service import VendorService
 from app.services.booking_service import BookingService
 from app.services.order_media import save_order_media_file
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("bookings.view"))])
 
 
 async def _vendor_id(

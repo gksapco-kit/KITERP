@@ -163,6 +163,7 @@ export const pharmaApi = {
     title: string
     description?: string
     goods_batch_id?: string
+    customer_id?: string
     reported_by?: string
   }) => apiClient.post(`${base}/complaints`, body).then((r) => r.data),
   updateComplaint: (id: string, body: {
@@ -195,6 +196,26 @@ export const pharmaApi = {
     apiClient.patch(`${base}/excursions/${id}`, body).then((r) => r.data),
   checkWholesaleLicense: (customerId: string) =>
     apiClient.post(`${base}/gdp/check-license`, { customer_id: customerId }).then((r) => r.data),
+  wholesaleLicenseHistory: (customerId: string, limit = 50) =>
+    apiClient
+      .get(`${base}/gdp/license-history`, { params: { customer_id: customerId, limit } })
+      .then((r) => r.data),
+  listWholesaleLicenseDocuments: (customerId: string) =>
+    apiClient
+      .get(`${base}/gdp/license-documents`, { params: { customer_id: customerId } })
+      .then((r) => r.data),
+  uploadWholesaleLicenseDocument: (customerId: string, file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return apiClient
+      .post(`${base}/gdp/license-documents`, fd, {
+        params: { customer_id: customerId },
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data)
+  },
+  deleteWholesaleLicenseDocument: (documentId: string) =>
+    apiClient.delete(`${base}/gdp/license-documents/${documentId}`).then((r) => r.data),
   listPartners: () => apiClient.get(`${base}/partners`).then((r) => r.data),
   createPartner: (body: Record<string, unknown>) =>
     apiClient.post(`${base}/partners`, body).then((r) => r.data),
@@ -296,4 +317,107 @@ export const pharmaApi = {
     apiClient.post(`${base}/products/enroll`, { product_ids: productIds }).then((r) => r.data),
   unenrollProducts: (productIds: string[]) =>
     apiClient.post(`${base}/products/unenroll`, { product_ids: productIds }).then((r) => r.data),
+}
+
+// ── Pharma Reporting Manager ─────────────────────────────────────────────────
+const reportsBase = '/vendors/me/pharma-reports'
+
+export const pharmaReportsApi = {
+  overview: (params?: { date_from?: string; date_to?: string; plant_id?: string }) =>
+    apiClient.get(`${reportsBase}/overview`, { params }).then((r) => r.data as PharmaReportsOverview),
+  detail: (
+    reportId: string,
+    params?: {
+      date_from?: string
+      date_to?: string
+      plant_id?: string
+      search?: string
+      page?: number
+      size?: number
+    },
+  ) =>
+    apiClient
+      .get(`${reportsBase}/detail/${reportId}`, { params })
+      .then((r) => r.data as PharmaReportDetail),
+}
+
+// ── Pharma Reports type definitions ─────────────────────────────────────────
+export interface PharmaKpi {
+  value: number
+  prev: number
+  delta_pct: number | null
+}
+
+export interface PharmaSeriesPoint {
+  label: string
+  value: number
+  [key: string]: unknown
+}
+
+export interface PharmaTrendPoint {
+  date: string
+  value: number
+  count?: number
+}
+
+export interface PharmaReportsOverview {
+  range: { from: string; to: string; days: number; prev_from: string; prev_to: string }
+  generated_at: string
+  kpis: {
+    lots_received: PharmaKpi
+    qi_batches: PharmaKpi
+    inspections_opened: PharmaKpi
+    bpr_completed: PharmaKpi
+    avg_yield_pct: PharmaKpi
+    deviations_opened: PharmaKpi
+    capa_overdue: PharmaKpi
+    complaints_opened: PharmaKpi
+    excursions: PharmaKpi
+    open_recalls: PharmaKpi
+  }
+  lots: {
+    status_dist: PharmaSeriesPoint[]
+    expiry_buckets: PharmaSeriesPoint[]
+    txn_trend: PharmaTrendPoint[]
+    txn_by_type: PharmaSeriesPoint[]
+    top_expiring: Array<{ label: string; value: number; qty: number; status: string }>
+  }
+  manufacturing: {
+    bpr_status_dist: PharmaSeriesPoint[]
+    yield_trend: PharmaTrendPoint[]
+    mbr_status: PharmaSeriesPoint[]
+  }
+  qc: {
+    inspection_decision: PharmaSeriesPoint[]
+    inspection_origin: PharmaSeriesPoint[]
+    inspection_trend: PharmaTrendPoint[]
+    oos_status: PharmaSeriesPoint[]
+  }
+  qms: {
+    deviation_severity: PharmaSeriesPoint[]
+    deviation_trend: PharmaTrendPoint[]
+    capa_status: PharmaSeriesPoint[]
+    recall_status: PharmaSeriesPoint[]
+    complaint_by_type: PharmaSeriesPoint[]
+    cc_status: PharmaSeriesPoint[]
+  }
+  gdp: {
+    excursion_severity: PharmaSeriesPoint[]
+    excursion_trend: PharmaTrendPoint[]
+    excursion_status: PharmaSeriesPoint[]
+  }
+  serialization: {
+    serial_status: PharmaSeriesPoint[]
+    serial_by_level: PharmaSeriesPoint[]
+    serial_trend: PharmaTrendPoint[]
+  }
+}
+
+export interface PharmaReportDetail {
+  report_id: string
+  total: number
+  page: number
+  size: number
+  pages: number
+  rows: Record<string, unknown>[]
 }

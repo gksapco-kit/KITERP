@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Select } from '@/components/ui/select'
@@ -10,13 +10,14 @@ import {
   Download, FileText, User, Paperclip, ClipboardList,
   PlayCircle, Trash2, BarChart3, Edit2, Lock, Check,
   PackagePlus, IndianRupee, ArrowLeft, Search, X, Truck, Loader2,
+  Info, Layers, Route, Copy, MapPin, Tag, LayoutList,
 } from 'lucide-react'
 import {
   ClickableImageButton,
   ImageLightboxSession,
   urlsToLightboxItems,
 } from '@/components/common/ImageAttachmentLightbox'
-import { useTeamMembers, useSuppliers } from '@/hooks/useVendor'
+import { useTeamMembers, useSuppliers, usePlants, useStorageLocationTree } from '@/hooks/useVendor'
 import {
   useProductionOrder,
   useUpdateProductionOrder,
@@ -57,6 +58,18 @@ export default function ProductionOrderDetailPage() {
 
   const teamMembers = teamData?.items || []
   const suppliers = suppliersData?.items || []
+
+  // Resolve plant name and storage location name from IDs
+  const { data: plantsData } = usePlants(order?.store_id ?? null)
+  const { data: locationsData } = useStorageLocationTree(order?.store_id ?? null, order?.plant_id ?? null)
+  const plantName = useMemo(() => {
+    if (!order?.plant_id) return null
+    return (plantsData?.plants ?? []).find((p: { id: string; name: string; code?: string }) => p.id === order.plant_id)?.name ?? null
+  }, [plantsData, order?.plant_id])
+  const locationName = useMemo(() => {
+    if (!order?.output_storage_location_id) return null
+    return (locationsData?.locations ?? []).find((l: { id: string; name: string }) => l.id === order.output_storage_location_id)?.name ?? null
+  }, [locationsData, order?.output_storage_location_id])
 
   const [detailTab, setDetailTab] = useState<'details' | 'items' | 'routing' | 'stock' | 'history'>('details')
   const [mrpOpen, setMrpOpen] = useState(false)
@@ -363,14 +376,22 @@ export default function ProductionOrderDetailPage() {
 
           {/* Tabs */}
           <div className="flex border-b bg-gray-50/60 dark:bg-muted/30">
-            {(['details', 'items', 'routing', 'stock', 'history'] as const).map(tab => (
+            {([
+              { id: 'details',  label: 'Details',        icon: Info },
+              { id: 'items',    label: 'Items',           icon: Layers },
+              { id: 'routing',  label: 'Routing',         icon: Route },
+              { id: 'stock',    label: 'Stock Dispatch',  icon: PackagePlus },
+              { id: 'history',  label: 'Attachments',     icon: Paperclip },
+            ] as const).map(({ id: tab, label, icon: Icon }) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setDetailTab(tab)}
-                className={`flex-1 text-xs font-medium py-2.5 capitalize transition-all border-b-2 ${detailTab === tab ? 'border-primary text-primary bg-card' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] sm:text-xs font-medium transition-all border-b-2 ${detailTab === tab ? 'border-primary text-primary bg-card' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
               >
-                {tab === 'stock' ? 'Stock Dispatch' : tab === 'history' ? 'Attachments' : tab}
+                <Icon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{label}</span>
+                <span className="sm:hidden">{label.split(' ')[0]}</span>
               </button>
             ))}
           </div>
@@ -456,33 +477,75 @@ export default function ProductionOrderDetailPage() {
                 {/* Metadata grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                   <div className="bg-gray-50 dark:bg-muted/40 rounded-xl p-2.5">
-                    <p className="text-muted-foreground mb-0.5">Priority</p>
+                    <p className="text-[10px] uppercase font-semibold tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
+                      <LayoutList className="w-3 h-3" /> Priority
+                    </p>
                     <PriorityDot priority={order.priority} />
                   </div>
                   <div className="bg-gray-50 dark:bg-muted/40 rounded-xl p-2.5">
-                    <p className="text-muted-foreground mb-0.5">Team</p>
-                    <p className="font-semibold">{order.team || '—'}</p>
+                    <p className="text-[10px] uppercase font-semibold tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
+                      <Users className="w-3 h-3" /> Team
+                    </p>
+                    <p className="font-semibold text-gray-800 dark:text-gray-200">{order.team || <span className="text-gray-400 font-normal italic">None</span>}</p>
                   </div>
                   <div className="bg-gray-50 dark:bg-muted/40 rounded-xl p-2.5">
-                    <p className="text-muted-foreground mb-0.5">Target Date</p>
-                    <p className="font-semibold">{order.target_date}</p>
+                    <p className="text-[10px] uppercase font-semibold tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" /> Target Date
+                    </p>
+                    <p className="font-semibold text-gray-800 dark:text-gray-200">{order.target_date || '—'}</p>
                   </div>
                   <div className="bg-gray-50 dark:bg-muted/40 rounded-xl p-2.5">
-                    <p className="text-muted-foreground mb-0.5">Template</p>
-                    <p className="font-semibold">{order.template}</p>
+                    <p className="text-[10px] uppercase font-semibold tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
+                      <Tag className="w-3 h-3" /> Template
+                    </p>
+                    <p className="font-semibold text-gray-800 dark:text-gray-200">{order.template}</p>
                   </div>
                   {order.plant_id && (
                     <div className="bg-gray-50 dark:bg-muted/40 rounded-xl p-2.5 col-span-2">
-                      <p className="text-muted-foreground mb-0.5 flex items-center gap-1">
+                      <p className="text-muted-foreground mb-1 flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wide">
                         <Factory className="w-3 h-3" /> Plant
                       </p>
-                      <p className="font-semibold font-mono text-xs">{order.plant_id}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="font-semibold text-gray-800 dark:text-gray-200 truncate">
+                          {plantName ?? (
+                            <code className="font-mono text-xs text-gray-500 dark:text-gray-400" title={order.plant_id}>
+                              {order.plant_id.slice(0, 8)}…
+                            </code>
+                          )}
+                        </p>
+                        <button
+                          type="button"
+                          title={`Copy plant ID: ${order.plant_id}`}
+                          onClick={() => { navigator.clipboard.writeText(order.plant_id!); toast.success('Plant ID copied') }}
+                          className="text-gray-400 hover:text-primary transition-colors shrink-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   )}
                   {order.output_storage_location_id && (
                     <div className="bg-gray-50 dark:bg-muted/40 rounded-xl p-2.5 col-span-2">
-                      <p className="text-muted-foreground mb-0.5">Output Storage Location</p>
-                      <p className="font-semibold font-mono text-xs">{order.output_storage_location_id}</p>
+                      <p className="text-muted-foreground mb-1 flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wide">
+                        <MapPin className="w-3 h-3" /> Output Storage Location
+                      </p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="font-semibold text-gray-800 dark:text-gray-200 truncate">
+                          {locationName ?? (
+                            <code className="font-mono text-xs text-gray-500 dark:text-gray-400" title={order.output_storage_location_id}>
+                              {order.output_storage_location_id.slice(0, 8)}…
+                            </code>
+                          )}
+                        </p>
+                        <button
+                          type="button"
+                          title={`Copy location ID: ${order.output_storage_location_id}`}
+                          onClick={() => { navigator.clipboard.writeText(order.output_storage_location_id!); toast.success('Location ID copied') }}
+                          className="text-gray-400 hover:text-primary transition-colors shrink-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -528,8 +591,24 @@ export default function ProductionOrderDetailPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <p className="text-indigo-500 mb-0.5">Customer</p>
-                        <p className="font-semibold">{order.customer_name || '—'}</p>
-                        {order.customer_id && <p className="font-mono text-xs text-indigo-400 mt-0.5">{order.customer_id}</p>}
+                        {order.customer_id ? (
+                          <>
+                            <Link
+                              to={`/customers/${order.customer_id}`}
+                              className="font-semibold text-indigo-700 hover:underline dark:text-indigo-300"
+                            >
+                              {order.customer_name || 'Customer'}
+                            </Link>
+                            <Link
+                              to={`/customers/${order.customer_id}`}
+                              className="mt-0.5 block font-mono text-xs text-indigo-400 hover:underline"
+                            >
+                              {order.customer_id}
+                            </Link>
+                          </>
+                        ) : (
+                          <p className="font-semibold">{order.customer_name || '—'}</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-indigo-500 mb-0.5">Phone / Email</p>
@@ -660,12 +739,26 @@ export default function ProductionOrderDetailPage() {
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {order.assignees && order.assignees.length > 0 ? order.assignees.map(a => (
-                        <div key={a.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium ${a.type === 'team' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-800'}`}>
-                          {a.type === 'team' ? <User className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
-                          {a.name} <span className="opacity-60">({a.role})</span>
+                        <div
+                          key={a.id}
+                          className={`flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border text-xs font-medium ${
+                            a.type === 'team'
+                              ? 'bg-primary/8 border-primary/25 text-primary'
+                              : 'bg-blue-50 border-blue-200 text-blue-800'
+                          }`}
+                        >
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${a.type === 'team' ? 'bg-primary/20' : 'bg-blue-100'}`}>
+                            {a.name?.[0]?.toUpperCase() || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate max-w-[100px] leading-none">{a.name}</p>
+                            {a.role && a.role !== 'Team Member' && a.role !== 'Vendor' && (
+                              <p className="text-[9px] opacity-60 leading-none mt-0.5">{a.role}</p>
+                            )}
+                          </div>
                         </div>
                       )) : (
-                        <p className="text-xs text-gray-400 italic">None assigned</p>
+                        <p className="text-xs text-gray-400 italic bg-gray-50 dark:bg-muted/40 rounded-xl px-3 py-2">None assigned</p>
                       )}
                     </div>
                   )}

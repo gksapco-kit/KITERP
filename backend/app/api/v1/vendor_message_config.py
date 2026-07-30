@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.api.v1.vendor_stores import _get_store_or_404, _store_to_dict
 from app.database import get_db
 from app.services.message_config_service import (
@@ -18,7 +18,7 @@ from app.services.message_config_service import (
 from app.services.integration_defaults_service import get_delivery_status
 from app.services.crm.services import IntegrationService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("settings.edit"))])
 
 
 class MessageConfigUpdate(BaseModel):

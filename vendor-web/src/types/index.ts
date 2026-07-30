@@ -62,6 +62,7 @@ export interface VendorRole {
   permissions: string[]
   is_system: boolean
   is_active: boolean
+  assigned_users?: number
   created_at: string
   updated_at?: string
 }

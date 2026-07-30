@@ -14,7 +14,7 @@ from app.models.storage_location import StorageLocation
 from app.models.vendor import Vendor
 from app.models.vendor_user import VendorUser
 from app.models.vendor_product import Product
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.utils.store_codes import (
     allocate_default_business_store_code,
     allocate_unique_branch_code,
@@ -24,7 +24,7 @@ from app.utils.store_codes import (
     normalize_branch_code_for_parent,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("settings.edit"))])
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

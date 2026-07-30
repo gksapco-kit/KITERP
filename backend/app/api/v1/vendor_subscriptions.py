@@ -3,13 +3,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
 from app.database import get_db
 from app.models.user import User
 from app.schemas.customer_subscription import SubscriptionResponse, SubscriptionStatusUpdate
 from app.services.customer_subscription_service import CustomerSubscriptionService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("subscriptions.view"))])
 
 
 @router.get("", response_model=list[SubscriptionResponse])

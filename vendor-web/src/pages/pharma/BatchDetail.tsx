@@ -13,6 +13,7 @@ import {
   PharmaPageHeader,
   PharmaStatusBadge,
   isUuid,
+  fmtErr,
 } from './pharmaShared'
 
 export default function PharmaBatchDetailPage() {
@@ -52,7 +53,7 @@ export default function PharmaBatchDetailPage() {
       setSerials(serialRes.items || [])
       setAudit(auditRes.events || [])
     } catch (e: any) {
-      setError(e?.response?.data?.detail || e?.message || 'Failed to load lot')
+      setError(fmtErr(e, e?.message || 'Failed to load lot'))
     } finally {
       setLoading(false)
     }
@@ -68,7 +69,7 @@ export default function PharmaBatchDetailPage() {
       toast.success('Retest inspection opened')
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Retest failed')
+      toast.error(fmtErr(e, 'Retest failed'))
     }
   }
 
@@ -78,7 +79,7 @@ export default function PharmaBatchDetailPage() {
       toast.success('Status updated')
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Update failed')
+      toast.error(fmtErr(e, 'Update failed'))
     }
   }
 

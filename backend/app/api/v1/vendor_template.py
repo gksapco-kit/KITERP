@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, resolve_dashboard_vendor
+from app.api.deps import get_current_active_user, resolve_dashboard_vendor, require_permission
 from app.middleware.vendor_dashboard_context import get_preferred_vendor_id_from_context
 from app.models.user import User
 from app.models.vendor import Vendor
@@ -16,7 +16,7 @@ from app.services.storefront_theme_config import (
 from pydantic import BaseModel
 from typing import Optional, Dict
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("settings.view"))])
 
 
 class TemplateConfigUpdate(BaseModel):

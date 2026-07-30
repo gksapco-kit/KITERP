@@ -9,7 +9,7 @@ from datetime import date
 import math
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.vendor_product import Product, ProductVariant
@@ -29,7 +29,7 @@ from app.schemas.inventory import (
     StockAdjustmentCreate, StockInOutCreate, BulkStockUpdate, MovementType,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("inventory.view"))])
 
 
 # ── Inventory / catalog coding settings ─────────────────────────────

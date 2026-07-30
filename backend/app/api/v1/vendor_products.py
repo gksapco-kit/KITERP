@@ -12,7 +12,7 @@ import uuid as uuid_mod
 import json
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, get_current_vendor_id
+from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
 from app.models.user import User
 from sqlalchemy import delete, select, or_
 from sqlalchemy.orm import selectinload
@@ -370,7 +370,7 @@ def _build_variant(product_id, vc) -> ProductVariant:
     )
 
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("products.view"))])
 
 
 @router.get("/barcode-lookup")

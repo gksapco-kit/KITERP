@@ -27,7 +27,7 @@ import {
   useHRDesignations, useStores,
   useHRNextEmployeeCode, useHRSeedTestData,
 } from '@/hooks/useVendor'
-import { employeeDisplayName } from '@/lib/hrEmployeeDisplay'
+import { employeeContactEmail, employeeDisplayName } from '@/lib/hrEmployeeDisplay'
 import { DeptModal } from '@/components/hr/DeptModal'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { DesigModal } from '@/components/hr/DesigModal'
@@ -1043,6 +1043,13 @@ function AddEmployeeModal({
 
 // ── Page ─────────────────────────────────────────────────────────
 
+const STATUS_LABELS: Record<string, string> = {
+  active: 'Active',
+  probation: 'Probation',
+  on_notice: 'On Notice',
+  exited: 'Exited',
+}
+
 export default function EmployeesPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
@@ -1059,36 +1066,56 @@ export default function EmployeesPage() {
     employment_type: typeFilter || undefined,
     search: search || undefined,
   })
+  /** Unfiltered snapshot so summary cards stay accurate while filters are applied. */
+  const { data: summaryData } = useHREmployees({ limit: 500 })
   const { data: departments = [] } = useHRDepartments()
 
   const employees: EmployeeProfile[] = data?.items ?? []
   const total: number = data?.total ?? 0
+  const summaryPool: EmployeeProfile[] = summaryData?.items ?? []
 
   const stats = {
-    total,
-    active: employees.filter(e => e.status === 'active').length,
-    on_notice: employees.filter(e => e.status === 'on_notice').length,
-    probation: employees.filter(e => e.status === 'probation').length,
+    total: summaryData?.total ?? total,
+    active: summaryPool.filter(e => e.status === 'active').length,
+    on_notice: summaryPool.filter(e => e.status === 'on_notice').length,
+    probation: summaryPool.filter(e => e.status === 'probation').length,
   }
 
   const allEmpTypes = [...DEFAULT_EMP_TYPES, ...getCustomEmpTypes()]
   const empTypeLabel = (v: string) => allEmpTypes.find(t => t.value === v)?.label ?? v
+  const hasFilters = Boolean(search || deptFilter || statusFilter || typeFilter)
+
+  function clearFilters() {
+    setSearch('')
+    setDeptFilter('')
+    setStatusFilter('')
+    setTypeFilter('')
+  }
+
+  function toggleStatusStat(status: string) {
+    setStatusFilter(prev => (prev === status ? '' : status))
+  }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-4 p-4 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Employees</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{total} total employee profiles</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {hasFilters
+              ? `${total} matching · ${stats.total} total profiles`
+              : `${stats.total} employee profile${stats.total === 1 ? '' : 's'}`}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={() => seed.mutate(30)}
             disabled={seed.isPending}
             title="Insert 10 sample employees with 30 days of attendance data into this vendor"
-            className="border-dashed"
+            className="border-dashed text-muted-foreground"
           >
             {seed.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -1103,141 +1130,197 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* Stats cards */}
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {/* Compact clickable summary */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         {[
-          { label: 'Total', value: stats.total, icon: Users, color: 'blue' },
-          { label: 'Active', value: stats.active, icon: UserCheck, color: 'green' },
-          { label: 'On Notice', value: stats.on_notice, icon: Clock, color: 'yellow' },
-          { label: 'Probation', value: stats.probation, icon: UserX, color: 'purple' },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="rounded-xl border border-border bg-card p-4">
-            <div className={cn('mb-2 inline-flex rounded-lg p-2', hrStatIconClass[color])}>
-              <Icon className="h-5 w-5" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">{value}</p>
-            <p className="text-sm text-muted-foreground">{label}</p>
-          </div>
-        ))}
+          { key: '', label: 'Total', value: stats.total, icon: Users, color: 'blue' },
+          { key: 'active', label: 'Active', value: stats.active, icon: UserCheck, color: 'green' },
+          { key: 'on_notice', label: 'On Notice', value: stats.on_notice, icon: Clock, color: 'yellow' },
+          { key: 'probation', label: 'Probation', value: stats.probation, icon: UserX, color: 'purple' },
+        ].map(({ key, label, value, icon: Icon, color }) => {
+          const selected = key ? statusFilter === key : !statusFilter
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => (key ? toggleStatusStat(key) : setStatusFilter(''))}
+              className={cn(
+                'flex items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left transition-colors',
+                selected
+                  ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+                  : 'border-border hover:border-primary/30 hover:bg-muted/30',
+              )}
+            >
+              <div className={cn('inline-flex shrink-0 rounded-lg p-2', hrStatIconClass[color])}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xl font-bold leading-none text-foreground">{value}</p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">{label}</p>
+              </div>
+            </button>
+          )
+        })}
       </div>
 
-      {/* Filters */}
-      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
-        <div className="relative min-w-48 flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            className={cn(hrInputClass, 'pl-9')}
-            placeholder="Search employees…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-        <Select
-          className={cn(hrSelectClass, 'min-w-[10rem]')}
-          value={deptFilter}
-          onChange={setDeptFilter}
-          options={[
-            { value: '', label: 'All Departments' },
-            ...departments.map((d: HRDepartment) => ({ value: d.id, label: d.name })),
-          ]}
-        />
-        <Select
-          className={cn(hrSelectClass, 'min-w-[10rem]')}
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={[
-            { value: '', label: 'All Statuses' },
-            { value: 'active', label: 'Active' },
-            { value: 'probation', label: 'Probation' },
-            { value: 'on_notice', label: 'On Notice' },
-            { value: 'exited', label: 'Exited' },
-          ]}
-        />
-        <Select
-          className={cn(hrSelectClass, 'min-w-[10rem]')}
-          value={typeFilter}
-          onChange={setTypeFilter}
-          options={[
-            { value: '', label: 'All Types' },
-            ...allEmpTypes.map(t => ({ value: t.value, label: t.label })),
-          ]}
-        />
-      </div>
-
-      {/* Table */}
+      {/* Table + toolbar */}
       <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="flex flex-col gap-2 border-b border-border p-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative min-w-0 flex-1 sm:min-w-[14rem] sm:max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              className={cn(hrInputClass, 'h-10 pl-9')}
+              placeholder="Search name, code, or email…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              aria-label="Search employees"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-1 sm:flex-wrap sm:items-center">
+            <Select
+              className={hrSelectClass}
+              wrapperClassName="col-span-2 w-full sm:col-auto sm:w-[10.5rem] sm:shrink-0"
+              value={deptFilter}
+              onChange={setDeptFilter}
+              aria-label="Department"
+              options={[
+                { value: '', label: 'All Departments' },
+                ...departments.map((d: HRDepartment) => ({ value: d.id, label: d.name })),
+              ]}
+            />
+            <Select
+              className={hrSelectClass}
+              wrapperClassName="w-full sm:w-[9.5rem] sm:shrink-0"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              aria-label="Status"
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'active', label: 'Active' },
+                { value: 'probation', label: 'Probation' },
+                { value: 'on_notice', label: 'On Notice' },
+                { value: 'exited', label: 'Exited' },
+              ]}
+            />
+            <Select
+              className={hrSelectClass}
+              wrapperClassName="w-full sm:w-[9rem] sm:shrink-0"
+              value={typeFilter}
+              onChange={setTypeFilter}
+              aria-label="Employment type"
+              options={[
+                { value: '', label: 'All Types' },
+                ...allEmpTypes.map(t => ({ value: t.value, label: t.label })),
+              ]}
+            />
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="col-span-2 inline-flex h-10 items-center justify-center gap-1 px-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:col-auto sm:ml-auto sm:justify-start"
+              >
+                <X className="h-3.5 w-3.5" /> Clear
+              </button>
+            )}
+          </div>
+        </div>
+
         {isLoading ? (
           <div className="p-8 text-center text-muted-foreground">Loading…</div>
         ) : employees.length === 0 ? (
           <div className="p-12 text-center">
             <Users className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
-            <p className="text-muted-foreground">No employees found.</p>
+            <p className="text-sm font-medium text-foreground">
+              {hasFilters ? 'No employees match your filters' : 'No employees yet'}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {hasFilters
+                ? 'Try clearing search or adjusting department, status, or type.'
+                : 'Add an employee to start building your HR roster.'}
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              {hasFilters ? (
+                <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              ) : (
+                <Button type="button" size="sm" onClick={() => setShowModal(true)}>
+                  <Plus className="h-4 w-4" /> Add Employee
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
-          <table className="w-full">
-            <thead className={hrTableHeadClass}>
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Employee</TableColumnLabel></th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Department</TableColumnLabel></th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Designation</TableColumnLabel></th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Type</TableColumnLabel></th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Status</TableColumnLabel></th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {employees.map(emp => {
-                const name = employeeDisplayName(emp)
-                return (
-                  <tr
-                    key={emp.id}
-                    className="cursor-pointer transition-colors hover:bg-muted/30"
-                    onClick={onClickableTableRow(() => navigate(`/hr/employees/${emp.id}`))}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
-                          {name[0]?.toUpperCase() ?? emp.employee_code?.[0]}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px]">
+              <thead className={hrTableHeadClass}>
+                <tr>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Employee</TableColumnLabel></th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Department</TableColumnLabel></th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Designation</TableColumnLabel></th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Type</TableColumnLabel></th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide"><TableColumnLabel>Status</TableColumnLabel></th>
+                  <th className="px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {employees.map(emp => {
+                  const name = employeeDisplayName(emp)
+                  const email = employeeContactEmail(emp)
+                  const code = emp.employee_code_custom ?? emp.employee_code
+                  return (
+                    <tr
+                      key={emp.id}
+                      className="cursor-pointer transition-colors hover:bg-muted/30"
+                      onClick={onClickableTableRow(() => navigate(`/hr/employees/${emp.id}`))}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
+                            {name[0]?.toUpperCase() ?? emp.employee_code?.[0]}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {code}{email ? ` · ${email}` : ''}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{name}</p>
-                          <p className="text-xs text-muted-foreground">{emp.employee_code_custom ?? emp.employee_code}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{emp.department?.name ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{emp.designation?.name ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                        {empTypeLabel(emp.employment_type)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_COLORS[emp.status] ?? 'bg-muted text-muted-foreground')}>
-                        {emp.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        {emp.status !== 'exited' && (
-                          <Link
-                            to={`/hr/employees/${emp.id}?tab=exit`}
-                            className="text-xs text-orange-500 hover:text-orange-700 flex items-center gap-1"
-                            title="Exit form"
-                          >
-                            <LogOut className="w-3.5 h-3.5" /> Exit
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{emp.department?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{emp.designation?.name ?? '—'}</td>
+                      <td className="px-4 py-3">
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          {empTypeLabel(emp.employment_type)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium capitalize', STATUS_COLORS[emp.status] ?? 'bg-muted text-muted-foreground')}>
+                          {STATUS_LABELS[emp.status] ?? emp.status.replaceAll('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          {emp.status !== 'exited' && (
+                            <Link
+                              to={`/hr/employees/${emp.id}?tab=exit`}
+                              className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-700"
+                              title="Exit form"
+                            >
+                              <LogOut className="h-3.5 w-3.5" /> Exit
+                            </Link>
+                          )}
+                          <Link to={`/hr/employees/${emp.id}`} className="text-sm font-medium text-primary hover:underline">
+                            View
                           </Link>
-                        )}
-                        <Link to={`/hr/employees/${emp.id}`} className="text-sm text-blue-600 hover:underline font-medium">
-                          View →
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

@@ -11,11 +11,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.database import get_db
 from app.services.website_analytics import build_website_analytics
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("reports.view"))])
 
 
 @router.get("/analytics")

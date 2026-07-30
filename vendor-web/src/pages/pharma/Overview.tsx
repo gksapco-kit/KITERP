@@ -30,6 +30,7 @@ import {
   PharmaPageHeader,
   PharmaProgress,
   PharmaStatusBadge,
+  fmtErr,
 } from './pharmaShared'
 
 type Overview = {
@@ -183,7 +184,7 @@ export default function PharmaOverviewPage() {
     pharmaApi
       .overview()
       .then((d) => { setData(d); setError('') })
-      .catch((e) => setError(e?.response?.data?.detail || e.message || 'Failed to load'))
+      .catch((e) => setError(fmtErr(e, e.message || 'Failed to load')))
       .finally(() => setLoading(false))
   }
 
@@ -198,7 +199,7 @@ export default function PharmaOverviewPage() {
       toast.success('Retest inspection opened')
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Retest failed')
+      toast.error(fmtErr(e, 'Retest failed'))
     } finally {
       setBusyId(null)
     }

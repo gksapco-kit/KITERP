@@ -14,13 +14,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.database import get_db
 from app.models.vendor_booking_wizard_step import VendorBookingWizardStep
 from app.models.user import User
 from app.services.vendor_service import VendorService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("bookings.view"))])
 
 
 async def _invalidate_wizard_steps_live_cache(db: AsyncSession, vendor_id) -> None:

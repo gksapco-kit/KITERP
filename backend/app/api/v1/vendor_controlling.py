@@ -94,7 +94,7 @@ from app.services.controlling.settlement import (
     post_cogs_issue,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("controlling.view"))])
 
 
 def _d(obj) -> dict:

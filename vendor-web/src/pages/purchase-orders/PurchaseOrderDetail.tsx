@@ -32,6 +32,12 @@ import { usePOTemplateSettings } from '@/hooks/useVendor'
 import { printPO, generatePOHtml, DEFAULT_PO_SETTINGS } from '@/lib/poTemplates'
 import type { POTemplateSettings } from '@/lib/poTemplates'
 import { fetchAsDataUrl, resolveMediaUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
+import {
+  PoDestinationFields,
+  poDestinationFromLine,
+  poDestinationToPayload,
+  type PoDestinationValue,
+} from '@/components/procurement/PoDestinationFields'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
@@ -828,6 +834,10 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
   const [receiveManufacture, setReceiveManufacture] = useState('')
   const [receiveBestBefore, setReceiveBestBefore] = useState('')
   const [receiveBatch, setReceiveBatch] = useState('')
+  const [receiveExternalBatch, setReceiveExternalBatch] = useState('')
+  const [receiveTrackId, setReceiveTrackId] = useState('')
+  const [receiveReference, setReceiveReference] = useState('')
+  const [receiveDest, setReceiveDest] = useState<PoDestinationValue>(() => poDestinationFromLine(item))
   const [receiveNotes, setReceiveNotes] = useState('')
 
   // Auto-fill receive cost from item unit_cost
@@ -835,18 +845,33 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
     if (item.unit_cost) setReceiveCostPrice(String(item.unit_cost))
   }, [item.unit_cost])
 
+  useEffect(() => {
+    setReceiveDest(poDestinationFromLine(item))
+  }, [item.id, item.plant_id, item.storage_location_id])
+
   const handleReceive = useCallback(async () => {
-    const qty = parseInt(receiveQty)
+    const qty = parseFloat(receiveQty)
     if (!qty || qty <= 0) { toast.error('Enter a valid quantity'); return }
     const remaining = item.quantity_ordered - item.quantity_received
     if (qty > remaining) { toast.error(`Max receivable: ${remaining}`); return }
+    const dest = poDestinationToPayload(receiveDest)
 
     try {
-      // Record in PO receipt
+      // Record in PO receipt (lot metadata used for batch-managed / QI products)
       await receiveMut.mutateAsync({
         id: item.purchase_order_id,
         data: {
-          items: [{ item_id: item.id, quantity: qty }],
+          items: [{
+            item_id: item.id,
+            quantity: qty,
+            batch_number: receiveBatch || undefined,
+            supplier_batch_number: receiveExternalBatch || undefined,
+            manufacturing_date: receiveManufacture || undefined,
+            expiry_date: receiveExpiry || undefined,
+            track_id: receiveTrackId || undefined,
+            reference: receiveReference || undefined,
+            ...dest,
+          }],
           notes: receiveNotes || undefined,
         },
       })
@@ -867,8 +892,12 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
       })
       toast.success(`Received ${qty} units`)
       setReceiveQty('')
+      setReceiveBatch('')
+      setReceiveExternalBatch('')
+      setReceiveTrackId('')
+      setReceiveReference('')
     } catch { /* handled */ }
-  }, [item, receiveMut, receiveQty, receiveNotes, receiveBatch, receiveCostPrice, receiveSellingPrice, receiveExpiry, receiveManufacture, receiveBestBefore])
+  }, [item, receiveMut, receiveQty, receiveNotes, receiveBatch, receiveExternalBatch, receiveTrackId, receiveReference, receiveDest, receiveCostPrice, receiveSellingPrice, receiveExpiry, receiveManufacture, receiveBestBefore])
 
   const p = fullProduct as any
 
@@ -960,9 +989,9 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">Quantity to Receive <span className="text-red-500">*</span></Label>
+              <Label className="text-xs">Inbound quantity <span className="text-red-500">*</span></Label>
               <Input type="number" min={1} max={item.quantity_ordered - item.quantity_received}
-                value={receiveQty} onChange={e => setReceiveQty(e.target.value)} placeholder="Qty" />
+                value={receiveQty} onChange={e => setReceiveQty(e.target.value)} placeholder="Inbound qty" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Cost Price (₹) <span className="text-gray-400">(updates record)</span></Label>
@@ -989,6 +1018,27 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
             <div className="space-y-1">
               <Label className="text-xs">Batch / Lot Number</Label>
               <Input value={receiveBatch} onChange={e => setReceiveBatch(e.target.value)} placeholder="LOT-2024-001" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">External batch ID</Label>
+              <Input value={receiveExternalBatch} onChange={e => setReceiveExternalBatch(e.target.value)} placeholder="Supplier lot" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Track ID</Label>
+              <Input value={receiveTrackId} onChange={e => setReceiveTrackId(e.target.value)} placeholder="Track / SSCC" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Reference</Label>
+              <Input value={receiveReference} onChange={e => setReceiveReference(e.target.value)} placeholder="Challan / container" />
+            </div>
+            <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+              <Label className="text-xs">
+                Destination
+                {(item.plant_id || item.storage_location_id) ? (
+                  <span className="ml-1 text-muted-foreground">(defaults from PO)</span>
+                ) : null}
+              </Label>
+              <PoDestinationFields value={receiveDest} onChange={setReceiveDest} compact />
             </div>
             <div className="space-y-1 sm:col-span-2">
               <Label className="text-xs">Notes</Label>
@@ -1018,6 +1068,28 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
 
 // ── ReceiveModal (bulk) ───────────────────────────────────────────
 
+type ReceiveLineDraft = {
+  quantity: string
+  batch_number: string
+  supplier_batch_number: string
+  manufacturing_date: string
+  expiry_date: string
+  track_id: string
+  reference: string
+  dest: PoDestinationValue
+}
+
+const emptyReceiveLine = (item?: POItem): ReceiveLineDraft => ({
+  quantity: '',
+  batch_number: '',
+  supplier_batch_number: '',
+  manufacturing_date: '',
+  expiry_date: '',
+  track_id: '',
+  reference: '',
+  dest: poDestinationFromLine(item),
+})
+
 function ReceiveModal({
  po_id, items, onClose }: {
   po_id: string
@@ -1026,23 +1098,46 @@ function ReceiveModal({
 }) {
   const receiveMut = useReceivePOItems()
   const receivableItems = items.filter(i => i.quantity_received < i.quantity_ordered)
-  const [quantities, setQuantities] = useState<Record<string, string>>(
-    Object.fromEntries(receivableItems.map(i => [i.id, '']))
+  const [lines, setLines] = useState<Record<string, ReceiveLineDraft>>(
+    Object.fromEntries(receivableItems.map(i => [i.id, emptyReceiveLine(i)]))
   )
   const [notes, setNotes] = useState('')
-  const hasAny = Object.values(quantities).some(v => parseInt(v) > 0)
+  const hasAny = Object.values(lines).some(v => parseFloat(v.quantity) > 0)
+
+  const patchLine = (itemId: string, patch: Partial<ReceiveLineDraft>) => {
+    setLines(prev => ({ ...prev, [itemId]: { ...prev[itemId], ...patch } }))
+  }
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    const receiveItems = Object.entries(quantities)
-      .filter(([, v]) => parseInt(v) > 0)
-      .map(([itemId, qty]) => ({ item_id: itemId, quantity: parseInt(qty) }))
-    if (!receiveItems.length) return
+    const payload: Record<string, unknown>[] = []
+    for (const item of receivableItems) {
+      const line = lines[item.id] || emptyReceiveLine(item)
+      const qty = parseFloat(line.quantity)
+      if (!qty || qty <= 0) continue
+      const remaining = item.quantity_ordered - item.quantity_received
+      if (qty > remaining) {
+        toast.error(`${item.product_name || 'Item'}: max receivable is ${remaining}`)
+        return
+      }
+      payload.push({
+        item_id: item.id,
+        quantity: qty,
+        batch_number: line.batch_number.trim() || undefined,
+        supplier_batch_number: line.supplier_batch_number.trim() || undefined,
+        manufacturing_date: line.manufacturing_date || undefined,
+        expiry_date: line.expiry_date || undefined,
+        track_id: line.track_id.trim() || undefined,
+        reference: line.reference.trim() || undefined,
+        ...poDestinationToPayload(line.dest),
+      })
+    }
+    if (!payload.length) return
     try {
-      await receiveMut.mutateAsync({ id: po_id, data: { items: receiveItems, notes: notes || undefined } })
+      await receiveMut.mutateAsync({ id: po_id, data: { items: payload, notes: notes || undefined } })
       onClose()
     } catch { /* handled */ }
-  }, [quantities, notes, po_id, receiveMut, onClose])
+  }, [lines, notes, po_id, receiveMut, onClose, receivableItems])
 
   if (receivableItems.length === 0) {
     return (
@@ -1057,29 +1152,101 @@ function ReceiveModal({
 
   return (
     <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-lg font-semibold">Receive Items</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          <p className="text-xs text-gray-500">Enter quantities received for each item. Leave blank to skip.</p>
+          <p className="text-xs text-gray-500">
+            Enter quantity for each line. Destination uses the same Business Unit / Branch·Plant / Storage Location inputs as PO create — defaults from the PO line when set.
+          </p>
           <div className="space-y-3">
             {receivableItems.map((item) => {
               const remaining = item.quantity_ordered - item.quantity_received
+              const line = lines[item.id] || emptyReceiveLine(item)
               return (
-                <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.product_name || item.product_id}</p>
-                    {item.product_sku && <p className="text-xs text-gray-400 font-mono">{item.product_sku}</p>}
-                    <p className="text-xs text-gray-500">
-                      Ordered: {item.quantity_ordered} · Received: {item.quantity_received} ·{' '}
-                      <span className="text-amber-600 font-medium">Remaining: {remaining}</span>
-                    </p>
+                <div key={item.id} className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{item.product_name || item.product_id}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Product ID <span className="font-mono text-foreground/80">{item.product_id}</span>
+                        {item.product_sku ? <> · SKU <span className="font-mono">{item.product_sku}</span></> : null}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Ordered: {item.quantity_ordered} · Received: {item.quantity_received} ·{' '}
+                        <span className="text-amber-600 font-medium">Remaining: {remaining}</span>
+                      </p>
+                    </div>
                   </div>
-                  <Input type="number" min={0} max={remaining} className="w-24" placeholder="Qty"
-                    value={quantities[item.id] || ''}
-                    onChange={e => setQuantities({ ...quantities, [item.id]: e.target.value })} />
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Inbound quantity <span className="text-red-500">*</span></Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={remaining}
+                        step="any"
+                        placeholder="Inbound qty"
+                        value={line.quantity}
+                        onChange={e => patchLine(item.id, { quantity: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Expiry date</Label>
+                      <Input
+                        type="date"
+                        value={line.expiry_date}
+                        onChange={e => patchLine(item.id, { expiry_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Manufacture date</Label>
+                      <Input
+                        type="date"
+                        value={line.manufacturing_date}
+                        onChange={e => patchLine(item.id, { manufacturing_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Batch / lot #</Label>
+                      <Input
+                        value={line.batch_number}
+                        onChange={e => patchLine(item.id, { batch_number: e.target.value })}
+                        placeholder="Internal lot"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">External batch ID</Label>
+                      <Input
+                        value={line.supplier_batch_number}
+                        onChange={e => patchLine(item.id, { supplier_batch_number: e.target.value })}
+                        placeholder="Supplier lot"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Track ID</Label>
+                      <Input
+                        value={line.track_id}
+                        onChange={e => patchLine(item.id, { track_id: e.target.value })}
+                        placeholder="Track / SSCC"
+                      />
+                    </div>
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label className="text-xs">Reference</Label>
+                      <Input
+                        value={line.reference}
+                        onChange={e => patchLine(item.id, { reference: e.target.value })}
+                        placeholder="Challan / invoice line / container"
+                      />
+                    </div>
+                  </div>
+                  <PoDestinationFields
+                    value={line.dest}
+                    onChange={(dest) => patchLine(item.id, { dest })}
+                    compact
+                  />
                 </div>
               )
             })}

@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id
+from app.api.deps import get_current_vendor_id, require_permission
 from app.models.product_group import ProductGroup, ProductGroupItem, MAX_HIERARCHY_DEPTH
 from app.models.vendor_product import Product
 from app.models.vendor_service import Service
@@ -19,7 +19,7 @@ from app.schemas.product_group import (
 )
 from app.repositories.product_group_repo import ProductGroupRepository
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("products.view"))])
 
 
 # ──────────────────────────────────────────────────────────────────────────────

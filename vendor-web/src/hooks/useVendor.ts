@@ -1049,7 +1049,7 @@ export function useDefaultRoles() {
 export function useCreateRole() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; description?: string; permissions: string[] }) =>
+    mutationFn: (data: { name: string; description?: string; permissions: string[]; copy_from_builtin?: string }) =>
       vendorApi.createRole(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vendor', 'roles'] })

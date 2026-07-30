@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { pharmaApi } from '@/api/pharma'
+import { vendorApi } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -18,6 +19,7 @@ import {
   PharmaToolbar,
   isUuid,
   type PharmaESignPayload,
+  fmtErr,
 } from './pharmaShared'
 
 export function PharmaGenealogyPage() {
@@ -34,7 +36,7 @@ export function PharmaGenealogyPage() {
     pharmaApi
       .genealogy(id.trim())
       .then(setTree)
-      .catch((e) => toast.error(e?.response?.data?.detail || 'Failed'))
+      .catch((e) => toast.error(fmtErr(e, 'Failed')))
   }
 
   useEffect(() => {
@@ -324,15 +326,16 @@ export function PharmaDeviationsPage() {
         subtitle="Open → investigate → link CAPA. Closing CAPA closes the deviation."
       />
       {canManage ? (
-      <PharmaCard className="mb-4 space-y-3">
-        <PharmaToolbar>
+      <PharmaCard className="mb-4 space-y-2">
+        <div className="grid grid-cols-[minmax(0,1.2fr)_7.5rem_minmax(0,1.4fr)_auto] items-end gap-2">
           <Input
-            className="w-72"
+            className="w-full"
             placeholder="Title"
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
           />
           <Select
+            className="w-full"
             value={form.severity}
             onChange={(severity) => setForm({ ...form, severity })}
             options={[
@@ -342,39 +345,39 @@ export function PharmaDeviationsPage() {
             ]}
           />
           <PharmaBatchSelect
-            className="w-72"
+            className="w-full"
             value={form.goods_batch_id}
             onChange={(goods_batch_id) => setForm({ ...form, goods_batch_id })}
             placeholder="Link batch (optional)…"
           />
-        </PharmaToolbar>
+          <Button
+            onClick={() => {
+              if (!form.title.trim()) {
+                toast.error('Title required')
+                return
+              }
+              pharmaApi
+                .createDeviation({
+                  title: form.title,
+                  severity: form.severity,
+                  description: form.description.trim() || undefined,
+                  goods_batch_id: isUuid(form.goods_batch_id) ? form.goods_batch_id : undefined,
+                })
+                .then(() => {
+                  setForm({ title: '', severity: 'minor', description: '', goods_batch_id: '' })
+                  load()
+                })
+            }}
+          >
+            Create
+          </Button>
+        </div>
         <textarea
           className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           placeholder="Description / investigation notes"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
-        <Button
-          onClick={() => {
-            if (!form.title.trim()) {
-              toast.error('Title required')
-              return
-            }
-            pharmaApi
-              .createDeviation({
-                title: form.title,
-                severity: form.severity,
-                description: form.description.trim() || undefined,
-                goods_batch_id: isUuid(form.goods_batch_id) ? form.goods_batch_id : undefined,
-              })
-              .then(() => {
-                setForm({ title: '', severity: 'minor', description: '', goods_batch_id: '' })
-                load()
-              })
-          }}
-        >
-          Create
-        </Button>
       </PharmaCard>
       ) : null}
       <PharmaCard>
@@ -521,7 +524,7 @@ export function PharmaCapasPage() {
       setEditId(null)
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Update failed')
+      toast.error(fmtErr(e, 'Update failed'))
     }
   }
 
@@ -709,15 +712,16 @@ export function PharmaChangeControlPage() {
         subtitle="Draft → review → e-sign approve (pharma.release) → implement."
       />
       {canManage ? (
-        <PharmaCard className="mb-4 space-y-3">
-          <PharmaToolbar>
+        <PharmaCard className="mb-4 space-y-2">
+          <div className="grid grid-cols-[minmax(0,1.4fr)_8rem_auto] items-end gap-2">
             <Input
-              className="w-72"
+              className="w-full"
               placeholder="Title"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
             <Select
+              className="w-full"
               value={form.change_type}
               onChange={(change_type) => setForm({ ...form, change_type })}
               options={[
@@ -728,37 +732,39 @@ export function PharmaChangeControlPage() {
                 { value: 'other', label: 'Other' },
               ]}
             />
-          </PharmaToolbar>
-          <textarea
-            className="min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            placeholder="Description / justification"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
-          <textarea
-            className="min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            placeholder="Impact assessment"
-            value={form.impact_assessment}
-            onChange={(e) => setForm({ ...form, impact_assessment: e.target.value })}
-          />
-          <Button
-            onClick={() => {
-              if (!form.title.trim()) return
-              pharmaApi
-                .createChangeControl({
-                  title: form.title,
-                  change_type: form.change_type,
-                  description: form.description.trim() || undefined,
-                  impact_assessment: form.impact_assessment.trim() || undefined,
-                })
-                .then(() => {
-                  setForm({ title: '', change_type: 'mbr', description: '', impact_assessment: '' })
-                  load()
-                })
-            }}
-          >
-            Create
-          </Button>
+            <Button
+              onClick={() => {
+                if (!form.title.trim()) return
+                pharmaApi
+                  .createChangeControl({
+                    title: form.title,
+                    change_type: form.change_type,
+                    description: form.description.trim() || undefined,
+                    impact_assessment: form.impact_assessment.trim() || undefined,
+                  })
+                  .then(() => {
+                    setForm({ title: '', change_type: 'mbr', description: '', impact_assessment: '' })
+                    load()
+                  })
+              }}
+            >
+              Create
+            </Button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <textarea
+              className="min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              placeholder="Description / justification"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+            <textarea
+              className="min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              placeholder="Impact assessment"
+              value={form.impact_assessment}
+              onChange={(e) => setForm({ ...form, impact_assessment: e.target.value })}
+            />
+          </div>
         </PharmaCard>
       ) : null}
       <PharmaCard>
@@ -906,8 +912,9 @@ export function PharmaAuditPage() {
         subtitle="Append-only GxP audit with password-verified e-sign, meaning-of-signature, and failed-attempt logging (pharma.audit)."
       />
       <PharmaCard className="mb-4">
-        <PharmaToolbar>
+        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_auto] items-center gap-2">
           <Select
+            className="w-full"
             value={entityType}
             onChange={setEntityType}
             options={[
@@ -923,7 +930,7 @@ export function PharmaAuditPage() {
             ]}
           />
           <Input
-            className="w-72"
+            className="w-full"
             placeholder="Entity UUID (optional)"
             value={entityId}
             onChange={(e) => setEntityId(e.target.value)}
@@ -931,7 +938,7 @@ export function PharmaAuditPage() {
           <Button onClick={load} disabled={loading}>
             {loading ? 'Loading…' : 'Filter'}
           </Button>
-        </PharmaToolbar>
+        </div>
       </PharmaCard>
       <PharmaCard>
         {events.length === 0 ? <PharmaEmpty label="No audit events yet" /> : null}
@@ -993,127 +1000,168 @@ export function PharmaSerializationPage() {
         subtitle="Commission units, aggregate into packs/cases, transition active → shipped / recalled / destroyed."
       />
       <PharmaCard className="mb-4 space-y-3">
-        <PharmaToolbar>
-          <PharmaBatchSelect
-            className="w-80"
-            value={batchId}
-            onChange={(id) => {
-              setBatchId(id)
-              setSelected([])
-              load(id)
-            }}
-          />
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[16rem] flex-1">
+            <label className="mb-0.5 block text-[10px] text-muted-foreground">Batch</label>
+            <PharmaBatchSelect
+              className="w-full"
+              value={batchId}
+              onChange={(id) => {
+                setBatchId(id)
+                setSelected([])
+                load(id)
+              }}
+            />
+          </div>
           <Button size="sm" variant="outline" onClick={() => load()}>
             Refresh
           </Button>
-        </PharmaToolbar>
+        </div>
+
         {canManage ? (
-          <>
-            <PharmaToolbar>
-              <Input
-                className="w-48"
-                placeholder="Serial"
-                value={form.serial_number}
-                onChange={(e) => setForm({ ...form, serial_number: e.target.value })}
-              />
-              <Select
-                value={form.level}
-                onChange={(level) => setForm({ ...form, level })}
-                options={[
-                  { value: 'unit', label: 'Unit' },
-                  { value: 'pack', label: 'Pack' },
-                  { value: 'case', label: 'Case' },
-                  { value: 'pallet', label: 'Pallet' },
-                ]}
-              />
-              <Button
-                onClick={() => {
-                  if (!isUuid(batchId) || !form.serial_number.trim()) {
-                    toast.error('Select batch and enter serial')
-                    return
-                  }
-                  pharmaApi.createSerial({ goods_batch_id: batchId, ...form }).then(() => {
-                    toast.success('Serial added')
-                    setForm({ ...form, serial_number: '' })
-                    load()
-                  })
-                }}
-              >
-                Add serial
-              </Button>
-              <Input
-                className="w-20"
-                type="number"
-                min={1}
-                value={commissionQty}
-                onChange={(e) => setCommissionQty(e.target.value)}
-              />
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (!isUuid(batchId)) {
-                    toast.error('Select a batch')
-                    return
-                  }
-                  pharmaApi
-                    .commissionSerials({
-                      goods_batch_id: batchId,
-                      quantity: Math.max(1, Number(commissionQty) || 1),
-                    })
-                    .then((r) => {
-                      toast.success(`Commissioned ${r.count} serials`)
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="rounded-md border border-border/70 bg-muted/20 p-3">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Commission
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[8rem] flex-1">
+                  <label className="mb-0.5 block text-[10px] text-muted-foreground">Serial</label>
+                  <Input
+                    className="w-full"
+                    placeholder="Serial number"
+                    value={form.serial_number}
+                    onChange={(e) => setForm({ ...form, serial_number: e.target.value })}
+                  />
+                </div>
+                <div className="w-28 shrink-0">
+                  <label className="mb-0.5 block text-[10px] text-muted-foreground">Level</label>
+                  <Select
+                    className="w-full"
+                    value={form.level}
+                    onChange={(level) => setForm({ ...form, level })}
+                    options={[
+                      { value: 'unit', label: 'Unit' },
+                      { value: 'pack', label: 'Pack' },
+                      { value: 'case', label: 'Case' },
+                      { value: 'pallet', label: 'Pallet' },
+                    ]}
+                  />
+                </div>
+                <Button
+                  onClick={() => {
+                    if (!isUuid(batchId) || !form.serial_number.trim()) {
+                      toast.error('Select batch and enter serial')
+                      return
+                    }
+                    pharmaApi.createSerial({ goods_batch_id: batchId, ...form }).then(() => {
+                      toast.success('Serial added')
+                      setForm({ ...form, serial_number: '' })
                       load()
                     })
-                    .catch((e: any) => toast.error(e?.response?.data?.detail || 'Commission failed'))
-                }}
-              >
-                Auto-commission
-              </Button>
-            </PharmaToolbar>
-            <PharmaToolbar>
-              <Input
-                className="w-48"
-                placeholder="Parent serial"
-                value={parentSn}
-                onChange={(e) => setParentSn(e.target.value)}
-              />
-              <Select
-                value={parentLevel}
-                onChange={setParentLevel}
-                options={[
-                  { value: 'pack', label: 'Pack' },
-                  { value: 'case', label: 'Case' },
-                  { value: 'pallet', label: 'Pallet' },
-                ]}
-              />
-              <Button
-                variant="outline"
-                disabled={selected.length === 0}
-                onClick={() => {
-                  if (!isUuid(batchId) || !parentSn.trim()) {
-                    toast.error('Batch + parent serial required')
-                    return
-                  }
-                  pharmaApi
-                    .aggregateSerials({
-                      goods_batch_id: batchId,
-                      parent_serial_number: parentSn.trim(),
-                      parent_level: parentLevel,
-                      child_ids: selected,
-                    })
-                    .then(() => {
-                      toast.success('Aggregated')
-                      setSelected([])
-                      setParentSn('')
-                      load()
-                    })
-                    .catch((e: any) => toast.error(e?.response?.data?.detail || 'Aggregate failed'))
-                }}
-              >
-                Aggregate selected ({selected.length})
-              </Button>
-            </PharmaToolbar>
-          </>
+                  }}
+                >
+                  Add serial
+                </Button>
+              </div>
+              <div className="mt-2 flex flex-wrap items-end gap-2 border-t border-border/50 pt-2">
+                <div className="w-20 shrink-0">
+                  <label className="mb-0.5 block text-[10px] text-muted-foreground">Qty</label>
+                  <Input
+                    className="w-full"
+                    type="number"
+                    min={1}
+                    value={commissionQty}
+                    onChange={(e) => setCommissionQty(e.target.value)}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (!isUuid(batchId)) {
+                      toast.error('Select a batch')
+                      return
+                    }
+                    pharmaApi
+                      .commissionSerials({
+                        goods_batch_id: batchId,
+                        quantity: Math.max(1, Number(commissionQty) || 1),
+                      })
+                      .then((r) => {
+                        toast.success(`Commissioned ${r.count} serials`)
+                        load()
+                      })
+                      .catch((e: any) => toast.error(fmtErr(e, 'Commission failed')))
+                  }}
+                >
+                  Auto-commission
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-border/70 bg-muted/20 p-3">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Aggregate
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[8rem] flex-1">
+                  <label className="mb-0.5 block text-[10px] text-muted-foreground">Parent serial</label>
+                  <Input
+                    className="w-full"
+                    placeholder="Parent serial"
+                    value={parentSn}
+                    onChange={(e) => setParentSn(e.target.value)}
+                  />
+                </div>
+                <div className="w-28 shrink-0">
+                  <label className="mb-0.5 block text-[10px] text-muted-foreground">Level</label>
+                  <Select
+                    className="w-full"
+                    value={parentLevel}
+                    onChange={setParentLevel}
+                    options={[
+                      { value: 'pack', label: 'Pack' },
+                      { value: 'case', label: 'Case' },
+                      { value: 'pallet', label: 'Pallet' },
+                    ]}
+                  />
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2">
+                <p className="text-[11px] text-muted-foreground">
+                  {selected.length === 0
+                    ? 'Select active serials below, then aggregate.'
+                    : `${selected.length} serial(s) selected`}
+                </p>
+                <Button
+                  variant="outline"
+                  disabled={selected.length === 0}
+                  onClick={() => {
+                    if (!isUuid(batchId) || !parentSn.trim()) {
+                      toast.error('Batch + parent serial required')
+                      return
+                    }
+                    pharmaApi
+                      .aggregateSerials({
+                        goods_batch_id: batchId,
+                        parent_serial_number: parentSn.trim(),
+                        parent_level: parentLevel,
+                        child_ids: selected,
+                      })
+                      .then(() => {
+                        toast.success('Aggregated')
+                        setSelected([])
+                        setParentSn('')
+                        load()
+                      })
+                      .catch((e: any) => toast.error(fmtErr(e, 'Aggregate failed')))
+                  }}
+                >
+                  Aggregate selected ({selected.length})
+                </Button>
+              </div>
+            </div>
+          </div>
         ) : null}
       </PharmaCard>
       <PharmaCard>
@@ -1158,7 +1206,7 @@ export function PharmaSerializationPage() {
                               setSelected([])
                               load()
                             })
-                            .catch((e: any) => toast.error(e?.response?.data?.detail || 'Disaggregate failed'))
+                            .catch((e: any) => toast.error(fmtErr(e, 'Disaggregate failed')))
                         }}
                       >
                         Disaggregate
@@ -1201,12 +1249,15 @@ export function PharmaComplaintsPage() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [customerOptions, setCustomerOptions] = useState<
+    { value: string; label: string; hint?: string }[]
+  >([{ value: '', label: 'Select customer…' }])
   const [form, setForm] = useState({
     complaint_type: 'customer',
     severity: 'minor',
     title: '',
     description: '',
-    reported_by: '',
+    customer_id: '',
   })
   const [investForm, setInvestForm] = useState<Record<string, { notes: string; disposition: string }>>({})
 
@@ -1221,6 +1272,20 @@ export function PharmaComplaintsPage() {
 
   useEffect(() => {
     load()
+    vendorApi
+      .listCustomers({ size: 200 })
+      .then((r) => {
+        const customers = r?.items || []
+        setCustomerOptions([
+          { value: '', label: 'Select customer…' },
+          ...customers.map((c) => ({
+            value: c.id,
+            label: c.company_name || c.full_name || 'Customer',
+            hint: [c.email, c.phone].filter(Boolean).join(' · ') || undefined,
+          })),
+        ])
+      })
+      .catch(() => {})
   }, [])
 
   const submit = () => {
@@ -1228,21 +1293,39 @@ export function PharmaComplaintsPage() {
       toast.error('Title is required')
       return
     }
+    const customerLabel = customerOptions.find((o) => o.value === form.customer_id)?.label
+    const payload = {
+      complaint_type: form.complaint_type,
+      severity: form.severity,
+      title: form.title,
+      description: form.description || undefined,
+      customer_id: form.customer_id || undefined,
+      reported_by:
+        form.customer_id && customerLabel && customerLabel !== 'Select customer…'
+          ? customerLabel
+          : undefined,
+    }
     pharmaApi
-      .createComplaint(form)
+      .createComplaint(payload)
       .then(() => {
         toast.success('Complaint logged')
-        setForm({ complaint_type: 'customer', severity: 'minor', title: '', description: '', reported_by: '' })
+        setForm({
+          complaint_type: 'customer',
+          severity: 'minor',
+          title: '',
+          description: '',
+          customer_id: '',
+        })
         load()
       })
-      .catch((e: any) => toast.error(e?.response?.data?.detail || 'Failed'))
+      .catch((e: any) => toast.error(fmtErr(e, 'Failed')))
   }
 
   const advance = (id: string, status: string) => {
     pharmaApi
       .updateComplaint(id, { status })
       .then(() => { toast.success('Updated'); load() })
-      .catch((e: any) => toast.error(e?.response?.data?.detail || 'Failed'))
+      .catch((e: any) => toast.error(fmtErr(e, 'Failed')))
   }
 
   const saveInvest = (id: string) => {
@@ -1250,7 +1333,7 @@ export function PharmaComplaintsPage() {
     pharmaApi
       .updateComplaint(id, { investigation_notes: f.notes, disposition: f.disposition })
       .then(() => { toast.success('Saved'); load() })
-      .catch((e: any) => toast.error(e?.response?.data?.detail || 'Failed'))
+      .catch((e: any) => toast.error(fmtErr(e, 'Failed')))
   }
 
   const TYPES = [
@@ -1280,35 +1363,38 @@ export function PharmaComplaintsPage() {
       />
 
       {canManage ? (
-        <PharmaCard className="mb-4 space-y-3">
+        <PharmaCard className="mb-4 space-y-2">
           <div className="text-sm font-medium">Log new complaint</div>
-          <PharmaToolbar>
+          <PharmaToolbar className="mb-0">
             <Select
+              className="w-72"
+              value={form.customer_id}
+              onChange={(id) => setForm((prev) => ({ ...prev, customer_id: id }))}
+              options={customerOptions}
+              placeholder="Select customer…"
+            />
+            <Select
+              className="w-44"
               value={form.complaint_type}
               onChange={(v) => setForm({ ...form, complaint_type: v })}
               options={TYPES}
             />
             <Select
+              className="w-32"
               value={form.severity}
               onChange={(v) => setForm({ ...form, severity: v })}
               options={SEVERITIES}
             />
             <Input
-              className="w-72"
+              className="min-w-[12rem] flex-1"
               placeholder="Title"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </PharmaToolbar>
-          <PharmaToolbar>
+          <PharmaToolbar className="mb-0">
             <Input
-              className="w-72"
-              placeholder="Reported by"
-              value={form.reported_by}
-              onChange={(e) => setForm({ ...form, reported_by: e.target.value })}
-            />
-            <Input
-              className="flex-1"
+              className="min-w-[12rem] flex-1"
               placeholder="Description"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -1337,6 +1423,17 @@ export function PharmaComplaintsPage() {
                       <PharmaStatusBadge status={c.status} />
                       <PharmaStatusBadge status={c.severity} />
                       <span className="text-xs text-muted-foreground capitalize">{c.complaint_type.replace('_', ' ')}</span>
+                      {c.customer_id ? (
+                        <Link
+                          to={`/customers/${c.customer_id}`}
+                          className="text-xs text-primary hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {customerOptions.find((o) => o.value === c.customer_id)?.label ||
+                            customerOptions.find((o) => o.value === c.customer_id)?.hint ||
+                            c.customer_id}
+                        </Link>
+                      ) : null}
                       {c.reported_by ? (
                         <span className="text-xs text-muted-foreground">by {c.reported_by}</span>
                       ) : null}

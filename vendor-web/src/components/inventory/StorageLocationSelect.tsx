@@ -19,23 +19,29 @@ function flattenLocations(
 }
 
 type Props = {
-  storeId: string
+  /** Business unit scope (optional when plantId is set). */
+  storeId?: string | null
+  /** When set, locations are filtered to this plant. */
+  plantId?: string | null
   value: string
   onChange: (id: string) => void
   className?: string
   allowEmpty?: boolean
   emptyLabel?: string
+  disabled?: boolean
 }
 
 export function StorageLocationSelect({
-  storeId,
+  storeId = null,
+  plantId = null,
   value,
   onChange,
   className,
   allowEmpty = true,
-  emptyLabel = 'No specific location (BU-level)',
+  emptyLabel = 'No specific location',
+  disabled,
 }: Props) {
-  const { data, isLoading } = useStorageLocationTree(storeId || null)
+  const { data, isLoading } = useStorageLocationTree(storeId || null, plantId || null)
 
   const options = useMemo((): SelectOption[] => {
     const flat = flattenLocations(data?.locations ?? [])
@@ -43,9 +49,9 @@ export function StorageLocationSelect({
     return [...list, ...flat.map((o) => ({ value: o.id, label: o.label }))]
   }, [data?.locations, allowEmpty, emptyLabel])
 
-  if (!storeId) {
+  if (!storeId && !plantId) {
     return (
-      <p className="text-xs text-muted-foreground">Select a business unit first to pick a storage location.</p>
+      <p className="text-xs text-muted-foreground">Select a plant first to pick a storage location.</p>
     )
   }
 
@@ -56,7 +62,7 @@ export function StorageLocationSelect({
   if (options.length <= (allowEmpty ? 1 : 0)) {
     return (
       <p className="text-xs text-muted-foreground">
-        No storage locations for this unit.{' '}
+        No storage locations for this plant.{' '}
         <a href="/storage-locations" className="text-primary underline">Create locations</a>
       </p>
     )
@@ -70,6 +76,7 @@ export function StorageLocationSelect({
       placeholder={emptyLabel}
       aria-label="Storage location"
       className={className}
+      disabled={disabled}
     />
   )
 }

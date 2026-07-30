@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select'
 import { useHasPermission } from '@/hooks/usePermissions'
 import {
   PharmaBatchSelect,
+  PharmaBatchSummary,
   PharmaCard,
   PharmaEmpty,
   PharmaESignDialog,
@@ -20,6 +21,7 @@ import {
   downloadPharmaBlob,
   isUuid,
   type PharmaESignPayload,
+  fmtErr,
 } from './pharmaShared'
 
 export function PharmaMbrPage() {
@@ -87,7 +89,7 @@ export function PharmaMbrPage() {
       ])
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Create failed')
+      toast.error(fmtErr(e, 'Create failed'))
     }
   }
 
@@ -132,7 +134,7 @@ export function PharmaMbrPage() {
       setEditId(null)
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Save failed')
+      toast.error(fmtErr(e, 'Save failed'))
     }
   }
 
@@ -404,7 +406,7 @@ export function PharmaBprPage() {
       setForm({ product_id: '', batch_number: '', planned_qty: '' })
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Create failed')
+      toast.error(fmtErr(e, 'Create failed'))
     }
   }
 
@@ -424,7 +426,7 @@ export function PharmaBprPage() {
       toast.success(`Completed ${next.name}`)
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Step failed')
+      toast.error(fmtErr(e, 'Step failed'))
     }
   }
 
@@ -434,7 +436,7 @@ export function PharmaBprPage() {
       toast.success(body.status === 'skipped' ? `Skipped ${body.name}` : `Completed ${body.name}`)
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Step failed')
+      toast.error(fmtErr(e, 'Step failed'))
     }
   }
 
@@ -465,7 +467,7 @@ export function PharmaBprPage() {
       setIpcTarget(null)
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'IPC failed')
+      toast.error(fmtErr(e, 'IPC failed'))
     }
   }
 
@@ -568,7 +570,7 @@ export function PharmaBprPage() {
                           pharmaApi
                             .getBprPdfBlob(b.id)
                             .then((blob) => downloadPharmaBlob(blob, `BPR-${b.batch_number || b.id}.pdf`))
-                            .catch((e: any) => toast.error(e?.response?.data?.detail || 'PDF failed'))
+                            .catch((e: any) => toast.error(fmtErr(e, 'PDF failed')))
                         }
                       >
                         PDF
@@ -718,11 +720,31 @@ export function PharmaBprPage() {
   )
 }
 
+function suggestNextQcCode(codes: string[], fallback = '00001'): string {
+  let max = 0
+  let width = 5
+  let found = false
+  for (const raw of codes) {
+    const c = String(raw || '').trim()
+    if (/^\d+$/.test(c)) {
+      found = true
+      max = Math.max(max, parseInt(c, 10))
+      width = Math.max(width, c.length)
+    }
+  }
+  return found ? String(max + 1).padStart(width, '0') : fallback
+}
+
 export function PharmaQcSpecsPage() {
   const canManage = useHasPermission('pharma.manage')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [suggestedCode, setSuggestedCode] = useState('00001')
   const [form, setForm] = useState({ product_id: '', code: '', title: '' })
+  const [codeTouched, setCodeTouched] = useState(false)
+  const [titleTouched, setTitleTouched] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [filterProductId, setFilterProductId] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
   const [approveTarget, setApproveTarget] = useState<string | null>(null)
   const [edit, setEdit] = useState({
@@ -730,12 +752,32 @@ export function PharmaQcSpecsPage() {
     notes: '',
     items: [] as { name: string; min: string; max: string; uom: string; required: boolean }[],
   })
-  const load = () => {
+
+  const load = (opts?: { fillSuggestedCode?: boolean }) => {
     setLoading(true)
-    pharmaApi.listQcSpecs().then((r) => setItems(r.items || [])).catch(() => toast.error('Failed to load specs')).finally(() => setLoading(false))
+    return pharmaApi
+      .listQcSpecs()
+      .then((r) => {
+        const rows = r.items || []
+        setItems(rows)
+        const next = r.suggested_code || suggestNextQcCode(rows.map((x: any) => x.code))
+        setSuggestedCode(next)
+        if (opts?.fillSuggestedCode) {
+          setForm((prev) => ({ ...prev, code: next }))
+        } else {
+          setForm((prev) => (prev.code.trim() ? prev : { ...prev, code: next }))
+        }
+        return next as string
+      })
+      .catch(() => {
+        toast.error('Failed to load specs')
+        return suggestedCode
+      })
+      .finally(() => setLoading(false))
   }
   useEffect(() => {
-    load()
+    load({ fillSuggestedCode: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const openEdit = (s: any) => {
@@ -773,55 +815,155 @@ export function PharmaQcSpecsPage() {
       setEditId(null)
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Save failed')
+      toast.error(fmtErr(e, 'Save failed'))
     }
   }
+
+  const createSpec = async () => {
+    if (!isUuid(form.product_id)) {
+      toast.error('Select a product first')
+      return
+    }
+    if (!form.code.trim() || !form.title.trim()) {
+      toast.error('Code and title are required')
+      return
+    }
+    setCreating(true)
+    try {
+      await pharmaApi.createQcSpec({
+        product_id: form.product_id,
+        code: form.code.trim(),
+        title: form.title.trim(),
+        items: [
+          { name: 'Assay', min: 95, max: 105, uom: '%', required: true },
+          { name: 'Dissolution', min: 80, uom: '%', required: true },
+        ],
+      })
+      toast.success('Created — edit tests before approve')
+      setCodeTouched(false)
+      setTitleTouched(false)
+      setForm({ product_id: '', code: '', title: '' })
+      await load({ fillSuggestedCode: true })
+    } catch (e: any) {
+      toast.error(fmtErr(e, 'Create failed'))
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const visibleItems = filterProductId
+    ? items.filter((s) => s.product_id === filterProductId)
+    : items
+  const codeIsSuggested = !codeTouched && form.code === suggestedCode && !!suggestedCode
 
   return (
     <div className="p-6">
       <PharmaPageHeader title="QC specifications" subtitle="Test specs used during inspection and release." />
       {canManage ? (
-      <PharmaCard className="mb-4">
-        <PharmaToolbar>
-          <PharmaProductSelect className="w-64" value={form.product_id} onChange={(product_id) => setForm({ ...form, product_id })} />
-          <Input className="w-32" placeholder="Code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-          <Input className="w-48" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <Button
-            onClick={() => {
-              if (!isUuid(form.product_id)) {
-                toast.error('Select a product first')
-                return
-              }
-              pharmaApi
-                .createQcSpec({
-                  ...form,
-                  items: [
-                    { name: 'Assay', min: 95, max: 105, uom: '%', required: true },
-                    { name: 'Dissolution', min: 80, uom: '%', required: true },
-                  ],
-                })
-                .then(() => {
-                  toast.success('Created — edit tests before approve')
-                  setForm({ product_id: '', code: '', title: '' })
-                  load()
-                })
-                .catch((e: any) => toast.error(e?.response?.data?.detail || 'Create failed'))
-            }}
-          >
-            Create
-          </Button>
-        </PharmaToolbar>
-      </PharmaCard>
+        <PharmaCard className="mb-4">
+          <h2 className="mb-3 text-sm font-semibold">New QC spec (draft)</h2>
+          <div className="space-y-2">
+            <div className="grid grid-cols-[minmax(0,1.4fr)_7.5rem_minmax(0,1fr)_auto] items-end gap-2">
+              <div className="min-w-0">
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Product *</label>
+                <PharmaProductSelect
+                  className="w-full"
+                  value={form.product_id}
+                  onChange={(product_id, product) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      product_id,
+                      title: !titleTouched && product?.name ? product.name : prev.title,
+                    }))
+                  }}
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="mb-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  Code *
+                  {codeIsSuggested ? (
+                    <span className="rounded bg-emerald-50 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-emerald-700">
+                      Suggested
+                    </span>
+                  ) : null}
+                </label>
+                <Input
+                  className="w-full font-mono"
+                  placeholder="Code"
+                  value={form.code}
+                  onChange={(e) => {
+                    setCodeTouched(true)
+                    setForm({ ...form, code: e.target.value })
+                  }}
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Title *</label>
+                <Input
+                  className="w-full"
+                  placeholder="Title"
+                  value={form.title}
+                  onChange={(e) => {
+                    setTitleTouched(true)
+                    setForm({ ...form, title: e.target.value })
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-1.5 pb-px">
+                {!codeIsSuggested && suggestedCode ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setCodeTouched(false)
+                      setForm((prev) => ({ ...prev, code: suggestedCode }))
+                    }}
+                  >
+                    Use {suggestedCode}
+                  </Button>
+                ) : null}
+                <Button onClick={createSpec} disabled={creating}>
+                  {creating ? 'Creating…' : 'Create'}
+                </Button>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Code auto-suggests the next number. Title fills from the product name — both are editable.
+            </p>
+          </div>
+        </PharmaCard>
       ) : null}
       <PharmaCard>
-        {loading ? <PharmaLoading /> : items.length === 0 ? <PharmaEmpty label="No QC specs" /> : null}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold">All specs</h2>
+          <PharmaProductSelect
+            className="w-64"
+            value={filterProductId}
+            emptyLabel="All products"
+            placeholder="Filter by product…"
+            onChange={(id) => setFilterProductId(id)}
+          />
+        </div>
+        {loading ? (
+          <PharmaLoading />
+        ) : visibleItems.length === 0 ? (
+          <PharmaEmpty
+            label={filterProductId ? 'No QC specs for this product' : 'No QC specs'}
+            hint={canManage ? 'Create a draft above, then edit tests before approving.' : undefined}
+          />
+        ) : null}
         <ul className="divide-y divide-border/60">
-          {items.map((s) => (
+          {visibleItems.map((s) => (
             <li key={s.id} className="py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="font-medium">
                     {s.code} v{s.version} · {s.title}
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {s.product_name || 'Product'}
+                    {s.product_sku ? ` · ${s.product_sku}` : ''}
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <PharmaStatusBadge status={s.status} />
@@ -829,17 +971,17 @@ export function PharmaQcSpecsPage() {
                   </div>
                 </div>
                 <div className="flex gap-1">
-                    {s.status === 'draft' && canManage ? (
-                      <Button size="sm" variant="outline" onClick={() => openEdit(s)}>
-                        Edit
-                      </Button>
-                    ) : null}
-                    {s.status === 'draft' && canManage ? (
-                      <Button size="sm" variant="outline" onClick={() => setApproveTarget(s.id)}>
-                        Approve
-                      </Button>
-                    ) : null}
-                  </div>
+                  {s.status === 'draft' && canManage ? (
+                    <Button size="sm" variant="outline" onClick={() => openEdit(s)}>
+                      Edit
+                    </Button>
+                  ) : null}
+                  {s.status === 'draft' && canManage ? (
+                    <Button size="sm" variant="outline" onClick={() => setApproveTarget(s.id)}>
+                      Approve
+                    </Button>
+                  ) : null}
+                </div>
               </div>
               {editId === s.id ? (
                 <div className="mt-3 space-y-2 rounded-md border border-border bg-muted/40 p-3">
@@ -957,6 +1099,7 @@ export function PharmaInspectionsPage() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ goods_batch_id: '', product_id: '' })
+  const [selectedBatch, setSelectedBatch] = useState<any | null>(null)
   const [filter, setFilter] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [resultRows, setResultRows] = useState<
@@ -1018,7 +1161,7 @@ export function PharmaInspectionsPage() {
       setEditingId(null)
       load()
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Save failed')
+      toast.error(fmtErr(e, 'Save failed'))
     }
   }
 
@@ -1031,38 +1174,61 @@ export function PharmaInspectionsPage() {
       {canManage ? (
         <PharmaCard className="mb-4">
           <h2 className="mb-3 text-sm font-semibold">Create / reopen inspection</h2>
-          <PharmaToolbar>
-            <PharmaBatchSelect
-              className="w-80"
-              qualityStatus="quality_inspection"
-              value={form.goods_batch_id}
-              onChange={(goods_batch_id, batch) =>
-                setForm({
-                  goods_batch_id,
-                  product_id: batch?.product_id || form.product_id,
-                })
-              }
-              placeholder="Select QI batch…"
-            />
-            <PharmaProductSelect className="w-64" value={form.product_id} onChange={(product_id) => setForm({ ...form, product_id })} />
-            <Button
-              onClick={() => {
-                if (!isUuid(form.goods_batch_id) || !isUuid(form.product_id)) {
-                  toast.error('Select a batch and product')
-                  return
-                }
-                pharmaApi
-                  .createInspection(form)
-                  .then(() => {
-                    toast.success('Created')
-                    load()
-                  })
-                  .catch((e: any) => toast.error(e?.response?.data?.detail || 'Create failed'))
-              }}
-            >
-              Create inspection
-            </Button>
-          </PharmaToolbar>
+          <div className="space-y-2">
+            <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] items-end gap-2">
+              <div className="min-w-0">
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">
+                  QI batch * <span className="font-normal">(lots in quality inspection)</span>
+                </label>
+                <PharmaBatchSelect
+                  className="w-full"
+                  qualityStatus="quality_inspection"
+                  value={form.goods_batch_id}
+                  onChange={(goods_batch_id, batch) => {
+                    setSelectedBatch(goods_batch_id ? batch || null : null)
+                    setForm({
+                      goods_batch_id,
+                      product_id: batch?.product_id || (goods_batch_id ? form.product_id : ''),
+                    })
+                  }}
+                  placeholder="Select QI batch…"
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Product *</label>
+                <PharmaProductSelect
+                  className="w-full"
+                  value={form.product_id}
+                  onChange={(product_id) => setForm({ ...form, product_id })}
+                />
+              </div>
+              <Button
+                onClick={() => {
+                  if (!isUuid(form.goods_batch_id) || !isUuid(form.product_id)) {
+                    toast.error('Select a batch and product')
+                    return
+                  }
+                  pharmaApi
+                    .createInspection(form)
+                    .then(() => {
+                      toast.success('Created')
+                      setForm({ goods_batch_id: '', product_id: '' })
+                      setSelectedBatch(null)
+                      load()
+                    })
+                    .catch((e: any) => toast.error(fmtErr(e, 'Create failed')))
+                }}
+              >
+                Create inspection
+              </Button>
+            </div>
+            <PharmaBatchSummary batch={selectedBatch} />
+            {!selectedBatch ? (
+              <p className="text-[11px] text-muted-foreground">
+                Each option shows source, quantity, and expiry under the batch number. Empty if no lots are in QI yet.
+              </p>
+            ) : null}
+          </div>
         </PharmaCard>
       ) : null}
       <PharmaToolbar>
@@ -1085,19 +1251,38 @@ export function PharmaInspectionsPage() {
             <li key={i.id} className="py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="font-mono text-xs font-medium">
-                    {i.goods_batch_id ? (
-                      <Link className="hover:underline" to={`/pharma/batches/${i.goods_batch_id}`}>
-                        {i.batch_number || i.id.slice(0, 8)}
-                      </Link>
+                  <div className="font-medium">
+                    {i.product_name || '—'}
+                    <span className="ml-1.5 font-normal text-muted-foreground">
+                      · Batch{' '}
+                      {i.goods_batch_id ? (
+                        <Link className="font-mono text-foreground hover:underline" to={`/pharma/batches/${i.goods_batch_id}`}>
+                          {i.batch_number || i.id.slice(0, 8)}
+                        </Link>
+                      ) : (
+                        <span className="font-mono">{i.batch_number || i.id.slice(0, 8)}</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    {i.source_label ? (
+                      <span>
+                        Source: <span className="font-medium text-foreground/80">{i.source_label}</span>
+                      </span>
                     ) : (
-                      i.batch_number || i.id.slice(0, 8)
+                      <span className="capitalize">Origin: {i.origin || '—'}</span>
                     )}
+                    {i.supplier_batch_number ? (
+                      <span>· Supplier lot {i.supplier_batch_number}</span>
+                    ) : null}
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className="text-muted-foreground">{i.product_name || '—'}</span>
                     <PharmaStatusBadge status={i.status} />
-                    <span className="text-xs capitalize text-muted-foreground">{i.origin}</span>
+                    {i.origin ? (
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {i.origin}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">
@@ -1114,7 +1299,7 @@ export function PharmaInspectionsPage() {
                         pharmaApi
                           .openOos(i.id, { notes: '' })
                           .then(() => { toast.success('OOS investigation opened'); load() })
-                          .catch((e: any) => toast.error(e?.response?.data?.detail || 'Failed'))
+                          .catch((e: any) => toast.error(fmtErr(e, 'Failed')))
                       }}
                     >
                       Open OOS
@@ -1189,7 +1374,7 @@ export function PharmaInspectionsPage() {
                         pharmaApi
                           .closeOos(i.id, { root_cause: f.root_cause, disposition: f.disposition, notes: f.notes })
                           .then(() => { toast.success('OOS investigation closed'); setOosPanel(null); load() })
-                          .catch((e: any) => toast.error(e?.response?.data?.detail || 'Failed'))
+                          .catch((e: any) => toast.error(fmtErr(e, 'Failed')))
                       }}
                     >
                       Close investigation
@@ -1341,9 +1526,21 @@ export function PharmaReleasePage() {
               <li key={i.id} className="py-3 text-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="font-mono text-xs font-medium">{i.batch_number || i.id.slice(0, 8)}</div>
+                    <div className="font-medium">
+                      {i.product_name || '—'}
+                      <span className="ml-1.5 font-normal text-muted-foreground">
+                        · Batch <span className="font-mono text-foreground">{i.batch_number || i.id.slice(0, 8)}</span>
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {i.source_label ? (
+                        <>Source: <span className="font-medium text-foreground/80">{i.source_label}</span></>
+                      ) : (
+                        <span className="capitalize">Origin: {i.origin || '—'}</span>
+                      )}
+                      {i.supplier_batch_number ? <> · Supplier lot {i.supplier_batch_number}</> : null}
+                    </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <span className="text-muted-foreground">{i.product_name || '—'}</span>
                       <PharmaStatusBadge status={i.status} />
                       {i.coa_number ? <span className="text-xs text-muted-foreground">{i.coa_number}</span> : null}
                       {awaitingSecond ? (
@@ -1378,7 +1575,7 @@ export function PharmaReleasePage() {
                           size="sm"
                           variant="outline"
                           onClick={() =>
-                            printCoa(i.id).catch((e: any) => toast.error(e?.message || e?.response?.data?.detail || 'Failed'))
+                            printCoa(i.id).catch((e: any) => toast.error(e?.message || fmtErr(e, 'Failed')))
                           }
                         >
                           Print CoA
@@ -1390,7 +1587,7 @@ export function PharmaReleasePage() {
                             pharmaApi
                               .getCoaPdfBlob(i.id)
                               .then((blob) => downloadPharmaBlob(blob, `${i.coa_number || 'coa'}.pdf`))
-                              .catch((e: any) => toast.error(e?.response?.data?.detail || 'PDF failed'))
+                              .catch((e: any) => toast.error(fmtErr(e, 'PDF failed')))
                           }
                         >
                           PDF
@@ -1404,9 +1601,13 @@ export function PharmaReleasePage() {
                     {sigs.map((s: any, idx: number) => (
                       <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">{idx + 1}</span>
-                        <span className="font-medium text-foreground">{s.actor_name || 'Unknown'}</span>
+                        <span className="font-medium text-foreground">{s.by_name || s.actor_name || 'Unknown'}</span>
                         <span className="capitalize">{s.meaning || 'signed'}</span>
-                        <span>{s.signed_at ? new Date(s.signed_at).toLocaleString() : ''}</span>
+                        <span>
+                          {(s.at || s.signed_at)
+                            ? new Date(s.at || s.signed_at).toLocaleString()
+                            : ''}
+                        </span>
                       </div>
                     ))}
                     {awaitingSecond ? (

@@ -10,13 +10,13 @@ from datetime import datetime, timezone
 import math
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.models.review import Review
 from app.repositories.review_repo import ReviewRepository
 from app.services.vendor_service import VendorService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("reviews.view"))])
 
 
 def _review_to_dict(r: Review) -> dict:

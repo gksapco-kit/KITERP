@@ -5,13 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.services.vendor_service import VendorService
 from app.services.loyalty_service import LoyaltyService
 from app.schemas.loyalty import LoyaltyProgramUpdate, LoyaltyRedeemRequest, LoyaltyAdjustRequest
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("loyalty.view"))])
 
 
 async def _vendor_id(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)) -> UUID:

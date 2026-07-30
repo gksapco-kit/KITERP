@@ -7,7 +7,7 @@ from uuid import UUID
 import math, uuid
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.services.vendor_service import VendorService
@@ -19,7 +19,7 @@ from app.services.media_upload import save_image_file, delete_stored_file
 SIGNATURE_ALLOWED = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"}
 MAX_SIGNATURE_BYTES = 2 * 1024 * 1024
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("invoices.view"))])
 
 
 async def _vendor_id(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)) -> UUID:

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.database import get_db
-from app.api.deps import get_current_vendor_id, get_current_vendor_user
+from app.api.deps import get_current_vendor_id, get_current_vendor_user, require_permission
 from app.models.vendor_user import VendorUser
 from app.models.procurement_invoice import VendorInvoice, VendorInvoiceItem
 from app.schemas.procurement_invoice import (
@@ -18,7 +18,7 @@ from app.schemas.procurement_invoice import (
 )
 from app.repositories.procurement_invoice_repo import VendorInvoiceRepository
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permission("procurement.view"))])
 
 
 # ── Serialiser ────────────────────────────────────────────────────

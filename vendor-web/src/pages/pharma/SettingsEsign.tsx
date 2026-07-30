@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   AlertTriangle, ArrowLeft, ChevronDown, ChevronUp,
-  Globe, Plus, Search, Shield, Trash2, Users, X as XIcon,
+  Globe, Plus, Search, Shield, Trash2, UserPlus, Users, X as XIcon,
 } from 'lucide-react'
 import { pharmaApi } from '@/api/pharma'
 import { vendorApi } from '@/api/vendor'
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useHasPermission } from '@/hooks/usePermissions'
-import { PharmaPageHeader } from './pharmaShared'
+import { PharmaPageHeader, PharmaErrorBoundary, fmtErr } from './pharmaShared'
 import { cn } from '@/lib/utils'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -387,7 +387,7 @@ function RuleDrawer({
   const save = async () => {
     setSaving(true)
     try { await onSave(form); onClose() }
-    catch (e: any) { toast.error(e?.response?.data?.detail || 'Save failed') }
+    catch (e: any) { toast.error(fmtErr(e, 'Save failed')) }
     finally { setSaving(false) }
   }
 
@@ -651,7 +651,7 @@ function SignerGroupsCard({
       await pharmaApi.createSignerGroup({ code: newCode, name: newName })
       setNewCode(''); setNewName(''); setCreating(false)
       onRefresh(); toast.success('Signer group created')
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Create failed') }
+    } catch (e: any) { toast.error(fmtErr(e, 'Create failed')) }
   }
 
   const addMember = async (groupId: string) => {
@@ -660,14 +660,14 @@ function SignerGroupsCard({
       await pharmaApi.addSignerGroupMember(groupId, memberInput.trim())
       setMemberInput(''); setAddingMember(null)
       onRefresh(); toast.success('Member added')
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Add failed') }
+    } catch (e: any) { toast.error(fmtErr(e, 'Add failed')) }
   }
 
   const removeMember = async (groupId: string, userId: string) => {
     try {
       await pharmaApi.removeSignerGroupMember(groupId, userId)
       onRefresh(); toast.success('Member removed')
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Remove failed') }
+    } catch (e: any) { toast.error(fmtErr(e, 'Remove failed')) }
   }
 
   return (
@@ -831,7 +831,7 @@ function VerifyPolicyPanel() {
       })
       setResult(data)
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Resolve failed')
+      toast.error(fmtErr(e, 'Resolve failed'))
     } finally {
       setResolving(false)
     }
@@ -1041,6 +1041,331 @@ function ScopeMatrixSection({
 }
 
 
+// ── Employee assign panel ─────────────────────────────────────────────────────
+
+type AssignedEmployee = { vendor_user_id: string; name: string; email?: string }
+
+function EmployeeAssignPanel({
+  action,
+  canManage,
+  rules,
+  maxApprovers,
+  onSaved,
+}: {
+  action: string
+  canManage: boolean
+  rules: ApprovalRule[]
+  /** Max assignees = Approvers dropdown value for this action (0 = N/A / disabled). */
+  maxApprovers: number
+  onSaved: () => void
+}) {
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const [loadingTeam, setLoadingTeam] = useState(true)
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<AssignedEmployee[]>([])
+  const [saving, setSaving] = useState(false)
+
+  const existingRule = rules.find(
+    (r) => r.action === action && r.is_default && (r.steps || []).some((s) => s.signer_type === 'user'),
+  )
+
+  const limit = Math.max(0, Number.isFinite(maxApprovers) ? maxApprovers : 0)
+  const atLimit = limit > 0 && selected.length >= limit
+  const slotsLeft = limit > 0 ? Math.max(0, limit - selected.length) : 0
+
+  useEffect(() => {
+    vendorApi.listTeamMembers({ limit: 200 }).then((r) => {
+      setTeamMembers(r.items || [])
+    }).catch(() => {}).finally(() => setLoadingTeam(false))
+  }, [])
+
+  useEffect(() => {
+    if (existingRule && teamMembers.length > 0) {
+      const userSteps = (existingRule.steps || []).filter(
+        (s) => s.signer_type === 'user' && s.vendor_user_id,
+      )
+      const seenIds = new Set<string>()
+      const seenEmails = new Set<string>()
+      const next: AssignedEmployee[] = []
+      for (const step of userSteps) {
+        const id = step.vendor_user_id!
+        if (seenIds.has(id)) continue
+        const member = teamMembers.find((m: any) => m.id === id)
+        const email = (member?.user?.email || '').toLowerCase()
+        if (email && seenEmails.has(email)) continue
+        seenIds.add(id)
+        if (email) seenEmails.add(email)
+        next.push({
+          vendor_user_id: id,
+          name: member?.user?.full_name || member?.user?.email || id || 'Unknown',
+          email: member?.user?.email,
+        })
+      }
+      // Trim to current Approvers count so UI matches the dropdown
+      setSelected(limit > 0 ? next.slice(0, limit) : next)
+    }
+  }, [existingRule?.id, teamMembers.length, limit])
+
+  const isAlreadySelected = (m: any) => {
+    const email = (m.user?.email || '').toLowerCase()
+    return selected.some(
+      (s) =>
+        s.vendor_user_id === m.id ||
+        (email && s.email && s.email.toLowerCase() === email),
+    )
+  }
+
+  const filteredMembers = teamMembers.filter((m: any) => {
+    if (!search.trim()) return false
+    const q = search.toLowerCase()
+    return (
+      m.user?.full_name?.toLowerCase().includes(q) ||
+      m.user?.email?.toLowerCase().includes(q)
+    )
+  }).filter((m: any) => !isAlreadySelected(m))
+
+  const addEmployee = (m: any) => {
+    if (limit <= 0) {
+      toast.error('Set Approvers to 1 or more before assigning employees')
+      return
+    }
+    if (atLimit) {
+      toast.error(`Only ${limit} approver${limit === 1 ? '' : 's'} allowed for this action. Remove someone first.`)
+      return
+    }
+    if (isAlreadySelected(m)) {
+      toast.error('This employee is already assigned')
+      return
+    }
+    setSelected((prev) => [
+      ...prev,
+      {
+        vendor_user_id: m.id,
+        name: m.user?.full_name || m.user?.email || m.id,
+        email: m.user?.email,
+      },
+    ])
+    setSearch('')
+  }
+
+  const removeEmployee = (uid: string) => setSelected((prev) => prev.filter((s) => s.vendor_user_id !== uid))
+
+  const rulePayload = (steps: ApprovalStep[]) => {
+    // Keep required_approvers aligned with the Approvers dropdown, not the assignee list size
+    const required = Math.max(limit, 1)
+    if (existingRule) {
+      return {
+        action: existingRule.action,
+        product_id: existingRule.product_id,
+        product_group_id: existingRule.product_group_id,
+        plant_id: existingRule.plant_id,
+        store_id: existingRule.store_id,
+        region: existingRule.region,
+        required_approvers: required,
+        sequential: existingRule.sequential,
+        forbid_initiator: existingRule.forbid_initiator,
+        overrides_default: existingRule.overrides_default,
+        is_default: existingRule.is_default,
+        is_active: existingRule.is_active,
+        valid_from: existingRule.valid_from,
+        valid_to: existingRule.valid_to,
+        priority: existingRule.priority,
+        notes: existingRule.notes,
+        steps,
+      }
+    }
+    return {
+      action,
+      is_default: true,
+      required_approvers: required,
+      sequential: false,
+      forbid_initiator: true,
+      overrides_default: false,
+      is_active: true,
+      steps,
+    }
+  }
+
+  const save = async () => {
+    if (limit <= 0) {
+      toast.error('Set Approvers to 1 or more before saving assignees')
+      return
+    }
+    if (selected.length === 0) {
+      toast.error('Add at least one employee, or clear assignments')
+      return
+    }
+    if (selected.length !== limit) {
+      toast.error(
+        `Select exactly ${limit} employee${limit === 1 ? '' : 's'} to match Approvers (${selected.length} selected).`,
+      )
+      return
+    }
+    setSaving(true)
+    try {
+      const steps: ApprovalStep[] = selected.map((emp, i) => ({
+        level: i + 1,
+        signer_type: 'user',
+        vendor_user_id: emp.vendor_user_id,
+        role_slug: null,
+        permission: null,
+        signer_group_id: null,
+        meaning: 'approver',
+        min_signatures: 1,
+        is_mandatory: true,
+      }))
+      const body = rulePayload(steps)
+      if (existingRule) {
+        await pharmaApi.updateApprovalRule(existingRule.id, body)
+      } else {
+        await pharmaApi.createApprovalRule(body)
+      }
+      toast.success('Approver employees saved')
+      onSaved()
+    } catch (e: any) {
+      toast.error(fmtErr(e, 'Save failed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const clearAll = async () => {
+    if (!existingRule) return
+    try {
+      await pharmaApi.updateApprovalRule(existingRule.id, rulePayload([]))
+      setSelected([])
+      toast.success('Assignments cleared')
+      onSaved()
+    } catch (e: any) {
+      toast.error(fmtErr(e, 'Clear failed'))
+    }
+  }
+
+  return (
+    <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Assigned approver employees
+        </p>
+        <p className={cn(
+          'text-[10px] font-medium',
+          selected.length === limit && limit > 0 ? 'text-emerald-700' : 'text-muted-foreground',
+        )}>
+          {limit <= 0
+            ? 'Set Approvers first'
+            : `${selected.length} / ${limit} selected`}
+        </p>
+      </div>
+      <p className="mb-2 text-[11px] text-muted-foreground">
+        Assign exactly the same number of employees as Approvers above. Each person may sign once for this action.
+      </p>
+
+      {/* Selected chips */}
+      {selected.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {selected.map((emp) => (
+            <span
+              key={emp.vendor_user_id}
+              className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary"
+            >
+              {emp.name}
+              {emp.email ? <span className="text-primary/60"> · {emp.email}</span> : null}
+              {canManage && (
+                <button
+                  type="button"
+                  className="ml-1 text-primary/60 hover:text-primary"
+                  onClick={() => removeEmployee(emp.vendor_user_id)}
+                >
+                  <XIcon className="h-3 w-3" />
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {selected.length === 0 && !canManage && (
+        <p className="text-xs text-muted-foreground">No employees assigned.</p>
+      )}
+
+      {/* Search */}
+      {canManage && (
+        <div className="relative">
+          <div className="flex items-center gap-1.5">
+            <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder={
+                loadingTeam
+                  ? 'Loading employees…'
+                  : atLimit
+                    ? `Limit reached (${limit}). Remove someone to add another.`
+                    : 'Search by name or email…'
+              }
+              className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
+              value={search}
+              disabled={loadingTeam || atLimit || limit <= 0}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Dropdown */}
+          {search.trim() && !atLimit && (
+            <div className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-border bg-background shadow-lg">
+              {filteredMembers.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-muted-foreground">No results</p>
+              ) : (
+                filteredMembers.slice(0, 8).map((m: any) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-muted"
+                    onClick={() => addEmployee(m)}
+                  >
+                    <span className="h-6 w-6 shrink-0 rounded-full bg-primary/10 text-center text-[10px] font-bold leading-6 text-primary">
+                      {(m.user?.full_name || m.user?.email || '?')[0].toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{m.user?.full_name || m.user?.email || m.id}</span>
+                      {m.user?.email && m.user?.full_name && (
+                        <span className="block truncate text-[10px] text-muted-foreground">{m.user.email}</span>
+                      )}
+                    </span>
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {m.role_name}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Actions */}
+      {canManage && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={save} disabled={saving || selected.length !== limit || limit <= 0}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
+          {existingRule && (
+            <Button size="sm" variant="ghost" onClick={clearAll}>
+              Clear assignments
+            </Button>
+          )}
+          {limit > 0 && selected.length !== limit && (
+            <p className="text-[10px] text-amber-700">
+              {slotsLeft > 0
+                ? `Add ${slotsLeft} more to match Approvers (${limit}).`
+                : `Remove ${selected.length - limit} to match Approvers (${limit}).`}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function PharmaSettingsEsignPage() {
@@ -1074,7 +1399,7 @@ export default function PharmaSettingsEsignPage() {
       setSignerGroups(groups || [])
       setOrgRegions(regions || [])
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Failed to load settings')
+      toast.error(fmtErr(e, 'Failed to load settings'))
     } finally {
       setLoading(false)
     }
@@ -1095,7 +1420,7 @@ export default function PharmaSettingsEsignPage() {
     try {
       setCfg(await pharmaApi.patchSettings({ [key]: value }))
       toast.success('Setting updated')
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Update failed') }
+    } catch (e: any) { toast.error(fmtErr(e, 'Update failed')) }
   }
 
   const patchApproverCount = async (key: string, count: number) => {
@@ -1109,7 +1434,7 @@ export default function PharmaSettingsEsignPage() {
     if (syncMap[key]) patch[syncMap[key]] = count >= 2
     try {
       setCfg(await pharmaApi.patchSettings(patch))
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Update failed') }
+    } catch (e: any) { toast.error(fmtErr(e, 'Update failed')) }
   }
 
   // Rule helpers
@@ -1129,7 +1454,7 @@ export default function PharmaSettingsEsignPage() {
       await pharmaApi.deactivateApprovalRule(id)
       setRules((r) => r.filter((x) => x.id !== id))
       toast.success('Rule deactivated')
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Deactivate failed') }
+    } catch (e: any) { toast.error(fmtErr(e, 'Deactivate failed')) }
   }
 
   // Org region helpers
@@ -1158,7 +1483,7 @@ export default function PharmaSettingsEsignPage() {
       setAddingRegion(false); setNewRegionId('')
       setOrgRegions(await pharmaApi.listOrgRegions())
       toast.success('Region override saved')
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Save failed') }
+    } catch (e: any) { toast.error(fmtErr(e, 'Save failed')) }
   }
 
   const removeOrgRegion = async (id: string) => {
@@ -1166,8 +1491,17 @@ export default function PharmaSettingsEsignPage() {
       await pharmaApi.deleteOrgRegion(id)
       setOrgRegions((prev) => prev.filter((r) => r.id !== id))
       toast.success('Override removed')
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Remove failed') }
+    } catch (e: any) { toast.error(fmtErr(e, 'Remove failed')) }
   }
+
+  const [expandedAssignRows, setExpandedAssignRows] = useState<Set<string>>(new Set())
+
+  const toggleAssignRow = (action: string) =>
+    setExpandedAssignRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(action)) { next.delete(action) } else { next.add(action) }
+      return next
+    })
 
   const [verifyOpen, setVerifyOpen] = useState(false)
   const [creatingRule, setCreatingRule] = useState(false)
@@ -1207,7 +1541,7 @@ export default function PharmaSettingsEsignPage() {
       toast.success('Rule created')
       setCreatingRule(false)
       await load()
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Create failed') }
+    } catch (e: any) { toast.error(fmtErr(e, 'Create failed')) }
   }
 
   const patchNewRule = (k: string, v: unknown) => setNewRule((r) => ({ ...r, [k]: v }))
@@ -1218,6 +1552,7 @@ export default function PharmaSettingsEsignPage() {
   const scopedRules  = rules.filter((r) => !r.is_default)
 
   return (
+    <PharmaErrorBoundary>
     <div className="mx-auto max-w-4xl space-y-4 p-6">
 
       {/* ── Header ── */}
@@ -1300,7 +1635,7 @@ export default function PharmaSettingsEsignPage() {
                 onClick={() =>
                   pharmaApi.qualifyMeForRelease()
                     .then((next) => { setCfg(next); toast.success('You are now qualified') })
-                    .catch((e: any) => toast.error(e?.response?.data?.detail || 'Failed'))
+                    .catch((e: any) => toast.error(fmtErr(e, 'Failed')))
                 }>
                 Qualify me
               </Button>
@@ -1364,36 +1699,76 @@ export default function PharmaSettingsEsignPage() {
               <tr className="text-left text-xs text-muted-foreground">
                 <th className="pb-2 pr-3 font-medium">Action</th>
                 <th className="pb-2 pr-3 font-medium">Approvers</th>
-                <th className="pb-2 font-medium">Mode</th>
+                <th className="pb-2 pr-3 font-medium">Mode</th>
+                <th className="pb-2 font-medium">Employees</th>
               </tr>
             </thead>
             <tbody>
-              {APPROVAL_POLICY_ROWS.map(({ countKey, label }) => {
+              {APPROVAL_POLICY_ROWS.map(({ countKey, label, action }) => {
                 const raw = cfg[countKey]
                 const count = raw === undefined || raw === null ? 1 : Number(raw)
+                const expanded = expandedAssignRows.has(action)
+                const hasAssigned = rules.some(
+                  (r) => r.action === action && r.is_default && (r.steps || []).some((s) => s.signer_type === 'user'),
+                )
                 return (
-                  <tr key={countKey} className="border-t border-border/40">
-                    <td className="py-2 pr-3">{label}</td>
-                    <td className="py-2 pr-3">
-                      <select
-                        disabled={!canManage}
-                        value={Number.isFinite(count) ? count : 1}
-                        onChange={(e) => patchApproverCount(countKey, Number(e.target.value))}
-                        className="h-8 rounded-md border border-input bg-background px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <option value={0}>N/A</option>
-                        {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                    </td>
-                    <td className="py-2">
-                      <span className={cn(
-                        'rounded px-1.5 py-0.5 text-[10px] font-medium',
-                        count >= 2 ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground',
-                      )}>
-                        {approverModeLabel(count)}
-                      </span>
-                    </td>
-                  </tr>
+                  <Fragment key={countKey}>
+                    <tr className="border-t border-border/40">
+                      <td className="py-2 pr-3">{label}</td>
+                      <td className="py-2 pr-3">
+                        <select
+                          disabled={!canManage}
+                          value={Number.isFinite(count) ? count : 1}
+                          onChange={(e) => patchApproverCount(countKey, Number(e.target.value))}
+                          className="h-8 rounded-md border border-input bg-background px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value={0}>N/A</option>
+                          {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </td>
+                      <td className="py-2 pr-3">
+                        <span className={cn(
+                          'rounded px-1.5 py-0.5 text-[10px] font-medium',
+                          count >= 2 ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground',
+                        )}>
+                          {approverModeLabel(count)}
+                        </span>
+                      </td>
+                      <td className="py-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleAssignRow(action)}
+                          className={cn(
+                            'flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors',
+                            expanded
+                              ? 'border-primary/40 bg-primary/10 text-primary'
+                              : hasAssigned
+                                ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                                : 'border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-primary',
+                          )}
+                        >
+                          <UserPlus className="h-3 w-3" />
+                          {hasAssigned ? 'Assigned' : 'Assign'}
+                          {expanded
+                            ? <ChevronUp className="h-3 w-3" />
+                            : <ChevronDown className="h-3 w-3" />}
+                        </button>
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr>
+                        <td colSpan={4} className="pb-3 pt-1">
+                          <EmployeeAssignPanel
+                            action={action}
+                            canManage={canManage}
+                            rules={rules}
+                            maxApprovers={Number.isFinite(count) ? count : 1}
+                            onSaved={load}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 )
               })}
             </tbody>
@@ -1708,7 +2083,7 @@ export default function PharmaSettingsEsignPage() {
               onChange={(e) =>
                 pharmaApi.patchSettings({ track_trace_region: e.target.value })
                   .then((next) => { setCfg(next); toast.success('Default region updated') })
-                  .catch((err: any) => toast.error(err?.response?.data?.detail || 'Failed'))
+                  .catch((err: any) => toast.error(fmtErr(err, 'Failed')))
               }
             >
               {REGION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -1839,5 +2214,6 @@ export default function PharmaSettingsEsignPage() {
         />
       )}
     </div>
+    </PharmaErrorBoundary>
   )
 }
