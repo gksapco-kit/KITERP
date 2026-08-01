@@ -38,9 +38,17 @@ function _sanitiseDetail(detail: string): string {
   if (d.includes('wb_builder_previews')) {
     return 'Preview database table is missing — run backend migrations (e.g. alembic upgrade web006) and restart the API'
   }
-  // Truncate anything suspiciously long (stack traces, SQL dumps)
-  if (detail.length > 200) {
+  // Truncate stack traces / SQL dumps — keep normal business validation messages intact.
+  const looksLikeDump =
+    detail.includes('Traceback')
+    || detail.includes('sqlalchemy')
+    || detail.includes('File "')
+    || (detail.includes('\n') && detail.length > 200)
+  if (looksLikeDump && detail.length > 200) {
     return detail.slice(0, 197).trimEnd() + '…'
+  }
+  if (detail.length > 400) {
+    return detail.slice(0, 397).trimEnd() + '…'
   }
   return detail
 }

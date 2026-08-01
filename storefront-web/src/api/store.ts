@@ -192,19 +192,45 @@ export const storeApi = {
     const res = await apiClient.post(`/store/marketplace/leads/${leadId}/quotes/${quoteId}/accept`); return res.data
   },
 
-  listRentalAssets: async () => {
-    const res = await apiClient.get('/store/rentals/assets'); return res.data
+  listRentalAssets: async (params?: {
+    quantity?: number
+    weight?: number
+    start_date?: string
+    end_date?: string
+    category?: string
+  }) => {
+    const res = await apiClient.get('/store/rentals/assets', { params }); return res.data
+  },
+  getRentalAsset: async (id: string) => {
+    const res = await apiClient.get(`/store/rentals/assets/${id}`); return res.data
   },
   createRentalBooking: async (data: {
     asset_id: string
     start_date: string
     end_date: string
+    quantity?: number
+    weight_requested?: number
+    pricing_plan?: string
     notes?: string
     customer_name?: string
     customer_email?: string
     customer_phone?: string
+    delivery_address?: string
+    needs_delivery?: boolean
   }) => {
     const res = await apiClient.post('/store/rentals/bookings', data); return res.data
+  },
+  listMyRentalBookings: async () => {
+    const res = await apiClient.get('/store/rentals/my-bookings'); return res.data
+  },
+  getMyRentalBooking: async (id: string) => {
+    const res = await apiClient.get(`/store/rentals/my-bookings/${id}`); return res.data
+  },
+  payRentalBooking: async (id: string, data: { payment_method?: string; payment_reference?: string }) => {
+    const res = await apiClient.post(`/store/rentals/my-bookings/${id}/pay`, data); return res.data
+  },
+  cancelRentalBooking: async (id: string) => {
+    const res = await apiClient.post(`/store/rentals/my-bookings/${id}/cancel`); return res.data
   },
 
   // Checkout preview & payments

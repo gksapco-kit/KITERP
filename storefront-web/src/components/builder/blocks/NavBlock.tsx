@@ -23,7 +23,7 @@ import {
   resolveNavBlockLinks,
   resolveNavCtaLabel,
 } from '@/lib/siteNavPages'
-import { isVendorBlogEnabled } from '@/lib/catalogNavCapabilities'
+import { isVendorBlogEnabled, isVendorRentalsEnabled } from '@/lib/catalogNavCapabilities'
 import {
   builderPageSlugFromNavPath,
   isDraftPreviewShellHref,
@@ -172,6 +172,7 @@ export default function NavBlock({
         isEditorCanvas,
         offeringType: vendor?.offering_type,
         blogEnabled: isVendorBlogEnabled(vendor?.settings),
+        rentalsEnabled: isVendorRentalsEnabled(vendor?.settings),
       },
     )
   }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath, location.pathname, previewShell, isEditorCanvas, vendor?.offering_type, vendor?.settings])

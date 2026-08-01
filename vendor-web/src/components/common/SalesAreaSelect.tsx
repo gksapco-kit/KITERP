@@ -16,7 +16,8 @@ interface SalesAreaSelectProps {
 
 function salesAreaLabel(code?: string | null, name?: string | null): string {
   const c = (code || '').trim()
-  const n = (name || '').trim()
+  const raw = (name || '').trim()
+  const n = raw && raw.toLowerCase() !== 'null' ? raw : ''
   if (n && c) return `${n} (${c})`
   return n || c || 'Sales area'
 }

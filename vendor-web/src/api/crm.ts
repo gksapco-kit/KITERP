@@ -450,6 +450,62 @@ export type JourneyEvent = {
   occurred_at: string
 }
 
+export type PaymentFollowup = {
+  id: string
+  vendor_id: string
+  number: string
+  party_name: string
+  party_phone?: string | null
+  party_email?: string | null
+  contact_id?: string | null
+  amount_due: number
+  currency: string
+  invoice_ref?: string | null
+  due_date?: string | null
+  next_followup_at?: string | null
+  channel: string
+  priority: string
+  status: string
+  promise_date?: string | null
+  notes?: string | null
+  owner_id?: string | null
+  created_at: string
+  updated_at?: string | null
+}
+
+export type CreditControl = {
+  id: string
+  vendor_id: string
+  party_name: string
+  party_phone?: string | null
+  party_email?: string | null
+  contact_id?: string | null
+  customer_id?: string | null
+  credit_limit: number
+  max_payment_amount: number
+  current_outstanding: number
+  payment_terms_days: number
+  payment_blocked: boolean
+  block_reason?: string | null
+  status: string
+  notes?: string | null
+  available_credit?: number | null
+  over_limit?: boolean | null
+  created_at: string
+  updated_at?: string | null
+}
+
+export type CreditControlCheckResult = {
+  allowed: boolean
+  reason?: string | null
+  credit_control_id?: string | null
+  credit_limit?: number | null
+  max_payment_amount?: number | null
+  current_outstanding?: number | null
+  available_credit?: number | null
+  payment_blocked: boolean
+}
+
 // ── API helpers ─────────────────────────────────────────────────────────────
 
 export type CrmDocument = {
@@ -735,4 +791,41 @@ export const crmApi = {
     apiClient.post<IntakeToken>(`${BASE}/intake-tokens`, data).then(r => r.data),
   revokeIntakeToken: (id: string) =>
     apiClient.post(`${BASE}/intake-tokens/${id}/revoke`).then(r => r.data),
+
+  // Payment follow-ups
+  listPaymentFollowups: (params: Record<string, unknown> = {}) =>
+    apiClient.get<Paginated<PaymentFollowup>>(`${BASE}/payment-followups`, {
+      params: clampPageSize(params),
+    }).then(r => r.data),
+  getPaymentFollowup: (id: string) =>
+    apiClient.get<PaymentFollowup>(`${BASE}/payment-followups/${id}`).then(r => r.data),
+  createPaymentFollowup: (data: Partial<PaymentFollowup>) =>
+    apiClient.post<PaymentFollowup>(`${BASE}/payment-followups`, data).then(r => r.data),
+  updatePaymentFollowup: (id: string, data: Partial<PaymentFollowup>) =>
+    apiClient.put<PaymentFollowup>(`${BASE}/payment-followups/${id}`, data).then(r => r.data),
+  deletePaymentFollowup: (id: string) =>
+    apiClient.delete(`${BASE}/payment-followups/${id}`),
+
+  // Credit control
+  listCreditControls: (params: Record<string, unknown> = {}) =>
+    apiClient.get<Paginated<CreditControl>>(`${BASE}/credit-control`, {
+      params: clampPageSize(params),
+    }).then(r => r.data),
+  getCreditControl: (id: string) =>
+    apiClient.get<CreditControl>(`${BASE}/credit-control/${id}`).then(r => r.data),
+  createCreditControl: (data: Partial<CreditControl>) =>
+    apiClient.post<CreditControl>(`${BASE}/credit-control`, data).then(r => r.data),
+  updateCreditControl: (id: string, data: Partial<CreditControl>) =>
+    apiClient.put<CreditControl>(`${BASE}/credit-control/${id}`, data).then(r => r.data),
+  deleteCreditControl: (id: string) =>
+    apiClient.delete(`${BASE}/credit-control/${id}`),
+  checkCreditControl: (data: {
+    credit_control_id?: string
+    party_name?: string
+    contact_id?: string
+    customer_id?: string
+    amount: number
+    require_zero_outstanding?: boolean
+  }) =>
+    apiClient.post<CreditControlCheckResult>(`${BASE}/credit-control/check`, data).then(r => r.data),
 }

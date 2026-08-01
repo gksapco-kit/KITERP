@@ -5,7 +5,7 @@ but the CRM surface area is wide enough that a single module reads better.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 from uuid import UUID
@@ -945,3 +945,122 @@ class WidgetMessagePayload(BaseModel):
     visitor_phone: Optional[str] = None
     body: str
     metadata: Optional[dict] = None
+
+
+# ── Payment follow-ups & credit control ──────────────────────────────────────
+
+class PaymentFollowupBase(BaseModel):
+    party_name: str = Field(..., min_length=1, max_length=255)
+    party_phone: Optional[str] = None
+    party_email: Optional[EmailStr] = None
+    contact_id: Optional[UUID] = None
+    amount_due: Decimal = Decimal("0")
+    currency: str = "INR"
+    invoice_ref: Optional[str] = None
+    due_date: Optional[date] = None
+    next_followup_at: Optional[datetime] = None
+    channel: str = "call"
+    priority: str = "normal"
+    status: str = "open"
+    promise_date: Optional[date] = None
+    notes: Optional[str] = None
+    owner_id: Optional[UUID] = None
+
+
+class PaymentFollowupCreate(PaymentFollowupBase):
+    pass
+
+
+class PaymentFollowupUpdate(BaseModel):
+    party_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    party_phone: Optional[str] = None
+    party_email: Optional[EmailStr] = None
+    contact_id: Optional[UUID] = None
+    amount_due: Optional[Decimal] = None
+    currency: Optional[str] = None
+    invoice_ref: Optional[str] = None
+    due_date: Optional[date] = None
+    next_followup_at: Optional[datetime] = None
+    channel: Optional[str] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    promise_date: Optional[date] = None
+    notes: Optional[str] = None
+    owner_id: Optional[UUID] = None
+
+
+class PaymentFollowupResponse(PaymentFollowupBase):
+    model_config = ORM
+    id: UUID
+    vendor_id: UUID
+    number: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class CreditControlBase(BaseModel):
+    party_name: str = Field(..., min_length=1, max_length=255)
+    party_phone: Optional[str] = None
+    party_email: Optional[EmailStr] = None
+    contact_id: Optional[UUID] = None
+    customer_id: Optional[UUID] = None
+    credit_limit: Decimal = Decimal("0")
+    max_payment_amount: Decimal = Decimal("0")
+    current_outstanding: Decimal = Decimal("0")
+    payment_terms_days: int = 30
+    payment_blocked: bool = False
+    block_reason: Optional[str] = None
+    status: str = "active"
+    notes: Optional[str] = None
+
+
+class CreditControlCreate(CreditControlBase):
+    pass
+
+
+class CreditControlUpdate(BaseModel):
+    party_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    party_phone: Optional[str] = None
+    party_email: Optional[EmailStr] = None
+    contact_id: Optional[UUID] = None
+    customer_id: Optional[UUID] = None
+    credit_limit: Optional[Decimal] = None
+    max_payment_amount: Optional[Decimal] = None
+    current_outstanding: Optional[Decimal] = None
+    payment_terms_days: Optional[int] = None
+    payment_blocked: Optional[bool] = None
+    block_reason: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CreditControlResponse(CreditControlBase):
+    model_config = ORM
+    id: UUID
+    vendor_id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    available_credit: Optional[Decimal] = None
+    over_limit: Optional[bool] = None
+
+
+class CreditControlCheckRequest(BaseModel):
+    """Validate a proposed payment / invoice amount against credit rules."""
+    credit_control_id: Optional[UUID] = None
+    party_name: Optional[str] = None
+    contact_id: Optional[UUID] = None
+    customer_id: Optional[UUID] = None
+    amount: Decimal = Field(..., gt=0)
+    # Dairy/rental: block next booking until prior dues are cleared
+    require_zero_outstanding: bool = False
+
+
+class CreditControlCheckResponse(BaseModel):
+    allowed: bool
+    reason: Optional[str] = None
+    credit_control_id: Optional[UUID] = None
+    credit_limit: Optional[Decimal] = None
+    max_payment_amount: Optional[Decimal] = None
+    current_outstanding: Optional[Decimal] = None
+    available_credit: Optional[Decimal] = None
+    payment_blocked: bool = False

@@ -1100,6 +1100,58 @@ async def ensure_crm_tables() -> None:
         );""",
         "CREATE INDEX IF NOT EXISTS ix_crm_intake_token ON crm_lead_intake_token(token);",
         "CREATE INDEX IF NOT EXISTS ix_crm_intake_vendor ON crm_lead_intake_token(vendor_id);",
+        # Payment follow-ups (collections)
+        """CREATE TABLE IF NOT EXISTS crm_payment_followup (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            number VARCHAR(40) NOT NULL,
+            party_name VARCHAR(255) NOT NULL,
+            party_phone VARCHAR(40),
+            party_email VARCHAR(255),
+            contact_id UUID REFERENCES crm_contact(id) ON DELETE SET NULL,
+            amount_due NUMERIC(14,2) DEFAULT 0,
+            currency VARCHAR(10) DEFAULT 'INR',
+            invoice_ref VARCHAR(120),
+            due_date DATE,
+            next_followup_at TIMESTAMPTZ,
+            channel VARCHAR(20) DEFAULT 'call',
+            priority VARCHAR(20) DEFAULT 'normal',
+            status VARCHAR(30) DEFAULT 'open',
+            promise_date DATE,
+            notes TEXT,
+            owner_id UUID REFERENCES "user"(id) ON DELETE SET NULL,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        );""",
+        "CREATE INDEX IF NOT EXISTS ix_crm_pf_vendor ON crm_payment_followup(vendor_id);",
+        "CREATE INDEX IF NOT EXISTS ix_crm_pf_vendor_status ON crm_payment_followup(vendor_id, status);",
+        "CREATE INDEX IF NOT EXISTS ix_crm_pf_vendor_next ON crm_payment_followup(vendor_id, next_followup_at);",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_crm_pf_number ON crm_payment_followup(vendor_id, number);",
+        # Credit control (max credit / max payment)
+        """CREATE TABLE IF NOT EXISTS crm_credit_control (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            party_name VARCHAR(255) NOT NULL,
+            party_phone VARCHAR(40),
+            party_email VARCHAR(255),
+            contact_id UUID REFERENCES crm_contact(id) ON DELETE SET NULL,
+            customer_id UUID REFERENCES customer(id) ON DELETE SET NULL,
+            credit_limit NUMERIC(14,2) DEFAULT 0,
+            max_payment_amount NUMERIC(14,2) DEFAULT 0,
+            current_outstanding NUMERIC(14,2) DEFAULT 0,
+            payment_terms_days INTEGER DEFAULT 30,
+            payment_blocked BOOLEAN DEFAULT FALSE,
+            block_reason VARCHAR(255),
+            status VARCHAR(30) DEFAULT 'active',
+            notes TEXT,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        );""",
+        "CREATE INDEX IF NOT EXISTS ix_crm_cc_vendor ON crm_credit_control(vendor_id);",
+        "CREATE INDEX IF NOT EXISTS ix_crm_cc_vendor_status ON crm_credit_control(vendor_id, status);",
+        "CREATE INDEX IF NOT EXISTS ix_crm_cc_vendor_party ON crm_credit_control(vendor_id, party_name);",
+        "ALTER TABLE crm_credit_control ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customer(id) ON DELETE SET NULL;",
+        "CREATE INDEX IF NOT EXISTS ix_crm_cc_customer ON crm_credit_control(customer_id);",
     ]
     async with engine.begin() as conn:
         for s in stmts:
@@ -1702,6 +1754,99 @@ async def ensure_website_tables() -> None:
     async with engine.begin() as conn:
         for s in stmts:
             await conn.execute(text(s))
+
+
+async def ensure_rental_schema() -> None:
+    """Rental asset management columns (capacity, pricing, delivery van) — idempotent."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        """
+        CREATE TABLE IF NOT EXISTS rental_asset (
+            id UUID PRIMARY KEY,
+            vendor_id UUID NOT NULL REFERENCES vendor(id),
+            name VARCHAR(255) NOT NULL,
+            sku VARCHAR(100),
+            product_id UUID REFERENCES product(id),
+            daily_rate NUMERIC(12,2) DEFAULT 0,
+            deposit_amount NUMERIC(12,2) DEFAULT 0,
+            status VARCHAR(30) DEFAULT 'available',
+            notes TEXT,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_rental_asset_vendor_id ON rental_asset(vendor_id)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS asset_code VARCHAR(50)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'milk_dairy'",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS asset_type VARCHAR(80) DEFAULT 'storage_rack'",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS description TEXT",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS capacity_max NUMERIC(12,2) DEFAULT 1",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS capacity_unit VARCHAR(40) DEFAULT 'units'",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS current_occupancy NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS max_weight NUMERIC(12,2)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS weight_unit VARCHAR(20) DEFAULT 'kg'",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS weekly_rate NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS monthly_rate NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS extra_qty_charge NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS extra_weight_charge NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS location VARCHAR(255)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS section VARCHAR(100)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS row_label VARCHAR(100)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS rack_number VARCHAR(50)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS display_start_date DATE",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS display_end_date DATE",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS sales_area_id UUID REFERENCES sales_area(id) ON DELETE SET NULL",
+        "CREATE INDEX IF NOT EXISTS ix_rental_asset_sales_area ON rental_asset(sales_area_id)",
+        "ALTER TABLE rental_asset ALTER COLUMN status TYPE VARCHAR(30)",
+        """
+        CREATE TABLE IF NOT EXISTS rental_booking (
+            id UUID PRIMARY KEY,
+            vendor_id UUID NOT NULL REFERENCES vendor(id),
+            customer_id UUID REFERENCES customer(id),
+            asset_id UUID NOT NULL REFERENCES rental_asset(id),
+            customer_name VARCHAR(255) NOT NULL,
+            customer_email VARCHAR(255),
+            customer_phone VARCHAR(20),
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            status VARCHAR(20) DEFAULT 'pending',
+            total_amount NUMERIC(12,2) DEFAULT 0,
+            deposit_amount NUMERIC(12,2) DEFAULT 0,
+            notes TEXT,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_rental_booking_vendor ON rental_booking(vendor_id)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS booking_number VARCHAR(40)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS quantity NUMERIC(12,2) DEFAULT 1",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS weight_requested NUMERIC(12,2)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS pricing_plan VARCHAR(20) DEFAULT 'daily'",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS rental_amount NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) DEFAULT 'unpaid'",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS payment_method VARCHAR(40)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(100)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS delivery_status VARCHAR(30) DEFAULT 'not_required'",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS van_number VARCHAR(50)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS van_driver_name VARCHAR(120)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS van_driver_phone VARCHAR(20)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS van_vehicle_type VARCHAR(80)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS estimated_delivery_at TIMESTAMPTZ",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS delivery_notes TEXT",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS delivery_address TEXT",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS timeline JSONB DEFAULT '[]'::jsonb",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS sales_area_id UUID REFERENCES sales_area(id) ON DELETE SET NULL",
+        "CREATE INDEX IF NOT EXISTS ix_rental_booking_sales_area ON rental_booking(sales_area_id)",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+    logger.info("ensure_rental_schema: rental_asset / rental_booking columns ready")
 
 
 async def ensure_restaurant_schema() -> None:

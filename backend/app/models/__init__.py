@@ -113,6 +113,7 @@ from app.models.crm import (
     CrmIntegration, CrmAuditLog, CrmAiInsight,
     CrmChatConversation, CrmChatMessage, CrmJourneyEvent,
     CrmLeadIntakeToken, CrmNumberRange,
+    CrmPaymentFollowup, CrmCreditControl,
 )
 
 from app.models.commission import (
@@ -334,6 +335,8 @@ __all__ = [
     "CrmChatConversation", "CrmChatMessage", "CrmJourneyEvent",
     "CrmLeadIntakeToken",
     "CrmNumberRange",
+    "CrmPaymentFollowup",
+    "CrmCreditControl",
     # Finance — dimensions
     "FinCompany", "FinCostCenter", "FinProject", "FinIntercompanyPartner",
     # Finance

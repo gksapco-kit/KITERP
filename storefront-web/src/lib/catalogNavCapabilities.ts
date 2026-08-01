@@ -36,6 +36,14 @@ export function isVendorBlogEnabled(settings?: Record<string, unknown> | null): 
   return true
 }
 
+/** Rentals marketplace link on vendor storefronts (not the platform landing). Default on. */
+export function isVendorRentalsEnabled(settings?: Record<string, unknown> | null): boolean {
+  if (!settings) return true
+  const features = settings.features as Record<string, unknown> | undefined
+  if (features && typeof features.rentals === 'boolean') return features.rentals
+  return true
+}
+
 export type ResolveCatalogNavCapabilitiesInput = {
   offeringType?: string | null
   sellingMode?: string | null
@@ -132,7 +140,7 @@ export function resolveCatalogNavCapabilities(input: ResolveCatalogNavCapabiliti
 export function navLinksIncludeCatalogPath(
   links: NavLinkItem[],
   storePath: (p: string) => string,
-  kind: 'products' | 'services' | 'blog',
+  kind: 'products' | 'services' | 'blog' | 'rentals',
 ): boolean {
   for (const link of links) {
     if (!link?.href) continue
@@ -143,6 +151,12 @@ export function navLinksIncludeCatalogPath(
       if (rel === '/blog' || rel.startsWith('/blog/')) return true
       if (firstSeg === 'blog') return true
       if (/blog|news|articles?/i.test(label)) return true
+      continue
+    }
+    if (kind === 'rentals') {
+      if (rel === '/rentals' || rel.startsWith('/rentals/')) return true
+      if (firstSeg === 'rentals' || firstSeg === 'rental') return true
+      if (/rentals?|storage\s*rack/i.test(label)) return true
       continue
     }
     if (kind === 'products') {
@@ -229,14 +243,41 @@ export function enrichNavLinksWithBlogLink(
   return out
 }
 
+/** Rentals marketplace at `/rentals` — vendor storefront only (via storePath). */
+export function enrichNavLinksWithRentalsLink(
+  links: NavLinkItem[],
+  storePath: (p: string) => string,
+  rentalsEnabled = true,
+): NavLinkItem[] {
+  if (!rentalsEnabled) {
+    return links.filter(l => !navLinksIncludeCatalogPath([l], storePath, 'rentals'))
+  }
+  if (navLinksIncludeCatalogPath(links, storePath, 'rentals')) return links
+  const out = [...links]
+  const servicesIdx = out.findIndex(l => navLinksIncludeCatalogPath([l], storePath, 'services'))
+  const productsIdx = out.findIndex(l => navLinksIncludeCatalogPath([l], storePath, 'products'))
+  const blogIdx = out.findIndex(l => navLinksIncludeCatalogPath([l], storePath, 'blog'))
+  const contactIdx = out.findIndex(l => pathRelativeToStore(l.href, storePath).toLowerCase() === '/contact')
+  const insertIdx =
+    servicesIdx >= 0 ? servicesIdx + 1
+    : productsIdx >= 0 ? productsIdx + 1
+    : blogIdx >= 0 ? blogIdx
+    : contactIdx >= 0 ? contactIdx
+    : out.length
+  out.splice(insertIdx, 0, { label: 'Rentals', href: storePath('/rentals') })
+  return out
+}
+
 export function defaultCommerceNavLinksForCapabilities(
   storePath: (p: string) => string,
   capabilities: CatalogNavCapabilities,
   blogEnabled = true,
+  rentalsEnabled = true,
 ): NavLinkItem[] {
   const links: NavLinkItem[] = [{ label: 'Home', href: storePath('/') }]
   if (capabilities.showProducts) links.push({ label: 'Products', href: storePath('/products') })
   if (capabilities.showServices) links.push({ label: 'Services', href: storePath('/services') })
+  if (rentalsEnabled) links.push({ label: 'Rentals', href: storePath('/rentals') })
   if (blogEnabled) links.push({ label: 'Blog', href: storePath('/blog') })
   links.push({ label: 'Policies', href: storePath('/policies') })
   return links

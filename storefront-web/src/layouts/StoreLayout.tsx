@@ -276,6 +276,7 @@ function FooterSimple({ vendor, storePath, theme }: { vendor: any; storePath: (p
         <div className={cn('flex items-center gap-4 text-xs', surface.mutedClass)}>
           <Link to={storePath('/products')} className={surface.linkClass}>Products</Link>
           <Link to={storePath('/services')} className={surface.linkClass}>Services</Link>
+          <Link to={storePath('/rentals')} className={surface.linkClass}>Rentals</Link>
           <Link to={storePath('/contact')} className={surface.linkClass}>Contact</Link>
           <Link to={storePath('/policies')} className={surface.linkClass}>Policies</Link>
           <Link to={storePath('/account')} className={surface.linkClass}>Account</Link>
@@ -316,6 +317,7 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
             <div className="space-y-2.5 text-sm">
               <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>
               <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>
+              <Link to={storePath('/rentals')} className={cn('block', surface.linkClass)}>Rentals</Link>
               <Link to={storePath('/contact')} className={cn('block', surface.linkClass)}>Contact Us</Link>
               <Link to={storePath('/policies')} className={cn('block', surface.linkClass)}>Store Policies</Link>
             </div>
@@ -352,6 +354,7 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
               <Link to={storePath('/')} className={cn('block', surface.linkClass)}>About {vendor?.display_name}</Link>
               <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>
               <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>
+              <Link to={storePath('/rentals')} className={cn('block', surface.linkClass)}>Rentals</Link>
               <Link to={storePath('/contact')} className={cn('block', surface.linkClass)}>Contact Us</Link>
               <Link to={storePath('/policies')} className={cn('block', surface.linkClass)}>Store Policies</Link>
             </div>
@@ -362,6 +365,7 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
               <Link to={storePath('/account')} className={cn('block', surface.linkClass)}>My Profile</Link>
               <Link to={storePath('/account/orders')} className={cn('block', surface.linkClass)}>Your Orders</Link>
               <Link to={storePath('/account/bookings')} className={cn('block', surface.linkClass)}>My Bookings</Link>
+              <Link to={storePath('/account/rentals')} className={cn('block', surface.linkClass)}>My Rentals</Link>
               <Link to={storePath('/cart')} className={cn('block', surface.linkClass)}>Cart</Link>
             </div>
           </div>

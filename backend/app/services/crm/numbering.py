@@ -56,6 +56,13 @@ CRM_NUMBER_RANGE_DEFAULTS: dict[str, dict[str, Any]] = {
         "number_to": 999999,
         "pad_width": 6,
     },
+    "payment_followup": {
+        "name": "Payment Follow-ups",
+        "prefix": "PF",
+        "number_from": 1,
+        "number_to": 999999,
+        "pad_width": 6,
+    },
 }
 
 # Map legacy prefix → entity_type for call sites that still pass only a prefix.
@@ -65,6 +72,7 @@ _PREFIX_TO_ENTITY = {
     "DEAL": "deal",
     "TSK": "activity",
     "TCK": "ticket",
+    "PF": "payment_followup",
 }
 
 

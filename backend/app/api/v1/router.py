@@ -15,6 +15,7 @@ from app.api.v1 import (
     store_bookings, store_wishlist, store_marketplace, store_subscriptions, store_rentals,
     uploads,
     vendor_crm_core, vendor_crm_support, vendor_crm_marketing, vendor_crm_advanced,
+    vendor_crm_collections,
     vendor_finance,
     vendor_controlling,
     vendor_controlling_area,
@@ -147,6 +148,7 @@ api_router.include_router(vendor_crm_core.router, prefix="/vendors/me/crm", tags
 api_router.include_router(vendor_crm_support.router, prefix="/vendors/me/crm", tags=["CRM Support"])
 api_router.include_router(vendor_crm_marketing.router, prefix="/vendors/me/crm", tags=["CRM Marketing"])
 api_router.include_router(vendor_crm_advanced.router, prefix="/vendors/me/crm", tags=["CRM Advanced"])
+api_router.include_router(vendor_crm_collections.router, prefix="/vendors/me/crm", tags=["CRM Collections"])
 api_router.include_router(vendor_crm_advanced.public_router, prefix="/public/crm", tags=["CRM Public"])
 
 # ── Finance ───────────────────────────────────────────────────────

@@ -249,6 +249,8 @@ import CrmIntegrations from '@/pages/crm/Integrations'
 import CrmReports from '@/pages/crm/Reports'
 import CrmAudit from '@/pages/crm/Audit'
 import CrmCareReminder from '@/pages/crm/CareReminder'
+import CrmPaymentFollowups from '@/pages/crm/PaymentFollowups'
+import CrmCreditControl from '@/pages/crm/CreditControl'
 
 // Blog Manager
 import BlogManagerPage from '@/pages/blog/index'
@@ -632,6 +634,8 @@ export const router = createBrowserRouter([
       { path: 'crm/reports',        element: <CrmReports /> },
       { path: 'crm/audit',          element: <CrmAudit /> },
       { path: 'crm/care-reminder',  element: <CrmCareReminder /> },
+      { path: 'crm/payment-followups', element: <CrmPaymentFollowups /> },
+      { path: 'crm/credit-control', element: <CrmCreditControl /> },
       // Commission routes
       {
         path: 'commission',

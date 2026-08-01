@@ -583,11 +583,13 @@ function SalesAreasTab() {
   const [branchId, setBranchId] = useState('')
   const [distributionChannelId, setDistributionChannelId] = useState('')
   const [divisionId, setDivisionId] = useState('')
+  const [areaName, setAreaName] = useState('')
   const [isDefault, setIsDefault] = useState(false)
 
   const resetForm = () => {
     setShowForm(false)
-    setBusinessUnitId(''); setBranchId(''); setDistributionChannelId(''); setDivisionId(''); setIsDefault(false)
+    setBusinessUnitId(''); setBranchId(''); setDistributionChannelId(''); setDivisionId('')
+    setAreaName(''); setIsDefault(false)
   }
   useEscapeToClose(resetForm, showForm)
 
@@ -605,6 +607,7 @@ function SalesAreasTab() {
         branch_id: branchId || undefined,
         distribution_channel_id: distributionChannelId,
         division_id: divisionId,
+        name: areaName.trim() || undefined,
         is_default: isDefault,
       },
       { onSuccess: resetForm },
@@ -647,7 +650,7 @@ function SalesAreasTab() {
                   <tr><td colSpan={7} className="px-3 py-12 text-center text-sm text-gray-400">
                     No sales areas yet. Combine a Business Unit (optionally a Branch), Distribution Channel, and Sales Division above.
                   </td></tr>
-                ) : areas.mapasync ((a) => {
+                ) : areas.map((a) => {
                   const buLabel = formatBusinessUnitLabel(a)
                   const branchLabel = formatBranchLabel(a)
                   return (
@@ -738,6 +741,17 @@ function SalesAreasTab() {
                   options={divisions.map((d) => ({ value: d.id, label: `${d.code} — ${d.name}` }))}
                   placeholder="Select a sales division…"
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Route / Area name (optional)</Label>
+                <Input
+                  value={areaName}
+                  onChange={(e) => setAreaName(e.target.value)}
+                  placeholder="e.g. Route 15 – Gachibowli"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Shown in Rentals booking. If empty, system uses Business Unit · Channel · Division.
+                </p>
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" className={defaultCheckboxClass} checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default

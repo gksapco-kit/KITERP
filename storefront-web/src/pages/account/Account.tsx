@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useCustomerLogout } from '@/hooks/useStore'
-import { Package, User, MapPin, ChevronRight, Heart, Settings, ShoppingBag, CalendarDays, Bell, Repeat, MessageSquareQuote, PackageOpen, LogOut } from 'lucide-react'
+import { Package, User, MapPin, ChevronRight, Heart, Settings, ShoppingBag, CalendarDays, Bell, Repeat, MessageSquareQuote, PackageOpen, Truck, LogOut } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 
 export default function Account() {
@@ -22,7 +22,8 @@ export default function Account() {
     { to: storePath('/account/wishlist'), icon: Heart, label: 'Wishlist', desc: 'Saved products you love', color: 'bg-rose-50 text-rose-600' },
     { to: storePath('/account/subscriptions'), icon: Repeat, label: 'Subscriptions', desc: 'Manage recurring orders', color: 'bg-violet-50 text-violet-600' },
     { to: storePath('/account/marketplace'), icon: MessageSquareQuote, label: 'Marketplace', desc: 'Post requirements & compare quotes', color: 'bg-orange-50 text-orange-600' },
-    { to: storePath('/rentals'), icon: PackageOpen, label: 'Rentals', desc: 'Browse and book rental items', color: 'bg-teal-50 text-teal-600' },
+    { to: storePath('/rentals'), icon: PackageOpen, label: 'Rent Storage', desc: 'Find racks and book capacity', color: 'bg-teal-50 text-teal-600' },
+    { to: storePath('/account/rentals'), icon: Truck, label: 'My Rentals', desc: 'Track bookings, payments & delivery vans', color: 'bg-cyan-50 text-cyan-600' },
     { to: storePath('/account/addresses'), icon: MapPin, label: 'Saved Addresses', desc: 'Manage delivery addresses', color: 'bg-green-50 text-green-600' },
     { to: storePath('/account/profile'), icon: Settings, label: 'Profile & Settings', desc: 'Edit profile, password, notifications', color: 'bg-accent text-primary' },
     { to: storePath('/cart'), icon: ShoppingBag, label: 'Your Cart', desc: 'View items in your cart', color: 'bg-amber-50 text-amber-600' },

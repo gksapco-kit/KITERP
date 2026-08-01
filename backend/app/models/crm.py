@@ -9,7 +9,7 @@ workflow automation, integrations, audit logs, AI insights, chat
 conversations/messages, journey events.
 """
 from sqlalchemy import (
-    Column, String, Text, Boolean, DateTime, ForeignKey, Integer,
+    Column, String, Text, Boolean, Date, DateTime, ForeignKey, Integer,
     Numeric, Index, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -764,3 +764,68 @@ class CrmLeadIntakeToken(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_used_at = Column(DateTime(timezone=True))
+
+
+# ── Collections: payment follow-ups & credit control ─────────────────────────
+
+class CrmPaymentFollowup(Base):
+    """Collections follow-up for overdue / promised payments."""
+    __tablename__ = "crm_payment_followup"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    number = Column(String(40), nullable=False)
+    party_name = Column(String(255), nullable=False)
+    party_phone = Column(String(40))
+    party_email = Column(String(255))
+    contact_id = Column(UUID(as_uuid=True), ForeignKey("crm_contact.id", ondelete="SET NULL"), nullable=True)
+    amount_due = Column(Numeric(14, 2), default=0)
+    currency = Column(String(10), default="INR")
+    invoice_ref = Column(String(120))
+    due_date = Column(Date)
+    next_followup_at = Column(DateTime(timezone=True))
+    channel = Column(String(20), default="call")  # call/email/sms/whatsapp/visit
+    priority = Column(String(20), default="normal")  # low/normal/high/urgent
+    status = Column(String(30), default="open")  # open/promised/partial/paid/cancelled
+    promise_date = Column(Date)
+    notes = Column(Text)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_crm_pf_vendor_status", "vendor_id", "status"),
+        Index("ix_crm_pf_vendor_next", "vendor_id", "next_followup_at"),
+        Index("ix_crm_pf_number", "vendor_id", "number", unique=True),
+    )
+
+
+class CrmCreditControl(Base):
+    """Per-party credit / max-payment controls for CRM collections."""
+    __tablename__ = "crm_credit_control"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    party_name = Column(String(255), nullable=False)
+    party_phone = Column(String(40))
+    party_email = Column(String(255))
+    contact_id = Column(UUID(as_uuid=True), ForeignKey("crm_contact.id", ondelete="SET NULL"), nullable=True)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Maximum outstanding credit allowed
+    credit_limit = Column(Numeric(14, 2), default=0)
+    # Maximum amount allowed in a single payment / invoice
+    max_payment_amount = Column(Numeric(14, 2), default=0)
+    # Tracked outstanding (manual until AR sync)
+    current_outstanding = Column(Numeric(14, 2), default=0)
+    payment_terms_days = Column(Integer, default=30)
+    payment_blocked = Column(Boolean, default=False)
+    block_reason = Column(String(255))
+    status = Column(String(30), default="active")  # active/watch/blocked
+    notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_crm_cc_vendor_status", "vendor_id", "status"),
+        Index("ix_crm_cc_vendor_party", "vendor_id", "party_name"),
+    )

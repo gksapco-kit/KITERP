@@ -4,7 +4,7 @@ import {
   defaultCommerceNavLinksForCapabilities,
   enrichNavLinksWithBlogLink,
   enrichNavLinksWithCatalogCapabilities,
-  isVendorBlogEnabled,
+  enrichNavLinksWithRentalsLink,
   pathRelativeToStore,
   resolveCatalogNavCapabilities,
 } from '@/lib/catalogNavCapabilities'
@@ -30,6 +30,8 @@ export type ResolveNavBlockLinksOptions = {
   serviceCount?: number | null
   /** When false, hide blog nav links and /blog routes from storefront nav. */
   blogEnabled?: boolean
+  /** When false, hide Rentals marketplace nav link. Default true on vendor stores. */
+  rentalsEnabled?: boolean
 }
 
 export type SitePageNavItem = { title: string; url?: string }
@@ -162,6 +164,7 @@ export function resolveNavBlockLinks(
   const isEditorCanvas = options?.isEditorCanvas === true
   const skipCatalogInjection = previewShell || isEditorCanvas
   const blogEnabled = options?.blogEnabled !== false
+  const rentalsEnabled = options?.rentalsEnabled !== false
   const showNavLinks = props.show_nav_links !== false
   if (!showNavLinks) return []
 
@@ -202,11 +205,12 @@ export function resolveNavBlockLinks(
     : deduped
 
   if (!previewShell && !isEditorCanvas) {
+    enriched = enrichNavLinksWithRentalsLink(enriched, storePath, rentalsEnabled)
     enriched = enrichNavLinksWithBlogLink(enriched, storePath, blogEnabled)
   }
 
   if (enriched.length === 0 && !previewShell && !isEditorCanvas) {
-    enriched = defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled)
+    enriched = defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled, rentalsEnabled)
   }
 
   // Single-page templates (e.g. Verde) only expose Home in site pages — after hiding
@@ -216,14 +220,14 @@ export function resolveNavBlockLinks(
     ? (enriched.length > 0 ? enriched : [{ label: 'Home', href: storePath('/') }])
     : (hasNonHomeLinks
       ? enriched
-      : defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled))
+      : defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled, rentalsEnabled))
 
   let links = applyHomeNavVisibility(sourceLinks, pathname, storePath)
   if (links.length === 0) {
     links = applyHomeNavVisibility(
       previewShell || isEditorCanvas
         ? [{ label: 'Home', href: storePath('/') }]
-        : defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled),
+        : defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled, rentalsEnabled),
       pathname,
       storePath,
     )
@@ -235,7 +239,7 @@ export function resolveStorefrontHeaderNavLinks(
   site: PublicSite | null | undefined,
   storePath: (p: string) => string,
   pathname: string,
-  options?: Pick<ResolveNavBlockLinksOptions, 'offeringType' | 'productCount' | 'serviceCount' | 'blogEnabled'>,
+  options?: Pick<ResolveNavBlockLinksOptions, 'offeringType' | 'productCount' | 'serviceCount' | 'blogEnabled' | 'rentalsEnabled'>,
 ): NavLinkItem[] {
   const capabilities = resolveCatalogNavCapabilities({
     offeringType: options?.offeringType,
@@ -244,9 +248,10 @@ export function resolveStorefrontHeaderNavLinks(
     serviceCount: options?.serviceCount,
   })
   const blogEnabled = options?.blogEnabled !== false
+  const rentalsEnabled = options?.rentalsEnabled !== false
   if (!site) {
     return applyHomeNavVisibility(
-      defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled),
+      defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled, rentalsEnabled),
       pathname,
       storePath,
     )

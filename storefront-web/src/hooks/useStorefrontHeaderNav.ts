@@ -14,7 +14,7 @@ import {
   resolveStorefrontHeaderCta,
   resolveStorefrontHeaderNavLinks,
 } from '@/lib/siteNavPages'
-import { isVendorBlogEnabled } from '@/lib/catalogNavCapabilities'
+import { isVendorBlogEnabled, isVendorRentalsEnabled } from '@/lib/catalogNavCapabilities'
 import type { NavLinkItem } from '@/kit/types'
 
 export function useStorefrontHeaderNav(): {
@@ -46,6 +46,7 @@ export function useStorefrontHeaderNav(): {
     () => resolveStorefrontHeaderNavLinks(site, storePath, pathname, {
       offeringType: vendor?.offering_type,
       blogEnabled: isVendorBlogEnabled(vendor?.settings),
+      rentalsEnabled: isVendorRentalsEnabled(vendor?.settings),
     }),
     [site, storePath, pathname, vendor?.offering_type, vendor?.settings],
   )

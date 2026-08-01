@@ -393,3 +393,61 @@ export const useCreateIntakeToken = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY('intake-tokens') }),
   })
 }
+
+// Payment follow-ups
+export const usePaymentFollowups = (params: Record<string, unknown> = {}) =>
+  useQuery({
+    queryKey: KEY('payment-followups', params),
+    queryFn: () => crmApi.listPaymentFollowups(params),
+  })
+
+export const useSavePaymentFollowup = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id?: string; data: Record<string, unknown> }) =>
+      id ? crmApi.updatePaymentFollowup(id, data) : crmApi.createPaymentFollowup(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'payment-followups'] }),
+  })
+}
+
+export const useDeletePaymentFollowup = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => crmApi.deletePaymentFollowup(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'payment-followups'] }),
+  })
+}
+
+// Credit control
+export const useCreditControls = (params: Record<string, unknown> = {}) =>
+  useQuery({
+    queryKey: KEY('credit-control', params),
+    queryFn: () => crmApi.listCreditControls(params),
+  })
+
+export const useSaveCreditControl = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id?: string; data: Record<string, unknown> }) =>
+      id ? crmApi.updateCreditControl(id, data) : crmApi.createCreditControl(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'credit-control'] }),
+  })
+}
+
+export const useDeleteCreditControl = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => crmApi.deleteCreditControl(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'credit-control'] }),
+  })
+}
+
+export const useCheckCreditControl = () =>
+  useMutation({
+    mutationFn: (data: {
+      credit_control_id?: string
+      party_name?: string
+      contact_id?: string
+      amount: number
+    }) => crmApi.checkCreditControl(data),
+  })

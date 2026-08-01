@@ -104,6 +104,24 @@ async def _get_branch_or_404(branch_id: UUID, bu_id: UUID, vendor_id: UUID, db: 
     return branch
 
 
+def _sales_area_display_name(s, dc=None, dv=None, scope=None) -> str:
+    """Never return a null/empty label for UI dropdowns."""
+    if s.name and str(s.name).strip() and str(s.name).strip().lower() != "null":
+        return str(s.name).strip()
+    parts = []
+    if scope is not None and (getattr(scope, "code", None) or getattr(scope, "name", None)):
+        parts.append(scope.code or scope.name)
+    if dc is not None and (dc.name or dc.code):
+        parts.append(dc.name or dc.code)
+    if dv is not None and (dv.name or dv.code):
+        parts.append(dv.name or dv.code)
+    if parts:
+        return " · ".join(str(p) for p in parts if p)
+    if s.code:
+        return str(s.code)
+    return "Sales area"
+
+
 def _sales_area_to_dict(
     s: SalesArea,
     scope: Optional[Store] = None,
@@ -133,7 +151,7 @@ def _sales_area_to_dict(
         "division_name": dv.name if dv else None,
         "division_code": dv.code if dv else None,
         "code": s.code,
-        "name": s.name,
+        "name": _sales_area_display_name(s, dc=dc, dv=dv, scope=scope),
         "is_active": s.is_active,
         "is_default": s.is_default,
         "created_at": s.created_at.isoformat() if s.created_at else None,
@@ -603,13 +621,18 @@ async def create_sales_area(
 
     scope_label = scope.code or scope.name
     code = (data.code or "").strip() or f"{scope_label}/{dc.code}/{dv.code}"
+    # Prefer explicit name; otherwise a readable route-style label (never leave null for UI).
+    explicit_name = (data.name or "").strip()
+    auto_name = f"{dc.name} · {dv.name}"
+    if scope.code or scope.name:
+        auto_name = f"{scope.code or scope.name} · {dc.name} · {dv.name}"
     sales_area = SalesArea(
         vendor_id=vendor_id,
         business_unit_id=scope.id,
         distribution_channel_id=dc.id,
         division_id=dv.id,
         code=code,
-        name=(data.name or "").strip() or None,
+        name=explicit_name or auto_name,
         is_default=bool(data.is_default),
     )
     db.add(sales_area)
