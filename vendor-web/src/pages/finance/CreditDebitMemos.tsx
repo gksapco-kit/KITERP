@@ -759,6 +759,18 @@ export default function CreditDebitMemos() {
   const effectiveDiscount = (discountType === 'percentage' ? subtotal * cartDiscount / 100 : cartDiscount) + itemDiscountTotal
   const grandTotal = Math.round(subtotal - effectiveDiscount + totalTax)
 
+  const moreOptionsActiveCount = useMemo(() => {
+    let count = 0
+    if (histTypeFilter) count++
+    if (histStoreFilter) count++
+    if (histBranchFilter) count++
+    if (histSalesAreaFilter) count++
+    if (includeVoided) count++
+    if (histSortKey !== 'created_at') count++
+    if (histSortDir !== 'desc') count++
+    return count
+  }, [histTypeFilter, histStoreFilter, histBranchFilter, histSalesAreaFilter, includeVoided, histSortKey, histSortDir])
+
   if (receiptData) return (
     <MemoReceipt
       data={receiptData}
@@ -797,11 +809,79 @@ export default function CreditDebitMemos() {
       <Card>
         <CardContent className="p-0">
           <TableToolbar
-            className="flex-nowrap overflow-x-auto gap-1.5 sm:gap-2 py-2.5"
             search={histSearch}
             onSearchChange={setHistSearch}
             searchPlaceholder="Search memo #, customer…"
-            searchWrapperClassName="min-w-[9rem] w-40 sm:w-44 lg:w-52 shrink-0 max-w-full"
+            searchWrapperClassName="min-w-[12rem] flex-1 sm:flex-none lg:w-72 max-w-full"
+            hideSort
+            moreOptionsActiveCount={moreOptionsActiveCount}
+            leading={(
+              <SalesScopeFilters
+                businessUnitId={histStoreFilter}
+                branchId={histBranchFilter}
+                salesAreaId={histSalesAreaFilter}
+                onBusinessUnitChange={(id) => { setHistStoreFilter(id); setHistBranchFilter(''); setHistSalesAreaFilter(''); setHistPage(1) }}
+                onBranchChange={(id) => { setHistBranchFilter(id); setHistSalesAreaFilter(''); setHistPage(1) }}
+                onSalesAreaChange={(id) => { setHistSalesAreaFilter(id); setHistPage(1) }}
+                disabled={isStoreLocked}
+              />
+            )}
+            moreOptions={(
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex min-w-[9.5rem] flex-col gap-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Memo type</label>
+                  <ThemeSelect
+                    value={histTypeFilter}
+                    onChange={(v) => { setHistTypeFilter(v); setHistPage(1) }}
+                    placeholder="All Memos"
+                    aria-label="Memo type"
+                    wrapperClassName="w-full min-w-[9.5rem]"
+                    options={[
+                      { value: '', label: 'All Memos' },
+                      { value: 'credit_memo', label: 'Credit Memos' },
+                      { value: 'debit_memo', label: 'Debit Memos' },
+                    ]}
+                  />
+                </div>
+                <div className="flex min-w-[9.5rem] flex-col gap-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Sort by</label>
+                  <ThemeSelect
+                    value={histSortKey}
+                    onChange={setHistSortKey}
+                    options={[
+                      { value: 'created_at', label: 'Date' },
+                      { value: 'order_number', label: 'Number' },
+                      { value: 'customer_name', label: 'Customer' },
+                      { value: 'total', label: 'Total' },
+                    ]}
+                    aria-label="Sort by column"
+                    wrapperClassName="w-full min-w-[9.5rem]"
+                  />
+                </div>
+                <div className="flex min-w-[9.5rem] flex-col gap-1.5">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Direction</label>
+                  <ThemeSelect
+                    value={histSortDir}
+                    onChange={(v) => setHistSortDir(v as SortDir)}
+                    options={[
+                      { value: 'asc', label: 'Low → High' },
+                      { value: 'desc', label: 'High → Low' },
+                    ]}
+                    aria-label="Sort direction"
+                    wrapperClassName="w-full min-w-[9.5rem]"
+                  />
+                </div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    className="rounded border-input accent-primary"
+                    checked={includeVoided}
+                    onChange={(e) => { setIncludeVoided(e.target.checked); setHistPage(1) }}
+                  />
+                  Show voided
+                </label>
+              </div>
+            )}
             sortOptions={[
               { value: 'created_at', label: 'Date' },
               { value: 'order_number', label: 'Number' },
@@ -812,42 +892,6 @@ export default function CreditDebitMemos() {
             sortDir={histSortDir}
             onSortKeyChange={setHistSortKey}
             onSortDirChange={setHistSortDir}
-            extra={(
-              <>
-                <ThemeSelect
-                  value={histTypeFilter}
-                  onChange={setHistTypeFilter}
-                  placeholder="All Memos"
-                  aria-label="Memo type"
-                  wrapperClassName="w-[7.5rem] shrink-0"
-                  options={[
-                    { value: '', label: 'All Memos' },
-                    { value: 'credit_memo', label: 'Credit Memos' },
-                    { value: 'debit_memo', label: 'Debit Memos' },
-                  ]}
-                />
-                <SalesScopeFilters
-                  businessUnitId={histStoreFilter}
-                  branchId={histBranchFilter}
-                  salesAreaId={histSalesAreaFilter}
-                  onBusinessUnitChange={(id) => { setHistStoreFilter(id); setHistBranchFilter(''); setHistSalesAreaFilter(''); setHistPage(1) }}
-                  onBranchChange={(id) => { setHistBranchFilter(id); setHistSalesAreaFilter(''); setHistPage(1) }}
-                  onSalesAreaChange={(id) => { setHistSalesAreaFilter(id); setHistPage(1) }}
-                  disabled={isStoreLocked}
-                  className="flex-nowrap shrink-0"
-                  itemClassName="w-[7.25rem] sm:w-[7.75rem] shrink-0"
-                />
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap shrink-0">
-                  <input
-                    type="checkbox"
-                    className="rounded border-input accent-primary"
-                    checked={includeVoided}
-                    onChange={(e) => { setIncludeVoided(e.target.checked); setHistPage(1) }}
-                  />
-                  Show voided
-                </label>
-              </>
-            )}
           />
 
           {memosLoading ? (
