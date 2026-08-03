@@ -79,11 +79,18 @@ module.exports = () => ({
       favicon: icon,
     },
     plugins: ["expo-router", "expo-secure-store"],
+    updates: {
+      url: "https://u.expo.dev/9b598a58-a149-47f9-b5c0-574016f72caa",
+    },
+    runtimeVersion: {
+      policy: "appVersion",
+    },
     extra: {
       vendorSlug: VENDOR_SLUG,
       isBrandedApp: !!VENDOR_SLUG,
       eas: {
-        projectId: process.env.EAS_PROJECT_ID || "",
+        projectId:
+          process.env.EAS_PROJECT_ID || "9b598a58-a149-47f9-b5c0-574016f72caa",
       },
     },
   },

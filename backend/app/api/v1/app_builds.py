@@ -64,13 +64,14 @@ async def admin_trigger_build(
     current_user: User = Depends(get_current_superuser),
     db: AsyncSession = Depends(get_db),
 ):
-    """Trigger a branded-app build for a vendor."""
+    """Trigger a branded-app build for a vendor (superuser; plan gate skipped)."""
     service = AppBuildService(db)
     try:
         build = await service.trigger_build(
             vendor_id=vendor_id,
             platform=body.platform.value,
             triggered_by=current_user.id,
+            require_entitlement=False,
         )
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))

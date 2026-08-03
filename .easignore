@@ -1,0 +1,54 @@
+# EAS uploads from the git repo root. This file replaces .gitignore for uploads.
+# Keep only what mobile builds need; skip sibling apps and local Python venvs.
+
+# Sibling packages / backend (not needed for Expo builds)
+/backend
+/frontend
+/vendor-web
+/storefront-web
+/docs
+/asureit
+/ArT
+/KITERP
+/.git-old
+/.claude
+/.vscode
+/.idea
+/.tmp-storefront-ui
+
+# Dependencies & virtualenvs (WSL venvs break Windows lstat → EACCES)
+**/node_modules
+**/venv
+**/venv_wsl
+**/.venv
+**/env
+
+# Build / cache / secrets
+**/.expo
+**/dist
+**/build
+**/.cache
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/secrets
+
+# OS / IDE noise
+**/.DS_Store
+**/Thumbs.db
+**/desktop.ini
+**/.idea
+**/*.suo
+**/*.ntvs*
+**/*.njsproj
+**/*.sln
+
+# Mobile-local ignores
+/mobile/node_modules
+/mobile/.expo
+/mobile/dist

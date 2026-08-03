@@ -88,20 +88,26 @@ class AppBuildService:
         vendor_id: UUID,
         platform: str,
         triggered_by: Optional[UUID] = None,
+        *,
+        require_entitlement: bool = True,
     ) -> VendorAppBuild:
         """
         Create a build record and generate the config snapshot.
         The actual EAS build is triggered by the build script polling for
         pending builds or by a webhook.
+
+        Superuser admin triggers may set require_entitlement=False so platform
+        operators can build for any vendor they are configuring.
         """
         vendor = await self._get_vendor(vendor_id)
 
-        has_entitlement = await self._check_branded_app_entitlement(vendor)
-        if not has_entitlement:
-            raise PermissionError(
-                "Vendor plan does not include branded app. "
-                "Upgrade to a plan with branded_app feature."
-            )
+        if require_entitlement:
+            has_entitlement = await self._check_branded_app_entitlement(vendor)
+            if not has_entitlement:
+                raise PermissionError(
+                    "Vendor plan does not include branded app. "
+                    "Upgrade to a plan with branded_app feature."
+                )
 
         config = self._generate_config(vendor)
 

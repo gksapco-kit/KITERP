@@ -44,10 +44,7 @@ export default function VendorAppBuilds() {
   const { user } = useAuthStore()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  if (!isSuperuserAdmin(user)) {
-    return <Navigate to={id ? `/dashboard/vendors/${id}` : '/dashboard/vendors'} replace />
-  }
-  const vendorId = id!
+  const vendorId = id ?? ''
 
   const { data: vendor, isLoading: vendorLoading } = useAdminVendor(vendorId)
   const { data: appConfig, isLoading: configLoading } = useAppConfig(vendorId)
@@ -59,6 +56,30 @@ export default function VendorAppBuilds() {
   const [configForm, setConfigForm] = useState<AppConfig>({})
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  const buildsRaw = buildsData?.items || []
+
+  const builds = useMemo(
+    () =>
+      processRows(
+        buildsRaw,
+        '',
+        () => [],
+        sortKey,
+        sortDir,
+        {
+          status: (r) => r.status,
+          platform: (r) => r.platform,
+          created_at: (r) => r.created_at ?? '',
+          built_at: (r) => r.built_at ?? '',
+        },
+      ),
+    [buildsRaw, sortKey, sortDir],
+  )
+
+  if (!isSuperuserAdmin(user)) {
+    return <Navigate to={id ? `/dashboard/vendors/${id}` : '/dashboard/vendors'} replace />
+  }
 
   const handleEditStart = () => {
     setConfigForm({
@@ -105,27 +126,12 @@ export default function VendorAppBuilds() {
     )
   }
 
-  const buildsRaw = buildsData?.items || []
-
   const buildSortOptions = [
     { value: 'status', label: 'Status' },
     { value: 'platform', label: 'Platform' },
     { value: 'created_at', label: 'Created' },
     { value: 'built_at', label: 'Built' },
   ]
-
-  const buildAccessors: Record<string, (r: (typeof buildsRaw)[number]) => unknown> = {
-    status: (r) => r.status,
-    platform: (r) => r.platform,
-    created_at: (r) => r.created_at ?? '',
-    built_at: (r) => r.built_at ?? '',
-  }
-
-  const builds = useMemo(
-    () =>
-      processRows(buildsRaw, '', () => [], sortKey, sortDir, buildAccessors),
-    [buildsRaw, sortKey, sortDir],
-  )
 
   return (
     <div className="space-y-6">
@@ -214,13 +220,28 @@ export default function VendorAppBuilds() {
 
                 <div>
                   <Label htmlFor="icon_url">App Icon URL</Label>
-                  <Input
-                    id="icon_url"
-                    value={configForm.icon_url || ''}
-                    onChange={(e) => setConfigForm({ ...configForm, icon_url: e.target.value })}
-                    placeholder="https://cdn.example.com/vendor-icon.png"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">1024x1024 PNG recommended</p>
+                  <div className="flex items-start gap-3">
+                    {configForm.icon_url ? (
+                      <img
+                        src={configForm.icon_url}
+                        alt="App icon preview"
+                        className="w-10 h-10 rounded border object-cover shrink-0 bg-gray-50"
+                        onError={(e) => {
+                          ;(e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    ) : null}
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        id="icon_url"
+                        value={configForm.icon_url || ''}
+                        onChange={(e) => setConfigForm({ ...configForm, icon_url: e.target.value })}
+                        placeholder="https://cdn.example.com/vendor-icon.png"
+                        className="font-mono text-xs"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">1024x1024 PNG recommended</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -256,7 +277,11 @@ export default function VendorAppBuilds() {
                 <ConfigRow label="App Name" value={appConfig?.app_name || vendor.display_name} />
                 <ConfigRow label="Primary Color" value={appConfig?.primary_color || '#2563eb'} isColor />
                 <ConfigRow label="Splash Color" value={appConfig?.splash_color || '#2563eb'} isColor />
-                <ConfigRow label="Icon URL" value={appConfig?.icon_url || 'Using default'} />
+                <ConfigRow
+                  label="Icon URL"
+                  value={appConfig?.icon_url || 'Using default'}
+                  isIconUrl={Boolean(appConfig?.icon_url)}
+                />
                 <ConfigRow
                   label="Bundle ID"
                   value={`com.kiterp.vendor.${appConfig?.bundle_id_suffix || vendor.slug.replace(/-/g, '')}`}
@@ -407,28 +432,56 @@ export default function VendorAppBuilds() {
   )
 }
 
+function formatIconUrlDisplay(url: string): string {
+  if (url.startsWith('data:image/')) {
+    const mime = url.slice(5, url.indexOf(';')) || 'image'
+    return `Embedded ${mime} (${Math.round(url.length / 1024)} KB)`
+  }
+  if (url.length > 48) {
+    return `${url.slice(0, 28)}…${url.slice(-12)}`
+  }
+  return url
+}
+
 function ConfigRow({
   label,
   value,
   isColor,
+  isIconUrl,
   mono,
 }: {
   label: string
   value: string
   isColor?: boolean
+  isIconUrl?: boolean
   mono?: boolean
 }) {
+  const displayValue = isIconUrl ? formatIconUrlDisplay(value) : value
+
   return (
-    <div className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className={`text-sm font-medium ${mono ? 'font-mono' : ''} flex items-center gap-2`}>
+    <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 last:border-0 min-w-0">
+      <span className="text-sm text-gray-500 shrink-0">{label}</span>
+      <span
+        className={`text-sm font-medium min-w-0 max-w-[70%] ${mono || isIconUrl ? 'font-mono' : ''} flex items-center justify-end gap-2`}
+        title={isIconUrl && value !== 'Using default' ? value : undefined}
+      >
         {isColor && (
           <span
-            className="inline-block w-5 h-5 rounded border"
+            className="inline-block w-5 h-5 rounded border shrink-0"
             style={{ backgroundColor: value }}
           />
         )}
-        {value}
+        {isIconUrl && value !== 'Using default' && (
+          <img
+            src={value}
+            alt=""
+            className="w-8 h-8 rounded border object-cover shrink-0 bg-gray-50"
+            onError={(e) => {
+              ;(e.target as HTMLImageElement).style.display = 'none'
+            }}
+          />
+        )}
+        <span className="truncate text-right">{displayValue}</span>
       </span>
     </div>
   )
