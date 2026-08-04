@@ -27,6 +27,8 @@ export type CatalogEditStickyBarProps = {
   backLabel?: string
   onBack: () => void
   title: string
+  /** Optional chip next to the title (e.g. product type). */
+  badge?: ReactNode
   status: string
   onStatusChange: (value: string) => void
   visibleControl: ReactNode
@@ -45,6 +47,7 @@ export function CatalogEditStickyBar({
   backLabel = 'Back',
   onBack,
   title,
+  badge,
   status,
   onStatusChange,
   visibleControl,
@@ -214,6 +217,7 @@ export function CatalogEditStickyBar({
             {backLabel}
           </Button>
           <h1 className="min-w-0 truncate text-base font-bold text-foreground sm:text-xl">{title}</h1>
+          {badge}
           {isEdit ? (
             <span className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">
               Editing

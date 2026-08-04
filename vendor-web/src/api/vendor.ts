@@ -2513,6 +2513,38 @@ export const vendorApi = {
     return response.data
   },
 
+  // ── Procurement: Subcontracting Orders ───────────────────────
+  listSubcontractingOrders: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/subcontracting', { params })
+    return response.data
+  },
+  createSubcontractingOrder: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/procurement/subcontracting', data)
+    return response.data
+  },
+  updateSubcontractingOrder: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/procurement/subcontracting/${id}`, data)
+    return response.data
+  },
+
+  // ── Procurement: Consignment Stock ────────────────────────────
+  listConsignmentStock: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/consignment-stock', { params })
+    return response.data
+  },
+  createConsignmentStock: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/procurement/consignment-stock', data)
+    return response.data
+  },
+  updateConsignmentStock: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/procurement/consignment-stock/${id}`, data)
+    return response.data
+  },
+  withdrawConsignmentStock: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/procurement/consignment-stock/${id}/withdraw`, data)
+    return response.data
+  },
+
   // ── Inventory ─────────────────────────────────────────────────
   inventoryStockIn: async (data: Record<string, unknown>) => {
     const response = await apiClient.post('/vendors/me/inventory/stock-in', data)

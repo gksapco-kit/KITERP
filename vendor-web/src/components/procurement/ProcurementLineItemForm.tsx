@@ -27,6 +27,7 @@ import {
   type ProcurementProductContext,
   normalizeUom,
 } from '@/lib/procurementProductContext'
+import { uomLabel } from '@/lib/uomOptions'
 
 interface ProductVariant {
   id: string
@@ -297,8 +298,11 @@ export function ProcurementLineItemForm({
         uom: normalizeUom(ctx.uom),
       }
       if (current.item_type !== 'consumption') {
-        patch.estimated_price = ctx.cost_price != null ? String(ctx.cost_price) : ''
-      }
+    // Seed purchase price from catalog only when the line has none yet
+    if (!String(current.estimated_price ?? '').trim() && ctx.cost_price != null) {
+      patch.estimated_price = String(ctx.cost_price)
+    }
+  }
       if (!current.plant_id && ctx.default_plant_id) {
         patch.plant_id = ctx.default_plant_id
       }
@@ -428,7 +432,7 @@ export function ProcurementLineItemForm({
           </span>
           <span className="text-xs text-gray-800 dark:text-gray-200 truncate flex-1">{summaryLabel}</span>
           <span className="text-[11px] text-gray-500 shrink-0 hidden sm:inline">
-            {item.quantity} {item.uom}
+            {item.quantity} {uomLabel(item.uom)}
             {showPrice && lineTotal > 0 && ` · ₹${lineTotal.toFixed(2)}`}
           </span>
         </button>
@@ -529,7 +533,9 @@ export function ProcurementLineItemForm({
             </FieldCell>
             <FieldCell label="Unit of Measure">
               {isCatalogLine && item.reference_id ? (
-                <ReadOnlyValue value={item.uom || '—'} />
+                <ReadOnlyValue
+                  value={contextLoading && !item.uom ? 'Loading…' : (uomLabel(item.uom) || item.uom || '—')}
+                />
               ) : (
                 <Input
                   value={item.uom}

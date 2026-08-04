@@ -38,14 +38,10 @@ import AccountActivity from '@/pages/dashboard/AccountActivity'
 import OrderDisputes from '@/pages/dashboard/OrderDisputes'
 import CareerApplications from '@/pages/dashboard/CareerApplications'
 import HrManagement from '@/pages/dashboard/HrManagement'
+import CrmManagement from '@/pages/dashboard/CrmManagement'
 import TableData from '@/pages/dashboard/TableData'
 import AllTemplates from '@/pages/dashboard/AllTemplates'
 import WebsiteAnalytics from '@/pages/dashboard/WebsiteAnalytics'
-import PlatformCrmDashboard from '@/pages/crm/index'
-import PlatformCrmLeads from '@/pages/crm/Leads'
-import PlatformCrmContacts from '@/pages/crm/Contacts'
-import PlatformCrmPipeline from '@/pages/crm/Pipeline'
-import PlatformCrmActivities from '@/pages/crm/Activities'
 
 // Business Front Pages
 import StorefrontHome from '@/pages/storefront/Home'
@@ -136,11 +132,8 @@ export const router = createBrowserRouter([
       { path: 'user-roles', element: <UserRoles /> },
       { path: 'account-activity', element: <AccountActivity /> },
       { path: 'disputes', element: <OrderDisputes /> },
-      { path: 'crm', element: <PlatformCrmDashboard /> },
-      { path: 'crm/leads', element: <PlatformCrmLeads /> },
-      { path: 'crm/contacts', element: <PlatformCrmContacts /> },
-      { path: 'crm/pipeline', element: <PlatformCrmPipeline /> },
-      { path: 'crm/activities', element: <PlatformCrmActivities /> },
+      { path: 'crm', element: <CrmManagement /> },
+      { path: 'crm/:section', element: <CrmManagement /> },
       { path: 'hr/careers', element: <Navigate to="/dashboard/hr/recruitment" replace /> },
       { path: 'hr/candidates', element: <Navigate to="/dashboard/hr/recruitment" replace /> },
       { path: 'hr', element: <HrManagement /> },

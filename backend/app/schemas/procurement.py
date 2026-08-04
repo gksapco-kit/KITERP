@@ -212,6 +212,8 @@ class PurchaseOrderCreate(BaseModel):
     items: List[PurchaseOrderItemCreate] = Field(..., min_length=1)
     expected_delivery_date: Optional[date] = None
     notes: Optional[str] = None
+    requisition_id: Optional[str] = None
+    pr_item_ids: Optional[List[str]] = None
 
 
 class PurchaseOrderUpdate(BaseModel):

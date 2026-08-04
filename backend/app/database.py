@@ -1842,6 +1842,14 @@ async def ensure_rental_schema() -> None:
         "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS timeline JSONB DEFAULT '[]'::jsonb",
         "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS sales_area_id UUID REFERENCES sales_area(id) ON DELETE SET NULL",
         "CREATE INDEX IF NOT EXISTS ix_rental_booking_sales_area ON rental_booking(sales_area_id)",
+        # Return / check-in tracking
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS quantity_returned NUMERIC(12,2)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS return_condition VARCHAR(20)",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS damage_charge NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS late_fee NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS deposit_refunded NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS return_notes TEXT",
     ]
     async with engine.begin() as conn:
         for s in stmts:

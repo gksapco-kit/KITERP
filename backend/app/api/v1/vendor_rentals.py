@@ -134,6 +134,23 @@ async def record_rental_payment(
     return await RentalService(db).record_payment(vendor_id, booking_id, body)
 
 
+@router.post("/bookings/{booking_id}/return")
+async def return_rental_booking(
+    booking_id: UUID,
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Record asset return (full or partial).
+
+    Body: quantity_returned, return_condition (good|damaged|missing),
+          damage_charge, return_notes
+    Late fee is computed automatically from daily_rate × days overdue.
+    """
+    return await RentalService(db).process_return(vendor_id, booking_id, body)
+
+
 @router.patch("/bookings/{booking_id}/delivery")
 async def update_rental_delivery(
     booking_id: UUID,

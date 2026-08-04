@@ -98,6 +98,9 @@ export const websiteApi = {
       )
       .then(r => r.data),
 
+  ensureRentalsPage: (siteId: string) =>
+    apiClient.post<WebsitePage>(`${base}/${siteId}/ensure-rentals-page`).then(r => r.data),
+
   // Pages
   listPages: (siteId: string) => apiClient.get<WebsitePage[]>(`${base}/${siteId}/pages`).then(r => r.data),
   createPage: (siteId: string, data: Partial<WebsitePage>) =>

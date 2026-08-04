@@ -17,9 +17,10 @@ import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
 import { ProductPurchaseActions } from '@/components/products/ProductPurchaseActions'
 import { ProductMediaWishlistOverlay } from '@/components/products/ProductMediaWishlistOverlay'
-import { isCombinationAvailable } from '@/lib/variantOptions'
+import { isCombinationAvailable, variantFlatOptionDescription, variantFlatOptionTitle } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
+import { formatUomDisplay } from '@/lib/uomDisplay'
 import { themeUi } from '@/lib/themeColors'
 
 type Tab = 'description' | 'specs' | 'shipping' | 'reviews'
@@ -50,6 +51,13 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
   const sf = displayFields
   const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price') && hasDisplayPrice
   const showVariants = isDisplayFieldEnabled(sf, 'variants') && hasVariants
+  const showUom = isDisplayFieldEnabled(sf, 'uom')
+  const displayUomLabel = showUom
+    ? formatUomDisplay(
+        selectedVariant?.uom_quantity ?? product.uom_quantity,
+        selectedVariant?.uom || product.uom,
+      )
+    : null
 
   const intervalLabel: Record<string, string> = {
     daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly',
@@ -231,7 +239,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                 </div>
               )}
 
-              {!variantValidation.valid && variantValidation.message ? (
+              {hasStructuredOptions && !variantValidation.valid && variantValidation.message ? (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
                   {variantValidation.message}
                 </p>
@@ -304,16 +312,30 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                   <div className="grid grid-cols-2 gap-2">
                     {activeVariants.map(v => {
                       const isSelected = selectedVariant?.id === v.id
+                      const showVPrice = hasStorefrontDisplayPrice(v.price, v.price_type)
+                      const title = variantFlatOptionTitle(v, product)
+                      const description = variantFlatOptionDescription(v, product)
+                      const vUomLabel = showUom ? formatUomDisplay(v.uom_quantity, v.uom || product.uom) : null
+                      const priceUomSuffix = vUomLabel && vUomLabel !== title ? vUomLabel : null
                       return (
                         <button key={v.id} onClick={() => setSelectedVariantId(v.id)}
                           className={`p-3 rounded-xl border-2 text-left transition-all ${
                             isSelected ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'
                           }`}>
-                          <p className="text-sm font-semibold text-gray-900">{v.name}</p>
-                          {hasStorefrontDisplayPrice(v.price, v.price_type) && (
-                            <p className="text-sm font-bold mt-0.5">{formatCurrency(v.price, v.currency)}</p>
+                          <p className="text-sm font-semibold text-gray-900">{title}</p>
+                          {description && (
+                            <p className="text-xs text-gray-500 mt-0.5">{description}</p>
                           )}
-                          {showCompare && hasStorefrontDisplayPrice(v.price, v.price_type) && (v.compare_at_price ?? 0) > v.price && (
+                          {showVPrice && (
+                            <p className="text-sm font-bold mt-0.5">
+                              {formatCurrency(v.price, v.currency)}
+                              {priceUomSuffix && <span className="text-xs font-normal text-gray-500 ml-0.5">/{priceUomSuffix}</span>}
+                            </p>
+                          )}
+                          {!showVPrice && !description && vUomLabel && vUomLabel !== title && (
+                            <p className="text-xs text-gray-500 mt-0.5">{vUomLabel}</p>
+                          )}
+                          {showCompare && showVPrice && (v.compare_at_price ?? 0) > v.price && (
                             <p className="text-xs text-gray-400 line-through">{formatCurrency(v.compare_at_price!, v.currency)}</p>
                           )}
                         </button>
@@ -451,6 +473,9 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
                         ? `/${subscriptionUom || 'unit'}`
                         : (intervalShort[subscriptionInterval] || `/${subscriptionInterval}`)}
                     </span>
+                  )}
+                  {!isSubscription && displayUomLabel && (
+                    <span className="text-sm font-normal text-gray-400 ml-1">/{displayUomLabel}</span>
                   )}
                 </span>
               </div>

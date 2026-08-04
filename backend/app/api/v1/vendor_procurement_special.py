@@ -5,17 +5,21 @@ from typing import Optional
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import JSONResponse
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.api.deps import get_current_vendor_id, get_current_vendor_user, require_permission
 from app.models.vendor_user import VendorUser
+from app.models.vendor_product import Product
 from app.models.procurement_special import (
     MaterialValuation, SubcontractingOrder, ConsignmentStock, ServiceEntrySheet,
 )
 from app.schemas.procurement_special import (
     MaterialValuationCreate, MaterialValuationUpdate,
     SubcontractingOrderCreate, SubcontractingOrderUpdate,
+    ConsignmentStockCreate, ConsignmentStockUpdate, ConsignmentWithdraw,
     ServiceEntrySheetCreate, ServiceEntrySheetUpdate,
 )
 from app.repositories.procurement_special_repo import (
@@ -36,6 +40,7 @@ def _mv_to_dict(v: MaterialValuation) -> dict:
         "id": str(v.id),
         "vendor_id": str(v.vendor_id),
         "product_id": str(v.product_id),
+        "product_name": v.product.name if v.product else None,
         "variant_id": str(v.variant_id) if v.variant_id else None,
         "plant_id": str(v.plant_id) if v.plant_id else None,
         "valuation_method": v.valuation_method,
@@ -59,15 +64,28 @@ async def list_material_valuation(
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = MaterialValuationRepository(db)
-    skip = (page - 1) * size
-    records, total = await repo.list_by_vendor(
-        vendor_id,
-        product_id=UUID(product_id) if product_id else None,
-        plant_id=UUID(plant_id) if plant_id else None,
-        skip=skip,
-        limit=size,
+    from sqlalchemy import func as sqlfunc
+
+    conditions = [MaterialValuation.vendor_id == vendor_id]
+    if product_id:
+        conditions.append(MaterialValuation.product_id == UUID(product_id))
+    if plant_id:
+        conditions.append(MaterialValuation.plant_id == UUID(plant_id))
+
+    total = (await db.execute(
+        select(sqlfunc.count()).select_from(MaterialValuation).where(and_(*conditions))
+    )).scalar_one()
+
+    result = await db.execute(
+        select(MaterialValuation)
+        .options(selectinload(MaterialValuation.product))
+        .where(and_(*conditions))
+        .order_by(MaterialValuation.updated_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
     )
+    records = list(result.scalars().all())
+
     return JSONResponse(content={
         "items": [_mv_to_dict(r) for r in records],
         "total": total,
@@ -237,16 +255,28 @@ def _cs_to_dict(c: ConsignmentStock) -> dict:
         "id": str(c.id),
         "vendor_id": str(c.vendor_id),
         "supplier_id": str(c.supplier_id),
+        "supplier_name": c.supplier.name if c.supplier else None,
         "product_id": str(c.product_id),
+        "product_name": c.product.name if c.product else None,
         "variant_id": str(c.variant_id) if c.variant_id else None,
         "plant_id": str(c.plant_id) if c.plant_id else None,
         "storage_location_id": str(c.storage_location_id) if c.storage_location_id else None,
+        "purchase_order_id": str(c.purchase_order_id) if c.purchase_order_id else None,
+        "po_number": c.purchase_order.po_number if c.purchase_order else None,
         "quantity_available": _f(c.quantity_available),
         "quantity_withdrawn": _f(c.quantity_withdrawn),
         "unit_price": _f(c.unit_price),
         "currency": c.currency,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
     }
+
+
+def _cs_load_options():
+    return (
+        selectinload(ConsignmentStock.supplier),
+        selectinload(ConsignmentStock.product),
+        selectinload(ConsignmentStock.purchase_order),
+    )
 
 
 @router.get("/consignment-stock")
@@ -258,21 +288,160 @@ async def list_consignment_stock(
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = ConsignmentStockRepository(db)
-    skip = (page - 1) * size
-    stocks, total = await repo.list_by_vendor(
-        vendor_id,
-        supplier_id=UUID(supplier_id) if supplier_id else None,
-        plant_id=UUID(plant_id) if plant_id else None,
-        skip=skip,
-        limit=size,
+    from sqlalchemy import func as sqlfunc
+    conditions = [ConsignmentStock.vendor_id == vendor_id]
+    if supplier_id:
+        conditions.append(ConsignmentStock.supplier_id == UUID(supplier_id))
+    if plant_id:
+        conditions.append(ConsignmentStock.plant_id == UUID(plant_id))
+
+    total = (await db.execute(
+        select(sqlfunc.count()).select_from(ConsignmentStock).where(and_(*conditions))
+    )).scalar_one()
+
+    result = await db.execute(
+        select(ConsignmentStock)
+        .options(*_cs_load_options())
+        .where(and_(*conditions))
+        .order_by(ConsignmentStock.updated_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
     )
+    stocks = list(result.scalars().all())
+
     return JSONResponse(content={
         "items": [_cs_to_dict(c) for c in stocks],
         "total": total,
         "page": page,
         "size": size,
     })
+
+
+@router.post("/consignment-stock", status_code=status.HTTP_201_CREATED)
+async def create_consignment_stock(
+    data: ConsignmentStockCreate,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create or upsert a consignment stock record for a supplier+product combination."""
+    repo = ConsignmentStockRepository(db)
+    existing = await repo.get_by_supplier_and_product(
+        vendor_id,
+        UUID(data.supplier_id),
+        UUID(data.product_id),
+        plant_id=UUID(data.plant_id) if data.plant_id else None,
+    )
+    if existing:
+        # Upsert: add quantity to existing record
+        from decimal import Decimal
+        existing.quantity_available = (existing.quantity_available or 0) + Decimal(str(data.quantity_available))
+        if data.unit_price:
+            existing.unit_price = data.unit_price
+        if data.currency:
+            existing.currency = data.currency
+        if data.purchase_order_id:
+            existing.purchase_order_id = UUID(data.purchase_order_id)
+        await db.commit()
+        result = await db.execute(
+            select(ConsignmentStock)
+            .options(*_cs_load_options())
+            .where(ConsignmentStock.id == existing.id)
+        )
+        return JSONResponse(content=_cs_to_dict(result.scalar_one()))
+
+    record = ConsignmentStock(
+        vendor_id=vendor_id,
+        supplier_id=UUID(data.supplier_id),
+        product_id=UUID(data.product_id),
+        variant_id=UUID(data.variant_id) if data.variant_id else None,
+        plant_id=UUID(data.plant_id) if data.plant_id else None,
+        storage_location_id=UUID(data.storage_location_id) if data.storage_location_id else None,
+        purchase_order_id=UUID(data.purchase_order_id) if data.purchase_order_id else None,
+        quantity_available=data.quantity_available,
+        quantity_withdrawn=0,
+        unit_price=data.unit_price,
+        currency=data.currency or "INR",
+    )
+    db.add(record)
+    await db.commit()
+    result = await db.execute(
+        select(ConsignmentStock)
+        .options(*_cs_load_options())
+        .where(ConsignmentStock.id == record.id)
+    )
+    return JSONResponse(content=_cs_to_dict(result.scalar_one()), status_code=201)
+
+
+@router.put("/consignment-stock/{cs_id}")
+async def update_consignment_stock(
+    cs_id: UUID,
+    data: ConsignmentStockUpdate,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ConsignmentStock)
+        .options(*_cs_load_options())
+        .where(ConsignmentStock.id == cs_id, ConsignmentStock.vendor_id == vendor_id)
+    )
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=404, detail="Consignment stock record not found")
+
+    for field in ["unit_price", "currency", "plant_id", "storage_location_id"]:
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(record, field, val)
+    if data.quantity_available is not None:
+        record.quantity_available = data.quantity_available
+    if data.purchase_order_id is not None:
+        record.purchase_order_id = UUID(data.purchase_order_id) if data.purchase_order_id else None
+
+    await db.commit()
+    result = await db.execute(
+        select(ConsignmentStock)
+        .options(*_cs_load_options())
+        .where(ConsignmentStock.id == cs_id)
+    )
+    return JSONResponse(content=_cs_to_dict(result.scalar_one()))
+
+
+@router.post("/consignment-stock/{cs_id}/withdraw")
+async def withdraw_consignment_stock(
+    cs_id: UUID,
+    data: ConsignmentWithdraw,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Withdraw (consume) quantity from consignment stock. Liability transfers on withdrawal."""
+    from decimal import Decimal
+    result = await db.execute(
+        select(ConsignmentStock)
+        .options(*_cs_load_options())
+        .where(ConsignmentStock.id == cs_id, ConsignmentStock.vendor_id == vendor_id)
+    )
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=404, detail="Consignment stock record not found")
+
+    qty = Decimal(str(data.quantity))
+    available = record.quantity_available or Decimal("0")
+    if qty > available:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Withdrawal quantity {float(qty)} exceeds available stock {float(available)}",
+        )
+
+    record.quantity_available = available - qty
+    record.quantity_withdrawn = (record.quantity_withdrawn or Decimal("0")) + qty
+
+    await db.commit()
+    result = await db.execute(
+        select(ConsignmentStock)
+        .options(*_cs_load_options())
+        .where(ConsignmentStock.id == cs_id)
+    )
+    return JSONResponse(content=_cs_to_dict(result.scalar_one()))
 
 
 # ── Service Entry Sheets ──────────────────────────────────────────

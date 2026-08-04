@@ -9,11 +9,11 @@ export const REQUISITION_TYPES: { value: RequisitionType; label: string }[] = [
 ]
 
 export const DEFAULT_UOM: Record<RequisitionType, string> = {
-  product: 'PCS',
-  service: 'HR',
-  asset: 'EA',
-  consumption: 'PCS',
-  other: 'EA',
+  product: 'piece',
+  service: 'hour',
+  asset: 'unit',
+  consumption: 'piece',
+  other: 'unit',
 }
 
 export const UOM_OPTIONS: Record<RequisitionType, { value: string; label: string }[]> = {

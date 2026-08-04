@@ -8,6 +8,7 @@ export const PRODUCT_DISPLAY_FIELD_DEFS = [
   { key: 'subcategory', label: 'Subcategory' },
   { key: 'tags', label: 'Tags' },
   { key: 'compare_at_price', label: 'Compare-at Price / M.R.P.' },
+  { key: 'uom', label: 'Unit of Measure' },
   { key: 'offer_label', label: 'Offer / Sale Label' },
   { key: 'new_arrival_badge', label: 'New Arrival Badge' },
   { key: 'best_seller_badge', label: 'Best Seller Badge' },

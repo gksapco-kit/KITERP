@@ -58,6 +58,8 @@ export function ProductPurchaseActions({
   hidePurchaseControls = false,
 }: Props) {
   const [qtyError, setQtyError] = useState<string | undefined>()
+  const [qtyDraft, setQtyDraft] = useState(String(qty))
+  const [qtyFocused, setQtyFocused] = useState(false)
   const hasStockCap = maxQty != null
   const qtyMax = hasStockCap ? maxQty : 99
   const atMaxQty = hasStockCap && qty >= qtyMax
@@ -70,12 +72,41 @@ export function ProductPurchaseActions({
     setQtyError(undefined)
   }, [qty, maxQty, onHandQty, minQty])
 
+  useEffect(() => {
+    if (!qtyFocused) setQtyDraft(String(qty))
+  }, [qty, qtyFocused])
+
   const stockCapMessage = (): string => {
     if (maxQty === 0) return 'Maximum stock reached — this item is unavailable to add.'
     if (onHandQty != null) {
       return `Maximum stock reached — only ${onHandQty} available on hand.`
     }
     return 'Maximum stock reached — you cannot add more of this item.'
+  }
+
+  const applyQty = (next: number): boolean => {
+    const clampedMin = Math.max(minQty, Math.floor(next))
+    if (validateQtyChange) {
+      const check = validateQtyChange(clampedMin)
+      if (!check.ok) {
+        setQtyError(check.message)
+        if (hasStockCap && clampedMin > qtyMax && qtyMax >= minQty) {
+          setQty(qtyMax)
+          setQtyDraft(String(qtyMax))
+          return true
+        }
+        return false
+      }
+    } else if (hasStockCap && clampedMin > qtyMax) {
+      setQtyError(stockCapMessage())
+      setQty(Math.max(minQty, qtyMax))
+      setQtyDraft(String(Math.max(minQty, qtyMax)))
+      return true
+    }
+    setQtyError(undefined)
+    setQty(clampedMin)
+    setQtyDraft(String(clampedMin))
+    return true
   }
 
   const handleDecrease = () => {
@@ -99,6 +130,30 @@ export function ProductPurchaseActions({
     setQty(next)
   }
 
+  const handleQtyInputChange = (raw: string) => {
+    if (raw === '' || raw === '-') {
+      setQtyDraft(raw)
+      return
+    }
+    if (!/^\d+$/.test(raw)) return
+    setQtyDraft(raw)
+    const parsed = Number(raw)
+    if (!Number.isFinite(parsed)) return
+    applyQty(parsed)
+  }
+
+  const handleQtyBlur = () => {
+    setQtyFocused(false)
+    const parsed = Number(qtyDraft)
+    if (!Number.isFinite(parsed) || qtyDraft.trim() === '') {
+      setQtyDraft(String(qty))
+      return
+    }
+    if (!applyQty(parsed)) {
+      setQtyDraft(String(qty))
+    }
+  }
+
   const visibleQtyError =
     qtyError ??
     (atMaxQty && hasStockCap ? stockCapMessage() : undefined)
@@ -120,9 +175,23 @@ export function ProductPurchaseActions({
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="flex h-11 min-w-[3rem] items-center justify-center border-x border-gray-200 bg-gray-50 px-3 text-sm font-semibold tabular-nums">
-                {qty}
-              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                aria-label="Quantity"
+                value={qtyDraft}
+                onFocus={() => setQtyFocused(true)}
+                onBlur={handleQtyBlur}
+                onChange={(e) => handleQtyInputChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur()
+                  }
+                }}
+                disabled={outOfStock}
+                className="h-11 w-14 border-x border-gray-200 bg-gray-50 px-1 text-center text-sm font-semibold tabular-nums text-gray-900 outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-500 disabled:opacity-40"
+              />
               <button
                 type="button"
                 aria-label="Increase quantity"

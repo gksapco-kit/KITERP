@@ -209,7 +209,7 @@ export interface WebsitePage {
   site_id: string
   title: string
   slug: string
-  page_type: 'home' | 'about' | 'services' | 'contact' | 'blog' | 'portfolio' | 'pricing' | 'custom' | 'landing' | 'product'
+  page_type: 'home' | 'about' | 'services' | 'contact' | 'blog' | 'portfolio' | 'pricing' | 'rentals' | 'custom' | 'landing' | 'product'
   seo_title: string | null
   seo_description: string | null
   og_image_url: string | null

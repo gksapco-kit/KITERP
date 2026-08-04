@@ -96,6 +96,8 @@ export const vendorKeys = {
   goodsMovements: (params?: Record<string, unknown>) => [...vendorKeys.all, 'goods-movements', params] as const,
   materialValuation: (params?: Record<string, unknown>) => [...vendorKeys.all, 'material-valuation', params] as const,
   serviceEntrySheets: (params?: Record<string, unknown>) => [...vendorKeys.all, 'service-entry-sheets', params] as const,
+  subcontractingOrders: (params?: Record<string, unknown>) => [...vendorKeys.all, 'subcontracting-orders', params] as const,
+  consignmentStock: (params?: Record<string, unknown>) => [...vendorKeys.all, 'consignment-stock', params] as const,
 }
 
 export function useMyVendor() {
@@ -1237,7 +1239,12 @@ export function useCreatePurchaseOrder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createPurchaseOrder(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] }); toast.success('Purchase order created!') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'requisition'] })
+      toast.success('Purchase order created!')
+    },
     onError: apiError('Could not create purchase order — verify supplier and line items'),
   })
 }
@@ -1551,6 +1558,59 @@ export function useApproveServiceEntrySheet() {
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.approveServiceEntrySheet(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success('Decision saved') },
     onError: apiError('Could not process approval'),
+  })
+}
+
+// ── Procurement: Subcontracting Orders ───────────────────────────
+export function useSubcontractingOrders(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.subcontractingOrders(params), queryFn: () => vendorApi.listSubcontractingOrders(params) })
+}
+export function useCreateSubcontractingOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createSubcontractingOrder(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'subcontracting-orders'] }); toast.success('Subcontracting order created') },
+    onError: apiError('Could not create subcontracting order'),
+  })
+}
+export function useUpdateSubcontractingOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateSubcontractingOrder(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'subcontracting-orders'] }); toast.success('Subcontracting order updated') },
+    onError: apiError('Could not update subcontracting order'),
+  })
+}
+
+// ── Procurement: Consignment Stock ────────────────────────────────
+export function useConsignmentStock(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.consignmentStock(params), queryFn: () => vendorApi.listConsignmentStock(params) })
+}
+
+export function useCreateConsignmentStock() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createConsignmentStock(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'consignment-stock'] }); toast.success('Consignment stock record created') },
+    onError: apiError('Could not create consignment stock'),
+  })
+}
+
+export function useUpdateConsignmentStock() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateConsignmentStock(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'consignment-stock'] }); toast.success('Consignment stock updated') },
+    onError: apiError('Could not update consignment stock'),
+  })
+}
+
+export function useWithdrawConsignmentStock() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.withdrawConsignmentStock(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'consignment-stock'] }); toast.success('Withdrawal recorded') },
+    onError: apiError('Could not record withdrawal'),
   })
 }
 

@@ -42,6 +42,8 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/system/social-links': 'website-management',
   '/blog': 'website-management',
   '/queries': 'my-kit',
+  '/purchase-orders': 'procurement',
+  '/procurement/goods': 'inventory',
   '/system/messages': 'system',
   '/crm/integrations': 'system',
   '/team': 'system',
@@ -63,11 +65,13 @@ const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/roles': '/team',
   '/system/upi-checkout': '/roles',
   '/system/assets/images': '/system/upi-checkout',
+  '/procurement/goods': '/storage-locations',
 }
 
 /** When pinning, insert before this sibling route (wins over INSERT_AFTER when both resolve). */
 const NAV_PINNED_INSERT_BEFORE: Record<string, string> = {
   '/queries': '/relationship-manager',
+  '/purchase-orders': '/procurement/requisitions',
 }
 
 export type NavOrderScope = {

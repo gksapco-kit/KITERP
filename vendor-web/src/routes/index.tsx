@@ -70,7 +70,9 @@ import PurchaseRequisitionsPage from '@/pages/procurement/PurchaseRequisitions'
 import SourcingSetupPage from '@/pages/procurement/SourcingSetup'
 import VendorInvoicesAPPage from '@/pages/procurement/VendorInvoicesAP'
 import GoodsManagementPage from '@/pages/procurement/GoodsManagement'
+import MaterialValuationPage from '@/pages/inventory/MaterialValuation'
 import SpecialProcurementPage from '@/pages/procurement/SpecialProcurement'
+import ProcurementFieldConfigPage from '@/pages/procurement/FieldConfig'
 import CreditDebitMemos from '@/pages/finance/CreditDebitMemos'
 import ProductionOrdersPage from '@/pages/production/index'
 import ProductionOrderDetailPage from '@/pages/production/OrderDetail'
@@ -372,7 +374,9 @@ export const router = createBrowserRouter([
       { path: 'procurement/sourcing', element: <SourcingSetupPage /> },
       { path: 'procurement/vendor-invoices', element: <VendorInvoicesAPPage /> },
       { path: 'procurement/goods', element: <GoodsManagementPage /> },
+      { path: 'inventory/material-valuation', element: <MaterialValuationPage /> },
       { path: 'procurement/special', element: <SpecialProcurementPage /> },
+      { path: 'procurement/configure', element: <ProcurementFieldConfigPage /> },
       { path: 'production', element: <ProductionOrdersPage /> },
       { path: 'production/orders/:orderId', element: <ProductionOrderDetailPage /> },
       { path: 'production/schedule', element: <ProductionSchedulePage /> },

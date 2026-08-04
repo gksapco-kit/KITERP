@@ -5,7 +5,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
@@ -19,6 +20,8 @@ from app.services.vendor_service import VendorService
 from app.services.media_upload import delete_stored_file
 
 router = APIRouter(dependencies=[Depends(require_permission("products.view"))])
+
+CATALOGUE_ITEM_LIMIT = 100
 
 
 def _slugify(name: str) -> str:
@@ -46,6 +49,68 @@ def _category_to_dict(c: VendorCategory) -> dict:
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
     }
+
+
+def _collect_catalogue_match_tokens(
+    category: VendorCategory,
+    all_cats: list[VendorCategory],
+) -> list[str]:
+    """Names/slugs for this category and all descendants.
+
+    Products/services store the root name in ``category`` and the remaining
+    path (e.g. ``Child / Grandchild``) in ``subcategory``.
+    """
+    by_parent: dict[Optional[UUID], list[VendorCategory]] = {}
+    for c in all_cats:
+        by_parent.setdefault(c.parent_id, []).append(c)
+
+    tokens: list[str] = []
+    seen: set[str] = set()
+
+    def add(value: Optional[str]) -> None:
+        raw = (value or "").strip()
+        if not raw:
+            return
+        key = raw.lower()
+        if key in seen:
+            return
+        seen.add(key)
+        tokens.append(raw)
+
+    def walk(node: VendorCategory) -> None:
+        add(node.name)
+        add(node.slug)
+        for child in by_parent.get(node.id, []):
+            walk(child)
+
+    walk(category)
+    return tokens
+
+
+def _catalogue_assignment_filter(category_col, subcategory_col, tokens: list[str]):
+    """Match assigned catalog items by category name or subcategory path segment."""
+    clauses = []
+    for tok in tokens:
+        t = tok.strip()
+        if not t:
+            continue
+        lower = t.lower()
+        clauses.append(func.lower(category_col) == lower)
+        clauses.append(func.lower(subcategory_col) == lower)
+        # Nested path stored as "Child / Grandchild"
+        clauses.append(subcategory_col.ilike(f"% / {t}"))
+        clauses.append(subcategory_col.ilike(f"{t} / %"))
+        clauses.append(subcategory_col.ilike(f"% / {t} / %"))
+    return or_(*clauses) if clauses else None
+
+
+def _product_catalogue_image_url(product: Product) -> Optional[str]:
+    images = list(product.images or [])
+    if not images:
+        return None
+    primary = next((img for img in images if getattr(img, "is_primary", False)), None)
+    chosen = primary or images[0]
+    return getattr(chosen, "url", None)
 
 
 def _tree_node_to_dict(node: dict) -> dict:
@@ -124,42 +189,56 @@ async def get_category_catalogues(
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
 
-    # Collect this category + all its children slugs for matching
-    slugs = [category.slug, category.name]
-    children = await repo.list_by_vendor(vendor_id, parent_id=str(category_id))
-    for ch in children:
-        slugs.extend([ch.slug, ch.name])
+    all_cats = await repo.list_all_flat(vendor_id)
+    tokens = _collect_catalogue_match_tokens(category, all_cats)
+    assignment = _catalogue_assignment_filter(Product.category, Product.subcategory, tokens)
+    service_assignment = _catalogue_assignment_filter(
+        Service.category, Service.subcategory, tokens,
+    )
 
     products_list = []
     services_list = []
 
-    if category.applies_to in ("product", "both"):
+    if category.applies_to in ("product", "both") and assignment is not None:
         result = await db.execute(
-            select(Product).where(
-                Product.vendor_id == vendor_id,
-                Product.category.in_(slugs),
-            ).limit(100)
+            select(Product)
+            .options(selectinload(Product.images))
+            .where(Product.vendor_id == vendor_id, assignment)
+            .order_by(Product.name)
+            .limit(CATALOGUE_ITEM_LIMIT)
         )
         products_list = [
-            {"id": str(p.id), "name": p.name, "slug": p.slug, "category": p.category,
-             "subcategory": p.subcategory, "price": float(p.price or 0),
-             "image_url": (p.images or [{}])[0].get("url") if p.images else None,
-             "status": p.status}
+            {
+                "id": str(p.id),
+                "name": p.name,
+                "slug": p.slug,
+                "category": p.category,
+                "subcategory": p.subcategory,
+                "price": float(p.price or 0),
+                "image_url": _product_catalogue_image_url(p),
+                "status": p.status,
+            }
             for p in result.scalars().all()
         ]
 
-    if category.applies_to in ("service", "both"):
+    if category.applies_to in ("service", "both") and service_assignment is not None:
         result = await db.execute(
-            select(Service).where(
-                Service.vendor_id == vendor_id,
-                Service.category.in_(slugs),
-            ).limit(100)
+            select(Service)
+            .where(Service.vendor_id == vendor_id, service_assignment)
+            .order_by(Service.name)
+            .limit(CATALOGUE_ITEM_LIMIT)
         )
         services_list = [
-            {"id": str(s.id), "name": s.name, "slug": s.slug, "category": s.category,
-             "subcategory": s.subcategory, "price": float(s.price or 0),
-             "image_url": (s.images or [{}])[0].get("url") if s.images else None,
-             "status": s.status}
+            {
+                "id": str(s.id),
+                "name": s.name,
+                "slug": s.slug,
+                "category": s.category,
+                "subcategory": s.subcategory,
+                "price": float(s.price or 0),
+                "image_url": s.image_url,
+                "status": s.status,
+            }
             for s in result.scalars().all()
         ]
 

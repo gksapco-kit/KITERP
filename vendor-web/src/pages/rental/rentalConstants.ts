@@ -320,6 +320,14 @@ export type RentalBooking = {
   delivered_at?: string
   delivery_notes?: string
   delivery_address?: string
+  // Return tracking
+  returned_at?: string | null
+  quantity_returned?: number | null
+  return_condition?: string | null
+  damage_charge?: number
+  late_fee?: number
+  deposit_refunded?: number
+  return_notes?: string | null
   timeline?: Array<{ event: string; detail?: string; at?: string }>
   notes?: string
 }

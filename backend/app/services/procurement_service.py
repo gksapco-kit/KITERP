@@ -13,6 +13,7 @@ from app.models.procurement import (
     Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderReceipt,
 )
 from app.models.vendor_product import Product
+from app.models.procurement_special import MaterialValuation
 from app.services.inventory_service import InventoryService
 
 log = logging.getLogger(__name__)
@@ -228,6 +229,13 @@ class PurchaseOrderService:
 
         total = round(subtotal, 2)
 
+        requisition_id = None
+        if data.get("requisition_id"):
+            try:
+                requisition_id = UUID(str(data["requisition_id"]))
+            except (TypeError, ValueError):
+                requisition_id = None
+
         po = PurchaseOrder(
             vendor_id=vendor_id,
             supplier_id=UUID(data["supplier_id"]),
@@ -239,12 +247,85 @@ class PurchaseOrderService:
             tax_amount=0,
             total=total,
             created_by=created_by,
+            requisition_id=requisition_id,
             items=po_items,
         )
         self.db.add(po)
+        await self.db.flush()
+
+        if requisition_id:
+            await self._mark_requisition_converted(
+                vendor_id=vendor_id,
+                requisition_id=requisition_id,
+                purchase_order_id=po.id,
+                pr_item_ids=data.get("pr_item_ids") or [],
+                po_items=data.get("items") or [],
+            )
+
         await self.db.commit()
 
         return await self._get(vendor_id, po.id)
+
+    async def _mark_requisition_converted(
+        self,
+        vendor_id: UUID,
+        requisition_id: UUID,
+        purchase_order_id: UUID,
+        pr_item_ids: list,
+        po_items: list,
+    ) -> None:
+        """Link converted PR lines to the new PO and update PR status."""
+        from app.models.procurement_requisition import PurchaseRequisition, PurchaseRequisitionItem
+
+        result = await self.db.execute(
+            select(PurchaseRequisition)
+            .options(selectinload(PurchaseRequisition.items))
+            .where(
+                PurchaseRequisition.id == requisition_id,
+                PurchaseRequisition.vendor_id == vendor_id,
+            )
+        )
+        pr = result.scalar_one_or_none()
+        if not pr:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Purchase requisition not found",
+            )
+        if pr.status not in ("open", "approved", "partially_converted"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot convert a {pr.status} requisition",
+            )
+
+        selected_ids = {str(x) for x in (pr_item_ids or []) if x}
+        # Fall back: match unconverted PR lines by product/service id from PO items
+        po_product_ids = {
+            str(i.get("product_id")) for i in po_items if i.get("product_id")
+        }
+
+        for item in pr.items or []:
+            item_id = str(item.id)
+            catalog_id = str(item.product_id or item.service_id or "")
+            should_convert = (
+                item_id in selected_ids
+                if selected_ids
+                else (catalog_id in po_product_ids and not item.is_converted)
+            )
+            if not should_convert:
+                continue
+
+            qty = float(item.quantity or 0)
+            item.is_converted = True
+            item.quantity_ordered = qty
+            item.purchase_order_id = purchase_order_id
+
+        remaining = [i for i in (pr.items or []) if not i.is_converted]
+        pr.status = "partially_converted" if remaining else "converted"
+        pr.audit_log = (pr.audit_log or []) + [{
+            "action": "converted_to_po",
+            "purchase_order_id": str(purchase_order_id),
+            "at": datetime.now(timezone.utc).isoformat(),
+        }]
 
     # ── Update (draft only) ──────────────────────────────────────
 
@@ -432,6 +513,16 @@ class PurchaseOrderService:
                     )
                     receipt_items_log[-1]["batch_managed"] = True
                     receipt_items_log[-1]["qc_required_on_receipt"] = qc_req
+
+                # Upsert MaterialValuation for this product/plant
+                await self._upsert_material_valuation(
+                    vendor_id=vendor_id,
+                    product_id=po_item.product_id,
+                    variant_id=po_item.variant_id,
+                    plant_id=plant_id,
+                    qty_received=float(entry["quantity"]),
+                    unit_cost=float(po_item.unit_cost) if po_item.unit_cost else 0,
+                )
             except HTTPException:
                 raise
             except ValueError as e:
@@ -491,6 +582,71 @@ class PurchaseOrderService:
 
         await self.db.commit()
         return await self._get(vendor_id, po_id, load_receipts=True)
+
+    # ── Material Valuation Upsert (called on every goods receipt) ──
+
+    async def _upsert_material_valuation(
+        self,
+        vendor_id: UUID,
+        product_id: UUID,
+        variant_id: UUID | None,
+        plant_id: UUID | None,
+        qty_received: float,
+        unit_cost: float,
+    ) -> None:
+        """
+        Create or update the MaterialValuation record for this product/plant.
+        Uses Moving Average Price (MAP) formula by default.
+        """
+        from decimal import Decimal
+
+        try:
+            result = await self.db.execute(
+                select(MaterialValuation).where(
+                    MaterialValuation.vendor_id == vendor_id,
+                    MaterialValuation.product_id == product_id,
+                    (
+                        MaterialValuation.variant_id == variant_id
+                        if variant_id else MaterialValuation.variant_id.is_(None)
+                    ),
+                    (
+                        MaterialValuation.plant_id == plant_id
+                        if plant_id else MaterialValuation.plant_id.is_(None)
+                    ),
+                ).limit(1)
+            )
+            mv = result.scalar_one_or_none()
+
+            if mv is None:
+                mv = MaterialValuation(
+                    vendor_id=vendor_id,
+                    product_id=product_id,
+                    variant_id=variant_id,
+                    plant_id=plant_id,
+                    valuation_method="moving_average",
+                    currency="INR",
+                    moving_avg_price=unit_cost,
+                    standard_price=0,
+                    total_stock=qty_received,
+                    total_value=qty_received * unit_cost,
+                    last_po_price=unit_cost,
+                    last_purchase_date=date.today(),
+                )
+                self.db.add(mv)
+            else:
+                cur_stock = float(mv.total_stock or 0)
+                cur_value = float(mv.total_value or 0)
+                new_stock = cur_stock + qty_received
+                new_value = cur_value + qty_received * unit_cost
+                new_map = (new_value / new_stock) if new_stock > 0 else unit_cost
+
+                mv.total_stock = Decimal(str(new_stock))
+                mv.total_value = Decimal(str(new_value))
+                mv.moving_avg_price = Decimal(str(round(new_map, 4)))
+                mv.last_po_price = Decimal(str(unit_cost))
+                mv.last_purchase_date = date.today()
+        except Exception as e:
+            log.warning("Could not upsert MaterialValuation for product %s: %s", product_id, e)
 
     # ── Close ────────────────────────────────────────────────────
 

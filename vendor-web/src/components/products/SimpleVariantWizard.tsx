@@ -42,6 +42,7 @@ import {
 import { VariantManagementPanel } from '@/components/products/VariantManagementPanel'
 import { SimpleCompatibilityRules } from '@/components/products/SimpleCompatibilityRules'
 import { BusinessFrontProductMock } from '@/components/products/BusinessFrontProductMock'
+import { isPristineDefaultVariant } from '@/lib/productVariants'
 
 interface Props {
   productId: string
@@ -1237,8 +1238,24 @@ function CreateVariantsStep({
 
   const generateMutation = useMutation({
     mutationFn: () => vendorApi.productGenerateVariants(productId, { mode: 'all' }),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
+      // Drop the untouched default "Variant 1" seed once real option combos exist
+      if (result.created_count > 0) {
+        try {
+          const list = await vendorApi.productListVariants(productId)
+          const leftoverIds = list.items
+            .filter(v => isPristineDefaultVariant(v, false, { allowPersisted: true }))
+            .map(v => v.id)
+          if (leftoverIds.length > 0) {
+            await vendorApi.productBulkDeleteVariants(productId, leftoverIds)
+          }
+        } catch {
+          /* best-effort cleanup */
+        }
+      }
       qc.invalidateQueries({ queryKey: previewKey })
+      qc.invalidateQueries({ queryKey: ['product-variants', productId] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'product', productId] })
       toast.success(
         `${result.created_count} variant${result.created_count === 1 ? '' : 's'} created`
         + (result.skipped_existing_count ? ` — ${result.skipped_existing_count} already existed` : ''),

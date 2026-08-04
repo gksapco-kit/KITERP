@@ -11,12 +11,13 @@ import { modalWidthMd } from '@/lib/modalUi'
 import {
   PoDestinationFields,
   emptyPoDestination,
+  poDestinationFromLine,
   poDestinationToPayload,
   type PoDestinationValue,
 } from '@/components/procurement/PoDestinationFields'
 import {
   usePurchaseOrders, useCreatePurchaseOrder, useSuppliers, useProducts, useServices,
-  useCreateSupplier, useUpdatePurchaseOrder,
+  useCreateSupplier, useUpdatePurchaseOrder, useRequisitions,
 } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useQuery } from '@tanstack/react-query'
@@ -25,7 +26,7 @@ import { cn, formatDate, formatCurrency } from '@/lib/utils'
 import { dedupeSuppliers, findExistingSupplier } from '@/lib/supplierUtils'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { ResizableTable } from '@/components/table/ResizableTable'
-import type { Product, Service, PurchaseOrder } from '@/types'
+import type { Product, Service, PurchaseOrder, PurchaseRequisition } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { TablePagination } from '@/components/table/TablePagination'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
@@ -39,6 +40,9 @@ import {
   Loader2, Plus, X, ClipboardList, Trash2, Palette,
   ScanLine, Package, AlertCircle, UserPlus, Building2, ExternalLink,
 } from 'lucide-react'
+import { PO_FROM_PR_KEY, buildPrToPoPrefill, type PrToPoPrefill } from '@/lib/prToPoPrefill'
+import { useGuardedClose } from '@/hooks/useGuardedClose'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
 // Supplier created on the full-page form is stored here so CreatePOModal can auto-select it
 const PO_PENDING_SUPPLIER_KEY = 'po_pending_supplier'
@@ -75,9 +79,22 @@ export default function PurchaseOrdersPage() {
   const [barcodePrefill, setBarcodePrefill] = useState<BarcodePrefill | undefined>()
   // Supplier pre-select: pick up supplier created on the full-page master data form
   const [pendingSupplier, setPendingSupplier] = useState<{ id: string; name: string } | undefined>()
+  const [prPrefill, setPrPrefill] = useState<PrToPoPrefill | undefined>()
 
-  // On mount: check if we returned from the supplier creation page
+  // On mount: check if we returned from the supplier creation page or PR convert
   useEffect(() => {
+    try {
+      const rawPr = sessionStorage.getItem(PO_FROM_PR_KEY)
+      if (rawPr) {
+        const parsed = JSON.parse(rawPr) as PrToPoPrefill
+        sessionStorage.removeItem(PO_FROM_PR_KEY)
+        if (parsed?.requisitionId && parsed.items?.length) {
+          setPrPrefill(parsed)
+          setShowCreate(true)
+        }
+      }
+    } catch { /* ignore */ }
+
     try {
       const raw = sessionStorage.getItem(PO_PENDING_SUPPLIER_KEY)
       if (raw) {
@@ -352,7 +369,13 @@ export default function PurchaseOrdersPage() {
         <CreatePOModal
           barcodePrefill={barcodePrefill}
           pendingSupplier={pendingSupplier}
-          onClose={() => { setShowCreate(false); setBarcodePrefill(undefined); setPendingSupplier(undefined) }}
+          prPrefill={prPrefill}
+          onClose={() => {
+            setShowCreate(false)
+            setBarcodePrefill(undefined)
+            setPendingSupplier(undefined)
+            setPrPrefill(undefined)
+          }}
         />
       )}
     </div>
@@ -369,6 +392,7 @@ interface ItemRow {
   quantity: string
   unit_cost: string
   item_note: string
+  pr_item_id?: string
 }
 
 interface CatalogItem {
@@ -388,10 +412,12 @@ interface CatalogItem {
 function CreatePOModal({
   barcodePrefill,
   pendingSupplier,
+  prPrefill,
   onClose,
 }: {
   barcodePrefill?: BarcodePrefill
   pendingSupplier?: { id: string; name: string }
+  prPrefill?: PrToPoPrefill
   onClose: () => void
 }) {
   const createMut = useCreatePurchaseOrder()
@@ -399,19 +425,37 @@ function CreatePOModal({
   const { data: suppliersData, refetch: refetchSuppliers } = useSuppliers({ is_active: true })
   const { data: productsData } = useProducts({ size: 500, status: 'active' })
   const { data: servicesData } = useServices({ size: 500, status: 'active' })
+  const { data: requisitionsData } = useRequisitions({ size: 100 })
   const navigate = useNavigate()
   const selectedStore = useVendorStore((s) => s.selectedStore)
   const selectedBranch = useVendorStore((s) => s.selectedBranch)
 
-  const [supplierId, setSupplierId] = useState(pendingSupplier?.id || '')
-  const [expectedDate, setExpectedDate] = useState('')
-  const [notes, setNotes] = useState('')
-  const [dest, setDest] = useState<PoDestinationValue>(() => ({
-    ...emptyPoDestination(selectedStore?.id || ''),
-    scope: selectedBranch?.id
-      ? { kind: 'branch', id: selectedBranch.id }
-      : { kind: '' },
-  }))
+  const convertiblePrs = useMemo(() => {
+    const items = (requisitionsData?.items ?? []) as PurchaseRequisition[]
+    return items.filter((r) => ['open', 'approved', 'partially_converted'].includes(r.status))
+  }, [requisitionsData?.items])
+
+  const [linkedRequisitionId, setLinkedRequisitionId] = useState(prPrefill?.requisitionId || '')
+  const [linkedPrNumber, setLinkedPrNumber] = useState(prPrefill?.prNumber || '')
+  const [supplierId, setSupplierId] = useState(prPrefill?.supplierId || pendingSupplier?.id || '')
+  const [expectedDate, setExpectedDate] = useState(prPrefill?.expectedDate || '')
+  const [notes, setNotes] = useState(prPrefill?.notes || '')
+  const [dest, setDest] = useState<PoDestinationValue>(() => {
+    const first = prPrefill?.items?.[0]
+    const storeId = prPrefill?.storeId || selectedStore?.id || ''
+    if (first?.plantId || first?.storageLocationId || prPrefill?.storeId) {
+      return poDestinationFromLine(
+        { plant_id: first?.plantId, storage_location_id: first?.storageLocationId },
+        storeId,
+      )
+    }
+    return {
+      ...emptyPoDestination(storeId),
+      scope: selectedBranch?.id
+        ? { kind: 'branch', id: selectedBranch.id }
+        : { kind: '' },
+    }
+  })
 
   // Quick-create supplier mini-panel state
   const [showQuickSupplier, setShowQuickSupplier] = useState(false)
@@ -464,17 +508,72 @@ function CreatePOModal({
       setQsName(''); setQsPhone(''); setQsEmail('')
     } catch { /* handled by hook */ }
   }
-  const [items, setItems] = useState<ItemRow[]>([
-    barcodePrefill
-      ? {
-          product_id: barcodePrefill.productId,
-          variant_id: barcodePrefill.variantId || '',
-          quantity: '1',
-          unit_cost: barcodePrefill.unitCost != null ? String(barcodePrefill.unitCost) : '',
-          item_note: '',
-        }
-      : { product_id: '', variant_id: '', quantity: '', unit_cost: '', item_note: '' },
-  ])
+  const [items, setItems] = useState<ItemRow[]>(() => {
+    if (prPrefill?.items?.length) {
+      return prPrefill.items.map((i) => ({
+        product_id: i.productId,
+        variant_id: i.variantId || '',
+        quantity: String(Math.max(1, Math.round(i.quantity))),
+        unit_cost: String(i.unitCost ?? 0),
+        item_note: i.note || '',
+        pr_item_id: i.prItemId,
+      }))
+    }
+    if (barcodePrefill) {
+      return [{
+        product_id: barcodePrefill.productId,
+        variant_id: barcodePrefill.variantId || '',
+        quantity: '1',
+        unit_cost: barcodePrefill.unitCost != null ? String(barcodePrefill.unitCost) : '',
+        item_note: '',
+      }]
+    }
+    return [{ product_id: '', variant_id: '', quantity: '', unit_cost: '', item_note: '' }]
+  })
+
+  const applyRequisition = useCallback((pr: PurchaseRequisition) => {
+    const prefill = buildPrToPoPrefill(pr)
+    if (!prefill) {
+      toast.error('No convertible product/service lines on this requisition')
+      return
+    }
+    setLinkedRequisitionId(prefill.requisitionId)
+    setLinkedPrNumber(prefill.prNumber)
+    if (prefill.supplierId) setSupplierId(prefill.supplierId)
+    if (prefill.expectedDate) setExpectedDate(prefill.expectedDate)
+    if (prefill.notes) setNotes(prefill.notes)
+    setItems(prefill.items.map((i) => ({
+      product_id: i.productId,
+      variant_id: i.variantId || '',
+      quantity: String(Math.max(1, Math.round(i.quantity))),
+      unit_cost: String(i.unitCost ?? 0),
+      item_note: i.note || '',
+      pr_item_id: i.prItemId,
+    })))
+    const first = prefill.items[0]
+    setDest(poDestinationFromLine(
+      { plant_id: first?.plantId, storage_location_id: first?.storageLocationId },
+      prefill.storeId || selectedStore?.id || '',
+    ))
+    toast.success(`Loaded lines from ${prefill.prNumber}`)
+  }, [selectedStore?.id])
+
+  const handleRequisitionChange = async (prId: string) => {
+    if (!prId) {
+      setLinkedRequisitionId('')
+      setLinkedPrNumber('')
+      setItems((prev) => prev.map(({ pr_item_id: _id, ...rest }) => rest))
+      return
+    }
+    const listed = convertiblePrs.find((r) => r.id === prId)
+    try {
+      const full = await vendorApi.getRequisition(prId) as PurchaseRequisition
+      applyRequisition(full?.id ? full : (listed as PurchaseRequisition))
+    } catch {
+      if (listed) applyRequisition(listed)
+      else toast.error('Could not load requisition details')
+    }
+  }
 
   // Full product details (with variants) keyed by product_id
   const [productDetails, setProductDetails] = useState<Record<string, CatalogItem>>({})
@@ -519,35 +618,45 @@ function CreatePOModal({
     }
   }, [productDetails])
 
-  // Load product details for prefill product on mount
+  // Load product details for prefill / linked PR products
   useEffect(() => {
     if (barcodePrefill?.productId) {
       fetchProductDetails(barcodePrefill.productId)
     }
-  }, [barcodePrefill?.productId])
+    for (const item of items) {
+      if (item.product_id) fetchProductDetails(item.product_id)
+    }
+  }, [barcodePrefill?.productId, items, fetchProductDetails])
 
   const addItem = () => setItems([...items, { product_id: '', variant_id: '', quantity: '', unit_cost: '', item_note: '' }])
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx))
 
   const updateItem = (idx: number, field: keyof ItemRow, value: string) => {
     const updated = [...items]
-    updated[idx] = { ...updated[idx], [field]: value }
+    const prev = updated[idx]
+    updated[idx] = { ...prev, [field]: value }
 
-    if (field === 'product_id') {
-      // Clear variant when product changes
+    if (field === 'product_id' && value !== prev.product_id) {
+      // Clear variant when product changes; seed cost only on a real user product change
       updated[idx].variant_id = ''
-      const c = catalogMap.get(value)
-      if (c?.cost_price) updated[idx].unit_cost = String(c.cost_price)
-      else if (c?.price) updated[idx].unit_cost = String(c.price)
-      // Fetch variants for newly selected product
+      // Keep PR-prefilled unit cost unless it was empty / zero
+      const keepPrCost = Boolean(prev.pr_item_id) && parseFloat(prev.unit_cost) > 0
+      if (!keepPrCost) {
+        const c = catalogMap.get(value)
+        if (c?.cost_price) updated[idx].unit_cost = String(c.cost_price)
+        else if (c?.price) updated[idx].unit_cost = String(c.price)
+      }
       if (value) fetchProductDetails(value)
     }
 
-    if (field === 'variant_id' && value) {
-      const details = productDetails[updated[idx].product_id]
-      const variant = details?.variants?.find(v => v.id === value)
-      if (variant?.cost_price) updated[idx].unit_cost = String(variant.cost_price)
-      else if (variant?.price) updated[idx].unit_cost = String(variant.price)
+    if (field === 'variant_id' && value && value !== prev.variant_id) {
+      const keepPrCost = Boolean(prev.pr_item_id) && parseFloat(prev.unit_cost) > 0
+      if (!keepPrCost) {
+        const details = productDetails[updated[idx].product_id]
+        const variant = details?.variants?.find(v => v.id === value)
+        if (variant?.cost_price) updated[idx].unit_cost = String(variant.cost_price)
+        else if (variant?.price) updated[idx].unit_cost = String(variant.price)
+      }
     }
 
     setItems(updated)
@@ -556,10 +665,21 @@ function CreatePOModal({
   const subtotal = items.reduce((sum, i) => sum + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_cost) || 0), 0)
   const canSubmit = supplierId && items.every(i => i.product_id && parseInt(i.quantity) > 0 && parseFloat(i.unit_cost) >= 0)
 
+  const isDirty = !!(
+    supplierId ||
+    notes.trim() ||
+    expectedDate ||
+    items.some(i => i.product_id || i.item_note?.trim())
+  )
+
+  // registerEscape=false: ModalOverlay already registers Escape using handleClose below
+  const { handleClose, confirmOpen, cancelConfirm, forceClose } = useGuardedClose(onClose, isDirty, false)
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
     try {
+      const prItemIds = items.map(i => i.pr_item_id).filter(Boolean) as string[]
       const po = await createMut.mutateAsync({
         supplier_id: supplierId,
         items: items.map(i => ({
@@ -572,32 +692,69 @@ function CreatePOModal({
         })),
         expected_delivery_date: expectedDate || undefined,
         notes: notes || undefined,
+        requisition_id: linkedRequisitionId || prPrefill?.requisitionId || undefined,
+        pr_item_ids: prItemIds.length ? prItemIds : undefined,
       })
       onClose()
       navigate(`/purchase-orders/${po.id}`)
     } catch {
       // handled by hook
     }
-  }, [canSubmit, supplierId, items, expectedDate, notes, dest, createMut, onClose, navigate])
+  }, [canSubmit, supplierId, items, expectedDate, notes, dest, createMut, onClose, navigate, linkedRequisitionId, prPrefill?.requisitionId])
 
   return (
-    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+    <ModalOverlay onClose={handleClose} className="z-[100] bg-black/60 p-3">
       <ModalPanel className={cn(modalWidthMd, 'max-h-[calc(100dvh-1.5rem)] !rounded-lg')}>
         <ModalHeader
-          title="New Purchase Order"
-          subtitle={barcodePrefill ? (
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-blue-600">
-              <ScanLine className="h-3.5 w-3.5" />
-              Pre-filled from barcode: {barcodePrefill.variantName
-                ? `${barcodePrefill.productName} — ${barcodePrefill.variantName}`
-                : barcodePrefill.productName}
-            </p>
-          ) : undefined}
-          onClose={onClose}
+          title={linkedRequisitionId || prPrefill ? 'Create PO from Requisition' : 'New Purchase Order'}
+          subtitle={
+            linkedPrNumber || prPrefill ? (
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-violet-600">
+                <ClipboardList className="h-3.5 w-3.5" />
+                From {linkedPrNumber || prPrefill?.prNumber} — edit lines, then save as draft PO
+              </p>
+            ) : barcodePrefill ? (
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-blue-600">
+                <ScanLine className="h-3.5 w-3.5" />
+                Pre-filled from barcode: {barcodePrefill.variantName
+                  ? `${barcodePrefill.productName} — ${barcodePrefill.variantName}`
+                  : barcodePrefill.productName}
+              </p>
+            ) : undefined
+          }
+          onClose={handleClose}
           className="border-0 px-4 py-3 [&>div>h2]:text-base"
         />
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <ModalBody className="space-y-4 px-4 pb-3 pt-0">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Purchase Requisition (optional)</Label>
+            <Select
+              value={linkedRequisitionId}
+              onChange={handleRequisitionChange}
+              options={selectOptionsWithBlank(
+                'No PR reference',
+                [
+                  // Keep current linked PR visible even if list hasn't loaded it yet
+                  ...(linkedRequisitionId && !convertiblePrs.some((r) => r.id === linkedRequisitionId)
+                    ? [{ value: linkedRequisitionId, label: linkedPrNumber || linkedRequisitionId }]
+                    : []),
+                  ...convertiblePrs.map((r) => ({
+                    value: r.id,
+                    label: `${r.pr_number}${r.title ? ` — ${r.title}` : ''} (${r.status === 'partially_converted' ? 'Partial' : r.status === 'open' ? 'Open' : 'Approved'})`,
+                  })),
+                ],
+              )}
+              placeholder="Link a requisition…"
+              aria-label="Purchase Requisition"
+              className="w-full min-w-0"
+              triggerClassName="h-9"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Choose an approved PR to load its lines and link this PO. You can also start from Procurement → Purchase Requisitions → Convert / Create PO.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
             <div className="min-w-0 space-y-1.5">
               <div className="flex h-5 items-center justify-between gap-2">
@@ -831,8 +988,10 @@ function CreatePOModal({
             />
           </div>
           </ModalBody>
-          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-3">
-            <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={onClose}>Cancel</Button>
+          <ModalFooter className="justify-end gap-2 px-4 py-3">
+            <Button type="button" variant="outline" className="h-8 rounded-md px-3 text-sm" onClick={handleClose}>
+              Close
+            </Button>
             <Button type="submit" className="h-8 rounded-md px-3 text-sm" disabled={createMut.isPending || !canSubmit}>
               {createMut.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               Create Draft PO
@@ -840,6 +999,16 @@ function CreatePOModal({
           </ModalFooter>
         </form>
       </ModalPanel>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Discard changes?"
+        description="You have unsaved input. Close anyway and lose your changes?"
+        confirmLabel="Discard & Close"
+        cancelLabel="Keep editing"
+        variant="warning"
+        onCancel={cancelConfirm}
+        onConfirm={forceClose}
+      />
     </ModalOverlay>
   )
 }

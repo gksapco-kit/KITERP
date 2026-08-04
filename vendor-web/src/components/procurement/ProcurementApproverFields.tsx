@@ -43,7 +43,7 @@ export function ProcurementApproverFields({
 
   const primaryField = (
     <div>
-      <Label className={labelClass}>Primary Approver *</Label>
+      <Label className={labelClass}>Primary Approver</Label>
       <Select
         value={primaryApproverId}
         onChange={onPrimaryChange}

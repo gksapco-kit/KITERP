@@ -179,6 +179,8 @@ async def create_purchase_order(
         "items": [i.model_dump() for i in data.items],
         "expected_delivery_date": data.expected_delivery_date,
         "notes": data.notes,
+        "requisition_id": data.requisition_id,
+        "pr_item_ids": data.pr_item_ids,
     }
     po = await svc.create(vendor_id, payload, created_by=current_user.id)
     return JSONResponse(content=_po_to_dict(po), status_code=201)

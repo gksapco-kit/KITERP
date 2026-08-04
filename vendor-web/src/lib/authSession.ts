@@ -4,6 +4,7 @@ import { resolveApiBaseUrl } from '@/lib/apiBase'
 import { isAxiosNetworkError } from '@/lib/errorMessages'
 import { getRefreshToken } from '@/lib/authTokenStorage'
 import { getBoundQueryClient } from '@/lib/queryClient'
+import { isVendorAdminEmbed } from '@/lib/adminEmbed'
 
 /** Endpoints where 401 means bad credentials — never attempt token refresh. */
 const SKIP_TOKEN_REFRESH_RE =
@@ -58,6 +59,6 @@ export function clearAuthSessionAndRedirectToLogin(): void {
   qc?.clear()
   useAuthStore.getState().logout()
   if (!onAuthPage) {
-    window.location.href = '/login'
+    window.location.href = isVendorAdminEmbed() ? '/login?embed=1' : '/login'
   }
 }

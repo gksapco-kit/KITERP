@@ -1,37 +1,50 @@
-/** Normalize catalog UOM values to procurement line-item codes. */
+import { UOM_OPTIONS } from '@/lib/uomOptions'
+
+/** Map legacy procurement abbreviations to product-master UOM values. */
+const LEGACY_TO_MASTER: Record<string, string> = {
+  pcs: 'piece',
+  piece: 'piece',
+  pieces: 'piece',
+  ea: 'unit',
+  each: 'unit',
+  unit: 'unit',
+  units: 'unit',
+  box: 'box',
+  kg: 'kg',
+  kilogram: 'kg',
+  kilograms: 'kg',
+  ltr: 'l',
+  litre: 'l',
+  liter: 'l',
+  litres: 'l',
+  l: 'l',
+  mtr: 'm',
+  metre: 'm',
+  meter: 'm',
+  metres: 'm',
+  m: 'm',
+  hr: 'hour',
+  hour: 'hour',
+  hours: 'hour',
+  day: 'day',
+  days: 'day',
+  mon: 'month',
+  month: 'month',
+  job: 'job',
+}
+
+const MASTER_VALUES = new Set(UOM_OPTIONS.map(o => o.value))
+
+/**
+ * Normalize a UOM to the product-master catalog value so procurement
+ * lines match Product Form / variant UOM exactly.
+ */
 export function normalizeUom(uom?: string | null): string {
-  if (!uom) return 'PCS'
+  if (!uom) return 'piece'
   const key = uom.toLowerCase().trim().replace(/\s+/g, '_')
-  const map: Record<string, string> = {
-    piece: 'PCS',
-    pieces: 'PCS',
-    pcs: 'PCS',
-    unit: 'PCS',
-    units: 'PCS',
-    box: 'BOX',
-    kg: 'KG',
-    kilogram: 'KG',
-    kilograms: 'KG',
-    ltr: 'LTR',
-    litre: 'LTR',
-    liter: 'LTR',
-    litres: 'LTR',
-    mtr: 'MTR',
-    metre: 'MTR',
-    meter: 'MTR',
-    metres: 'MTR',
-    hr: 'HR',
-    hour: 'HR',
-    hours: 'HR',
-    day: 'DAY',
-    days: 'DAY',
-    ea: 'EA',
-    each: 'EA',
-    job: 'JOB',
-    mon: 'MON',
-    month: 'MON',
-  }
-  return map[key] ?? uom.toUpperCase().slice(0, 20)
+  if (LEGACY_TO_MASTER[key]) return LEGACY_TO_MASTER[key]
+  if (MASTER_VALUES.has(key)) return key
+  return key.slice(0, 20)
 }
 
 export interface ProcurementProductContext {

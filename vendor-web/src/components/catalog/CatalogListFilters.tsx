@@ -79,10 +79,11 @@ export const VISIBILITY_FILTER_OPTIONS: CatalogFilterOption[] = [
 ]
 
 export const PRODUCT_TYPE_FILTER_OPTIONS: CatalogFilterOption[] = [
-  { value: 'physical', label: 'Physical' },
-  { value: 'digital', label: 'Digital' },
-  { value: 'subscription', label: 'Subscription' },
-  { value: 'bundle', label: 'Bundle' },
+  { value: 'physical', label: 'Finished Goods (Sellable)' },
+  { value: 'digital', label: 'Digital (Sellable)' },
+  { value: 'subscription', label: 'Subscription (Sellable)' },
+  { value: 'bundle', label: 'Bundle (Sellable)' },
+  { value: 'semi_finished', label: 'Semi Finished Goods' },
   { value: 'raw_material', label: 'Raw Material' },
 ]
 

@@ -1098,6 +1098,120 @@ function useDraggablePopup(open: boolean) {
   return { ref, pos, headerMouseDown }
 }
 
+// ?? Ready Page Picker Modal ?????????????????????????????????????????????????????
+
+type ReadyPageItem = {
+  slug: string
+  title: string
+  page_type: string
+  icon: React.ComponentType<{ className?: string }>
+  description: string
+}
+
+function ReadyPagePickerModal({
+  open,
+  pages,
+  onSelect,
+  onClose,
+}: {
+  open: boolean
+  pages: ReadyPageItem[]
+  onSelect: (slug: string, title: string, pageType: string) => void
+  onClose: () => void
+}) {
+  const { ref, pos, headerMouseDown } = useDraggablePopup(open)
+  const [fixedPlacement, setFixedPlacement] = useState<{ top: number; left: number } | null>(null)
+  useEscapeToClose(onClose, open)
+
+  useEffect(() => {
+    if (!open) { setFixedPlacement(null); return }
+    const panelW = 420
+    const panelH = Math.min(520, window.innerHeight - 48)
+    setFixedPlacement({
+      left: Math.max(12, (window.innerWidth - panelW) / 2),
+      top: Math.max(12, (window.innerHeight - panelH) / 2),
+    })
+  }, [open])
+
+  if (!open) return null
+
+  const style: React.CSSProperties = pos
+    ? { position: 'fixed', top: pos.y, left: pos.x, zIndex: 100020 }
+    : fixedPlacement
+      ? { position: 'fixed', top: fixedPlacement.top, left: fixedPlacement.left, zIndex: 100020 }
+      : { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 100020 }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/30 z-[99999]" onClick={onClose} />
+      <div
+        ref={ref}
+        data-builder-floating-ui
+        style={style}
+        className="w-[420px] max-w-[92vw] bg-card border border-border text-foreground rounded-2xl shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className="px-4 py-3 bg-gradient-to-r from-primary to-emerald-700 text-white flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
+          onMouseDown={headerMouseDown}
+          title="Drag to move"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Move className="w-3 h-3 opacity-60 shrink-0" />
+            <Layout className="w-4 h-4 shrink-0" />
+            <span className="text-sm font-bold">Add a Ready Page</span>
+          </div>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-white/20 shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Sub-header */}
+        <div className="px-4 pt-3 pb-1">
+          <p className="text-xs text-gray-500">
+            Select a pre-built page to add to your site. Only pages you haven't added yet are shown.
+          </p>
+        </div>
+
+        {/* Page grid */}
+        <div className="px-3 pb-3 pt-2 grid grid-cols-2 gap-2 max-h-[360px] overflow-y-auto">
+          {pages.map(rp => (
+            <button
+              key={rp.slug}
+              type="button"
+              onClick={() => onSelect(rp.slug, rp.title, rp.page_type)}
+              className="flex flex-col items-start gap-2 rounded-xl border border-gray-200 bg-white hover:border-primary/40 hover:bg-primary/[0.03] hover:shadow-sm p-3 text-left transition-all group"
+            >
+              <div className="w-8 h-8 rounded-lg bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors shrink-0">
+                <rp.icon className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-900 group-hover:text-primary transition-colors leading-snug">
+                  {rp.title}
+                </p>
+                <p className="text-[10px] text-gray-400 leading-snug mt-0.5">{rp.description}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ?? Reusable Text Prompt Popup ????????????????????????????????????????????????
 // A small styled replacement for window.prompt(). Used for quick edits of text,
 // descriptions, alt-text, image URLs, etc., without jarring browser dialogs.
@@ -12351,6 +12465,7 @@ export default function WebsiteBuilder() {
   const [isStorefrontTemplateToggling, setIsStorefrontTemplateToggling] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
   const [inputParamsOpen, setInputParamsOpen] = useState(false)
+  const [readyPagePickerOpen, setReadyPagePickerOpen] = useState(false)
   const [siteSettingsOpen, setSiteSettingsOpen] = useState(false)
   const [changeHistoryOpen, setChangeHistoryOpen] = useState(false)
   const moreMenuRef = useRef<HTMLDivElement>(null)
@@ -12811,6 +12926,7 @@ export default function WebsiteBuilder() {
     document.addEventListener('mousedown', onDocMouseDown)
     return () => document.removeEventListener('mousedown', onDocMouseDown)
   }, [deviceDropdownOpen])
+
 
 
   useEffect(() => {
@@ -13646,6 +13762,24 @@ export default function WebsiteBuilder() {
       return { page, entries, totalBlocks: blocks.length }
     })
   ), [sortedSitePages, localBlocks])
+
+  const ALL_READY_PAGES = useMemo(() => [
+    { slug: 'about',     title: 'About',     page_type: 'about',     icon: Info,        description: 'Your story, mission and values' },
+    { slug: 'services',  title: 'Services',  page_type: 'services',  icon: Briefcase,   description: 'What you offer' },
+    { slug: 'contact',   title: 'Contact',   page_type: 'contact',   icon: Mail,        description: 'Get in touch form and details' },
+    { slug: 'products',  title: 'Products',  page_type: 'custom',    icon: ShoppingBag, description: 'Product catalog landing page' },
+    { slug: 'blog',      title: 'Blog',      page_type: 'blog',      icon: FileText,    description: 'News, guides and articles' },
+    { slug: 'pricing',   title: 'Pricing',   page_type: 'pricing',   icon: Star,        description: 'Plans and pricing tiers' },
+    { slug: 'portfolio', title: 'Portfolio', page_type: 'portfolio', icon: Camera,      description: 'Work and project showcase' },
+    { slug: 'team',      title: 'Team',      page_type: 'custom',    icon: Users,       description: 'Meet the team' },
+    { slug: 'faq',       title: 'FAQ',       page_type: 'custom',    icon: MessageSquare, description: 'Frequently asked questions' },
+    { slug: 'rentals',   title: 'Rentals',   page_type: 'rentals',   icon: Package,     description: 'Asset rental marketplace' },
+  ] as const, [])
+
+  const availableReadyPages = useMemo(() => {
+    const existingSlugs = new Set(localPages.map(p => p.slug))
+    return ALL_READY_PAGES.filter(rp => !existingSlugs.has(rp.slug))
+  }, [localPages, ALL_READY_PAGES])
 
   const filteredCatalogBlocks = useMemo(() => {
     let list = BLOCK_CATALOG
@@ -16803,6 +16937,41 @@ export default function WebsiteBuilder() {
     })
   }, [siteId, site, openTextPrompt, commitLocalBlocks, queryClient])
 
+  const handleAddReadyPage = useCallback(async (slug: string, title: string, pageType: string) => {
+    if (!siteId) return
+    setReadyPagePickerOpen(false)
+    try {
+      let page: WebsitePage
+      if (slug === 'rentals') {
+        page = await websiteApi.ensureRentalsPage(siteId)
+      } else {
+        page = await websiteApi.createPage(siteId, {
+          title,
+          slug,
+          page_type: pageType as WebsitePage['page_type'],
+          sort_order: localPagesRef.current.length,
+        } as any)
+      }
+      skipServerHydrateRef.current = Date.now()
+      setBlocksDirty(true)
+      blocksDirtyRef.current = true
+      const nextPages = [...localPagesRef.current, page]
+      localPagesRef.current = nextPages
+      setLocalPages(nextPages)
+      const seededBlocks = seedStructureBlocksForNewPage(localBlocksRef.current, nextPages, page.id)
+      const nextBlocks = { ...localBlocksRef.current, [page.id]: seededBlocks }
+      commitLocalBlocks(nextBlocks)
+      if (site) {
+        queryClient.setQueryData<WebsiteSite>(['websites', siteId], old => {
+          if (!old) return old
+          return { ...old, pages: [...old.pages, { ...page, blocks: seededBlocks }] }
+        })
+      }
+      setActivePageId(page.id)
+      toast.success(`"${title}" page added`)
+    } catch { toast.error('Failed to add page') }
+  }, [siteId, site, commitLocalBlocks, queryClient])
+
   // Delete page (soft delete — 7-day trash)
   const loadTrashedPages = useCallback(async (opts?: { silent?: boolean }): Promise<PageTrashItem[]> => {
     if (!siteId) return []
@@ -17393,6 +17562,14 @@ export default function WebsiteBuilder() {
         session={inlineTextEdit}
         onSaveField={handleInlineTextFieldSave}
         onClose={() => setInlineTextEdit(null)}
+      />
+
+      {/* Ready page picker modal */}
+      <ReadyPagePickerModal
+        open={readyPagePickerOpen}
+        pages={availableReadyPages as unknown as ReadyPageItem[]}
+        onSelect={handleAddReadyPage}
+        onClose={() => setReadyPagePickerOpen(false)}
       />
 
       {/* Styled text prompt (replaces native window.prompt) */}
@@ -18588,6 +18765,15 @@ export default function WebsiteBuilder() {
                     <button onClick={handleAddPage} className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-xs text-primary font-semibold hover:bg-accent hover:border-primary/60 transition-colors mt-1">
                       <Plus className="w-3.5 h-3.5" /> Add New Page
                     </button>
+                    {availableReadyPages.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setReadyPagePickerOpen(true)}
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-gray-200 text-xs text-gray-500 font-semibold hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 transition-colors mt-1.5"
+                      >
+                        <Layout className="w-3.5 h-3.5" /> Add Ready Page
+                      </button>
+                    )}
                     {activePage && localPages.length > 0 && (
                       <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-2.5 space-y-2">
                         <div className="text-[11px] font-semibold text-gray-700 truncate" title={activePage.title}>

@@ -220,6 +220,14 @@ class RentalService:
             "delivered_at": b.delivered_at.isoformat() if b.delivered_at else None,
             "delivery_notes": b.delivery_notes,
             "delivery_address": b.delivery_address,
+            # Return fields
+            "returned_at": b.returned_at.isoformat() if b.returned_at else None,
+            "quantity_returned": float(b.quantity_returned) if b.quantity_returned is not None else None,
+            "return_condition": b.return_condition,
+            "damage_charge": float(b.damage_charge or 0),
+            "late_fee": float(b.late_fee or 0),
+            "deposit_refunded": float(b.deposit_refunded or 0),
+            "return_notes": b.return_notes,
             "timeline": b.timeline or [],
             "notes": b.notes,
             "created_at": b.created_at.isoformat() if b.created_at else None,
@@ -858,6 +866,115 @@ class RentalService:
             self._append_timeline(booking, "In Transit", f"Van {booking.van_number or ''} en route")
 
         asset = await self._get_asset(vendor_id, booking.asset_id)
+        await self.db.commit()
+        await self.db.refresh(booking)
+        return self._booking_dict(booking, asset)
+
+    async def process_return(self, vendor_id: UUID, booking_id: UUID, data: dict) -> dict:
+        """Record the physical return of a rented asset (full or partial).
+
+        Body fields:
+          quantity_returned  – how many units came back (defaults to full booking qty)
+          return_condition   – good | damaged | missing
+          damage_charge      – extra charge for damage (defaults to 0)
+          return_notes       – free-text note
+        The late-fee is computed automatically from the daily rate when the asset
+        is returned after its scheduled end_date. The deposit is settled:
+          deposit_refunded = deposit_amount - damage_charge - late_fee  (min 0)
+        """
+        result = await self.db.execute(
+            select(RentalBooking).where(RentalBooking.id == booking_id, RentalBooking.vendor_id == vendor_id)
+        )
+        booking = result.scalar_one_or_none()
+        if not booking:
+            raise HTTPException(404, "Rental booking not found")
+
+        if booking.status not in ("active", "approved", "confirmed"):
+            raise HTTPException(
+                400,
+                f"Cannot process return: booking is '{booking.status}'. "
+                "Only active, approved, or confirmed bookings can be returned.",
+            )
+
+        asset = await self._get_asset(vendor_id, booking.asset_id)
+        total_qty = float(booking.quantity or 1)
+        qty_returned = float(data.get("quantity_returned") or total_qty)
+        if qty_returned <= 0 or qty_returned > total_qty:
+            raise HTTPException(400, f"quantity_returned must be between 1 and {total_qty}")
+
+        condition = data.get("return_condition") or "good"
+        if condition not in ("good", "damaged", "missing"):
+            raise HTTPException(400, "return_condition must be one of: good, damaged, missing")
+
+        now = datetime.now(timezone.utc)
+        today_date = now.date()
+
+        # Late-fee: each day past end_date charged at daily_rate (min 0)
+        days_late = max(0, (today_date - booking.end_date).days) if booking.end_date else 0
+        daily_rate = float(asset.daily_rate or 0)
+        late_fee = round(days_late * daily_rate, 2)
+
+        damage_charge = round(float(data.get("damage_charge") or 0), 2)
+        deposit = float(booking.deposit_amount or 0)
+        deposit_refunded = round(max(0.0, deposit - damage_charge - late_fee), 2)
+
+        prev_status = booking.status
+
+        # Adjust occupancy for the returned quantity
+        if prev_status == "active":
+            current_occ = float(asset.current_occupancy or 0)
+            asset.current_occupancy = Decimal(str(max(0.0, current_occ - qty_returned)))
+            self._sync_occupancy_status(asset)
+
+        # Partial return: keep booking active if quantity still outstanding
+        qty_still_out = total_qty - qty_returned
+        if qty_still_out > 0:
+            new_status = "active"
+            booking.quantity = Decimal(str(qty_still_out))
+        else:
+            new_status = "completed"
+            booking.status = new_status
+
+        booking.returned_at = now
+        booking.quantity_returned = Decimal(str(qty_returned))
+        booking.return_condition = condition
+        booking.damage_charge = Decimal(str(damage_charge))
+        booking.late_fee = Decimal(str(late_fee))
+        booking.deposit_refunded = Decimal(str(deposit_refunded))
+        booking.return_notes = data.get("return_notes") or None
+
+        # Build timeline detail
+        detail_parts = [
+            f"Qty returned: {qty_returned} of {total_qty}",
+            f"Condition: {condition}",
+        ]
+        if days_late > 0:
+            detail_parts.append(f"Late by {days_late} day(s) · Late fee: ₹{late_fee:,.2f}")
+        if damage_charge > 0:
+            detail_parts.append(f"Damage charge: ₹{damage_charge:,.2f}")
+        detail_parts.append(f"Deposit refunded: ₹{deposit_refunded:,.2f}")
+        if qty_still_out > 0:
+            detail_parts.append(f"Partial return — {qty_still_out} unit(s) still out")
+
+        self._append_timeline(
+            booking,
+            "Asset Returned" if qty_still_out == 0 else "Partial Return",
+            " · ".join(detail_parts),
+        )
+
+        # Adjust outstanding if there are extra charges (damage / late fee)
+        extra_charges = damage_charge + late_fee
+        if extra_charges > 0:
+            from app.services.crm.credit_gate import adjust_outstanding, find_credit_control
+            credit_row = await find_credit_control(
+                self.db,
+                vendor_id,
+                customer_id=booking.customer_id,
+                party_name=booking.customer_name,
+                party_phone=booking.customer_phone,
+            )
+            await adjust_outstanding(self.db, credit_row, Decimal(str(extra_charges)))
+
         await self.db.commit()
         await self.db.refresh(booking)
         return self._booking_dict(booking, asset)

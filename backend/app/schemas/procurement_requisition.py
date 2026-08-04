@@ -10,6 +10,7 @@ from enum import Enum
 class PRStatus(str, Enum):
     DRAFT = "draft"
     SUBMITTED = "submitted"
+    OPEN = "open"  # confirmed without approvers — not in approval queue
     APPROVED = "approved"
     REJECTED = "rejected"
     PARTIALLY_CONVERTED = "partially_converted"
@@ -41,7 +42,7 @@ class PRItemCreate(BaseModel):
     description: Optional[str] = None
     asset_category_id: Optional[str] = None
     quantity: float = Field(..., gt=0)
-    unit_of_measure: Optional[str] = Field("PCS", max_length=20)
+    unit_of_measure: Optional[str] = Field("piece", max_length=20)
     needed_by_date: Optional[date] = None
     plant_id: Optional[str] = None
     storage_location_id: Optional[str] = None
@@ -64,13 +65,17 @@ class PRItemResponse(BaseModel):
     product_name: Optional[str] = None
     product_sku: Optional[str] = None
     service_name: Optional[str] = None
+    variant_name: Optional[str] = None
     quantity: float
-    unit_of_measure: str = "PCS"
+    unit_of_measure: str = "piece"
     needed_by_date: Optional[str] = None
     plant_id: Optional[str] = None
+    plant_name: Optional[str] = None
     storage_location_id: Optional[str] = None
+    storage_location_name: Optional[str] = None
     estimated_price: float = 0
     suggested_supplier_id: Optional[str] = None
+    suggested_supplier_name: Optional[str] = None
     quantity_ordered: float = 0
     purchase_order_id: Optional[str] = None
     is_converted: bool = False
@@ -195,6 +200,8 @@ class PurchaseRequisitionResponse(BaseModel):
     requisition_type: str = "product"
     department: Optional[str] = None
     priority: str = "medium"
+    requested_by: Optional[str] = None
+    requested_by_name: Optional[str] = None
     store_id: Optional[str] = None
     store_name: Optional[str] = None
     procurement_source: str = "supplier"

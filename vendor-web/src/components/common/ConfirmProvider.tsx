@@ -18,6 +18,8 @@ export type ConfirmOptions = {
   confirmLabel?: string
   cancelLabel?: string
   variant?: ConfirmVariant
+  /** Require typing this phrase before Confirm is enabled (e.g. CONVERT, CANCEL, APPROVE). */
+  confirmPhrase?: string
 }
 
 export type AskConfirmInput = string | ConfirmOptions
@@ -48,6 +50,9 @@ function inferConfirmLabel(title: string, variant: ConfirmVariant): string {
   if (/\bcancel\b/.test(t)) return 'Cancel'
   if (/\breverse\b/.test(t)) return 'Reverse'
   if (/\bapprove\b/.test(t)) return 'Approve'
+  if (/\breject\b/.test(t)) return 'Reject'
+  if (/\bconvert\b/.test(t)) return 'Convert'
+  if (/\bcreate\b/.test(t)) return 'Create'
   if (variant === 'danger') return 'Confirm'
   return 'Confirm'
 }
@@ -59,6 +64,7 @@ function normalizeInput(input: AskConfirmInput): ConfirmOptions {
       title: input,
       variant,
       confirmLabel: inferConfirmLabel(input, variant),
+      cancelLabel: 'Close',
     }
   }
   const variant = input.variant ?? inferVariant(input.title)
@@ -66,6 +72,8 @@ function normalizeInput(input: AskConfirmInput): ConfirmOptions {
     ...input,
     variant,
     confirmLabel: input.confirmLabel ?? inferConfirmLabel(input.title, variant),
+    cancelLabel: input.cancelLabel ?? 'Close',
+    confirmPhrase: input.confirmPhrase?.trim() || undefined,
   }
 }
 
@@ -126,6 +134,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         confirmLabel={pending?.options.confirmLabel}
         cancelLabel={pending?.options.cancelLabel}
         variant={pending?.options.variant}
+        confirmPhrase={pending?.options.confirmPhrase}
         onCancel={() => settle(false)}
         onConfirm={() => settle(true)}
       />

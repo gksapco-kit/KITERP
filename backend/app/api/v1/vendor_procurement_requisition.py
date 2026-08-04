@@ -31,18 +31,23 @@ router = APIRouter(dependencies=[Depends(require_permission("procurement.view"))
 
 
 def _normalize_uom(uom: str | None) -> str:
+    """Align procurement UOM with product-master catalog values."""
     if not uom:
-        return "PCS"
+        return "piece"
     key = uom.lower().strip().replace(" ", "_")
-    mapping = {
-        "piece": "PCS", "pieces": "PCS", "pcs": "PCS", "unit": "PCS",
-        "box": "BOX", "kg": "KG", "kilogram": "KG",
-        "ltr": "LTR", "litre": "LTR", "liter": "LTR",
-        "mtr": "MTR", "metre": "MTR", "meter": "MTR",
-        "hr": "HR", "hour": "HR", "hours": "HR",
-        "day": "DAY", "ea": "EA", "each": "EA",
+    legacy = {
+        "pcs": "piece", "piece": "piece", "pieces": "piece",
+        "ea": "unit", "each": "unit", "unit": "unit", "units": "unit",
+        "box": "box",
+        "kg": "kg", "kilogram": "kg", "kilograms": "kg",
+        "ltr": "l", "litre": "l", "liter": "l", "litres": "l", "l": "l",
+        "mtr": "m", "metre": "m", "meter": "m", "metres": "m", "m": "m",
+        "hr": "hour", "hour": "hour", "hours": "hour",
+        "day": "day", "days": "day",
+        "mon": "month", "month": "month",
+        "job": "job",
     }
-    return mapping.get(key, uom.upper()[:20])
+    return legacy.get(key, key[:20])
 
 
 # ── Product context for requisition lines ─────────────────────────
@@ -179,7 +184,7 @@ async def get_product_procurement_context(
         .join(PurchaseRequisition, PurchaseRequisitionItem.requisition_id == PurchaseRequisition.id)
         .where(
             PurchaseRequisition.vendor_id == vendor_id,
-            PurchaseRequisition.status.in_(["submitted", "approved", "partially_converted"]),
+            PurchaseRequisition.status.in_(["submitted", "open", "approved", "partially_converted"]),
             PurchaseRequisitionItem.product_id == product_id,
         )
     )
@@ -239,6 +244,10 @@ async def get_product_procurement_context(
 def _item_to_dict(item: PurchaseRequisitionItem) -> dict:
     product = getattr(item, "product", None)
     service = getattr(item, "service", None)
+    variant = getattr(item, "variant", None)
+    plant = getattr(item, "plant", None)
+    storage_location = getattr(item, "storage_location", None)
+    suggested_supplier = getattr(item, "suggested_supplier", None)
     return {
         "id": str(item.id),
         "requisition_id": str(item.requisition_id),
@@ -251,13 +260,17 @@ def _item_to_dict(item: PurchaseRequisitionItem) -> dict:
         "product_name": product.name if product else None,
         "product_sku": product.sku if product else None,
         "service_name": service.name if service else None,
+        "variant_name": variant.name if variant else None,
         "quantity": float(item.quantity),
         "unit_of_measure": item.unit_of_measure,
         "needed_by_date": item.needed_by_date.isoformat() if item.needed_by_date else None,
         "plant_id": str(item.plant_id) if item.plant_id else None,
+        "plant_name": plant.name if plant else None,
         "storage_location_id": str(item.storage_location_id) if item.storage_location_id else None,
+        "storage_location_name": storage_location.name if storage_location else None,
         "estimated_price": float(item.estimated_price) if item.estimated_price else 0,
         "suggested_supplier_id": str(item.suggested_supplier_id) if item.suggested_supplier_id else None,
+        "suggested_supplier_name": suggested_supplier.name if suggested_supplier else None,
         "quantity_ordered": float(item.quantity_ordered) if item.quantity_ordered else 0,
         "purchase_order_id": str(item.purchase_order_id) if item.purchase_order_id else None,
         "is_converted": item.is_converted,
@@ -282,6 +295,8 @@ def _approval_to_dict(a: PurchaseRequisitionApproval) -> dict:
 
 
 def _pr_to_dict(pr: PurchaseRequisition) -> dict:
+    requester = getattr(pr, "requester", None)
+    requester_user = getattr(requester, "user", None) if requester else None
     return {
         "id": str(pr.id),
         "vendor_id": str(pr.vendor_id),
@@ -290,6 +305,8 @@ def _pr_to_dict(pr: PurchaseRequisition) -> dict:
         "requisition_type": pr.requisition_type or "product",
         "department": pr.department,
         "priority": pr.priority,
+        "requested_by": str(pr.requested_by) if pr.requested_by else None,
+        "requested_by_name": requester_user.full_name if requester_user else None,
         "store_id": str(pr.store_id) if pr.store_id else None,
         "store_name": pr.store.name if getattr(pr, "store", None) else None,
         "procurement_source": pr.procurement_source or "supplier",
@@ -322,7 +339,7 @@ def _append_pr_item(pr: PurchaseRequisition, item_data: PRItemCreate, default_ty
             description=item_data.description,
             asset_category_id=UUID(item_data.asset_category_id) if item_data.asset_category_id else None,
             quantity=item_data.quantity,
-            unit_of_measure=item_data.unit_of_measure or "PCS",
+            unit_of_measure=item_data.unit_of_measure or "piece",
             needed_by_date=item_data.needed_by_date,
             plant_id=UUID(item_data.plant_id) if item_data.plant_id else None,
             storage_location_id=UUID(item_data.storage_location_id) if item_data.storage_location_id else None,
@@ -469,8 +486,12 @@ async def update_requisition(
     pr = await repo.get_by_vendor_and_id(vendor_id, pr_id)
     if not pr:
         raise HTTPException(status_code=404, detail="Purchase requisition not found")
-    if pr.status not in ("draft",):
-        raise HTTPException(status_code=400, detail="Only draft requisitions can be edited")
+    # Editable until an approver has approved (or converted / cancelled)
+    if pr.status not in ("draft", "submitted", "open"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only draft, open, or submitted (pending approval) requisitions can be edited",
+        )
 
     _apply_pr_header(pr, data, include_approvers=data.approvers is not None)
 
@@ -481,6 +502,16 @@ async def update_requisition(
         default_type = data.requisition_type or pr.requisition_type or "product"
         for item_data in data.items:
             _append_pr_item(pr, item_data, default_type)
+
+    # Keep open vs submitted in sync with whether approvers are assigned
+    if pr.status in ("submitted", "open"):
+        has_pending_approval = any(a.status == "pending" for a in (pr.approvals or []))
+        if has_pending_approval:
+            pr.status = "submitted"
+            pr.approved_at = None
+        else:
+            pr.status = "open"
+            pr.approved_at = None
 
     await db.commit()
     await db.refresh(pr)
@@ -502,15 +533,26 @@ async def submit_requisition(
         raise HTTPException(status_code=404, detail="Purchase requisition not found")
     if pr.status != "draft":
         raise HTTPException(status_code=400, detail="Only draft requisitions can be submitted")
-    if not pr.approvals or not any(a.status == "pending" for a in pr.approvals):
-        raise HTTPException(status_code=400, detail="Assign at least one approver before submitting")
 
-    pr.status = "submitted"
-    pr.submitted_at = datetime.now(timezone.utc)
-    pr.audit_log = (pr.audit_log or []) + [{
-        "action": "submitted",
-        "at": pr.submitted_at.isoformat(),
-    }]
+    now = datetime.now(timezone.utc)
+    has_pending_approval = any(a.status == "pending" for a in (pr.approvals or []))
+    if has_pending_approval:
+        pr.status = "submitted"
+        pr.submitted_at = now
+        pr.audit_log = (pr.audit_log or []) + [{
+            "action": "submitted",
+            "at": now.isoformat(),
+        }]
+    else:
+        # No approvers — do not enter the approval queue
+        pr.status = "open"
+        pr.submitted_at = now
+        pr.approved_at = None
+        pr.audit_log = (pr.audit_log or []) + [{
+            "action": "opened",
+            "at": now.isoformat(),
+            "reason": "no_approvers_assigned",
+        }]
     await db.commit()
     await db.refresh(pr)
     pr = await repo.get_by_vendor_and_id(vendor_id, pr.id)

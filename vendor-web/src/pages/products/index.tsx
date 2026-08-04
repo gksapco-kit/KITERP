@@ -890,6 +890,14 @@ export default function Products() {
                           {product.status}
                         </span>
                       </InlineEditCell>
+                      {product.product_type === 'raw_material' || product.product_type === 'semi_finished' ? (
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap leading-tight bg-amber-50 text-amber-800 border border-amber-100"
+                          title="Semi finished goods and raw materials stay hidden from the storefront"
+                        >
+                          Hidden
+                        </span>
+                      ) : (
                       <InlineEditCell
                         type="select"
                         value={product.is_visible ? 'true' : 'false'}
@@ -907,6 +915,7 @@ export default function Products() {
                           {product.is_visible ? 'Visible' : 'Hidden'}
                         </span>
                       </InlineEditCell>
+                      )}
                     </div>
                     )}
                   </td>

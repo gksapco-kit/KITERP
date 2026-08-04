@@ -43,7 +43,13 @@ import {
   Calendar, Hash, Radio, Users, Globe, Tag, MessageSquare, ToggleRight,
   Factory, Store, Zap,
 } from 'lucide-react'
-import { variantToUpdatePayload } from '@/lib/productVariants'
+import {
+  variantToUpdatePayload,
+  defaultVariantSeedName,
+  isPristineDefaultVariant,
+  defaultVariantHasUserInput,
+  isDefaultManualVariantName,
+} from '@/lib/productVariants'
 import { CUSTOMER_PRICING_GROUPS } from '@/lib/customerGroups'
 import { BOMEditor } from '@/components/mrp/BOMEditor'
 import { CategoryHierarchyPicker } from '@/components/common/CategoryHierarchyPicker'
@@ -65,7 +71,7 @@ import {
 } from '@/components/common/FormSectionNav'
 import { CatalogEditStickyBar } from '@/components/common/CatalogEditStickyBar'
 import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog'
-import { PRODUCT_TYPE_FILTER_OPTIONS } from '@/components/catalog/CatalogListFilters'
+import { PRODUCT_TYPE_FILTER_OPTIONS, productTypeLabel } from '@/components/catalog/CatalogListFilters'
 import { BusinessUnitScopePicker, type StoreScope } from '@/components/common/BusinessUnitScopePicker'
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
@@ -187,6 +193,7 @@ const schema = z.object({
   price: z.coerce.number().min(0, 'Price must be 0 or higher').default(0),
   compare_at_price: optNum,
   cost_price: optNum,
+  valuation_method: z.enum(['moving_average', 'standard_price']).default('moving_average'),
   currency: z.string().default('INR'),
   discount_percentage: z.coerce.number().min(0).max(100).optional().or(z.literal('').transform(() => undefined)),
   discount_amount: optNum,
@@ -590,19 +597,26 @@ function InputWithPrefix({ prefix, className, ...props }: React.ComponentProps<t
   )
 }
 
-function Toggle({ label, checked, onChange, compact }: {
-  label: string; checked: boolean; onChange: (v: boolean) => void; compact?: boolean
+function Toggle({ label, checked, onChange, compact, disabled }: {
+  label: string; checked: boolean; onChange: (v: boolean) => void; compact?: boolean; disabled?: boolean
 }) {
   return (
-    <label className={cn('flex cursor-pointer select-none items-center', compact ? 'gap-1.5' : 'gap-2')}>
+    <label className={cn(
+      'flex select-none items-center',
+      compact ? 'gap-1.5' : 'gap-2',
+      disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+    )}>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
-        onClick={() => onChange(!checked)}
+        aria-disabled={disabled || undefined}
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
         className={cn(
           'relative inline-flex shrink-0 rounded-full border-2 transition-colors',
           compact ? 'h-4 w-7' : 'h-5 w-9',
+          disabled && 'pointer-events-none',
           checked
             ? 'border-transparent bg-primary'
             : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600',
@@ -1064,6 +1078,7 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
   )
   const pType = product.product_type || 'physical'
   const isBundleView = pType === 'bundle'
+  const isRawMaterialView = pType === 'raw_material'
   const isDigital = pType === 'digital' || isBundleView || product.is_digital
   const isSubscription = pType === 'subscription' || product.is_subscription
   const productAddons = normalizeCatalogAddons((product as { addons?: unknown }).addons)
@@ -1088,12 +1103,12 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
     { key: 'seo',               label: 'SEO',               icon: Search, hint: 'Search titles, descriptions, and social preview.' },
     { key: 'advanced',          label: 'Advanced',          icon: Settings, hint: 'Custom attributes, specifications, and JSON fields.' },
     { key: 'digital',           label: 'Digital',           icon: Download, visible: isDigital, hint: 'Download limits, expiry, and file delivery.' },
-    { key: 'bom',               label: 'BOM',               icon: Factory, visible: !isBundleView, hint: 'Manufacturing components and quantities.' },
+    { key: 'bom',               label: 'BOM',               icon: Factory, visible: !isBundleView && !isRawMaterialView, hint: 'Manufacturing components and quantities.' },
     { key: 'reports',           label: 'Reports',           icon: BarChart3, hint: 'Views, purchases, and version summary.' },
     { key: 'pricing-rules',     label: 'Pricing Rules',     icon: DollarSign, hint: 'Party, location, quantity, and channel price rules.' },
     { key: 'modifiers',         label: 'Modifiers',         icon: Plus, hint: 'Custom options shown when adding this product to POS.' },
     { key: 'history',           label: 'History',           icon: Clock, hint: 'Who changed what and when — open the full report to export.' },
-  ], [isBundleView, isSubscription, isDigital, pType, product])
+  ], [isBundleView, isSubscription, isDigital, isRawMaterialView, pType, product])
 
   useEffect(() => {
     const visible = viewSections.filter((s) => s.visible !== false)
@@ -1190,7 +1205,7 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
             <DisplayField label="Product Name" value={product.name} />
             <DisplayField label="Material Code" value={product.material_code ? <span className="font-mono text-gray-700">{product.material_code}</span> : undefined} />
             <DisplayField label="Brand" value={product.brand} />
-            <DisplayField label="Type" value={<span className="px-2 py-0.5 text-xs rounded-full font-medium bg-blue-50 text-blue-700 capitalize">{product.product_type || 'physical'}</span>} />
+            <DisplayField label="Physical Product Type" value={<span className="px-2 py-0.5 text-xs rounded-full font-medium bg-blue-50 text-blue-700">{productTypeLabel(product.product_type)}</span>} />
             <DisplayField label="Category" value={product.category} />
             <DisplayField label="Subcategory" value={product.subcategory} />
             <DisplayField label="Unit of Measure" value={uomLabel} />
@@ -1234,7 +1249,73 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
                 type="button"
                 size="sm"
                 className="h-8 shrink-0 gap-1.5"
-                onClick={() => navigate(`/products/${product.id}/configure`)}
+                onClick={async () => {
+                  const variants = (product.variants || []) as Array<{
+                    id?: string
+                    name?: string
+                    sku?: string
+                    barcode?: string
+                    quantity?: number
+                    price?: number
+                    compare_at_price?: number
+                    cost_price?: number
+                    discount_percentage?: number
+                    discount_amount?: number
+                    offer_label?: string
+                    is_on_sale?: boolean
+                    color?: string
+                    attributes?: Record<string, unknown>
+                    variant_hash?: string | null
+                    config_selection?: Record<string, unknown> | null
+                    media?: unknown[]
+                  }>
+                  const loneDefault =
+                    variants.length === 1 &&
+                    isDefaultManualVariantName(variants[0]?.name, isSubscription)
+                      ? variants[0]
+                      : null
+
+                  if (loneDefault && defaultVariantHasUserInput(loneDefault, isSubscription)) {
+                    const ok = await askConfirm({
+                      title: 'Delete existing variant?',
+                      description: (
+                        <>
+                          <span className="font-medium text-foreground">
+                            {loneDefault.name?.trim() || defaultVariantSeedName(isSubscription)}
+                          </span>
+                          {' '}already has data. Delete it before setting up Fast entry variants?
+                        </>
+                      ),
+                      confirmLabel: 'Delete & Continue',
+                      cancelLabel: 'Cancel',
+                      variant: 'danger',
+                    })
+                    if (!ok) return
+                    if (loneDefault.id) {
+                      try {
+                        await onDeleteVariant(loneDefault.id)
+                      } catch {
+                        toast.error('Could not delete the existing variant')
+                        return
+                      }
+                    }
+                    navigate(`/products/${product.id}/configure?from=create`)
+                    return
+                  }
+
+                  const onlyPristine =
+                    variants.length === 1 &&
+                    isPristineDefaultVariant(variants[0], isSubscription, { allowPersisted: true })
+                  const hasReal =
+                    !onlyPristine &&
+                    variants.some(v => !isPristineDefaultVariant(v, isSubscription, { allowPersisted: true }))
+
+                  navigate(
+                    hasReal
+                      ? `/products/${product.id}/configure?view=manage`
+                      : `/products/${product.id}/configure?from=create`,
+                  )
+                }}
               >
                 {hasVariants ? <Zap className="h-3.5 w-3.5" /> : <Layers className="h-3.5 w-3.5" />}
                 {hasVariants ? 'Fast entry variants' : 'Configure & Manage Variants'}
@@ -1263,9 +1344,13 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
             ) : hasBasePrice ? (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-1.5">
-                  <DisplayField label="Price" value={<span className="text-lg font-bold text-gray-900">{symbol}{product.price?.toLocaleString()}</span>} />
-                  <DisplayField label="Compare at Price" value={product.compare_at_price ? `${symbol}${product.compare_at_price.toLocaleString()}` : null} />
-                  <DisplayField label="Cost Price" value={product.cost_price ? `${symbol}${product.cost_price.toLocaleString()}` : null} />
+                  {!(isRawMaterialView || pType === 'semi_finished') && (
+                    <>
+                      <DisplayField label="Price" value={<span className="text-lg font-bold text-gray-900">{symbol}{product.price?.toLocaleString()}</span>} />
+                      <DisplayField label="Compare at Price" value={product.compare_at_price ? `${symbol}${product.compare_at_price.toLocaleString()}` : null} />
+                    </>
+                  )}
+                  <DisplayField label="Purchased Price / Cost" value={product.cost_price ? `${symbol}${product.cost_price.toLocaleString()}` : null} />
                   <DisplayField label="Currency" value={product.currency} />
                 </div>
                 {(product.is_on_sale || product.discount_percentage || product.discount_amount) && (
@@ -1399,7 +1484,13 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
 
                       {/* Price / Compare / Cost stacked */}
                       <td className="px-2 py-2 min-w-[110px]">
-                        {v.price_type === 'not_applicable' || !(Number(v.price) > 0) ? (
+                        {isRawMaterialView || pType === 'semi_finished' ? (
+                          v.cost_price && Number(v.cost_price) > 0 ? (
+                            <p className="font-semibold text-gray-900">Purchased Price / Cost: {symbol}{Number(v.cost_price).toLocaleString()}</p>
+                          ) : (
+                            <p className="font-medium text-muted-foreground">—</p>
+                          )
+                        ) : v.price_type === 'not_applicable' || !(Number(v.price) > 0) ? (
                           <p className="font-medium text-muted-foreground">No price</p>
                         ) : (
                           <>
@@ -1982,7 +2073,7 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
         </Card>
       )}
 
-      {showTab('bom') && !isBundleView && product.id && (
+      {showTab('bom') && !isBundleView && !isRawMaterialView && product.id && (
         <Card>
           <CardContent className={formDisplayCompact.cardBody}>
             <div className={formDisplayCompact.sectionHeader}>
@@ -2390,19 +2481,26 @@ function fieldPathToSection(path: string): string | null {
 }
 
 function isAutoSeededPlaceholderVariant(
-  v: { id?: string; name?: string; sku?: string; barcode?: string; quantity?: number; attributes_json?: string },
+  v: {
+    id?: string
+    name?: string
+    sku?: string
+    barcode?: string
+    quantity?: number
+    price?: number
+    compare_at_price?: number
+    cost_price?: number
+    discount_percentage?: number
+    discount_amount?: number
+    offer_label?: string
+    is_on_sale?: boolean
+    color?: string
+    attributes_json?: string
+  },
   isSubscription: boolean,
 ): boolean {
-  // DB-persisted variants (have a real id) are never considered placeholders
-  if (v.id) return false
-  const defaultName = isSubscription ? 'Plan 1' : 'Variant 1'
-  if (v.name?.trim() !== defaultName) return false
-  if (v.sku?.trim() || v.barcode?.trim()) return false
-  if ((v.quantity ?? 0) !== 0) return false
-  // Non-empty attribute object means the user intentionally configured this row
-  const attrs = v.attributes_json
-  if (attrs && attrs !== '{}' && attrs.trim() !== '') return false
-  return true
+  // DB-persisted variants (have a real id) are never stripped on ordinary saves
+  return isPristineDefaultVariant(v, isSubscription, { allowPersisted: false })
 }
 
 export default function ProductForm() {
@@ -2468,6 +2566,7 @@ export default function ProductForm() {
     defaultValues: {
       status: 'active', quantity: 0, price: 0, currency: 'INR', product_type: 'physical', uom: 'piece', uom_quantity: undefined,
       material_code: '',
+      valuation_method: 'moving_average',
       is_taxable: true, track_inventory: true, is_returnable: true, requires_shipping: true,
       batch_managed: false, serial_managed: false, requires_cold_chain: false,
       qc_required_on_receipt: false, qc_required_on_production: false,
@@ -2694,10 +2793,47 @@ export default function ProductForm() {
   }
 
   const productType = watch('product_type')
-  const isPhysical    = !productType || productType === 'physical' || productType === 'raw_material'
+  const isPhysical    = !productType || productType === 'physical' || productType === 'raw_material' || productType === 'semi_finished'
+  const isRawMaterial = productType === 'raw_material'
+  const isSemiFinished = productType === 'semi_finished'
+  /** Intermediate / non-retail materials — no promo/sale fields; never storefront-visible */
+  const hidePromotion = isRawMaterial || isSemiFinished
+  const forceHiddenFromStorefront = hidePromotion
   const isDigitalType = productType === 'digital'
   const isSubscriptionType = productType === 'subscription'
   const isBundleType  = productType === 'bundle'
+
+  const prevProductTypeRef = useRef<string | null>(null)
+  useEffect(() => {
+    const prev = prevProductTypeRef.current
+
+    if (forceHiddenFromStorefront) {
+      if (getValues('is_visible')) setValue('is_visible', false, { shouldDirty: true })
+      // Switched into Raw / SFG — drop retail selling price fields
+      if (prev !== null && prev !== productType) {
+        const variants = getValues('variants') || []
+        variants.forEach((_, i) => {
+          setValue(`variants.${i}.price`, 0, { shouldDirty: true })
+          setValue(`variants.${i}.compare_at_price`, undefined, { shouldDirty: true })
+          setValue(`variants.${i}.price_type`, 'not_applicable', { shouldDirty: true })
+        })
+      }
+      prevProductTypeRef.current = productType
+      return
+    }
+
+    // First mount: keep saved / default visibility (edit may be intentionally Hidden).
+    if (prev === null) {
+      prevProductTypeRef.current = productType
+      return
+    }
+
+    // User switched into a sellable type — Visible on by default; they can turn it off.
+    if (prev !== productType) {
+      setValue('is_visible', true, { shouldDirty: true })
+    }
+    prevProductTypeRef.current = productType
+  }, [productType, forceHiddenFromStorefront, getValues, setValue])
   const watchedCategory = watch('category')
   const watchedSubcategory = watch('subcategory')
   const watchedVariants = watch('variants')
@@ -2846,7 +2982,11 @@ export default function ProductForm() {
       uom: product.uom || 'piece',
       uom_quantity: product.uom_quantity ?? undefined,
       price: product.price, compare_at_price: product.compare_at_price ?? undefined,
-      cost_price: product.cost_price ?? undefined, currency: product.currency || 'INR',
+      cost_price: product.cost_price ?? undefined,
+      valuation_method: (product as { valuation_method?: 'moving_average' | 'standard_price' }).valuation_method === 'standard_price'
+        ? 'standard_price'
+        : 'moving_average',
+      currency: product.currency || 'INR',
       discount_percentage: product.discount_percentage ?? undefined,
       discount_amount: product.discount_amount ?? undefined,
       discount_start_date: product.discount_start_date?.split('T')[0] || '',
@@ -3239,6 +3379,9 @@ export default function ProductForm() {
 
     if (raw.product_type === 'digital') data.is_digital = true
     if (raw.product_type === 'bundle') data.is_digital = true
+    if (raw.product_type === 'raw_material' || raw.product_type === 'semi_finished') {
+      data.is_visible = false
+    }
     if (raw.product_type === 'subscription') {
       data.is_subscription = true
       const firstActiveVariant = (data.variants as Array<{ is_active?: boolean; price?: number; subscription_interval?: string; subscription_trial_days?: number; subscription_setup_fee?: number; subscription_billing_cycles?: number }> || []).find(v => v.is_active !== false && v.price != null && Number(v.price) > 0)
@@ -3347,11 +3490,57 @@ export default function ProductForm() {
   const handleOpenVariantConfig = handleSubmit(async (raw) => {
     try {
       setIsOpeningVariantConfig(true)
-      const saved = await persistProduct(raw, { omitPlaceholderVariants: true })
-      if (!saved) return
-      const hasRealVariants = (raw.variants || []).some(
-        v => v.name?.trim() && (!isEdit || !isAutoSeededPlaceholderVariant(v, isSubscriptionType)),
+      const namedVariants = (raw.variants || []).filter(v => v.name?.trim())
+      const loneDefault =
+        namedVariants.length === 1 &&
+        isDefaultManualVariantName(namedVariants[0]?.name, isSubscriptionType)
+          ? namedVariants[0]
+          : null
+
+      let variantsForSave = raw.variants || []
+      let deletedFilledDefault = false
+
+      if (loneDefault && defaultVariantHasUserInput(loneDefault, isSubscriptionType)) {
+        const ok = await askConfirm({
+          title: 'Delete existing variant?',
+          description: (
+            <>
+              <span className="font-medium text-foreground">
+                {loneDefault.name?.trim() || defaultVariantSeedName(isSubscriptionType)}
+              </span>
+              {' '}already has data. Delete it before setting up Fast entry variants?
+            </>
+          ),
+          confirmLabel: 'Delete & Continue',
+          cancelLabel: 'Cancel',
+          variant: 'danger',
+        })
+        if (!ok) return
+        variantsForSave = []
+        deletedFilledDefault = true
+        replaceVariants([])
+        setExpandedVariants({})
+      }
+
+      const saved = await persistProduct(
+        { ...raw, variants: variantsForSave },
+        { omitPlaceholderVariants: true },
       )
+      if (!saved) return
+
+      // Open the setup wizard when only a pristine default remains (or was just deleted).
+      // Otherwise jump to Fast entry manage when real variants already exist.
+      const remainingNamed = variantsForSave.filter(v => v.name?.trim())
+      const onlyPristineDefault =
+        remainingNamed.length === 1 &&
+        isPristineDefaultVariant(remainingNamed[0], isSubscriptionType, { allowPersisted: true })
+      const hasRealVariants =
+        !deletedFilledDefault &&
+        !onlyPristineDefault &&
+        remainingNamed.some(
+          v => !isPristineDefaultVariant(v, isSubscriptionType, { allowPersisted: true }),
+        )
+
       qc.invalidateQueries({ queryKey: ['vendor', 'product', saved.id] })
       allowLeaveRef.current = true
       unsavedDirtyRef.current = false
@@ -3538,9 +3727,8 @@ export default function ProductForm() {
     is_active: true,
   })
 
-  // Create page: seed Plan 1 only for subscriptions so the row is immediately editable.
-  // Physical/digital products start with no variants — users set base pricing directly,
-  // then add variants manually or via Configure & Manage Variants.
+  // Create page: seed one default row (Variant 1 / Plan 1) so pricing is immediately editable.
+  // Fast entry omits pristine defaults on save, or prompts to delete when the row has data.
   useEffect(() => {
     if (isEdit) return
     if (isBundleType) {
@@ -3548,9 +3736,8 @@ export default function ProductForm() {
       createVariantSeeded.current = false
       return
     }
-    if (!isSubscriptionType) return
     if (variantFields.length === 0 && !createVariantSeeded.current) {
-      appendVariant(makeVariantDefaults('Plan 1', {}))
+      appendVariant(makeVariantDefaults(defaultVariantSeedName(isSubscriptionType), {}))
       setExpandedVariants({ 0: true })
       setVisitedSections(s => new Set(s).add('variants'))
       createVariantSeeded.current = true
@@ -3573,6 +3760,10 @@ export default function ProductForm() {
       setValue('variants.0.name', 'Plan 1')
       setValue('variants.0.price_type', 'per_cycle')
       setValue('variants.0.subscription_interval', 'monthly')
+    } else if (!isSubscriptionType && (v0?.name === 'Plan 1' || v0?.name === 'Plan' || v0?.name === 'Default')) {
+      setValue('variants.0.name', 'Variant 1')
+      setValue('variants.0.price_type', 'per_unit')
+      setValue('variants.0.subscription_interval', '')
     }
   }, [isSubscriptionType, isEdit, isBundleType, variantFields.length, getValues, setValue])
 
@@ -3591,10 +3782,10 @@ export default function ProductForm() {
     { key: 'seo',              label: 'SEO',               icon: Search, hint: 'Meta title, description, and search preview.' },
     { key: 'advanced',         label: 'Advanced',          icon: Settings, hint: 'Attributes, specifications, and custom JSON.' },
     { key: 'digital',          label: 'Digital',           icon: Download, visible: isDigitalType || isBundleType, hint: 'Download URL, limits, and expiry.' },
-    { key: 'bom',              label: 'BOM',               icon: Factory, visible: isEdit && !isBundleType, hint: 'Manufacturing components and quantities.' },
-    { key: 'reports',          label: 'Reports',             icon: BarChart3, visible: isEdit, hint: 'Views, purchases, and version stats (read-only).' },
-    { key: 'pricing-rules',    label: 'Pricing Rules',     icon: DollarSign, visible: isEdit && !!id, hint: 'Party, location, quantity, and channel price rules.' },
-  ], [isEdit, isBundleType, isSubscriptionType, isDigitalType, id])
+    { key: 'bom',              label: 'BOM',               icon: Factory, visible: !isBundleType && !isRawMaterial, hint: 'Manufacturing components and quantities.' },
+    { key: 'reports',          label: 'Reports',             icon: BarChart3, hint: 'Views, purchases, and version stats (read-only).' },
+    { key: 'pricing-rules',    label: 'Pricing Rules',     icon: DollarSign, hint: 'Party, location, quantity, and channel price rules.' },
+  ], [isBundleType, isSubscriptionType, isDigitalType, isRawMaterial])
 
   useEffect(() => {
     const visible = productSections.filter((s) => s.visible !== false)
@@ -3731,6 +3922,19 @@ export default function ProductForm() {
       <CatalogEditStickyBar
         onBack={leaveProductForm}
         title={isEdit ? (watchedName?.trim() || product?.name || 'Edit Product') : 'New Product'}
+        badge={(
+          <span
+            className={cn(
+              'hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold sm:inline-flex',
+              isRawMaterial && 'bg-amber-50 text-amber-800 ring-1 ring-amber-200',
+              isSemiFinished && 'bg-violet-50 text-violet-800 ring-1 ring-violet-200',
+              !hidePromotion && 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200',
+            )}
+            title="Product type (set under Basic)"
+          >
+            {productTypeLabel(productType)}
+          </span>
+        )}
         status={formValues.status ?? 'draft'}
         onStatusChange={(value) => setValue('status', value as 'active' | 'draft' | 'archived')}
         visibleControl={(
@@ -3738,7 +3942,12 @@ export default function ProductForm() {
             name="is_visible"
             control={control}
             render={({ field }) => (
-              <Toggle label="Visible" checked={field.value} onChange={field.onChange} />
+              <Toggle
+                label="Visible"
+                checked={forceHiddenFromStorefront ? false : field.value}
+                onChange={field.onChange}
+                disabled={forceHiddenFromStorefront}
+              />
             )}
           />
         )}
@@ -3773,7 +3982,7 @@ export default function ProductForm() {
               <FormField label="Brand">
                 <Input className="w-full min-w-0" {...register('brand')} placeholder="e.g. Samsung" />
               </FormField>
-              <FormField label="Product Type">
+              <FormField label="Physical Product Type">
                 <Controller
                   name="product_type"
                   control={control}
@@ -3868,13 +4077,13 @@ export default function ProductForm() {
                 </Button>
               </div>
             )}
-            {/* Product type context banner */}
-            {productType && productType !== 'physical' && (
+            {/* Product type context banner — sellable specialty types only */}
+            {(isDigitalType || isSubscriptionType || isBundleType) && (
               <div className={cn(
                 formEditLayout.typeBanner,
                 isDigitalType ? 'border-blue-200 bg-blue-50 text-blue-800' :
                 isSubscriptionType ? 'border-primary/30 bg-accent text-primary' :
-                isBundleType ? 'border-amber-200 bg-amber-50 text-amber-800' : '',
+                'border-amber-200 bg-amber-50 text-amber-800',
               )}>
                 {isDigitalType && <Download className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
                 {isSubscriptionType && <Repeat className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
@@ -4001,12 +4210,22 @@ export default function ProductForm() {
           >
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <span
+                    className={cn(
+                      'inline-flex shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                      isRawMaterial && 'bg-amber-50 text-amber-800 ring-1 ring-amber-200',
+                      isSemiFinished && 'bg-violet-50 text-violet-800 ring-1 ring-violet-200',
+                      !hidePromotion && 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200',
+                    )}
+                  >
+                    {productTypeLabel(productType)}
+                  </span>
                   <p className="truncate text-xs text-muted-foreground">
                     {isSubscriptionType
                       ? 'Each plan has its own pricing, stock, and media.'
                       : isEdit
                         ? 'SKUs, pricing & stock — add manually or use Fast entry for bulk.'
-                        : 'SKUs, pricing & stock — add manually, or Configure & Manage Variants (saves first).'}
+                        : 'SKUs, pricing & stock — edit the default variant, add more, or use Fast entry for bulk.'}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1.5 self-end sm:self-auto">
@@ -4322,6 +4541,7 @@ export default function ProductForm() {
                           <VariantFormSection
                             title="Pricing"
                             hint={
+                              hidePromotion ? undefined : (
                               <div className="flex flex-wrap items-center gap-3">
                                 <label className="inline-flex cursor-pointer select-none items-center gap-1.5 text-[11px] font-medium text-foreground">
                                   <input
@@ -4385,6 +4605,7 @@ export default function ProductForm() {
                                   No price
                                 </label>
                               </div>
+                              )
                             }
                           >
                             <div className={cn(
@@ -4406,36 +4627,43 @@ export default function ProductForm() {
                                       value={String(field.value ?? '')}
                                       onChange={field.onChange}
                                       options={UOM_SELECT_OPTIONS}
+                                      searchPlaceholder="Search UOM…"
                                       className={cn(selectCls, 'w-full')}
                                     />
                                   )}
                                 />
                               </FormField>
-                              <FormField label={pricingLocked ? 'Price' : priceLabel}>
+                              {!hidePromotion && (
+                                <>
+                                  <FormField label={pricingLocked ? 'Price' : priceLabel}>
+                                    <Input type="number" step="0.01" min="0" className="w-full"
+                                      disabled={pricingLocked}
+                                      {...register(`variants.${index}.price`)}
+                                      onChange={e => {
+                                        if (pricingLocked) return
+                                        register(`variants.${index}.price`).onChange(e)
+                                        syncPriceFields(parseFloat(e.target.value||'0'), parseFloat(String(watch(`variants.${index}.compare_at_price`)||0)))
+                                      }}
+                                      placeholder={pricingLocked ? (isFree ? 'Free' : '—') : (isSubscriptionType && vPriceType === 'per_cycle' ? '499' : '99')} />
+                                  </FormField>
+                                  <FormField label="Compare at">
+                                    <Input type="number" step="0.01" min="0" className="w-full"
+                                      disabled={pricingLocked}
+                                      {...register(`variants.${index}.compare_at_price`)}
+                                      onChange={e => {
+                                        if (pricingLocked) return
+                                        register(`variants.${index}.compare_at_price`).onChange(e)
+                                        syncPriceFields(parseFloat(String(watch(`variants.${index}.price`)||0)), parseFloat(e.target.value||'0'))
+                                      }} placeholder={pricingLocked ? '—' : 'MRP'} />
+                                  </FormField>
+                                </>
+                              )}
+                              <FormField label="Purchased Price / Cost">
                                 <Input type="number" step="0.01" min="0" className="w-full"
-                                  disabled={pricingLocked}
-                                  {...register(`variants.${index}.price`)}
-                                  onChange={e => {
-                                    if (pricingLocked) return
-                                    register(`variants.${index}.price`).onChange(e)
-                                    syncPriceFields(parseFloat(e.target.value||'0'), parseFloat(String(watch(`variants.${index}.compare_at_price`)||0)))
-                                  }}
-                                  placeholder={pricingLocked ? (isFree ? 'Free' : '—') : (isSubscriptionType && vPriceType === 'per_cycle' ? '499' : '99')} />
-                              </FormField>
-                              <FormField label="Compare at">
-                                <Input type="number" step="0.01" min="0" className="w-full"
-                                  disabled={pricingLocked}
-                                  {...register(`variants.${index}.compare_at_price`)}
-                                  onChange={e => {
-                                    if (pricingLocked) return
-                                    register(`variants.${index}.compare_at_price`).onChange(e)
-                                    syncPriceFields(parseFloat(String(watch(`variants.${index}.price`)||0)), parseFloat(e.target.value||'0'))
-                                  }} placeholder={pricingLocked ? '—' : 'MRP'} />
-                              </FormField>
-                              <FormField label="Cost">
-                                <Input type="number" step="0.01" min="0" className="w-full"
-                                  disabled={pricingLocked}
-                                  {...register(`variants.${index}.cost_price`)} placeholder={pricingLocked ? '—' : '0'} />
+                                  data-keep-enabled={hidePromotion || undefined}
+                                  disabled={hidePromotion ? false : pricingLocked}
+                                  {...register(`variants.${index}.cost_price`)}
+                                  placeholder={hidePromotion || !pricingLocked ? '0' : '—'} />
                               </FormField>
                               <FormField label="Currency">
                                 <Controller
@@ -4447,7 +4675,7 @@ export default function ProductForm() {
                                       onChange={field.onChange}
                                       options={CURRENCY_SELECT_OPTIONS}
                                       className={cn(selectCls, 'w-full')}
-                                      disabled={pricingLocked}
+                                      disabled={hidePromotion ? false : pricingLocked}
                                     />
                                   )}
                                 />
@@ -4471,6 +4699,7 @@ export default function ProductForm() {
                             )}
                           </VariantFormSection>
 
+                          {!hidePromotion && (
                           <VariantFormSection title="Promotion">
                             <div className={cn(
                               variantFormUi.promoGrid,
@@ -4521,6 +4750,7 @@ export default function ProductForm() {
                               </div>
                             )}
                           </VariantFormSection>
+                          )}
                         </>
                       )
                     })()}
@@ -4837,6 +5067,7 @@ export default function ProductForm() {
                               value={String(field.value ?? '')}
                               onChange={field.onChange}
                               options={UOM_SELECT_OPTIONS}
+                              searchPlaceholder="Search UOM…"
                               className={selectCls}
                             />
                           )}
@@ -4860,7 +5091,7 @@ export default function ProductForm() {
                           }}
                           placeholder="Original / MRP" />
                       </FormField>
-                      <FormField label="Cost Price"><Input type="number" step="0.01" min="0" {...register('cost_price')} placeholder="Your cost" /></FormField>
+                      <FormField label="Purchased Price / Cost"><Input type="number" step="0.01" min="0" {...register('cost_price')} placeholder="Your cost" /></FormField>
                       <FormField label="Currency">
                         <Controller
                           name="currency"
@@ -4896,7 +5127,8 @@ export default function ProductForm() {
               })()}
             </div>
 
-            {/* Sale & Discounts */}
+            {/* Sale & Discounts — not applicable to raw / semi-finished materials */}
+            {!hidePromotion && (
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <Tag className="w-4 h-4 text-orange-500" /> Sale &amp; Discounts
@@ -4970,6 +5202,7 @@ export default function ProductForm() {
                 )
               })()}
             </div>
+            )}
 
             {/* Inventory — hidden for digital and bundle */}
             {!isDigitalType && !isBundleType && (
@@ -5076,9 +5309,14 @@ export default function ProductForm() {
         </Section>}
 
         {/* 5d. Advanced Pricing Rules — party, location, scheduled, quantity, channel */}
-        {isEdit && id && (
-          <Section title="Advanced Pricing" icon={DollarSign} open={activeTab === 'pricing-rules'} onToggle={() => toggle('pricing-rules')} sectionId="pricing-rules">
-            <div className={formEditLayout.sectionBody}>
+        <Section title="Advanced Pricing" icon={DollarSign} open={activeTab === 'pricing-rules'} onToggle={() => toggle('pricing-rules')} sectionId="pricing-rules">
+          <div className={formEditLayout.sectionBody}>
+            {!id ? (
+              <p className="text-sm text-muted-foreground rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
+                Save the product first to add party, location, quantity, and channel pricing rules.
+              </p>
+            ) : (
+              <>
               {/* Rule type tabs */}
               <div className="flex flex-wrap gap-1 bg-gray-100 rounded-lg p-1">
                 {([
@@ -5194,9 +5432,10 @@ export default function ProductForm() {
                   saving={createPriceRule.isPending}
                 />
               )}
-            </div>
-          </Section>
-        )}
+              </>
+            )}
+          </div>
+        </Section>
 
         {/* Tax & Compliance */}
         <Section title="Tax & Compliance" icon={Receipt} open={activeTab === 'tax'} onToggle={() => toggle('tax')} sectionId="tax">
@@ -5266,8 +5505,10 @@ export default function ProductForm() {
             )} />
             {!watch('return_warranty_per_variant') && (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <FormField label="Return Window (days)"><Input type="number" min="0" {...register('return_days')} placeholder="e.g. 30" /></FormField>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                  <FormField label="Return Window (days)">
+                    <Input type="number" min="0" className="!h-10 !min-h-10" {...register('return_days')} placeholder="e.g. 30" />
+                  </FormField>
                   <FormField label="Refund Policy">
                     <Controller
                       name="refund_policy"
@@ -5277,12 +5518,14 @@ export default function ProductForm() {
                           value={String(field.value ?? '')}
                           onChange={field.onChange}
                           options={REFUND_POLICY_OPTIONS}
-                          className={selectCls}
+                          className={cn(selectCls, '!h-10 !min-h-10 !max-h-10')}
                         />
                       )}
                     />
                   </FormField>
-                  <FormField label="Warranty (days)"><Input type="number" min="0" {...register('warranty_period_days')} placeholder="e.g. 365" /></FormField>
+                  <FormField label="Warranty (days)">
+                    <Input type="number" min="0" className="!h-10 !min-h-10" {...register('warranty_period_days')} placeholder="e.g. 365" />
+                  </FormField>
                   <FormField label="Warranty Type">
                     <Controller
                       name="warranty_type"
@@ -5292,14 +5535,16 @@ export default function ProductForm() {
                           value={String(field.value ?? '')}
                           onChange={field.onChange}
                           options={WARRANTY_TYPE_OPTIONS}
-                          className={selectCls}
+                          className={cn(selectCls, '!h-10 !min-h-10 !max-h-10')}
                         />
                       )}
                     />
                   </FormField>
                 </div>
                 <FormField label="Return Policy"><textarea {...register('return_policy')} rows={2} className={textareaCls} placeholder="Describe your return policy..." /></FormField>
-                <FormField label="Return Conditions"><Input {...register('return_conditions')} placeholder='e.g. "Unopened, with tags, within 30 days"' /></FormField>
+                <FormField label="Return Conditions">
+                  <Input className="!h-10 !min-h-10" {...register('return_conditions')} placeholder='e.g. "Unopened, with tags, within 30 days"' />
+                </FormField>
               </>
             )}
           </div>
@@ -5313,10 +5558,10 @@ export default function ProductForm() {
                 <Toggle label="Requires Shipping" checked={field.value} onChange={field.onChange} />
               )} />
               {watch('requires_shipping') && (<>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-4 gap-4 items-end">
                 <FormField label={`Weight (${watch('weight_unit') || 'kg'})`}>
-                  <div className="flex">
-                    <Input type="number" step="0.001" min="0" {...register('weight_kg')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
+                  <div className="flex h-10 items-stretch">
+                    <Input type="number" step="0.001" min="0" {...register('weight_kg')} className="!h-10 !min-h-10 rounded-r-none border-r-0 flex-1 min-w-0" />
                     <Controller
                       name="weight_unit"
                       control={control}
@@ -5325,8 +5570,8 @@ export default function ProductForm() {
                           value={String(field.value ?? 'kg')}
                           onChange={field.onChange}
                           options={WEIGHT_UNIT_OPTIONS}
-                          className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
-                          wrapperClassName="w-[4.5rem] shrink-0"
+                          className={cn(selectCls, '!h-10 !min-h-10 !max-h-10 rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
+                          wrapperClassName="h-10 w-[4.5rem] shrink-0"
                           menuMinWidth={80}
                         />
                       )}
@@ -5334,8 +5579,8 @@ export default function ProductForm() {
                   </div>
                 </FormField>
                 <FormField label={`Length (${watch('length_unit') || 'cm'})`}>
-                  <div className="flex">
-                    <Input type="number" step="0.01" min="0" {...register('length_cm')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
+                  <div className="flex h-10 items-stretch">
+                    <Input type="number" step="0.01" min="0" {...register('length_cm')} className="!h-10 !min-h-10 rounded-r-none border-r-0 flex-1 min-w-0" />
                     <Controller
                       name="length_unit"
                       control={control}
@@ -5344,8 +5589,8 @@ export default function ProductForm() {
                           value={String(field.value ?? 'cm')}
                           onChange={field.onChange}
                           options={LENGTH_UNIT_OPTIONS}
-                          className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
-                          wrapperClassName="w-[4.5rem] shrink-0"
+                          className={cn(selectCls, '!h-10 !min-h-10 !max-h-10 rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
+                          wrapperClassName="h-10 w-[4.5rem] shrink-0"
                           menuMinWidth={80}
                         />
                       )}
@@ -5353,8 +5598,8 @@ export default function ProductForm() {
                   </div>
                 </FormField>
                 <FormField label={`Width (${watch('width_unit') || 'cm'})`}>
-                  <div className="flex">
-                    <Input type="number" step="0.01" min="0" {...register('width_cm')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
+                  <div className="flex h-10 items-stretch">
+                    <Input type="number" step="0.01" min="0" {...register('width_cm')} className="!h-10 !min-h-10 rounded-r-none border-r-0 flex-1 min-w-0" />
                     <Controller
                       name="width_unit"
                       control={control}
@@ -5363,8 +5608,8 @@ export default function ProductForm() {
                           value={String(field.value ?? 'cm')}
                           onChange={field.onChange}
                           options={LENGTH_UNIT_OPTIONS}
-                          className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
-                          wrapperClassName="w-[4.5rem] shrink-0"
+                          className={cn(selectCls, '!h-10 !min-h-10 !max-h-10 rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
+                          wrapperClassName="h-10 w-[4.5rem] shrink-0"
                           menuMinWidth={80}
                         />
                       )}
@@ -5372,8 +5617,8 @@ export default function ProductForm() {
                   </div>
                 </FormField>
                 <FormField label={`Height (${watch('height_unit') || 'cm'})`}>
-                  <div className="flex">
-                    <Input type="number" step="0.01" min="0" {...register('height_cm')} className="rounded-r-none border-r-0 flex-1 min-w-0" />
+                  <div className="flex h-10 items-stretch">
+                    <Input type="number" step="0.01" min="0" {...register('height_cm')} className="!h-10 !min-h-10 rounded-r-none border-r-0 flex-1 min-w-0" />
                     <Controller
                       name="height_unit"
                       control={control}
@@ -5382,8 +5627,8 @@ export default function ProductForm() {
                           value={String(field.value ?? 'cm')}
                           onChange={field.onChange}
                           options={LENGTH_UNIT_OPTIONS}
-                          className={cn(selectCls, 'rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
-                          wrapperClassName="w-[4.5rem] shrink-0"
+                          className={cn(selectCls, '!h-10 !min-h-10 !max-h-10 rounded-l-none border-l-0 w-[4.5rem] shrink-0 px-1')}
+                          wrapperClassName="h-10 w-[4.5rem] shrink-0"
                           menuMinWidth={80}
                         />
                       )}
@@ -5391,7 +5636,7 @@ export default function ProductForm() {
                   </div>
                 </FormField>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
                 <FormField label="Shipping Class">
                   <Controller
                     name="shipping_class"
@@ -5401,7 +5646,7 @@ export default function ProductForm() {
                         value={String(field.value ?? '')}
                         onChange={field.onChange}
                         options={SHIPPING_CLASS_OPTIONS}
-                        className={selectCls}
+                        className={cn(selectCls, '!h-10 !min-h-10 !max-h-10')}
                       />
                     )}
                   />
@@ -5415,7 +5660,7 @@ export default function ProductForm() {
                         value={String(field.value ?? '')}
                         onChange={field.onChange}
                         options={SHIPPING_COST_TYPE_OPTIONS}
-                        className={selectCls}
+                        className={cn(selectCls, '!h-10 !min-h-10 !max-h-10')}
                       />
                     )}
                   />
@@ -5425,13 +5670,15 @@ export default function ProductForm() {
                     watch('shipping_cost_type') === 'variable' ? 'Cost per kg' :
                     watch('shipping_cost_type') === 'per_uom' ? 'Cost per unit' : 'Shipping Cost'
                   }>
-                    <Input type="number" step="0.01" min="0" {...register('shipping_cost')} placeholder={
+                    <Input type="number" step="0.01" min="0" className="!h-10 !min-h-10" {...register('shipping_cost')} placeholder={
                       watch('shipping_cost_type') === 'variable' ? 'Rate per kg' :
                       watch('shipping_cost_type') === 'per_uom' ? 'Rate per unit' : 'Fixed amount'
                     } />
                   </FormField>
                 )}
-                <FormField label="Free Shipping Threshold"><Input type="number" step="0.01" min="0" {...register('free_shipping_threshold')} placeholder="Min order for free" /></FormField>
+                <FormField label="Free Shipping Threshold">
+                  <Input type="number" step="0.01" min="0" className="!h-10 !min-h-10" {...register('free_shipping_threshold')} placeholder="Min order for free" />
+                </FormField>
               </div>
               {watch('shipping_cost_type') && watch('shipping_cost_type') !== 'fixed' && (
                 <p className="text-xs text-gray-500 mt-1">
@@ -5910,19 +6157,29 @@ export default function ProductForm() {
 
         {/* 12. Subscription removed — billing config is now on each variant/plan */}
 
-        {/* 13. Bill of Materials (MRP) */}
-        {isEdit && id && (
+        {/* 13. Bill of Materials (MRP) — not for raw materials or bundles */}
+        {!isBundleType && !isRawMaterial && (
           <Section title="Bill of Materials (BOM)" icon={Factory} open={activeTab === 'bom'} onToggle={() => toggle('bom')} sectionId="bom">
             <div className="pt-4">
-              <BOMEditor productId={id} productName={watch('name')} />
+              {!id ? (
+                <p className="text-sm text-muted-foreground rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center mx-1 mb-2">
+                  Save the product first to define manufacturing components and quantities.
+                </p>
+              ) : (
+                <BOMEditor productId={id} productName={watch('name')} />
+              )}
             </div>
           </Section>
         )}
 
         {/* 14. Reports (UI-only links) */}
-        {isEdit && (
-          <Section title="Reports & Analytics" icon={BarChart3} open={activeTab === 'reports'} onToggle={() => toggle('reports')} sectionId="reports">
-            <div className={formEditLayout.sectionBody}>
+        <Section title="Reports & Analytics" icon={BarChart3} open={activeTab === 'reports'} onToggle={() => toggle('reports')} sectionId="reports">
+          <div className={formEditLayout.sectionBody}>
+            {!id ? (
+              <p className="text-sm text-muted-foreground rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
+                Save the product first to see views, purchases, and version stats.
+              </p>
+            ) : (
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="rounded-lg border p-4">
                   <p className="text-2xl font-bold">{product?.view_count ?? 0}</p>
@@ -5937,9 +6194,9 @@ export default function ProductForm() {
                   <p className="text-xs text-gray-500 mt-1">Version</p>
                 </div>
               </div>
-            </div>
-          </Section>
-        )}
+            )}
+          </div>
+        </Section>
 
         {/* Submit */}
         <div className="flex justify-end gap-3 pt-2">

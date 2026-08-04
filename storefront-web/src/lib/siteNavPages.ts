@@ -164,7 +164,16 @@ export function resolveNavBlockLinks(
   const isEditorCanvas = options?.isEditorCanvas === true
   const skipCatalogInjection = previewShell || isEditorCanvas
   const blogEnabled = options?.blogEnabled !== false
-  const rentalsEnabled = options?.rentalsEnabled !== false
+
+  // If the builder site owns its pages, tie rentals visibility to whether a
+  // `rentals` page actually exists — deleting the page removes the nav link
+  // and the route.  Fall back to the feature-flag alone when no CMS pages are
+  // present (legacy / no builder site).
+  const featureFlagEnabled = options?.rentalsEnabled !== false
+  const siteHasManagedPages = Boolean(site?.pages?.length)
+  const siteHasRentalsPage = !siteHasManagedPages ||
+    site.pages.some(p => p.slug === 'rentals' && p.is_published !== false)
+  const rentalsEnabled = featureFlagEnabled && siteHasRentalsPage
   const showNavLinks = props.show_nav_links !== false
   if (!showNavLinks) return []
 

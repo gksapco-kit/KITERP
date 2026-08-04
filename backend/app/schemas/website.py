@@ -366,6 +366,7 @@ class AIGenerateSiteRequest(BaseModel):
     pages: Optional[List[str]] = None    # e.g. ["home","about","pricing","contact"] (auto if omitted)
     include_blog: bool = False
     include_pricing: bool = True
+    include_rentals: bool = False
     image_category: Optional[str] = None
     selling_mode: Optional[str] = None   # products|services|both
     site_name: Optional[str] = None

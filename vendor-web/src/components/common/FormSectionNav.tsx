@@ -61,14 +61,14 @@ export const formEditLayout = {
 } as const
 
 export const formSelectClass =
-  'form-select flex h-8 min-h-8 w-full items-center px-2 py-0 text-xs focus:outline-none focus:ring-2 focus:ring-ring sm:h-10 sm:px-2.5 sm:text-sm [color-scheme:light] dark:[color-scheme:dark]'
+  'form-select flex h-8 min-h-8 w-full items-center px-2 py-0 text-xs focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus:ring-offset-0 focus-visible:ring-offset-0 focus:border-primary focus-visible:border-primary sm:h-10 sm:px-2.5 sm:text-sm [color-scheme:light] dark:[color-scheme:dark]'
 
 /** @deprecated Prefer `Select` from `@/components/ui/select` — native fallback only */
 export const nativeFormSelectClass = formSelectClass
 
 /** Compact filter / toolbar native selects — prefer `Select` from `@/components/ui/select` */
 export const filterSelectClass =
-  'form-select inline-flex h-10 w-full min-w-0 items-center px-2.5 py-0 text-sm focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:light] dark:[color-scheme:dark]'
+  'form-select inline-flex h-10 w-full min-w-0 items-center px-2.5 py-0 text-sm focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus:ring-offset-0 focus-visible:ring-offset-0 focus:border-primary focus-visible:border-primary [color-scheme:light] dark:[color-scheme:dark]'
 
 export { Select, selectOptionsWithBlank, type SelectOption } from '@/components/ui/select'
 
@@ -439,7 +439,7 @@ export function FormSectionTabs({
   return (
     <div className={cn('space-y-1', className)}>
       <div
-        className="sticky top-[calc(3.5rem+2.25rem)] z-10 -mx-2 rounded-lg border border-border bg-background/95 px-0.5 py-0.5 shadow-sm backdrop-blur sm:-mx-2.5"
+        className="sticky top-[calc(3.5rem+2.25rem)] z-10 -mx-2 rounded-lg border border-b-0 border-border bg-background/95 px-0.5 py-0.5 shadow-sm backdrop-blur sm:-mx-2.5"
         role="tablist"
         aria-label="Form sections"
       >
@@ -484,15 +484,18 @@ export function FormSectionTabs({
                 aria-expanded={moreOpen}
                 onClick={() => setMoreOpen((o) => !o)}
                 className={cn(
-                  'flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-[0.8125rem]',
-                  moreOpen || overflowHasActive
-                    ? 'bg-muted text-foreground'
-                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                  overflowHasError && 'text-red-600',
+                  'flex items-center gap-1 rounded-md border border-amber-200/80 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900 transition-colors hover:bg-amber-100 sm:px-3 sm:text-[0.8125rem] dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/70',
+                  (moreOpen || overflowHasActive) && 'bg-amber-100 ring-1 ring-amber-300/60 dark:bg-amber-900/50 dark:ring-amber-700/50',
+                  overflowHasError && 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300',
                 )}
               >
                 More
-                <span className="rounded bg-muted-foreground/15 px-1.5 py-px text-[10px] tabular-nums sm:text-[11px]">
+                <span className={cn(
+                  'rounded px-1.5 py-px text-[10px] tabular-nums sm:text-[11px]',
+                  overflowHasError
+                    ? 'bg-red-200/70 text-red-800 dark:bg-red-900/60 dark:text-red-200'
+                    : 'bg-amber-200/70 text-amber-950 dark:bg-amber-800/60 dark:text-amber-100',
+                )}>
                   {overflow.length}
                 </span>
                 <ChevronDown className={cn('h-4 w-4 transition-transform', moreOpen && 'rotate-180')} />

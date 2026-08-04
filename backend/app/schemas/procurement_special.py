@@ -148,6 +148,32 @@ class SubcontractingOrderResponse(BaseModel):
 
 # ── Consignment Stock ─────────────────────────────────────────────
 
+class ConsignmentStockCreate(BaseModel):
+    supplier_id: str
+    product_id: str
+    variant_id: Optional[str] = None
+    plant_id: Optional[str] = None
+    storage_location_id: Optional[str] = None
+    purchase_order_id: Optional[str] = None
+    quantity_available: float = Field(0, ge=0)
+    unit_price: float = Field(0, ge=0)
+    currency: Optional[str] = Field("INR", max_length=3)
+
+
+class ConsignmentStockUpdate(BaseModel):
+    unit_price: Optional[float] = Field(None, ge=0)
+    currency: Optional[str] = Field(None, max_length=3)
+    quantity_available: Optional[float] = Field(None, ge=0)
+    plant_id: Optional[str] = None
+    storage_location_id: Optional[str] = None
+    purchase_order_id: Optional[str] = None
+
+
+class ConsignmentWithdraw(BaseModel):
+    quantity: float = Field(..., gt=0, description="Quantity to withdraw from consignment stock")
+    notes: Optional[str] = None
+
+
 class ConsignmentStockResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -158,6 +184,8 @@ class ConsignmentStockResponse(BaseModel):
     variant_id: Optional[str] = None
     plant_id: Optional[str] = None
     storage_location_id: Optional[str] = None
+    purchase_order_id: Optional[str] = None
+    po_number: Optional[str] = None
     quantity_available: float = 0
     quantity_withdrawn: float = 0
     unit_price: float = 0
@@ -169,7 +197,7 @@ class ConsignmentStockResponse(BaseModel):
     def coerce_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v
 
-    @field_validator("variant_id", "plant_id", "storage_location_id", mode="before")
+    @field_validator("variant_id", "plant_id", "storage_location_id", "purchase_order_id", mode="before")
     @classmethod
     def coerce_optional_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v

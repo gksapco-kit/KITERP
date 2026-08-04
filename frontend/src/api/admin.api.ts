@@ -429,6 +429,14 @@ export const adminApi = {
     return response.data
   },
 
+  /** Handoff into the internal KIT ERP platform tenant for admin CRM (not a customer BU). */
+  createPlatformCrmDashboardHandoff: async (): Promise<VendorDashboardHandoffResponse> => {
+    // Use platform-crm path (not /admin/crm/…) so it cannot collide with Admin Platform CRM APIs.
+    const response = await apiClient.post('/admin/platform-crm/dashboard-handoff')
+    return response.data
+  },
+
+
   listOrderDisputes: async (params?: {
     status?: string
     dispute_type?: string

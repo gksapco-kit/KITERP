@@ -41,6 +41,8 @@ class Product(Base):
     price = Column(Numeric(12, 2), nullable=False)
     compare_at_price = Column(Numeric(12, 2))
     cost_price = Column(Numeric(12, 2))
+    # Inventory valuation price control: moving_average (MAP) | standard_price
+    valuation_method = Column(String(20), nullable=False, default="moving_average")
     currency = Column(String(3), default="INR")
     discount_percentage = Column(Numeric(5, 2))
     discount_amount = Column(Numeric(12, 2))

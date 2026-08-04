@@ -848,6 +848,57 @@ async def create_page(
     return await _get_page(db, str(page.id), site_id)
 
 
+@router.post("/{site_id}/ensure-rentals-page", response_model=PageOut)
+async def ensure_rentals_page(
+    site_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    """Create the Rentals page for this site if it does not already exist.
+
+    Idempotent — calling it multiple times always returns the existing page.
+    This lets the builder auto-provision the Rentals page for vendors who
+    enabled the rentals feature before this page type was introduced.
+    """
+    vendor = await _get_vendor(db, user)
+    await _get_site(db, site_id, vendor.id)
+
+    existing = (await db.execute(
+        select(WebsitePage).where(
+            WebsitePage.site_id == UUID(site_id),
+            WebsitePage.slug == "rentals",
+            WebsitePage.deleted_at.is_(None),
+        )
+    )).scalars().first()
+    if existing:
+        return await _get_page(db, str(existing.id), site_id)
+
+    # Determine the next sort_order
+    max_order_row = (await db.execute(
+        select(WebsitePage.sort_order)
+        .where(WebsitePage.site_id == UUID(site_id), WebsitePage.deleted_at.is_(None))
+        .order_by(WebsitePage.sort_order.desc())
+    )).scalars().first()
+    next_order = (max_order_row or 0) + 1
+
+    page = WebsitePage(
+        id=uuid.uuid4(),
+        site_id=UUID(site_id),
+        title="Rentals",
+        slug="rentals",
+        page_type="rentals",
+        is_homepage=False,
+        show_in_nav=True,
+        is_published=True,
+        sort_order=next_order,
+        seo_title="Rentals",
+        seo_description="Browse and book rental assets — vehicles, equipment, storage and more.",
+    )
+    db.add(page)
+    await db.commit()
+    return await _get_page(db, str(page.id), site_id)
+
+
 @router.get("/{site_id}/pages/{page_id}", response_model=PageOut)
 async def get_page(
     site_id: str,
@@ -3649,6 +3700,8 @@ async def ai_generate_site(
         default_pages.append("pricing")
     if body.include_blog and "blog" not in default_pages:
         default_pages.append("blog")
+    if getattr(body, "include_rentals", False) and "rentals" not in default_pages:
+        default_pages.append("rentals")
 
     tone_instructions = {
         "professional": "formal, authoritative, trust-building",
@@ -3748,6 +3801,8 @@ Fill in real copy for the business. No placeholder text."""
             default_pages.append("pricing")
         if body.include_blog and "blog" not in default_pages:
             default_pages.append("blog")
+        if getattr(body, "include_rentals", False) and "rentals" not in default_pages:
+            default_pages.append("rentals")
 
     pages_out: List[Dict[str, Any]] = []
     style_cfg = _style_for_business_type(business_type)
@@ -3792,11 +3847,16 @@ Fill in real copy for the business. No placeholder text."""
                 {"block_type": "blog_grid",  "label": "Blog Grid", "props": {"title": "Latest Insights", "columns": 3}},
                 {"block_type": "newsletter", "label": "Newsletter", "props": {"title": "Stay in the Loop"}},
             ]
+        elif slug == "rentals":
+            page_blocks = [
+                {"block_type": "hero_minimal", "label": "Hero", "props": _enrich_block_props_with_category("hero_minimal", {"headline": "Rentals", "subtitle": "Browse and book available assets — vehicles, equipment, storage and more.", "bg_style": "gradient"}, imgs, img_cursor)},
+                {"block_type": "features",     "label": "Why Rent With Us", "props": {"title": "Why Rent With Us", "columns": 3, "items": [{"icon": "truck", "title": "Flexible Durations", "description": "Daily, weekly or monthly plans."}, {"icon": "shield", "title": "Secure Deposits", "description": "Transparent refundable deposits."}, {"icon": "check-circle", "title": "Easy Booking", "description": "Request in a few taps."}]}},
+            ]
 
         pages_out.append({
             "title": "Home" if slug == "home" else slug.replace("-", " ").title(),
             "slug": slug if slug != "home" else "home",
-            "page_type": slug if slug in ("home", "about", "services", "contact", "blog", "pricing") else "custom",
+            "page_type": slug if slug in ("home", "about", "services", "contact", "blog", "pricing", "rentals") else "custom",
             "is_homepage": slug == "home",
             "show_in_nav": True,
             "seo_title": f"{short_name} — {slug.replace('-', ' ').title()}" if slug != "home" else f"{short_name} — Home",

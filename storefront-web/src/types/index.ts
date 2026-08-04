@@ -26,6 +26,7 @@ export interface VendorInfo {
 export interface ProductVariant {
   id: string; name: string
   sku?: string; barcode?: string; uom?: string
+  uom_quantity?: number | null
   price_type?: string
   price: number; compare_at_price?: number; cost_price?: number
   currency?: string; discount_percentage?: number; discount_amount?: number
@@ -64,6 +65,7 @@ export interface Product {
   brand?: string; product_type?: string
   category?: string; subcategory?: string; tags?: string[]
   uom?: string
+  uom_quantity?: number | null
   price_type?: string
   price: number; compare_at_price?: number; cost_price?: number
   currency?: string; discount_percentage?: number; discount_amount?: number

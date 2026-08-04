@@ -100,20 +100,13 @@ export default function HrManagement() {
 
     const seq = ++requestSeq.current
     let cancelled = false
-    const targetPath = `${vendorAppOrigin()}${hrItem.vendorPath}`
-    const embedTarget = `${targetPath}${targetPath.includes('?') ? '&' : '?'}embed=1`
-
-    // Already signed into KIT ERP platform HR — change route only.
-    if (sessionReadyRef.current) {
-      setIframeSrc(embedTarget)
-      setLoadingFrame(false)
-      return
-    }
 
     const run = async () => {
       setLoadingFrame(true)
       setHandoffError(null)
+      setIframeSrc(null)
       try {
+        // Always SSO via handoff — never open vendor-web routes bare (that shows Sign in).
         const res = await adminApi.createPlatformHrDashboardHandoff()
         if (cancelled || seq !== requestSeq.current) return
         setIframeSrc(buildHandoffUrl(res.handoff_token, hrItem.vendorPath!, true))

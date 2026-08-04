@@ -98,6 +98,16 @@ class RentalBooking(Base):
     delivery_notes = Column(Text)
     delivery_address = Column(Text)
 
+    # Return / check-in tracking
+    # good | damaged | missing
+    return_condition = Column(String(20))
+    returned_at = Column(DateTime(timezone=True))
+    quantity_returned = Column(Numeric(12, 2))
+    damage_charge = Column(Numeric(12, 2), default=0)
+    late_fee = Column(Numeric(12, 2), default=0)
+    deposit_refunded = Column(Numeric(12, 2), default=0)
+    return_notes = Column(Text)
+
     timeline = Column(JSONB, default=list)
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -1,6 +1,7 @@
 import type { ProductVariant } from '@/types'
+import { formatUomDisplay } from '@/lib/uomDisplay'
 
-const GENERIC_VARIANT_NAMES = /^(variant|default|plan \d+)$/i
+const GENERIC_VARIANT_NAMES = /^(variant(\s*\d+)?|default|plan(\s*\d+)?)$/i
 
 const SIZE_VALUE_PATTERN =
   /^(xxs|xs|s|m|l|xl|xxl|2xl|3xl|4xl|one\s*size|os|small|medium|large|x[- ]?large|xx[- ]?large)$/i
@@ -60,6 +61,10 @@ export function getVariantAttributes(variant: ProductVariant): Record<string, st
     if (value != null && String(value).trim()) out[key] = String(value).trim()
   }
   return out
+}
+
+export function isGenericVariantName(name?: string | null): boolean {
+  return GENERIC_VARIANT_NAMES.test((name || '').trim())
 }
 
 export function normalizeVariantAttributes(variant: ProductVariant): Record<string, string> {
@@ -415,10 +420,15 @@ export function buildProductCardOptionRows(
   }
 
   if (!hasSizeRow && !galleryOnlyColors) {
-    const inferredSizes = collectSizeValuesFromVariants(normalized)
-    if (inferredSizes.length > 0) {
-      rows.push({ type: 'size', label: 'Size', values: inferredSizes })
-      hasSizeRow = true
+    // Only infer Size chips from real option attributes (Fast entry / config).
+    // Manual variants without attributes use the flat Options cards instead.
+    const hasStructuredAttrs = normalized.some((v) => Object.keys(getVariantAttributes(v)).length > 0)
+    if (hasStructuredAttrs) {
+      const inferredSizes = collectSizeValuesFromVariants(normalized)
+      if (inferredSizes.length > 0) {
+        rows.push({ type: 'size', label: 'Size', values: inferredSizes })
+        hasSizeRow = true
+      }
     }
   }
 
@@ -436,19 +446,8 @@ export function buildProductCardOptionRows(
     })
   }
 
-  if (!hasSizeRow && variants.length > 1 && !galleryOnlyColors) {
-    const names = variants
-      .map((v) => v.name?.trim())
-      .filter((n): n is string => !!n && !GENERIC_VARIANT_NAMES.test(n))
-    const uniqueNames = [...new Set(names)]
-    if (uniqueNames.length > 1) {
-      rows.unshift({
-        type: 'size',
-        label: 'Size',
-        values: uniqueNames.every(isSizeLikeToken) ? sortSizeValues(uniqueNames.map(toCompactSizeCode)) : uniqueNames,
-      })
-    }
-  }
+  // Do not invent a "Size" row from bare variant names — that path was for
+  // Fast-entry style options. Manual variants keep flat UOM/name cards.
 
   return rows
 }
@@ -694,8 +693,42 @@ export function variantDisplayLabel(variant: ProductVariant): string {
   const values = Object.values(attrs).filter(Boolean)
   if (values.length > 0) return values.join(' · ')
   const name = variant.name?.trim() ?? ''
-  if (name && !GENERIC_VARIANT_NAMES.test(name)) return name
-  return ''
+  if (name && !isGenericVariantName(name)) return name
+  return formatUomDisplay(variant.uom_quantity, variant.uom) || ''
+}
+
+/**
+ * Title for flat (non–Fast entry) option cards.
+ * Prefer UOM so manual variants read as "Bag" / "2 kg" instead of "Variant 1".
+ */
+export function variantFlatOptionTitle(
+  variant: ProductVariant,
+  product?: { uom?: string | null; uom_quantity?: number | null },
+): string {
+  const uomLabel = formatUomDisplay(
+    variant.uom_quantity ?? product?.uom_quantity,
+    variant.uom || product?.uom,
+  )
+  const name = variant.name?.trim() ?? ''
+  if (uomLabel && (isGenericVariantName(name) || !name)) return uomLabel
+  if (name && !isGenericVariantName(name)) return name
+  return uomLabel || name || 'Option'
+}
+
+/** Optional secondary line under the flat option title (custom name when title is UOM). */
+export function variantFlatOptionDescription(
+  variant: ProductVariant,
+  product?: { uom?: string | null; uom_quantity?: number | null },
+): string | null {
+  const title = variantFlatOptionTitle(variant, product)
+  const name = variant.name?.trim() ?? ''
+  if (name && !isGenericVariantName(name) && name !== title) return name
+  const uomLabel = formatUomDisplay(
+    variant.uom_quantity ?? product?.uom_quantity,
+    variant.uom || product?.uom,
+  )
+  if (uomLabel && uomLabel !== title) return uomLabel
+  return null
 }
 
 export function isColorDimension(name: string): boolean {

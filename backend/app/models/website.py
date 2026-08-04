@@ -100,7 +100,7 @@ class WebsitePage(Base):
 
     title = Column(String(200), nullable=False)
     slug = Column(String(200), nullable=False)
-    page_type = Column(String(50), default="custom")  # home|about|services|contact|blog|portfolio|pricing|custom
+    page_type = Column(String(50), default="custom")  # home|about|services|contact|blog|portfolio|pricing|rentals|custom
 
     # SEO per-page overrides
     seo_title = Column(String(200), nullable=True)

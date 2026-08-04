@@ -94,16 +94,22 @@ export function ResizableTable({ tableId, defaultWidths, children, className }: 
   })
 
   return (
-    <table
-      className={className}
-      style={{ tableLayout: 'fixed', width: '100%' }}
-    >
-      <colgroup>
-        {widths.map((w, i) => (
-          <col key={i} style={{ width: w, minWidth: 40 }} />
-        ))}
-      </colgroup>
-      {patchedChildren}
-    </table>
+    <div className="overflow-x-auto">
+      <table
+        className={className}
+        style={{
+          tableLayout: 'fixed',
+          width: '100%',
+          minWidth: widths.reduce((sum, w) => sum + w, 0),
+        }}
+      >
+        <colgroup>
+          {widths.map((w, i) => (
+            <col key={i} style={{ width: w, minWidth: w }} />
+          ))}
+        </colgroup>
+        {patchedChildren}
+      </table>
+    </div>
   )
 }

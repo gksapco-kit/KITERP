@@ -202,6 +202,7 @@ class ProductCreate(BaseModel):
     price: float = Field(0, ge=0)
     compare_at_price: Optional[float] = None
     cost_price: Optional[float] = None
+    valuation_method: Optional[str] = Field("moving_average", pattern="^(moving_average|standard_price)$")
     currency: str = "INR"
     discount_percentage: Optional[float] = Field(None, ge=0, le=100)
     discount_amount: Optional[float] = None
@@ -332,6 +333,7 @@ class ProductUpdate(BaseModel):
     price: Optional[float] = None
     compare_at_price: Optional[float] = None
     cost_price: Optional[float] = None
+    valuation_method: Optional[str] = Field(None, pattern="^(moving_average|standard_price)$")
     currency: Optional[str] = None
     discount_percentage: Optional[float] = Field(None, ge=0, le=100)
     discount_amount: Optional[float] = None
@@ -466,6 +468,7 @@ class ProductResponse(BaseModel):
     price: float
     compare_at_price: Optional[float] = None
     cost_price: Optional[float] = None
+    valuation_method: str = "moving_average"
     currency: str = "INR"
     discount_percentage: Optional[float] = None
     discount_amount: Optional[float] = None

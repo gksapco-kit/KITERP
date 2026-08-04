@@ -202,6 +202,8 @@ export interface Product {
   price: number
   compare_at_price?: number
   cost_price?: number
+  /** Inventory valuation: moving_average (MAP) | standard_price */
+  valuation_method?: 'moving_average' | 'standard_price'
   currency: string
   discount_percentage?: number
   discount_amount?: number
@@ -1079,12 +1081,18 @@ export interface PurchaseRequisitionItem {
   unit_of_measure?: string
   estimated_price?: number | null
   plant_id?: string | null
+  plant_name?: string | null
   storage_location_id?: string | null
+  storage_location_name?: string | null
   needed_by_date?: string | null
   account_assignment?: string | null
   notes?: string | null
   converted_qty?: number
   quantity_ordered?: number
+  purchase_order_id?: string | null
+  is_converted?: boolean
+  suggested_supplier_id?: string | null
+  suggested_supplier_name?: string | null
   product_name?: string
   product_sku?: string
   service_name?: string
@@ -1109,7 +1117,7 @@ export interface PurchaseRequisition {
   id: string
   vendor_id: string
   pr_number: string
-  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'partially_converted' | 'converted' | 'cancelled'
+  status: 'draft' | 'submitted' | 'open' | 'approved' | 'rejected' | 'partially_converted' | 'converted' | 'cancelled'
   requisition_type?: 'product' | 'service' | 'asset' | 'consumption' | 'other'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   requested_by?: string | null
@@ -1130,6 +1138,7 @@ export interface PurchaseRequisition {
   approver_message?: string | null
   required_date?: string | null
   submitted_at?: string | null
+  approved_at?: string | null
   items: PurchaseRequisitionItem[]
   approvals: PurchaseRequisitionApproval[]
   created_at: string
@@ -1291,6 +1300,57 @@ export interface ServiceEntrySheet {
   po_number?: string | null
   created_at?: string
   updated_at?: string
+}
+
+// ── Procurement: Subcontracting Order ───────────────────────────
+export interface SubcontractingComponent {
+  product_id?: string
+  variant_id?: string | null
+  qty_required: number
+  qty_issued?: number
+  uom?: string
+  batch_number?: string | null
+  product_name?: string
+}
+
+export interface SubcontractingOrder {
+  id: string
+  vendor_id: string
+  purchase_order_id: string
+  supplier_id: string
+  plant_id?: string | null
+  ref: string
+  status: 'open' | 'components_issued' | 'in_progress' | 'received' | 'closed' | 'cancelled'
+  components: SubcontractingComponent[]
+  finished_product_id?: string | null
+  finished_variant_id?: string | null
+  qty_expected: number
+  qty_received: number
+  notes?: string | null
+  supplier_name?: string
+  po_number?: string
+  created_at?: string
+  updated_at?: string
+}
+
+// ── Procurement: Consignment Stock ──────────────────────────────
+export interface ConsignmentStock {
+  id: string
+  vendor_id: string
+  supplier_id: string
+  product_id: string
+  variant_id?: string | null
+  plant_id?: string | null
+  storage_location_id?: string | null
+  purchase_order_id?: string | null
+  po_number?: string | null
+  quantity_available: number
+  quantity_withdrawn: number
+  unit_price: number
+  currency: string
+  updated_at?: string | null
+  supplier_name?: string
+  product_name?: string
 }
 
 // ── Invoice Template ────────────────────────────────────────────

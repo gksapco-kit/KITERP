@@ -16,9 +16,10 @@ import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
 import { ProductPurchaseActions } from '@/components/products/ProductPurchaseActions'
 import { ProductMediaWishlistOverlay } from '@/components/products/ProductMediaWishlistOverlay'
-import { isCombinationAvailable } from '@/lib/variantOptions'
+import { isCombinationAvailable, variantFlatOptionTitle } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
+import { formatUomDisplay } from '@/lib/uomDisplay'
 
 export default function MinimalDetail(props: ProductDetailTemplateProps) {
   const {
@@ -46,6 +47,13 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
   const sf = displayFields
   const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price') && hasDisplayPrice
   const showVariants = isDisplayFieldEnabled(sf, 'variants') && hasVariants
+  const showUom = isDisplayFieldEnabled(sf, 'uom')
+  const displayUomLabel = showUom
+    ? formatUomDisplay(
+        selectedVariant?.uom_quantity ?? product.uom_quantity,
+        selectedVariant?.uom || product.uom,
+      )
+    : null
 
   const intervalLabel: Record<string, string> = {
     daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly',
@@ -159,6 +167,9 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
                   : (intervalShort[subscriptionInterval] || `/${subscriptionInterval}`)}
               </span>
             )}
+            {!isSubscription && displayUomLabel && (
+              <span className="text-base font-normal text-gray-400 ml-1">/{displayUomLabel}</span>
+            )}
           </span>
           {showCompare && (displayCompare ?? 0) > displayPrice && (
             <span className="text-lg text-gray-400 line-through">{formatCurrency(displayCompare!, displayCurrency)}</span>
@@ -263,7 +274,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
             </div>
           )}
 
-          {!variantValidation.valid && variantValidation.message ? (
+          {hasStructuredOptions && !variantValidation.valid && variantValidation.message ? (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2 text-center max-w-md mx-auto">
               {variantValidation.message}
             </p>
@@ -332,15 +343,19 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
               <div className="flex flex-wrap justify-center gap-2">
                 {activeVariants.map(v => {
                   const isSelected = selectedVariant?.id === v.id
+                  const showVPrice = hasStorefrontDisplayPrice(v.price, v.price_type)
+                  const title = variantFlatOptionTitle(v, product)
+                  const vUomLabel = showUom ? formatUomDisplay(v.uom_quantity, v.uom || product.uom) : null
+                  const priceUomSuffix = vUomLabel && vUomLabel !== title ? vUomLabel : null
+                  const pricePart = showVPrice
+                    ? ` · ${formatCurrency(v.price, v.currency)}${priceUomSuffix ? `/${priceUomSuffix}` : ''}`
+                    : ''
                   return (
                     <button key={v.id} onClick={() => setSelectedVariantId(v.id)}
                       className={`px-5 py-2.5 rounded-full border-2 text-sm font-medium transition-all ${
                         isSelected ? 'border-black bg-black text-white' : 'border-gray-200 text-gray-700 hover:border-gray-400'
                       }`}>
-                      {v.name}
-                      {hasStorefrontDisplayPrice(v.price, v.price_type)
-                        ? ` · ${formatCurrency(v.price, v.currency)}`
-                        : ''}
+                      {title}{pricePart}
                     </button>
                   )
                 })}

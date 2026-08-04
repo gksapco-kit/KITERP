@@ -21,10 +21,11 @@ import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
 import { ProductPurchaseActions } from '@/components/products/ProductPurchaseActions'
 import { ProductMediaWishlistOverlay } from '@/components/products/ProductMediaWishlistOverlay'
-import { isCombinationAvailable } from '@/lib/variantOptions'
+import { isCombinationAvailable, variantFlatOptionDescription, variantFlatOptionTitle } from '@/lib/variantOptions'
 import { getEffectiveStockStatus } from '@/lib/stockValidation'
 import type { ProductDetailTemplateProps } from './types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
+import { formatUomDisplay } from '@/lib/uomDisplay'
 import { themeUi } from '@/lib/themeColors'
 
 const catalogCard = `rounded-xl border ${themeUi.cardSurface} ${themeUi.cardBorder}`
@@ -169,6 +170,13 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
   const sf = displayFields
   const showCompare = isDisplayFieldEnabled(sf, 'compare_at_price') && hasDisplayPrice
   const showVariants = isDisplayFieldEnabled(sf, 'variants') && hasVariants
+  const showUom = isDisplayFieldEnabled(sf, 'uom')
+  const displayUomLabel = showUom
+    ? formatUomDisplay(
+        selectedVariant?.uom_quantity ?? product.uom_quantity,
+        selectedVariant?.uom || product.uom,
+      )
+    : null
 
   const intervalLabel: Record<string, string> = {
     daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly',
@@ -288,6 +296,9 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                       : (intervalShort[subscriptionInterval] || `/${subscriptionInterval}`)}
                   </span>
                 )}
+                {!isSubscription && displayUomLabel && (
+                  <span className="text-base font-normal text-gray-400 ml-1">/{displayUomLabel}</span>
+                )}
               </span>
               )}
               {showCompare && (displayCompare ?? 0) > displayPrice && (
@@ -401,7 +412,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                   </div>
                 )}
 
-                {!variantValidation.valid && variantValidation.message ? (
+                {hasStructuredOptions && !variantValidation.valid && variantValidation.message ? (
                   <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
                     {variantValidation.message}
                   </p>
@@ -481,7 +492,12 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                 ) : !hasStructuredOptions ? (
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-2">
-                      Options: <span className="font-normal text-gray-500">{selectedVariant?.name}</span>
+                      Options:{' '}
+                      <span className="font-normal text-gray-500">
+                        {selectedVariant
+                          ? variantFlatOptionTitle(selectedVariant, product)
+                          : null}
+                      </span>
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {activeVariants.map(v => {
@@ -489,6 +505,11 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                         const showVPrice = hasStorefrontDisplayPrice(v.price, v.price_type)
                         const vDiscount = showVPrice && v.compare_at_price && v.compare_at_price > v.price
                           ? Math.round((1 - v.price / v.compare_at_price) * 100) : 0
+                        const title = variantFlatOptionTitle(v, product)
+                        const description = variantFlatOptionDescription(v, product)
+                        const vUomLabel = showUom ? formatUomDisplay(v.uom_quantity, v.uom || product.uom) : null
+                        // Avoid repeating UOM when it already is the card title
+                        const priceUomSuffix = vUomLabel && vUomLabel !== title ? vUomLabel : null
                         return (
                           <button key={v.id} onClick={() => setSelectedVariantId(v.id)}
                             className={`relative px-4 py-2.5 rounded-lg border-2 text-left transition-all min-w-[100px] ${
@@ -497,9 +518,20 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                             {showCompare && vDiscount > 0 && (
                               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">-{vDiscount}%</span>
                             )}
-                            <p className={`text-sm font-semibold ${isSelected ? 'text-blue-700' : 'text-gray-800'}`}>{v.name}</p>
+                            <p className={`text-sm font-semibold ${isSelected ? 'text-blue-700' : 'text-gray-800'}`}>{title}</p>
+                            {description && (
+                              <p className={`text-xs mt-0.5 ${isSelected ? 'text-blue-500' : 'text-gray-500'}`}>{description}</p>
+                            )}
                             {showVPrice && (
-                              <p className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>{formatCurrency(v.price, v.currency)}</p>
+                              <p className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>
+                                {formatCurrency(v.price, v.currency)}
+                                {priceUomSuffix && (
+                                  <span className={`text-xs font-normal ml-0.5 ${isSelected ? 'text-blue-500' : 'text-gray-500'}`}>/{priceUomSuffix}</span>
+                                )}
+                              </p>
+                            )}
+                            {!showVPrice && !description && vUomLabel && vUomLabel !== title && (
+                              <p className={`text-xs mt-0.5 ${isSelected ? 'text-blue-500' : 'text-gray-500'}`}>{vUomLabel}</p>
                             )}
                             {showCompare && showVPrice && (v.compare_at_price ?? 0) > v.price && (
                               <p className="text-xs text-gray-400 line-through">{formatCurrency(v.compare_at_price!, v.currency)}</p>
@@ -697,7 +729,10 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                 const vPriceType = v.price_type || 'per_cycle'
                 const priceUnit = isSubscription
                   ? (vPriceType === 'per_unit' ? `/${v.uom || 'unit'}` : (intervalShort[vInterval] || '/mo'))
-                  : ''
+                  : (showUom ? (() => {
+                      const label = formatUomDisplay(v.uom_quantity, v.uom || product.uom)
+                      return label ? `/${label}` : ''
+                    })() : '')
                 return (
                   <tr key={v.id} className={`border-b last:border-0 transition-colors ${
                     isSelected ? (isSubscription ? 'bg-accent/80' : 'bg-blue-50/50') : 'hover:bg-gray-50'

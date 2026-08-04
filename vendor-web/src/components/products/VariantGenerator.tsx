@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
 import type { VariantGenerateMode } from '@/api/vendor'
+import { isPristineDefaultVariant } from '@/lib/productVariants'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -68,8 +69,23 @@ export function VariantGeneratorButton({ productId }: Props) {
       excluded_hashes: Array.from(excludedHashes),
       selected_hashes: mode === 'selected' ? Array.from(checkedRows) : undefined,
     }),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
+      if (result.created_count > 0) {
+        try {
+          const list = await vendorApi.productListVariants(productId)
+          const leftoverIds = list.items
+            .filter(v => isPristineDefaultVariant(v, false, { allowPersisted: true }))
+            .map(v => v.id)
+          if (leftoverIds.length > 0) {
+            await vendorApi.productBulkDeleteVariants(productId, leftoverIds)
+          }
+        } catch {
+          /* best-effort cleanup */
+        }
+      }
       qc.invalidateQueries({ queryKey: ['product-config-variants-preview', productId] })
+      qc.invalidateQueries({ queryKey: ['product-variants', productId] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'product', productId] })
       toast.success(
         `${result.created_count} variant${result.created_count === 1 ? '' : 's'} created`
         + (result.skipped_existing_count ? ` — ${result.skipped_existing_count} already existed` : '')

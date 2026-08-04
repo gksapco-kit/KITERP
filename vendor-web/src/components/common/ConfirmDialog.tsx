@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { confirmOverlayClass } from '@/lib/modalUi'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,8 @@ type Props = {
   cancelLabel?: string
   variant?: ConfirmVariant
   busy?: boolean
+  /** When set, user must type this phrase (case-insensitive) before Confirm is enabled. */
+  confirmPhrase?: string
   onCancel: () => void
   onConfirm: () => void
 }
@@ -40,15 +43,25 @@ export function ConfirmDialog({
   description,
   subtitle,
   confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  cancelLabel = 'Close',
   variant = 'default',
   busy = false,
+  confirmPhrase,
   onCancel,
   onConfirm,
 }: Props) {
+  const [typed, setTyped] = useState('')
+
+  useEffect(() => {
+    if (open) setTyped('')
+  }, [open, confirmPhrase])
+
   if (!open) return null
 
   const icon = VARIANT_ICON[variant]
+  const phrase = confirmPhrase?.trim() || ''
+  const phraseOk = !phrase || typed.trim().toLowerCase() === phrase.toLowerCase()
+  const canConfirm = phraseOk && !busy
 
   return (
     <ModalOverlay onClose={busy ? () => {} : onCancel} className={confirmOverlayClass}>
@@ -63,16 +76,40 @@ export function ConfirmDialog({
           </div>
         </div>
         {description ? (
-          <p className="text-sm text-muted-foreground mb-5 leading-relaxed">{description}</p>
+          <div className="text-sm text-muted-foreground mb-4 leading-relaxed">{description}</div>
         ) : null}
-        <div className="flex gap-3">
-          <Button type="button" variant="cancel" className="flex-1" disabled={busy} onClick={onCancel}>
+
+        {phrase ? (
+          <div className="mb-5 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Type <span className="font-semibold text-foreground font-mono">{phrase}</span> to confirm this action.
+            </p>
+            <Input
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder={phrase}
+              autoComplete="off"
+              autoFocus
+              disabled={busy}
+              className="font-mono text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  if (canConfirm) onConfirm()
+                }
+              }}
+            />
+          </div>
+        ) : null}
+
+        <div className="flex gap-3 border-t border-border pt-4 mt-1">
+          <Button type="button" variant="outline" className="flex-1" disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </Button>
           <Button
             type="button"
             className={cn('flex-1', CONFIRM_BTN[variant])}
-            disabled={busy}
+            disabled={!canConfirm}
             onClick={onConfirm}
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : confirmLabel}

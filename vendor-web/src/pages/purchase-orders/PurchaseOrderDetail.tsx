@@ -27,6 +27,7 @@ import { toast } from 'sonner'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
 import { TableToolbar } from '@/components/table/TableToolbar'
+import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { usePOTemplateSettings } from '@/hooks/useVendor'
 import { printPO, generatePOHtml, DEFAULT_PO_SETTINGS } from '@/lib/poTemplates'
@@ -299,7 +300,7 @@ export default function PurchaseOrderDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div className="flex items-center gap-4">
@@ -377,11 +378,11 @@ export default function PurchaseOrderDetail() {
       {/* Editable header form / Info cards */}
       {editingHeader ? (
         <Card className="border-blue-200 bg-blue-50/20">
-          <CardContent className="pt-5">
-            <p className="text-xs font-medium text-blue-700 uppercase mb-4">Editing Purchase Order</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label>Supplier</Label>
+          <CardContent className="p-3 sm:p-4">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-blue-700">Editing Purchase Order</p>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-gray-500">Supplier</Label>
                 <Select
                   value={headerDraft.supplier_id}
                   onChange={v => setHeaderDraft(d => ({ ...d, supplier_id: v }))}
@@ -392,21 +393,29 @@ export default function PurchaseOrderDetail() {
                   className={selectClass}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label>Expected Delivery Date</Label>
-                <Input type="date" value={headerDraft.expected_delivery_date}
-                  onChange={e => setHeaderDraft(d => ({ ...d, expected_delivery_date: e.target.value }))} />
+              <div className="space-y-1">
+                <Label className="text-[11px] text-gray-500">Expected Delivery Date</Label>
+                <Input
+                  type="date"
+                  className="h-9"
+                  value={headerDraft.expected_delivery_date}
+                  onChange={e => setHeaderDraft(d => ({ ...d, expected_delivery_date: e.target.value }))}
+                />
               </div>
-              <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-                <Label>Notes / Reference</Label>
-                <Input value={headerDraft.notes} placeholder="e.g., Invoice ref, delivery instructions…"
-                  onChange={e => setHeaderDraft(d => ({ ...d, notes: e.target.value }))} />
+              <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+                <Label className="text-[11px] text-gray-500">Notes / Reference</Label>
+                <Input
+                  className="h-9"
+                  value={headerDraft.notes}
+                  placeholder="e.g., Invoice ref, delivery instructions…"
+                  onChange={e => setHeaderDraft(d => ({ ...d, notes: e.target.value }))}
+                />
               </div>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <InfoCard icon={Truck} label="Supplier" value={po.supplier_name || '-'} />
           <InfoCard icon={Calendar} label="Order Date" value={formatDate(po.order_date)} />
           <InfoCard icon={Calendar} label="Expected Delivery" value={formatDate(po.expected_delivery_date)} />
@@ -416,7 +425,7 @@ export default function PurchaseOrderDetail() {
 
       {po.notes && !editingHeader && (
         <Card>
-          <CardContent className="py-3 px-6">
+          <CardContent className="px-4 py-2.5">
             <p className="text-sm text-gray-600"><span className="font-medium">Notes:</span> {po.notes}</p>
           </CardContent>
         </Card>
@@ -424,29 +433,44 @@ export default function PurchaseOrderDetail() {
 
       {/* Items table */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-base">Items ({po.items.length})</CardTitle>
+        <CardHeader className="flex flex-row flex-wrap items-center gap-2 space-y-0 border-b p-3 sm:px-4 sm:py-2.5">
+          <CardTitle className="shrink-0 text-base">Items ({po.items.length})</CardTitle>
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+            <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Sort</span>
+            <ThemeSelect
+              value={itemSortKey}
+              onChange={setItemSortKey}
+              options={itemSortOptions}
+              aria-label="Sort by column"
+              className="h-8 text-xs"
+              wrapperClassName="w-[7.5rem]"
+            />
+            <ThemeSelect
+              value={itemSortDir}
+              onChange={(v) => setItemSortDir(v as SortDir)}
+              options={[
+                { value: 'asc', label: 'Asc' },
+                { value: 'desc', label: 'Desc' },
+              ]}
+              aria-label="Sort direction"
+              className="h-8 text-xs"
+              wrapperClassName="w-[5.5rem]"
+              menuMinWidth={100}
+            />
             {isDraft && (
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowScanner(true)} disabled={scanLoading}>
+              <>
+                <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => setShowScanner(true)} disabled={scanLoading}>
                   {scanLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ScanLine className="w-3.5 h-3.5" />}
                   Scan Barcode
                 </Button>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setScanPrefill(undefined); setAddingItem(true) }}>
+                <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => { setScanPrefill(undefined); setAddingItem(true) }}>
                   <Plus className="w-4 h-4" /> Add Item
                 </Button>
-              </div>
+              </>
             )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <TableToolbar
-            search="" onSearchChange={() => {}} hideSearch
-            sortOptions={itemSortOptions} sortKey={itemSortKey} sortDir={itemSortDir}
-            onSortKeyChange={setItemSortKey} onSortDirChange={setItemSortDir} className="py-2"
-          />
-
           {/* Add Item form */}
           {addingItem && (
             <AddItemPanel
@@ -471,18 +495,18 @@ export default function PurchaseOrderDetail() {
             />
           )}
 
-          <ResizableTable tableId="po-lines" defaultWidths={[220, 130, 110, 80, 80, 80, 90, 90, isDraft ? 60 : 0]}>
+          <ResizableTable tableId="po-lines-v2" defaultWidths={[200, 100, 110, 70, 70, 70, 90, 90, isDraft ? 44 : 0]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Variant</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Barcode / SKU</TableColumnLabel></th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Ordered</TableColumnLabel></th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Received</TableColumnLabel></th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Remaining</TableColumnLabel></th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Unit Cost</TableColumnLabel></th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
-                {isDraft && <th className="px-3 py-3" />}
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Product</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Variant</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Barcode / SKU</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Ordered</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Received</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Remaining</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Unit Cost</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Total</TableColumnLabel></th>
+                {isDraft && <th className="w-11 px-2 py-2" />}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -497,24 +521,24 @@ export default function PurchaseOrderDetail() {
                       className="hover:bg-gray-50 cursor-pointer"
                       onClick={onClickableTableRow(() => setExpandedItemId(isExpanded ? null : item.id))}
                     >
-                      <td className="px-6 py-4 text-sm font-medium">
-                        <div className="flex items-center gap-2">
+                      <td className="px-3 py-2 text-sm font-medium">
+                        <div className="flex items-center gap-1.5">
                           {isExpanded
                             ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                             : <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
-                          <span>{item.product_name || item.product_id}</span>
+                          <span className="leading-snug">{item.product_name || item.product_id}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm">
+                      <td className="px-3 py-2 text-sm">
                         {item.variant_name ? (
-                          <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
                             {item.variant_name}
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-xs">—</span>
+                          <span className="text-xs text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-xs">
+                      <td className="px-3 py-2 text-xs">
                         {displayBarcode && (
                           <div className="font-mono text-gray-600">{displayBarcode}</div>
                         )}
@@ -523,22 +547,22 @@ export default function PurchaseOrderDetail() {
                         )}
                         {!displayBarcode && !displaySku && <span className="text-gray-300">—</span>}
                       </td>
-                      <td className="px-6 py-4 text-sm text-right">{item.quantity_ordered}</td>
-                      <td className="px-6 py-4 text-sm text-right">
+                      <td className="px-3 py-2 text-right text-sm tabular-nums">{item.quantity_ordered}</td>
+                      <td className="px-3 py-2 text-right text-sm tabular-nums">
                         <span className={item.quantity_received >= item.quantity_ordered ? 'text-green-600 font-medium' : ''}>
                           {item.quantity_received}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-right">
+                      <td className="px-3 py-2 text-right text-sm tabular-nums">
                         <span className={remaining > 0 ? 'text-amber-600 font-medium' : 'text-gray-400'}>{remaining}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-right">{formatCurrency(item.unit_cost)}</td>
-                      <td className="px-6 py-4 text-sm text-right font-medium">{formatCurrency(item.total_cost)}</td>
+                      <td className="px-3 py-2 text-right text-sm tabular-nums whitespace-nowrap">{formatCurrency(item.unit_cost)}</td>
+                      <td className="px-3 py-2 text-right text-sm font-medium tabular-nums whitespace-nowrap">{formatCurrency(item.total_cost)}</td>
                       {isDraft && (
-                        <td className="px-3 py-4 text-right">
+                        <td className="px-2 py-2 text-right">
                           <button
                             onClick={() => deleteItem(item)}
-                            className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600"
                             title="Remove item"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -550,7 +574,7 @@ export default function PurchaseOrderDetail() {
                     {/* Expanded panel */}
                     {isExpanded && (
                       <tr key={`${item.id}-expanded`}>
-                        <td colSpan={isDraft ? 9 : 8} className="px-0 py-0 bg-blue-50/30 border-b">
+                        <td colSpan={isDraft ? 9 : 8} className="border-b bg-blue-50/30 px-0 py-0">
                           <ItemExpandPanel
                             item={item}
                             po={po}
@@ -577,9 +601,9 @@ export default function PurchaseOrderDetail() {
             </tbody>
             <tfoot>
               <tr className="border-t bg-gray-50">
-                <td colSpan={isDraft ? 6 : 6} className="px-6 py-3 text-sm font-semibold text-right">Subtotal</td>
-                <td className="px-6 py-3 text-sm text-right font-bold">{formatCurrency(po.subtotal)}</td>
-                {isDraft && <td />}
+                <td colSpan={7} className="px-3 py-2 text-right text-sm font-semibold text-gray-700">Subtotal</td>
+                <td className="px-3 py-2 text-right text-sm font-bold tabular-nums whitespace-nowrap">{formatCurrency(po.subtotal)}</td>
+                {isDraft && <td className="px-2 py-2" />}
               </tr>
             </tfoot>
           </ResizableTable>
@@ -649,10 +673,10 @@ export default function PurchaseOrderDetail() {
 
 function InfoCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div className="bg-white rounded-xl border p-4" onClick={e => e.stopPropagation()}>
-      <div className="flex items-center gap-2 text-gray-500 mb-1">
-        <Icon className="w-4 h-4" />
-        <span className="text-xs font-medium">{label}</span>
+    <div className="rounded-lg border bg-white px-3 py-2.5" onClick={e => e.stopPropagation()}>
+      <div className="mb-0.5 flex items-center gap-1.5 text-gray-500">
+        <Icon className="h-3.5 w-3.5" />
+        <span className="text-[11px] font-medium">{label}</span>
       </div>
       <p className="text-sm font-semibold text-gray-900">{value}</p>
     </div>

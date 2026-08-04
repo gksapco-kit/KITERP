@@ -5,6 +5,7 @@ import { useMe } from '@/hooks/useAuth'
 import { useAuthHydrated } from '@/hooks/useAuthHydrated'
 import { PageLoading } from '@/components/common/Loading'
 import { isAxiosAuthError, isAxiosNetworkError } from '@/lib/errorMessages'
+import { isVendorAdminEmbed } from '@/lib/adminEmbed'
 
 const AUTH_RETRY_MS = import.meta.env.DEV ? 60_000 : 30_000
 
@@ -40,7 +41,13 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   if (!hydrated) return <PageLoading />
 
-  if (!accessToken) return <Navigate to="/login" state={{ from: location }} replace />
+  const embedQs =
+    new URLSearchParams(location.search).get('embed') === '1' || isVendorAdminEmbed()
+      ? '?embed=1'
+      : ''
+  const loginPath = `/login${embedQs}`
+
+  if (!accessToken) return <Navigate to={loginPath} state={{ from: location }} replace />
   if (waitingOnSession || networkFailure) {
     return (
       <PageLoading />
@@ -48,9 +55,9 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }
   if (authFailure || isError) {
     logout()
-    return <Navigate to="/login" state={{ from: location }} replace />
+    return <Navigate to={loginPath} state={{ from: location }} replace />
   }
-  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
+  if (!isAuthenticated) return <Navigate to={loginPath} state={{ from: location }} replace />
 
   return <>{children}</>
 }

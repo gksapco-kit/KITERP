@@ -78,6 +78,13 @@ export default function ProductDetail() {
     if (!product || !activeVariants.length) return
     const first = activeVariants.find((v) => v.is_active !== false) ?? activeVariants[0]
     const rows = buildProductCardOptionRows(activeVariants, product.images)
+    if (rows.length === 0) {
+      // Manual / flat variants — pick by id, not Size×Color matrix
+      setSelections({})
+      setSelectedColorName(undefined)
+      setSelectedVariantId(first.id)
+      return
+    }
     const defaults = resolveCardDefaultSelections(activeVariants, rows, first)
     setSelections(defaults.selections)
     setSelectedColorName(defaults.colorName)
@@ -85,10 +92,18 @@ export default function ProductDetail() {
     setSelectedVariantId(validated.variant?.id ?? first.id)
   }, [product?.id, activeVariants.length])
 
-  const variantValidation = useMemo(
-    () => validateVariantCombination(activeVariants, selections, selectedColorName),
-    [activeVariants, selections, selectedColorName],
-  )
+  const variantValidation = useMemo(() => {
+    if (!activeVariants.length) return { valid: true as const }
+    // Flat option cards (non–Fast entry): selection is by variant id only
+    if (!hasStructuredOptions) {
+      const byId = selectedVariantId
+        ? activeVariants.find((v) => v.id === selectedVariantId)
+        : undefined
+      const pick = byId ?? activeVariants.find((v) => v.is_active !== false) ?? activeVariants[0]
+      return { valid: true as const, variant: pick }
+    }
+    return validateVariantCombination(activeVariants, selections, selectedColorName)
+  }, [activeVariants, hasStructuredOptions, selectedVariantId, selections, selectedColorName])
 
   const handleSelectColor = (option: ProductColorOption) => {
     setSelectedColorName(option.name)

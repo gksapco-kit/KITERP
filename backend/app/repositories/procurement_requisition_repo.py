@@ -25,6 +25,7 @@ class PurchaseRequisitionRepository(BaseRepository[PurchaseRequisition]):
             select(PurchaseRequisition)
             .options(
                 selectinload(PurchaseRequisition.items),
+                selectinload(PurchaseRequisition.requester).selectinload(VendorUser.user),
                 selectinload(PurchaseRequisition.approvals)
                 .selectinload(PurchaseRequisitionApproval.approver)
                 .selectinload(VendorUser.user),

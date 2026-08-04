@@ -128,6 +128,7 @@ def _product_to_dict(p) -> dict:
         "price": _num(p.price) or 0,
         "compare_at_price": _num(p.compare_at_price),
         "cost_price": _num(p.cost_price),
+        "valuation_method": getattr(p, "valuation_method", None) or "moving_average",
         "currency": p.currency or "INR",
         "discount_percentage": _num(p.discount_percentage),
         "discount_amount": _num(p.discount_amount),

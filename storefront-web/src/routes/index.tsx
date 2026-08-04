@@ -43,7 +43,7 @@ import AddressesPage from '@/pages/account/AddressesPage'
 import MyWishlist from '@/pages/account/MyWishlist'
 import MySubscriptions from '@/pages/account/MySubscriptions'
 import MyMarketplace from '@/pages/account/MyMarketplace'
-import RentalsPage from '@/pages/rentals/RentalsPage'
+import RentalsBuilderPage from '@/pages/rentals/RentalsBuilderPage'
 import MyRentals from '@/pages/account/MyRentals'
 import MyNotifications from '@/pages/account/MyNotifications'
 import BlogList from '@/pages/blog/BlogList'
@@ -217,7 +217,7 @@ export const router = createBrowserRouter([
       { path: 'account/wishlist', element: <ProtectedRoute><MyWishlist /></ProtectedRoute> },
       { path: 'account/subscriptions', element: <ProtectedRoute><MySubscriptions /></ProtectedRoute> },
       { path: 'account/marketplace', element: <ProtectedRoute><MyMarketplace /></ProtectedRoute> },
-      { path: 'rentals', element: <RentalsPage /> },
+      { path: 'rentals', element: <RentalsBuilderPage /> },
       { path: 'account/rentals', element: <ProtectedRoute><MyRentals /></ProtectedRoute> },
       { path: 'account/notifications', element: <ProtectedRoute><MyNotifications /></ProtectedRoute> },
       { path: 'blog', element: <BlogList /> },

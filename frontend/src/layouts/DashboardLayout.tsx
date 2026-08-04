@@ -30,6 +30,7 @@ import { useLogout } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/authStore'
 import { getDashboardUserRoleLabel, isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
 import { HR_ADMIN_BASE, HR_ADMIN_NAV_ITEMS, getHrAdminNavItem } from '@/lib/hrAdminNav'
+import { CRM_ADMIN_BASE, CRM_ADMIN_NAV_ITEMS, getCrmAdminNavItem } from '@/lib/crmAdminNav'
 import { useVendorStore } from '@/stores/vendorStore'
 import { Button } from '@/components/ui/button'
 import ResponsiveViewportBadge from '@/components/dev/ResponsiveViewportBadge'
@@ -39,6 +40,7 @@ type NavItem = {
   icon: LucideIcon
   label: string
   expandableHr?: boolean
+  expandableCrm?: boolean
 }
 
 const vendorNavItems: NavItem[] = [
@@ -58,7 +60,7 @@ const adminNavItemsSuperuser: NavItem[] = [
   { to: '/dashboard/platform-team', icon: Headphones, label: 'Support team' },
   { to: '/dashboard/user-roles', icon: ShieldCheck, label: 'User Roles' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
-  { to: '/dashboard/crm', icon: UsersRound, label: 'CRM' },
+  { to: CRM_ADMIN_BASE, icon: UsersRound, label: 'CRM Management', expandableCrm: true },
   { to: HR_ADMIN_BASE, icon: UserCog, label: 'HR Management', expandableHr: true },
   { to: '/dashboard/disputes', icon: AlertTriangle, label: 'Disputes' },
   { to: '/dashboard/table-data', icon: Table2, label: 'Table Data' },
@@ -70,7 +72,7 @@ const adminNavItemsSupport: NavItem[] = [
   { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts' },
   { to: '/dashboard/website-analytics', icon: BarChart3, label: 'Website Analytics' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
-  { to: '/dashboard/crm', icon: UsersRound, label: 'CRM' },
+  { to: CRM_ADMIN_BASE, icon: UsersRound, label: 'CRM Management', expandableCrm: true },
   { to: HR_ADMIN_BASE, icon: UserCog, label: 'HR Management', expandableHr: true },
 ]
 
@@ -113,7 +115,7 @@ const adminPageTitles: Record<string, string> = {
   '/dashboard/platform-team': 'Support Team',
   '/dashboard/user-roles': 'User Roles',
   '/dashboard/account-activity': 'Account Activity',
-  '/dashboard/crm': 'CRM',
+  '/dashboard/crm': 'CRM Management',
   '/dashboard/hr': 'HR Management',
   '/dashboard/disputes': 'Disputes',
   '/dashboard/table-data': 'Table Data',
@@ -121,6 +123,72 @@ const adminPageTitles: Record<string, string> = {
   '/dashboard/products': 'Products',
   '/dashboard/services': 'Services',
   '/dashboard/inventory': 'Inventory',
+}
+
+function CrmExpandableNav({
+  onNavigate,
+}: {
+  onNavigate: () => void
+}) {
+  const location = useLocation()
+  const onCrmRoute = location.pathname === CRM_ADMIN_BASE || location.pathname.startsWith(`${CRM_ADMIN_BASE}/`)
+  const [expanded, setExpanded] = useState(onCrmRoute)
+
+  useEffect(() => {
+    if (onCrmRoute) setExpanded(true)
+  }, [onCrmRoute])
+
+  return (
+    <div className="space-y-1">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls="admin-crm-submenu"
+        onClick={() => setExpanded((v) => !v)}
+        className={cn(
+          'flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors',
+          onCrmRoute
+            ? 'bg-gray-100 text-gray-900'
+            : 'text-gray-600 hover:bg-gray-100',
+        )}
+      >
+        <UsersRound className="h-5 w-5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left">CRM Management</span>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200',
+            expanded && 'rotate-180',
+          )}
+        />
+      </button>
+
+      {expanded ? (
+        <div id="admin-crm-submenu" className="space-y-1 pl-3" role="group" aria-label="CRM Management pages">
+          {CRM_ADMIN_NAV_ITEMS.map((item) => {
+            const to = `${CRM_ADMIN_BASE}/${item.slug}`
+            return (
+              <NavLink
+                key={item.slug}
+                to={to}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-gray-600 hover:bg-gray-100',
+                  )
+                }
+              >
+                <item.icon className="h-5 w-5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              </NavLink>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function HrExpandableNav({
@@ -207,19 +275,30 @@ export default function DashboardLayout() {
 
   const isHrIframeShell =
     location.pathname === HR_ADMIN_BASE || location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
+  const isCrmIframeShell =
+    location.pathname === CRM_ADMIN_BASE || location.pathname.startsWith(`${CRM_ADMIN_BASE}/`)
+  const isModuleIframeShell = isHrIframeShell || isCrmIframeShell
 
   const hrSlug = location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
     ? location.pathname.slice(HR_ADMIN_BASE.length + 1).split('/')[0]
     : undefined
   const hrItem = getHrAdminNavItem(hrSlug)
 
-  const pageLabel = hrItem
-      ? `HR · ${hrItem.label}`
-      : adminPageTitles[location.pathname]
-        || (location.pathname.startsWith('/dashboard/vendors/') ? 'Business Account'
-          : location.pathname.startsWith('/dashboard/platform-team/') ? 'Team Member'
-            : location.pathname.startsWith(HR_ADMIN_BASE) ? 'HR Management'
-              : 'Dashboard')
+  const crmSlug = location.pathname.startsWith(`${CRM_ADMIN_BASE}/`)
+    ? location.pathname.slice(CRM_ADMIN_BASE.length + 1).split('/')[0]
+    : undefined
+  const crmItem = getCrmAdminNavItem(crmSlug)
+
+  const pageLabel = crmItem
+      ? `CRM · ${crmItem.label}`
+      : hrItem
+        ? `HR · ${hrItem.label}`
+        : adminPageTitles[location.pathname]
+          || (location.pathname.startsWith('/dashboard/vendors/') ? 'Business Account'
+            : location.pathname.startsWith('/dashboard/platform-team/') ? 'Team Member'
+              : location.pathname.startsWith(CRM_ADMIN_BASE) ? 'CRM Management'
+                : location.pathname.startsWith(HR_ADMIN_BASE) ? 'HR Management'
+                  : 'Dashboard')
 
   useDocumentSeo({
     title: adminPageTitle(pageLabel),
@@ -280,7 +359,9 @@ export default function DashboardLayout() {
           {/* Navigation */}
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 sm:px-4">
             {navItems.map((item) =>
-              item.expandableHr ? (
+              item.expandableCrm ? (
+                <CrmExpandableNav key={item.to} onNavigate={closeSidebar} />
+              ) : item.expandableHr ? (
                 <HrExpandableNav key={item.to} onNavigate={closeSidebar} />
               ) : (
                 <NavLink
@@ -342,7 +423,7 @@ export default function DashboardLayout() {
         <main
           className={cn(
             'min-w-0 max-w-none',
-            isHrIframeShell ? 'p-0' : 'p-4 sm:p-6 lg:p-8',
+            isModuleIframeShell ? 'p-0' : 'p-4 sm:p-6 lg:p-8',
           )}
         >
           <Outlet />

@@ -1,3 +1,93 @@
+/** Default seed name for the auto-created first row on create. */
+export function defaultVariantSeedName(isSubscription: boolean): string {
+  return isSubscription ? 'Plan 1' : 'Variant 1'
+}
+
+/** True when the name is still the auto-seeded default (or legacy "Default" / "Variant"). */
+export function isDefaultManualVariantName(
+  name: string | undefined | null,
+  isSubscription: boolean,
+): boolean {
+  const n = (name || '').trim()
+  if (!n) return false
+  if (isSubscription) {
+    return n === 'Plan 1' || n === 'Plan' || n === 'Default'
+  }
+  return n === 'Variant 1' || n === 'Variant' || n === 'Default'
+}
+
+function attrsAreEmpty(attrs: unknown): boolean {
+  if (attrs == null || attrs === '') return true
+  if (typeof attrs === 'string') {
+    const t = attrs.trim()
+    return !t || t === '{}'
+  }
+  if (typeof attrs === 'object') {
+    return Object.keys(attrs as Record<string, unknown>).length === 0
+  }
+  return true
+}
+
+export type DefaultVariantInputCheck = {
+  id?: string | null
+  name?: string | null
+  sku?: string | null
+  barcode?: string | null
+  quantity?: number | null
+  price?: number | null
+  compare_at_price?: number | null
+  cost_price?: number | null
+  discount_percentage?: number | null
+  discount_amount?: number | null
+  offer_label?: string | null
+  is_on_sale?: boolean | null
+  color?: string | null
+  attributes_json?: string | null
+  attributes?: Record<string, unknown> | null
+  /** Config-engine generated variants are never treated as the default seed row. */
+  variant_hash?: string | null
+  config_selection?: Record<string, unknown> | null
+  media?: unknown[] | null
+}
+
+/**
+ * True when this row still looks like the untouched auto-seeded "Variant 1" / "Plan 1".
+ * Used to omit placeholders on save and to auto-clean after Fast entry generation.
+ * Persisted rows (with id) are included when `allowPersisted` is true.
+ */
+export function isPristineDefaultVariant(
+  v: DefaultVariantInputCheck,
+  isSubscription: boolean,
+  opts?: { allowPersisted?: boolean },
+): boolean {
+  if (v.variant_hash) return false
+  if (v.config_selection && Object.keys(v.config_selection).length > 0) return false
+  if (v.id && !opts?.allowPersisted) return false
+  if (!isDefaultManualVariantName(v.name, isSubscription)) return false
+  if (v.sku?.trim() || v.barcode?.trim()) return false
+  if ((v.quantity ?? 0) !== 0) return false
+  if (Number(v.price ?? 0) > 0) return false
+  if (v.compare_at_price != null && Number(v.compare_at_price) > 0) return false
+  if (v.cost_price != null && Number(v.cost_price) > 0) return false
+  if (v.discount_percentage != null && Number(v.discount_percentage) > 0) return false
+  if (v.discount_amount != null && Number(v.discount_amount) > 0) return false
+  if (v.offer_label?.trim()) return false
+  if (v.is_on_sale) return false
+  if (v.color?.trim()) return false
+  if (v.media && v.media.length > 0) return false
+  if (!attrsAreEmpty(v.attributes_json ?? v.attributes)) return false
+  return true
+}
+
+/** Default seed row that the user has filled in (price, SKU, stock, etc.). */
+export function defaultVariantHasUserInput(
+  v: DefaultVariantInputCheck,
+  isSubscription: boolean,
+): boolean {
+  if (!isDefaultManualVariantName(v.name, isSubscription)) return true
+  return !isPristineDefaultVariant(v, isSubscription, { allowPersisted: true })
+}
+
 /** Serialize a variant for PATCH /products/:id (variant upsert/delete). */
 export function variantToUpdatePayload(v: {
   id: string

@@ -562,7 +562,7 @@
 
   /* Native selects — use on pages that still use raw <select> */
   .form-select {
-    @apply inline-flex h-10 max-w-full min-w-0 items-center rounded-md border border-input bg-background px-2.5 py-0 text-sm leading-none text-foreground
+    @apply inline-flex h-10 max-w-full min-w-0 items-center rounded-md border border-input bg-background px-2.5 py-0 text-sm leading-snug text-foreground
            focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50;
     color-scheme: light;
     box-sizing: border-box;
@@ -2770,14 +2770,16 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 @layer utilities {
   /*
    * App-wide form control focus — border highlight only (no inset/outer ring).
-   * Overrides per-page focus:ring-* / ring-offset on native fields.
+   * Overrides per-page focus:ring-* / ring-offset on native fields and ThemeSelect.
    */
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):not([data-kiterp-no-field-focus]):focus,
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):not([data-kiterp-no-field-focus]):focus-visible,
   textarea:focus,
   textarea:focus-visible,
   select:focus,
-  select:focus-visible {
+  select:focus-visible,
+  button.form-select:focus,
+  button.form-select:focus-visible {
     outline: none !important;
     --tw-ring-offset-width: 0px !important;
     --tw-ring-offset-shadow: 0 0 #0000 !important;

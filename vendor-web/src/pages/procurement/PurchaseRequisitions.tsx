@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,12 +10,12 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
-import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { useGuardedClose } from '@/hooks/useGuardedClose'
 import { useCostCenters } from '@/hooks/useFinance'
 import type { CostCenter } from '@/types/finance'
 import {
   useRequisitions, useRequisition, useCreateRequisition, useUpdateRequisition, useSubmitRequisition,
-  useApproveRequisition, useCancelRequisition, useMyMembership, useStores,
+  useApproveRequisition, useCancelRequisition, useMyMembership, useStores, useCreatePurchaseOrder,
 } from '@/hooks/useVendor'
 import { ProcurementLineItemForm } from '@/components/procurement/ProcurementLineItemForm'
 import { ProcurementApproverFields } from '@/components/procurement/ProcurementApproverFields'
@@ -34,13 +35,19 @@ import {
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { PurchaseRequisition, PurchaseRequisitionItem } from '@/types'
+import { askConfirm } from '@/components/common/ConfirmProvider'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { PO_FROM_PR_KEY, buildPrToPoPrefill, buildPoCreatePayloadFromPr } from '@/lib/prToPoPrefill'
+import { uomLabel } from '@/lib/uomOptions'
+import { vendorApi } from '@/api/vendor'
 import {
-  Loader2, Plus, X, ClipboardList, CheckCircle, XCircle, Send, Pencil, Clock,
+  Loader2, Plus, X, ClipboardList, CheckCircle, XCircle, Send, Pencil, Clock, ArrowRightLeft, FilePlus,
 } from 'lucide-react'
 
 const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   draft:               { bg: 'bg-gray-100 dark:bg-gray-800',       text: 'text-gray-700 dark:text-gray-300',   label: 'Draft' },
   submitted:           { bg: 'bg-blue-50 dark:bg-blue-950/50',     text: 'text-blue-700 dark:text-blue-300',   label: 'Submitted' },
+  open:                { bg: 'bg-sky-50 dark:bg-sky-950/50',       text: 'text-sky-700 dark:text-sky-300',     label: 'Open' },
   approved:            { bg: 'bg-green-50 dark:bg-green-950/50',   text: 'text-green-700 dark:text-green-300', label: 'Approved' },
   rejected:            { bg: 'bg-red-50 dark:bg-red-950/50',       text: 'text-red-700 dark:text-red-300',     label: 'Rejected' },
   partially_converted: { bg: 'bg-amber-50 dark:bg-amber-950/50',   text: 'text-amber-700 dark:text-amber-300', label: 'Partial' },
@@ -55,13 +62,49 @@ const PRIORITY_BADGE: Record<string, string> = {
   urgent: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
 }
 
-const STATUSES = ['', 'draft', 'submitted', 'approved', 'rejected', 'partially_converted', 'converted', 'cancelled']
+const STATUSES = ['', 'draft', 'submitted', 'open', 'approved', 'rejected', 'partially_converted', 'converted', 'cancelled']
 
 function itemDisplayName(item: PurchaseRequisition['items'][number]): string {
   if (item.product_name) return item.product_name
   if (item.service_name) return item.service_name
   if (item.description) return item.description
   return item.product_id ? item.product_id.slice(0, 8) : '—'
+}
+
+function canConvertPrToPo(pr: PurchaseRequisition): boolean {
+  return ['open', 'approved', 'partially_converted'].includes(pr.status)
+    && (pr.items ?? []).some(it => !it.is_converted && Boolean(it.product_id || it.service_id))
+}
+
+/** Editable until an approver has approved (or the PR is converted / cancelled). */
+function canEditPr(pr: PurchaseRequisition): boolean {
+  return ['draft', 'submitted', 'open'].includes(pr.status)
+}
+
+/** Open existing PO create form (editable draft). Fetches full PR so prices/destinations copy correctly. */
+async function startCreateEditablePo(
+  pr: PurchaseRequisition,
+  navigate: ReturnType<typeof useNavigate>,
+): Promise<void> {
+  let source = pr
+  try {
+    const full = await vendorApi.getRequisition(pr.id) as PurchaseRequisition
+    if (full?.id) source = full
+  } catch {
+    // Fall back to the list/detail snapshot already in hand
+  }
+  const prefill = buildPrToPoPrefill(source)
+  if (!prefill) {
+    toast.error('No convertible product/service lines on this requisition')
+    return
+  }
+  try {
+    sessionStorage.setItem(PO_FROM_PR_KEY, JSON.stringify(prefill))
+  } catch {
+    toast.error('Could not prepare purchase order form')
+    return
+  }
+  navigate('/purchase-orders')
 }
 
 const APPROVAL_STATUS_BADGE: Record<string, string> = {
@@ -71,15 +114,86 @@ const APPROVAL_STATUS_BADGE: Record<string, string> = {
   skipped: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
 }
 
+const SOURCE_LABEL: Record<string, string> = {
+  supplier: 'Supplier',
+  internal: 'Internal',
+}
+
+const BU_SCOPE_LABEL: Record<string, string> = {
+  within_bu: 'Within BU',
+  cross_bu: 'Cross BU',
+}
+
+function DetailField({
+  label,
+  value,
+  className = '',
+  mono = false,
+}: {
+  label: string
+  value?: ReactNode
+  className?: string
+  mono?: boolean
+}) {
+  const empty = value === null || value === undefined || value === ''
+  return (
+    <div className={className}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+      <p className={`mt-0.5 break-words text-xs text-gray-900 dark:text-gray-100 ${mono ? 'font-mono' : 'font-medium'} ${empty ? 'text-gray-400' : ''}`}>
+        {empty ? '—' : value}
+      </p>
+    </div>
+  )
+}
+
 function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisition; onClose: () => void; onEdit?: (pr: PurchaseRequisition) => void }) {
+  const navigate = useNavigate()
   const { data: fetchedPr, isLoading: prLoading } = useRequisition(initialPr.id)
   const pr = fetchedPr ?? initialPr
 
   const submitPR = useSubmitRequisition()
   const approvePR = useApproveRequisition()
   const cancelPR = useCancelRequisition()
+  const createPO = useCreatePurchaseOrder()
   const { data: myMembership, isLoading: membershipLoading } = useMyMembership()
   const [approvalRemarks, setApprovalRemarks] = useState('')
+  const converting = canConvertPrToPo(pr)
+
+  const handleDirectConvert = async () => {
+    const payload = buildPoCreatePayloadFromPr(pr)
+    if (!payload) {
+      toast.error('Add a supplier on the PR, or use Create PO to pick one')
+      return
+    }
+    const ok = await askConfirm({
+      title: `Convert ${pr.pr_number} to Purchase Order?`,
+      description: 'This creates a draft PO immediately from the requisition lines. Type CONVERT to confirm.',
+      confirmLabel: 'Convert',
+      confirmPhrase: 'CONVERT',
+      variant: 'warning',
+    })
+    if (!ok) return
+    createPO.mutate(payload, {
+      onSuccess: (po: { id?: string }) => {
+        onClose()
+        if (po?.id) navigate(`/purchase-orders/${po.id}`)
+        else navigate('/purchase-orders')
+      },
+    })
+  }
+
+  const handleCreateEditablePo = async () => {
+    const ok = await askConfirm({
+      title: `Create editable PO from ${pr.pr_number}?`,
+      description: 'Opens the Purchase Order form pre-filled from this requisition so you can edit before saving. Type CREATE to confirm.',
+      confirmLabel: 'Create',
+      confirmPhrase: 'CREATE',
+      variant: 'default',
+    })
+    if (!ok) return
+    await startCreateEditablePo(pr, navigate)
+    onClose()
+  }
 
   const pendingStep = [...(pr.approvals ?? [])]
     .filter(a => a.status === 'pending')
@@ -88,34 +202,69 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
     && pendingStep
     && (!pendingStep.approver_id || pendingStep.approver_id === myMembership?.id)
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
+    const ok = await askConfirm({
+      title: `Approve ${pr.pr_number}?`,
+      description: 'This advances the requisition approval. Type APPROVE to confirm.',
+      confirmLabel: 'Approve',
+      confirmPhrase: 'APPROVE',
+      variant: 'success',
+    })
+    if (!ok) return
     approvePR.mutate({ id: pr.id, data: { status: 'approved', comments: approvalRemarks || undefined } })
   }
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!approvalRemarks.trim()) { toast.error('Please enter rejection remarks'); return }
+    const ok = await askConfirm({
+      title: `Reject ${pr.pr_number}?`,
+      description: 'This rejects the requisition. Type REJECT to confirm.',
+      confirmLabel: 'Reject',
+      confirmPhrase: 'REJECT',
+      variant: 'danger',
+    })
+    if (!ok) return
     approvePR.mutate({ id: pr.id, data: { status: 'rejected', comments: approvalRemarks } })
+  }
+
+  const handleCancelPr = async () => {
+    const ok = await askConfirm({
+      title: `Cancel ${pr.pr_number}?`,
+      description: 'This cancels the purchase requisition. Type CANCEL to confirm.',
+      confirmLabel: 'Cancel',
+      confirmPhrase: 'CANCEL',
+      variant: 'danger',
+    })
+    if (!ok) return
+    cancelPR.mutate({ id: pr.id })
   }
 
   const badge = STATUS_BADGE[pr.status] ?? STATUS_BADGE.draft
   const totalEstimate = pr.items.reduce((s: number, i: PurchaseRequisitionItem) => s + (i.quantity * (i.estimated_price ?? 0)), 0)
   const showApprovalFooter = pr.status === 'submitted' && pendingStep && !membershipLoading
+  const canEdit = canEditPr(pr)
+  const { title: parsedTitle, internalNotes } = parsePRNotes(pr.notes)
+  const displayTitle = parsedTitle || pr.title || 'Purchase Requisition'
+  const earliestNeedBy = pr.items
+    .map(it => it.needed_by_date)
+    .filter(Boolean)
+    .sort()[0] as string | undefined
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
       <div
-        className="flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900"
+        className="flex w-full max-w-4xl max-h-[92vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2.5">
+        <div className="flex shrink-0 items-start justify-between gap-2 border-b px-4 py-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
               <p className="font-mono text-[11px] text-gray-500">{pr.pr_number}</p>
               <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${PRIORITY_BADGE[pr.priority] || ''}`}>{pr.priority}</span>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${PRIORITY_BADGE[pr.priority] || ''}`}>{pr.priority}</span>
             </div>
-            <h2 className="truncate text-base font-semibold">{pr.title || 'Purchase Requisition'}</h2>
-            <p className="truncate text-[11px] text-gray-500">
+            <h2 className="mt-0.5 text-base font-semibold leading-snug">{displayTitle}</h2>
+            <p className="mt-0.5 text-[11px] text-gray-500">
               {pr.store_name || '—'}
               {pr.header_supplier_name ? ` · ${pr.header_supplier_name}` : ''}
               {pr.department ? ` · ${pr.department}` : ''}
@@ -126,107 +275,155 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
         </div>
 
         {prLoading && (
-          <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5 text-xs text-gray-400">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+          <div className="flex shrink-0 items-center gap-2 border-b px-4 py-1.5 text-xs text-gray-400">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading full details…
           </div>
         )}
 
         {/* Body */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 rounded-md border bg-gray-50/80 p-2 text-[11px] dark:bg-gray-800/40">
-                <div><p className="text-gray-500">Source</p><p className="font-medium capitalize">{pr.procurement_source || 'supplier'}</p></div>
-                <div><p className="text-gray-500">Type</p><p className="font-medium">{itemTypeLabel(pr.requisition_type)}</p></div>
-                {pr.procurement_source === 'supplier' && (
-                  <div className="col-span-2"><p className="text-gray-500">Supplier</p><p className="font-medium">{pr.header_supplier_name || '—'}</p></div>
-                )}
-                {pr.procurement_source === 'internal' && (
-                  <>
-                    <div><p className="text-gray-500">BU Movement</p><p className="font-medium">{pr.bu_scope === 'cross_bu' ? 'Cross BU' : 'Within BU'}</p></div>
-                    {pr.bu_scope === 'cross_bu' && (
-                      <div><p className="text-gray-500">From → To</p><p className="font-medium">{pr.from_store_name || '—'} → {pr.to_store_name || '—'}</p></div>
-                    )}
-                  </>
-                )}
-                <div><p className="text-gray-500">Submitted</p><p className="font-medium">{pr.submitted_at ? formatDate(pr.submitted_at) : '—'}</p></div>
-                <div><p className="text-gray-500">Required by</p><p className="font-medium">{pr.required_date ? formatDate(pr.required_date) : '—'}</p></div>
-              </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4">
+          <section>
+            <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">General information</h3>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border bg-gray-50/80 p-3 sm:grid-cols-3 dark:bg-gray-800/40">
+              <DetailField label="PR Number" value={pr.pr_number} mono />
+              <DetailField label="Status" value={badge.label} />
+              <DetailField label="Priority" value={<span className="capitalize">{pr.priority}</span>} />
+              <DetailField label="Title" value={parsedTitle || pr.title} className="col-span-2 sm:col-span-3" />
+              <DetailField label="Business Unit" value={pr.store_name} />
+              <DetailField label="Cost Center / Department" value={pr.department} />
+              <DetailField label="Requisition Type" value={itemTypeLabel(pr.requisition_type)} />
+              <DetailField label="Procurement Source" value={SOURCE_LABEL[pr.procurement_source || ''] || pr.procurement_source} />
+              {pr.procurement_source === 'supplier' && (
+                <DetailField label="Supplier" value={pr.header_supplier_name} className="col-span-2" />
+              )}
+              {pr.procurement_source === 'internal' && (
+                <>
+                  <DetailField label="BU Movement" value={BU_SCOPE_LABEL[pr.bu_scope || ''] || pr.bu_scope} />
+                  <DetailField label="From BU" value={pr.from_store_name} />
+                  <DetailField label="To BU" value={pr.to_store_name} />
+                </>
+              )}
+              <DetailField label="Requested By" value={pr.requested_by_name} />
+              <DetailField label="Submitted" value={pr.submitted_at ? formatDate(pr.submitted_at) : undefined} />
+              <DetailField label="Approved" value={pr.approved_at ? formatDate(pr.approved_at) : undefined} />
+              <DetailField label="Required By" value={(pr.required_date || earliestNeedBy) ? formatDate(pr.required_date || earliestNeedBy!) : undefined} />
+              <DetailField label="Created" value={pr.created_at ? formatDate(pr.created_at) : undefined} />
+              <DetailField label="Last Updated" value={pr.updated_at ? formatDate(pr.updated_at) : undefined} />
+              <DetailField label="Estimated Total" value={formatCurrency(totalEstimate)} />
+            </div>
+          </section>
 
-              {pr.notes && (
-                <div className="rounded-md border border-amber-200 bg-amber-50/80 px-2 py-1.5 text-[11px] text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200 line-clamp-2">
-                  {pr.notes}
+          {(internalNotes || pr.approver_message) && (
+            <section className="grid gap-3 sm:grid-cols-2">
+              {internalNotes && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 dark:border-amber-900 dark:bg-amber-950/30">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">Internal notes</p>
+                  <p className="mt-1 whitespace-pre-wrap text-xs text-amber-950 dark:text-amber-100">{internalNotes}</p>
                 </div>
               )}
+              {pr.approver_message && (
+                <div className="rounded-lg border border-blue-100 bg-blue-50/70 px-3 py-2 dark:border-blue-900 dark:bg-blue-950/25">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-800 dark:text-blue-300">Message for approver</p>
+                  <p className="mt-1 whitespace-pre-wrap text-xs text-blue-950 dark:text-blue-100">{pr.approver_message}</p>
+                </div>
+              )}
+            </section>
+          )}
 
-              {(pr.approvals?.length ?? 0) > 0 && (
-                <div>
-                  <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Approval chain</h3>
-                  {pr.approver_message && (
-                    <p className="mb-1.5 rounded border border-blue-100 bg-blue-50/60 px-2 py-1 text-[11px] text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200">
-                      <span className="font-medium">Requester: </span>{pr.approver_message}
-                    </p>
-                  )}
-                  <div className="space-y-1">
-                    {[...(pr.approvals ?? [])].sort((a, b) => a.level - b.level).map(step => {
-                      const isCurrentStep = step.status === 'pending' && step.level === pendingStep?.level
-                      return (
-                        <div
-                          key={step.id}
-                          className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-[11px] ${
-                            isCurrentStep
-                              ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'
-                              : 'border-gray-200 dark:border-gray-700'
-                          }`}
-                        >
-                          <div className="min-w-0 truncate">
-                            <span className="font-medium text-gray-500">L{step.level}</span>
-                            <span className="mx-1 text-gray-300">·</span>
-                            <span className="font-medium">{step.approver_name || '—'}</span>
-                            {isCurrentStep && <span className="ml-1 text-amber-700 dark:text-amber-300">(current)</span>}
-                          </div>
-                          <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${APPROVAL_STATUS_BADGE[step.status] ?? ''}`}>
-                            {step.status}
-                          </span>
+          {(pr.approvals?.length ?? 0) > 0 && (
+            <section>
+              <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Approval chain</h3>
+              <div className="space-y-2">
+                {[...(pr.approvals ?? [])].sort((a, b) => a.level - b.level).map(step => {
+                  const isCurrentStep = step.status === 'pending' && step.level === pendingStep?.level
+                  return (
+                    <div
+                      key={step.id}
+                      className={`rounded-lg border px-3 py-2 ${
+                        isCurrentStep
+                          ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'
+                          : 'border-gray-200 dark:border-gray-700'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="min-w-0 text-xs">
+                          <span className="font-semibold text-gray-500">Level {step.level}</span>
+                          <span className="mx-1.5 text-gray-300">·</span>
+                          <span className="font-medium">{step.approver_name || '—'}</span>
+                          {isCurrentStep && <span className="ml-1.5 text-amber-700 dark:text-amber-300">(current)</span>}
                         </div>
-                      )
-                    })}
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${APPROVAL_STATUS_BADGE[step.status] ?? ''}`}>
+                          {step.status}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <DetailField label="Actioned At" value={step.actioned_at ? formatDate(step.actioned_at) : undefined} />
+                        <DetailField label="Assigned At" value={step.created_at ? formatDate(step.created_at) : undefined} />
+                        {(step.comments || step.remarks) && (
+                          <DetailField
+                            label="Comments"
+                            value={step.comments || step.remarks}
+                            className="col-span-2 sm:col-span-3"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+              Line items ({pr.items.length})
+            </h3>
+            <div className="space-y-3">
+              {pr.items.map((item: PurchaseRequisitionItem, idx: number) => {
+                const lineTotal = item.quantity * (item.estimated_price ?? 0)
+                const uom = item.unit_of_measure || item.uom || 'piece'
+                return (
+                  <div key={item.id} className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-gray-800 dark:text-gray-100">
+                        Line {idx + 1}
+                        <span className="mx-1.5 font-normal text-gray-400">·</span>
+                        <span className="font-medium">{itemDisplayName(item)}</span>
+                      </p>
+                      {item.is_converted ? (
+                        <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                          Converted
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-4">
+                      <DetailField label="Item Type" value={itemTypeLabel(item.item_type || pr.requisition_type)} />
+                      <DetailField label="Description / Catalog Item" value={itemDisplayName(item)} className="col-span-2 sm:col-span-2" />
+                      <DetailField label="SKU" value={item.product_sku} mono />
+                      <DetailField label="Variant" value={item.variant_name} />
+                      <DetailField label="Quantity" value={`${item.quantity} ${uomLabel(uom)}`} />
+                      <DetailField label="Unit of Measure" value={uomLabel(uom)} />
+                      <DetailField label="Estimated Price" value={item.estimated_price != null ? formatCurrency(item.estimated_price) : undefined} />
+                      <DetailField label="Line Estimate" value={formatCurrency(lineTotal)} />
+                      <DetailField label="Need By Date" value={item.needed_by_date ? formatDate(item.needed_by_date) : undefined} />
+                      <DetailField label="Deliver to Plant" value={item.plant_name || item.plant_id} />
+                      <DetailField label="Storage Location" value={item.storage_location_name || item.storage_location_id} />
+                      <DetailField label="Suggested Supplier" value={item.suggested_supplier_name || item.suggested_supplier_id} />
+                      <DetailField label="Qty Ordered" value={item.quantity_ordered != null ? String(item.quantity_ordered) : '0'} />
+                      <DetailField label="Conversion Status" value={item.is_converted ? 'Converted to PO' : 'Not converted'} />
+                      <DetailField label="Linked PO" value={item.purchase_order_id} mono className="col-span-2" />
+                      {item.notes && (
+                        <DetailField label="Line Notes" value={<span className="whitespace-pre-wrap">{item.notes}</span>} className="col-span-2 sm:col-span-3 lg:col-span-4" />
+                      )}
+                    </div>
                   </div>
-                </div>
+                )
+              })}
+              {!pr.items.length && (
+                <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-gray-400">No line items</p>
               )}
             </div>
-
-            <div>
-              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                Items ({pr.items.length})
-              </h3>
-              <div className="max-h-48 overflow-auto rounded-md border">
-                <table className="w-full text-[11px]">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      {['#', 'Description', 'Qty', 'UoM', 'Price', 'Need by'].map(h => (
-                        <th key={h} className="px-1.5 py-1 text-left font-medium text-gray-500">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pr.items.map((item: PurchaseRequisitionItem, idx: number) => (
-                      <tr key={item.id} className="border-t">
-                        <td className="px-1.5 py-1 text-gray-400">{idx + 1}</td>
-                        <td className="max-w-[7rem] truncate px-1.5 py-1 font-medium" title={itemDisplayName(item)}>
-                          {itemDisplayName(item)}
-                        </td>
-                        <td className="px-1.5 py-1">{item.quantity}</td>
-                        <td className="px-1.5 py-1 text-gray-500">{item.unit_of_measure || item.uom || 'PCS'}</td>
-                        <td className="px-1.5 py-1 whitespace-nowrap">{item.estimated_price ? formatCurrency(item.estimated_price) : '—'}</td>
-                        <td className="px-1.5 py-1 text-gray-500 whitespace-nowrap">{item.needed_by_date ? formatDate(item.needed_by_date) : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          </section>
         </div>
 
         {/* Footer */}
@@ -239,6 +436,11 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
                 onChange={e => setApprovalRemarks(e.target.value)}
                 className="h-8 min-w-[10rem] flex-1 bg-white text-xs dark:bg-gray-900"
               />
+              {onEdit && canEdit && (
+                <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
+                  <Pencil className="w-3.5 h-3.5" /> Edit
+                </Button>
+              )}
               <Button size="sm" onClick={handleApprove} disabled={approvePR.isPending} className="h-8 gap-1 bg-green-600 px-3 hover:bg-green-700">
                 {approvePR.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
                 Approve
@@ -246,12 +448,21 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
               <Button size="sm" variant="destructive" onClick={handleReject} disabled={approvePR.isPending} className="h-8 gap-1 px-3">
                 <XCircle className="w-3.5 h-3.5" /> Reject
               </Button>
+              <Button variant="outline" size="sm" className="ml-auto h-8" onClick={onClose}>Close</Button>
             </div>
           </div>
         )}
         {showApprovalFooter && !canActAsApprover && (
-          <div className="shrink-0 border-t bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-            Awaiting <span className="font-semibold">{pendingStep?.approver_name || 'designated approver'}</span> (Level {pendingStep?.level})
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t bg-amber-50 px-3 py-2 dark:bg-amber-950/30">
+            <p className="flex-1 text-xs text-amber-900 dark:text-amber-200">
+              Awaiting <span className="font-semibold">{pendingStep?.approver_name || 'designated approver'}</span> (Level {pendingStep?.level})
+            </p>
+            {onEdit && canEdit && (
+              <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="h-8" onClick={onClose}>Close</Button>
           </div>
         )}
         {pr.status === 'submitted' && membershipLoading && pendingStep && (
@@ -260,22 +471,94 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
           </div>
         )}
         {pr.status === 'draft' && (
-          <div className="flex shrink-0 flex-wrap gap-1.5 border-t px-3 py-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t px-3 py-2">
             {onEdit && (
               <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
                 <Pencil className="w-3.5 h-3.5" /> Edit
               </Button>
             )}
-            <Button size="sm" onClick={() => submitPR.mutate(pr.id, { onSuccess: () => toast.success('Submitted for approval') })} disabled={submitPR.isPending} className="h-8 gap-1">
+            <Button size="sm" onClick={() => submitPR.mutate(pr.id, {
+              onSuccess: (updated) => toast.success(
+                (updated as PurchaseRequisition)?.status === 'open'
+                  ? 'Requisition opened (no approval required)'
+                  : 'Submitted for approval',
+              ),
+            })} disabled={submitPR.isPending} className="h-8 gap-1">
               {submitPR.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
               Submit
             </Button>
-            <Button variant="destructive" size="sm" className="h-8" onClick={() => cancelPR.mutate({ id: pr.id })}>Cancel</Button>
+            <Button variant="destructive" size="sm" className="h-8" onClick={handleCancelPr}>Cancel</Button>
+            <Button variant="outline" size="sm" className="ml-auto h-8" onClick={onClose}>Close</Button>
+          </div>
+        )}
+        {pr.status === 'open' && (
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t px-3 py-2">
+            {onEdit && canEdit && (
+              <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </Button>
+            )}
+            {converting && (
+              <>
+                <Button size="sm" className="h-8 gap-1" disabled={createPO.isPending} onClick={handleDirectConvert}>
+                  {createPO.isPending
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <ArrowRightLeft className="w-3.5 h-3.5" />}
+                  Convert to PO
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 gap-1" disabled={createPO.isPending} onClick={handleCreateEditablePo}>
+                  <FilePlus className="w-3.5 h-3.5" /> Create PO
+                </Button>
+              </>
+            )}
+            <Button variant="destructive" size="sm" className="h-8" onClick={handleCancelPr}>Cancel</Button>
+            <Button variant="outline" size="sm" className="ml-auto h-8" onClick={onClose}>Close</Button>
+          </div>
+        )}
+        {pr.status === 'submitted' && !showApprovalFooter && !membershipLoading && (
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t px-3 py-2">
+            {onEdit && canEdit && (
+              <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </Button>
+            )}
+            <Button variant="destructive" size="sm" className="h-8" onClick={handleCancelPr}>Cancel</Button>
+            <Button variant="outline" size="sm" className="ml-auto h-8" onClick={onClose}>Close</Button>
           </div>
         )}
         {['approved', 'partially_converted'].includes(pr.status) && (
-          <div className="shrink-0 border-t px-3 py-2">
-            <Button variant="outline" size="sm" className="h-8" onClick={() => cancelPR.mutate({ id: pr.id })}>Cancel PR</Button>
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t px-3 py-2">
+            {converting && (
+              <>
+                <Button
+                  size="sm"
+                  className="h-8 gap-1"
+                  disabled={createPO.isPending}
+                  onClick={handleDirectConvert}
+                >
+                  {createPO.isPending
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <ArrowRightLeft className="w-3.5 h-3.5" />}
+                  Convert to PO
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1"
+                  disabled={createPO.isPending}
+                  onClick={handleCreateEditablePo}
+                >
+                  <FilePlus className="w-3.5 h-3.5" /> Create PO
+                </Button>
+              </>
+            )}
+            <Button variant="outline" size="sm" className="h-8 text-red-600 hover:text-red-700" onClick={handleCancelPr}>Cancel PR</Button>
+            <Button variant="outline" size="sm" className="ml-auto h-8" onClick={onClose}>Close</Button>
+          </div>
+        )}
+        {!['draft', 'open', 'submitted', 'approved', 'partially_converted'].includes(pr.status) && (
+          <div className="flex shrink-0 justify-end border-t px-3 py-2">
+            <Button variant="outline" size="sm" className="h-8" onClick={onClose}>Close</Button>
           </div>
         )}
       </div>
@@ -302,7 +585,7 @@ function prToItemRows(pr: PurchaseRequisition): ItemRow[] {
       variant_id: it.variant_id || '',
       description: it.description || '',
       quantity: it.quantity,
-      uom: it.unit_of_measure || it.uom || 'PCS',
+      uom: it.unit_of_measure || it.uom || 'piece',
       estimated_price: it.estimated_price != null ? String(it.estimated_price) : '',
       needed_by_date: it.needed_by_date || '',
       notes: it.notes || '',
@@ -392,7 +675,16 @@ function PRFormModal({ editingPR, onClose }: { editingPR?: PurchaseRequisition |
     }
   }, [defaultStoreId, storeId, editingPR])
 
-  useEscapeToClose(onClose, true)
+  const isDirty = !!(
+    title.trim() ||
+    notes.trim() ||
+    primaryApproverId ||
+    secondaryApproverId ||
+    approverMessage.trim() ||
+    items.some(i => i.reference_id || i.description.trim() || i.notes.trim())
+  ) || !!editingPR
+
+  const { handleClose, confirmOpen, cancelConfirm, forceClose } = useGuardedClose(onClose, isDirty)
 
   const handleSourceChange = (source: ProcurementSource) => {
     setProcurementSource(source)
@@ -551,10 +843,6 @@ function PRFormModal({ editingPR, onClose }: { editingPR?: PurchaseRequisition |
         return false
       }
     }
-    if (!primaryApproverId) {
-      toast.error('Select a primary approver before submitting')
-      return false
-    }
     if (secondaryApproverId && secondaryApproverId === primaryApproverId) {
       toast.error('Secondary approver must be different from primary approver')
       return false
@@ -568,19 +856,24 @@ function PRFormModal({ editingPR, onClose }: { editingPR?: PurchaseRequisition |
     if (submitAfter ? !validateSubmit() : !validateDraft()) return
 
     const payload = buildPayload(submitAfter)
+    const alreadyOpenOrSubmitted = editingPR && ['open', 'submitted'].includes(editingPR.status)
     try {
       let prId = editingPR?.id
       if (editingPR) {
         await updatePR.mutateAsync({ id: editingPR.id, data: payload })
-        toast.success(submitAfter ? 'Requisition updated' : 'Draft saved')
+        toast.success(submitAfter && !alreadyOpenOrSubmitted ? 'Requisition updated' : 'Changes saved')
       } else {
         const created = await createPR.mutateAsync(payload) as PurchaseRequisition
         prId = created.id
         toast.success(submitAfter ? 'Requisition created' : 'Draft saved')
       }
-      if (submitAfter && prId) {
-        await submitPR.mutateAsync(prId)
-        toast.success('Submitted for approval')
+      if (submitAfter && prId && !alreadyOpenOrSubmitted) {
+        const result = await submitPR.mutateAsync(prId) as PurchaseRequisition
+        toast.success(
+          result?.status === 'open'
+            ? 'Requisition opened — no approval required'
+            : 'Submitted for approval',
+        )
       }
       onClose()
     } catch {
@@ -599,7 +892,7 @@ function PRFormModal({ editingPR, onClose }: { editingPR?: PurchaseRequisition |
             <ClipboardList className="w-5 h-5 text-blue-600" />
             {editingPR ? `Edit ${editingPR.pr_number}` : 'New Purchase Requisition'}
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={handleClose}><X className="w-4 h-4" /></Button>
         </div>
         <CardContent className="flex flex-col flex-1 min-h-0 p-5 gap-3">
           <div className="shrink-0 space-y-2.5">
@@ -693,23 +986,39 @@ function PRFormModal({ editingPR, onClose }: { editingPR?: PurchaseRequisition |
           </div>
 
           <div className="flex justify-end gap-2.5 pt-3 border-t shrink-0">
-            <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+            <Button variant="outline" onClick={handleClose} disabled={saving}>Cancel</Button>
             <Button variant="secondary" onClick={handleSaveDraft} disabled={saving} className="gap-2">
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               Save Draft
             </Button>
             <Button onClick={handleSubmit} disabled={saving} className="gap-2">
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {editingPR ? 'Submit for Approval' : 'Create & Submit'}
+              {editingPR && ['open', 'submitted'].includes(editingPR.status)
+                ? 'Save Changes'
+                : primaryApproverId
+                  ? (editingPR ? 'Submit for Approval' : 'Create & Submit')
+                  : (editingPR ? 'Open Requisition' : 'Create & Open')}
             </Button>
           </div>
         </CardContent>
       </Card>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Discard changes?"
+        description="You have unsaved input. Close anyway and lose your changes?"
+        confirmLabel="Discard & Close"
+        cancelLabel="Keep editing"
+        variant="warning"
+        onCancel={cancelConfirm}
+        onConfirm={forceClose}
+      />
     </div>
   )
 }
 
 export default function PurchaseRequisitionsPage() {
+  const navigate = useNavigate()
+  const createPO = useCreatePurchaseOrder()
   const [viewMode, setViewMode] = useState<'all' | 'pending_my_approval'>('all')
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
@@ -718,6 +1027,44 @@ export default function PurchaseRequisitionsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingPR, setEditingPR] = useState<PurchaseRequisition | null>(null)
   const [selectedPR, setSelectedPR] = useState<PurchaseRequisition | null>(null)
+  const [convertingId, setConvertingId] = useState<string | null>(null)
+
+  const handleDirectConvert = async (pr: PurchaseRequisition) => {
+    const payload = buildPoCreatePayloadFromPr(pr)
+    if (!payload) {
+      toast.error('Add a supplier on the PR, or use Create PO to pick one')
+      return
+    }
+    const ok = await askConfirm({
+      title: `Convert ${pr.pr_number} to Purchase Order?`,
+      description: 'This creates a draft PO immediately from the requisition lines. Type CONVERT to confirm.',
+      confirmLabel: 'Convert',
+      confirmPhrase: 'CONVERT',
+      variant: 'warning',
+    })
+    if (!ok) return
+    setConvertingId(pr.id)
+    createPO.mutate(payload, {
+      onSuccess: (po: { id?: string }) => {
+        setConvertingId(null)
+        if (po?.id) navigate(`/purchase-orders/${po.id}`)
+        else navigate('/purchase-orders')
+      },
+      onError: () => setConvertingId(null),
+    })
+  }
+
+  const handleCreateEditablePo = async (pr: PurchaseRequisition) => {
+    const ok = await askConfirm({
+      title: `Create editable PO from ${pr.pr_number}?`,
+      description: 'Opens the Purchase Order form pre-filled from this requisition so you can edit before saving. Type CREATE to confirm.',
+      confirmLabel: 'Create',
+      confirmPhrase: 'CREATE',
+      variant: 'default',
+    })
+    if (!ok) return
+    await startCreateEditablePo(pr, navigate)
+  }
 
   const openCreateForm = () => {
     setEditingPR(null)
@@ -773,14 +1120,15 @@ export default function PurchaseRequisitionsPage() {
   )
 
   const cols = [
-    { key: 'pr_number',     label: 'PR Number',   width: 130 },
-    { key: 'title',         label: 'Title',        width: 200 },
-    { key: 'department',    label: 'Department',   width: 130 },
+    { key: 'pr_number',     label: 'PR Number',   width: 120 },
+    { key: 'title',         label: 'Title',        width: 160 },
+    { key: 'department',    label: 'Department',   width: 150 },
     { key: 'priority',      label: 'Priority',     width: 90 },
     { key: 'status',        label: 'Status',       width: 110 },
     { key: 'item_count',    label: 'Items',        width: 70 },
     { key: 'required_date', label: 'Required By',  width: 110 },
     { key: 'created_at',    label: 'Created',      width: 110 },
+    { key: 'actions',       label: 'Actions',      width: 250 },
   ]
 
   return (
@@ -848,9 +1196,10 @@ export default function PurchaseRequisitionsPage() {
 
       {/* Stats */}
       {viewMode === 'all' && (
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
           { label: 'Total', count: items.length, color: 'text-gray-700' },
+          { label: 'Open', count: items.filter(r => r.status === 'open').length, color: 'text-sky-600' },
           { label: 'Submitted', count: items.filter(r => r.status === 'submitted').length, color: 'text-blue-600' },
           { label: 'Approved', count: items.filter(r => r.status === 'approved').length, color: 'text-green-600' },
           { label: 'Est. Value', count: null, value: formatCurrency(totalEstimate), color: 'text-purple-600' },
@@ -912,7 +1261,7 @@ export default function PurchaseRequisitionsPage() {
             </p>
           </div>
         ) : (
-          <ResizableTable tableId="procurement-requisitions" defaultWidths={cols.map(c => c.width)}>
+          <ResizableTable tableId="procurement-requisitions-v3" defaultWidths={cols.map(c => c.width)}>
             <thead>
               <tr>
                 {cols.map(c => (
@@ -946,6 +1295,35 @@ export default function PurchaseRequisitionsPage() {
                     <td className="px-3 py-2 text-sm text-gray-600">{r.items.length}</td>
                     <td className="px-3 py-2 text-sm text-gray-600">{r.required_date ? formatDate(r.required_date) : '—'}</td>
                     <td className="px-3 py-2 text-sm text-gray-500">{formatDate(r.created_at)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      {canConvertPrToPo(r) ? (
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            className="h-7 gap-1 px-2 text-xs shrink-0"
+                            disabled={convertingId === r.id}
+                            onClick={() => handleDirectConvert(r)}
+                          >
+                            {convertingId === r.id
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : <ArrowRightLeft className="w-3 h-3 shrink-0" />}
+                            Convert to PO
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 px-2 text-xs shrink-0"
+                            disabled={convertingId === r.id}
+                            onClick={() => handleCreateEditablePo(r)}
+                          >
+                            <FilePlus className="w-3 h-3 shrink-0" />
+                            Create PO
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
                   </tr>
                 )
               })}

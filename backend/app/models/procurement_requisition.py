@@ -17,6 +17,7 @@ class PurchaseRequisition(Base):
 
     status flow:
       draft → submitted → (approved | rejected) → (partially_converted | converted) | cancelled
+      draft → open (no approvers assigned) → (partially_converted | converted) | cancelled
     """
     __tablename__ = "purchase_requisition"
 
@@ -25,7 +26,7 @@ class PurchaseRequisition(Base):
 
     pr_number = Column(String(30), nullable=False)
     status = Column(String(30), nullable=False, default="draft")
-    # draft | submitted | approved | rejected | partially_converted | converted | cancelled
+    # draft | submitted | open | approved | rejected | partially_converted | converted | cancelled
 
     requested_by = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"), nullable=True)
     department = Column(String(100), nullable=True)
@@ -56,6 +57,7 @@ class PurchaseRequisition(Base):
         lazy="selectin",
         cascade="all, delete-orphan",
     )
+    requester = relationship("VendorUser", foreign_keys=[requested_by], lazy="selectin")
     store = relationship("Store", foreign_keys=[store_id], lazy="selectin")
     from_store = relationship("Store", foreign_keys=[from_store_id], lazy="selectin")
     to_store = relationship("Store", foreign_keys=[to_store_id], lazy="selectin")
@@ -92,7 +94,7 @@ class PurchaseRequisitionItem(Base):
     asset_category_id = Column(UUID(as_uuid=True), ForeignKey("fin_asset_category.id", ondelete="SET NULL"), nullable=True)
 
     quantity = Column(Numeric(12, 4), nullable=False)
-    unit_of_measure = Column(String(20), default="PCS")
+    unit_of_measure = Column(String(20), default="piece")
     needed_by_date = Column(Date, nullable=True)
 
     plant_id = Column(UUID(as_uuid=True), ForeignKey("plant.id", ondelete="SET NULL"), nullable=True)
@@ -114,6 +116,9 @@ class PurchaseRequisitionItem(Base):
     product = relationship("Product", lazy="selectin")
     service = relationship("Service", lazy="selectin")
     variant = relationship("ProductVariant", foreign_keys=[variant_id], lazy="selectin")
+    plant = relationship("Plant", foreign_keys=[plant_id], lazy="selectin")
+    storage_location = relationship("StorageLocation", foreign_keys=[storage_location_id], lazy="selectin")
+    suggested_supplier = relationship("Supplier", foreign_keys=[suggested_supplier_id], lazy="selectin")
 
     __table_args__ = (
         Index("ix_pri_requisition", "requisition_id"),

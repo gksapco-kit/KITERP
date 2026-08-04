@@ -117,16 +117,21 @@ class ConsignmentStock(Base):
     unit_price = Column(Numeric(12, 4), default=0)
     currency = Column(String(3), default="INR", nullable=False)
 
+    # Optional link to the consignment PO that brought this stock in
+    purchase_order_id = Column(UUID(as_uuid=True), ForeignKey("purchase_order.id", ondelete="SET NULL"), nullable=True)
+
     last_replenished_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     supplier = relationship("Supplier", lazy="noload")
     product = relationship("Product", lazy="noload")
+    purchase_order = relationship("PurchaseOrder", lazy="noload")
 
     __table_args__ = (
         Index("ix_cs_vendor", "vendor_id"),
         Index("ix_cs_supplier_product", "vendor_id", "supplier_id", "product_id"),
         Index("ix_cs_plant", "vendor_id", "plant_id"),
+        Index("ix_cs_po", "purchase_order_id"),
     )
 
 
