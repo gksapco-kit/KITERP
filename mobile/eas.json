@@ -28,11 +28,14 @@
     },
     "vendor-android": {
       "extends": "production",
+      "distribution": "internal",
       "android": {
         "buildType": "apk"
       },
       "env": {
-        "VENDOR_SLUG": "${VENDOR_SLUG}"
+        "VENDOR_SLUG": "rainbow-nursery",
+        "EXPO_PUBLIC_API_URL": "https://kiterp.com/api/v1",
+        "EXPO_PUBLIC_STOREFRONT_URL": "https://kiterp.com"
       }
     },
     "vendor-ios": {
@@ -41,13 +44,17 @@
         "enterpriseProvisioning": "universal"
       },
       "env": {
-        "VENDOR_SLUG": "${VENDOR_SLUG}"
+        "VENDOR_SLUG": "rainbow-nursery",
+        "EXPO_PUBLIC_API_URL": "https://kiterp.com/api/v1",
+        "EXPO_PUBLIC_STOREFRONT_URL": "https://kiterp.com"
       }
     },
     "vendor-all": {
       "extends": "production",
       "env": {
-        "VENDOR_SLUG": "${VENDOR_SLUG}"
+        "VENDOR_SLUG": "rainbow-nursery",
+        "EXPO_PUBLIC_API_URL": "https://kiterp.com/api/v1",
+        "EXPO_PUBLIC_STOREFRONT_URL": "https://kiterp.com"
       }
     }
   },
