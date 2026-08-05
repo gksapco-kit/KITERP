@@ -96,7 +96,7 @@ def upgrade() -> None:
             sa.Column("late_fee", sa.Numeric(12, 2), server_default="0"),
             sa.Column("deposit_refunded", sa.Numeric(12, 2), server_default="0"),
             sa.Column("return_notes", sa.Text),
-            sa.Column("unit_ids", JSONB, server_default="'[]'::jsonb"),
+            sa.Column("unit_ids", JSONB, server_default=sa.text("'[]'::jsonb")),
             sa.Column("returned_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         )
         op.create_index("ix_rental_return_booking_id", "rental_return", ["booking_id"])
