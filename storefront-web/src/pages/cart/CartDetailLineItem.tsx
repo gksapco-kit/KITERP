@@ -48,6 +48,15 @@ function resolveLineItemDisplayImage(
   return fallbackImage
 }
 
+function sameSelections(
+  a: Record<string, string>,
+  b: Record<string, string>,
+): boolean {
+  const aKeys = Object.keys(a)
+  if (aKeys.length !== Object.keys(b).length) return false
+  return aKeys.every((k) => a[k] === b[k])
+}
+
 type Props = {
   item: CheckoutCartItem
   product?: Product
@@ -87,11 +96,13 @@ export function CartDetailLineItem({
   const productName = resolveProductName(item)
   const fallbackVariantLabel = resolveVariantLabel(item)
 
-  const activeVariants = (product?.variants ?? []).filter((v) => v.is_active !== false)
-  const selectedVariant = resolveSelectedVariant(
-    activeVariants,
-    item.variantId,
-    fallbackVariantLabel,
+  const activeVariants = useMemo(
+    () => (product?.variants ?? []).filter((v) => v.is_active !== false),
+    [product?.variants],
+  )
+  const selectedVariant = useMemo(
+    () => resolveSelectedVariant(activeVariants, item.variantId, fallbackVariantLabel),
+    [activeVariants, item.variantId, fallbackVariantLabel],
   )
 
   const optionRows = useMemo(
@@ -120,9 +131,11 @@ export function CartDetailLineItem({
 
   useEffect(() => {
     const defaults = resolveCardDefaultSelections(activeVariants, optionRows, selectedVariant)
-    setSelections(defaults.selections)
-    setSelectedColorName(defaults.colorName)
-  }, [item.variantId, product?.id, optionRows, selectedVariant?.id, activeVariants])
+    // Keep the previous object when nothing changed — a fresh identity here would
+    // re-trigger this effect through the memoized deps below it.
+    setSelections((prev) => (sameSelections(prev, defaults.selections) ? prev : defaults.selections))
+    setSelectedColorName((prev) => (prev === defaults.colorName ? prev : defaults.colorName))
+  }, [activeVariants, optionRows, selectedVariant])
 
   const validation = useMemo(
     () => validateVariantCombination(activeVariants, selections, selectedColorName),
