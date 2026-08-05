@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Boxes, CalendarRange, IndianRupee, Loader2, MapPin, Tag } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AlertTriangle, CalendarRange, IndianRupee, Layers, Loader2, MapPin, Plus, Tag } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
@@ -19,6 +19,7 @@ import {
   ASSET_STATUSES, AVAILABILITY_OPTIONS, RENTAL_CATEGORIES, emptyAssetForm, getCategoryConfig,
   type RentalAsset, type RentalBooking,
 } from './rentalConstants'
+import RentalAssetUnitsPanel from './RentalAssetUnitsPanel'
 
 type AssetFormState = ReturnType<typeof emptyAssetForm>
 
@@ -50,6 +51,14 @@ function assetToForm(a: Partial<RentalAsset> & Record<string, unknown>): AssetFo
     display_start_date: start,
     display_end_date: end,
     notes: String(a.notes || ''),
+    unit_mode: String(a.unit_mode || 'none'),
+    parent_asset_id: String(a.parent_asset_id || ''),
+    is_bookable: a.is_bookable !== false,
+    price_per_unit: String(a.price_per_unit ?? 0),
+    pricing_uom: String(a.pricing_uom || ''),
+    hourly_rate: String(a.hourly_rate ?? 0),
+    per_minute_rate: String(a.per_minute_rate ?? 0),
+    yearly_rate: String(a.yearly_rate ?? 0),
   }
 }
 
@@ -61,35 +70,59 @@ type Props = {
   assetId: string | null
   /** Optimistic fill from a list card while the fresh detail loads. */
   initialAsset?: RentalAsset | null
+  /** When creating a child asset, pre-fill parent_asset_id and unit_mode=hierarchy. */
+  initialParentId?: string | null
   salesAreaOptions: SelectOpt[]
   /** Approved / confirmed / active bookings for this asset — lock the display window. */
   lockedBookings: RentalBooking[]
   onClose: () => void
   onSaved: (asset: RentalAsset) => void
+  /** Called when the user wants to add a child asset under this one. */
+  onRequestAddChild?: (parentId: string) => void
 }
 
 export default function RentalAssetSheet({
-  open, assetId, initialAsset, salesAreaOptions, lockedBookings, onClose, onSaved,
+  open, assetId, initialAsset, initialParentId, salesAreaOptions, lockedBookings,
+  onClose, onSaved, onRequestAddChild,
 }: Props) {
   const qc = useQueryClient()
   const [form, setForm] = useState<AssetFormState>(emptyAssetForm())
   const [loading, setLoading] = useState(false)
   const [openSections, setOpenSections] = useState({
-    basics: true, capacity: true, pricing: false, availability: false, location: false,
+    basics: true, pricing: false, availability: false, location: false, subAssets: false,
   })
+  // Tracks the unit_mode value that is actually saved on the server.
+  // The units panel is only rendered when this matches 'serialized' so users
+  // cannot attempt to add units before the mode change has been persisted.
+  const [savedUnitMode, setSavedUnitMode] = useState<string>('none')
 
   useEffect(() => {
     if (!open) return
     if (!assetId) {
-      setForm(emptyAssetForm())
-      setOpenSections({ basics: true, capacity: true, pricing: false, availability: false, location: false })
+      const base = emptyAssetForm()
+      setForm(
+        initialParentId
+          ? { ...base, parent_asset_id: initialParentId, unit_mode: 'hierarchy' }
+          : base,
+      )
+      setSavedUnitMode('none')
+      setOpenSections({
+        basics: true, pricing: false, availability: false, location: false,
+        subAssets: Boolean(initialParentId),
+      })
       return
     }
     // Optimistic fill from the card, then refresh with an uncached read.
-    if (initialAsset) setForm(assetToForm(initialAsset as RentalAsset & Record<string, unknown>))
+    if (initialAsset) {
+      setForm(assetToForm(initialAsset as RentalAsset & Record<string, unknown>))
+      setSavedUnitMode(initialAsset.unit_mode ?? 'none')
+    }
     setLoading(true)
     rentalApi.getAsset(assetId)
-      .then((fresh) => setForm(assetToForm(fresh as RentalAsset & Record<string, unknown>)))
+      .then((fresh) => {
+        setForm(assetToForm(fresh as RentalAsset & Record<string, unknown>))
+        setSavedUnitMode(fresh.unit_mode ?? 'none')
+      })
       .catch((e) => toast.error(extractApiError(e, 'Load asset for edit')))
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,6 +131,27 @@ export default function RentalAssetSheet({
   const set = (key: keyof AssetFormState, value: string) => setForm((f) => ({ ...f, [key]: value }))
   const toggleSection = (key: keyof typeof openSections) =>
     setOpenSections((s) => ({ ...s, [key]: !s[key] }))
+
+  // Parent asset options for hierarchy mode (all assets of this vendor, minus self)
+  const { data: allAssets = [] } = useQuery<RentalAsset[]>({
+    queryKey: ['rental-assets'],
+    queryFn: () => rentalApi.listAssets(),
+    enabled: open,
+    staleTime: 30_000,
+  })
+  const parentOptions = useMemo(() => {
+    const opts = allAssets
+      .filter((a) => a.id !== assetId && !a.parent_asset_id) // only top-level assets as parents
+      .map((a) => ({ value: a.id, label: `${a.name}${a.asset_code ? ` (${a.asset_code})` : ''}` }))
+    return [{ value: '', label: 'No parent (top-level asset)' }, ...opts]
+  }, [allAssets, assetId])
+
+  // Child assets for hierarchy view (only when editing an existing asset)
+  const { data: childAssets = [] } = useQuery<RentalAsset[]>({
+    queryKey: ['rental-asset-children', assetId],
+    queryFn: () => rentalApi.listAssetChildren(assetId!),
+    enabled: open && Boolean(assetId) && form.unit_mode === 'hierarchy',
+  })
 
   const categoryConfig = getCategoryConfig(form.category)
 
@@ -192,6 +246,14 @@ export default function RentalAssetSheet({
       display_start_date: useRange ? (start || null) : null,
       display_end_date: useRange ? (end || null) : null,
       notes: form.notes || undefined,
+      unit_mode: form.unit_mode || 'none',
+      parent_asset_id: form.parent_asset_id || null,
+      is_bookable: form.is_bookable,
+      price_per_unit: Number(form.price_per_unit) || 0,
+      pricing_uom: form.pricing_uom.trim() || null,
+      hourly_rate: Number(form.hourly_rate) || 0,
+      per_minute_rate: Number(form.per_minute_rate) || 0,
+      yearly_rate: Number(form.yearly_rate) || 0,
     }
   }
 
@@ -205,6 +267,7 @@ export default function RentalAssetSheet({
     mutationFn: (body: Record<string, unknown>) => rentalApi.createAsset(body),
     onSuccess: (data: RentalAsset) => {
       toast.success('Rental asset created')
+      setSavedUnitMode(data.unit_mode ?? 'none')
       invalidate()
       onSaved(data)
     },
@@ -221,6 +284,7 @@ export default function RentalAssetSheet({
           ? `Asset updated · Available ${start || '…'} → ${end || '…'}`
           : 'Rental asset updated',
       )
+      setSavedUnitMode(data.unit_mode ?? 'none')
       invalidate()
       onSaved(data)
     },
@@ -270,7 +334,11 @@ export default function RentalAssetSheet({
         <SheetHeader className="border-b border-border px-5 py-4">
           <SheetTitle>{isEdit ? 'Edit Rental Asset' : 'Create Rental Asset'}</SheetTitle>
           <SheetDescription>
-            {isEdit ? 'Update capacity, pricing, and storefront availability for this asset.' : 'Add a new rack, unit, or item that customers can rent.'}
+            {isEdit
+              ? 'Update capacity, pricing, and storefront availability for this asset.'
+              : initialParentId
+                ? 'Create a sub-asset. The parent is pre-filled — you can change it below.'
+                : 'Add a new rack, unit, or item that customers can rent.'}
           </SheetDescription>
         </SheetHeader>
 
@@ -317,46 +385,16 @@ export default function RentalAssetSheet({
             </div>
           </CollapsibleSection>
 
-          {(categoryConfig.showCapacity || categoryConfig.showWeight) && (
-            <CollapsibleSection
-              title={categoryConfig.capacitySectionTitle}
-              icon={Boxes}
-              open={openSections.capacity}
-              toggle={() => toggleSection('capacity')}
-            >
-              <div className="grid gap-3 sm:grid-cols-2">
-                {categoryConfig.showCapacity && (
-                  <>
-                    <div>
-                      <FieldLabel>{categoryConfig.labels.capacity}</FieldLabel>
-                      <Input type="number" value={form.capacity_max} onChange={(e) => set('capacity_max', e.target.value)} />
-                    </div>
-                    <div>
-                      <FieldLabel>{categoryConfig.labels.unit}</FieldLabel>
-                      <Select value={form.capacity_unit} onChange={(v) => set('capacity_unit', v)} options={categoryConfig.capacityUnits} />
-                    </div>
-                  </>
-                )}
-                {categoryConfig.showWeight && (
-                  <>
-                    <div>
-                      <FieldLabel>Max Weight</FieldLabel>
-                      <Input type="number" value={form.max_weight} onChange={(e) => set('max_weight', e.target.value)} />
-                    </div>
-                    <div>
-                      <FieldLabel>Weight Unit</FieldLabel>
-                      <Input value={form.weight_unit} onChange={(e) => set('weight_unit', e.target.value)} placeholder="kg" />
-                    </div>
-                  </>
-                )}
-              </div>
-            </CollapsibleSection>
-          )}
-
           <CollapsibleSection
             title="Pricing"
             icon={IndianRupee}
-            subtitle={Number(form.daily_rate) > 0 ? `₹${form.daily_rate}/day` : undefined}
+            subtitle={
+              Number(form.price_per_unit) > 0
+                ? `₹${form.daily_rate}/day · ₹${form.price_per_unit}/${form.pricing_uom.trim() || form.capacity_unit || 'unit'}`
+                : Number(form.daily_rate) > 0
+                  ? `₹${form.daily_rate}/day`
+                  : undefined
+            }
             open={openSections.pricing}
             toggle={() => toggleSection('pricing')}
           >
@@ -389,6 +427,74 @@ export default function RentalAssetSheet({
                   <Input type="number" value={form.extra_weight_charge} onChange={(e) => set('extra_weight_charge', e.target.value)} />
                 </div>
               )}
+
+              {/* ── Extended time-plan rates ── */}
+              <div className="col-span-2 border-t border-border/60 pt-1">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
+                  More time plans (optional)
+                </p>
+              </div>
+
+              <div>
+                <FieldLabel>Hourly Rate (₹)</FieldLabel>
+                <Input
+                  type="number" min={0} step="0.01" placeholder="0"
+                  value={form.hourly_rate}
+                  onChange={(e) => set('hourly_rate', e.target.value)}
+                />
+              </div>
+              <div>
+                <FieldLabel>Per-Minute Rate (₹)</FieldLabel>
+                <Input
+                  type="number" min={0} step="0.01" placeholder="0"
+                  value={form.per_minute_rate}
+                  onChange={(e) => set('per_minute_rate', e.target.value)}
+                />
+              </div>
+              <div>
+                <FieldLabel>Yearly Rate (₹)</FieldLabel>
+                <Input
+                  type="number" min={0} step="0.01" placeholder="0"
+                  value={form.yearly_rate}
+                  onChange={(e) => set('yearly_rate', e.target.value)}
+                />
+              </div>
+
+              {/* ── Per-unit pricing ── */}
+              <div className="col-span-2 border-t border-border/60 pt-1">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
+                  Per-unit pricing
+                </p>
+              </div>
+
+              <div>
+                <FieldLabel>
+                  Price per {form.pricing_uom.trim() || form.capacity_unit || 'unit'} (₹)
+                </FieldLabel>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="0"
+                  value={form.price_per_unit}
+                  onChange={(e) => set('price_per_unit', e.target.value)}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Charged per {form.pricing_uom.trim() || form.capacity_unit || 'unit'} per day. Leave 0 to use only the flat daily rate.
+                </p>
+              </div>
+
+              <div>
+                <FieldLabel>Pricing UOM</FieldLabel>
+                <Input
+                  placeholder={form.capacity_unit || 'e.g. packet, kg, unit'}
+                  value={form.pricing_uom}
+                  onChange={(e) => set('pricing_uom', e.target.value)}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Unit label for per-unit price. Leave blank to use the asset's capacity unit ({form.capacity_unit || '—'}).
+                </p>
+              </div>
             </div>
           </CollapsibleSection>
 
@@ -515,6 +621,115 @@ export default function RentalAssetSheet({
                   placeholder="Notes visible only to your team…"
                 />
               </div>
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Sub-assets & Unit Tracking"
+            icon={Layers}
+            subtitle={form.unit_mode === 'none' ? 'Off' : form.unit_mode === 'hierarchy' ? 'Hierarchy' : 'Serialized units'}
+            open={openSections.subAssets}
+            toggle={() => toggleSection('subAssets')}
+          >
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Choose how individual items within this asset are tracked. This can be changed later.
+              </p>
+              <div>
+                <FieldLabel>Tracking mode</FieldLabel>
+                <Select
+                  value={form.unit_mode}
+                  onChange={(v) => setForm((f) => ({ ...f, unit_mode: v }))}
+                  options={[
+                    { value: 'none', label: 'None — track only total capacity' },
+                    { value: 'hierarchy', label: 'Hierarchy — child assets (e.g. van fleet → individual vans)' },
+                    { value: 'serialized', label: 'Serialized units — individual serial numbers (e.g. cylinders, racks)' },
+                  ]}
+                />
+              </div>
+
+              {/* Is this a bookable asset or just a container? */}
+              {form.unit_mode !== 'none' && (
+                <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
+                  <input
+                    id="is_bookable"
+                    type="checkbox"
+                    checked={form.is_bookable}
+                    onChange={(e) => setForm((f) => ({ ...f, is_bookable: e.target.checked }))}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <label htmlFor="is_bookable" className="cursor-pointer text-sm">
+                    This asset is directly bookable (uncheck for container-only assets like a fleet group)
+                  </label>
+                </div>
+              )}
+
+              {/* Hierarchy: parent picker */}
+              {form.unit_mode === 'hierarchy' && (
+                <div>
+                  <FieldLabel>Parent asset</FieldLabel>
+                  <Select
+                    value={form.parent_asset_id || ''}
+                    onChange={(v) => setForm((f) => ({ ...f, parent_asset_id: v }))}
+                    options={parentOptions}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Assign this asset as a child of another (e.g. "Van 03" inside "City Fleet").
+                  </p>
+                </div>
+              )}
+
+              {/* Hierarchy: list of current children + add button (edit mode only) */}
+              {form.unit_mode === 'hierarchy' && assetId && (
+                <div className="space-y-2">
+                  <FieldLabel>
+                    Sub-assets{childAssets.length > 0 ? ` (${childAssets.length})` : ''}
+                  </FieldLabel>
+
+                  {childAssets.length > 0 ? (
+                    <div className="divide-y divide-border rounded-lg border">
+                      {childAssets.map((c) => (
+                        <div key={c.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                          <span className="flex-1 truncate font-medium">{c.name}</span>
+                          {c.asset_code && (
+                            <span className="text-xs text-muted-foreground">{c.asset_code}</span>
+                          )}
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] capitalize">
+                            {c.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No sub-assets yet.</p>
+                  )}
+
+                  {onRequestAddChild && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => onRequestAddChild(assetId)}
+                    >
+                      <Plus className="mr-1.5 h-4 w-4" /> Add Sub-asset
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {/* Serialized: unit management panel — only once the backend has the mode saved */}
+              {form.unit_mode === 'serialized' && (
+                savedUnitMode === 'serialized' && assetId ? (
+                  <RentalAssetUnitsPanel assetId={assetId} />
+                ) : (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                    {assetId
+                      ? 'Click "Update Asset" to save this tracking mode, then you can add serialized units here.'
+                      : 'Save the asset first, then come back here to add serialized units.'}
+                  </p>
+                )
+              )}
             </div>
           </CollapsibleSection>
         </div>

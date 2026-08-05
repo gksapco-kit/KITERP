@@ -215,19 +215,27 @@ export default function ControllingSetupPage() {
           {poolForRates && (
             <div className="space-y-2 border-t border-border bg-muted/20 pt-3">
               <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Rates for selected pool</h3>
-              <div className="flex flex-wrap items-end gap-2">
-                <input
-                  type="date"
-                  value={rateForm.effective_from}
-                  onChange={e => setRateForm(f => ({ ...f, effective_from: e.target.value }))}
-                  className={fieldClass}
-                />
-                <input
-                  placeholder="Rate / unit"
-                  value={rateForm.rate_per_unit}
-                  onChange={e => setRateForm(f => ({ ...f, rate_per_unit: e.target.value }))}
-                  className={cn(fieldClass, 'w-32')}
-                />
+              <div className="grid grid-cols-[auto_auto_auto] gap-2 items-end">
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Effective From</p>
+                  <input
+                    type="date"
+                    value={rateForm.effective_from}
+                    onChange={e => setRateForm(f => ({ ...f, effective_from: e.target.value }))}
+                    className={fieldClass}
+                    aria-label="Effective from"
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Rate / Unit</p>
+                  <input
+                    placeholder="0.00"
+                    value={rateForm.rate_per_unit}
+                    onChange={e => setRateForm(f => ({ ...f, rate_per_unit: e.target.value }))}
+                    className={cn(fieldClass, 'w-32')}
+                    aria-label="Rate per unit"
+                  />
+                </div>
                 <Button type="button" size="sm" onClick={addRate} className="h-10">Add rate</Button>
               </div>
               <ul className="max-h-32 space-y-1 overflow-auto text-xs text-muted-foreground">

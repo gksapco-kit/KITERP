@@ -52,7 +52,15 @@ export function useESSAttendance(params?: { from_date?: string; to_date?: string
 export function useESSClockIn() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: essApi.clockIn,
+    mutationFn: async () => {
+      const { getCurrentPosition, getBatteryLevel } = await import('@/lib/geoLocation')
+      const [coords, battery] = await Promise.all([getCurrentPosition(), getBatteryLevel()])
+      return essApi.clockIn(
+        coords
+          ? { lat: coords.lat, lng: coords.lng, accuracy: coords.accuracy }
+          : undefined,
+      )
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: K.todayAtt })
       toast.success('Clocked in successfully')
@@ -64,12 +72,60 @@ export function useESSClockIn() {
 export function useESSClockOut() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: essApi.clockOut,
+    mutationFn: async () => {
+      const { getCurrentPosition } = await import('@/lib/geoLocation')
+      const coords = await getCurrentPosition()
+      return essApi.clockOut(
+        coords
+          ? { lat: coords.lat, lng: coords.lng, accuracy: coords.accuracy }
+          : undefined,
+      )
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: K.todayAtt })
       toast.success('Clocked out successfully')
     },
     onError: () => toast.error('Could not clock out — please try again'),
+  })
+}
+
+/**
+ * While the employee is clocked in (and HR has enabled tracking),
+ * this hook fires a GPS breadcrumb to the server every `intervalMs` ms.
+ * It is a no-op when `active` is false (not clocked in / tracking disabled).
+ */
+export function useESSLocationPing({
+  active,
+  intervalMs = 60_000,
+}: {
+  active: boolean
+  intervalMs?: number
+}) {
+  return useQuery({
+    queryKey: ['ess-location-ping'],
+    enabled: active,
+    refetchInterval: intervalMs,
+    refetchIntervalInBackground: false,
+    staleTime: 0,
+    queryFn: async () => {
+      const { getCurrentPosition, getBatteryLevel } = await import('@/lib/geoLocation')
+      const [coords, battery] = await Promise.all([getCurrentPosition(), getBatteryLevel()])
+      if (!coords) return null
+      try {
+        await essApi.sendLocationPing({
+          lat: coords.lat,
+          lng: coords.lng,
+          accuracy: coords.accuracy,
+          speed: coords.speed ?? undefined,
+          heading: coords.heading ?? undefined,
+          battery: battery ?? undefined,
+          source: 'web',
+        })
+      } catch {
+        // silently fail — do not block the employee's session
+      }
+      return null
+    },
   })
 }
 

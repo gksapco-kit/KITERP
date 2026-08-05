@@ -1041,6 +1041,217 @@ async def attendance_report(
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Field / Geo Tracking  (vendor-side management + live map)
+# ═══════════════════════════════════════════════════════════════════
+
+class LocationPingIn(BaseModel):
+    lat: float = Field(..., ge=-90, le=90)
+    lng: float = Field(..., ge=-180, le=180)
+    accuracy: Optional[float] = None    # metres
+    speed: Optional[float] = None       # m/s
+    heading: Optional[float] = None     # 0-360
+    battery: Optional[int] = Field(None, ge=0, le=100)
+    recorded_at: Optional[datetime] = None
+    source: str = "web"
+
+
+class TrackingToggle(BaseModel):
+    tracking_enabled: bool
+
+
+@router.post("/tracking/ping", status_code=204)
+async def tracking_ping(
+    body: LocationPingIn,
+    vu: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Employee posts their current GPS coordinates while on duty."""
+    import uuid as _uuid
+    import datetime as _dt
+    from sqlalchemy import select as _sel
+    from app.models.hr import EmployeeProfile, AttendanceRecord, EmployeeLocationPing
+
+    emp_r = await db.execute(
+        _sel(EmployeeProfile).where(
+            EmployeeProfile.vendor_user_id == vu.id,
+            EmployeeProfile.is_active == True,
+        )
+    )
+    emp = emp_r.scalar_one_or_none()
+    if not emp:
+        raise HTTPException(404, "No employee profile")
+    if not emp.tracking_enabled:
+        raise HTTPException(403, "Location tracking is not enabled for this employee")
+
+    today = _dt.date.today()
+    att_r = await db.execute(
+        _sel(AttendanceRecord).where(
+            AttendanceRecord.employee_id == emp.id,
+            AttendanceRecord.date == today,
+        )
+    )
+    att = att_r.scalar_one_or_none()
+    if not att or not att.clock_in:
+        raise HTTPException(400, "Employee must be clocked in to send location")
+    if att.clock_out:
+        raise HTTPException(400, "Employee has already clocked out")
+
+    now = _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc)
+    recorded = body.recorded_at or now
+
+    ping = EmployeeLocationPing(
+        id=_uuid.uuid4(),
+        employee_id=emp.id,
+        vendor_id=vu.vendor_id,
+        lat=body.lat,
+        lng=body.lng,
+        accuracy=body.accuracy,
+        speed=body.speed,
+        heading=body.heading,
+        battery=body.battery,
+        source=body.source,
+        recorded_at=recorded,
+    )
+    db.add(ping)
+
+    # Update "last known" denormalised on the profile for fast live-map queries
+    emp.last_lat = body.lat
+    emp.last_lng = body.lng
+    emp.last_seen_at = now
+    await db.commit()
+    return Response(status_code=204)
+
+
+@router.get("/tracking/live")
+async def tracking_live(
+    vu: VendorUser = Depends(require_permission("hr.attendance")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return last-known position for every on-duty employee (clocked-in today, tracking enabled)."""
+    import datetime as _dt
+    from sqlalchemy import select as _sel
+    from app.models.hr import EmployeeProfile, AttendanceRecord
+
+    today = _dt.date.today()
+
+    # Employees clocked-in today, not yet clocked-out, tracking enabled
+    result = await db.execute(
+        _sel(EmployeeProfile)
+        .join(
+            AttendanceRecord,
+            (AttendanceRecord.employee_id == EmployeeProfile.id)
+            & (AttendanceRecord.date == today)
+            & (AttendanceRecord.clock_in != None)  # noqa: E711
+            & (AttendanceRecord.clock_out == None),  # noqa: E711
+        )
+        .where(
+            EmployeeProfile.vendor_id == vu.vendor_id,
+            EmployeeProfile.tracking_enabled == True,
+            EmployeeProfile.is_active == True,
+        )
+    )
+    employees = list(result.scalars().all())
+
+    items = []
+    for emp in employees:
+        items.append({
+            "employee_id": str(emp.id),
+            "employee_code": emp.employee_code,
+            "full_name": emp.full_name,
+            "last_lat": float(emp.last_lat) if emp.last_lat is not None else None,
+            "last_lng": float(emp.last_lng) if emp.last_lng is not None else None,
+            "last_seen_at": emp.last_seen_at.isoformat() if emp.last_seen_at else None,
+            "tracking_enabled": emp.tracking_enabled,
+        })
+    return {"items": items}
+
+
+@router.get("/tracking/employees/{employee_id}/trail")
+async def tracking_trail(
+    employee_id: UUID,
+    from_dt: Optional[datetime] = Query(None),
+    to_dt: Optional[datetime] = Query(None),
+    vu: VendorUser = Depends(require_permission("hr.attendance")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return GPS trail for one employee for a given time window (default: today)."""
+    import datetime as _dt
+    from sqlalchemy import select as _sel
+    from app.models.hr import EmployeeLocationPing, EmployeeProfile
+
+    emp_r = await db.execute(
+        _sel(EmployeeProfile).where(
+            EmployeeProfile.id == employee_id,
+            EmployeeProfile.vendor_id == vu.vendor_id,
+        )
+    )
+    emp = emp_r.scalar_one_or_none()
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+
+    today_start = _dt.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    start = from_dt or today_start
+    end = to_dt or (today_start + _dt.timedelta(days=1))
+
+    pings_r = await db.execute(
+        _sel(EmployeeLocationPing)
+        .where(
+            EmployeeLocationPing.employee_id == employee_id,
+            EmployeeLocationPing.vendor_id == vu.vendor_id,
+            EmployeeLocationPing.recorded_at >= start,
+            EmployeeLocationPing.recorded_at <= end,
+        )
+        .order_by(EmployeeLocationPing.recorded_at)
+    )
+    pings = list(pings_r.scalars().all())
+
+    return {
+        "employee_id": str(employee_id),
+        "employee_code": emp.employee_code,
+        "full_name": emp.full_name,
+        "trail": [
+            {
+                "lat": float(p.lat),
+                "lng": float(p.lng),
+                "accuracy": float(p.accuracy) if p.accuracy else None,
+                "speed": float(p.speed) if p.speed else None,
+                "heading": float(p.heading) if p.heading else None,
+                "battery": p.battery,
+                "source": p.source,
+                "recorded_at": p.recorded_at.isoformat(),
+            }
+            for p in pings
+        ],
+    }
+
+
+@router.patch("/tracking/employees/{employee_id}/toggle")
+async def toggle_tracking(
+    employee_id: UUID,
+    body: TrackingToggle,
+    vu: VendorUser = Depends(require_permission("hr.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Enable or disable GPS tracking for a specific employee."""
+    from sqlalchemy import select as _sel
+    from app.models.hr import EmployeeProfile
+
+    emp_r = await db.execute(
+        _sel(EmployeeProfile).where(
+            EmployeeProfile.id == employee_id,
+            EmployeeProfile.vendor_id == vu.vendor_id,
+        )
+    )
+    emp = emp_r.scalar_one_or_none()
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+
+    emp.tracking_enabled = body.tracking_enabled
+    await db.commit()
+    return {"employee_id": str(employee_id), "tracking_enabled": emp.tracking_enabled}
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Leaves
 # ═══════════════════════════════════════════════════════════════════
 

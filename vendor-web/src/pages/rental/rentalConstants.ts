@@ -75,7 +75,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       namePlaceholder: 'Dairy Rack A-001',
       descriptionPlaceholder: 'Heavy-duty dairy storage rack suitable for milk packets…',
       capacity: 'Max Capacity',
-      unit: 'Unit',
+      unit: 'UOM',
       location: 'Warehouse Location',
       locationPlaceholder: 'Dairy Warehouse – Hyderabad',
     },
@@ -103,7 +103,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       namePlaceholder: 'Office Chair – Ergonomic',
       descriptionPlaceholder: 'Comfortable office chair for events or offices…',
       capacity: 'Quantity',
-      unit: 'Unit',
+      unit: 'UOM',
       location: 'Pickup / Storage Location',
       locationPlaceholder: 'Warehouse – Furniture Bay',
     },
@@ -131,7 +131,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       namePlaceholder: 'Commercial Refrigerator',
       descriptionPlaceholder: 'Industrial refrigerator for short-term rental…',
       capacity: 'Available Units',
-      unit: 'Unit',
+      unit: 'UOM',
       location: 'Equipment Yard / Location',
       locationPlaceholder: 'Equipment Yard – Block B',
     },
@@ -160,7 +160,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       namePlaceholder: 'Storage Unit S-12',
       descriptionPlaceholder: 'Secure storage unit for short or long term…',
       capacity: 'Max Capacity',
-      unit: 'Unit',
+      unit: 'UOM',
       location: 'Facility Location',
       locationPlaceholder: 'Storage Facility – Hyderabad',
     },
@@ -188,7 +188,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       namePlaceholder: 'Cab – Sedan',
       descriptionPlaceholder: 'AC sedan available for daily / monthly rental…',
       capacity: 'Vehicles Available',
-      unit: 'Unit',
+      unit: 'UOM',
       location: 'Garage / Stand Location',
       locationPlaceholder: 'Madhapur Stand',
     },
@@ -210,7 +210,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       namePlaceholder: 'Rental asset name',
       descriptionPlaceholder: 'Describe this rental asset…',
       capacity: 'Max Capacity',
-      unit: 'Unit',
+      unit: 'UOM',
       location: 'Location',
       locationPlaceholder: 'Location',
     },
@@ -252,6 +252,35 @@ export const DELIVERY_STATUSES = [
   { value: 'returned', label: 'Returned' },
 ]
 
+export type RentalAssetUnit = {
+  id: string
+  asset_id: string
+  vendor_id: string
+  serial_no: string
+  label?: string | null
+  /** good | damaged | lost | retired */
+  condition: string
+  /** available | rented | maintenance | retired */
+  status: string
+  notes?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export type RentalReturn = {
+  id: string
+  booking_id: string
+  quantity_returned: number
+  /** good | damaged | missing */
+  return_condition: string
+  damage_charge: number
+  late_fee: number
+  deposit_refunded: number
+  return_notes?: string | null
+  unit_ids: string[]
+  returned_at: string
+}
+
 export type RentalAsset = {
   id: string
   name: string
@@ -263,7 +292,14 @@ export type RentalAsset = {
   capacity_max?: number
   capacity_unit?: string
   current_occupancy?: number
+  damaged_qty?: number
+  lost_qty?: number
   available_capacity?: number
+  // Sub-asset / unit tracking
+  parent_asset_id?: string | null
+  is_bookable?: boolean
+  /** none | hierarchy | serialized */
+  unit_mode?: string
   max_weight?: number | null
   weight_unit?: string
   daily_rate?: number
@@ -272,6 +308,14 @@ export type RentalAsset = {
   deposit_amount?: number
   extra_qty_charge?: number
   extra_weight_charge?: number
+  /** Rate charged per capacity_unit per rental period (e.g. ₹10 per packet/day). */
+  price_per_unit?: number
+  /** Custom UOM label for per-unit pricing if different from capacity_unit. */
+  pricing_uom?: string | null
+  /** Extended time-plan rates */
+  hourly_rate?: number
+  per_minute_rate?: number
+  yearly_rate?: number
   sales_area_id?: string | null
   location?: string
   section?: string
@@ -323,6 +367,7 @@ export type RentalBooking = {
   // Return tracking
   returned_at?: string | null
   quantity_returned?: number | null
+  outstanding_quantity?: number
   return_condition?: string | null
   damage_charge?: number
   late_fee?: number
@@ -389,4 +434,13 @@ export const emptyAssetForm = () => ({
   display_start_date: '',
   display_end_date: '',
   notes: '',
+  /** none | hierarchy | serialized */
+  unit_mode: 'none' as string,
+  parent_asset_id: '' as string,
+  is_bookable: true as boolean,
+  price_per_unit: '0',
+  pricing_uom: '',
+  hourly_rate: '0',
+  per_minute_rate: '0',
+  yearly_rate: '0',
 })

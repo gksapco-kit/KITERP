@@ -9,6 +9,7 @@ export default function VendorLayout() {
       <Stack.Screen name="products" options={{ title: 'Products', headerShown: true }} />
       <Stack.Screen name="customers" options={{ title: 'Customers', headerShown: true }} />
       <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: true }} />
+      <Stack.Screen name="attendance" options={{ title: 'My Attendance', headerShown: true }} />
     </Stack>
   )
 }

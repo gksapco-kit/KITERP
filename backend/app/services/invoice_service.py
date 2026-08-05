@@ -355,6 +355,8 @@ class InvoiceService:
         store_id: str | UUID = None,
         search: str = None,
         sales_area_id: str | UUID = None,
+        customer_id: str | UUID = None,
+        open_only: bool = False,
     ):
         conditions = [Invoice.vendor_id == vendor_id]
         if invoice_type:
@@ -367,6 +369,16 @@ class InvoiceService:
             conditions.append(Invoice.store_id == (store_id if isinstance(store_id, UUID) else UUID(str(store_id))))
         if sales_area_id:
             conditions.append(Invoice.sales_area_id == (sales_area_id if isinstance(sales_area_id, UUID) else UUID(str(sales_area_id))))
+        if customer_id:
+            conditions.append(
+                Invoice.customer_id == (customer_id if isinstance(customer_id, UUID) else UUID(str(customer_id)))
+            )
+        if open_only:
+            # Outstanding AR: not paid/cancelled/draft, and still has a balance.
+            conditions.append(Invoice.status.notin_(("paid", "cancelled", "draft")))
+            conditions.append(Invoice.balance_due > 0)
+            if not invoice_type and not exclude_invoice_type:
+                conditions.append(Invoice.invoice_type != "estimate")
         if search and search.strip():
             term = f"%{search.strip()}%"
             conditions.append(

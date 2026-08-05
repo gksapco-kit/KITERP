@@ -31,7 +31,7 @@ import {
   Loader2, Package, ArrowDownCircle, ArrowUpCircle, RefreshCw,
   AlertTriangle, X, History, BarChart3,
   Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Store, ScanLine,
-  ChevronDown, ChevronRight as ChevronRightIcon,
+  ChevronDown, ChevronRight as ChevronRightIcon, Layers,
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
@@ -445,6 +445,19 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [viewMode, setViewMode] = useState<'product' | 'variant'>(() => {
+    try {
+      return (localStorage.getItem('kiterp:inventory:viewMode') as 'product' | 'variant') || 'product'
+    } catch {
+      return 'product'
+    }
+  })
+
+  const setViewModePersisted = (mode: 'product' | 'variant') => {
+    setViewMode(mode)
+    setPage(1)
+    try { localStorage.setItem('kiterp:inventory:viewMode', mode) } catch { /* ignore */ }
+  }
 
   const toggleExpanded = useCallback((pid: string) => {
     setExpandedRows(prev => {
@@ -454,7 +467,24 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
     })
   }, [])
 
-  const rows = useMemo(() => {
+  type FlatVariantRow = {
+    key: string
+    product_id: string
+    product_name: string
+    variant_id?: string
+    name: string
+    sku?: string
+    barcode?: string
+    quantity: number
+    cost_price?: number
+    low_stock_threshold: number
+    stock_status: string
+    is_low_stock: boolean
+    store_quantities?: StoreQty[]
+    expiration_date?: string
+  }
+
+  const productRows = useMemo(() => {
     if (!data?.items?.length) return []
     return processRows(
       data.items,
@@ -472,16 +502,80 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
     )
   }, [data?.items, q, sk, sd])
 
+  const variantRows = useMemo(() => {
+    if (!data?.items?.length) return [] as FlatVariantRow[]
+    const flat: FlatVariantRow[] = []
+    for (const item of data.items) {
+      const variants = item.variants ?? []
+      if (variants.length > 0) {
+        for (const v of variants) {
+          flat.push({
+            key: `${item.product_id}:${v.id}`,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            variant_id: v.id,
+            name: v.name,
+            sku: v.sku,
+            barcode: v.barcode,
+            quantity: v.quantity,
+            cost_price: v.cost_price,
+            low_stock_threshold: v.low_stock_threshold,
+            stock_status: v.stock_status,
+            is_low_stock: v.stock_status === 'low_stock' || v.quantity <= (v.low_stock_threshold ?? 0),
+            store_quantities: item.store_quantities,
+            expiration_date: v.expiration_date,
+          })
+        }
+      } else {
+        flat.push({
+          key: item.product_id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          name: item.product_name,
+          sku: item.sku,
+          barcode: getProduct(item.product_id)?.barcode,
+          quantity: item.current_quantity,
+          cost_price: getProduct(item.product_id)?.cost_price,
+          low_stock_threshold: item.low_stock_threshold,
+          stock_status: item.is_low_stock ? 'low_stock' : 'in_stock',
+          is_low_stock: item.is_low_stock,
+          store_quantities: item.store_quantities,
+        })
+      }
+    }
+    return processRows(
+      flat,
+      q,
+      (i) => [i.product_name, i.name, i.sku || '', String(i.quantity)],
+      sk,
+      sd,
+      {
+        product_name: (i) => i.product_name,
+        sku: (i) => i.sku || '',
+        current_quantity: (i) => i.quantity,
+        low_stock_threshold: (i) => i.low_stock_threshold,
+        is_low_stock: (i) => (i.is_low_stock ? 0 : 1),
+      },
+    )
+  }, [data?.items, q, sk, sd, getProduct])
+
+  const rows = viewMode === 'variant' ? variantRows : productRows
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
   const safePage = Math.min(page, totalPages)
-  const pageRows = useMemo(() => {
+  const pageProductRows = useMemo(() => {
+    if (viewMode !== 'product') return [] as SummaryItem[]
     const start = (safePage - 1) * pageSize
-    return rows.slice(start, start + pageSize)
-  }, [rows, safePage, pageSize])
+    return productRows.slice(start, start + pageSize)
+  }, [viewMode, productRows, safePage, pageSize])
+  const pageVariantRows = useMemo(() => {
+    if (viewMode !== 'variant') return [] as FlatVariantRow[]
+    const start = (safePage - 1) * pageSize
+    return variantRows.slice(start, start + pageSize)
+  }, [viewMode, variantRows, safePage, pageSize])
 
   useEffect(() => {
     setPage(1)
-  }, [q, sk, sd, pageSize])
+  }, [q, sk, sd, pageSize, viewMode])
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
@@ -495,13 +589,16 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
     </div>
   )
 
+  const storeFilterId = selectedStoreId !== 'all' ? selectedStoreId : undefined
+  const colCount = 7 + (selectedStoreId === 'all' ? stores.length : 0)
+
   return (
     <Card>
       <CardContent className="p-0">
         <TableToolbar
           search={q}
           onSearchChange={setQ}
-          searchPlaceholder="Filter products…"
+          searchPlaceholder={viewMode === 'variant' ? 'Filter products or variants…' : 'Filter products…'}
           sortOptions={[
             { value: 'product_name', label: 'Product' },
             { value: 'sku', label: 'SKU' },
@@ -515,12 +612,49 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
           onSortDirChange={setSd}
           hint={INLINE_EDIT_HINT}
           className="rounded-t-xl"
+          leading={
+            <div className="inline-flex rounded-lg border border-border bg-card p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setViewModePersisted('product')}
+                title="Product-wise view"
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium transition-all ${
+                  viewMode === 'product'
+                    ? 'bg-muted text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                Product
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewModePersisted('variant')}
+                title="Variant-wise view"
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium transition-all ${
+                  viewMode === 'variant'
+                    ? 'bg-muted text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                Variant
+              </button>
+            </div>
+          }
         />
         <div className="overflow-x-auto">
-        <ResizableTable tableId="inventory-stock-v3" defaultWidths={[240, 110, 110, 110, 110, ...stores.map(() => 90), 140, 300]}>
+        <ResizableTable tableId={viewMode === 'variant' ? 'inventory-stock-variant-v1' : 'inventory-stock-v3'} defaultWidths={viewMode === 'variant' ? [200, 160, 110, 110, 110, 110, ...stores.map(() => 90), 140, 300] : [240, 110, 110, 110, 110, ...stores.map(() => 90), 140, 300]}>
           <thead>
             <tr className="border-b bg-gray-50">
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product / Variant</TableColumnLabel></th>
+              {viewMode === 'variant' ? (
+                <>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product</TableColumnLabel></th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Variant</TableColumnLabel></th>
+                </>
+              ) : (
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product / Variant</TableColumnLabel></th>
+              )}
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>SKU</TableColumnLabel></th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Barcode</TableColumnLabel></th>
               <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Cost Price</TableColumnLabel></th>
@@ -537,13 +671,16 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
             </tr>
           </thead>
           <tbody className="divide-y">
-            {pageRows.length === 0 ? (
-              <tr><td colSpan={7 + stores.length} className="px-6 py-8 text-center text-sm text-gray-500">No rows match your filter.</td></tr>
-            ) : pageRows.map((item) => {
+            {viewMode === 'product' && pageProductRows.length === 0 && (
+              <tr><td colSpan={colCount} className="px-6 py-8 text-center text-sm text-gray-500">No rows match your filter.</td></tr>
+            )}
+            {viewMode === 'variant' && pageVariantRows.length === 0 && (
+              <tr><td colSpan={colCount + 1} className="px-6 py-8 text-center text-sm text-gray-500">No rows match your filter.</td></tr>
+            )}
+            {viewMode === 'product' && pageProductRows.map((item) => {
               const hasVariants = (item.variants?.length ?? 0) > 0
               const isExpanded = expandedRows.has(item.product_id)
               const fullProduct = getProduct(item.product_id)
-              const storeFilterId = selectedStoreId !== 'all' ? selectedStoreId : undefined
               return (
                 <Fragment key={item.product_id}>
                   <tr className="hover:bg-gray-50">
@@ -782,6 +919,236 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                 </Fragment>
               )
             })}
+
+            {viewMode === 'variant' && pageVariantRows.map((row) => {
+              const statusColor = row.stock_status === 'in_stock'
+                ? 'bg-green-50 text-green-700'
+                : row.stock_status === 'low_stock'
+                  ? 'bg-amber-50 text-amber-700'
+                  : 'bg-red-50 text-red-700'
+              const statusLabel = row.stock_status === 'in_stock' ? 'In Stock' : row.stock_status === 'low_stock' ? 'Low' : 'Out'
+              const isVariant = Boolean(row.variant_id)
+              return (
+                <tr key={row.key} className="hover:bg-gray-50">
+                  <td className="px-6 py-3 text-sm font-medium">
+                    <Link to={`/products/${row.product_id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                      {row.product_name}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-3 text-sm text-gray-700">
+                    {isVariant ? (
+                      <InlineEditCell
+                        value={row.name}
+                        saving={isSavingVariant(row.product_id, row.variant_id!, 'name')}
+                        onSave={(val) => patchVariantFields(row.product_id, row.variant_id!, { name: String(val).trim() }, 'name')}
+                      >
+                        {row.name}
+                      </InlineEditCell>
+                    ) : (
+                      <span className="text-xs text-gray-400">— Product level —</span>
+                    )}
+                    {row.expiration_date && (
+                      <span className="ml-2 text-xs text-gray-400">Exp: {row.expiration_date}</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-3 text-sm text-gray-500">
+                    {isVariant ? (
+                      <InlineEditCell
+                        value={row.sku || ''}
+                        saving={isSavingVariant(row.product_id, row.variant_id!, 'sku')}
+                        onSave={(val) => patchVariantFields(row.product_id, row.variant_id!, { sku: String(val).trim() }, 'sku')}
+                      >
+                        {row.sku || '-'}
+                      </InlineEditCell>
+                    ) : (
+                      <InlineEditCell
+                        value={row.sku || ''}
+                        saving={isSaving(row.product_id, 'sku')}
+                        onSave={(v) => patchProductField(row.product_id, 'sku', String(v).trim())}
+                      >
+                        {row.sku || '-'}
+                      </InlineEditCell>
+                    )}
+                  </td>
+                  <td className="px-6 py-3 text-xs text-gray-400 font-mono">
+                    {isVariant ? (
+                      <InlineEditCell
+                        value={row.barcode || ''}
+                        saving={isSavingVariant(row.product_id, row.variant_id!, 'barcode')}
+                        onSave={(val) => patchVariantFields(row.product_id, row.variant_id!, { barcode: String(val).trim() }, 'barcode')}
+                      >
+                        {row.barcode || '-'}
+                      </InlineEditCell>
+                    ) : (
+                      <InlineEditCell
+                        value={row.barcode || ''}
+                        saving={isSaving(row.product_id, 'barcode')}
+                        onSave={(v) => patchProductField(row.product_id, 'barcode', String(v).trim())}
+                      >
+                        {row.barcode || '-'}
+                      </InlineEditCell>
+                    )}
+                  </td>
+                  <td className="px-6 py-3 text-sm text-right text-gray-600">
+                    {isVariant ? (
+                      <InlineEditCell
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={row.cost_price ?? 0}
+                        saving={isSavingVariant(row.product_id, row.variant_id!, 'cost_price')}
+                        onSave={(val) => patchVariantFields(row.product_id, row.variant_id!, { cost_price: Number(val) }, 'cost_price')}
+                        className="text-right"
+                      >
+                        {row.cost_price != null ? `₹${row.cost_price.toFixed(2)}` : '-'}
+                      </InlineEditCell>
+                    ) : (
+                      <InlineEditCell
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={row.cost_price ?? 0}
+                        saving={isSaving(row.product_id, 'cost_price')}
+                        onSave={(v) => patchProductField(row.product_id, 'cost_price', Number(v))}
+                        className="text-right"
+                      >
+                        {row.cost_price != null ? `₹${row.cost_price.toFixed(2)}` : '-'}
+                      </InlineEditCell>
+                    )}
+                  </td>
+                  <td className="px-6 py-3 text-sm text-right font-medium">
+                    <InlineEditCell
+                      type="number"
+                      min={0}
+                      value={row.quantity}
+                      saving={isVariant
+                        ? isSavingVariant(row.product_id, row.variant_id!, 'quantity')
+                        : isSaving(row.product_id, 'quantity')}
+                      onSave={(val) => patchStockQuantity(
+                        isVariant
+                          ? `${row.product_id}:variant:${row.variant_id}:quantity`
+                          : cellKey(row.product_id, 'quantity'),
+                        row.product_id,
+                        Number(val),
+                        { variantId: row.variant_id, storeId: storeFilterId },
+                      )}
+                      className="text-right font-medium"
+                    >
+                      {row.quantity}
+                    </InlineEditCell>
+                  </td>
+                  {selectedStoreId === 'all' && stores.map(s => {
+                    if (isVariant) {
+                      return (
+                        <td key={s.id} className="px-4 py-3 text-sm text-right text-gray-300">
+                          <span title="Per-store stock is tracked at product level">—</span>
+                        </td>
+                      )
+                    }
+                    const sq = row.store_quantities?.find(q => q.store_id === s.id)
+                    const qty = sq?.quantity ?? 0
+                    return (
+                      <td key={s.id} className="px-4 py-3 text-sm text-right text-indigo-600 font-medium">
+                        <InlineEditCell
+                          type="number"
+                          min={0}
+                          value={qty}
+                          saving={savingCellKey === `${row.product_id}:store:${s.id}`}
+                          onSave={(v) => patchStockQuantity(
+                            `${row.product_id}:store:${s.id}`,
+                            row.product_id,
+                            Number(v),
+                            { storeId: s.id },
+                          )}
+                          className="text-right font-medium text-indigo-600"
+                        >
+                          {sq ? sq.quantity : <span className="text-gray-300">—</span>}
+                        </InlineEditCell>
+                      </td>
+                    )
+                  })}
+                  <td className="px-6 py-3 text-center whitespace-nowrap">
+                    {isVariant ? (
+                      <InlineEditCell
+                        type="number"
+                        min={0}
+                        value={row.low_stock_threshold}
+                        saving={isSavingVariant(row.product_id, row.variant_id!, 'low_stock_threshold')}
+                        onSave={(val) => patchVariantFields(row.product_id, row.variant_id!, { low_stock_threshold: Number(val) }, 'low_stock_threshold')}
+                        title="Double-click to edit low-stock threshold"
+                        truncateContent={false}
+                      >
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>{statusLabel}</span>
+                      </InlineEditCell>
+                    ) : (
+                      <InlineEditCell
+                        type="number"
+                        min={0}
+                        value={row.low_stock_threshold}
+                        saving={isSaving(row.product_id, 'low_stock_threshold')}
+                        onSave={(v) => patchProductField(row.product_id, 'low_stock_threshold', Number(v))}
+                        title="Double-click to edit low-stock threshold"
+                        truncateContent={false}
+                      >
+                        {row.is_low_stock ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                            <AlertTriangle className="w-3 h-3 shrink-0" />Low
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">OK</span>
+                        )}
+                      </InlineEditCell>
+                    )}
+                  </td>
+                  <td className="px-6 py-3 text-right whitespace-nowrap">
+                    <div className="inline-flex flex-nowrap items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" className="text-gray-500 text-xs" onClick={() => onViewHistory(row.product_id)}>
+                        <History className="w-3 h-3 mr-1" />History
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-green-600 text-xs"
+                        onClick={() => onAction(
+                          row.product_id,
+                          isVariant ? `${row.product_name} — ${row.name}` : row.product_name,
+                          'stock-in',
+                          row.variant_id,
+                        )}
+                      >
+                        + In
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 text-xs"
+                        onClick={() => onAction(
+                          row.product_id,
+                          isVariant ? `${row.product_name} — ${row.name}` : row.product_name,
+                          'stock-out',
+                          row.variant_id,
+                        )}
+                      >
+                        - Out
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 text-xs"
+                        onClick={() => onAction(
+                          row.product_id,
+                          isVariant ? `${row.product_name} — ${row.name}` : row.product_name,
+                          'adjust',
+                          row.variant_id,
+                        )}
+                      >
+                        Adjust
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </ResizableTable>
         </div>
@@ -793,7 +1160,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
             pageSize={pageSize}
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
-            itemLabel="products"
+            itemLabel={viewMode === 'variant' ? 'variant rows' : 'products'}
           />
         )}
       </CardContent>

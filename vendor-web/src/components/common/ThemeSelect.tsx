@@ -270,6 +270,8 @@ export function ThemeSelect({
   const listRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const typeaheadRef = useRef({ buffer: '', timer: 0 as ReturnType<typeof setTimeout> | 0 })
+  /** Skip the next search onChange — browser may re-insert the key that opened/seeded the filter. */
+  const suppressSearchInputRef = useRef(false)
   const listId = useId()
   const selected = options.find((o) => o.value === value)
   const displayLabel = selected?.label ?? placeholder
@@ -454,7 +456,9 @@ export function ThemeSelect({
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return
       const target = e.target as HTMLElement | null
-      const inSearch = target === searchRef.current
+      const inSearch =
+        target === searchRef.current ||
+        document.activeElement === searchRef.current
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         if (inSearch) return // handled by input onKeyDown
         e.preventDefault()
@@ -482,10 +486,18 @@ export function ThemeSelect({
       }
       if (e.key.length !== 1 || e.key === ' ') return
       // Printable character — always filter from the top by letter.
-      if (!inSearch) {
+      // Skip when search already has focus (native input handles the key). Also skip when the
+      // closed-field type-to-open path already seeded query for this same keystroke.
+      if (!inSearch && e.target !== triggerRef.current) {
         e.preventDefault()
+        suppressSearchInputRef.current = true
         setQuery((q) => q + e.key)
         searchRef.current?.focus({ preventScroll: true })
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            suppressSearchInputRef.current = false
+          })
+        })
       }
     }
     document.addEventListener('keydown', onKeyDown)
@@ -592,8 +604,16 @@ export function ThemeSelect({
 
     e.preventDefault()
     if (isSearchable) {
+      // Seed the filter once; suppress the search input's onChange so focusing the field
+      // doesn't re-insert this same keystroke (would show "ll" for one "l").
+      suppressSearchInputRef.current = true
       setQuery(e.key)
       setOpen(true)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          suppressSearchInputRef.current = false
+        })
+      })
       return
     }
     typeaheadRef.current.buffer = e.key.toLowerCase()
@@ -622,11 +642,27 @@ export function ThemeSelect({
         aria-controls={listId}
         onClick={() => !disabled && setOpen((v) => !v)}
         onKeyDown={onTriggerKeyDown}
-        className={cn(themeSelectUi.trigger, splitTrigger, triggerClassName)}
+        className={cn(
+          themeSelectUi.trigger,
+          selected?.hint && 'h-auto min-h-10 py-1.5 items-start',
+          splitTrigger,
+          triggerClassName,
+        )}
       >
-        <span className={cn('min-w-0 flex-1 truncate leading-snug', !selected && 'text-muted-foreground')}>{displayLabel}</span>
+        {selected?.hint ? (
+          <span className="min-w-0 flex-1 overflow-hidden">
+            <span className="block truncate leading-snug">{displayLabel}</span>
+            <span className="block truncate text-[11px] leading-tight text-muted-foreground">{selected.hint}</span>
+          </span>
+        ) : (
+          <span className={cn('min-w-0 flex-1 truncate leading-snug', !selected && 'text-muted-foreground')}>{displayLabel}</span>
+        )}
         <ChevronDown
-          className={cn('h-4 w-4 shrink-0 self-center text-muted-foreground transition-transform', open && 'rotate-180')}
+          className={cn(
+            'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+            selected?.hint ? 'self-start mt-1' : 'self-center',
+            open && 'rotate-180',
+          )}
           aria-hidden
         />
       </button>
@@ -647,17 +683,30 @@ export function ThemeSelect({
             minWidth: menuRect.minWidth,
             maxHeight: menuRect.maxHeight,
             zIndex: menuZIndex,
+            // Radix modals set `pointer-events: none` on body; this menu is a body
+            // portal and would inherit it, making options unclickable inside a Sheet.
+            pointerEvents: 'auto',
           }}
           className={cn(themeSelectUi.menu, menuRect.openUp && 'origin-bottom')}
         >
           {isSearchable ? (
-            <div className={themeSelectUi.searchRow} onMouseDown={(e) => e.preventDefault()}>
+            <div
+              className={themeSelectUi.searchRow}
+              onMouseDown={(e) => {
+                // Keep menu focus behavior for chrome/buttons, but allow the input to take caret.
+                if ((e.target as HTMLElement).tagName === 'INPUT') return
+                e.preventDefault()
+              }}
+            >
               <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
               <input
                 ref={searchRef}
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  if (suppressSearchInputRef.current) return
+                  setQuery(e.target.value)
+                }}
                 onKeyDown={onSearchKeyDown}
                 placeholder={searchPlaceholder}
                 aria-label={searchPlaceholder}

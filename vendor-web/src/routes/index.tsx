@@ -47,7 +47,13 @@ import RestaurantMenuPage from '@/pages/restaurant/Menu'
 import RestaurantsPage from '@/pages/restaurant/Restaurants'
 import SubscriptionsSalesPage from '@/pages/sales/Subscriptions'
 import MarketplaceLeadsPage from '@/pages/sales/MarketplaceLeads'
-import RentalHubPage from '@/pages/rental/RentalHub'
+import RentalDashboardPage from '@/pages/rental/RentalDashboardPage'
+import RentalAssetsPage from '@/pages/rental/RentalAssetsPage'
+import RentalBookingsPage from '@/pages/rental/RentalBookingsPage'
+import RentalCalendarPage from '@/pages/rental/RentalCalendarPage'
+import RentalReturnsPage from '@/pages/rental/RentalReturnsPage'
+import RentalReportsPage from '@/pages/rental/RentalReportsPage'
+import RentalSettingsPage from '@/pages/rental/RentalSettingsPage'
 import InvoicesPage from '@/pages/invoices/index'
 import InvoiceDetail from '@/pages/invoices/InvoiceDetail'
 import InvoiceTemplatesPage from '@/pages/invoices/InvoiceTemplates'
@@ -127,6 +133,7 @@ import HREmployeeDetailPage from '@/pages/hr/employees/EmployeeDetail'
 import HRAttendancePage from '@/pages/hr/attendance/index'
 import MyAttendancePage from '@/pages/hr/attendance/MyAttendance'
 import AttendanceReportPage from '@/pages/hr/attendance/AttendanceReport'
+import FieldTrackingPage from '@/pages/hr/tracking/index'
 import HRLeaveRequestsPage from '@/pages/hr/leaves/index'
 import LeavePoliciesPage from '@/pages/hr/leaves/Policies'
 import HolidaysPage from '@/pages/hr/leaves/Holidays'
@@ -443,7 +450,14 @@ export const router = createBrowserRouter([
       { path: 'sales/testimonials', element: <SalesTestimonialsPage /> },
       { path: 'sales/booking-wizard', element: <SalesBookingWizardStepsPage /> },
       { path: 'sales/booking-resources', element: <SalesBookingResourcesPage /> },
-      { path: 'rental', element: <RentalHubPage /> },
+      { path: 'rental', element: <Navigate to="/rental/dashboard" replace /> },
+      { path: 'rental/dashboard', element: <RentalDashboardPage /> },
+      { path: 'rental/assets', element: <RentalAssetsPage /> },
+      { path: 'rental/bookings', element: <RentalBookingsPage /> },
+      { path: 'rental/calendar', element: <RentalCalendarPage /> },
+      { path: 'rental/returns', element: <RentalReturnsPage /> },
+      { path: 'rental/reports', element: <RentalReportsPage /> },
+      { path: 'rental/settings', element: <RentalSettingsPage /> },
       { path: 'invoices', element: <InvoicesPage /> },
       { path: 'invoices/templates', element: <InvoiceTemplatesPage /> },
       { path: 'invoices/:id', element: <InvoiceDetail /> },
@@ -503,6 +517,7 @@ export const router = createBrowserRouter([
       { path: 'hr/attendance', element: <HRAttendancePage /> },
       { path: 'hr/attendance/my', element: <MyAttendancePage /> },
       { path: 'hr/attendance/report', element: <AttendanceReportPage /> },
+      { path: 'hr/tracking', element: <FieldTrackingPage /> },
       { path: 'hr/leaves', element: <HRLeaveRequestsPage /> },
       { path: 'hr/leaves/policies', element: <LeavePoliciesPage /> },
       { path: 'hr/leaves/holidays', element: <HolidaysPage /> },

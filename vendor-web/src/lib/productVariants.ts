@@ -1,6 +1,96 @@
+import { formatUomDisplay } from '@/lib/uomOptions'
+import { formatCurrency } from '@/lib/utils'
+
 /** Default seed name for the auto-created first row on create. */
 export function defaultVariantSeedName(isSubscription: boolean): string {
   return isSubscription ? 'Plan 1' : 'Variant 1'
+}
+
+/** Fields needed to build a ThemeSelect option for a product variant. */
+export type VariantSelectSource = {
+  id: string
+  name?: string | null
+  sku?: string | null
+  barcode?: string | null
+  uom?: string | null
+  uom_quantity?: number | null
+  price?: number | null
+  cost_price?: number | null
+  currency?: string | null
+  attributes?: Record<string, unknown> | null
+  color?: string | null
+}
+
+function variantAttributeSummary(attrs?: Record<string, unknown> | null, color?: string | null): string {
+  const parts: string[] = []
+  if (attrs && typeof attrs === 'object') {
+    for (const value of Object.values(attrs)) {
+      if (value == null) continue
+      const text = String(value).trim()
+      if (text) parts.push(text)
+    }
+  }
+  const colorText = color?.trim()
+  if (colorText && !parts.some((p) => p.toLowerCase() === colorText.toLowerCase())) {
+    parts.unshift(colorText)
+  }
+  return parts.join(' · ')
+}
+
+/**
+ * Build a ThemeSelect option so users can tell variants apart.
+ * Label prefers attributes / UOM over generic names like "Variant 1";
+ * hint carries price, cost, and barcode.
+ */
+export function variantSelectOption(v: VariantSelectSource): {
+  value: string
+  label: string
+  hint?: string
+} {
+  const name = (v.name || '').trim()
+  const sku = v.sku?.trim() || ''
+  const barcode = v.barcode?.trim() || ''
+  const attrLabel = variantAttributeSummary(v.attributes, v.color)
+  const uomLabel = v.uom ? formatUomDisplay(v.uom_quantity, v.uom) : ''
+  const generic = isDefaultManualVariantName(name, false)
+
+  let title = attrLabel
+  if (!title && name && !generic) title = name
+  if (!title && uomLabel) title = uomLabel
+  if (!title) title = name || 'Variant'
+
+  const labelParts = [title]
+  if (sku && !title.includes(sku)) labelParts.push(sku)
+  // When title is still generic, surface UOM/barcode on the label itself.
+  if (generic && uomLabel && uomLabel !== title && !title.includes(uomLabel)) {
+    labelParts.push(uomLabel)
+  }
+  if (generic && barcode && !labelParts.some((p) => p.includes(barcode))) {
+    labelParts.push(barcode)
+  }
+
+  const currency = v.currency || 'INR'
+  const hintParts: string[] = []
+  const price = v.price != null ? Number(v.price) : NaN
+  if (!Number.isNaN(price) && price > 0) {
+    hintParts.push(formatCurrency(price, currency))
+  }
+  const cost = v.cost_price != null ? Number(v.cost_price) : NaN
+  if (!Number.isNaN(cost) && cost > 0 && cost !== price) {
+    hintParts.push(`Cost ${formatCurrency(cost, currency)}`)
+  }
+  if (barcode && !labelParts.some((p) => p.includes(barcode))) {
+    hintParts.push(barcode)
+  }
+  if (uomLabel && uomLabel !== title && !labelParts.includes(uomLabel)) {
+    hintParts.push(uomLabel)
+  }
+
+  return {
+    value: v.id,
+    label: labelParts.join(' · '),
+    hint: hintParts.length ? hintParts.join(' · ') : undefined,
+  }
 }
 
 /** True when the name is still the auto-seeded default (or legacy "Default" / "Variant"). */

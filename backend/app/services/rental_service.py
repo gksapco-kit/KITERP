@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.rental import RentalAsset, RentalBooking
+from app.models.rental import RentalAsset, RentalAssetUnit, RentalBooking, RentalReturn
 
 ACTIVE_BOOKING_STATUSES = ("pending", "approved", "confirmed", "active")
 # Once approved (or later), display-window / booking date changes must keep covering these.
@@ -25,7 +25,10 @@ class RentalService:
     def _available_capacity(self, a: RentalAsset) -> float:
         cap = float(a.capacity_max or 0)
         occ = float(a.current_occupancy or 0)
-        return max(0.0, cap - occ)
+        # Damaged and lost units are not available for re-rental until repaired/written off
+        damaged = float(a.damaged_qty or 0) if hasattr(a, "damaged_qty") else 0.0
+        lost = float(a.lost_qty or 0) if hasattr(a, "lost_qty") else 0.0
+        return max(0.0, cap - occ - damaged - lost)
 
     def _derive_asset_status(self, a: RentalAsset) -> str:
         if a.status in ("maintenance", "unavailable", "retired", "reserved"):
@@ -56,6 +59,8 @@ class RentalService:
             "capacity_max": float(a.capacity_max or 0),
             "capacity_unit": a.capacity_unit or "units",
             "current_occupancy": float(a.current_occupancy or 0),
+            "damaged_qty": float(a.damaged_qty or 0) if hasattr(a, "damaged_qty") else 0.0,
+            "lost_qty": float(a.lost_qty or 0) if hasattr(a, "lost_qty") else 0.0,
             "available_capacity": available,
             "max_weight": float(a.max_weight) if a.max_weight is not None else None,
             "weight_unit": a.weight_unit or "kg",
@@ -65,6 +70,11 @@ class RentalService:
             "deposit_amount": float(a.deposit_amount or 0),
             "extra_qty_charge": float(a.extra_qty_charge or 0),
             "extra_weight_charge": float(a.extra_weight_charge or 0),
+            "price_per_unit": float(a.price_per_unit or 0) if hasattr(a, "price_per_unit") else 0.0,
+            "pricing_uom": a.pricing_uom if hasattr(a, "pricing_uom") else None,
+            "hourly_rate": float(a.hourly_rate or 0) if hasattr(a, "hourly_rate") else 0.0,
+            "per_minute_rate": float(a.per_minute_rate or 0) if hasattr(a, "per_minute_rate") else 0.0,
+            "yearly_rate": float(a.yearly_rate or 0) if hasattr(a, "yearly_rate") else 0.0,
             "sales_area_id": str(a.sales_area_id) if a.sales_area_id else None,
             "location": a.location,
             "section": a.section,
@@ -76,6 +86,9 @@ class RentalService:
             "display_end_date": a.display_end_date.isoformat() if a.display_end_date else None,
             "is_active": bool(a.is_active) if a.is_active is not None else True,
             "notes": a.notes,
+            "parent_asset_id": str(a.parent_asset_id) if a.parent_asset_id else None,
+            "is_bookable": bool(a.is_bookable) if a.is_bookable is not None else True,
+            "unit_mode": a.unit_mode or "none",
             "created_at": a.created_at.isoformat() if a.created_at else None,
         }
 
@@ -223,6 +236,7 @@ class RentalService:
             # Return fields
             "returned_at": b.returned_at.isoformat() if b.returned_at else None,
             "quantity_returned": float(b.quantity_returned) if b.quantity_returned is not None else None,
+            "outstanding_quantity": round(float(b.quantity or 0) - float(b.quantity_returned or 0), 6),
             "return_condition": b.return_condition,
             "damage_charge": float(b.damage_charge or 0),
             "late_fee": float(b.late_fee or 0),
@@ -314,48 +328,110 @@ class RentalService:
     # ── dashboard ────────────────────────────────────────────────
 
     async def get_dashboard(self, vendor_id: UUID) -> dict:
-        assets = await self.list_assets(vendor_id)
-        bookings = await self.list_bookings(vendor_id)
+        # Asset status counts — one aggregation query instead of fetching all rows
+        asset_status_result = await self.db.execute(
+            select(RentalAsset.status, func.count().label("cnt"))
+            .where(RentalAsset.vendor_id == vendor_id)
+            .group_by(RentalAsset.status)
+        )
+        status_counts: dict[str, int] = {}
+        for row in asset_status_result.all():
+            status_counts[row.status or "available"] = int(row.cnt)
 
-        total = len(assets)
-        available = sum(1 for a in assets if a["status"] == "available")
-        occupied = sum(1 for a in assets if a["status"] in ("fully_occupied", "partially_occupied", "reserved"))
-        maintenance = sum(1 for a in assets if a["status"] == "maintenance")
-        pending = sum(1 for b in bookings if b["status"] == "pending")
-        revenue = sum(
-            float(b["rental_amount"] or 0)
-            for b in bookings
-            if b["status"] in ("confirmed", "active", "completed") and b.get("payment_status") == "paid"
+        total = sum(status_counts.values())
+        available = status_counts.get("available", 0)
+        partially_occupied = status_counts.get("partially_occupied", 0)
+        fully_occupied = status_counts.get("fully_occupied", 0)
+        reserved = status_counts.get("reserved", 0)
+        occupied = fully_occupied + partially_occupied + reserved
+        maintenance = status_counts.get("maintenance", 0)
+
+        # Booking counts + revenue — one aggregation query
+        booking_agg_result = await self.db.execute(
+            select(
+                RentalBooking.status,
+                func.count().label("cnt"),
+                func.sum(RentalBooking.total_amount).label("total_amount_sum"),
+            )
+            .where(RentalBooking.vendor_id == vendor_id)
+            .group_by(RentalBooking.status)
         )
-        # Also count approved paid bookings
-        revenue_alt = sum(
-            float(b["total_amount"] or 0)
-            for b in bookings
-            if b["status"] not in ("cancelled", "rejected", "pending")
+        pending = 0
+        revenue = 0.0
+        for row in booking_agg_result.all():
+            if row.status == "pending":
+                pending = int(row.cnt)
+            if row.status in ("confirmed", "active", "completed", "approved"):
+                revenue += float(row.total_amount_sum or 0)
+
+        # Small tail queries: 8 recent assets and 10 upcoming active bookings
+        recent_assets_result = await self.db.execute(
+            select(RentalAsset)
+            .where(RentalAsset.vendor_id == vendor_id)
+            .order_by(RentalAsset.created_at.desc())
+            .limit(8)
         )
+        recent_assets = [self._asset_dict(a) for a in recent_assets_result.scalars().all()]
+
+        upcoming_result = await self.db.execute(
+            select(RentalBooking)
+            .where(
+                RentalBooking.vendor_id == vendor_id,
+                RentalBooking.status.in_(ACTIVE_BOOKING_STATUSES),
+            )
+            .order_by(RentalBooking.start_date.asc())
+            .limit(10)
+        )
+        upcoming_raw = upcoming_result.scalars().all()
+        asset_ids = {b.asset_id for b in upcoming_raw}
+        assets_by_id: dict = {}
+        if asset_ids:
+            ar = await self.db.execute(select(RentalAsset).where(RentalAsset.id.in_(asset_ids)))
+            assets_by_id = {a.id: a for a in ar.scalars().all()}
+        upcoming_bookings = [self._booking_dict(b, assets_by_id.get(b.asset_id)) for b in upcoming_raw]
 
         return {
             "total_assets": total,
             "available": available,
             "occupied": occupied,
-            "partially_occupied": sum(1 for a in assets if a["status"] == "partially_occupied"),
+            "partially_occupied": partially_occupied,
             "maintenance": maintenance,
             "pending_bookings": pending,
-            "rental_revenue": round(revenue or revenue_alt, 2),
-            "recent_assets": assets[:8],
-            "upcoming_bookings": [
-                b for b in bookings
-                if b["status"] in ACTIVE_BOOKING_STATUSES
-            ][:10],
+            "rental_revenue": round(revenue, 2),
+            "recent_assets": recent_assets,
+            "upcoming_bookings": upcoming_bookings,
         }
 
     # ── assets ───────────────────────────────────────────────────
 
-    async def list_assets(self, vendor_id: UUID, status: Optional[str] = None) -> list[dict]:
-        result = await self.db.execute(
-            select(RentalAsset).where(RentalAsset.vendor_id == vendor_id).order_by(RentalAsset.name)
-        )
+    async def list_assets(
+        self,
+        vendor_id: UUID,
+        status: Optional[str] = None,
+        category: Optional[str] = None,
+        q: Optional[str] = None,
+        is_active: Optional[bool] = None,
+    ) -> list[dict]:
+        query = select(RentalAsset).where(RentalAsset.vendor_id == vendor_id)
+        if is_active is not None:
+            query = query.where(RentalAsset.is_active == is_active)
+        if category:
+            query = query.where(RentalAsset.category == category)
+        if q:
+            like = f"%{q.lower()}%"
+            from sqlalchemy import or_
+            query = query.where(
+                or_(
+                    func.lower(RentalAsset.name).like(like),
+                    func.lower(RentalAsset.asset_code).like(like),
+                    func.lower(RentalAsset.location).like(like),
+                    func.lower(RentalAsset.rack_number).like(like),
+                )
+            )
+        query = query.order_by(RentalAsset.name)
+        result = await self.db.execute(query)
         items = [self._asset_dict(a) for a in result.scalars().all()]
+        # Status is derived in Python (capacity-based), so filter post-serialization
         if status:
             items = [a for a in items if a["status"] == status]
         return items
@@ -389,6 +465,11 @@ class RentalService:
             deposit_amount=data.get("deposit_amount", 0),
             extra_qty_charge=data.get("extra_qty_charge", 0),
             extra_weight_charge=data.get("extra_weight_charge", 0),
+            price_per_unit=data.get("price_per_unit", 0),
+            pricing_uom=data.get("pricing_uom") or None,
+            hourly_rate=data.get("hourly_rate", 0),
+            per_minute_rate=data.get("per_minute_rate", 0),
+            yearly_rate=data.get("yearly_rate", 0),
             sales_area_id=UUID(data["sales_area_id"]) if data.get("sales_area_id") else None,
             location=data.get("location"),
             section=data.get("section"),
@@ -400,6 +481,9 @@ class RentalService:
             display_end_date=display_end,
             notes=data.get("notes"),
             is_active=data.get("is_active", True),
+            parent_asset_id=UUID(data["parent_asset_id"]) if data.get("parent_asset_id") else None,
+            is_bookable=data.get("is_bookable", True),
+            unit_mode=data.get("unit_mode") or "none",
         )
         self._sync_occupancy_status(asset)
         self.db.add(asset)
@@ -411,17 +495,26 @@ class RentalService:
         asset = await self._get_asset(vendor_id, asset_id)
         fields = [
             "name", "asset_code", "sku", "category", "asset_type", "description",
-            "capacity_max", "capacity_unit", "current_occupancy", "max_weight", "weight_unit",
+            "capacity_max", "capacity_unit", "max_weight", "weight_unit",
             "daily_rate", "weekly_rate", "monthly_rate", "deposit_amount",
             "extra_qty_charge", "extra_weight_charge",
+            "price_per_unit", "pricing_uom",
+            "hourly_rate", "per_minute_rate", "yearly_rate",
             "location", "section", "row_label", "rack_number", "image_url",
             "status", "notes", "is_active",
+            "is_bookable", "unit_mode",
         ]
         for f in fields:
             if f in data:
                 setattr(asset, f, data[f])
         if "sales_area_id" in data:
             asset.sales_area_id = UUID(data["sales_area_id"]) if data.get("sales_area_id") else None
+        if "parent_asset_id" in data:
+            raw = data.get("parent_asset_id")
+            if raw and str(raw) != str(asset.id):  # prevent self-reference
+                asset.parent_asset_id = UUID(str(raw))
+            else:
+                asset.parent_asset_id = None
         # Always apply display window when present (including explicit null to clear).
         dates_touched = False
         if "display_start_date" in data or "start_date" in data:
@@ -470,29 +563,36 @@ class RentalService:
             )
         )
         bookings = result.scalars().all()
+        # Pre-compute reserved qty per day in O(bookings × booking_length) instead of
+        # O(days × bookings) — dramatically faster for long date ranges.
+        day_qty: dict[date, float] = {}
+        for b in bookings:
+            cur_b = b.start_date
+            while cur_b <= b.end_date:
+                if from_date <= cur_b <= to_date:
+                    day_qty[cur_b] = day_qty.get(cur_b, 0.0) + float(b.quantity or 0)
+                cur_b = cur_b + timedelta(days=1)
+
         days = []
+        cap = float(asset.capacity_max or 0)
+        is_maintenance = asset.status == "maintenance"
         cur = from_date
         while cur <= to_date:
-            day_qty = 0.0
-            day_status = "available"
-            if asset.status == "maintenance":
+            qty = day_qty.get(cur, 0.0)
+            avail = max(0.0, cap - qty)
+            if is_maintenance:
                 day_status = "maintenance"
+            elif qty <= 0:
+                day_status = "available"
+            elif avail <= 0:
+                day_status = "booked"
             else:
-                for b in bookings:
-                    if b.start_date <= cur <= b.end_date:
-                        day_qty += float(b.quantity or 0)
-                avail = float(asset.capacity_max or 0) - day_qty
-                if day_qty <= 0:
-                    day_status = "available"
-                elif avail <= 0:
-                    day_status = "booked"
-                else:
-                    day_status = "partial"
+                day_status = "partial"
             days.append({
                 "date": cur.isoformat(),
                 "status": day_status,
-                "reserved_qty": day_qty,
-                "available_capacity": max(0.0, float(asset.capacity_max or 0) - day_qty),
+                "reserved_qty": qty,
+                "available_capacity": avail,
             })
             cur = cur + timedelta(days=1)
         return days
@@ -500,22 +600,38 @@ class RentalService:
     # ── bookings ─────────────────────────────────────────────────
 
     async def list_bookings(
-        self, vendor_id: UUID, status: Optional[str] = None, customer_id: Optional[UUID] = None
+        self,
+        vendor_id: UUID,
+        status: Optional[str] = None,
+        customer_id: Optional[UUID] = None,
+        asset_id: Optional[UUID] = None,
+        limit: Optional[int] = None,
+        offset: int = 0,
     ) -> list[dict]:
         q = select(RentalBooking).where(RentalBooking.vendor_id == vendor_id)
         if status:
-            q = q.where(RentalBooking.status == status)
+            # "in_progress" is a convenience group for all returnable statuses
+            if status == "in_progress":
+                q = q.where(RentalBooking.status.in_(("pending", "approved", "confirmed", "active")))
+            else:
+                q = q.where(RentalBooking.status == status)
         if customer_id:
             q = q.where(RentalBooking.customer_id == customer_id)
-        q = q.order_by(RentalBooking.start_date.desc())
+        if asset_id:
+            q = q.where(RentalBooking.asset_id == asset_id)
+        q = q.order_by(RentalBooking.start_date.desc(), RentalBooking.created_at.desc())
+        if offset:
+            q = q.offset(offset)
+        if limit:
+            q = q.limit(limit)
         result = await self.db.execute(q)
         bookings = result.scalars().all()
         asset_ids = {b.asset_id for b in bookings}
-        assets = {}
+        assets_map: dict = {}
         if asset_ids:
             ar = await self.db.execute(select(RentalAsset).where(RentalAsset.id.in_(asset_ids)))
-            assets = {a.id: a for a in ar.scalars().all()}
-        return [self._booking_dict(b, assets.get(b.asset_id)) for b in bookings]
+            assets_map = {a.id: a for a in ar.scalars().all()}
+        return [self._booking_dict(b, assets_map.get(b.asset_id)) for b in bookings]
 
     async def get_booking(self, vendor_id: UUID, booking_id: UUID) -> dict:
         result = await self.db.execute(
@@ -897,10 +1013,16 @@ class RentalService:
             )
 
         asset = await self._get_asset(vendor_id, booking.asset_id)
+        # booking.quantity is the originally booked amount — never mutated
         total_qty = float(booking.quantity or 1)
-        qty_returned = float(data.get("quantity_returned") or total_qty)
-        if qty_returned <= 0 or qty_returned > total_qty:
-            raise HTTPException(400, f"quantity_returned must be between 1 and {total_qty}")
+        already_returned = float(booking.quantity_returned or 0)
+        outstanding_qty = round(total_qty - already_returned, 6)
+        if outstanding_qty <= 0:
+            raise HTTPException(400, "All units for this booking have already been returned")
+
+        qty_returned = float(data.get("quantity_returned") or outstanding_qty)
+        if qty_returned <= 0 or qty_returned > outstanding_qty + 1e-6:
+            raise HTTPException(400, f"quantity_returned must be between 0.01 and {outstanding_qty}")
 
         condition = data.get("return_condition") or "good"
         if condition not in ("good", "damaged", "missing"):
@@ -920,32 +1042,43 @@ class RentalService:
 
         prev_status = booking.status
 
-        # Adjust occupancy for the returned quantity
+        # Adjust occupancy for the returned quantity (always: occupancy tracks rented-out units)
         if prev_status == "active":
             current_occ = float(asset.current_occupancy or 0)
             asset.current_occupancy = Decimal(str(max(0.0, current_occ - qty_returned)))
-            self._sync_occupancy_status(asset)
 
-        # Partial return: keep booking active if quantity still outstanding
-        qty_still_out = total_qty - qty_returned
-        if qty_still_out > 0:
-            new_status = "active"
-            booking.quantity = Decimal(str(qty_still_out))
-        else:
-            new_status = "completed"
-            booking.status = new_status
+        # Condition-based pool accounting:
+        #   good    → units go back into available capacity (no extra counter needed)
+        #   damaged → units enter the damaged pool; require repair before re-rental
+        #   missing → units are permanently lost from the pool
+        if condition == "damaged":
+            asset.damaged_qty = Decimal(str(round(float(asset.damaged_qty or 0) + qty_returned, 6)))
+        elif condition == "missing":
+            asset.lost_qty = Decimal(str(round(float(asset.lost_qty or 0) + qty_returned, 6)))
 
+        self._sync_occupancy_status(asset)
+
+        # Accumulate returned quantity; keep booking.quantity immutable
+        new_total_returned = round(already_returned + qty_returned, 6)
+        booking.quantity_returned = Decimal(str(new_total_returned))
         booking.returned_at = now
-        booking.quantity_returned = Decimal(str(qty_returned))
         booking.return_condition = condition
         booking.damage_charge = Decimal(str(damage_charge))
         booking.late_fee = Decimal(str(late_fee))
         booking.deposit_refunded = Decimal(str(deposit_refunded))
         booking.return_notes = data.get("return_notes") or None
 
+        # Determine booking status
+        qty_still_out = round(total_qty - new_total_returned, 6)
+        if qty_still_out > 0.001:
+            new_status = "active"
+        else:
+            new_status = "completed"
+            booking.status = new_status
+
         # Build timeline detail
         detail_parts = [
-            f"Qty returned: {qty_returned} of {total_qty}",
+            f"Qty returned: {qty_returned} of {total_qty} (outstanding: {outstanding_qty})",
             f"Condition: {condition}",
         ]
         if days_late > 0:
@@ -953,14 +1086,47 @@ class RentalService:
         if damage_charge > 0:
             detail_parts.append(f"Damage charge: ₹{damage_charge:,.2f}")
         detail_parts.append(f"Deposit refunded: ₹{deposit_refunded:,.2f}")
-        if qty_still_out > 0:
-            detail_parts.append(f"Partial return — {qty_still_out} unit(s) still out")
+        if qty_still_out > 0.001:
+            detail_parts.append(f"Partial return — {qty_still_out:.4g} unit(s) still out")
 
         self._append_timeline(
             booking,
-            "Asset Returned" if qty_still_out == 0 else "Partial Return",
+            "Asset Returned" if qty_still_out <= 0.001 else "Partial Return",
             " · ".join(detail_parts),
         )
+
+        # Write immutable return history record
+        unit_ids = data.get("unit_ids") or []
+        return_record = RentalReturn(
+            booking_id=booking.id,
+            vendor_id=vendor_id,
+            quantity_returned=Decimal(str(qty_returned)),
+            return_condition=condition,
+            damage_charge=Decimal(str(damage_charge)),
+            late_fee=Decimal(str(late_fee)),
+            deposit_refunded=Decimal(str(deposit_refunded)),
+            return_notes=data.get("return_notes") or None,
+            unit_ids=unit_ids,
+        )
+        self.db.add(return_record)
+
+        # If serialized units were specified, mark them as returned
+        if unit_ids:
+            unit_result = await self.db.execute(
+                select(RentalAssetUnit).where(
+                    RentalAssetUnit.id.in_([UUID(u) for u in unit_ids]),
+                    RentalAssetUnit.vendor_id == vendor_id,
+                )
+            )
+            for unit in unit_result.scalars().all():
+                if condition == "damaged":
+                    unit.condition = "damaged"
+                    unit.status = "maintenance"
+                elif condition == "missing":
+                    unit.condition = "lost"
+                    unit.status = "retired"
+                else:
+                    unit.status = "available"
 
         # Adjust outstanding if there are extra charges (damage / late fee)
         extra_charges = damage_charge + late_fee
@@ -978,6 +1144,185 @@ class RentalService:
         await self.db.commit()
         await self.db.refresh(booking)
         return self._booking_dict(booking, asset)
+
+    # ── Sub-asset helpers ─────────────────────────────────────────────
+
+    def _unit_dict(self, u: RentalAssetUnit) -> dict:
+        return {
+            "id": str(u.id),
+            "asset_id": str(u.asset_id),
+            "vendor_id": str(u.vendor_id),
+            "serial_no": u.serial_no,
+            "label": u.label,
+            "condition": u.condition or "good",
+            "status": u.status or "available",
+            "notes": u.notes,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "updated_at": u.updated_at.isoformat() if u.updated_at else None,
+        }
+
+    async def list_asset_children(self, vendor_id: UUID, parent_id: UUID) -> list[dict]:
+        result = await self.db.execute(
+            select(RentalAsset).where(
+                RentalAsset.vendor_id == vendor_id,
+                RentalAsset.parent_asset_id == parent_id,
+            ).order_by(RentalAsset.name)
+        )
+        return [self._asset_dict(a) for a in result.scalars().all()]
+
+    async def list_asset_units(self, vendor_id: UUID, asset_id: UUID) -> list[dict]:
+        await self._get_asset(vendor_id, asset_id)  # ownership check
+        result = await self.db.execute(
+            select(RentalAssetUnit).where(
+                RentalAssetUnit.asset_id == asset_id,
+                RentalAssetUnit.vendor_id == vendor_id,
+            ).order_by(RentalAssetUnit.serial_no)
+        )
+        return [self._unit_dict(u) for u in result.scalars().all()]
+
+    async def create_asset_unit(self, vendor_id: UUID, asset_id: UUID, data: dict) -> dict:
+        asset = await self._get_asset(vendor_id, asset_id)
+        if asset.unit_mode != "serialized":
+            raise HTTPException(400, "Asset unit_mode must be 'serialized' to add units")
+        if not data.get("serial_no"):
+            raise HTTPException(400, "serial_no is required")
+        unit = RentalAssetUnit(
+            asset_id=asset_id,
+            vendor_id=vendor_id,
+            serial_no=data["serial_no"],
+            label=data.get("label"),
+            condition=data.get("condition") or "good",
+            status=data.get("status") or "available",
+            notes=data.get("notes"),
+        )
+        self.db.add(unit)
+        await self.db.commit()
+        await self.db.refresh(unit)
+        return self._unit_dict(unit)
+
+    async def update_asset_unit(self, vendor_id: UUID, asset_id: UUID, unit_id: UUID, data: dict) -> dict:
+        await self._get_asset(vendor_id, asset_id)  # ownership check
+        result = await self.db.execute(
+            select(RentalAssetUnit).where(
+                RentalAssetUnit.id == unit_id,
+                RentalAssetUnit.asset_id == asset_id,
+                RentalAssetUnit.vendor_id == vendor_id,
+            )
+        )
+        unit = result.scalar_one_or_none()
+        if not unit:
+            raise HTTPException(404, "Unit not found")
+        for f in ("serial_no", "label", "condition", "status", "notes"):
+            if f in data:
+                setattr(unit, f, data[f])
+        await self.db.commit()
+        await self.db.refresh(unit)
+        return self._unit_dict(unit)
+
+    async def bulk_create_asset_units(self, vendor_id: UUID, asset_id: UUID, data: dict) -> list[dict]:
+        """Create a sequence of serialized units in one call.
+
+        Body:
+          prefix    – leading text, e.g. "RACK-" or "CYL"  (may be empty)
+          start     – first sequence number (int, default 1)
+          end       – last sequence number (int, default start)
+          padding   – zero-pad width, e.g. 3 → "001". 0 = no padding
+          suffix    – optional trailing text after the number
+          condition – good | damaged (default "good")
+
+        Examples:
+          {prefix:"CYL-", start:1, end:10, padding:3} → CYL-001 … CYL-010
+          {prefix:"",     start:5, end:8,  padding:0, suffix:" Van"} → 5 Van … 8 Van
+        """
+        asset = await self._get_asset(vendor_id, asset_id)
+        if asset.unit_mode != "serialized":
+            raise HTTPException(400, "Asset unit_mode must be 'serialized' to bulk-add units")
+
+        prefix = str(data.get("prefix") or "")
+        suffix = str(data.get("suffix") or "")
+        start = int(data.get("start") or 1)
+        end = int(data.get("end") or start)
+        padding = max(0, int(data.get("padding") or 0))
+        condition = data.get("condition") or "good"
+
+        if start < 1:
+            raise HTTPException(400, "start must be >= 1")
+        if end < start:
+            raise HTTPException(400, "end must be >= start")
+        count = end - start + 1
+        if count > 500:
+            raise HTTPException(400, "Cannot bulk-create more than 500 units at once")
+
+        units = []
+        for n in range(start, end + 1):
+            num_str = str(n).zfill(padding) if padding > 0 else str(n)
+            serial_no = f"{prefix}{num_str}{suffix}"
+            unit = RentalAssetUnit(
+                asset_id=asset_id,
+                vendor_id=vendor_id,
+                serial_no=serial_no,
+                condition=condition,
+                status="available",
+            )
+            self.db.add(unit)
+            units.append(unit)
+
+        await self.db.commit()
+        for unit in units:
+            await self.db.refresh(unit)
+        return [self._unit_dict(u) for u in units]
+
+    async def delete_asset_unit(self, vendor_id: UUID, asset_id: UUID, unit_id: UUID) -> dict:
+        await self._get_asset(vendor_id, asset_id)  # ownership check
+        result = await self.db.execute(
+            select(RentalAssetUnit).where(
+                RentalAssetUnit.id == unit_id,
+                RentalAssetUnit.asset_id == asset_id,
+                RentalAssetUnit.vendor_id == vendor_id,
+            )
+        )
+        unit = result.scalar_one_or_none()
+        if not unit:
+            raise HTTPException(404, "Unit not found")
+        if unit.status == "rented":
+            raise HTTPException(400, "Cannot delete a unit that is currently rented out")
+        await self.db.delete(unit)
+        await self.db.commit()
+        return {"ok": True}
+
+    # ── Return history ─────────────────────────────────────────────────
+
+    def _return_dict(self, r: RentalReturn) -> dict:
+        return {
+            "id": str(r.id),
+            "booking_id": str(r.booking_id),
+            "quantity_returned": float(r.quantity_returned),
+            "return_condition": r.return_condition,
+            "damage_charge": float(r.damage_charge or 0),
+            "late_fee": float(r.late_fee or 0),
+            "deposit_refunded": float(r.deposit_refunded or 0),
+            "return_notes": r.return_notes,
+            "unit_ids": r.unit_ids or [],
+            "returned_at": r.returned_at.isoformat() if r.returned_at else None,
+        }
+
+    async def list_return_history(self, vendor_id: UUID, booking_id: UUID) -> list[dict]:
+        # Verify ownership
+        result = await self.db.execute(
+            select(RentalBooking).where(
+                RentalBooking.id == booking_id,
+                RentalBooking.vendor_id == vendor_id,
+            )
+        )
+        if not result.scalar_one_or_none():
+            raise HTTPException(404, "Rental booking not found")
+        result = await self.db.execute(
+            select(RentalReturn).where(
+                RentalReturn.booking_id == booking_id,
+                RentalReturn.vendor_id == vendor_id,
+            ).order_by(RentalReturn.returned_at.asc())
+        )
+        return [self._return_dict(r) for r in result.scalars().all()]
 
     async def customer_pay(self, vendor_id: UUID, booking_id: UUID, customer_id: UUID, data: dict) -> dict:
         result = await self.db.execute(

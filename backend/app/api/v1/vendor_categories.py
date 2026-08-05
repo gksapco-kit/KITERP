@@ -18,6 +18,7 @@ from app.schemas.vendor_category import CategoryCreate, CategoryUpdate
 from app.repositories.vendor_category_repo import VendorCategoryRepository
 from app.services.vendor_service import VendorService
 from app.services.media_upload import delete_stored_file
+from app.services.product_pricing import resolve_product_listing_price
 
 router = APIRouter(dependencies=[Depends(require_permission("products.view"))])
 
@@ -202,45 +203,53 @@ async def get_category_catalogues(
     if category.applies_to in ("product", "both") and assignment is not None:
         result = await db.execute(
             select(Product)
-            .options(selectinload(Product.images))
+            .options(selectinload(Product.images), selectinload(Product.variants))
             .where(Product.vendor_id == vendor_id, assignment)
             .order_by(Product.name)
             .limit(CATALOGUE_ITEM_LIMIT)
         )
-        products_list = [
-            {
+        products_list = []
+        for p in result.scalars().all():
+            resolved_price, _, _ = resolve_product_listing_price(p)
+            variants = getattr(p, "variants", None) or []
+            variant_count = sum(1 for v in variants if getattr(v, "is_active", True))
+            products_list.append({
                 "id": str(p.id),
                 "name": p.name,
                 "slug": p.slug,
                 "category": p.category,
                 "subcategory": p.subcategory,
-                "price": float(p.price or 0),
+                "product_type": p.product_type or "physical",
+                "variant_count": variant_count,
+                "price": float(resolved_price or 0),
                 "image_url": _product_catalogue_image_url(p),
                 "status": p.status,
-            }
-            for p in result.scalars().all()
-        ]
+            })
 
     if category.applies_to in ("service", "both") and service_assignment is not None:
         result = await db.execute(
             select(Service)
+            .options(selectinload(Service.plans))
             .where(Service.vendor_id == vendor_id, service_assignment)
             .order_by(Service.name)
             .limit(CATALOGUE_ITEM_LIMIT)
         )
-        services_list = [
-            {
+        services_list = []
+        for s in result.scalars().all():
+            plans = getattr(s, "plans", None) or []
+            plan_count = sum(1 for plan in plans if getattr(plan, "is_active", True))
+            services_list.append({
                 "id": str(s.id),
                 "name": s.name,
                 "slug": s.slug,
                 "category": s.category,
                 "subcategory": s.subcategory,
+                "service_type": s.service_type or "one_time",
+                "plan_count": plan_count,
                 "price": float(s.price or 0),
                 "image_url": s.image_url,
                 "status": s.status,
-            }
-            for s in result.scalars().all()
-        ]
+            })
 
     return JSONResponse(content={
         "category": _category_to_dict(category),

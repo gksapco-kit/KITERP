@@ -19,6 +19,7 @@
 
 import React, { Children, isValidElement, cloneElement } from 'react'
 import { useColumnResize } from '@/hooks/useColumnResize'
+import { cn } from '@/lib/utils'
 
 interface Props {
   tableId: string
@@ -96,7 +97,11 @@ export function ResizableTable({ tableId, defaultWidths, children, className }: 
   return (
     <div className="overflow-x-auto">
       <table
-        className={className}
+        className={cn(
+          // Keep body cells inside resized column widths (headers already clip via style).
+          '[&_tbody>tr>td]:overflow-hidden [&_tbody>tr>td]:align-middle',
+          className,
+        )}
         style={{
           tableLayout: 'fixed',
           width: '100%',

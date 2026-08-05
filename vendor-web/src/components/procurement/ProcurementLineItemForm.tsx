@@ -28,12 +28,9 @@ import {
   normalizeUom,
 } from '@/lib/procurementProductContext'
 import { uomLabel } from '@/lib/uomOptions'
+import { variantSelectOption, type VariantSelectSource } from '@/lib/productVariants'
 
-interface ProductVariant {
-  id: string
-  name: string
-  sku?: string
-}
+type ProductVariant = VariantSelectSource
 
 interface CostCenterOption {
   id: string
@@ -265,6 +262,14 @@ export function ProcurementLineItemForm({
         id: v.id,
         name: v.name,
         sku: v.sku,
+        barcode: v.barcode,
+        uom: v.uom,
+        uom_quantity: v.uom_quantity,
+        price: v.price,
+        cost_price: v.cost_price,
+        currency: v.currency,
+        attributes: v.attributes,
+        color: v.color,
       })))
     } catch {
       setVariants([])
@@ -380,10 +385,7 @@ export function ProcurementLineItemForm({
               onChange={v => onChange('variant_id', v)}
               options={selectOptionsWithBlank(
                 '— Product level —',
-                variants.map(v => ({
-                  value: v.id,
-                  label: `${v.name}${v.sku ? ` · ${v.sku}` : ''}`,
-                })),
+                variants.map(variantSelectOption),
               )}
               placeholder="— Product level —"
               className={inputClass}

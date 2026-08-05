@@ -75,6 +75,8 @@ async def list_invoices(
     store_id: str = None,
     sales_area_id: str = None,
     search: str = None,
+    customer_id: str = None,
+    open_only: bool = Query(False),
     page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
     vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db),
 ):
@@ -82,6 +84,7 @@ async def list_invoices(
     items, total = await svc.list_invoices(
         vid, invoice_type, exclude_invoice_type, status, page, size,
         store_id=store_id, search=search, sales_area_id=sales_area_id,
+        customer_id=customer_id, open_only=open_only,
     )
     return JSONResponse(content={
         "items": [_inv_dict(i) for i in items], "total": total,

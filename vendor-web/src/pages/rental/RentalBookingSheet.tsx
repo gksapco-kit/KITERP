@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { IndianRupee, Loader2, Truck } from 'lucide-react'
+import RentalReturnHistoryPanel from './RentalReturnHistoryPanel'
 import { toast } from 'sonner'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -49,7 +50,7 @@ type Props = {
 export default function RentalBookingSheet({ open, booking, onClose, onChanged, onRequestReturn }: Props) {
   const qc = useQueryClient()
   const confirm = useConfirm()
-  const [subTab, setSubTab] = useState<'details' | 'delivery' | 'timeline'>('details')
+  const [subTab, setSubTab] = useState<'details' | 'delivery' | 'timeline' | 'returns'>('details')
   const [deliveryForm, setDeliveryForm] = useState<DeliveryForm>(() => deliveryFromBooking(booking || ({} as RentalBooking)))
   const [extendDate, setExtendDate] = useState('')
 
@@ -155,6 +156,7 @@ export default function RentalBookingSheet({ open, booking, onClose, onChanged, 
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="delivery">Delivery</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
+              <TabsTrigger value="returns">Returns</TabsTrigger>
             </TabsList>
           </div>
 
@@ -308,6 +310,13 @@ export default function RentalBookingSheet({ open, booking, onClose, onChanged, 
                   ))}
                 </ol>
               )}
+            </TabsContent>
+
+            <TabsContent value="returns" className="mt-0">
+              <RentalReturnHistoryPanel
+                bookingId={booking.id}
+                totalQuantity={Number(booking.quantity ?? 1)}
+              />
             </TabsContent>
           </div>
         </Tabs>

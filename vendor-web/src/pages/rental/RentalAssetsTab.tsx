@@ -133,6 +133,7 @@ export default function RentalAssetsTab({
                   used={Number(a.current_occupancy || 0)}
                   max={Number(a.capacity_max || 0)}
                   unit={a.capacity_unit}
+                  available={a.available_capacity !== undefined ? Number(a.available_capacity) : undefined}
                 />
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   {a.max_weight != null && <span>⚖ {a.max_weight} {a.weight_unit}</span>}
@@ -155,8 +156,11 @@ export default function RentalAssetsTab({
                 </div>
                 <p className="text-sm text-foreground">
                   {formatCurrency(Number(a.daily_rate || 0))}/day
+                  {Number(a.price_per_unit) > 0 && (
+                    <> · {formatCurrency(Number(a.price_per_unit))}/{a.pricing_uom || a.capacity_unit || 'unit'}</>
+                  )}
                   {Number(a.monthly_rate) > 0 && <> · {formatCurrency(Number(a.monthly_rate))}/mo</>}
-                  {' · '}deposit {formatCurrency(Number(a.deposit_amount || 0))}
+                  {Number(a.deposit_amount) > 0 && <> · deposit {formatCurrency(Number(a.deposit_amount))}</>}
                 </p>
               </div>
             )

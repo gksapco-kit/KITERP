@@ -16,13 +16,24 @@ export const essApi = {
     const res = await hrApiClient.get(`${base}/attendance/today`)
     return res.data
   },
-  clockIn: async () => {
-    const res = await hrApiClient.post(`${base}/attendance/clock-in`, {})
+  clockIn: async (location?: { lat: number; lng: number; accuracy?: number }) => {
+    const res = await hrApiClient.post(`${base}/attendance/clock-in`, { location: location ?? null })
     return res.data
   },
-  clockOut: async () => {
-    const res = await hrApiClient.post(`${base}/attendance/clock-out`, {})
+  clockOut: async (location?: { lat: number; lng: number; accuracy?: number }) => {
+    const res = await hrApiClient.post(`${base}/attendance/clock-out`, { location: location ?? null })
     return res.data
+  },
+  sendLocationPing: async (payload: {
+    lat: number
+    lng: number
+    accuracy?: number
+    speed?: number
+    heading?: number
+    battery?: number
+    source?: string
+  }) => {
+    await hrApiClient.post(`${base}/tracking/ping`, { ...payload, source: payload.source ?? 'web' })
   },
   getAttendance: async (params?: { from_date?: string; to_date?: string }) => {
     const res = await hrApiClient.get(`${base}/attendance`, { params })

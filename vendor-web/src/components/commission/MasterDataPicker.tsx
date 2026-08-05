@@ -85,32 +85,33 @@ export function MasterDataPicker({
   }
 
   if (selected) {
+    const detailParts = [selected.phone, selected.email].filter(Boolean) as string[]
     return (
       <div
         className={cn(
           'flex min-w-0 items-center gap-2 border border-blue-300 bg-blue-50',
-          compact ? 'h-10 rounded-md px-2.5' : 'rounded-lg px-3 py-2',
+          compact ? 'h-10 rounded-md px-2.5' : 'h-10 rounded-lg px-3',
         )}
       >
         <div
           className={cn(
-            'flex flex-shrink-0 items-center justify-center rounded-full bg-blue-200 font-medium text-blue-700',
-            compact ? 'h-6 w-6 text-[10px]' : 'h-7 w-7 text-xs',
+            'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-200 text-[10px] font-medium text-blue-700',
           )}
         >
           {selected.initials || selected.label.charAt(0).toUpperCase()}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className={cn('truncate font-medium text-gray-900', compact ? 'text-sm' : 'text-sm')}>
-            {selected.label}
-          </div>
-          {!compact && selected.sub ? (
-            <div className="truncate text-xs text-gray-500">{selected.sub}</div>
-          ) : null}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-sm">
+          <span className="truncate font-medium text-gray-900">{selected.label}</span>
+          {detailParts.map((part) => (
+            <span key={part} className="flex min-w-0 items-center gap-1.5 text-xs text-gray-500">
+              <span className="flex-shrink-0 text-gray-300">·</span>
+              <span className="truncate">{part}</span>
+            </span>
+          ))}
         </div>
         {!disabled && (
           <button type="button" onClick={clear} className="flex-shrink-0 text-gray-400 hover:text-red-500">
-            <X className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+            <X className="h-3.5 w-3.5" />
           </button>
         )}
       </div>

@@ -10,13 +10,29 @@ export function StatusBadge({ status }: { status?: string }) {
   )
 }
 
-export function CapacityBar({ used, max, unit }: { used: number; max: number; unit?: string }) {
-  const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 0
-  const avail = Math.max(0, max - used)
+export function CapacityBar({
+  used,
+  max,
+  unit,
+  available,
+}: {
+  used: number
+  max: number
+  unit?: string
+  /** Pre-computed available count from the backend (accounts for damaged/lost). Falls back to max - used. */
+  available?: number
+}) {
+  const avail = available !== undefined ? available : Math.max(0, max - used)
+  const pct = max > 0 ? Math.min(100, Math.round(((max - avail) / max) * 100)) : 0
+  const unitLabel = unit && unit.trim() && unit.toLowerCase() !== 'units' ? unit : ''
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{avail} / {max} {unit || ''} available</span>
+        <span>
+          <span className="font-medium text-foreground">{avail}</span>
+          {' / '}
+          {max} {unitLabel} available
+        </span>
         <span>{pct}% used</span>
       </div>
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">

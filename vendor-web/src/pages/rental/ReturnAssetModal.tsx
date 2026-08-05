@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ModalOverlay, ModalPanel, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
@@ -11,7 +11,7 @@ import { extractApiError } from '@/lib/errorMessages'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { rentalApi } from './api'
 import { todayLocalYMD } from './rentalDates'
-import type { RentalAsset, RentalBooking } from './rentalConstants'
+import type { RentalAsset, RentalAssetUnit, RentalBooking } from './rentalConstants'
 
 type Props = {
   booking: RentalBooking
@@ -22,12 +22,38 @@ type Props = {
 
 export default function ReturnAssetModal({ booking, asset, onClose, onDone }: Props) {
   const qc = useQueryClient()
+
+  // outstanding = originally booked minus already returned (server provides this, but derive locally too)
+  const outstandingQty = Math.max(
+    0,
+    Number(booking.outstanding_quantity ?? (Number(booking.quantity ?? 1) - Number(booking.quantity_returned ?? 0))),
+  )
+
   const [form, setForm] = useState({
-    quantity_returned: String(booking.quantity ?? 1),
+    quantity_returned: String(outstandingQty || 1),
     return_condition: 'good',
     damage_charge: '0',
     return_notes: '',
   })
+
+  // For serialized assets: fetch all units and allow selecting which are being returned
+  const isSerializedAsset = asset?.unit_mode === 'serialized'
+  const { data: allUnits = [] } = useQuery<RentalAssetUnit[]>({
+    queryKey: ['rental-asset-units', asset?.id],
+    queryFn: () => rentalApi.listAssetUnits(asset!.id),
+    enabled: isSerializedAsset && Boolean(asset?.id),
+  })
+  // Only show units that are currently rented (not available)
+  const rentedUnits = allUnits.filter((u) => u.status === 'rented')
+  const [selectedUnitIds, setSelectedUnitIds] = useState<Set<string>>(new Set())
+
+  const toggleUnit = (unitId: string) =>
+    setSelectedUnitIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(unitId)) next.delete(unitId)
+      else next.add(unitId)
+      return next
+    })
 
   const settlement = useMemo(() => {
     const dailyRate = Number(asset?.daily_rate || 0)
@@ -55,11 +81,15 @@ export default function ReturnAssetModal({ booking, asset, onClose, onDone }: Pr
   })
 
   const qtyReturned = Number(form.quantity_returned)
-  const isPartialQty = qtyReturned > 0 && qtyReturned < Number(booking.quantity ?? 1)
+  const isPartialQty = qtyReturned > 0 && qtyReturned < outstandingQty
 
   const submit = () => {
     if (!qtyReturned || qtyReturned <= 0) {
       toast.error('Enter the quantity being returned')
+      return
+    }
+    if (qtyReturned > outstandingQty + 0.001) {
+      toast.error(`Cannot return more than the outstanding quantity (${outstandingQty})`)
       return
     }
     processReturn.mutate({
@@ -67,6 +97,7 @@ export default function ReturnAssetModal({ booking, asset, onClose, onDone }: Pr
       return_condition: form.return_condition,
       damage_charge: Number(form.damage_charge) || 0,
       return_notes: form.return_notes || undefined,
+      unit_ids: selectedUnitIds.size > 0 ? Array.from(selectedUnitIds) : undefined,
     })
   }
 
@@ -80,6 +111,14 @@ export default function ReturnAssetModal({ booking, asset, onClose, onDone }: Pr
             <span>Asset: <strong className="text-foreground">{booking.asset_name || '—'}</strong></span>
             <span>End date: <strong className="text-foreground">{formatDate(booking.end_date)}</strong></span>
             <span>Deposit: <strong className="text-foreground">{formatCurrency(Number(booking.deposit_amount || 0))}</strong></span>
+            {Number(booking.quantity_returned ?? 0) > 0 && (
+              <span className="col-span-2">
+                Already returned:{' '}
+                <strong className="text-foreground">{booking.quantity_returned}</strong>
+                {' '}&mdash; outstanding:{' '}
+                <strong className="text-amber-600 dark:text-amber-400">{outstandingQty}</strong>
+              </span>
+            )}
           </div>
 
           <div>
@@ -87,14 +126,14 @@ export default function ReturnAssetModal({ booking, asset, onClose, onDone }: Pr
             <Input
               type="number"
               min="0.01"
-              max={String(booking.quantity ?? 1)}
+              max={String(outstandingQty)}
               step="0.01"
               value={form.quantity_returned}
               onChange={(e) => setForm((f) => ({ ...f, quantity_returned: e.target.value }))}
             />
             {isPartialQty && (
               <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                Partial return — {Number(booking.quantity ?? 1) - qtyReturned} unit(s) will remain active.
+                Partial return — {outstandingQty - qtyReturned} unit(s) will remain active.
               </p>
             )}
           </div>
@@ -122,6 +161,44 @@ export default function ReturnAssetModal({ booking, asset, onClose, onDone }: Pr
               onChange={(e) => setForm((f) => ({ ...f, damage_charge: e.target.value }))}
             />
           </div>
+
+          {/* Serialized unit selection */}
+          {isSerializedAsset && (
+            <div>
+              <FieldLabel>
+                Select units being returned
+                {selectedUnitIds.size > 0 && (
+                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                    ({selectedUnitIds.size} selected)
+                  </span>
+                )}
+              </FieldLabel>
+              {rentedUnits.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No rented units found for this asset.</p>
+              ) : (
+                <div className="divide-y divide-border rounded-lg border max-h-48 overflow-y-auto">
+                  {rentedUnits.map((u) => (
+                    <label
+                      key={u.id}
+                      className="flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-muted/40"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedUnitIds.has(u.id)}
+                        onChange={() => toggleUnit(u.id)}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <span className="flex-1 text-sm font-medium">{u.serial_no}</span>
+                      {u.label && <span className="text-xs text-muted-foreground">{u.label}</span>}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                Optional — select units to update their status. Quantity above must still match what you select.
+              </p>
+            </div>
+          )}
 
           <div>
             <FieldLabel>Return notes</FieldLabel>

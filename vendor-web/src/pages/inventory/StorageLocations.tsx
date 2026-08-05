@@ -120,25 +120,30 @@ function LocationRow({ loc, level, onEdit, onAddSub, onDelete, patchField, isSav
     <>
       <tr className="hover:bg-gray-50">
         <td className="px-4 py-3" style={{ paddingLeft: `${16 + indent}px` }}>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             {hasChildren ? (
-              <button type="button" onClick={() => setExpanded(!expanded)} className="p-0.5 rounded hover:bg-gray-200 text-gray-400">
+              <button type="button" onClick={() => setExpanded(!expanded)} className="shrink-0 p-0.5 rounded hover:bg-gray-200 text-gray-400">
                 {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
               </button>
             ) : (
-              <span className="w-5" />
+              <span className="w-5 shrink-0" />
             )}
             <MapPin className={`w-4 h-4 shrink-0 ${level === 0 ? 'text-indigo-500' : 'text-gray-400'}`} />
-            <div>
+            <div className="min-w-0 flex-1 overflow-hidden">
               <InlineEditCell
                 value={loc.name}
                 saving={isSaving(loc.id, 'name')}
                 onSave={(v) => patchField(loc.id, 'name', String(v).trim())}
                 className="text-sm font-medium"
+                title={loc.name}
               >
                 {loc.name}
               </InlineEditCell>
-              {loc.description && <p className="text-xs text-gray-500">{loc.description}</p>}
+              {loc.description && (
+                <p className="truncate text-xs text-gray-500" title={loc.description}>
+                  {loc.description}
+                </p>
+              )}
             </div>
           </div>
         </td>
@@ -147,6 +152,7 @@ function LocationRow({ loc, level, onEdit, onAddSub, onDelete, patchField, isSav
             value={loc.code || ''}
             saving={isSaving(loc.id, 'code')}
             onSave={(v) => patchField(loc.id, 'code', String(v).trim())}
+            title={loc.code || undefined}
           >
             {loc.code || '—'}
           </InlineEditCell>

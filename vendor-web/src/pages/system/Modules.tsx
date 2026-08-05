@@ -166,6 +166,7 @@ function applyFormState(
     setBookingsEnabled: (v: boolean) => void
     setSubscriptionsEnabled: (v: boolean) => void
     setProjectsEnabled: (v: boolean) => void
+    setRentalsEnabled: (v: boolean) => void
   },
 ) {
   setters.setOfferingType(state.offeringType)
@@ -184,6 +185,7 @@ function applyFormState(
   setters.setBookingsEnabled(state.bookingsEnabled)
   setters.setSubscriptionsEnabled(state.subscriptionsEnabled)
   setters.setProjectsEnabled(state.projectsEnabled)
+  setters.setRentalsEnabled(state.rentalsEnabled)
 }
 
 export default function ModulesPage() {
@@ -223,6 +225,7 @@ export default function ModulesPage() {
   const [bookingsEnabled, setBookingsEnabled] = useState(true)
   const [subscriptionsEnabled, setSubscriptionsEnabled] = useState(true)
   const [projectsEnabled, setProjectsEnabled] = useState(true)
+  const [rentalsEnabled, setRentalsEnabled] = useState(true)
 
 
   const formSetters = useMemo(
@@ -243,6 +246,7 @@ export default function ModulesPage() {
       setBookingsEnabled,
       setSubscriptionsEnabled,
       setProjectsEnabled,
+      setRentalsEnabled,
     }),
     [],
   )
@@ -265,6 +269,7 @@ export default function ModulesPage() {
       bookingsEnabled,
       subscriptionsEnabled,
       projectsEnabled,
+      rentalsEnabled,
     }),
     [
       offeringType,
@@ -283,6 +288,7 @@ export default function ModulesPage() {
       bookingsEnabled,
       subscriptionsEnabled,
       projectsEnabled,
+      rentalsEnabled,
     ],
   )
 
@@ -641,6 +647,16 @@ export default function ModulesPage() {
             hint="Project management with tasks, milestones, and kanban under Sales Management."
             enabled={projectsEnabled}
             onToggle={() => setProjectsEnabled((v) => !v)}
+          />
+        )
+        break
+      case 'rentals':
+        panelBody = (
+          <EnableRow
+            label="Enable Rentals"
+            hint="Rental asset catalog, bookings, availability calendar, returns, and revenue reports in the Rental Management sidebar section."
+            enabled={rentalsEnabled}
+            onToggle={() => setRentalsEnabled((v) => !v)}
           />
         )
         break

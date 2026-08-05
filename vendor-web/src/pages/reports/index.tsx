@@ -2931,13 +2931,25 @@ export default function ReportsPage() {
                       </ResizableTable>
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-2">
-                    <input type="number" min={1} value={dispatchQty} onChange={e => setDispatchQty(e.target.value)}
-                      placeholder="Qty to stock" className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-green-400" />
-                    <input value={dispatchBy} onChange={e => setDispatchBy(e.target.value)}
-                      placeholder="Dispatched by" className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-[120px] focus:outline-none focus:ring-2 focus:ring-green-400" />
-                    <input value={dispatchNotes} onChange={e => setDispatchNotes(e.target.value)}
-                      placeholder="Notes" className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-[120px] focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-end">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-green-700">Qty to Stock</p>
+                      <input type="number" min={1} value={dispatchQty} onChange={e => setDispatchQty(e.target.value)}
+                        placeholder="0" aria-label="Quantity to stock"
+                        className="w-28 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-green-700">Dispatched By</p>
+                      <input value={dispatchBy} onChange={e => setDispatchBy(e.target.value)}
+                        placeholder="Name" aria-label="Dispatched by"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-green-700">Notes</p>
+                      <input value={dispatchNotes} onChange={e => setDispatchNotes(e.target.value)}
+                        placeholder="Optional" aria-label="Notes"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                    </div>
                     <button onClick={addStockDispatch}
                       className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">
                       <Plus className="w-3.5 h-3.5" /> Add

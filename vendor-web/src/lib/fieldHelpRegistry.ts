@@ -417,6 +417,56 @@ export const FIELD_HELP_BY_LABEL: Record<string, FieldHelpCopy> = {
     full:
       'A friendly name such as "Night shift" or "Store manager" — shown only in the admin list, not in outbound messages.',
   },
+
+  // ── Rental module — asset sheet sections ──
+  basics: {
+    hover: 'Core identity — name, category, and asset type.',
+    full:
+      'Set the asset name customers and your team will see, choose the category (e.g. Milk Dairy, Vehicles) and the asset type within that category. The name appears on booking confirmations and storefront listings.',
+  },
+  pricing: {
+    hover: 'Daily, weekly, and monthly rental rates plus deposit.',
+    full:
+      'Enter the rate charged per day, per week, or per month. At least a daily rate is required. The security deposit is collected upfront and refunded on return after deducting any damage or late fees. Extra qty / weight charges apply when the customer exceeds the base capacity.',
+  },
+  'storefront availability': {
+    hover: 'Control when this asset appears on your storefront.',
+    full:
+      'Choose "Always available" to show this asset every day, or "Date range" to set a specific display window. Approved bookings automatically expand the window so customers can always see occupied dates. Set end date to hide the asset once the rental season ends.',
+  },
+  'location, status & notes': {
+    hover: 'Physical location, current status, and internal notes.',
+    full:
+      'Location fields (section, row, rack number) help your team find the asset in a warehouse or store. Status controls availability — set to Maintenance or Unavailable to block new bookings without deleting the asset. Notes are internal only.',
+  },
+  'sub-assets & unit tracking': {
+    hover: 'Choose how individual items within this asset are tracked.',
+    full:
+      'Three modes are available:\n\n• None — track only total capacity (default, suits most assets).\n\n• Hierarchy — this asset is part of a parent/child tree (e.g. individual van inside a fleet group). Set the parent asset here.\n\n• Serialized units — each physical item has its own serial number (e.g. numbered cylinders or racks). After saving the asset in this mode, add individual units with serial numbers. On return, operators select exactly which units came back and record their condition.',
+    footerNote: 'Save the asset after changing the tracking mode before adding units.',
+  },
+
+  // ── Rental module — unit fields ──
+  'serial no': {
+    hover: 'Unique identifier printed on the physical item.',
+    full:
+      'Enter the serial number, barcode, or any code that uniquely identifies this individual unit. It will appear on return checklists so operators can tick off each item as it comes back.',
+  },
+  'tracking mode': {
+    hover: 'How individual items within this asset are tracked.',
+    full:
+      'None: total capacity only. Hierarchy: child assets under a parent (e.g. van inside a fleet). Serialized units: individual serial-numbered items (e.g. cylinders, racks). Change and save — then add units from the same section.',
+  },
+  'parent asset': {
+    hover: 'The container asset this one belongs to.',
+    full:
+      'Assign this asset as a child of another (e.g. "Van 03" inside "City Fleet"). The parent must be saved first and should use Hierarchy tracking mode. Only top-level assets appear in the list.',
+  },
+  'initial condition': {
+    hover: 'Condition of this unit when it is first added.',
+    full:
+      'Good = rental-ready. Damaged = under repair (excluded from available capacity). Lost = permanently removed from the pool. Retired = decommissioned. You can update the condition later from the asset\'s unit list.',
+  },
 }
 
 function helpFromKeywords(label: string): FieldHelpCopy | null {

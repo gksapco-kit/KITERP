@@ -36,6 +36,7 @@ export default function VendorDashboard() {
     { label: 'Orders', route: '/vendor-screens/orders', color: '#3b82f6' },
     { label: 'Products', route: '/vendor-screens/products', color: '#10b981' },
     { label: 'Customers', route: '/vendor-screens/customers', color: '#64C3A0' },
+    { label: 'Attendance', route: '/vendor-screens/attendance', color: '#8b5cf6' },
     { label: 'Settings', route: '/vendor-screens/settings', color: '#f59e0b' },
   ]
 

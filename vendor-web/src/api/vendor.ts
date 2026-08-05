@@ -2991,6 +2991,49 @@ export const vendorApi = {
     return r.data
   },
 
+  // ── HR: Field / Geo Tracking ─────────────────────────────────────
+  hrTrackingLive: async () => {
+    const r = await apiClient.get('/vendors/me/hr/tracking/live')
+    return r.data as {
+      items: {
+        employee_id: string
+        employee_code: string
+        full_name: string
+        last_lat: number | null
+        last_lng: number | null
+        last_seen_at: string | null
+        tracking_enabled: boolean
+      }[]
+    }
+  },
+  hrTrackingTrail: async (
+    employeeId: string,
+    params?: { from_dt?: string; to_dt?: string },
+  ) => {
+    const r = await apiClient.get(`/vendors/me/hr/tracking/employees/${employeeId}/trail`, { params })
+    return r.data as {
+      employee_id: string
+      employee_code: string
+      full_name: string
+      trail: {
+        lat: number
+        lng: number
+        accuracy: number | null
+        speed: number | null
+        heading: number | null
+        battery: number | null
+        source: string
+        recorded_at: string
+      }[]
+    }
+  },
+  hrToggleTracking: async (employeeId: string, enabled: boolean) => {
+    const r = await apiClient.patch(`/vendors/me/hr/tracking/employees/${employeeId}/toggle`, {
+      tracking_enabled: enabled,
+    })
+    return r.data as { employee_id: string; tracking_enabled: boolean }
+  },
+
   // ── HR: Leaves ───────────────────────────────────────────────────
   hrListLeavePolicies: async () => {
     const r = await apiClient.get('/vendors/me/hr/leaves/policies')

@@ -25,6 +25,10 @@ class RentalAsset(Base):
     capacity_max = Column(Numeric(12, 2), default=1)
     capacity_unit = Column(String(40), default="units")  # packets, boxes, litres, kg, units, custom
     current_occupancy = Column(Numeric(12, 2), default=0)
+    # Units currently damaged (returned in damaged condition, not yet repaired)
+    damaged_qty = Column(Numeric(12, 2), default=0)
+    # Units recorded as lost / missing — permanently removed from available pool
+    lost_qty = Column(Numeric(12, 2), default=0)
     max_weight = Column(Numeric(12, 2))
     weight_unit = Column(String(20), default="kg")
 
@@ -35,6 +39,16 @@ class RentalAsset(Base):
     deposit_amount = Column(Numeric(12, 2), default=0)
     extra_qty_charge = Column(Numeric(12, 2), default=0)
     extra_weight_charge = Column(Numeric(12, 2), default=0)
+    # Per-unit pricing: rate charged per capacity_unit per rental period
+    # e.g. ₹10 per packet/day. capacity_unit serves as the UOM.
+    price_per_unit = Column(Numeric(12, 2), default=0)
+    # Optional custom UOM label when price_per_unit pricing is used and
+    # the pricing unit differs from capacity_unit (e.g. "case" vs "packets")
+    pricing_uom = Column(String(40))
+    # Extended time-plan rates
+    hourly_rate = Column(Numeric(12, 2), default=0)
+    per_minute_rate = Column(Numeric(12, 2), default=0)
+    yearly_rate = Column(Numeric(12, 2), default=0)
 
     # Location / sales scope (route / area)
     sales_area_id = Column(UUID(as_uuid=True), ForeignKey("sales_area.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -51,6 +65,16 @@ class RentalAsset(Base):
     display_end_date = Column(Date)
     notes = Column(Text)
     is_active = Column(Boolean, default=True)
+
+    # ── Sub-asset / unit tracking ─────────────────────────────────────
+    # Hierarchy: an asset may be a child of another (e.g. single van inside a fleet).
+    parent_asset_id = Column(UUID(as_uuid=True), ForeignKey("rental_asset.id", ondelete="SET NULL"), nullable=True, index=True)
+    # When True the asset itself can be booked; set False for pure container assets.
+    is_bookable = Column(Boolean, default=True)
+    # none = no unit tracking; hierarchy = uses parent_asset_id tree;
+    # serialized = individual rental_asset_unit rows with serial numbers.
+    unit_mode = Column(String(20), default="none")
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -112,3 +136,50 @@ class RentalBooking(Base):
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class RentalAssetUnit(Base):
+    """Individual serialized unit belonging to a RentalAsset (unit_mode='serialized').
+
+    Examples: a rack set with 10 individually numbered racks, or a fleet of
+    numbered cylinders. Each unit can carry its own condition and availability.
+    """
+
+    __tablename__ = "rental_asset_unit"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    asset_id = Column(UUID(as_uuid=True), ForeignKey("rental_asset.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
+    serial_no = Column(String(100), nullable=False)
+    label = Column(String(255))
+    # good | damaged | lost | retired
+    condition = Column(String(20), default="good")
+    # available | rented | maintenance | retired
+    status = Column(String(20), default="available")
+    notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class RentalReturn(Base):
+    """Immutable audit record written for every process_return call.
+
+    Unlike booking.quantity_returned (a running total), each RentalReturn row
+    captures a single return event so operators have a full return history.
+    """
+
+    __tablename__ = "rental_return"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id = Column(UUID(as_uuid=True), ForeignKey("rental_booking.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
+    quantity_returned = Column(Numeric(12, 2), nullable=False)
+    # good | damaged | missing
+    return_condition = Column(String(20), nullable=False, default="good")
+    damage_charge = Column(Numeric(12, 2), default=0)
+    late_fee = Column(Numeric(12, 2), default=0)
+    deposit_refunded = Column(Numeric(12, 2), default=0)
+    return_notes = Column(Text)
+    # JSON list of RentalAssetUnit IDs returned in this event (serialized assets only)
+    unit_ids = Column(JSONB, default=list)
+    returned_at = Column(DateTime(timezone=True), server_default=func.now())

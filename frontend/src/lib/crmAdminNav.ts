@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Activity,
+  Banknote,
   BarChart3,
   BookOpen,
   Bot,
@@ -18,7 +19,7 @@ import {
   Workflow,
 } from 'lucide-react'
 
-/** Mirrors vendor-web CRM Management sidebar, without Payment Follow-ups / Credit Control. */
+/** Mirrors vendor-web CRM Management sidebar (Credit Control still excluded). */
 export type CrmAdminNavItem = {
   /** Admin route segment under `/dashboard/crm/...` */
   slug: string
@@ -45,6 +46,7 @@ export const CRM_ADMIN_NAV_ITEMS: CrmAdminNavItem[] = [
   { slug: 'reports', label: 'CRM Reports', icon: BarChart3, vendorPath: '/crm/reports' },
   { slug: 'audit', label: 'Audit Log', icon: History, vendorPath: '/crm/audit' },
   { slug: 'number-ranges', label: 'Number Ranges', icon: Hash, vendorPath: '/crm/number-ranges' },
+  { slug: 'payment-followups', label: 'Payment Follow-ups', icon: Banknote, vendorPath: '/crm/payment-followups' },
 ]
 
 export const CRM_ADMIN_BASE = '/dashboard/crm'

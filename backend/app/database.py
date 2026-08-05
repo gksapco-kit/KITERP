@@ -1784,12 +1784,19 @@ async def ensure_rental_schema() -> None:
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS capacity_max NUMERIC(12,2) DEFAULT 1",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS capacity_unit VARCHAR(40) DEFAULT 'units'",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS current_occupancy NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS damaged_qty NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS lost_qty NUMERIC(12,2) DEFAULT 0",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS max_weight NUMERIC(12,2)",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS weight_unit VARCHAR(20) DEFAULT 'kg'",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS weekly_rate NUMERIC(12,2) DEFAULT 0",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS monthly_rate NUMERIC(12,2) DEFAULT 0",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS extra_qty_charge NUMERIC(12,2) DEFAULT 0",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS extra_weight_charge NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS price_per_unit NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS pricing_uom VARCHAR(40)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS hourly_rate NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS per_minute_rate NUMERIC(12,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS yearly_rate NUMERIC(12,2) DEFAULT 0",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS location VARCHAR(255)",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS section VARCHAR(100)",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS row_label VARCHAR(100)",
@@ -1850,6 +1857,50 @@ async def ensure_rental_schema() -> None:
         "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS late_fee NUMERIC(12,2) DEFAULT 0",
         "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS deposit_refunded NUMERIC(12,2) DEFAULT 0",
         "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS return_notes TEXT",
+        # Performance indexes
+        "CREATE INDEX IF NOT EXISTS ix_rental_booking_asset_dates ON rental_booking(asset_id, start_date, end_date)",
+        "CREATE INDEX IF NOT EXISTS ix_rental_booking_vendor_status_date ON rental_booking(vendor_id, status, start_date)",
+        "CREATE INDEX IF NOT EXISTS ix_rental_asset_vendor_category ON rental_asset(vendor_id, category)",
+        "CREATE INDEX IF NOT EXISTS ix_rental_asset_vendor_status ON rental_asset(vendor_id, status)",
+        # Sub-asset hierarchy + unit tracking (Phase 3)
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS parent_asset_id UUID REFERENCES rental_asset(id) ON DELETE SET NULL",
+        "CREATE INDEX IF NOT EXISTS ix_rental_asset_parent_id ON rental_asset(parent_asset_id)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS is_bookable BOOLEAN DEFAULT true",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS unit_mode VARCHAR(20) DEFAULT 'none'",
+        """
+        CREATE TABLE IF NOT EXISTS rental_asset_unit (
+            id UUID PRIMARY KEY,
+            asset_id UUID NOT NULL REFERENCES rental_asset(id) ON DELETE CASCADE,
+            vendor_id UUID NOT NULL REFERENCES vendor(id),
+            serial_no VARCHAR(100) NOT NULL,
+            label VARCHAR(255),
+            condition VARCHAR(20) DEFAULT 'good',
+            status VARCHAR(20) DEFAULT 'available',
+            notes TEXT,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_rental_asset_unit_asset_id ON rental_asset_unit(asset_id)",
+        "CREATE INDEX IF NOT EXISTS ix_rental_asset_unit_vendor_id ON rental_asset_unit(vendor_id)",
+        # Return history (Phase 1 audit trail)
+        """
+        CREATE TABLE IF NOT EXISTS rental_return (
+            id UUID PRIMARY KEY,
+            booking_id UUID NOT NULL REFERENCES rental_booking(id) ON DELETE CASCADE,
+            vendor_id UUID NOT NULL REFERENCES vendor(id),
+            quantity_returned NUMERIC(12,2) NOT NULL,
+            return_condition VARCHAR(20) NOT NULL DEFAULT 'good',
+            damage_charge NUMERIC(12,2) DEFAULT 0,
+            late_fee NUMERIC(12,2) DEFAULT 0,
+            deposit_refunded NUMERIC(12,2) DEFAULT 0,
+            return_notes TEXT,
+            unit_ids JSONB DEFAULT '[]'::jsonb,
+            returned_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_rental_return_booking_id ON rental_return(booking_id)",
+        "CREATE INDEX IF NOT EXISTS ix_rental_return_vendor_id ON rental_return(vendor_id)",
     ]
     async with engine.begin() as conn:
         for s in stmts:

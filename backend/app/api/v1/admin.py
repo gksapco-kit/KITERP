@@ -597,6 +597,36 @@ async def create_platform_crm_dashboard_handoff(
     )
 
 
+@router.post("/platform-finance/dashboard-handoff", response_model=VendorDashboardHandoffResponse)
+async def create_platform_finance_dashboard_handoff(
+    request: Request,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Open vendor-web Finance for the internal KIT ERP platform tenant only
+    (not a customer business account). Used by Super Admin Finance Management.
+    """
+    from app.services.platform_crm_tenant import ensure_platform_crm_vendor
+
+    vendor = await ensure_platform_crm_vendor(db)
+    token = create_vendor_handoff_token(current_user.id, vendor.id)
+    await log_platform_staff_audit(
+        db,
+        subject_user_id=current_user.id,
+        actor_user_id=current_user.id,
+        action=ACTION_VENDOR_DASHBOARD_HANDOFF,
+        detail={"vendor_id": str(vendor.id), "slug": vendor.slug, "source": "platform_finance"},
+        request=request,
+    )
+    await db.commit()
+    return VendorDashboardHandoffResponse(
+        handoff_token=token,
+        vendor_id=str(vendor.id),
+        vendor_slug=vendor.slug or "",
+    )
+
+
 
 @router.get("/vendors/{vendor_id}/restaurant-snapshot")
 async def admin_restaurant_snapshot(

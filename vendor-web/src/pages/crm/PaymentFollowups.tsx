@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,8 @@ import {
   usePaymentFollowups, useSavePaymentFollowup, useDeletePaymentFollowup,
 } from '@/hooks/useCrm'
 import type { PaymentFollowup } from '@/api/crm'
+import { vendorApi } from '@/api/vendor'
+import { CustomerPicker, type CustomerPickerValue } from '@/components/commission/CustomerPicker'
 import { Plus, Loader2, Banknote, Pencil, Trash2 } from 'lucide-react'
 import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
 import { formatDateTime } from '@/lib/utils'
@@ -19,6 +22,16 @@ const STATUSES = ['open', 'promised', 'partial', 'paid', 'cancelled']
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 const CHANNELS = ['call', 'email', 'sms', 'whatsapp', 'visit']
 
+type OpenInvoice = {
+  id: string
+  invoice_number?: string
+  balance_due?: number
+  total?: number
+  due_date?: string | null
+  status?: string
+  currency?: string
+}
+
 function money(n: number | string | null | undefined, currency = 'INR') {
   const v = Number(n || 0)
   try {
@@ -28,10 +41,26 @@ function money(n: number | string | null | undefined, currency = 'INR') {
   }
 }
 
+function invoiceLabel(inv: OpenInvoice, currency = 'INR') {
+  const due = inv.due_date ? ` · due ${String(inv.due_date).slice(0, 10)}` : ''
+  const bal = money(inv.balance_due ?? inv.total, currency)
+  return `${inv.invoice_number || inv.id.slice(0, 8)} · ${bal} open${due}`
+}
+
 function FollowupForm({
   initial, onClose,
 }: { initial?: PaymentFollowup | null; onClose: () => void }) {
   const save = useSavePaymentFollowup()
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerPickerValue | null>(
+    initial?.party_name
+      ? {
+          id: initial.contact_id || initial.id,
+          full_name: initial.party_name,
+          phone: initial.party_phone || undefined,
+          email: initial.party_email || undefined,
+        }
+      : null,
+  )
   const [form, setForm] = useState({
     party_name: initial?.party_name || '',
     party_phone: initial?.party_phone || '',
@@ -50,13 +79,72 @@ function FollowupForm({
     notes: initial?.notes || '',
   })
 
+  const customerId = selectedCustomer?.id
+  const canLoadInvoices = Boolean(
+    customerId
+    && customerId !== initial?.id
+    && customerId !== initial?.contact_id,
+  )
+
+  const { data: openInvData, isFetching: loadingInvoices } = useQuery({
+    queryKey: ['payment-followup-open-invoices', customerId],
+    enabled: canLoadInvoices,
+    queryFn: () => vendorApi.listInvoices({
+      customer_id: customerId,
+      open_only: true,
+      size: 50,
+      page: 1,
+    }),
+  })
+
+  const openInvoices = (openInvData?.items || []) as OpenInvoice[]
+
   const set = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) =>
     setForm(p => ({ ...p, [key]: val }))
+
+  const applyInvoice = (inv: OpenInvoice | null) => {
+    if (!inv) {
+      setForm(p => ({ ...p, invoice_ref: '' }))
+      return
+    }
+    setForm(p => ({
+      ...p,
+      invoice_ref: inv.invoice_number || '',
+      amount_due: String(inv.balance_due ?? inv.total ?? p.amount_due),
+      due_date: inv.due_date ? String(inv.due_date).slice(0, 10) : p.due_date,
+      currency: inv.currency || p.currency || 'INR',
+    }))
+  }
+
+  const onCustomerSelect = (v: CustomerPickerValue | null) => {
+    setSelectedCustomer(v)
+    if (v) {
+      setForm(p => ({
+        ...p,
+        party_name: v.full_name,
+        party_phone: v.phone || p.party_phone,
+        party_email: v.email || p.party_email,
+        invoice_ref: '',
+        amount_due: '',
+        due_date: '',
+      }))
+    } else {
+      setForm(p => ({
+        ...p,
+        party_name: '',
+        party_phone: '',
+        party_email: '',
+        invoice_ref: '',
+        amount_due: '',
+        due_date: '',
+      }))
+    }
+  }
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.party_name.trim()) {
-      toast.error('Party name is required')
+      toast.error('Select a customer from master data')
       return
     }
     const payload = {
@@ -89,6 +177,8 @@ function FollowupForm({
   }
 
   const formId = 'payment-followup-form'
+  const selectedInvoiceId =
+    openInvoices.find(i => i.invoice_number === form.invoice_ref)?.id || '__none__'
 
   return (
     <CrmModal
@@ -107,17 +197,46 @@ function FollowupForm({
     >
       <form id={formId} onSubmit={submit} className="space-y-2.5 pb-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <Field label="Party name" required>
-            <Input value={form.party_name} onChange={e => set('party_name', e.target.value)} className="h-9" />
+          <Field label="Party name" required className="sm:col-span-2">
+            <CustomerPicker selected={selectedCustomer} onSelect={onCustomerSelect} />
+          </Field>
+          <Field label="Open invoice">
+            <Select
+              value={selectedInvoiceId}
+              onChange={v => {
+                if (v === '__none__') {
+                  applyInvoice(null)
+                  return
+                }
+                const inv = openInvoices.find(i => i.id === v)
+                if (inv) applyInvoice(inv)
+              }}
+              disabled={!canLoadInvoices}
+              options={[
+                {
+                  value: '__none__',
+                  label: !canLoadInvoices
+                    ? 'Select customer…'
+                    : loadingInvoices
+                      ? 'Loading…'
+                      : openInvoices.length
+                        ? 'Choose open invoice…'
+                        : 'No open invoices',
+                },
+                ...openInvoices.map(inv => ({
+                  value: inv.id,
+                  label: invoiceLabel(inv, form.currency || 'INR'),
+                })),
+              ]}
+            />
           </Field>
           <Field label="Invoice / ref">
-            <Input value={form.invoice_ref} onChange={e => set('invoice_ref', e.target.value)} className="h-9" />
-          </Field>
-          <Field label="Phone">
-            <Input value={form.party_phone} onChange={e => set('party_phone', e.target.value)} className="h-9" />
-          </Field>
-          <Field label="Email">
-            <Input type="email" value={form.party_email} onChange={e => set('party_email', e.target.value)} className="h-9" />
+            <Input
+              value={form.invoice_ref}
+              onChange={e => set('invoice_ref', e.target.value)}
+              placeholder="Invoice # or ref"
+              className="h-9"
+            />
           </Field>
           <Field label="Amount due">
             <Input type="number" min="0" step="0.01" value={form.amount_due} onChange={e => set('amount_due', e.target.value)} className="h-9" />

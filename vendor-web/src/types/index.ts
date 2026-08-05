@@ -1221,6 +1221,7 @@ export interface GoodsBatch {
   source_type: string
   notes?: string | null
   product_name?: string
+  variant_name?: string
   created_at?: string
   updated_at?: string
 }
@@ -1251,9 +1252,14 @@ export interface GoodsMovementDocument {
   posting_date: string
   document_date?: string | null
   plant_id?: string | null
+  plant_name?: string | null
   storage_location_id?: string | null
+  from_storage_location_id?: string | null
+  to_storage_location_id?: string | null
   purchase_order_id?: string | null
   notes?: string | null
+  performed_by?: string | null
+  performed_by_name?: string | null
   created_by_name?: string | null
   lines: GoodsMovementLine[]
   created_at?: string

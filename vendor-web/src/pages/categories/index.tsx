@@ -26,8 +26,10 @@ import { toast } from 'sonner'
 import { processRows, type SortDir } from '@/lib/tableList'
 import type { VendorCategory, CustomField } from '@/types'
 import { useNavigate } from 'react-router-dom'
-import { formatCurrency, mediaUrl, cn, isLikelyImageFile } from '@/lib/utils'
+import { mediaUrl, cn, isLikelyImageFile } from '@/lib/utils'
 import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
+import { productTypeLabel } from '@/components/catalog/CatalogListFilters'
+import { SERVICE_TYPE_OPTIONS } from '@/pages/services/serviceCatalogConstants'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { remoteImageToFile } from '@/components/common/MediaUploadPickerModal'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
@@ -679,6 +681,17 @@ function CategoryDetailPanel({
 }
 
 // ── Catalogue Drawer ─────────────────────────────────────────────
+function catalogueCountLabel(count: number, singular: string) {
+  const n = Number(count) || 0
+  return `${n} ${singular}${n === 1 ? '' : 's'}`
+}
+
+function serviceTypeLabel(type: string | undefined) {
+  const value = type || 'one_time'
+  return SERVICE_TYPE_OPTIONS.find(o => o.value === value)?.label
+    ?? value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
 function CatalogueDrawer({
  categoryId, onClose }: { categoryId: string; onClose: () => void }) {
   useEscapeToClose(onClose)
@@ -713,15 +726,18 @@ function CatalogueDrawer({
                       onClick={() => navigate(`/products/${p.id}`)}
                     >
                       {p.image_url ? (
-                        <img src={mediaUrl(p.image_url)} alt="" className="w-10 h-10 rounded object-cover" />
+                        <img src={mediaUrl(p.image_url)} alt="" className="w-10 h-10 rounded object-cover shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center"><Package className="w-5 h-5 text-gray-300" /></div>
+                        <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center shrink-0"><Package className="w-5 h-5 text-gray-300" /></div>
                       )}
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <p className="text-sm font-medium truncate">{p.name}</p>
-                        <p className="text-xs text-gray-500">{p.category}{p.subcategory ? ` / ${p.subcategory}` : ''}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {productTypeLabel(p.product_type)}
+                          <span className="text-gray-300"> · </span>
+                          {catalogueCountLabel(p.variant_count, 'variant')}
+                        </p>
                       </div>
-                      <p className="text-sm font-bold shrink-0">{formatCurrency(p.price)}</p>
                     </div>
                   ))}
                 </div>
@@ -740,15 +756,18 @@ function CatalogueDrawer({
                       onClick={() => navigate(`/services/${s.id}`)}
                     >
                       {s.image_url ? (
-                        <img src={mediaUrl(s.image_url)} alt="" className="w-10 h-10 rounded object-cover" />
+                        <img src={mediaUrl(s.image_url)} alt="" className="w-10 h-10 rounded object-cover shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center"><Wrench className="w-5 h-5 text-gray-300" /></div>
+                        <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center shrink-0"><Wrench className="w-5 h-5 text-gray-300" /></div>
                       )}
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <p className="text-sm font-medium truncate">{s.name}</p>
-                        <p className="text-xs text-gray-500">{s.category}{s.subcategory ? ` / ${s.subcategory}` : ''}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {serviceTypeLabel(s.service_type)}
+                          <span className="text-gray-300"> · </span>
+                          {catalogueCountLabel(s.plan_count, 'plan')}
+                        </p>
                       </div>
-                      <p className="text-sm font-bold shrink-0">{formatCurrency(s.price)}</p>
                     </div>
                   ))}
                 </div>

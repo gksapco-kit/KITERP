@@ -469,32 +469,41 @@ export default function AccountsPayable() {
                 </div>
                 {lines.length > 0 && (
                   <div className="mt-1.5 max-h-28 space-y-1.5 overflow-y-auto">
+                    {/* Column headers */}
+                    <div className="grid grid-cols-3 gap-1 px-0.5">
+                      {['Description', 'Qty', 'Unit Price'].map(h => (
+                        <p key={h} className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{h}</p>
+                      ))}
+                    </div>
                     {lines.map((ln, i) => (
                       <div key={i} className="grid grid-cols-[1fr_auto] gap-1 rounded-md border border-border bg-muted/15 p-1.5">
                         <div className="min-w-0 space-y-1">
                           <Select value={ln.account_id} onChange={v => setLines(ls => ls.map((l, j) => j === i ? { ...l, account_id: v } : l))} options={accountOptions} />
                           <div className="grid grid-cols-3 gap-1">
                             <input
-                              placeholder="Desc"
+                              placeholder="Description"
                               value={ln.description}
                               onChange={e => setLines(ls => ls.map((l, j) => j === i ? { ...l, description: e.target.value } : l))}
                               className="col-span-1 h-7 rounded-md border border-input bg-background px-1.5 text-xs"
+                              aria-label="Description"
                             />
                             <input
                               type="number"
                               min={0}
-                              placeholder="Qty"
+                              placeholder="1"
                               value={ln.quantity}
                               onChange={e => setLines(ls => ls.map((l, j) => j === i ? { ...l, quantity: e.target.value } : l))}
                               className="h-7 rounded-md border border-input bg-background px-1.5 text-xs"
+                              aria-label="Quantity"
                             />
                             <input
                               type="number"
                               min={0}
-                              placeholder="Price"
+                              placeholder="0.00"
                               value={ln.unit_price}
                               onChange={e => setLines(ls => ls.map((l, j) => j === i ? { ...l, unit_price: e.target.value } : l))}
                               className="h-7 rounded-md border border-input bg-background px-1.5 text-xs"
+                              aria-label="Unit price"
                             />
                           </div>
                         </div>

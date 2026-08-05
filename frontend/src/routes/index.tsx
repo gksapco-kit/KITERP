@@ -39,6 +39,7 @@ import OrderDisputes from '@/pages/dashboard/OrderDisputes'
 import CareerApplications from '@/pages/dashboard/CareerApplications'
 import HrManagement from '@/pages/dashboard/HrManagement'
 import CrmManagement from '@/pages/dashboard/CrmManagement'
+import FinanceManagement from '@/pages/dashboard/FinanceManagement'
 import TableData from '@/pages/dashboard/TableData'
 import AllTemplates from '@/pages/dashboard/AllTemplates'
 import WebsiteAnalytics from '@/pages/dashboard/WebsiteAnalytics'
@@ -134,6 +135,8 @@ export const router = createBrowserRouter([
       { path: 'disputes', element: <OrderDisputes /> },
       { path: 'crm', element: <CrmManagement /> },
       { path: 'crm/:section', element: <CrmManagement /> },
+      { path: 'finance', element: <FinanceManagement /> },
+      { path: 'finance/:section', element: <FinanceManagement /> },
       { path: 'hr/careers', element: <Navigate to="/dashboard/hr/recruitment" replace /> },
       { path: 'hr/candidates', element: <Navigate to="/dashboard/hr/recruitment" replace /> },
       { path: 'hr', element: <HrManagement /> },

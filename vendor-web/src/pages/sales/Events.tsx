@@ -68,6 +68,14 @@ function TierEditor({
       {tiers.length === 0 && (
         <p className="text-[10px] text-muted-foreground">No tiers yet — add at least one so guests can buy tickets.</p>
       )}
+      {/* Column headers */}
+      {tiers.length > 0 && (
+        <div className="grid grid-cols-[minmax(0,1.4fr)_4.5rem_3.5rem_4rem_auto_auto] gap-1 px-0.5">
+          {['Tier Name', 'Price', 'Currency', 'Remaining', '', ''].map(h => (
+            <p key={h} className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{h}</p>
+          ))}
+        </div>
+      )}
       {tiers.map((t, idx) => (
         <div key={idx} className="space-y-1 rounded-md bg-muted/20 p-1.5">
           <div className="grid grid-cols-[minmax(0,1.4fr)_4.5rem_3.5rem_4rem_auto_auto] gap-1 items-center">
@@ -76,6 +84,7 @@ function TierEditor({
               value={t.name}
               onChange={e => update(idx, { name: e.target.value })}
               placeholder="General Admission"
+              aria-label="Tier name"
             />
             <Input
               className="h-7 text-xs"
@@ -84,13 +93,15 @@ function TierEditor({
               step="0.01"
               value={t.price}
               onChange={e => update(idx, { price: Number(e.target.value) || 0 })}
-              placeholder="Price"
+              placeholder="0.00"
+              aria-label="Price"
             />
             <Input
               className="h-7 text-xs"
               value={t.currency}
               onChange={e => update(idx, { currency: e.target.value })}
-              placeholder="USD"
+              placeholder="INR"
+              aria-label="Currency"
             />
             <Input
               className="h-7 text-xs"
@@ -98,8 +109,8 @@ function TierEditor({
               min={0}
               value={t.remaining}
               onChange={e => update(idx, { remaining: Number(e.target.value) || 0 })}
-              placeholder="Left"
-              title="Remaining"
+              placeholder="0"
+              aria-label="Remaining tickets"
             />
             <button
               type="button"

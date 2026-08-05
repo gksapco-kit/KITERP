@@ -18,6 +18,7 @@ export type ModuleFormState = {
   bookingsEnabled: boolean
   subscriptionsEnabled: boolean
   projectsEnabled: boolean
+  rentalsEnabled: boolean
 }
 
 function normalizeRoleKey(role: string | undefined | null): string {
@@ -45,6 +46,7 @@ export function getAllModulesEnabledState(
     bookingsEnabled: true,
     subscriptionsEnabled: true,
     projectsEnabled: true,
+    rentalsEnabled: true,
   }
 }
 
@@ -70,6 +72,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       bookingsEnabled: true,
       subscriptionsEnabled: true,
       projectsEnabled: true,
+      rentalsEnabled: true,
     }
   }
 
@@ -91,6 +94,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       bookingsEnabled: true,
       subscriptionsEnabled: true,
       projectsEnabled: true,
+      rentalsEnabled: true,
     }
   }
 
@@ -112,6 +116,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       bookingsEnabled: false,
       subscriptionsEnabled: false,
       projectsEnabled: false,
+      rentalsEnabled: false,
     }
   }
 
@@ -132,6 +137,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
     bookingsEnabled: true,
     subscriptionsEnabled: true,
     projectsEnabled: true,
+    rentalsEnabled: true,
   }
 }
 
@@ -157,6 +163,7 @@ export function moduleFormStateFromVendor(
     bookingsEnabled: s?.bookings_enabled !== false,
     subscriptionsEnabled: s?.subscriptions_enabled !== false,
     projectsEnabled: s?.projects_enabled !== false,
+    rentalsEnabled: s?.rentals_enabled !== false,
   }
 }
 
@@ -177,6 +184,7 @@ export function moduleFormStatesEqual(a: ModuleFormState, b: ModuleFormState): b
     a.bookingsEnabled === b.bookingsEnabled &&
     a.subscriptionsEnabled === b.subscriptionsEnabled &&
     a.projectsEnabled === b.projectsEnabled &&
+    a.rentalsEnabled === b.rentalsEnabled &&
     a.hrBusinessUnitIds.length === b.hrBusinessUnitIds.length &&
     a.hrBusinessUnitIds.every((id, i) => id === b.hrBusinessUnitIds[i])
   )
@@ -205,6 +213,7 @@ export function buildModuleSettingsPayload(
       bookings_enabled: state.bookingsEnabled,
       subscriptions_enabled: state.subscriptionsEnabled,
       projects_enabled: state.projectsEnabled,
+      rentals_enabled: state.rentalsEnabled,
     },
   }
   if (includeOfferingType) {

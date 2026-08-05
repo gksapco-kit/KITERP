@@ -83,6 +83,22 @@ async def get_my_vendor(
     return vendor
 
 
+@router.get("/me/accessible")
+async def list_accessible_vendors(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all business accounts the current user has access to (owned + active team memberships).
+
+    Used by the frontend business-switcher so users who belong to multiple tenants
+    can change their active business without logging out.
+    """
+    from app.repositories.vendor_repo import VendorRepository
+    repo = VendorRepository(db)
+    items = await repo.list_accessible_by_user(current_user.id)
+    return {"items": items}
+
+
 @router.put("/me", response_model=VendorResponse)
 async def update_my_vendor(
     data: VendorUpdate,

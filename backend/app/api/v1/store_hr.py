@@ -21,7 +21,7 @@ from app.models.vendor_user import VendorUser
 from app.models.hr import EmployeeProfile, PayrollEntry, AttendanceRecord
 from app.models.hr_recruit import OnboardingTask, OnboardingChecklist
 from app.models.hr_training import TrainingCertificate, TrainingProgram
-from app.api.v1.vendor_hr import LeaveRequestIn, ClockInOut
+from app.api.v1.vendor_hr import LeaveRequestIn, ClockInOut, LocationPingIn
 from app.api.v1.vendor_hr_extra import (
     _d,
     _current_employee,
@@ -453,6 +453,54 @@ async def ess_clock_out(
     record = await svc.clock_out(emp.id, body.location)
     await db.commit()
     return _d(record)
+
+
+@router.post("/ess/tracking/ping", status_code=204)
+async def ess_tracking_ping(
+    body: LocationPingIn,
+    vu: VendorUser = Depends(get_current_store_hr_vendor_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Employee ESS: push a GPS breadcrumb while on duty."""
+    import uuid as _uuid_mod
+    import datetime as _dt
+    from fastapi.responses import Response
+    from app.models.hr import EmployeeLocationPing
+
+    svc = HRService(db)
+    emp = await svc.emp_repo.get_by_vendor_user(vu.id)
+    if not emp:
+        raise HTTPException(404, "No employee profile found")
+    if not emp.tracking_enabled:
+        raise HTTPException(403, "Location tracking is not enabled for this employee")
+
+    today = _dt.date.today()
+    att = await svc.att_repo.get_today(emp.id, today)
+    if not att or not att.clock_in:
+        raise HTTPException(400, "Must be clocked in to send location")
+    if att.clock_out:
+        raise HTTPException(400, "Already clocked out")
+
+    now = _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc)
+    ping = EmployeeLocationPing(
+        id=_uuid_mod.uuid4(),
+        employee_id=emp.id,
+        vendor_id=vu.vendor_id,
+        lat=body.lat,
+        lng=body.lng,
+        accuracy=body.accuracy,
+        speed=body.speed,
+        heading=body.heading,
+        battery=body.battery,
+        source=body.source,
+        recorded_at=body.recorded_at or now,
+    )
+    db.add(ping)
+    emp.last_lat = body.lat
+    emp.last_lng = body.lng
+    emp.last_seen_at = now
+    await db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/ess/attendance/today")

@@ -63,10 +63,20 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
   useEffect(() => {
     if (!open) return
     const first = assets.find((a) => !['maintenance', 'unavailable', 'retired'].includes(a.status || ''))
+    const defaultPlan = (() => {
+      if (!first) return 'daily'
+      if (Number(first.per_minute_rate) > 0) return 'per_minute'
+      if (Number(first.hourly_rate) > 0) return 'hourly'
+      if (Number(first.daily_rate) > 0) return 'daily'
+      if (Number(first.weekly_rate) > 0) return 'weekly'
+      if (Number(first.monthly_rate) > 0) return 'monthly'
+      if (Number(first.yearly_rate) > 0) return 'yearly'
+      return 'daily'
+    })()
     setForm({
       ...emptyForm(),
       asset_id: first?.id || '',
-      pricing_plan: Number(first?.monthly_rate) > 0 ? 'monthly' : 'daily',
+      pricing_plan: defaultPlan,
     })
     setCreditHint(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,11 +194,22 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
                 onChange={(v) => {
                   const id = v === '__none__' ? '' : v
                   const asset = assets.find((a) => a.id === id)
+                  // Pick the best default plan for this asset
+                  const bestPlan = (a: typeof asset) => {
+                    if (!a) return 'daily'
+                    if (Number(a.per_minute_rate) > 0) return 'per_minute'
+                    if (Number(a.hourly_rate) > 0) return 'hourly'
+                    if (Number(a.daily_rate) > 0) return 'daily'
+                    if (Number(a.weekly_rate) > 0) return 'weekly'
+                    if (Number(a.monthly_rate) > 0) return 'monthly'
+                    if (Number(a.yearly_rate) > 0) return 'yearly'
+                    return 'daily'
+                  }
                   setForm((f) => ({
                     ...f,
                     asset_id: id,
                     sales_area_id: asset?.sales_area_id || f.sales_area_id,
-                    pricing_plan: Number(asset?.monthly_rate) > 0 ? f.pricing_plan : 'daily',
+                    pricing_plan: bestPlan(asset),
                     quantity: f.quantity || '1',
                   }))
                 }}
@@ -254,13 +275,21 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
               />
             </div>
             <div>
-              <FieldLabel>{`Quantity${selectedAsset ? ` (${selectedAsset.capacity_unit || 'units'})` : ''}`}</FieldLabel>
+              <FieldLabel>Quantity</FieldLabel>
               <Input
                 type="number"
                 min={1}
+                max={selectedAsset?.available_capacity ?? undefined}
                 value={form.quantity}
                 onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
               />
+              {selectedAsset && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Available: <strong className="text-foreground">{selectedAsset.available_capacity ?? '—'}</strong>
+                  {selectedAsset.capacity_unit ? ` ${selectedAsset.capacity_unit}` : ''}
+                  {' · '}Max: {selectedAsset.capacity_max ?? '—'}
+                </p>
+              )}
             </div>
             <div>
               <FieldLabel>Pricing plan</FieldLabel>
@@ -268,9 +297,17 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
                 value={form.pricing_plan}
                 onChange={(v) => setForm((f) => ({ ...f, pricing_plan: v }))}
                 options={[
-                  { value: 'daily', label: 'Daily' },
-                  ...(Number(selectedAsset?.weekly_rate) > 0 ? [{ value: 'weekly', label: 'Weekly' }] : []),
-                  ...(Number(selectedAsset?.monthly_rate) > 0 ? [{ value: 'monthly', label: 'Monthly' }] : []),
+                  ...(Number(selectedAsset?.per_minute_rate) > 0
+                    ? [{ value: 'per_minute', label: `Per Minute · ₹${selectedAsset!.per_minute_rate}/min` }] : []),
+                  ...(Number(selectedAsset?.hourly_rate) > 0
+                    ? [{ value: 'hourly', label: `Hourly · ₹${selectedAsset!.hourly_rate}/hr` }] : []),
+                  { value: 'daily', label: `Daily · ₹${selectedAsset?.daily_rate ?? 0}/day` },
+                  ...(Number(selectedAsset?.weekly_rate) > 0
+                    ? [{ value: 'weekly', label: `Weekly · ₹${selectedAsset!.weekly_rate}/wk` }] : []),
+                  ...(Number(selectedAsset?.monthly_rate) > 0
+                    ? [{ value: 'monthly', label: `Monthly · ₹${selectedAsset!.monthly_rate}/mo` }] : []),
+                  ...(Number(selectedAsset?.yearly_rate) > 0
+                    ? [{ value: 'yearly', label: `Yearly · ₹${selectedAsset!.yearly_rate}/yr` }] : []),
                 ]}
               />
             </div>

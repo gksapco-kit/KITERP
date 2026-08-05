@@ -8,7 +8,7 @@ const LS_SECTION_VERSION = 'kiterp.vendor.sidebar.section-order-version'
  * Bump when the built-in top-level module order changes.
  * Users below this version get the canonical order on next load (fixes stale prod localStorage).
  */
-export const SIDEBAR_SECTION_ORDER_VERSION = 3
+export const SIDEBAR_SECTION_ORDER_VERSION = 4
 
 /** Canonical module order — must match `allSections` in DashboardLayout.tsx. */
 export const CANONICAL_SIDEBAR_SECTION_IDS = [
@@ -18,6 +18,7 @@ export const CANONICAL_SIDEBAR_SECTION_IDS = [
   'inventory',
   'master-data',
   'crm',
+  'rental',
   'production',
   'pharma',
   'restaurant',
@@ -44,6 +45,13 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/queries': 'my-kit',
   '/purchase-orders': 'procurement',
   '/procurement/goods': 'inventory',
+  '/rental/dashboard': 'rental',
+  '/rental/assets': 'rental',
+  '/rental/bookings': 'rental',
+  '/rental/calendar': 'rental',
+  '/rental/returns': 'rental',
+  '/rental/reports': 'rental',
+  '/rental/settings': 'rental',
   '/system/messages': 'system',
   '/crm/integrations': 'system',
   '/team': 'system',

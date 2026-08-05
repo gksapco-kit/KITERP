@@ -187,6 +187,54 @@ class VendorRepository(BaseRepository[Vendor]):
         )
         return result.scalars().first()
     
+    async def list_accessible_by_user(self, user_id: UUID) -> List[Dict[str, Any]]:
+        """Return all businesses the user owns or is an active team member of.
+
+        Returns dicts with id, display_name, business_name, slug, logo_url, role.
+        Deduplicates by vendor id and sorts by display_name.
+        """
+        from app.models.vendor import VendorOwner
+
+        seen: dict[UUID, Dict[str, Any]] = {}
+
+        owned_result = await self.db.execute(
+            select(Vendor)
+            .join(VendorOwner, VendorOwner.vendor_id == Vendor.id)
+            .where(VendorOwner.user_id == user_id, VendorOwner.is_primary == True)
+            .order_by(Vendor.created_at.asc())
+        )
+        for v in owned_result.scalars().all():
+            if v.id not in seen:
+                seen[v.id] = {
+                    "id": str(v.id),
+                    "display_name": v.display_name,
+                    "business_name": v.business_name,
+                    "slug": v.slug,
+                    "logo_url": v.logo_url,
+                    "role": "owner",
+                }
+
+        member_result = await self.db.execute(
+            select(Vendor, VendorUser.role, VendorUser.role_id)
+            .join(VendorUser, VendorUser.vendor_id == Vendor.id)
+            .where(VendorUser.user_id == user_id, VendorUser.is_active == True)
+            .order_by(Vendor.created_at.asc())
+        )
+        for v, role, _role_id in member_result.all():
+            if v.id not in seen:
+                seen[v.id] = {
+                    "id": str(v.id),
+                    "display_name": v.display_name,
+                    "business_name": v.business_name,
+                    "slug": v.slug,
+                    "logo_url": v.logo_url,
+                    "role": role or "staff",
+                }
+
+        items = list(seen.values())
+        items.sort(key=lambda x: (x.get("display_name") or x.get("business_name") or "").lower())
+        return items
+
     async def get_documents(self, vendor_id: UUID) -> List[VendorDocument]:
         """Get all documents for a vendor."""
         result = await self.db.execute(

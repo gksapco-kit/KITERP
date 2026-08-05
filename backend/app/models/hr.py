@@ -142,7 +142,14 @@ class EmployeeProfile(Base):
         backref="direct_reports",
     )
     documents = relationship("EmployeeDocument", back_populates="employee", cascade="all, delete-orphan")
+    # Field / geo tracking
+    tracking_enabled = Column(Boolean, default=False)   # vendor opt-in per employee
+    last_lat = Column(Numeric(10, 8))
+    last_lng = Column(Numeric(11, 8))
+    last_seen_at = Column(DateTime(timezone=True))
+
     attendance_records = relationship("AttendanceRecord", back_populates="employee", cascade="all, delete-orphan")
+    location_pings = relationship("EmployeeLocationPing", back_populates="employee", cascade="all, delete-orphan")
     leave_requests = relationship("LeaveRequest", back_populates="employee", cascade="all, delete-orphan")
     leave_balances = relationship("LeaveBalance", back_populates="employee", cascade="all, delete-orphan")
     salary_structures = relationship("SalaryStructure", back_populates="employee", cascade="all, delete-orphan")
@@ -436,3 +443,38 @@ class OfferLetter(Base):
     designation = relationship("Designation", foreign_keys=[designation_id])
     department = relationship("Department", foreign_keys=[department_id])
     template = relationship("OfferLetterTemplate", foreign_keys=[template_id])
+
+
+class EmployeeLocationPing(Base):
+    """GPS breadcrumb emitted by the employee's phone while on duty."""
+    __tablename__ = "hr_employee_location_ping"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    employee_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("hr_employee_profile.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    vendor_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("vendor.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    lat = Column(Numeric(10, 8), nullable=False)
+    lng = Column(Numeric(11, 8), nullable=False)
+    accuracy = Column(Numeric(8, 2))          # metres
+    speed = Column(Numeric(6, 2))             # m/s
+    heading = Column(Numeric(5, 2))           # degrees 0-360
+    battery = Column(Integer)                 # % (0-100), optional
+    source = Column(String(10), default="app")  # app | web
+    recorded_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    employee = relationship("EmployeeProfile", back_populates="location_pings")
+
+    __table_args__ = (
+        Index("ix_hr_loc_ping_emp_time", "employee_id", "recorded_at"),
+        Index("ix_hr_loc_ping_vendor_time", "vendor_id", "recorded_at"),
+    )

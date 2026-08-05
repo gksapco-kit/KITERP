@@ -3,6 +3,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
+import { THEME_SELECT_MENU_ATTR } from '@/components/common/ThemeSelect'
 
 const Sheet = DialogPrimitive.Root
 const SheetTrigger = DialogPrimitive.Trigger
@@ -52,6 +53,8 @@ interface SheetContentProps
 
 function isOutsideLayerTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
+  // ThemeSelect menus portal to document.body, so they read as "outside" this sheet
+  if (target.closest(`[${THEME_SELECT_MENU_ATTR}]`)) return true
   // Legacy custom portals (ModalOverlay)
   if (target.closest('[data-kiterp-portal-modal]')) return true
   // Nested Radix Dialog content (image picker) — not this sheet

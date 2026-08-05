@@ -11,12 +11,13 @@ import { Badge } from '@/components/ui/badge'
 import { useContacts, useSaveContact } from '@/hooks/useCrm'
 import { useTeamMembers } from '@/hooks/useVendor'
 import type { Contact } from '@/api/crm'
-import { Plus, Loader2, UserPlus, Mail, Phone, Pencil, Building2, User, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Loader2, UserPlus, Mail, Phone, Pencil, Building2, User, ChevronDown, ChevronUp, FileSpreadsheet, History } from 'lucide-react'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { normalizePhoneE164 } from '@/lib/phoneE164'
 import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
 import { useCrmExtras, CrmExtrasView } from './crmExtras'
 import { SALUTATIONS, contactDisplayName } from './crmContactsShared'
+import { ContactsImportHistoryModal, ContactsImportModal } from './ContactsImport'
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 
@@ -497,6 +498,8 @@ export default function ContactsPage() {
   const [typeFilter, setTypeFilter] = useState<RecordFilter>(initialType)
   const [showCreate, setShowCreate] = useState(false)
   const [createType, setCreateType] = useState<'person' | 'company'>('person')
+  const [showImport, setShowImport] = useState(false)
+  const [showImportHistory, setShowImportHistory] = useState(false)
   const [viewing, setViewing] = useState<Contact | null>(null)
   const [editing, setEditing] = useState<Contact | null>(null)
 
@@ -522,7 +525,13 @@ export default function ContactsPage() {
         <p className="min-w-0 text-xs text-muted-foreground">
           People and companies for CRM outreach
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="h-8 gap-1.5 px-3 text-sm" onClick={() => setShowImport(true)}>
+            <FileSpreadsheet className="h-3.5 w-3.5" /> Import Excel
+          </Button>
+          <Button variant="outline" className="h-8 gap-1.5 px-3 text-sm" onClick={() => setShowImportHistory(true)}>
+            <History className="h-3.5 w-3.5" /> Import History
+          </Button>
           <Button variant="outline" className="h-8 gap-1.5 px-3 text-sm" onClick={() => openCreate('company')}>
             <Building2 className="h-3.5 w-3.5" /> Add company
           </Button>
@@ -613,6 +622,14 @@ export default function ContactsPage() {
 
       {showCreate && (
         <ContactForm defaultType={createType} onClose={() => setShowCreate(false)} />
+      )}
+
+      {showImport && (
+        <ContactsImportModal onClose={() => setShowImport(false)} />
+      )}
+
+      {showImportHistory && (
+        <ContactsImportHistoryModal onClose={() => setShowImportHistory(false)} />
       )}
 
       {viewing && !editing && (

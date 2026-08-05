@@ -160,3 +160,88 @@ async def update_rental_delivery(
     _user: User = Depends(get_current_active_user),
 ):
     return await RentalService(db).update_delivery(vendor_id, booking_id, body)
+
+
+# ── Sub-assets: child assets (hierarchy mode) ─────────────────────────
+
+@router.get("/assets/{asset_id}/children")
+async def list_asset_children(
+    asset_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    return await RentalService(db).list_asset_children(vendor_id, asset_id)
+
+
+# ── Sub-assets: serialized units ─────────────────────────────────────
+
+@router.get("/assets/{asset_id}/units")
+async def list_asset_units(
+    asset_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    return await RentalService(db).list_asset_units(vendor_id, asset_id)
+
+
+@router.post("/assets/{asset_id}/units", status_code=201, dependencies=[Depends(require_permission("rentals.manage"))])
+async def create_asset_unit(
+    asset_id: UUID,
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    return await RentalService(db).create_asset_unit(vendor_id, asset_id, body)
+
+
+@router.post("/assets/{asset_id}/units/bulk", status_code=201, dependencies=[Depends(require_permission("rentals.manage"))])
+async def bulk_create_asset_units(
+    asset_id: UUID,
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Bulk-create sequentially numbered serialized units.
+
+    Body: prefix, start, end, padding, suffix, condition
+    """
+    return await RentalService(db).bulk_create_asset_units(vendor_id, asset_id, body)
+
+
+@router.patch("/assets/{asset_id}/units/{unit_id}", dependencies=[Depends(require_permission("rentals.manage"))])
+async def update_asset_unit(
+    asset_id: UUID,
+    unit_id: UUID,
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    return await RentalService(db).update_asset_unit(vendor_id, asset_id, unit_id, body)
+
+
+@router.delete("/assets/{asset_id}/units/{unit_id}", dependencies=[Depends(require_permission("rentals.manage"))])
+async def delete_asset_unit(
+    asset_id: UUID,
+    unit_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    return await RentalService(db).delete_asset_unit(vendor_id, asset_id, unit_id)
+
+
+# ── Return history ─────────────────────────────────────────────────────
+
+@router.get("/bookings/{booking_id}/returns")
+async def list_return_history(
+    booking_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    return await RentalService(db).list_return_history(vendor_id, booking_id)

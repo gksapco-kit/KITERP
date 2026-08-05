@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { vendorApi } from '@/api/vendor'
+import { apiClient } from '@/api/client'
 import { apiError } from '@/lib/errorMessages'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -76,6 +77,8 @@ export const vendorKeys = {
   hrEmployee: (id: string) => [...vendorKeys.all, 'hr-employee', id] as const,
   hrAttendance: (params?: Record<string, unknown>) => [...vendorKeys.all, 'hr-attendance', params] as const,
   hrAttendanceReport: (month: number, year: number) => [...vendorKeys.all, 'hr-att-report', month, year] as const,
+  hrTrackingLive: () => [...vendorKeys.all, 'hr-tracking-live'] as const,
+  hrTrackingTrail: (id: string, p?: Record<string, unknown>) => [...vendorKeys.all, 'hr-tracking-trail', id, p] as const,
   hrMyToday: () => [...vendorKeys.all, 'hr-my-today'] as const,
   hrLeavePolicies: () => [...vendorKeys.all, 'hr-leave-policies'] as const,
   hrLeaveRequests: (params?: Record<string, unknown>) => [...vendorKeys.all, 'hr-leave-requests', params] as const,
@@ -119,6 +122,29 @@ export function useMyVendor() {
           : vendor
       setVendor(merged)
       return merged
+    },
+    enabled: Boolean(accessToken),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+}
+
+export interface AccessibleVendorItem {
+  id: string
+  display_name: string
+  business_name: string
+  slug: string
+  logo_url: string | null
+  role: string
+}
+
+export function useAccessibleVendors() {
+  const accessToken = useAuthStore((s) => s.accessToken)
+  return useQuery<{ items: AccessibleVendorItem[] }>({
+    queryKey: [...vendorKeys.all, 'accessible-vendors'] as const,
+    queryFn: async () => {
+      const res = await apiClient.get('/vendors/me/accessible')
+      return res.data
     },
     enabled: Boolean(accessToken),
     staleTime: 5 * 60 * 1000,
@@ -2377,6 +2403,40 @@ export function useHRMarkAttendanceRange() {
 }
 export function useHRAttendanceReport(month: number, year: number) {
   return useQuery({ queryKey: vendorKeys.hrAttendanceReport(month, year), queryFn: () => vendorApi.hrAttendanceReport(month, year), staleTime: 60_000 })
+}
+
+// ── Field / Geo Tracking ──────────────────────────────────────────────────────
+export function useHRTrackingLive(refetchIntervalMs = 30_000) {
+  return useQuery({
+    queryKey: [...vendorKeys.all, 'hr-tracking-live'],
+    queryFn: vendorApi.hrTrackingLive,
+    refetchInterval: refetchIntervalMs,
+    staleTime: 0,
+  })
+}
+export function useHRTrackingTrail(
+  employeeId: string | null,
+  params?: { from_dt?: string; to_dt?: string },
+) {
+  return useQuery({
+    queryKey: [...vendorKeys.all, 'hr-tracking-trail', employeeId, params],
+    queryFn: () => vendorApi.hrTrackingTrail(employeeId!, params),
+    enabled: !!employeeId,
+    staleTime: 30_000,
+  })
+}
+export function useHRToggleTracking() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ employeeId, enabled }: { employeeId: string; enabled: boolean }) =>
+      vendorApi.hrToggleTracking(employeeId, enabled),
+    onSuccess: (_, { enabled }) => {
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'hr-tracking-live'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.hrEmployeesRoot() })
+      toast.success(enabled ? 'Location tracking enabled' : 'Location tracking disabled')
+    },
+    onError: apiError('Could not update tracking setting'),
+  })
 }
 
 // Leaves

@@ -436,6 +436,12 @@ export const adminApi = {
     return response.data
   },
 
+  /** Handoff into the internal KIT ERP platform tenant for admin Finance (not a customer BU). */
+  createPlatformFinanceDashboardHandoff: async (): Promise<VendorDashboardHandoffResponse> => {
+    const response = await apiClient.post('/admin/platform-finance/dashboard-handoff')
+    return response.data
+  },
+
 
   listOrderDisputes: async (params?: {
     status?: string

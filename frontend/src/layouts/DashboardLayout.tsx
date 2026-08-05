@@ -21,6 +21,7 @@ import {
   UsersRound,
   ShieldCheck,
   UserCog,
+  Landmark,
   ChevronDown,
   X,
   type LucideIcon,
@@ -31,6 +32,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { getDashboardUserRoleLabel, isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
 import { HR_ADMIN_BASE, HR_ADMIN_NAV_ITEMS, getHrAdminNavItem } from '@/lib/hrAdminNav'
 import { CRM_ADMIN_BASE, CRM_ADMIN_NAV_ITEMS, getCrmAdminNavItem } from '@/lib/crmAdminNav'
+import { FINANCE_ADMIN_BASE, FINANCE_ADMIN_NAV_ITEMS, getFinanceAdminNavItem } from '@/lib/financeAdminNav'
 import { useVendorStore } from '@/stores/vendorStore'
 import { Button } from '@/components/ui/button'
 import ResponsiveViewportBadge from '@/components/dev/ResponsiveViewportBadge'
@@ -41,6 +43,7 @@ type NavItem = {
   label: string
   expandableHr?: boolean
   expandableCrm?: boolean
+  expandableFinance?: boolean
 }
 
 const vendorNavItems: NavItem[] = [
@@ -61,6 +64,7 @@ const adminNavItemsSuperuser: NavItem[] = [
   { to: '/dashboard/user-roles', icon: ShieldCheck, label: 'User Roles' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: CRM_ADMIN_BASE, icon: UsersRound, label: 'CRM Management', expandableCrm: true },
+  { to: FINANCE_ADMIN_BASE, icon: Landmark, label: 'Finance Management', expandableFinance: true },
   { to: HR_ADMIN_BASE, icon: UserCog, label: 'HR Management', expandableHr: true },
   { to: '/dashboard/disputes', icon: AlertTriangle, label: 'Disputes' },
   { to: '/dashboard/table-data', icon: Table2, label: 'Table Data' },
@@ -73,6 +77,7 @@ const adminNavItemsSupport: NavItem[] = [
   { to: '/dashboard/website-analytics', icon: BarChart3, label: 'Website Analytics' },
   { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
   { to: CRM_ADMIN_BASE, icon: UsersRound, label: 'CRM Management', expandableCrm: true },
+  { to: FINANCE_ADMIN_BASE, icon: Landmark, label: 'Finance Management', expandableFinance: true },
   { to: HR_ADMIN_BASE, icon: UserCog, label: 'HR Management', expandableHr: true },
 ]
 
@@ -116,6 +121,7 @@ const adminPageTitles: Record<string, string> = {
   '/dashboard/user-roles': 'User Roles',
   '/dashboard/account-activity': 'Account Activity',
   '/dashboard/crm': 'CRM Management',
+  '/dashboard/finance': 'Finance Management',
   '/dashboard/hr': 'HR Management',
   '/dashboard/disputes': 'Disputes',
   '/dashboard/table-data': 'Table Data',
@@ -123,6 +129,73 @@ const adminPageTitles: Record<string, string> = {
   '/dashboard/products': 'Products',
   '/dashboard/services': 'Services',
   '/dashboard/inventory': 'Inventory',
+}
+
+function FinanceExpandableNav({
+  onNavigate,
+}: {
+  onNavigate: () => void
+}) {
+  const location = useLocation()
+  const onFinanceRoute =
+    location.pathname === FINANCE_ADMIN_BASE || location.pathname.startsWith(`${FINANCE_ADMIN_BASE}/`)
+  const [expanded, setExpanded] = useState(onFinanceRoute)
+
+  useEffect(() => {
+    if (onFinanceRoute) setExpanded(true)
+  }, [onFinanceRoute])
+
+  return (
+    <div className="space-y-1">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls="admin-finance-submenu"
+        onClick={() => setExpanded((v) => !v)}
+        className={cn(
+          'flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors',
+          onFinanceRoute
+            ? 'bg-gray-100 text-gray-900'
+            : 'text-gray-600 hover:bg-gray-100',
+        )}
+      >
+        <Landmark className="h-5 w-5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left">Finance Management</span>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200',
+            expanded && 'rotate-180',
+          )}
+        />
+      </button>
+
+      {expanded ? (
+        <div id="admin-finance-submenu" className="space-y-1 pl-3" role="group" aria-label="Finance Management pages">
+          {FINANCE_ADMIN_NAV_ITEMS.map((item) => {
+            const to = `${FINANCE_ADMIN_BASE}/${item.slug}`
+            return (
+              <NavLink
+                key={item.slug}
+                to={to}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-gray-600 hover:bg-gray-100',
+                  )
+                }
+              >
+                <item.icon className="h-5 w-5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              </NavLink>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function CrmExpandableNav({
@@ -277,7 +350,9 @@ export default function DashboardLayout() {
     location.pathname === HR_ADMIN_BASE || location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
   const isCrmIframeShell =
     location.pathname === CRM_ADMIN_BASE || location.pathname.startsWith(`${CRM_ADMIN_BASE}/`)
-  const isModuleIframeShell = isHrIframeShell || isCrmIframeShell
+  const isFinanceIframeShell =
+    location.pathname === FINANCE_ADMIN_BASE || location.pathname.startsWith(`${FINANCE_ADMIN_BASE}/`)
+  const isModuleIframeShell = isHrIframeShell || isCrmIframeShell || isFinanceIframeShell
 
   const hrSlug = location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
     ? location.pathname.slice(HR_ADMIN_BASE.length + 1).split('/')[0]
@@ -289,16 +364,24 @@ export default function DashboardLayout() {
     : undefined
   const crmItem = getCrmAdminNavItem(crmSlug)
 
-  const pageLabel = crmItem
+  const financeSlug = location.pathname.startsWith(`${FINANCE_ADMIN_BASE}/`)
+    ? location.pathname.slice(FINANCE_ADMIN_BASE.length + 1).split('/')[0]
+    : undefined
+  const financeItem = getFinanceAdminNavItem(financeSlug)
+
+  const pageLabel = financeItem
+    ? `Finance · ${financeItem.label}`
+    : crmItem
       ? `CRM · ${crmItem.label}`
       : hrItem
         ? `HR · ${hrItem.label}`
         : adminPageTitles[location.pathname]
           || (location.pathname.startsWith('/dashboard/vendors/') ? 'Business Account'
             : location.pathname.startsWith('/dashboard/platform-team/') ? 'Team Member'
-              : location.pathname.startsWith(CRM_ADMIN_BASE) ? 'CRM Management'
-                : location.pathname.startsWith(HR_ADMIN_BASE) ? 'HR Management'
-                  : 'Dashboard')
+              : location.pathname.startsWith(FINANCE_ADMIN_BASE) ? 'Finance Management'
+                : location.pathname.startsWith(CRM_ADMIN_BASE) ? 'CRM Management'
+                  : location.pathname.startsWith(HR_ADMIN_BASE) ? 'HR Management'
+                    : 'Dashboard')
 
   useDocumentSeo({
     title: adminPageTitle(pageLabel),
@@ -361,6 +444,8 @@ export default function DashboardLayout() {
             {navItems.map((item) =>
               item.expandableCrm ? (
                 <CrmExpandableNav key={item.to} onNavigate={closeSidebar} />
+              ) : item.expandableFinance ? (
+                <FinanceExpandableNav key={item.to} onNavigate={closeSidebar} />
               ) : item.expandableHr ? (
                 <HrExpandableNav key={item.to} onNavigate={closeSidebar} />
               ) : (

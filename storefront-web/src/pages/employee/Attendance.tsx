@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { LogIn, LogOut, Clock, CheckCircle, CalendarRange } from 'lucide-react'
+import { LogIn, LogOut, Clock, CheckCircle, CalendarRange, MapPin, Wifi } from 'lucide-react'
 import {
   useESSTodayAttendance,
   useESSClockIn,
   useESSClockOut,
   useESSAttendance,
+  useESSLocationPing,
 } from '@/hooks/useESS'
 import { EssMarkSingleModal, EssMarkRangeModal } from './AttendanceSelfMarkModals'
 
@@ -33,6 +34,9 @@ export default function ESSAttendancePage() {
   const rec        = today?.record
   const clockedIn  = today?.clocked_in
   const clockedOut = today?.clocked_out
+
+  // Send GPS breadcrumbs while on duty (every 60 s)
+  useESSLocationPing({ active: !!clockedIn && !clockedOut })
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -77,13 +81,30 @@ export default function ESSAttendancePage() {
                   Clock In: {rec?.clock_in
                     ? new Date(rec.clock_in).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
                     : '—'}
+                  {rec?.clock_in_location && (
+                    <span className="ml-2 text-xs text-blue-400">
+                      <MapPin className="inline w-3 h-3" />
+                      {' '}{Number(rec.clock_in_location.lat).toFixed(4)}, {Number(rec.clock_in_location.lng).toFixed(4)}
+                    </span>
+                  )}
                 </p>
                 <p className="text-sm text-gray-700">
                   <Clock className="inline w-4 h-4 mr-1 text-orange-500" />
                   Clock Out: {rec?.clock_out
                     ? new Date(rec.clock_out).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
                     : '—'}
+                  {rec?.clock_out_location && (
+                    <span className="ml-2 text-xs text-orange-400">
+                      <MapPin className="inline w-3 h-3" />
+                      {' '}{Number(rec.clock_out_location.lat).toFixed(4)}, {Number(rec.clock_out_location.lng).toFixed(4)}
+                    </span>
+                  )}
                 </p>
+                {clockedIn && !clockedOut && (
+                  <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                    <Wifi className="w-3 h-3" /> Location is being shared with HR
+                  </p>
+                )}
                 {rec?.work_hours != null && (
                   <p className="text-sm font-medium text-green-700">
                     <CheckCircle className="inline w-4 h-4 mr-1" />

@@ -22,7 +22,7 @@ import {
   GripVertical, SlidersHorizontal, Database, Table2, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2, Hash, QrCode, Pill, FlaskConical, Microscope,
   ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin, Quote, X,
-  ThermometerSnowflake, Network,
+  ThermometerSnowflake, Network, CalendarCheck2, CalendarDays, RotateCcw,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
 import { isVendorAdminEmbed } from '@/lib/adminEmbed'
@@ -135,10 +135,11 @@ import { Select } from '@/components/ui/select'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { applyDocumentSeo, vendorAppPageTitle } from '@/lib/documentSeo'
 import { useESSProfile } from '@/hooks/useVendor'
-import { useMyVendor, useMyPlan, useStores, useOrderStats } from '@/hooks/useVendor'
+import { useMyVendor, useMyPlan, useStores, useOrderStats, useAccessibleVendors } from '@/hooks/useVendor'
+import type { AccessibleVendorItem } from '@/hooks/useVendor'
 import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
 import { Button } from '@/components/ui/button'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { vendorApi } from '@/api/vendor'
 import { toast } from 'sonner'
@@ -171,6 +172,7 @@ import {
   isBookingsNavVisible,
   isSubscriptionsNavVisible,
   isProjectsNavVisible,
+  isRentalsNavVisible,
 } from '@/lib/vendorModuleSettings'
 import {
   DndContext,
@@ -602,7 +604,6 @@ const allSections: NavSection[] = [
       { to: '/invoices', icon: FileText, label: 'Invoices', requiresPermission: 'invoices.view', groupLabel: 'Billing & Adjustments', groupColor: 'amber' },
       { to: '/memos', icon: FilePlus, label: 'Credit / Debit Memos', requiresPermission: 'memos.view' },
       { to: '/coupons', icon: Tag, label: 'Coupons', requiresPermission: 'coupons.view' },
-      { to: '/rental', icon: Truck, label: 'Rentals', requiresPermission: 'rentals.view' },
       { to: '/sales/properties', icon: Building2, label: 'Property Listings', requiresPermission: 'products.view', groupLabel: 'Industry Catalogs', groupColor: 'indigo' },
       { to: '/sales/courses', icon: GraduationCap, label: 'Course Catalog', requiresPermission: 'products.view' },
       { to: '/sales/fitness-classes', icon: Dumbbell, label: 'Fitness Schedule', requiresPermission: 'bookings.view' },
@@ -665,6 +666,20 @@ const allSections: NavSection[] = [
       { to: '/crm/ai', icon: Bot, label: 'AI Insights', requiresPermission: 'crm.ai.use' },
       { to: '/crm/reports', icon: BarChart3, label: 'CRM Reports', requiresPermission: 'crm.reports.view' },
       { to: '/crm/audit', icon: History, label: 'Audit Log', requiresPermission: 'crm.audit.view' },
+    ],
+  },
+  {
+    id: 'rental',
+    title: 'Rental Management',
+    icon: Truck,
+    items: [
+      { to: '/rental/dashboard', icon: LayoutDashboard, label: 'Overview', requiresPermission: 'rentals.view', groupLabel: 'Operations', groupColor: 'blue' },
+      { to: '/rental/assets', icon: Package, label: 'Assets', requiresPermission: 'rentals.view' },
+      { to: '/rental/bookings', icon: CalendarCheck2, label: 'Bookings', requiresPermission: 'rentals.view' },
+      { to: '/rental/calendar', icon: CalendarDays, label: 'Availability Calendar', requiresPermission: 'rentals.view' },
+      { to: '/rental/returns', icon: RotateCcw, label: 'Returns & Settlements', requiresPermission: 'rentals.view' },
+      { to: '/rental/reports', icon: BarChart3, label: 'Reports', requiresPermission: 'reports.view', groupLabel: 'Insights', groupColor: 'violet' },
+      { to: '/rental/settings', icon: Settings2, label: 'Settings', requiresPermission: 'rentals.manage', groupLabel: 'Configuration', groupColor: 'slate' },
     ],
   },
   {
@@ -844,6 +859,7 @@ const allSections: NavSection[] = [
     items: [
       { to: '/hr/employees', icon: UserCog, label: 'Employees', requiresPermission: 'hr.view' },
       { to: '/hr/attendance', icon: Clock, label: 'Attendance', requiresPermission: 'hr.view' },
+      { to: '/hr/tracking', icon: MapPin, label: 'Field Tracking', requiresPermission: 'hr.attendance' },
       { to: '/hr/leaves', icon: Plane, label: 'Leave Requests', requiresPermission: 'hr.view' },
       { to: '/hr/recruitment', icon: Briefcase, label: 'Recruitment', requiresPermission: 'hr.recruitment' },
       { to: '/hr/onboarding', icon: UserCheck, label: 'Onboarding', requiresPermission: 'hr.onboarding' },
@@ -1213,7 +1229,14 @@ const pageTitles: Record<string, string> = {
   '/settings/support-activity': 'Support audit',
   '/subscriptions': 'Subscriptions Catalog',
   '/marketplace': 'Marketplace Leads',
-  '/rental': 'Rentals',
+  '/rental': 'Rental Management',
+  '/rental/dashboard': 'Overview',
+  '/rental/assets': 'Assets',
+  '/rental/bookings': 'Bookings',
+  '/rental/calendar': 'Availability Calendar',
+  '/rental/returns': 'Returns & Settlements',
+  '/rental/reports': 'Reports',
+  '/rental/settings': 'Rental Settings',
   '/invoices': 'Invoices',
   '/memos': 'Credit & Debit Memos',
   '/coupons': 'Coupons',
@@ -1466,7 +1489,7 @@ export default function DashboardLayout() {
   const logout = useLogout()
   const { user, accessToken } = useAuthStore()
   const sessionReady = Boolean(accessToken)
-  const { vendor, selectedStore, setSelectedStore, favouriteStoreId, setFavouriteStoreId } = useVendorStore()
+  const { vendor, selectedStore, setSelectedStore, favouriteStoreId, setFavouriteStoreId, setVendor, clearVendor } = useVendorStore()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   /** Hide chrome edge controls while a full-screen modal overlay is open. */
@@ -1829,6 +1852,10 @@ export default function DashboardLayout() {
   const { show: showBrowserNotif, permission } = useBrowserNotifications()
 
   useMyVendor()
+  const { data: accessibleVendorsData } = useAccessibleVendors()
+  const accessibleVendors = accessibleVendorsData?.items ?? []
+  const qcLayout = useQueryClient()
+
   const { data: myPlanData } = useMyPlan()
   const planFeatures = myPlanData?.plan?.features as Record<string, unknown> | undefined
 
@@ -1983,6 +2010,11 @@ export default function DashboardLayout() {
     [vendorSettings, vendor?.offering_type],
   )
 
+  const rentalNavVisible = useMemo(
+    () => isRentalsNavVisible(vendorSettings),
+    [vendorSettings],
+  )
+
   const canViewOrders = isOwnerOrAdmin || permissions.includes('orders.view')
   const { data: orderStats } = useOrderStats(sessionReady && canViewOrders)
   const pendingOrderCount = orderStats?.pending_orders ?? 0
@@ -2036,6 +2068,7 @@ export default function DashboardLayout() {
           if (section.id === 'controlling' && !controllingNavVisible) return false
           if (section.id === 'production' && !productionNavVisible) return false
           if (section.id === 'pharma' && !pharmaNavVisible) return false
+          if (section.id === 'rental' && !rentalNavVisible) return false
           if (
             section.id === 'restaurant' &&
             !isRestaurantNavVisible(vendorSettings, vendor?.offering_type, planFeatures)
@@ -2046,7 +2079,7 @@ export default function DashboardLayout() {
         })
         .map((section) => ({ ...section, items: section.items.filter(filterItem) }))
         .filter((section) => section.items.length > 0),
-    [filterItem, hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible, controllingNavVisible, productionNavVisible, pharmaNavVisible],
+    [filterItem, hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible, controllingNavVisible, productionNavVisible, pharmaNavVisible, rentalNavVisible],
   )
 
   const { data: essProfile } = useESSProfile()
@@ -2186,6 +2219,24 @@ export default function DashboardLayout() {
 
   // ── Header utility buttons ─────────────────────────────────────────────────
   const navigate = useNavigate()
+
+  const switchVendor = useCallback((item: AccessibleVendorItem) => {
+    if (item.id === vendor?.id) return
+    setProfileOpen(false)
+    // Set the bare vendor stub so the X-Vendor-Id header updates before any re-fetch
+    clearVendor()
+    setVendor({
+      id: item.id,
+      display_name: item.display_name,
+      business_name: item.business_name,
+      slug: item.slug,
+      logo_url: item.logo_url,
+    } as Parameters<typeof setVendor>[0])
+    // Clear all tenant-scoped cached data so nothing bleeds across accounts
+    qcLayout.removeQueries()
+    navigate('/', { replace: true })
+  }, [vendor?.id, clearVendor, setVendor, qcLayout, navigate])
+
   const [helpOpen, setHelpOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const helpRef = useRef<HTMLDivElement>(null)
@@ -4245,6 +4296,39 @@ export default function DashboardLayout() {
                           <span className="flex-1">Plans &amp; Billing</span>
                         </Link>
                       </div>
+
+                      {/* Business switcher — only visible when the user has access to multiple accounts */}
+                      {accessibleVendors.length > 1 && (
+                        <div className="py-1 border-t border-border">
+                          <ProfileMenuLabel>Switch Business</ProfileMenuLabel>
+                          {accessibleVendors.map((v) => {
+                            const isActive = v.id === vendor?.id
+                            return (
+                              <button
+                                key={v.id}
+                                type="button"
+                                onClick={() => switchVendor(v)}
+                                className={cn(
+                                  'flex w-full items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors text-left',
+                                  isActive && 'bg-primary/10 dark:bg-primary/15',
+                                )}
+                              >
+                                {v.logo_url ? (
+                                  <img src={v.logo_url} alt="" className="h-6 w-6 shrink-0 rounded-md object-cover" />
+                                ) : (
+                                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-bold text-muted-foreground uppercase">
+                                    {(v.display_name || v.business_name || '?')[0]}
+                                  </span>
+                                )}
+                                <span className="min-w-0 flex-1 truncate">{v.display_name || v.business_name}</span>
+                                {isActive && (
+                                  <Check className="h-4 w-4 shrink-0 text-primary" />
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
 
                       {/* Workspace section */}
                       <div className="py-1 border-t border-border">

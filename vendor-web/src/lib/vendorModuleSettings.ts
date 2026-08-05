@@ -10,6 +10,7 @@ import {
   Receipt,
   RefreshCw,
   ShoppingBag,
+  Truck,
   UtensilsCrossed,
   UsersRound,
 } from 'lucide-react'
@@ -29,6 +30,7 @@ export type VendorModuleId =
   | 'bookings'
   | 'subscriptions'
   | 'projects'
+  | 'rentals'
 
 export type VendorModuleTile = {
   id: VendorModuleId
@@ -131,6 +133,13 @@ export const VENDOR_MODULE_TILES: VendorModuleTile[] = [
     icon: FolderKanban,
     configurable: true,
   },
+  {
+    id: 'rentals',
+    label: 'Rentals',
+    description: 'Rental asset catalog, bookings, availability calendar, returns, and revenue reports.',
+    icon: Truck,
+    configurable: true,
+  },
 ]
 
 export function offeringIncludes(
@@ -210,6 +219,10 @@ export function isProjectsNavVisible(settings: Record<string, unknown> | undefin
   return flagEnabled(settings, 'projects_enabled')
 }
 
+export function isRentalsNavVisible(settings: Record<string, unknown> | undefined | null): boolean {
+  return flagEnabled(settings, 'rentals_enabled')
+}
+
 /** Short status line for module tiles */
 export function moduleEnabledStatus(
   moduleId: VendorModuleId,
@@ -275,6 +288,10 @@ export function moduleEnabledStatus(
     case 'projects': {
       if (!flagEnabled(settings, 'projects_enabled')) return { enabled: false }
       return { enabled: true, detail: 'Tasks & milestones' }
+    }
+    case 'rentals': {
+      if (!flagEnabled(settings, 'rentals_enabled')) return { enabled: false }
+      return { enabled: true, detail: 'Assets & bookings' }
     }
     default:
       return { enabled: false }

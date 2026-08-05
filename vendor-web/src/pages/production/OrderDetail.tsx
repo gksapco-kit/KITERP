@@ -942,27 +942,39 @@ export default function ProductionOrderDetailPage() {
                   <p className="text-xs font-bold text-green-800 dark:text-green-200 flex items-center gap-1.5">
                     <PackagePlus className="w-3.5 h-3.5" /> Dispatch to Stock
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    <input
-                      type="number"
-                      min={1}
-                      value={dispatchQty}
-                      onChange={e => setDispatchQty(e.target.value)}
-                      placeholder="Qty"
-                      className={`w-24 border border-gray-200 dark:border-border rounded-lg px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 ${FIELD_H}`}
-                    />
-                    <input
-                      value={dispatchBy}
-                      onChange={e => setDispatchBy(e.target.value)}
-                      placeholder="Dispatched by"
-                      className={`border border-gray-200 dark:border-border rounded-lg px-2.5 text-sm flex-1 min-w-[110px] focus:outline-none focus:ring-2 focus:ring-green-400 ${FIELD_H}`}
-                    />
-                    <input
-                      value={dispatchNotes}
-                      onChange={e => setDispatchNotes(e.target.value)}
-                      placeholder="Notes"
-                      className={`border border-gray-200 dark:border-border rounded-lg px-2.5 text-sm flex-1 min-w-[110px] focus:outline-none focus:ring-2 focus:ring-green-400 ${FIELD_H}`}
-                    />
+                  <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-end">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">Qty</p>
+                      <input
+                        type="number"
+                        min={1}
+                        value={dispatchQty}
+                        onChange={e => setDispatchQty(e.target.value)}
+                        placeholder="0"
+                        className={`w-24 border border-gray-200 dark:border-border rounded-lg px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 ${FIELD_H}`}
+                        aria-label="Quantity to dispatch"
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">Dispatched By</p>
+                      <input
+                        value={dispatchBy}
+                        onChange={e => setDispatchBy(e.target.value)}
+                        placeholder="Name"
+                        className={`w-full border border-gray-200 dark:border-border rounded-lg px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 ${FIELD_H}`}
+                        aria-label="Dispatched by"
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">Notes</p>
+                      <input
+                        value={dispatchNotes}
+                        onChange={e => setDispatchNotes(e.target.value)}
+                        placeholder="Optional"
+                        className={`w-full border border-gray-200 dark:border-border rounded-lg px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 ${FIELD_H}`}
+                        aria-label="Dispatch notes"
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => addStockDispatch(order)}
