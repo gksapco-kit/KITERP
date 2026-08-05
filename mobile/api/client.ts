@@ -1,7 +1,9 @@
 import axios from 'axios'
 
-// In production, this would come from environment variables
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:8000/api/v1'
+// Release APKs must hit the public API. 10.0.2.2 only works on Android emulator.
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (__DEV__ ? 'http://10.0.2.2:8000/api/v1' : 'https://kiterp.com/api/v1')
 
 export const apiClient = axios.create({
   baseURL: API_URL,

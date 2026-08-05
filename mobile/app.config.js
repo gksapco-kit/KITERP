@@ -25,11 +25,16 @@ const defaults = {
 const vendorCfg = VENDOR_SLUG ? loadVendorConfig(VENDOR_SLUG) : null;
 
 const appName = vendorCfg?.name || defaults.name;
-const appSlug = vendorCfg?.slug || defaults.slug;
+// Keep Expo/EAS project slug stable — vendor branding uses name/package/scheme only
+const appSlug = defaults.slug;
 const scheme = vendorCfg?.scheme || defaults.scheme;
 const bundleId = vendorCfg?.bundleId || defaults.bundleId;
 const androidPackage = vendorCfg?.package || defaults.package;
 const primaryColor = vendorCfg?.primaryColor || defaults.primaryColor;
+const storefrontBaseUrl =
+  process.env.EXPO_PUBLIC_STOREFRONT_URL ||
+  vendorCfg?.storefrontBaseUrl ||
+  null;
 
 const vendorIconPath = VENDOR_SLUG
   ? `./vendors/${VENDOR_SLUG}/icon.png`
@@ -72,6 +77,8 @@ module.exports = () => ({
         backgroundColor: primaryColor,
       },
       package: androidPackage,
+      // Allow http:// storefront/API during local branded-app testing
+      usesCleartextTraffic: true,
     },
     web: {
       bundler: "metro",
@@ -88,6 +95,7 @@ module.exports = () => ({
     extra: {
       vendorSlug: VENDOR_SLUG,
       isBrandedApp: !!VENDOR_SLUG,
+      storefrontBaseUrl,
       eas: {
         projectId:
           process.env.EAS_PROJECT_ID || "9b598a58-a149-47f9-b5c0-574016f72caa",

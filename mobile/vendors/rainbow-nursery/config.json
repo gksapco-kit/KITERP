@@ -1,0 +1,11 @@
+{
+  "name": "Rainbow Nursery",
+  "slug": "kiterp-rainbow-nursery",
+  "scheme": "kiterp-rainbow-nursery",
+  "package": "com.kiterp.vendor.rainbownursery",
+  "bundleId": "com.kiterp.vendor.rainbownursery",
+  "vendorSlug": "rainbow-nursery",
+  "primaryColor": "#2563eb",
+  "splashColor": "#2563eb",
+  "storefrontBaseUrl": "https://kiterp.com"
+}

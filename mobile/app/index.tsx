@@ -25,12 +25,15 @@ export default function Index() {
     const timer = setTimeout(() => {
       if (!isAuthenticated) {
         if (isBrandedApp()) {
-          router.replace('/customer-screens/home')
+          // Branded APK: show the real storefront website (Cafe / builder site)
+          router.replace('/storefront')
         } else {
           router.replace('/auth-screens/login')
         }
       } else if (role === 'vendor') {
         router.replace('/vendor-screens/dashboard')
+      } else if (isBrandedApp()) {
+        router.replace('/storefront')
       } else {
         router.replace('/customer-screens/home')
       }
