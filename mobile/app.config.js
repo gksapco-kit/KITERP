@@ -31,6 +31,7 @@ const scheme = vendorCfg?.scheme || defaults.scheme;
 const bundleId = vendorCfg?.bundleId || defaults.bundleId;
 const androidPackage = vendorCfg?.package || defaults.package;
 const primaryColor = vendorCfg?.primaryColor || defaults.primaryColor;
+const splashColor = vendorCfg?.splashColor || primaryColor;
 const storefrontBaseUrl =
   process.env.EXPO_PUBLIC_STOREFRONT_URL ||
   vendorCfg?.storefrontBaseUrl ||
@@ -64,7 +65,9 @@ module.exports = () => ({
     scheme,
     userInterfaceStyle: "light",
     splash: {
-      backgroundColor: primaryColor,
+      image: icon,
+      resizeMode: "contain",
+      backgroundColor: splashColor,
     },
     assetBundlePatterns: ["**/*"],
     ios: {
@@ -74,7 +77,7 @@ module.exports = () => ({
     android: {
       adaptiveIcon: {
         foregroundImage: adaptiveIconForeground,
-        backgroundColor: primaryColor,
+        backgroundColor: splashColor,
       },
       package: androidPackage,
       // Allow http:// storefront/API during local branded-app testing

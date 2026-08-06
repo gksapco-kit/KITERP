@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -40,10 +40,17 @@ function StorefrontWebRedirect({ uri }: { uri: string }) {
 }
 
 export default function StorefrontScreen() {
-  const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const initialLoadDone = useRef(false)
+  const webViewRef = useRef<{ injectJavaScript?: (js: string) => void } | null>(null)
   const uri = useMemo(() => getBrandedStorefrontUrl(), [])
   const slug = getVendorSlug()
+
+  const finishInitialLoad = useCallback(() => {
+    initialLoadDone.current = true
+    setInitialLoading(false)
+  }, [])
 
   if (Platform.OS === 'web' || !NativeWebView) {
     return (
@@ -56,8 +63,8 @@ export default function StorefrontScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.fill}>
-        {loading && !error && (
-          <View style={styles.overlay}>
+        {initialLoading && !error && (
+          <View style={styles.overlay} pointerEvents="none">
             <ActivityIndicator size="large" color="#2563eb" />
             <Text style={styles.hint}>Loading {slug || 'store'}…</Text>
           </View>
@@ -77,25 +84,52 @@ export default function StorefrontScreen() {
           </View>
         ) : (
           <NativeWebView
+            ref={webViewRef}
             source={{ uri }}
             style={styles.fill}
             originWhitelist={['http://*', 'https://*']}
+            // Only clear the spinner after the first document load.
+            // SPA navigations (Products/Cart) fire onLoadStart again on Android
+            // but often never fire onLoadEnd — re-showing the overlay blocked the UI.
             onLoadStart={() => {
-              setLoading(true)
-              setError(null)
+              if (!initialLoadDone.current) {
+                setError(null)
+              }
             }}
-            onLoadEnd={() => setLoading(false)}
+            onLoadEnd={finishInitialLoad}
+            onLoadProgress={({ nativeEvent }: { nativeEvent: { progress: number } }) => {
+              if (!initialLoadDone.current && nativeEvent.progress >= 0.9) {
+                finishInitialLoad()
+              }
+            }}
             onError={(e: { nativeEvent: { description?: string } }) => {
-              setLoading(false)
+              finishInitialLoad()
               setError(e.nativeEvent.description || 'Network error')
             }}
-            startInLoadingState
+            onHttpError={() => {
+              // Don't trap the UI on HTTP errors after first paint.
+              finishInitialLoad()
+            }}
+            // Keep target=_blank / window.open inside this WebView instead of dropping them.
+            setSupportMultipleWindows
+            onOpenWindow={(e: { nativeEvent: { targetUrl?: string } }) => {
+              const targetUrl = e.nativeEvent.targetUrl
+              if (targetUrl && webViewRef.current?.injectJavaScript) {
+                const safe = JSON.stringify(targetUrl)
+                webViewRef.current.injectJavaScript(
+                  `window.location.href = ${safe}; true;`,
+                )
+              }
+            }}
+            startInLoadingState={false}
             javaScriptEnabled
             domStorageEnabled
             sharedCookiesEnabled
             thirdPartyCookiesEnabled
             allowsBackForwardNavigationGestures
-            setSupportMultipleWindows={false}
+            // Allow mixed content / cookies used by the live storefront SPA.
+            mixedContentMode="always"
+            allowsInlineMediaPlayback
           />
         )}
       </View>
