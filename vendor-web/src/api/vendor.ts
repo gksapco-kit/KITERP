@@ -1303,6 +1303,44 @@ export const vendorApi = {
   },
 
   // ── Orders ────────────────────────────────────────────────
+  createVendorOrder: async (data: {
+    customer_id?: string
+    customer_name?: string
+    customer_email?: string
+    customer_phone?: string
+    items: Array<{
+      product_id?: string
+      service_id?: string
+      item_type?: string
+      variant_id?: string
+      name: string
+      qty: number
+      price: number
+      image_url?: string
+    }>
+    payment_method: string
+    notes?: string
+    store_id?: string
+    shipping_street?: string
+    shipping_city?: string
+    shipping_state?: string
+    shipping_postal_code?: string
+    shipping_country?: string
+    // Phase-1 enrichment
+    order_type?: string
+    payment_terms_code?: string
+    payment_terms_days?: number
+    shipping_terms?: string
+    order_reason?: string
+    requested_delivery_date?: string
+    pricing_date?: string
+    currency?: string
+    exchange_rate?: number
+  }): Promise<Order> => {
+    const response = await apiClient.post('/vendors/me/orders', data)
+    return response.data
+  },
+
   listOrders: async (params?: Record<string, unknown>): Promise<PaginatedResponse<Order>> => {
     const response = await apiClient.get('/vendors/me/orders', { params: clampPageSize(params) })
     return response.data
@@ -1322,6 +1360,98 @@ export const vendorApi = {
 
   assignOrderDelivery: async (id: string, data: { staff_id?: string; staff_name: string }): Promise<Order> => {
     const response = await apiClient.put(`/vendors/me/orders/${id}/assign-delivery`, data)
+    return response.data
+  },
+
+  // ── Delivery documents (Phase-4) ──────────────────────────
+  createDelivery: async (
+    orderId: string,
+    data: {
+      items: { order_line_id?: string; planned_qty: number; batch_number?: string; serial_number?: string; notes?: string; product_name?: string; sku?: string; unit?: string }[]
+      planned_gi_date?: string
+      carrier?: string
+      tracking_number?: string
+      shipping_address?: Record<string, unknown>
+      notes?: string
+    }
+  ): Promise<import('@/types').OrderDelivery> => {
+    const response = await apiClient.post(`/vendors/me/orders/${orderId}/deliveries`, data)
+    return response.data
+  },
+
+  listDeliveries: async (orderId: string): Promise<import('@/types').OrderDelivery[]> => {
+    const response = await apiClient.get(`/vendors/me/orders/${orderId}/deliveries`)
+    return response.data
+  },
+
+  updateDeliveryLines: async (
+    orderId: string,
+    deliveryId: string,
+    lineUpdates: { delivery_line_id: string; picked_qty?: number; packed_qty?: number; batch_number?: string; serial_number?: string }[]
+  ): Promise<import('@/types').OrderDelivery> => {
+    const response = await apiClient.patch(`/vendors/me/orders/${orderId}/deliveries/${deliveryId}`, { line_updates: lineUpdates })
+    return response.data
+  },
+
+  postGoodsIssue: async (orderId: string, deliveryId: string, actualGiDate?: string): Promise<import('@/types').OrderDelivery> => {
+    const response = await apiClient.post(`/vendors/me/orders/${orderId}/deliveries/${deliveryId}/goods-issue`, actualGiDate ? { actual_gi_date: actualGiDate } : {})
+    return response.data
+  },
+
+  cancelDelivery: async (orderId: string, deliveryId: string, reason?: string): Promise<import('@/types').OrderDelivery> => {
+    const response = await apiClient.post(`/vendors/me/orders/${orderId}/deliveries/${deliveryId}/cancel`, reason ? { reason } : {})
+    return response.data
+  },
+
+  // ── Partner functions (Phase-6) ───────────────────────────
+  listOrderPartners: async (orderId: string): Promise<import('@/types').OrderPartner[]> => {
+    const response = await apiClient.get(`/vendors/me/orders/${orderId}/partners`)
+    return response.data
+  },
+
+  upsertOrderPartner: async (
+    orderId: string,
+    role: string,
+    data: {
+      customer_id?: string
+      contact_name?: string
+      contact_email?: string
+      contact_phone?: string
+      company_name?: string
+      gstin?: string
+      address?: Record<string, unknown>
+      notes?: string
+    }
+  ): Promise<import('@/types').OrderPartner> => {
+    const response = await apiClient.put(`/vendors/me/orders/${orderId}/partners/${role}`, data)
+    return response.data
+  },
+
+  deleteOrderPartner: async (orderId: string, role: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/orders/${orderId}/partners/${role}`)
+  },
+
+  // ── Pricing conditions (Phase-7) ──────────────────────────
+  addPricingCondition: async (
+    orderId: string,
+    data: {
+      condition_type: string
+      description: string
+      calc_type?: 'percent' | 'fixed'
+      value: number
+      notes?: string
+    }
+  ): Promise<import('@/types').OrderPricingCondition> => {
+    const response = await apiClient.post(`/vendors/me/orders/${orderId}/pricing-conditions`, data)
+    return response.data
+  },
+
+  removePricingCondition: async (orderId: string, conditionId: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/orders/${orderId}/pricing-conditions/${conditionId}`)
+  },
+
+  repriceOrder: async (orderId: string): Promise<import('@/types').Order> => {
+    const response = await apiClient.post(`/vendors/me/orders/${orderId}/reprice`, {})
     return response.data
   },
 
@@ -1364,6 +1494,15 @@ export const vendorApi = {
 
   getInvoiceByOrder: async (orderId: string): Promise<Record<string, unknown>> => {
     const response = await apiClient.get(`/vendors/me/invoices/by-order/${orderId}`)
+    return response.data
+  },
+
+  billFromDelivery: async (
+    orderId: string,
+    deliveryId: string,
+    opts?: { due_date?: string; notes?: string }
+  ): Promise<{ id: string; invoice_number: string; status: string; total: number; delivery_id: string }> => {
+    const response = await apiClient.post(`/vendors/me/orders/${orderId}/deliveries/${deliveryId}/bill`, opts || {})
     return response.data
   },
 
@@ -2700,6 +2839,98 @@ export const vendorApi = {
     items: Array<{ id: string; status: string; position: number }>,
   ) => {
     const response = await apiClient.put(`/vendors/me/projects/${projectId}/tasks/reorder`, { items })
+    return response.data
+  },
+
+  // ── Project costing ────────────────────────────────────────────
+  getProjectCostingStatus: async (projectId: string) => {
+    const response = await apiClient.get(`/vendors/me/projects/${projectId}/costing/status`)
+    return response.data
+  },
+
+  enableProjectCosting: async (projectId: string, companyId: string) => {
+    const response = await apiClient.post(`/vendors/me/projects/${projectId}/costing/enable`, { company_id: companyId })
+    return response.data
+  },
+
+  getProjectBudgetVsActual: async (projectId: string) => {
+    const response = await apiClient.get(`/vendors/me/projects/${projectId}/costing/budget-vs-actual`)
+    return response.data
+  },
+
+  listProjectBudgetLines: async (projectId: string) => {
+    const response = await apiClient.get(`/vendors/me/projects/${projectId}/costing/budget-lines`)
+    return response.data
+  },
+
+  createProjectBudgetLine: async (projectId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/projects/${projectId}/costing/budget-lines`, data)
+    return response.data
+  },
+
+  deleteProjectBudgetLine: async (projectId: string, blId: string) => {
+    const response = await apiClient.delete(`/vendors/me/projects/${projectId}/costing/budget-lines/${blId}`)
+    return response.data
+  },
+
+  listProjectCostLines: async (projectId: string) => {
+    const response = await apiClient.get(`/vendors/me/projects/${projectId}/costing/cost-lines`)
+    return response.data
+  },
+
+  addProjectCostLine: async (projectId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/projects/${projectId}/costing/cost-lines`, data)
+    return response.data
+  },
+
+  patchProjectCostLine: async (projectId: string, lineId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.patch(`/vendors/me/projects/${projectId}/costing/cost-lines/${lineId}`, data)
+    return response.data
+  },
+
+  getProjectVariance: async (projectId: string) => {
+    const response = await apiClient.get(`/vendors/me/projects/${projectId}/costing/variance`)
+    return response.data
+  },
+
+  postProjectCompletion: async (projectId: string, entryDate?: string) => {
+    const response = await apiClient.post(`/vendors/me/projects/${projectId}/costing/post-completion`, entryDate ? { entry_date: entryDate } : {})
+    return response.data
+  },
+
+  postProjectSettlement: async (projectId: string, entryDate?: string) => {
+    const response = await apiClient.post(`/vendors/me/projects/${projectId}/costing/post-settlement`, entryDate ? { entry_date: entryDate } : {})
+    return response.data
+  },
+
+  // ── Project costing — document actuals ────────────────────────
+  listProjectGoodsMovements: async (projectId: string, params?: Record<string, unknown>) => {
+    const response = await apiClient.get(`/vendors/me/projects/${projectId}/costing/goods-movements`, { params })
+    return response.data
+  },
+
+  postProjectGoodsMovement: async (projectId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/projects/${projectId}/costing/goods-movements`, data)
+    return response.data
+  },
+
+  reverseProjectGoodsMovement: async (projectId: string, gmId: string, reason: string) => {
+    const response = await apiClient.post(`/vendors/me/projects/${projectId}/costing/goods-movements/${gmId}/reverse`, { reason })
+    return response.data
+  },
+
+  listProjectActivityConfirmations: async (projectId: string, params?: Record<string, unknown>) => {
+    const response = await apiClient.get(`/vendors/me/projects/${projectId}/costing/activity-confirmations`, { params })
+    return response.data
+  },
+
+  postProjectActivityConfirmation: async (projectId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/projects/${projectId}/costing/activity-confirmations`, data)
+    return response.data
+  },
+
+  getProjectCostingAuditLog: async (projectId: string, limit = 50) => {
+    const response = await apiClient.get(`/vendors/me/projects/${projectId}/costing/audit-log`, { params: { limit } })
     return response.data
   },
 

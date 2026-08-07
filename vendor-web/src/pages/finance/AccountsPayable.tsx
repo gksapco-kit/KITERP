@@ -7,6 +7,7 @@ import {
   useBills, useBill, useApAging, useCreateBill, usePostBill, useRecordVendorPayment, usePaymentRuns,
   useAccounts, useAssetCategories, useCreateAssetFromBill,
 } from '@/hooks/useFinance'
+import { useProjects } from '@/hooks/useProjects'
 import { Plus, CheckCircle, X, Eye, Trash2, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
@@ -240,13 +241,14 @@ export default function AccountsPayable() {
   const [tab, setTab] = useState<Tab>('Bills')
   const [showNewBill, setShowNewBill] = useState(false)
   const [detailBillId, setDetailBillId] = useState<string | null>(null)
-  const [billForm, setBillForm] = useState({ supplier_id: '', bill_no: '', bill_date: new Date().toISOString().slice(0, 10), total: '', tax_amount: '', subtotal: '', due_date: '', notes: '' })
+  const [billForm, setBillForm] = useState({ supplier_id: '', bill_no: '', bill_date: new Date().toISOString().slice(0, 10), total: '', tax_amount: '', subtotal: '', due_date: '', notes: '', pm_project_id: '' })
   const [lines, setLines] = useState<BillLineForm[]>([])
 
   const { data: billsData, isLoading: billsLoading } = useBills()
   const { data: aging = [], isLoading: agingLoading } = useApAging()
   const { data: runs = [], isLoading: runsLoading } = usePaymentRuns()
   const { data: accounts = [] } = useAccounts()
+  const { data: projectsData } = useProjects({ page: 1, size: 200, status: 'active' })
   const createBillMut = useCreateBill()
   const postBillMut = usePostBill()
   const paymentMut = useRecordVendorPayment()
@@ -257,15 +259,28 @@ export default function AccountsPayable() {
     [lines],
   )
 
-  const closeNewBill = () => { setShowNewBill(false); setLines([]) }
+  const closeNewBill = () => {
+    setShowNewBill(false)
+    setLines([])
+    setBillForm(f => ({ ...f, pm_project_id: '' }))
+  }
 
   const accountOptions = [
     { value: '', label: '— Select GL Account —' },
     ...(accounts as any[]).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` })),
   ]
 
+  const activeProjects = (projectsData?.items ?? []) as any[]
+  const projectOptions = [
+    { value: '', label: '— No project —' },
+    ...activeProjects.map(p => ({ value: p.id, label: `${p.project_number} ${p.name}` })),
+  ]
+
   const handleSaveBill = () => {
-    const payload: Record<string, unknown> = { ...billForm }
+    const { pm_project_id, ...rest } = billForm
+    const payload: Record<string, unknown> = { ...rest }
+    if (pm_project_id) payload.pm_project_id = pm_project_id
+
     const validLines = lines.filter(l => l.account_id && Number(l.unit_price) > 0)
     if (validLines.length > 0) {
       payload.lines = validLines.map(l => ({
@@ -274,6 +289,7 @@ export default function AccountsPayable() {
         quantity: Number(l.quantity) || 1,
         unit_price: Number(l.unit_price) || 0,
         line_total: (Number(l.quantity) || 1) * (Number(l.unit_price) || 0),
+        pm_project_id: pm_project_id || undefined,
       }))
     }
     createBillMut.mutate(payload, { onSuccess: closeNewBill })
@@ -450,6 +466,14 @@ export default function AccountsPayable() {
                       {field('Total', 'total', 'number')}
                     </div>
                     {field('Notes', 'notes')}
+                    <div>
+                      <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Project (optional)</Label>
+                      <Select
+                        value={billForm.pm_project_id}
+                        onChange={v => setBillForm(f => ({ ...f, pm_project_id: v }))}
+                        options={projectOptions}
+                      />
+                    </div>
                   </>
                 )
               })()}

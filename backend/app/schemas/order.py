@@ -79,6 +79,16 @@ class CheckoutRequest(BaseModel):
     coupon_code: Optional[str] = Field(None, max_length=50)
     branch_code: Optional[str] = Field(None, max_length=100)
     store_id: Optional[str] = Field(None, max_length=36)
+    # Phase-1 header enrichment — all optional so existing storefronts keep working
+    order_type: Optional[str] = Field(None, max_length=30)
+    payment_terms_code: Optional[str] = Field(None, max_length=50)
+    payment_terms_days: Optional[int] = Field(None, ge=0, le=365)
+    shipping_terms: Optional[str] = Field(None, max_length=50)
+    order_reason: Optional[str] = Field(None, max_length=100)
+    requested_delivery_date: Optional[str] = Field(None, max_length=10)  # ISO date YYYY-MM-DD
+    pricing_date: Optional[str] = Field(None, max_length=10)
+    currency: Optional[str] = Field(None, min_length=3, max_length=3)
+    exchange_rate: Optional[float] = Field(None, gt=0)
 
 
 class GuestCustomerInfo(BaseModel):
@@ -132,6 +142,16 @@ class GuestCheckoutRequest(BaseModel):
     coupon_code: Optional[str] = Field(None, max_length=50)
     branch_code: Optional[str] = Field(None, max_length=100)
     store_id: Optional[str] = Field(None, max_length=36)
+    # Phase-1 header enrichment
+    order_type: Optional[str] = Field(None, max_length=30)
+    payment_terms_code: Optional[str] = Field(None, max_length=50)
+    payment_terms_days: Optional[int] = Field(None, ge=0, le=365)
+    shipping_terms: Optional[str] = Field(None, max_length=50)
+    order_reason: Optional[str] = Field(None, max_length=100)
+    requested_delivery_date: Optional[str] = Field(None, max_length=10)
+    pricing_date: Optional[str] = Field(None, max_length=10)
+    currency: Optional[str] = Field(None, min_length=3, max_length=3)
+    exchange_rate: Optional[float] = Field(None, gt=0)
 
 
 class QuoteRequest(BaseModel):
@@ -299,3 +319,64 @@ class PaymentProofSubmit(BaseModel):
 
 class PaymentProofReview(BaseModel):
     notes: Optional[str] = Field(None, max_length=500)
+
+
+class VendorOrderItemCreate(BaseModel):
+    """A single line item for a vendor-created order."""
+    product_id: Optional[str] = None
+    service_id: Optional[str] = None
+    item_type: Optional[str] = None
+    variant_id: Optional[str] = None
+    name: str
+    qty: int = Field(..., ge=1, le=1000)
+    price: float = Field(..., ge=0)
+    image_url: Optional[str] = None
+
+    @model_validator(mode="after")
+    def require_item_ref(self):
+        if not self.product_id and not self.service_id:
+            raise ValueError("product_id or service_id is required")
+        if not self.item_type:
+            self.item_type = "service" if self.service_id and not self.product_id else "product"
+        return self
+
+
+class VendorOrderCreateRequest(BaseModel):
+    """Vendor-side manual order creation (counter sale / phone order)."""
+    # Customer — either pick an existing one by id or provide guest details
+    customer_id: Optional[str] = None
+    customer_name: Optional[str] = Field(None, max_length=255)
+    customer_email: Optional[str] = Field(None, max_length=255)
+    customer_phone: Optional[str] = Field(None, max_length=20)
+
+    items: List[VendorOrderItemCreate] = Field(..., min_length=1)
+    payment_method: PaymentMethod = PaymentMethod.COD
+    shipping_method_id: str = "free"
+    notes: Optional[str] = Field(None, max_length=500)
+    coupon_code: Optional[str] = Field(None, max_length=50)
+
+    # Optional shipping address — not needed for in-store/counter sales
+    shipping_street: Optional[str] = Field(None, max_length=500)
+    shipping_city: Optional[str] = Field(None, max_length=100)
+    shipping_state: Optional[str] = Field(None, max_length=100)
+    shipping_postal_code: Optional[str] = Field(None, max_length=20)
+    shipping_country: str = "India"
+
+    store_id: Optional[str] = Field(None, max_length=36)
+    # Phase-1 header enrichment
+    order_type: Optional[str] = Field("standard", max_length=30)
+    payment_terms_code: Optional[str] = Field(None, max_length=50)
+    payment_terms_days: Optional[int] = Field(None, ge=0, le=365)
+    shipping_terms: Optional[str] = Field(None, max_length=50)
+    order_reason: Optional[str] = Field(None, max_length=100)
+    requested_delivery_date: Optional[str] = Field(None, max_length=10)
+    pricing_date: Optional[str] = Field(None, max_length=10)
+    currency: Optional[str] = Field("INR", min_length=3, max_length=3)
+    exchange_rate: Optional[float] = Field(1.0, gt=0)
+
+    @model_validator(mode="after")
+    def require_customer_info(self):
+        if not self.customer_id:
+            if not self.customer_name or not self.customer_email:
+                raise ValueError("customer_name and customer_email are required when customer_id is not provided")
+        return self

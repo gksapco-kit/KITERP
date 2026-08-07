@@ -12,6 +12,8 @@ interface PlantSelectProps {
   /** Label for the empty option when allowAll is true. */
   emptyLabel?: string
   className?: string
+  triggerClassName?: string
+  showSelectedHint?: boolean
   disabled?: boolean
   id?: string
 }
@@ -24,6 +26,8 @@ export function PlantSelect({
   allowAll = false,
   emptyLabel = 'All plants',
   className,
+  triggerClassName,
+  showSelectedHint = false,
   disabled,
   id,
 }: PlantSelectProps) {
@@ -76,6 +80,8 @@ export function PlantSelect({
       }
       disabled={disabled || isLoading}
       className={className}
+      triggerClassName={triggerClassName}
+      showSelectedHint={showSelectedHint}
       aria-label="Plant"
     />
   )

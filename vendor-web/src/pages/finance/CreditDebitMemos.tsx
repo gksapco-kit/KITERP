@@ -1101,6 +1101,7 @@ export default function CreditDebitMemos() {
                   onChange={(id) => { setMemoStoreId(id); setMemoBranchId(''); setCart([]) }}
                   disabled={isStoreLocked}
                   className="flex-1 min-w-[10rem]"
+                  triggerClassName="h-8 text-sm"
                 />
                 <BranchSelect
                   businessUnitId={memoStoreId || null}
@@ -1109,6 +1110,7 @@ export default function CreditDebitMemos() {
                   allowAll
                   disabled={isStoreLocked}
                   className="flex-1 min-w-[10rem]"
+                  triggerClassName="h-8 text-sm"
                 />
               </div>
             </div>
@@ -1555,7 +1557,7 @@ export default function CreditDebitMemos() {
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                             <input
                               data-memo-line-input={idx}
-                              className="w-full min-w-[12rem] text-sm h-9 pl-8 pr-2 border border-border rounded-md bg-white shadow-sm hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200/80 focus:outline-none"
+                              className="w-full min-w-[12rem] text-sm h-8 pl-8 pr-2 border border-border rounded-md bg-white shadow-sm hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200/80 focus:outline-none"
                               value={item.name}
                               onChange={e => { updateLine(idx, { name: e.target.value }); setParticularsOpenIdx(idx) }}
                               onFocus={() => { setParticularsOpenIdx(idx) }}
@@ -1571,7 +1573,7 @@ export default function CreditDebitMemos() {
                       </td>
                       <td className="py-1.5">
                         <input
-                          className="w-full text-xs font-mono border border-transparent hover:border-slate-200 rounded px-1"
+                          className="w-full h-8 text-xs font-mono border border-border rounded-md px-1.5"
                           value={item.hsn_code || ''}
                           onChange={e => updateLine(idx, { hsn_code: e.target.value || undefined })}
                           placeholder="—"
@@ -1581,7 +1583,7 @@ export default function CreditDebitMemos() {
                         <input
                           type="number"
                           min={1}
-                          className="w-14 text-right text-sm border border-border rounded px-1 py-0.5 tabular-nums"
+                          className="w-14 h-8 text-right text-sm border border-border rounded-md px-1 tabular-nums"
                           value={item.qty}
                           onChange={e => updateLine(idx, { qty: Math.max(1, Number(e.target.value) || 1) })}
                         />
@@ -1591,7 +1593,7 @@ export default function CreditDebitMemos() {
                           type="number"
                           min={0}
                           step="0.01"
-                          className="w-full max-w-[6.5rem] text-right text-sm border border-border rounded px-1 py-0.5 tabular-nums"
+                          className="w-full max-w-[6.5rem] h-8 text-right text-sm border border-border rounded-md px-1.5 tabular-nums"
                           value={item.price}
                           onChange={e => updateLine(idx, { price: Math.max(0, Number(e.target.value) || 0) })}
                         />
@@ -1600,7 +1602,7 @@ export default function CreditDebitMemos() {
                         <input
                           type="number"
                           min={0}
-                          className="w-16 text-right text-sm border border-border rounded px-1 py-0.5 tabular-nums"
+                          className="w-16 h-8 text-right text-sm border border-border rounded-md px-1 tabular-nums"
                           value={item.discount}
                           onChange={e => updateLine(idx, { discount: Math.max(0, Number(e.target.value) || 0) })}
                         />
@@ -1609,7 +1611,7 @@ export default function CreditDebitMemos() {
                         <input
                           type="number"
                           min={0}
-                          className="w-14 text-right text-sm border border-border rounded px-1 py-0.5 tabular-nums"
+                          className="w-14 h-8 text-right text-sm border border-border rounded-md px-1 tabular-nums"
                           value={item.tax_rate}
                           onChange={e => updateLine(idx, { tax_rate: Math.max(0, Number(e.target.value) || 0) })}
                         />

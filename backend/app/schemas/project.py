@@ -61,6 +61,7 @@ class ProjectItem(BaseModel):
     item_type: str = "product"  # product | service
     sku: Optional[str] = None
     price: Optional[float] = None
+    variant_id: Optional[str] = None
 
 
 class ProjectBase(BaseModel):
@@ -131,6 +132,34 @@ class ProjectResponse(ProjectBase):
     completed_at: Optional[datetime] = None
     task_count: Optional[int] = None
     done_task_count: Optional[int] = None
+    # Costing bridge (null until enable_costing is called)
+    company_id: Optional[UUID] = None
+    fin_project_id: Optional[UUID] = None
+    co_order_id: Optional[UUID] = None
+
+
+class ProjectCostingStatusResponse(BaseModel):
+    """Returned by GET /projects/{id}/costing/status"""
+    project_id: UUID
+    company_id: Optional[UUID]
+    fin_project_id: Optional[UUID]
+    co_order_id: Optional[UUID]
+    costing_enabled: bool
+    settlement_status: Optional[str] = None  # from co_manufacturing_order
+    order_no: Optional[str] = None
+
+
+class ProjectEnableCostingRequest(BaseModel):
+    company_id: UUID
+
+
+class ProjectCostingBudgetLineCreate(BaseModel):
+    category: str  # material | labor | overhead | other
+    description: Optional[str] = None
+    amount_budgeted: Decimal
+    budget_type: str = "original"
+    fiscal_year: Optional[int] = None
+    period_month: Optional[int] = None
 
 
 class ProjectListResponse(BaseModel):

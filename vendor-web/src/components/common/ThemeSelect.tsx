@@ -61,6 +61,11 @@ export type ThemeSelectProps = {
   searchable?: boolean
   /** Placeholder for the in-menu search field. */
   searchPlaceholder?: string
+  /**
+   * When false, option hints still appear in the menu but not on the closed trigger
+   * (keeps field height aligned with single-line inputs/selects).
+   */
+  showSelectedHint?: boolean
   'aria-label'?: string
 }
 
@@ -250,6 +255,7 @@ export function ThemeSelect({
   menuPlacement = 'auto',
   searchable,
   searchPlaceholder = 'Type a letter…',
+  showSelectedHint = true,
   'aria-label': ariaLabel,
 }: ThemeSelectProps) {
   const [open, setOpen] = useState(false)
@@ -625,6 +631,7 @@ export function ThemeSelect({
   }
 
   const { wrapper: splitWrapper, trigger: splitTrigger } = splitSelectClassName(className)
+  const showHintOnTrigger = Boolean(showSelectedHint && selected?.hint)
 
   let flatCursor = 0
   const nextFlatIndex = () => flatCursor++
@@ -644,15 +651,15 @@ export function ThemeSelect({
         onKeyDown={onTriggerKeyDown}
         className={cn(
           themeSelectUi.trigger,
-          selected?.hint && 'h-auto min-h-10 py-1.5 items-start',
+          showHintOnTrigger && 'h-auto min-h-10 py-1.5 items-start',
           splitTrigger,
           triggerClassName,
         )}
       >
-        {selected?.hint ? (
+        {showHintOnTrigger ? (
           <span className="min-w-0 flex-1 overflow-hidden">
             <span className="block truncate leading-snug">{displayLabel}</span>
-            <span className="block truncate text-[11px] leading-tight text-muted-foreground">{selected.hint}</span>
+            <span className="block truncate text-[11px] leading-tight text-muted-foreground">{selected!.hint}</span>
           </span>
         ) : (
           <span className={cn('min-w-0 flex-1 truncate leading-snug', !selected && 'text-muted-foreground')}>{displayLabel}</span>
@@ -660,7 +667,7 @@ export function ThemeSelect({
         <ChevronDown
           className={cn(
             'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-            selected?.hint ? 'self-start mt-1' : 'self-center',
+            showHintOnTrigger ? 'self-start mt-1' : 'self-center',
             open && 'rotate-180',
           )}
           aria-hidden

@@ -251,6 +251,25 @@ def require_permission(*permissions: str):
     return _check
 
 
+def require_any_permission(*permissions: str):
+    """
+    Dependency factory: ensures the current vendor user has AT LEAST ONE of
+    the listed permissions.  Use for endpoints accessible by multiple roles.
+    Usage: Depends(require_any_permission("finance.edit", "projects.costing.post"))
+    """
+    async def _check(
+        vendor_user: VendorUser = Depends(get_current_vendor_user),
+    ) -> VendorUser:
+        effective = get_effective_permissions(vendor_user)
+        if not any(p in effective for p in permissions):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Requires one of: {', '.join(permissions)}",
+            )
+        return vendor_user
+    return _check
+
+
 def require_store_hr_permission(*permissions: str):
     """ESS portal: same permission check as vendor central, using store HR JWT session."""
 

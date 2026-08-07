@@ -71,6 +71,8 @@ class Invoice(Base):
     booking_number = Column(String(30), nullable=True)
     reference_invoice_id = Column(UUID(as_uuid=True))  # for credit notes
     converted_from_id = Column(UUID(as_uuid=True))  # estimate -> invoice conversion
+    # Phase-5: link to the outbound delivery that triggered this billing document
+    delivery_id = Column(UUID(as_uuid=True), ForeignKey("delivery.id", ondelete="SET NULL"), nullable=True, index=True)
 
     is_gst = Column(Boolean, default=True)
     place_of_supply = Column(String(100))

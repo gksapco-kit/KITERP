@@ -987,6 +987,8 @@ class FinVendorBill(Base):
     attachment_url = Column(String(500))
     currency = Column(String(3), default="INR")
     journal_entry_id = Column(UUID(as_uuid=True), ForeignKey("fin_journal_entry.id", ondelete="SET NULL"))
+    # Project dimension: links this AP bill to a PM project for project cost tracking.
+    pm_project_id = Column(UUID(as_uuid=True), ForeignKey("pm_project.id", ondelete="SET NULL"), nullable=True, index=True)
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -1009,6 +1011,10 @@ class FinVendorBillLine(Base):
     line_total = Column(Numeric(18, 4), default=0)
     hsn_sac = Column(String(20))
     sequence = Column(Integer, default=0)
+    # GL dimensions for cost assignment
+    cost_center_id = Column(UUID(as_uuid=True), ForeignKey("fin_cost_center.id", ondelete="SET NULL"), nullable=True)
+    fin_project_id = Column(UUID(as_uuid=True), ForeignKey("fin_project.id", ondelete="SET NULL"), nullable=True)
+    pm_project_id = Column(UUID(as_uuid=True), ForeignKey("pm_project.id", ondelete="SET NULL"), nullable=True)
 
     bill = relationship("FinVendorBill", back_populates="lines")
 

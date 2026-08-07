@@ -336,6 +336,9 @@ DEFAULT_ROLE_PERMISSIONS = {
     "project_manager": [
         "dashboard.view",
         "projects.view", "projects.manage",
+        # Allows posting goods movements, activity confirmations, and GL
+        # settlement on projects without granting full finance access.
+        "projects.costing.post",
         "team.view",
         "customers.view",
         "reports.view",

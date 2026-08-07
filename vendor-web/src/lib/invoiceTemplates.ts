@@ -891,30 +891,36 @@ function commonFooter(inv: InvData, settings: InvoiceSettings, footerLogo?: Foot
   const footerLogoHtml = footerLogo?.url
     ? logoImg(footerLogo.url, `height:${logoH}px;max-width:100px;object-fit:contain`, settings)
     : ''
-  const notesBlock = `<div style="flex:1">
+  const hasTerms = Boolean(settings.show_terms && terms)
+  const sigHtml = signatureBlock(settings, String(inv.vendor_name || ''))
+  // Bank + notes share the top footer row. Terms always render full-width below
+  // that row, with the signature under the last paragraph (not beside the terms).
+  const notesBlock = `<div style="flex:1;min-width:0">
         ${bankBlock(settings)}
         ${settings.show_notes && notes ? `<div style="margin-top:${settings.show_bank_details ? '12px' : '0'};font-size:11px"><div style="font-weight:600;margin-bottom:4px">Notes</div><div style="color:#6b7280;white-space:pre-wrap;line-height:1.5">${notes}</div></div>` : ''}
-        ${settings.show_terms && terms ? `<div style="margin-top:8px;font-size:10px;color:#9ca3af;white-space:pre-wrap;line-height:1.5">${terms}</div>` : ''}
       </div>`
+  const termsBlock = hasTerms
+    ? `<div style="margin-top:12px;width:100%;font-size:10px;color:#9ca3af;white-space:pre-wrap;line-height:1.5">${terms}</div>`
+    : ''
+  const signatureBelow = sigHtml
+    ? `<div style="display:flex;justify-content:flex-end;margin-top:${hasTerms ? '16px' : '12px'}">${sigHtml}</div>`
+    : ''
 
-  const footerRow = footerLogo?.position === 'left'
+  const topFooterRow = footerLogo?.position === 'left'
     ? `<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">
         <div style="flex-shrink:0;align-self:center">${footerLogoHtml}</div>
         ${notesBlock}
         ${qrHtml}
-        ${signatureBlock(settings, String(inv.vendor_name || ''))}
       </div>`
     : footerLogo?.position === 'right'
       ? `<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">
           ${notesBlock}
           ${qrHtml}
-          ${signatureBlock(settings, String(inv.vendor_name || ''))}
           <div style="flex-shrink:0;align-self:center">${footerLogoHtml}</div>
         </div>`
       : `<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px">
           ${notesBlock}
           ${qrHtml}
-          ${signatureBlock(settings, String(inv.vendor_name || ''))}
         </div>`
 
   const footerCenterLogo = footerLogo?.position === 'center' && footerLogoHtml
@@ -925,9 +931,10 @@ function commonFooter(inv: InvData, settings: InvoiceSettings, footerLogo?: Foot
     ? `<div style="display:flex;justify-content:${footerLogo.position === 'bottom-left' ? 'flex-start' : 'flex-end'};margin-top:14px;padding-top:14px;border-top:1px dashed #e5e7eb">${footerLogoHtml}</div>`
     : ''
 
+  const footerBody = `${topFooterRow}${termsBlock}${signatureBelow}`
   const footerHtml = `
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e5e7eb">
-      ${footerLogo?.position === 'center' ? footerRow + footerCenterLogo : footerRow + footerBelowLogo}
+      ${footerLogo?.position === 'center' ? footerBody + footerCenterLogo : footerBody + footerBelowLogo}
     </div>`
 
   const legalHtml = (settings.show_legal_note ?? true) ? `
@@ -1519,6 +1526,11 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
   <div style="white-space:pre-wrap">${notes}</div>
   ` : ''}
 
+  ${settings.show_terms && terms ? `
+  <div class="sep"></div>
+  <div style="font-size:${fs};white-space:pre-wrap;width:100%">${terms}</div>
+  ` : ''}
+
   ${settings.show_signature ? `
   <div class="sep"></div>
   ${settings.signature_url
@@ -1538,7 +1550,6 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
 
   <div class="sep"></div>
   <div class="c" style="font-size:${fs}">${(settings.show_legal_note ?? true) ? 'Computer generated. Valid tax invoice.' : ''}</div>
-  ${settings.show_terms && terms ? `<div class="sep"></div><div style="font-size:${fs};white-space:pre-wrap">${terms}</div>` : ''}
 </div></body></html>`
 }
 

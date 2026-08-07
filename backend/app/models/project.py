@@ -50,6 +50,14 @@ class Project(Base):
     # Catalog products/services associated with this project (scoped to store_id's BU).
     items = Column(JSONB, default=list)
 
+    # ── Costing bridge (populated when costing is enabled) ───────────────────
+    # fin_company that owns this project in the GL / CO world.
+    company_id = Column(UUID(as_uuid=True), ForeignKey("fin_company.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Mirror WBS record in fin_project used as GL journal line dimension.
+    fin_project_id = Column(UUID(as_uuid=True), ForeignKey("fin_project.id", ondelete="SET NULL"), nullable=True)
+    # CO project order carrying planned cost lines, actuals, and settlement.
+    co_order_id = Column(UUID(as_uuid=True), ForeignKey("co_manufacturing_order.id", ondelete="SET NULL"), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     completed_at = Column(DateTime(timezone=True))

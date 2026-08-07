@@ -14,6 +14,11 @@ interface BranchSelectProps {
   autoSelectDefault?: boolean
   className?: string
   triggerClassName?: string
+  /**
+   * When false (default), option hints stay in the menu only so the closed
+   * trigger stays single-line and matches sibling inputs/selects.
+   */
+  showSelectedHint?: boolean
   disabled?: boolean
   id?: string
 }
@@ -32,6 +37,7 @@ export function BranchSelect({
   autoSelectDefault = false,
   className,
   triggerClassName,
+  showSelectedHint = false,
   disabled,
   id,
 }: BranchSelectProps) {
@@ -81,6 +87,7 @@ export function BranchSelect({
       disabled={isDisabled}
       className={className}
       triggerClassName={triggerClassName}
+      showSelectedHint={showSelectedHint}
       aria-label={BRANCH_LABEL}
     />
   )

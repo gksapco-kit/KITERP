@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import AuthLayout from '@/layouts/AuthLayout'
 import DashboardLayout from '@/layouts/DashboardLayout'
 import ProtectedRoute from './ProtectedRoute'
+import PermissionRoute from './PermissionRoute'
 
 import Login from '@/pages/auth/Login'
 import VendorHandoff from '@/pages/auth/Handoff'
@@ -506,8 +507,8 @@ export const router = createBrowserRouter([
       { path: 'plans', element: <PlansPage /> },
       { path: 'bookings', element: <BookingsPage /> },
       { path: 'bookings/:id', element: <BookingDetail /> },
-      { path: 'projects', element: <ProjectsPage /> },
-      { path: 'projects/:id', element: <ProjectDetail /> },
+      { path: 'projects', element: <PermissionRoute permission="projects.view"><ProjectsPage /></PermissionRoute> },
+      { path: 'projects/:id', element: <PermissionRoute permission="projects.view"><ProjectDetail /></PermissionRoute> },
       { path: 'notifications', element: <NotificationsPage /> },
       { path: 'queries', element: <ContactQueries /> },
       { path: 'notifications/settings', element: <NotificationSettingsPage /> },

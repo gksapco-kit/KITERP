@@ -9,6 +9,11 @@ import { OrderHeaderCard } from '@/components/orders/OrderHeaderCard'
 import { OrderItemsPanel } from '@/components/orders/OrderItemsPanel'
 import { CustomerShippingPanel } from '@/components/orders/CustomerShippingPanel'
 import { DeliveryStaffPanel } from '@/components/orders/DeliveryStaffPanel'
+import { DeliveryDocumentsPanel } from '@/components/orders/DeliveryDocumentsPanel'
+import { BillingDocumentsPanel } from '@/components/orders/BillingDocumentsPanel'
+import { OrderPartnersPanel } from '@/components/orders/OrderPartnersPanel'
+import { OrderPricingPanel } from '@/components/orders/OrderPricingPanel'
+import { CreditStatusPanel } from '@/components/orders/CreditStatusPanel'
 import { ShipModal } from '@/components/orders/ShipModal'
 import { CancelOrderModal } from '@/components/orders/CancelOrderModal'
 import { ResolveReturnModal } from '@/components/orders/ResolveReturnModal'
@@ -432,6 +437,12 @@ export default function OrderDetail() {
           />
         </div>
       </Card>
+
+      <CreditStatusPanel order={order} isTerminal={isTerminal} />
+      <OrderPricingPanel order={order} isTerminal={isTerminal} />
+      <OrderPartnersPanel order={order} isTerminal={isTerminal} />
+      <DeliveryDocumentsPanel order={order} isTerminal={isTerminal} />
+      <BillingDocumentsPanel order={order} isTerminal={isTerminal} />
 
       {showShipModal && (
         <ShipModal

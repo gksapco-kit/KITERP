@@ -604,6 +604,134 @@ export interface CustomerDuplicateMatch {
 }
 
 // ── Order ───────────────────────────────────────────────────────
+export interface OrderPricingCondition {
+  id: string
+  step_no: number
+  /** header_discount | freight | surcharge | special | tax_override */
+  condition_type: string
+  description: string
+  /** percent | fixed */
+  calc_type: string
+  value: number
+  base_amount?: number | null
+  condition_amount: number
+  is_manual: boolean
+  notes?: string | null
+  created_at?: string
+}
+
+export interface OrderPartner {
+  id: string
+  /** buyer | ship_to | bill_to | payer | contact | other */
+  role: string
+  customer_id?: string | null
+  contact_name?: string | null
+  contact_email?: string | null
+  contact_phone?: string | null
+  company_name?: string | null
+  gstin?: string | null
+  address?: Record<string, unknown> | null
+  notes?: string | null
+}
+
+export interface DeliveryLine {
+  id: string
+  delivery_id: string
+  order_line_id?: string | null
+  line_no: number
+  product_id?: string | null
+  variant_id?: string | null
+  product_name?: string | null
+  sku?: string | null
+  unit?: string | null
+  planned_qty: number
+  picked_qty: number
+  packed_qty: number
+  issued_qty: number
+  /** open | picking | picked | packed | issued */
+  status: string
+  batch_number?: string | null
+  serial_number?: string | null
+  notes?: string | null
+}
+
+export interface OrderDelivery {
+  id: string
+  delivery_number: string
+  order_id: string
+  /** standard | returns */
+  delivery_type: string
+  /** draft | picking | packed | goods_issued | cancelled */
+  status: string
+  planned_gi_date?: string | null
+  actual_gi_date?: string | null
+  carrier?: string | null
+  tracking_number?: string | null
+  shipping_address?: Record<string, unknown> | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
+  lines: DeliveryLine[]
+}
+
+export interface OrderLineSchedule {
+  id: string
+  schedule_no: number
+  requested_date?: string | null
+  confirmed_date?: string | null
+  requested_qty: number
+  confirmed_qty: number
+  shipped_qty: number
+  /** open | committed | partial | shipped | closed | cancelled */
+  status: string
+  /** in_stock | purchase_order | lead_time | manual | none */
+  commitment_source: string
+  notes?: string | null
+}
+
+export interface OrderLine {
+  id: string
+  line_no: number
+  parent_line_id?: string | null
+  product_id?: string | null
+  variant_id?: string | null
+  service_id?: string | null
+  item_type: 'product' | 'service'
+  item_name: string
+  item_sku?: string | null
+  item_image_url?: string | null
+  /** standard | free_of_charge | return | text_line */
+  line_type: string
+  ordered_qty: number
+  committed_qty: number
+  shipped_qty: number
+  invoiced_qty: number
+  returned_qty: number
+  rejected_qty: number
+  unit_of_measure: string
+  list_price: number
+  net_price: number
+  discount_pct: number
+  discount_amount: number
+  tax_rate: number
+  tax_amount: number
+  line_total: number
+  plant_id?: string | null
+  storage_location_id?: string | null
+  cost_center_id?: string | null
+  profit_center_id?: string | null
+  batch_number?: string | null
+  serial_numbers?: string[]
+  rejection_reason?: string | null
+  line_notes?: string | null
+  price_rule_id?: string | null
+  price_rule_type?: string | null
+  /** Delivery schedule commitments (Phase-3). */
+  schedules?: OrderLineSchedule[]
+  created_at: string
+  updated_at: string
+}
+
 export interface OrderItem {
   product_id: string
   variant_id?: string
@@ -654,7 +782,28 @@ export interface Order {
   store_id?: string
   store_name?: string
   store_code?: string
+  sales_area_id?: string
+  delivery_channel_id?: string
   pos_transaction_id?: string
+  // Phase-1 header enrichment
+  /** standard | quotation | return | credit_note | debit_note | sample */
+  order_type?: string
+  payment_terms_code?: string
+  payment_terms_days?: number
+  shipping_terms?: string
+  order_reason?: string
+  requested_delivery_date?: string
+  pricing_date?: string
+  currency?: string
+  exchange_rate?: number
+  fulfillment_block?: string
+  billing_block?: string
+  /** ok | watch | blocked | not_checked */
+  credit_status?: string
+  /** open | partial | complete | not_relevant */
+  fulfillment_status?: string
+  /** open | partial | complete | not_relevant */
+  billing_status?: string
   placed_by_name?: string
   placed_by_type?: 'customer' | 'staff' | 'cashier'
   payment_method?: string
@@ -695,6 +844,14 @@ export interface Order {
   shipped_at?: string
   delivered_at?: string
   status_history?: OrderStatusHistoryItem[]
+  /** Normalized line items (Phase-2). Present on detail view; may be absent on list view. */
+  order_lines?: OrderLine[]
+  /** Outbound delivery documents (Phase-4). */
+  deliveries?: OrderDelivery[]
+  /** Partner functions (Phase-6). */
+  partners?: OrderPartner[]
+  /** Header-level pricing conditions (Phase-7). */
+  pricing_conditions?: OrderPricingCondition[]
 }
 
 export interface OrderStats {

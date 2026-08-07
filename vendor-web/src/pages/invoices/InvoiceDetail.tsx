@@ -1041,12 +1041,13 @@ export default function InvoiceDetail() {
             ) : (
               editItems.map((item, idx) => (
                 <div key={idx} className="px-5 py-3 grid grid-cols-12 gap-3 items-end">
-                  <div className="col-span-12 sm:col-span-3">
+                  <div className="col-span-12 sm:col-span-4">
                     <Label className="text-xs text-gray-500">Item Name</Label>
                     <Input
                       value={item.name}
                       onChange={e => updateItem(idx, 'name', e.target.value)}
                       placeholder="Item name"
+                      className="h-9"
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-2">
@@ -1055,6 +1056,7 @@ export default function InvoiceDetail() {
                       value={item.hsn_sac}
                       onChange={e => updateItem(idx, 'hsn_sac', e.target.value)}
                       placeholder="HSN/SAC"
+                      className="h-9"
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-1">
@@ -1064,6 +1066,7 @@ export default function InvoiceDetail() {
                       min={0}
                       value={item.qty}
                       onChange={e => updateItem(idx, 'qty', Number(e.target.value))}
+                      className="h-9"
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-2">
@@ -1074,6 +1077,7 @@ export default function InvoiceDetail() {
                       step="0.01"
                       value={item.rate}
                       onChange={e => updateItem(idx, 'rate', Number(e.target.value))}
+                      className="h-9"
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-1">
@@ -1084,17 +1088,18 @@ export default function InvoiceDetail() {
                       step="0.01"
                       value={item.tax_rate}
                       onChange={e => updateItem(idx, 'tax_rate', Number(e.target.value))}
+                      className="h-9"
                     />
                   </div>
-                  <div className="col-span-6 sm:col-span-2 text-right">
+                  <div className="col-span-6 sm:col-span-1 text-right">
                     <Label className="text-xs text-gray-500">Amount</Label>
-                    <p className="text-sm font-medium py-2">{formatCurrency(item.qty * item.rate)}</p>
+                    <p className="text-sm font-medium h-9 flex items-center justify-end">{formatCurrency(item.qty * item.rate)}</p>
                   </div>
                   <div className="col-span-6 sm:col-span-1 flex justify-end">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      className="h-9 text-red-500 hover:text-red-700 hover:bg-red-50"
                       onClick={() => removeItem(idx)}
                     >
                       <Trash2 className="w-4 h-4" />

@@ -23,6 +23,8 @@ interface Props {
   onSelect: (val: StaffPickerValue | null) => void
   disabled?: boolean
   placeholder?: string
+  /** Compact field height for dense forms. */
+  compact?: boolean
 }
 
 function buildSub(phone?: string | null, email?: string | null): string | undefined {
@@ -30,7 +32,7 @@ function buildSub(phone?: string | null, email?: string | null): string | undefi
   return parts.length ? parts.join(' • ') : undefined
 }
 
-export function StaffPicker({ selected, onSelect, disabled, placeholder }: Props) {
+export function StaffPicker({ selected, onSelect, disabled, placeholder, compact }: Props) {
   const toOption = (v: StaffPickerValue): PickerOption => ({
     id: v.id,
     label: v.full_name,
@@ -76,11 +78,12 @@ export function StaffPicker({ selected, onSelect, disabled, placeholder }: Props
 
   return (
     <MasterDataPicker
-      placeholder={placeholder ?? 'Search staff by name, email or phone…'}
+      placeholder={placeholder ?? 'Search staff…'}
       selected={selected ? toOption(selected) : null}
       onSearch={handleSearch}
       onSelect={handleSelect}
       disabled={disabled}
+      compact={compact}
     />
   )
 }

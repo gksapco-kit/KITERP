@@ -415,7 +415,7 @@ function CouponModal({
         store_id: branch_id || formStoreId || undefined,
         usage_limit: form.usage_limit || undefined,
         max_discount: form.max_discount || undefined,
-        applicable_ids: isSpecific ? applicableItems.map((item) => item.id) : [],
+        applicable_ids: isSpecific ? [...new Set(applicableItems.map((item) => item.id))] : [],
       }
       if (mode === 'create') await vendorApi.createCoupon(payload)
       else await vendorApi.updateCoupon(coupon!.id as string, payload)
@@ -447,6 +447,7 @@ function CouponModal({
                 onChange={(id) => { setForm(f => ({ ...f, store_id: id, branch_id: '' })); setApplicableItems([]) }}
                 allowAll
                 className="min-w-0"
+                triggerClassName="h-8 text-sm"
               />
               <BranchSelect
                 businessUnitId={form.store_id || null}
@@ -454,6 +455,7 @@ function CouponModal({
                 onChange={(id) => setForm(f => ({ ...f, branch_id: id }))}
                 allowAll
                 className="min-w-0"
+                triggerClassName="h-8 text-sm"
               />
             </div>
           </div>

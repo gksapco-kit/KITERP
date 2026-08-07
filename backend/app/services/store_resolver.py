@@ -1,4 +1,4 @@
-"""Resolve the business unit (store) a transaction should be attributed to.
+"""Resolve the business unit (store) or sales area a transaction belongs to.
 
 Used when creating orders, POS transactions and invoices so dashboard/reports
 can be scoped per store. Falls back to the vendor's default (or oldest active)
@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.store import Store
 from app.models.vendor_user import VendorUser
+from app.models.sales_area import SalesArea
 
 
 async def get_default_store_id(db: AsyncSession, vendor_id: UUID) -> Optional[UUID]:
@@ -102,3 +103,37 @@ async def resolve_store_id(
             return sid
 
     return await get_default_store_id(db, vendor_id)
+
+
+async def resolve_default_sales_area_id(
+    db: AsyncSession,
+    vendor_id: UUID,
+    store_id: Optional[UUID],
+) -> Optional[UUID]:
+    """Return the default sales area for *store_id*, falling back to any active
+    sales area for the vendor.  Returns None when none exist yet (new vendors
+    that haven't configured sales areas).
+    """
+    if store_id:
+        row = await db.execute(
+            select(SalesArea.id)
+            .where(
+                SalesArea.vendor_id == vendor_id,
+                SalesArea.business_unit_id == store_id,
+                SalesArea.is_active == True,  # noqa: E712
+            )
+            .order_by(SalesArea.is_default.desc(), SalesArea.created_at.asc())
+            .limit(1)
+        )
+        sid = row.scalars().first()
+        if sid:
+            return sid
+
+    # Fall back to any active sales area for the vendor
+    row = await db.execute(
+        select(SalesArea.id)
+        .where(SalesArea.vendor_id == vendor_id, SalesArea.is_active == True)  # noqa: E712
+        .order_by(SalesArea.is_default.desc(), SalesArea.created_at.asc())
+        .limit(1)
+    )
+    return row.scalars().first()

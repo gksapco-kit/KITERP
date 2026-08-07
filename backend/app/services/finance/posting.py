@@ -424,28 +424,93 @@ async def _handle_pos(db, vendor_id, payload):
 async def _handle_vendor_bill(db, vendor_id, payload):
     """
     Dr Expense + GST Input  /  Cr AP
-    payload: {subtotal, tax_amount, total, supplier_id, expense_account_id, narration}
+
+    Two modes:
+    - Simple (default): single aggregate expense line.
+      payload: {subtotal, tax_amount, total, supplier_id, expense_account_id?,
+                narration, cost_center_id?, project_id?}
+    - Per-line: when payload contains "bill_lines", each entry drives its own
+      expense debit line (using the line's account_id / dimensions).
+      payload: {total, tax_amount, supplier_id, narration,
+                bill_lines: [{account_id, amount, cost_center_id?, project_id?, narration?}]}
     """
     ap = await _find_account(db, vendor_id, "Liability", "Current Liability", "Accounts Payable")
+    gst_in = await _find_account(db, vendor_id, "Asset", "Current Asset", "GST Input")
+    if not ap:
+        return None
+
+    tax = Decimal(str(payload.get("tax_amount", 0)))
+    total = Decimal(str(payload.get("total", 0)))
+    supplier_id = payload.get("supplier_id")
+    narration = payload.get("narration", "Vendor Bill")
+
+    bill_lines = payload.get("bill_lines") or []
+
+    if bill_lines:
+        # Per-line mode: one expense debit per bill line, each with its own GL account
+        # and cost dimensions (cost_center_id, project_id).
+        out: list[FinJournalLine] = []
+        for spec in bill_lines:
+            acc_id = _uuid_or_none(spec.get("account_id"))
+            if acc_id:
+                r = await db.execute(
+                    select(FinAccount).where(
+                        FinAccount.id == acc_id, FinAccount.vendor_id == vendor_id
+                    )
+                )
+                exp_acc = r.scalar_one_or_none()
+            else:
+                exp_acc = await _find_account(db, vendor_id, "Expense", "Operating Expense", "Purchase")
+            if not exp_acc:
+                continue
+            amt = Decimal(str(spec.get("amount", 0)))
+            if amt <= 0:
+                continue
+            ln = _line(
+                exp_acc,
+                debit=amt,
+                narration=spec.get("narration") or narration,
+                vendor_id=vendor_id,
+                party_type="supplier",
+                party_id=supplier_id,
+            )
+            ln.cost_center_id = _uuid_or_none(spec.get("cost_center_id"))
+            ln.project_id = _uuid_or_none(spec.get("project_id"))
+            out.append(ln)
+
+        if not out:
+            return None
+
+        subtotal = sum(ln.debit for ln in out)
+        out.append(
+            _line(ap, credit=total, narration=f"AP - {narration}", vendor_id=vendor_id,
+                  party_type="supplier", party_id=supplier_id)
+        )
+        if tax > 0 and gst_in:
+            out.append(_line(gst_in, debit=tax, narration="GST Input Credit", vendor_id=vendor_id))
+        return out
+
+    # Simple aggregate mode (backwards-compatible).
     exp_acc_id = payload.get("expense_account_id")
     if exp_acc_id:
         r = await db.execute(select(FinAccount).where(FinAccount.id == exp_acc_id))
         expense = r.scalar_one_or_none()
     else:
         expense = await _find_account(db, vendor_id, "Expense", "Operating Expense", "Purchase")
-    gst_in = await _find_account(db, vendor_id, "Asset", "Current Asset", "GST Input")
-    if not (ap and expense):
+    if not expense:
         return None
 
     subtotal = Decimal(str(payload.get("subtotal", 0)))
-    tax = Decimal(str(payload.get("tax_amount", 0)))
-    total = Decimal(str(payload.get("total", 0)))
+    exp_line = _line(expense, debit=subtotal, narration="Purchase Expense", vendor_id=vendor_id,
+                     party_type="supplier", party_id=supplier_id)
+    # Stamp header-level dimensions onto the aggregate expense line.
+    exp_line.cost_center_id = _uuid_or_none(payload.get("cost_center_id"))
+    exp_line.project_id = _uuid_or_none(payload.get("project_id"))
 
     lines = [
-        _line(expense, debit=subtotal, narration="Purchase Expense", vendor_id=vendor_id,
-              party_type="supplier", party_id=payload.get("supplier_id")),
+        exp_line,
         _line(ap, credit=total, narration="AP - Vendor Bill", vendor_id=vendor_id,
-              party_type="supplier", party_id=payload.get("supplier_id")),
+              party_type="supplier", party_id=supplier_id),
     ]
     if tax > 0 and gst_in:
         lines.append(_line(gst_in, debit=tax, narration="GST Input Credit", vendor_id=vendor_id))

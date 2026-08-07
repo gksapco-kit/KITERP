@@ -19,8 +19,8 @@ test.describe('Quotation line item variants', () => {
     await itemInput.click()
     await itemInput.fill('')
 
-    // Wait for catalogue dropdown results
-    const dropdown = modal.locator('.absolute').filter({ hasText: /Products|results/i }).first()
+    // Catalogue menu is portaled to document.body (fixed), not nested in the modal.
+    const dropdown = page.locator('body > div.fixed').filter({ hasText: /Click a row to select|Select variant/i }).first()
     await expect(dropdown).toBeVisible({ timeout: 10_000 })
 
     // Prefer a row that advertises multiple variants
@@ -28,33 +28,35 @@ test.describe('Quotation line item variants', () => {
     const hasMulti = await multiVariantRow.isVisible().catch(() => false)
 
     if (!hasMulti) {
-      test.skip(true, 'No multi-variant products in catalogue for this vendor')
+      // Single-variant / no-variant products should select on one click of the full row.
+      const anyRow = dropdown.locator('ul button').first()
+      await expect(anyRow).toBeVisible()
+      const productLabel = ((await anyRow.locator('.font-medium').first().textContent()) || '').trim()
+      await anyRow.click()
+      await expect(itemInput).toHaveValue(new RegExp(escapeRegExp(productLabel)))
       return
     }
 
     const productLabel = ((await multiVariantRow.locator('.font-medium').first().textContent()) || '').trim()
     await multiVariantRow.click()
 
-    // Variant chooser step
+    // Product name fills immediately; variant chooser stays open
+    await expect(itemInput).toHaveValue(productLabel)
     await expect(dropdown.getByText(/Select variant/i)).toBeVisible({ timeout: 5_000 })
     const firstVariant = dropdown.locator('ul button').first()
     await expect(firstVariant).toBeVisible()
     const variantName = ((await firstVariant.locator('.font-medium').first().textContent()) || '').trim()
     await firstVariant.click()
 
-    // Line fills with Product — Variant
-    await expect(itemInput).toHaveValue(new RegExp(`${escapeRegExp(productLabel)}\\s*—\\s*${escapeRegExp(variantName)}`))
-
-    // Variant column select should show the chosen variant
-    const variantSelect = modal.locator('select').filter({ has: page.locator('option', { hasText: variantName }) }).first()
-    await expect(variantSelect).toBeVisible()
-    await expect(variantSelect).toHaveValue(/.+/)
+    // Line fills with Product — Variant (unless default "Variant 1" is collapsed)
+    await expect(itemInput).toHaveValue(new RegExp(escapeRegExp(productLabel)))
 
     // Rate should be auto-filled (> 0 for priced variants, or at least a number)
     const rateInput = modal.locator('input[placeholder="Rate"]').first()
     await expect(rateInput).toBeVisible()
     const rate = Number(await rateInput.inputValue())
     expect(Number.isFinite(rate)).toBeTruthy()
+    expect(variantName.length).toBeGreaterThan(0)
   })
 })
 

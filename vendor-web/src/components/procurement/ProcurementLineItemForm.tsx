@@ -389,6 +389,7 @@ export function ProcurementLineItemForm({
               )}
               placeholder="— Product level —"
               className={inputClass}
+              triggerClassName="h-8 px-2.5 text-xs"
               aria-label="Variant"
             />
           ) : (

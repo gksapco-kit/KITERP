@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { isDefaultManualVariantName } from '@/lib/productVariants'
 import { TableColumnLabel, CheckboxFieldLabel, FormColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useModalScrollLock } from '@/components/ui/Modal'
@@ -539,6 +540,11 @@ function activeVariantsOf(item: CatalogueItem | undefined): CatalogueVariant[] {
   return item.variants.filter(v => v.is_active !== false)
 }
 
+function isSingleDefaultVariant(item: CatalogueItem) {
+  const variants = activeVariantsOf(item)
+  return variants.length === 1 && isDefaultManualVariantName(variants[0]?.name, false)
+}
+
 function ItemSearchRow({
   item, index, onUpdate, onPatch, onRemove, catalogue, compact = false,
 }: {
@@ -553,7 +559,10 @@ function ItemSearchRow({
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'all' | 'product' | 'service'>('all')
   const [variantPickFor, setVariantPickFor] = useState<CatalogueItem | null>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const inputWrapRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const selectedProduct = useMemo(
     () => (item.product_id ? catalogue.find(c => c.id === item.product_id) : undefined),
@@ -571,25 +580,79 @@ function ItemSearchRow({
       .slice(0, 12)
   }, [catalogue, item.name, tab])
 
-  useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false)
-        setVariantPickFor(null)
-      }
-    }
-    document.addEventListener('mousedown', handle)
-    return () => document.removeEventListener('mousedown', handle)
+  const updateMenuPos = useCallback(() => {
+    const el = inputWrapRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const gap = 4
+    const spaceBelow = window.innerHeight - rect.bottom - gap - 8
+    const spaceAbove = rect.top - gap - 8
+    const preferBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove
+    const maxHeight = Math.max(160, Math.min(320, preferBelow ? spaceBelow : spaceAbove))
+    setMenuPos({
+      top: preferBelow ? rect.bottom + gap : Math.max(8, rect.top - gap - maxHeight),
+      left: rect.left,
+      width: Math.max(rect.width, 280),
+      maxHeight,
+    })
   }, [])
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPos(null)
+      return
+    }
+    updateMenuPos()
+  }, [open, filtered.length, tab, variantPickFor, updateMenuPos])
+
+  useEffect(() => {
+    if (!open) return
+    const onScrollOrResize = () => updateMenuPos()
+    window.addEventListener('scroll', onScrollOrResize, true)
+    window.addEventListener('resize', onScrollOrResize)
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true)
+      window.removeEventListener('resize', onScrollOrResize)
+    }
+  }, [open, updateMenuPos])
+
+  useEffect(() => {
+    if (!open) return
+    function handle(e: MouseEvent) {
+      const target = e.target
+      if (!(target instanceof Node)) return
+      if (wrapRef.current?.contains(target)) return
+      if (menuRef.current?.contains(target)) return
+      setOpen(false)
+      setVariantPickFor(null)
+    }
+    // Capture phase so we beat modal/overlay handlers and still allow row clicks.
+    document.addEventListener('mousedown', handle, true)
+    return () => document.removeEventListener('mousedown', handle, true)
+  }, [open])
 
   function applyCatalogue(c: CatalogueItem, variant?: CatalogueVariant) {
     const variants = activeVariantsOf(c)
+    // Multi-variant products: fill the product on the row, then ask for a variant.
     if (c.kind === 'product' && variants.length > 1 && !variant) {
+      onPatch({
+        name: c.name,
+        hsn_sac: c.hsn_sac || '',
+        rate: c.price ?? 0,
+        tax_rate: c.tax_rate ?? 18,
+        product_id: c.id,
+        variant_id: undefined,
+        kind: 'product',
+      })
       setVariantPickFor(c)
       return
     }
     const chosen = variant ?? (variants.length === 1 ? variants[0] : undefined)
-    const displayName = chosen?.name ? `${c.name} — ${chosen.name}` : c.name
+    const collapseDefault = Boolean(
+      chosen && isSingleDefaultVariant(c) && variants[0]?.id === chosen.id,
+    )
+    const displayName =
+      chosen && chosen.name && !collapseDefault ? `${c.name} — ${chosen.name}` : c.name
     onPatch({
       name: displayName,
       hsn_sac: chosen?.hsn_code || c.hsn_sac || '',
@@ -611,16 +674,150 @@ function ItemSearchRow({
   }
 
   const fieldClass = compact
-    ? 'w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400'
-    : 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400'
+    ? 'h-8 w-full rounded-md border border-gray-200 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400'
+    : 'h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400'
+
+  const menu =
+    open && menuPos && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-[220] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
+            style={{
+              top: menuPos.top,
+              left: menuPos.left,
+              width: menuPos.width,
+              maxHeight: menuPos.maxHeight,
+            }}
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
+          >
+            {variantPickFor ? (
+              <div className="flex max-h-full flex-col" style={{ maxHeight: menuPos.maxHeight }}>
+                <div className="flex shrink-0 items-center gap-2 border-b bg-gray-50 px-3 py-2">
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => setVariantPickFor(null)}
+                  >
+                    ← Back
+                  </button>
+                  <p className="min-w-0 flex-1 truncate text-xs font-medium text-gray-700">
+                    Select variant — {variantPickFor.name}
+                  </p>
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => { setOpen(false); setVariantPickFor(null) }}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <ul className="divide-y divide-gray-50 overflow-y-auto">
+                  {activeVariantsOf(variantPickFor).map(v => (
+                    <li key={v.id}>
+                      <button
+                        type="button"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => applyCatalogue(variantPickFor, v)}
+                        className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-blue-50"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-gray-800">{v.name}</p>
+                          <p className="text-xs text-gray-400">
+                            {v.sku && <span className="mr-2 font-mono">{v.sku}</span>}
+                            {v.price != null && <span className="mr-2">₹{Number(v.price).toFixed(2)}</span>}
+                            {v.tax_rate != null && <span>{v.tax_rate}% tax</span>}
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="flex max-h-full flex-col" style={{ maxHeight: menuPos.maxHeight }}>
+                <div className="flex shrink-0 gap-1 border-b bg-gray-50 px-2 pt-1.5">
+                  {(['all', 'product', 'service'] as const).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setTab(t)}
+                      className={`rounded-t-lg px-3 py-1 text-xs font-medium capitalize transition-colors ${tab === t ? 'border border-b-white border-gray-200 bg-white text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      {t === 'all' ? 'All' : t === 'product' ? '📦 Products' : '⚙️ Services'}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => setOpen(false)}
+                    className="ml-auto p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {filtered.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-gray-400">
+                    {item.name.trim() ? `No matches for "${item.name}"` : 'Start typing to search…'}
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-gray-50 overflow-y-auto">
+                    {filtered.map(c => {
+                      const vCount = activeVariantsOf(c).length
+                      const needsVariantPick = c.kind === 'product' && vCount > 1
+                      return (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => applyCatalogue(c)}
+                            className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-blue-50"
+                          >
+                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${c.kind === 'product' ? 'bg-blue-100 text-blue-700' : 'bg-primary/12 text-primary'}`}>
+                              {c.kind === 'product' ? '📦' : '⚙️'}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-gray-800">{c.name}</p>
+                              <p className="text-xs text-gray-400">
+                                {c.hsn_sac && <span className="mr-2">HSN {c.hsn_sac}</span>}
+                                {c.price != null && <span className="mr-2">₹{c.price.toFixed(2)}</span>}
+                                {c.tax_rate != null && <span className="mr-2">{c.tax_rate}% tax</span>}
+                                {vCount > 0 && <span className="text-blue-600">{vCount} variant{vCount === 1 ? '' : 's'}</span>}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-xs capitalize text-gray-300">
+                              {needsVariantPick ? 'Choose →' : c.kind}
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+                <div className="shrink-0 border-t bg-gray-50 px-3 py-2 text-xs text-gray-400">
+                  {filtered.length} result{filtered.length !== 1 ? 's' : ''} · Click a row to select
+                </div>
+              </div>
+            )}
+          </div>,
+          document.body,
+        )
+      : null
 
   return (
     <div className={cn('flex items-start', compact ? 'gap-1.5' : 'gap-2')}>
       <div className={cn('shrink-0 text-center text-gray-400 font-medium', compact ? 'w-6 pt-1.5 text-[10px]' : 'w-7 pt-2.5 text-xs')}>
         {index + 1}
       </div>
-      <div className="relative min-w-0 flex-[1.6]" ref={wrapRef}>
-        <div className="relative">
+      <div className="relative min-w-0 flex-[2.4]" ref={wrapRef}>
+        <div className="relative" ref={inputWrapRef}>
           <Search className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-2 h-3 w-3' : 'left-2.5 h-3.5 w-3.5')} />
           <input
             className={cn(fieldClass, 'bg-white', compact ? 'pl-7' : 'pl-8')}
@@ -639,104 +836,7 @@ function ItemSearchRow({
             onFocus={() => setOpen(true)}
           />
         </div>
-
-        {open && (
-          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[90vh] overflow-hidden overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-xl" onClick={e => e.stopPropagation()}>
-            {variantPickFor ? (
-              <>
-                <div className="flex items-center gap-2 border-b bg-gray-50 px-3 py-2">
-                  <button
-                    type="button"
-                    className="text-xs text-primary hover:underline"
-                    onClick={() => setVariantPickFor(null)}
-                  >
-                    ← Back
-                  </button>
-                  <p className="min-w-0 flex-1 truncate text-xs font-medium text-gray-700">
-                    Select variant — {variantPickFor.name}
-                  </p>
-                  <button type="button" aria-label="Close" onClick={() => { setOpen(false); setVariantPickFor(null) }} className="p-1 text-gray-400 hover:text-gray-600">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <ul className="max-h-52 divide-y divide-gray-50 overflow-y-auto">
-                  {activeVariantsOf(variantPickFor).map(v => (
-                    <li key={v.id}>
-                      <button
-                        type="button"
-                        onMouseDown={e => { e.preventDefault(); applyCatalogue(variantPickFor, v) }}
-                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-blue-50"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-gray-800">{v.name}</p>
-                          <p className="text-xs text-gray-400">
-                            {v.sku && <span className="mr-2 font-mono">{v.sku}</span>}
-                            {v.price != null && <span className="mr-2">₹{Number(v.price).toFixed(2)}</span>}
-                            {v.tax_rate != null && <span>{v.tax_rate}% tax</span>}
-                          </p>
-                        </div>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <>
-                <div className="flex gap-1 border-b bg-gray-50 px-2 pt-1.5">
-                  {(['all', 'product', 'service'] as const).map(t => (
-                    <button key={t} type="button" onClick={() => setTab(t)}
-                      className={`rounded-t-lg px-3 py-1 text-xs font-medium capitalize transition-colors ${tab === t ? 'border border-b-white border-gray-200 bg-white text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
-                      {t === 'all' ? 'All' : t === 'product' ? '📦 Products' : '⚙️ Services'}
-                    </button>
-                  ))}
-                  <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="ml-auto p-1 text-gray-400 hover:text-gray-600">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {filtered.length === 0 ? (
-                  <p className="py-4 text-center text-xs text-gray-400">
-                    {item.name.trim() ? `No matches for "${item.name}"` : 'Start typing to search…'}
-                  </p>
-                ) : (
-                  <ul className="max-h-52 divide-y divide-gray-50 overflow-y-auto">
-                    {filtered.map(c => {
-                      const vCount = activeVariantsOf(c).length
-                      return (
-                        <li key={c.id}>
-                          <button
-                            type="button"
-                            onMouseDown={e => { e.preventDefault(); applyCatalogue(c) }}
-                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-blue-50"
-                          >
-                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${c.kind === 'product' ? 'bg-blue-100 text-blue-700' : 'bg-primary/12 text-primary'}`}>
-                              {c.kind === 'product' ? '📦' : '⚙️'}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-gray-800">{c.name}</p>
-                              <p className="text-xs text-gray-400">
-                                {c.hsn_sac && <span className="mr-2">HSN {c.hsn_sac}</span>}
-                                {c.price != null && <span className="mr-2">₹{c.price.toFixed(2)}</span>}
-                                {c.tax_rate != null && <span className="mr-2">{c.tax_rate}% tax</span>}
-                                {vCount > 0 && <span className="text-blue-600">{vCount} variant{vCount === 1 ? '' : 's'}</span>}
-                              </p>
-                            </div>
-                            <span className="shrink-0 text-xs capitalize text-gray-300">
-                              {c.kind === 'product' && vCount > 1 ? 'Choose →' : c.kind}
-                            </span>
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-                <div className="border-t bg-gray-50 px-3 py-2 text-xs text-gray-400">
-                  {filtered.length} result{filtered.length !== 1 ? 's' : ''} · Select to auto-fill details
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        {menu}
       </div>
 
       {/* Variant (when product has multiple) */}
@@ -744,6 +844,7 @@ function ItemSearchRow({
         {rowVariants.length > 1 ? (
           <Select
             className={cn(fieldClass, 'bg-white')}
+            triggerClassName={compact ? 'h-8 px-2 text-xs' : 'h-10 px-3 text-sm'}
             value={item.variant_id || ''}
             onChange={applyVariantId}
             placeholder="Select variant…"
@@ -768,7 +869,7 @@ function ItemSearchRow({
         <input className={fieldClass}
           placeholder="HSN" value={item.hsn_sac} onChange={e => onUpdate('hsn_sac', e.target.value)} />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="w-14 shrink-0">
         <input type="number" min={1} className={cn(fieldClass, 'text-center')}
           value={item.qty} onChange={e => onUpdate('qty', Number(e.target.value))} />
       </div>
@@ -955,184 +1056,271 @@ export function CreateInvoiceModal({
         onClick={e => e.stopPropagation()}
         onPointerDown={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between shrink-0 px-5 py-2.5">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-2.5">
           <h2 className="text-base font-semibold">
             {defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
           </h2>
-          <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="rounded-lg p-1 hover:bg-muted"><X className="h-5 w-5" /></button>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 space-y-2.5">
-          {/* Business unit — scopes the product/service catalog */}
-          <div>
-            <Label className="text-xs">Business unit</Label>
-            <div className="mt-0.5 flex flex-wrap gap-2">
-              <BusinessUnitSelect value={storeId} onChange={(id) => { setStoreId(id); setBranchId('') }} className="flex-1 min-w-[10rem]" />
-              <BranchSelect businessUnitId={storeId || null} value={branchId} onChange={setBranchId} allowAll className="flex-1 min-w-[10rem]" />
-            </div>
-          </div>
-
-          {/* Customer + quotation meta — single compact row */}
-          <div className="relative">
+          {/* Header: 2 rows — BU/branch + customer search, then invoice meta */}
+          <div className="relative space-y-2.5">
             {isQuotation ? (
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
-                <div className="min-w-0">
-                  <Label className="text-xs">Select Customer (optional)</Label>
-                  <div className="relative mt-0.5">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      placeholder="Search customers…"
-                      className="h-8 pl-8 text-sm"
-                      value={custSearch}
-                      onFocus={() => setCustOpen(true)}
-                      onChange={e => { setCustSearch(e.target.value); setCustOpen(true) }}
+              <>
+                <div>
+                  <Label className="text-xs">Business unit</Label>
+                  <div className="mt-0.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <BusinessUnitSelect
+                      value={storeId}
+                      onChange={(id) => { setStoreId(id); setBranchId('') }}
+                      className="min-w-0 w-full"
+                      triggerClassName="h-8"
+                    />
+                    <BranchSelect
+                      businessUnitId={storeId || null}
+                      value={branchId}
+                      onChange={setBranchId}
+                      allowAll
+                      className="min-w-0 w-full"
+                      triggerClassName="h-8"
                     />
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-8 shrink-0 gap-1 px-2 text-xs"
-                  onClick={() => setShowQuickCreate(true)}
-                >
-                  <UserPlus className="h-3.5 w-3.5" /> Create
-                </Button>
-                <div className="min-w-0">
-                  <Label className="text-xs">Valid Until</Label>
-                  <Input
-                    type="date"
-                    className="mt-0.5 h-8 w-full text-sm"
-                    value={form.due_date}
-                    onChange={e => setForm({ ...form, due_date: e.target.value })}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
-                  <Input
-                    className="mt-0.5 h-8 w-full text-sm"
-                    value={form.customer_gstin}
-                    onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })}
-                    maxLength={15}
-                  />
-                </div>
-                <CheckboxFieldLabel
-                  label="Inter-state (IGST)"
-                  checked={form.is_inter_state}
-                  onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
-                  helpKey="inter-state supply (igst)"
-                  className="shrink-0 pb-1.5 whitespace-nowrap"
-                  labelClassName="text-xs"
-                />
-              </div>
-            ) : (
-              <div>
-                <Label className="text-xs">Select Customer (optional)</Label>
-                <div className="mt-0.5 flex gap-2">
-                  <div className="relative min-w-0 flex-1">
-                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      placeholder="Search existing customers…"
-                      className="h-8 pl-9 text-sm"
-                      value={custSearch}
-                      onFocus={() => setCustOpen(true)}
-                      onChange={e => { setCustSearch(e.target.value); setCustOpen(true) }}
-                    />
+                <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                  <div className="min-w-0">
+                    <Label className="text-xs">Select Customer (optional)</Label>
+                    <div className="relative mt-0.5">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                      <Input
+                        placeholder="Search customers…"
+                        className="h-8 w-full pl-8 text-sm"
+                        value={custSearch}
+                        onFocus={() => setCustOpen(true)}
+                        onChange={e => { setCustSearch(e.target.value); setCustOpen(true) }}
+                      />
+                    </div>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-8 shrink-0 gap-1.5 px-2.5 text-xs"
+                    className="h-8 shrink-0 gap-1 px-2 text-xs"
                     onClick={() => setShowQuickCreate(true)}
                   >
-                    <UserPlus className="h-3.5 w-3.5" /> Create Customer
+                    <UserPlus className="h-3.5 w-3.5" /> Create
                   </Button>
+                  <div className="min-w-0">
+                    <Label className="text-xs">Valid Until</Label>
+                    <Input
+                      type="date"
+                      className="mt-0.5 h-8 w-full min-w-[10.5rem] text-sm"
+                      value={form.due_date}
+                      onChange={e => setForm({ ...form, due_date: e.target.value })}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
+                    <Input
+                      className="mt-0.5 h-8 w-full text-sm"
+                      value={form.customer_gstin}
+                      onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })}
+                      maxLength={15}
+                    />
+                  </div>
+                  <CheckboxFieldLabel
+                    label="Inter-state (IGST)"
+                    checked={form.is_inter_state}
+                    onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
+                    helpKey="inter-state supply (igst)"
+                    className="shrink-0 pb-1.5 whitespace-nowrap"
+                    labelClassName="text-xs"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="grid grid-cols-1 gap-x-2 gap-y-2 sm:grid-cols-12">
+                <div className="min-w-0 sm:col-span-3">
+                  <Label className="text-xs">Business unit</Label>
+                  <BusinessUnitSelect
+                    value={storeId}
+                    onChange={(id) => { setStoreId(id); setBranchId('') }}
+                    className="mt-0.5 min-w-0 w-full"
+                    triggerClassName="h-8"
+                  />
+                </div>
+                <div className="min-w-0 sm:col-span-3">
+                  <Label className="text-xs">Branch</Label>
+                  <BranchSelect
+                    businessUnitId={storeId || null}
+                    value={branchId}
+                    onChange={setBranchId}
+                    allowAll
+                    className="mt-0.5 min-w-0 w-full"
+                    triggerClassName="h-8"
+                  />
+                </div>
+                <div className="relative min-w-0 sm:col-span-6">
+                  <Label className="text-xs">Customer</Label>
+                  <div className="mt-0.5 flex gap-1.5">
+                    <div className="relative min-w-0 flex-1">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="Search or create a customer…"
+                        className="h-8 w-full pl-8 pr-8 text-sm"
+                        value={custSearch}
+                        onFocus={() => setCustOpen(true)}
+                        onChange={e => {
+                          const v = e.target.value
+                          setCustSearch(v)
+                          setCustOpen(true)
+                          if (!v.trim()) {
+                            setForm(f => ({
+                              ...f,
+                              customer_name: '',
+                              customer_phone: '',
+                              customer_email: '',
+                              customer_gstin: '',
+                            }))
+                          }
+                        }}
+                      />
+                      {custSearch ? (
+                        <button
+                          type="button"
+                          aria-label="Clear customer"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            setCustSearch('')
+                            setCustOpen(false)
+                            setForm(f => ({
+                              ...f,
+                              customer_name: '',
+                              customer_phone: '',
+                              customer_email: '',
+                              customer_gstin: '',
+                            }))
+                          }}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 shrink-0 gap-1 px-2.5 text-xs"
+                      onClick={() => setShowQuickCreate(true)}
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Create</span>
+                    </Button>
+                  </div>
+                  {custOpen && (
+                    <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-40 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+                      {customers.length === 0 ? (
+                        <p className="px-3 py-2.5 text-sm text-muted-foreground">No customers found</p>
+                      ) : customers.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="w-full border-b border-border px-3 py-2 text-left transition-colors last:border-0 hover:bg-muted/60"
+                          onClick={() => applyCustomer(c)}
+                        >
+                          <p className="text-sm font-medium text-foreground">{c.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{[c.phone, c.gstin].filter(Boolean).join(' · ')}</p>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-xs text-muted-foreground hover:bg-muted/40"
+                        onClick={() => setCustOpen(false)}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="min-w-0 sm:col-span-3">
+                  <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
+                  <Input
+                    className="mt-0.5 h-8 font-mono text-sm tracking-wide"
+                    value={form.customer_gstin}
+                    onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })}
+                    maxLength={15}
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="min-w-0 sm:col-span-4">
+                  <Label className="text-xs">Phone</Label>
+                  <PhoneInput
+                    className="mt-0.5"
+                    compact
+                    compactCountry
+                    value={form.customer_phone}
+                    onChange={(v) => setForm({ ...form, customer_phone: v })}
+                    defaultCountryIso="IN"
+                  />
+                </div>
+                <div className="min-w-0 sm:col-span-3">
+                  <Label className="text-xs">Due date</Label>
+                  <Input
+                    type="date"
+                    className="mt-0.5 h-8 w-full min-w-[10.5rem] text-sm"
+                    value={form.due_date}
+                    onChange={e => setForm({ ...form, due_date: e.target.value })}
+                  />
+                </div>
+                <div className="flex min-w-0 items-end pb-1.5 sm:col-span-2">
+                  <CheckboxFieldLabel
+                    label="Inter-state (IGST)"
+                    checked={form.is_inter_state}
+                    onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
+                    helpKey="inter-state supply (igst)"
+                    className="whitespace-nowrap"
+                    labelClassName="text-xs"
+                  />
                 </div>
               </div>
             )}
-            {form.customer_name && (
-              <p className="mt-1 text-[11px] text-gray-500">
-                Selected: <span className="font-medium text-gray-700">{form.customer_name}</span>
+            {isQuotation && form.customer_name && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Selected: <span className="font-medium text-foreground">{form.customer_name}</span>
                 {form.customer_phone ? ` · ${form.customer_phone}` : ''}
               </p>
             )}
-            {custOpen && (
-              <div className="absolute left-0 right-0 z-30 mt-1 max-h-40 overflow-y-auto rounded-lg border bg-white shadow-lg sm:right-auto sm:min-w-[16rem] sm:max-w-[24rem]">
+            {isQuotation && custOpen && (
+              <div className="absolute left-0 right-0 z-30 mt-1 max-h-40 overflow-y-auto rounded-lg border border-border bg-card shadow-lg sm:left-auto sm:right-0 sm:w-[min(24rem,100%)]">
                 {customers.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-gray-400">No customers found</p>
+                  <p className="px-4 py-3 text-sm text-muted-foreground">No customers found</p>
                 ) : customers.map(c => (
                   <button key={c.id} type="button"
-                    className="w-full border-b px-4 py-2 text-left transition-colors last:border-0 hover:bg-indigo-50"
+                    className="w-full border-b border-border px-4 py-2 text-left transition-colors last:border-0 hover:bg-muted/60"
                     onClick={() => applyCustomer(c)}
                   >
-                    <p className="text-sm font-medium text-gray-900">{c.full_name}</p>
-                    <p className="text-xs text-gray-500">{[c.phone, c.gstin].filter(Boolean).join(' · ')}</p>
+                    <p className="text-sm font-medium text-foreground">{c.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{[c.phone, c.gstin].filter(Boolean).join(' · ')}</p>
                   </button>
                 ))}
-                <button type="button" className="w-full px-4 py-2 text-xs text-gray-400 hover:bg-gray-50" onClick={() => setCustOpen(false)}>
+                <button type="button" className="w-full px-4 py-2 text-xs text-muted-foreground hover:bg-muted/40" onClick={() => setCustOpen(false)}>
                   Close
                 </button>
               </div>
             )}
           </div>
 
-          {isQuotation ? null : (
-            <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-12">
-              <div className="sm:col-span-2">
-                <Label className="text-xs">Type</Label>
-                <Select
-                  value={form.invoice_type}
-                  onChange={v => setForm({ ...form, invoice_type: v as 'invoice' | 'estimate' | 'credit_note' })}
-                  options={[
-                    { value: 'estimate', label: 'Estimate' },
-                    { value: 'invoice', label: 'Invoice' },
-                    { value: 'credit_note', label: 'Credit Note' },
-                  ]}
-                  triggerClassName="h-8 text-sm"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
-                <Input className="mt-0.5 h-8 text-sm" value={form.customer_gstin} onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })} maxLength={15} />
-              </div>
-              <div className="sm:col-span-3">
-                <Label className="text-xs">Customer Name</Label>
-                <Input className="mt-0.5 h-8 text-sm" value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} />
-              </div>
-              <div className="sm:col-span-3">
-                <Label className="text-xs">Phone</Label>
-                <PhoneInput
-                  className="mt-0.5"
-                  compactCountry
-                  value={form.customer_phone}
-                  onChange={(v) => setForm({ ...form, customer_phone: v })}
-                  defaultCountryIso="IN"
-                />
-              </div>
-              <div className="sm:col-span-2 pb-1.5">
-                <CheckboxFieldLabel
-                  label="Inter-state (IGST)"
-                  checked={form.is_inter_state}
-                  onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
-                  helpKey="inter-state supply (igst)"
-                  className="whitespace-nowrap"
-                  labelClassName="text-xs"
-                />
-              </div>
-            </div>
-          )}
-
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <Label className="text-xs">Line Items</Label>
-              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addLine}>
-                <Plus className="w-3 h-3 mr-1" />Add Line
+          <div className="rounded-lg border border-border/80 bg-muted/20 px-2.5 py-2">
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <Label className="text-xs">Line items</Label>
+              <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1 px-2.5 text-xs" onClick={addLine}>
+                <Plus className="h-3.5 w-3.5" />Add line
               </Button>
             </div>
             <div className="mb-1 flex gap-1.5 px-0.5">
               <FormColumnLabel className="w-6 shrink-0 text-center text-[10px]">#</FormColumnLabel>
-              <FormColumnLabel className="min-w-0 flex-[1.6] text-[10px]">Item</FormColumnLabel>
+              <FormColumnLabel className="min-w-0 flex-[2.4] text-[10px]">Item</FormColumnLabel>
               <FormColumnLabel className="min-w-0 flex-1 text-[10px]">Variant</FormColumnLabel>
               <FormColumnLabel className="min-w-0 flex-1 text-[10px]">HSN/SAC</FormColumnLabel>
-              <FormColumnLabel className="min-w-0 flex-1 text-center text-[10px]">Qty</FormColumnLabel>
+              <FormColumnLabel className="w-14 shrink-0 text-center text-[10px]">Qty</FormColumnLabel>
               <FormColumnLabel className="min-w-0 flex-1 text-[10px]">Rate (₹)</FormColumnLabel>
               <FormColumnLabel className="w-14 shrink-0 text-center text-[10px]">Tax %</FormColumnLabel>
               <div className="w-7 shrink-0" />
@@ -1154,21 +1342,22 @@ export function CreateInvoiceModal({
           </div>
 
           {isQuotation ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="min-w-0">
                 <Label className="text-xs">Notes</Label>
                 <textarea
                   rows={2}
-                  className="w-full mt-0.5 text-xs border rounded-md px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="mt-0.5 w-full resize-none rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
                   value={form.notes}
                   onChange={e => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Internal or customer-facing notes…"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <Label className="text-xs">Terms &amp; Conditions</Label>
                 <textarea
                   rows={2}
-                  className="w-full mt-0.5 text-xs border rounded-md px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="mt-0.5 w-full resize-none rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
                   value={form.terms_and_conditions}
                   onChange={e => setForm({ ...form, terms_and_conditions: e.target.value })}
                 />
@@ -1179,9 +1368,10 @@ export function CreateInvoiceModal({
               <Label className="text-xs">Notes</Label>
               <textarea
                 rows={2}
-                className="w-full mt-0.5 text-xs border rounded-md px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="mt-0.5 w-full resize-none rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
                 value={form.notes}
                 onChange={e => setForm({ ...form, notes: e.target.value })}
+                placeholder="Payment notes, delivery instructions…"
               />
             </div>
           )}
@@ -1190,13 +1380,13 @@ export function CreateInvoiceModal({
             <QuotationExtraFieldsEditor fields={extraFields} onChange={setExtraFields} compact />
           )}
         </div>
-        <div className="shrink-0 flex items-center gap-3 px-5 py-2.5">
-          <div className="mr-auto flex items-baseline gap-3 text-xs">
-            <span className="text-gray-500">Subtotal: <span className="font-medium text-gray-700">{formatCurrency(subtotal)}</span></span>
-            <span className="text-gray-500">Tax: <span className="font-medium text-gray-700">{formatCurrency(totalTax)}</span></span>
-            <span className="text-sm font-bold text-gray-900">Total: {formatCurrency(Math.round(subtotal + totalTax))}</span>
+        <div className="flex shrink-0 items-center gap-3 border-t border-border px-5 py-2.5">
+          <div className="mr-auto flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs">
+            <span className="text-muted-foreground">Subtotal: <span className="font-medium text-foreground">{formatCurrency(subtotal)}</span></span>
+            <span className="text-muted-foreground">Tax: <span className="font-medium text-foreground">{formatCurrency(totalTax)}</span></span>
+            <span className="text-sm font-semibold text-foreground">Total: {formatCurrency(Math.round(subtotal + totalTax))}</span>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex shrink-0 gap-2">
             <Button variant="cancel" onClick={onClose} className="h-8 px-3 text-sm">Cancel</Button>
             <Button onClick={handleCreate} disabled={loading || !items.some(i => i.name && i.rate > 0)} className="h-8 gap-2 px-3 text-sm">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}Create

@@ -93,6 +93,10 @@ from app.services.controlling.settlement import (
     post_production_completion,
     post_cogs_issue,
 )
+from app.services.controlling.budget_control import (
+    BudgetExceededError,
+    assert_budget_allows,
+)
 
 router = APIRouter(dependencies=[Depends(require_permission("controlling.view"))])
 
@@ -1862,6 +1866,12 @@ async def create_activity_confirmation(
     rate = Decimal(str(body.rate_per_hour))
     total = (hours * rate).quantize(Decimal("0.0001"))
 
+    if body.order_id and total > 0:
+        try:
+            await assert_budget_allows(db, body.order_id, "labor", total)
+        except BudgetExceededError as exc:
+            raise HTTPException(status_code=409, detail=exc.availability.to_detail()) from exc
+
     conf = CoActivityConfirmation(
         id=uuid.uuid4(),
         vendor_id=vu.vendor_id,
@@ -2001,6 +2011,12 @@ async def create_goods_movement(
     qty = Decimal(str(body.qty))
     uc = Decimal(str(body.unit_cost))
     total = (qty * uc).quantize(Decimal("0.0001"))
+
+    if body.movement_type == "component_issue" and body.order_id and total > 0:
+        try:
+            await assert_budget_allows(db, body.order_id, "material", total)
+        except BudgetExceededError as exc:
+            raise HTTPException(status_code=409, detail=exc.availability.to_detail()) from exc
 
     # Auto-generate document_no
     count_r = await db.execute(

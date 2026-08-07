@@ -19,12 +19,14 @@ import { BranchSelect } from '@/components/common/BranchSelect'
 import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/CatalogItemPicker'
-import { useCreateProject, useProjects, useProjectsOverview, useUpdateProject } from '@/hooks/useProjects'
+import { useCreateProject, useDeleteProject, useProjects, useProjectsOverview, useUpdateProject } from '@/hooks/useProjects'
+import { useHasPermission } from '@/hooks/usePermissions'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { cn, formatDate } from '@/lib/utils'
 import { modalWidthMd } from '@/lib/modalUi'
 import {
   FolderKanban, Plus, Loader2, CheckCircle2, AlertTriangle,
-  ListTodo, Activity,
+  ListTodo, Activity, Trash2,
 } from 'lucide-react'
 import type { Project, ProjectPriority, ProjectStatus, ProjectUpdateInput } from '@/types/project'
 import {
@@ -142,6 +144,7 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
                   onChange={(id) => { setStoreId(id); setBranchId(''); setSalesAreaId(''); setItems([]) }}
                   allowAll
                   className="min-w-0"
+                  triggerClassName="h-8 text-sm"
                 />
                 <BranchSelect
                   businessUnitId={storeId || null}
@@ -149,6 +152,7 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
                   onChange={(id) => { setBranchId(id); setSalesAreaId(''); setItems([]) }}
                   allowAll
                   className="min-w-0"
+                  triggerClassName="h-8 text-sm"
                 />
                 <SalesAreaSelect
                   businessUnitId={storeId || null}
@@ -157,6 +161,7 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
                   onChange={setSalesAreaId}
                   allowAll={false}
                   className="min-w-0"
+                  triggerClassName="h-8 text-sm"
                 />
               </div>
             </div>
@@ -238,11 +243,21 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Customer (optional)</Label>
-                <CustomerPicker selected={customer} onSelect={setCustomer} />
+                <CustomerPicker
+                  selected={customer}
+                  onSelect={setCustomer}
+                  compact
+                  placeholder="Search customers…"
+                />
               </div>
               <div className={fieldGap}>
                 <Label className={labelCls}>Project owner (optional)</Label>
-                <StaffPicker selected={owner} onSelect={setOwner} />
+                <StaffPicker
+                  selected={owner}
+                  onSelect={setOwner}
+                  compact
+                  placeholder="Search staff…"
+                />
               </div>
             </div>
 
@@ -266,13 +281,16 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
+  const canManage = useHasPermission('projects.manage')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [storeFilter, setStoreFilter] = useState('')
   const [branchFilter, setBranchFilter] = useState('')
   const [salesAreaFilter, setSalesAreaFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
 
+  const deleteProject = useDeleteProject()
   const { data: overview, isLoading: overviewLoading } = useProjectsOverview()
   const { data: listData, isLoading: listLoading } = useProjects({
     page: 1,
@@ -339,10 +357,12 @@ export default function ProjectsPage() {
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Track deliverables, tasks, and milestones.</p>
         </div>
-        <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4" />
-          New Project
-        </Button>
+        {canManage && (
+          <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setShowCreate(true)}>
+            <Plus className="w-4 h-4" />
+            New Project
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
@@ -426,6 +446,7 @@ export default function ProjectsPage() {
                   <th className="px-3 py-2 font-medium hidden md:table-cell"><TableColumnLabel>Priority</TableColumnLabel></th>
                   <th className="px-3 py-2 font-medium hidden lg:table-cell"><TableColumnLabel>Due</TableColumnLabel></th>
                   <th className="px-3 py-2 font-medium"><TableColumnLabel>Progress</TableColumnLabel></th>
+                  {canManage && <th className="w-8" />}
                 </tr>
               </thead>
               <tbody>
@@ -450,6 +471,7 @@ export default function ProjectsPage() {
                     >
                       <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                         <InlineEditCell
+                          readOnly={!canManage}
                           value={p.name}
                           saving={isSaving(p.id, 'name')}
                           onSave={(v) => patchProjectField(p.id, 'name', String(v).trim())}
@@ -462,6 +484,7 @@ export default function ProjectsPage() {
                       <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell truncate max-w-[10rem]">{p.customer_name || '—'}</td>
                       <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                         <InlineEditCell
+                          readOnly={!canManage}
                           type="select"
                           value={p.status}
                           options={projectStatusOptions}
@@ -473,6 +496,7 @@ export default function ProjectsPage() {
                       </td>
                       <td className="px-3 py-2 hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
                         <InlineEditCell
+                          readOnly={!canManage}
                           type="select"
                           value={p.priority}
                           options={projectPriorityOptions}
@@ -484,6 +508,7 @@ export default function ProjectsPage() {
                       </td>
                       <td className="px-3 py-2 text-muted-foreground hidden lg:table-cell whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <InlineEditCell
+                          readOnly={!canManage}
                           type="text"
                           value={p.due_date || ''}
                           saving={isSaving(p.id, 'due_date')}
@@ -505,6 +530,18 @@ export default function ProjectsPage() {
                           </div>
                         </InlineEditCell>
                       </td>
+                      {canManage && (
+                        <td className="px-1 py-2" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
+                            className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            title="Delete project"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -515,6 +552,23 @@ export default function ProjectsPage() {
       </Card>
 
       {showCreate && <CreateProjectModal onClose={() => setShowCreate(false)} />}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete project"
+        description={deleteTarget ? `"${deleteTarget.name}" and all its tasks will be permanently deleted. Projects with posted cost actuals cannot be deleted.` : ''}
+        variant="danger"
+        confirmLabel="Delete"
+        loading={deleteProject.isPending}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          deleteProject.mutate(deleteTarget.id, {
+            onSuccess: () => setDeleteTarget(null),
+            onError: () => setDeleteTarget(null),
+          })
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

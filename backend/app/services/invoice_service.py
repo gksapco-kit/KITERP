@@ -308,6 +308,26 @@ class InvoiceService:
         await self.db.commit()
         await self.db.refresh(invoice)
         await _try_post_payment(self.db, vendor_id, invoice, amount)
+
+        # Phase-8: reduce credit outstanding when a pay_later order's invoice is paid
+        if invoice.order_id and invoice.status == "paid":
+            try:
+                from app.models.order import Order as _Order
+                from app.services.crm.credit_gate import find_credit_control as _fcc, adjust_outstanding as _adj
+                from decimal import Decimal as _Dec
+
+                order_result = await self.db.execute(
+                    select(_Order).where(_Order.id == invoice.order_id)
+                )
+                order = order_result.scalar_one_or_none()
+                if order and order.payment_method == "pay_later":
+                    credit_row = await _fcc(self.db, vendor_id, customer_id=order.customer_id)
+                    if credit_row:
+                        await _adj(self.db, credit_row, -_Dec(str(amount)))
+                        await self.db.commit()
+            except Exception as exc:
+                log.warning("Credit outstanding sync on invoice payment failed: %s", exc)
+
         return invoice
 
     async def convert_estimate_to_invoice(self, estimate_id: UUID, vendor_id: UUID, created_by: UUID) -> Invoice:
@@ -761,4 +781,174 @@ class InvoiceService:
         if auto_commit:
             await self.db.commit()
 
+        return invoice
+
+    # ── Phase-5: bill from delivery ──────────────────────────────────────────
+
+    async def bill_from_delivery(
+        self,
+        vendor_id: UUID,
+        order_id: UUID,
+        delivery_id: UUID,
+        created_by: UUID,
+        due_date: date | None = None,
+        notes: str | None = None,
+    ) -> Invoice:
+        """Create an invoice from a goods-issued delivery.
+
+        Validates:
+          • delivery belongs to order and is goods_issued
+          • order has no billing_block
+          • no existing invoice already covers this delivery
+
+        After creating the invoice, updates:
+          • OrderLine.invoiced_qty  (adds issued_qty per delivery line)
+          • Order.billing_status   (open | partial | complete)
+        """
+        from decimal import Decimal
+        from app.models.order import OrderDelivery, DeliveryLine, OrderLine
+
+        # ── Guard checks ─────────────────────────────────────────────────────
+        order_result = await self.db.execute(
+            select(Order).where(Order.id == order_id, Order.vendor_id == vendor_id)
+        )
+        order = order_result.scalar_one_or_none()
+        if not order:
+            raise ValueError("Order not found")
+
+        if getattr(order, "billing_block", None):
+            raise ValueError(f"Order has a billing block: {order.billing_block}")
+
+        delivery_result = await self.db.execute(
+            select(OrderDelivery).where(
+                OrderDelivery.id == delivery_id,
+                OrderDelivery.order_id == order_id,
+                OrderDelivery.vendor_id == vendor_id,
+            )
+        )
+        delivery = delivery_result.scalar_one_or_none()
+        if not delivery:
+            raise ValueError("Delivery not found")
+        if delivery.status != "goods_issued":
+            raise ValueError("Invoice can only be created after goods issue is posted")
+
+        # Check if a billing document already exists for this delivery
+        existing_result = await self.db.execute(
+            select(Invoice).where(
+                Invoice.delivery_id == delivery_id,
+                Invoice.invoice_type == "invoice",
+            )
+        )
+        if existing_result.scalar_one_or_none():
+            raise ValueError("A billing document already exists for this delivery")
+
+        # ── Build invoice items from delivery lines ───────────────────────────
+        dl_result = await self.db.execute(
+            select(DeliveryLine).where(DeliveryLine.delivery_id == delivery_id)
+        )
+        dl_rows = dl_result.scalars().all()
+        if not dl_rows:
+            raise ValueError("Delivery has no lines")
+
+        # Collect unit prices from order_lines
+        ol_prices: dict[UUID, dict] = {}
+        for dl in dl_rows:
+            if dl.order_line_id and dl.order_line_id not in ol_prices:
+                ol_result = await self.db.execute(
+                    select(OrderLine).where(OrderLine.id == dl.order_line_id)
+                )
+                ol = ol_result.scalar_one_or_none()
+                if ol:
+                    ol_prices[dl.order_line_id] = {
+                        "unit_price": float(ol.unit_price or 0),
+                        "discount_pct": float(ol.discount_pct or 0),
+                        "tax_pct": float(ol.tax_pct or 0),
+                        "hsn_sac": ol.hsn_sac,
+                    }
+
+        invoice_items = []
+        for dl in dl_rows:
+            qty = float(dl.issued_qty or dl.planned_qty)
+            if qty <= 0:
+                continue
+            pricing = ol_prices.get(dl.order_line_id, {}) if dl.order_line_id else {}
+            rate = pricing.get("unit_price", 0)
+            invoice_items.append({
+                "name": dl.product_name or f"Item {dl.line_no}",
+                "description": f"Delivery {delivery.delivery_number} — line {dl.line_no}",
+                "hsn_sac": pricing.get("hsn_sac") or "",
+                "qty": qty,
+                "unit": dl.unit or "pcs",
+                "rate": rate,
+                "discount": pricing.get("discount_pct", 0),
+                "tax_rate": pricing.get("tax_pct", 0),
+            })
+
+        # ── Customer details ─────────────────────────────────────────────────
+        customer_result = await self.db.execute(
+            select(Customer).where(Customer.id == order.customer_id)
+        )
+        customer = customer_result.scalar_one_or_none()
+
+        payment_terms_str = None
+        if getattr(order, "payment_terms_code", None):
+            pt_days = getattr(order, "payment_terms_days", None)
+            payment_terms_str = order.payment_terms_code
+            if pt_days:
+                payment_terms_str += f" ({pt_days} days)"
+
+        data = {
+            "order_id": str(order_id),
+            "invoice_type": "invoice",
+            "customer_id": str(order.customer_id) if order.customer_id else None,
+            "customer_name": customer.full_name if customer else None,
+            "customer_email": customer.email if customer else None,
+            "customer_phone": customer.phone if customer else None,
+            "customer_gstin": customer.gstin if customer else None,
+            "billing_address": (customer.billing_address if customer else None) or order.shipping_address,
+            "shipping_address": order.shipping_address,
+            "is_inter_state": False,
+            "place_of_supply": None,
+            "items": invoice_items,
+            "discount_amount": 0,
+            "due_date": due_date.isoformat() if due_date else None,
+            "payment_terms": payment_terms_str,
+            "notes": notes or f"Generated from delivery {delivery.delivery_number}",
+            "order_number": order.order_number,
+        }
+
+        # ── Create invoice (commits internally) ──────────────────────────────
+        invoice = await self.create_invoice(vendor_id, data, created_by)
+
+        # ── Link delivery ────────────────────────────────────────────────────
+        invoice.delivery_id = delivery_id
+        await self.db.commit()
+
+        # ── Update OrderLine.invoiced_qty ─────────────────────────────────────
+        for dl in dl_rows:
+            if not dl.order_line_id:
+                continue
+            ol_result = await self.db.execute(
+                select(OrderLine).where(OrderLine.id == dl.order_line_id)
+            )
+            ol = ol_result.scalar_one_or_none()
+            if ol:
+                ol.invoiced_qty = (ol.invoiced_qty or Decimal("0")) + (dl.issued_qty or dl.planned_qty)
+
+        # ── Recalculate Order.billing_status ─────────────────────────────────
+        all_lines_result = await self.db.execute(
+            select(OrderLine).where(OrderLine.order_id == order_id)
+        )
+        all_lines = all_lines_result.scalars().all()
+        if all_lines:
+            total_ordered = sum(float(l.ordered_qty) for l in all_lines)
+            total_invoiced = sum(float(l.invoiced_qty or 0) for l in all_lines)
+            if total_invoiced <= 0:
+                order.billing_status = "open"
+            elif total_invoiced >= total_ordered:
+                order.billing_status = "complete"
+            else:
+                order.billing_status = "partial"
+
+        await self.db.commit()
         return invoice

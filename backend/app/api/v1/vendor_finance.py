@@ -53,12 +53,19 @@ from app.schemas.finance.journal import (
     JournalEntryCreate, JournalEntryUpdate,
     CompanyCreate, CostCenterCreate, ProjectCreate,
 )
+from app.models.controlling import CoOrderCostLine
 from app.models.finance import (
     FinCompany, FinCostCenter, FinProject, FinIntercompanyPartner,
-    FinAccount,
+    FinAccount, FinVendorBill,
 )
+from app.services.controlling.budget_control import (
+    BudgetExceededError,
+    assert_budget_allows,
+)
+from app.models.project import Project
 from app.models.store import Store
-from sqlalchemy import select, or_
+from app.schemas.finance.vendor_bill import VendorBillCreate, VendorBillUpdate
+from sqlalchemy import select, or_, func
 from sqlalchemy.exc import IntegrityError
 
 log = logging.getLogger(__name__)
@@ -1430,22 +1437,50 @@ async def compute_fsv(
 async def list_bills(
     status: Optional[str] = None,
     supplier_id: Optional[UUID] = None,
+    pm_project_id: Optional[UUID] = None,
     skip: int = 0, limit: int = 50,
     vu: VendorUser = Depends(require_permission("finance.ap.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    bills = await FinAPRepo(db).list_bills(vu.vendor_id, status, supplier_id, skip, limit)
+    bills = await FinAPRepo(db).list_bills(
+        vu.vendor_id, status, supplier_id, skip, limit,
+        pm_project_id=pm_project_id,
+    )
     return [_d(b) for b in bills]
+
+
+async def _resolve_pm_project(
+    db: AsyncSession, vendor_id: UUID, pm_project_id: Optional[UUID]
+) -> Optional[Project]:
+    """Validate a pm_project_id belongs to this vendor and return the Project row."""
+    if not pm_project_id:
+        return None
+    p = (
+        await db.execute(
+            select(Project).where(Project.id == pm_project_id, Project.vendor_id == vendor_id)
+        )
+    ).scalar_one_or_none()
+    if not p:
+        raise HTTPException(400, f"pm_project_id {pm_project_id} not found for this vendor")
+    return p
 
 
 @router.post("/ap/bills", status_code=201)
 async def create_bill(
-    body: dict,
+    body: VendorBillCreate,
     vu: VendorUser = Depends(require_permission("finance.ap.manage")),
     db: AsyncSession = Depends(get_db),
 ):
+    # Validate header-level project tag.
+    await _resolve_pm_project(db, vu.vendor_id, body.pm_project_id)
+
+    # Validate per-line project tags.
+    for ln in body.lines:
+        await _resolve_pm_project(db, vu.vendor_id, ln.pm_project_id)
+
+    data = body.model_dump()
     repo = FinAPRepo(db)
-    bill = await repo.create_bill(vu.vendor_id, body)
+    bill = await repo.create_bill(vu.vendor_id, data)
     await db.commit()
     return _d(bill)
 
@@ -1468,7 +1503,7 @@ async def get_bill(
 
 @router.put("/ap/bills/{bill_id}")
 async def update_bill(
-    bill_id: UUID, body: dict,
+    bill_id: UUID, body: VendorBillUpdate,
     vu: VendorUser = Depends(require_permission("finance.ap.manage")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1476,7 +1511,11 @@ async def update_bill(
     bill = await repo.get_bill(bill_id, vu.vendor_id)
     if not bill:
         raise HTTPException(404, "Bill not found")
-    bill = await repo.update_bill(bill, body)
+    if bill.status != "draft":
+        raise HTTPException(400, "Only draft bills can be updated")
+    if body.pm_project_id is not None:
+        await _resolve_pm_project(db, vu.vendor_id, body.pm_project_id)
+    bill = await repo.update_bill(bill, body.model_dump(exclude_unset=True))
     await db.commit()
     return _d(bill)
 
@@ -1491,17 +1530,147 @@ async def post_bill(
     bill = await repo.get_bill(bill_id, vu.vendor_id)
     if not bill:
         raise HTTPException(404, "Bill not found")
+    if bill.status != "draft":
+        raise HTTPException(400, "Only draft bills can be posted")
+
+    # ── Pre-check project budgets before mutating bill / GL ───────────────────
+    project_spend: dict[UUID, Decimal] = {}
+    for ln in (bill.lines or []):
+        pid = ln.pm_project_id or bill.pm_project_id
+        if pid:
+            project_spend[pid] = project_spend.get(pid, Decimal("0")) + Decimal(
+                str(ln.line_total or (ln.quantity or 1) * (ln.unit_price or 0))
+            )
+    if not project_spend and bill.pm_project_id:
+        project_spend[bill.pm_project_id] = Decimal(str(bill.subtotal or 0))
+
+    for pm_pid, amount in project_spend.items():
+        if amount <= 0:
+            continue
+        proj = (
+            await db.execute(
+                select(Project).where(Project.id == pm_pid, Project.vendor_id == vu.vendor_id)
+            )
+        ).scalar_one_or_none()
+        if not proj or not proj.co_order_id:
+            continue
+        try:
+            await assert_budget_allows(db, proj.co_order_id, "other", amount)
+        except BudgetExceededError as exc:
+            raise HTTPException(status_code=409, detail=exc.availability.to_detail()) from exc
+
     bill = await repo.post_bill(bill)
-    # Auto-post to GL
-    je = await post_event(db, vu.vendor_id, "vendor_bill", bill.id, {
-        "subtotal": float(bill.subtotal or 0),
-        "tax_amount": float(bill.tax_amount or 0),
-        "total": float(bill.total or 0),
-        "supplier_id": bill.supplier_id,
-        "narration": f"Vendor Bill {bill.bill_no}",
-    }, created_by_id=vu.id)
+
+    # ── Build GL payload ──────────────────────────────────────────────────────
+    # Resolve the header-level fin_project_id (for GL dimension) if the bill
+    # is tagged to a PM project that has costing enabled.
+    header_fin_project_id: Optional[UUID] = None
+    if bill.pm_project_id:
+        pm_proj = (
+            await db.execute(
+                select(Project).where(
+                    Project.id == bill.pm_project_id,
+                    Project.vendor_id == vu.vendor_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if pm_proj and pm_proj.fin_project_id:
+            header_fin_project_id = pm_proj.fin_project_id
+
+    # When the bill has lines with per-line account_id, use per-line mode so
+    # each line gets its own expense debit with proper GL dimensions.
+    lines_with_account = [ln for ln in (bill.lines or []) if ln.account_id]
+    if lines_with_account:
+        bill_line_specs = []
+        for ln in lines_with_account:
+            fin_pid = ln.fin_project_id
+            if not fin_pid and ln.pm_project_id:
+                r = await db.execute(
+                    select(Project).where(Project.id == ln.pm_project_id)
+                )
+                prow = r.scalar_one_or_none()
+                fin_pid = prow.fin_project_id if prow else None
+            if not fin_pid:
+                fin_pid = header_fin_project_id
+            bill_line_specs.append({
+                "account_id": str(ln.account_id),
+                "amount": float(ln.line_total or (ln.quantity or 1) * (ln.unit_price or 0)),
+                "narration": ln.description or f"Vendor Bill {bill.bill_no}",
+                "cost_center_id": str(ln.cost_center_id) if ln.cost_center_id else None,
+                "project_id": str(fin_pid) if fin_pid else None,
+            })
+        gl_payload = {
+            "bill_lines": bill_line_specs,
+            "tax_amount": float(bill.tax_amount or 0),
+            "total": float(bill.total or 0),
+            "supplier_id": bill.supplier_id,
+            "narration": f"Vendor Bill {bill.bill_no}",
+        }
+    else:
+        gl_payload = {
+            "subtotal": float(bill.subtotal or 0),
+            "tax_amount": float(bill.tax_amount or 0),
+            "total": float(bill.total or 0),
+            "supplier_id": bill.supplier_id,
+            "narration": f"Vendor Bill {bill.bill_no}",
+            "project_id": str(header_fin_project_id) if header_fin_project_id else None,
+        }
+
+    je = await post_event(db, vu.vendor_id, "vendor_bill", bill.id, gl_payload,
+                          created_by_id=vu.id)
     if je:
         bill.journal_entry_id = je.id
+
+    # ── Roll up AP spend into project cost actuals ────────────────────────────
+    for pm_pid, amount in project_spend.items():
+        if amount <= 0:
+            continue
+        proj = (
+            await db.execute(
+                select(Project).where(Project.id == pm_pid, Project.vendor_id == vu.vendor_id)
+            )
+        ).scalar_one_or_none()
+        if not proj or not proj.co_order_id:
+            continue
+
+        # Find or create an "external_cost" cost line for AP spend.
+        ocl = (
+            await db.execute(
+                select(CoOrderCostLine).where(
+                    CoOrderCostLine.order_id == proj.co_order_id,
+                    CoOrderCostLine.category == "external",
+                )
+            )
+        ).scalars().first()
+
+        if not ocl:
+            from app.models.controlling import CoOrderCostLine as _CostLine
+            max_seq = (
+                await db.execute(
+                    select(func.max(CoOrderCostLine.sequence)).where(
+                        CoOrderCostLine.order_id == proj.co_order_id
+                    )
+                )
+            ).scalar() or 0
+            ocl = CoOrderCostLine(
+                id=__import__("uuid").uuid4(),
+                order_id=proj.co_order_id,
+                category="external",
+                description="AP / Vendor Bills",
+                uom="INR",
+                qty_planned=Decimal("0"),
+                qty_actual=Decimal("0"),
+                rate_planned=Decimal("0"),
+                rate_actual=Decimal("0"),
+                amount_planned=Decimal("0"),
+                amount_actual=Decimal("0"),
+                sequence=max_seq + 10,
+            )
+            db.add(ocl)
+            await db.flush()
+
+        ocl.amount_actual = Decimal(str(ocl.amount_actual or 0)) + amount
+
     await db.commit()
     return _d(bill)
 

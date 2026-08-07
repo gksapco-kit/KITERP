@@ -108,6 +108,7 @@ export interface ProjectItemInput {
   item_type: 'product' | 'service'
   sku?: string
   price?: number
+  variant_id?: string
 }
 
 export interface ProjectCreateInput {

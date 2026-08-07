@@ -10,6 +10,11 @@ interface SalesAreaSelectProps {
   allowAll?: boolean
   className?: string
   triggerClassName?: string
+  /**
+   * When false (default), option hints stay in the menu only so the closed
+   * trigger stays single-line and matches sibling inputs/selects.
+   */
+  showSelectedHint?: boolean
   disabled?: boolean
   id?: string
 }
@@ -33,6 +38,7 @@ export function SalesAreaSelect({
   allowAll = true,
   className,
   triggerClassName,
+  showSelectedHint = false,
   disabled,
   id,
 }: SalesAreaSelectProps) {
@@ -87,6 +93,7 @@ export function SalesAreaSelect({
       aria-label="Sales area"
       wrapperClassName={className ?? 'w-full min-w-[8.5rem]'}
       triggerClassName={triggerClassName}
+      showSelectedHint={showSelectedHint}
     />
   )
 }

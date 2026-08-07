@@ -9,15 +9,21 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.controlling import CoManufacturingOrder, CoOrderCostLine
 from app.models.customer import Customer
+from app.models.finance import FinProject
 from app.models.project import Project, ProjectTask
+from app.models.sales_area import SalesArea
+from app.models.store import Store
 from app.models.user import User
 from app.models.vendor_user import VendorUser
 from app.schemas.project import (
     ProjectCreate,
     ProjectOverviewResponse,
+    ProjectStatus,
     ProjectUpdate,
     TaskCreate,
     TaskReorderItem,
@@ -30,13 +36,26 @@ class ProjectService:
         self.db = db
 
     async def _next_project_number(self, vendor_id: UUID) -> str:
+        """Derive the next project number from the highest existing suffix.
+
+        Uses MAX rather than COUNT so that deleted projects don't cause
+        collisions and concurrent inserts stay safe — the unique index on
+        (vendor_id, project_number) is the final guard; create_project
+        catches IntegrityError and retries once.
+        """
         stmt = (
-            select(func.count())
-            .select_from(Project)
+            select(func.max(Project.project_number))
             .where(Project.vendor_id == vendor_id)
         )
-        count = (await self.db.execute(stmt)).scalar() or 0
-        return f"PRJ-{count + 1:04d}"
+        max_num: Optional[str] = (await self.db.execute(stmt)).scalar()
+        if max_num:
+            try:
+                next_n = int(max_num.split("-")[-1]) + 1
+            except (AttributeError, ValueError, IndexError):
+                next_n = 1
+        else:
+            next_n = 1
+        return f"PRJ-{next_n:04d}"
 
     async def _get_project(self, vendor_id: UUID, project_id: UUID) -> Project:
         stmt = select(Project).where(
@@ -83,6 +102,42 @@ class ProjectService:
         ).scalar_one_or_none()
         if not row:
             raise HTTPException(status_code=400, detail="Assignee must be a team member")
+
+    async def _validate_store(self, vendor_id: UUID, store_id: Optional[UUID]) -> None:
+        if not store_id:
+            return
+        row = (
+            await self.db.execute(
+                select(Store).where(Store.id == store_id, Store.vendor_id == vendor_id)
+            )
+        ).scalar_one_or_none()
+        if not row:
+            raise HTTPException(status_code=400, detail="store_id does not belong to this vendor")
+
+    async def _validate_sales_area(self, vendor_id: UUID, sales_area_id: Optional[UUID]) -> None:
+        if not sales_area_id:
+            return
+        row = (
+            await self.db.execute(
+                select(SalesArea).where(SalesArea.id == sales_area_id, SalesArea.vendor_id == vendor_id)
+            )
+        ).scalar_one_or_none()
+        if not row:
+            raise HTTPException(status_code=400, detail="sales_area_id does not belong to this vendor")
+
+    async def _validate_owner(self, vendor_id: UUID, owner_id: Optional[UUID]) -> None:
+        if not owner_id:
+            return
+        row = (
+            await self.db.execute(
+                select(VendorUser).where(
+                    VendorUser.vendor_id == vendor_id,
+                    VendorUser.user_id == owner_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if not row:
+            raise HTTPException(status_code=400, detail="owner_id must be a member of this vendor's team")
 
     async def _validate_task_links(
         self,
@@ -267,8 +322,14 @@ class ProjectService:
         store_id: Optional[str] = None,
         sales_area_id: Optional[str] = None,
     ) -> tuple[list[dict], int]:
+        _valid_statuses = {s.value for s in ProjectStatus}
         conditions = [Project.vendor_id == vendor_id]
         if status_filter:
+            if status_filter not in _valid_statuses:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid status '{status_filter}'. Must be one of: {', '.join(sorted(_valid_statuses))}",
+                )
             conditions.append(Project.status == status_filter)
         if store_id:
             conditions.append(Project.store_id == (store_id if isinstance(store_id, UUID) else UUID(str(store_id))))
@@ -315,10 +376,22 @@ class ProjectService:
         ).all()
         counts_map = {row.project_id: (row.total, row.done) for row in task_counts}
 
+        # Batch-fetch customer contacts to avoid N+1 queries.
+        customer_ids = list({p.customer_id for p in projects if p.customer_id})
+        contacts_map: dict[UUID, tuple[Optional[str], Optional[str]]] = {}
+        if customer_ids:
+            cust_rows = (
+                await self.db.execute(
+                    select(Customer.id, Customer.email, Customer.phone)
+                    .where(Customer.id.in_(customer_ids), Customer.vendor_id == vendor_id)
+                )
+            ).all()
+            contacts_map = {row.id: (row.email, row.phone) for row in cust_rows}
+
         items = []
         for p in projects:
             tc, dc = counts_map.get(p.id, (0, 0))
-            email, phone = await self._customer_contact(vendor_id, p.customer_id)
+            email, phone = contacts_map.get(p.customer_id, (None, None))
             items.append(self._project_dict(
                 p, task_count=tc, done_task_count=dc,
                 customer_email=email, customer_phone=phone,
@@ -365,6 +438,10 @@ class ProjectService:
             "completed_at": p.completed_at,
             "task_count": task_count,
             "done_task_count": done_task_count,
+            # Costing bridge — null until enable_costing is called
+            "company_id": p.company_id,
+            "fin_project_id": p.fin_project_id,
+            "co_order_id": p.co_order_id,
         }
 
     async def _customer_contact(self, vendor_id: UUID, customer_id: Optional[UUID]) -> tuple[Optional[str], Optional[str]]:
@@ -416,32 +493,45 @@ class ProjectService:
         cust_id, cust_name, cust_email, cust_phone = await self._resolve_customer_fields(
             vendor_id, data.customer_id, data.customer_name,
         )
+        await self._validate_store(vendor_id, data.store_id)
+        await self._validate_sales_area(vendor_id, data.sales_area_id)
+        await self._validate_owner(vendor_id, owner_id)
 
-        project = Project(
-            vendor_id=vendor_id,
-            store_id=data.store_id,
-            sales_area_id=data.sales_area_id,
-            project_number=await self._next_project_number(vendor_id),
-            name=data.name,
-            description=data.description,
-            status=data.status.value if hasattr(data.status, "value") else data.status,
-            priority=data.priority.value if hasattr(data.priority, "value") else data.priority,
-            customer_id=cust_id,
-            customer_name=cust_name,
-            owner_id=owner_id,
-            owner_name=owner_name,
-            start_date=data.start_date,
-            end_date=data.end_date,
-            due_date=data.due_date,
-            budget=Decimal(str(data.budget)) if data.budget is not None else None,
-            currency=data.currency or "INR",
-            color=data.color,
-            tags=data.tags or [],
-            milestones=self._dump_milestones(data.milestones),
-            items=[i.model_dump() for i in data.items] if data.items else [],
-        )
+        def _build_project(project_number: str) -> Project:
+            return Project(
+                vendor_id=vendor_id,
+                store_id=data.store_id,
+                sales_area_id=data.sales_area_id,
+                project_number=project_number,
+                name=data.name,
+                description=data.description,
+                status=data.status.value if hasattr(data.status, "value") else data.status,
+                priority=data.priority.value if hasattr(data.priority, "value") else data.priority,
+                customer_id=cust_id,
+                customer_name=cust_name,
+                owner_id=owner_id,
+                owner_name=owner_name,
+                start_date=data.start_date,
+                end_date=data.end_date,
+                due_date=data.due_date,
+                budget=Decimal(str(data.budget)) if data.budget is not None else None,
+                currency=data.currency or "INR",
+                color=data.color,
+                tags=data.tags or [],
+                milestones=self._dump_milestones(data.milestones),
+                items=[i.model_dump() for i in data.items] if data.items else [],
+            )
+
+        project = _build_project(await self._next_project_number(vendor_id))
         self.db.add(project)
-        await self.db.commit()
+        try:
+            await self.db.commit()
+        except IntegrityError:
+            # Concurrent create grabbed the same number — roll back and retry once.
+            await self.db.rollback()
+            project = _build_project(await self._next_project_number(vendor_id))
+            self.db.add(project)
+            await self.db.commit()
         await self.db.refresh(project)
         return self._project_dict(
             project, customer_email=cust_email, customer_phone=cust_phone,
@@ -477,11 +567,13 @@ class ProjectService:
         if "milestones" in updates:
             updates["milestones"] = self._dump_milestones(updates["milestones"])
 
+        items_changed = False
         if "items" in updates and updates["items"] is not None:
             updates["items"] = [
                 it.model_dump() if hasattr(it, "model_dump") else it
                 for it in updates["items"]
             ]
+            items_changed = True
 
         if "customer_id" in updates:
             cust_id, cust_name, _, _ = await self._resolve_customer_fields(
@@ -495,22 +587,85 @@ class ProjectService:
             elif updates["customer_id"] is None:
                 updates["customer_name"] = updates.get("customer_name")
 
-        if "owner_id" in updates and updates["owner_id"]:
-            owner = (
-                await self.db.execute(select(User).where(User.id == updates["owner_id"]))
-            ).scalar_one_or_none()
-            if owner and not updates.get("owner_name"):
-                updates["owner_name"] = owner.full_name or owner.email
+        if "store_id" in updates:
+            await self._validate_store(vendor_id, updates.get("store_id"))
+
+        if "sales_area_id" in updates:
+            await self._validate_sales_area(vendor_id, updates.get("sales_area_id"))
+
+        if "owner_id" in updates:
+            await self._validate_owner(vendor_id, updates.get("owner_id"))
+            if updates.get("owner_id"):
+                owner = (
+                    await self.db.execute(select(User).where(User.id == updates["owner_id"]))
+                ).scalar_one_or_none()
+                if owner and not updates.get("owner_name"):
+                    updates["owner_name"] = owner.full_name or owner.email
 
         for key, value in updates.items():
             setattr(project, key, value)
 
-        await self.db.commit()
+        await self.db.flush()
+
+        # Keep CO/FinProject in sync when costing is enabled.
+        if project.co_order_id:
+            from app.services.project_costing import resync_cost_lines, sync_co_order
+            if items_changed:
+                await resync_cost_lines(self.db, project)
+            await sync_co_order(self.db, vendor_id, project_id)
+        else:
+            await self.db.commit()
+
         await self.db.refresh(project)
         return await self.get_project(vendor_id, project_id)
 
     async def delete_project(self, vendor_id: UUID, project_id: UUID) -> None:
         project = await self._get_project(vendor_id, project_id)
+
+        if project.co_order_id:
+            # Check whether any actual cost has been posted against this project.
+            has_actuals = (
+                await self.db.execute(
+                    select(func.count())
+                    .select_from(CoOrderCostLine)
+                    .where(
+                        CoOrderCostLine.order_id == project.co_order_id,
+                        CoOrderCostLine.amount_actual > 0,
+                    )
+                )
+            ).scalar() or 0
+
+            if has_actuals:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Cannot delete a project that has posted cost actuals. "
+                        "Cancel or archive the project instead."
+                    ),
+                )
+
+            # Safe to tear down the bridge records (no actuals).
+            order = (
+                await self.db.execute(
+                    select(CoManufacturingOrder).where(
+                        CoManufacturingOrder.id == project.co_order_id
+                    )
+                )
+            ).scalar_one_or_none()
+            if order:
+                await self.db.delete(order)
+                await self.db.flush()
+
+            if project.fin_project_id:
+                fin_proj = (
+                    await self.db.execute(
+                        select(FinProject).where(FinProject.id == project.fin_project_id)
+                    )
+                ).scalar_one_or_none()
+                if fin_proj:
+                    await self.db.delete(fin_proj)
+                    await self.db.flush()
+
         await self.db.delete(project)
         await self.db.commit()
 

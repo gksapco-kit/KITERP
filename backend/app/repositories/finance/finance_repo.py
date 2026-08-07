@@ -475,7 +475,8 @@ class FinAPRepo:
         self.db = db
 
     async def list_bills(self, vendor_id: UUID, status: str = None, supplier_id: UUID = None,
-                         skip: int = 0, limit: int = 50) -> list[FinVendorBill]:
+                         skip: int = 0, limit: int = 50, *,
+                         pm_project_id=None) -> list[FinVendorBill]:
         q = (select(FinVendorBill).where(FinVendorBill.vendor_id == vendor_id)
              .options(selectinload(FinVendorBill.lines))
              .order_by(FinVendorBill.bill_date.desc()))
@@ -483,6 +484,8 @@ class FinAPRepo:
             q = q.where(FinVendorBill.status == status)
         if supplier_id:
             q = q.where(FinVendorBill.supplier_id == supplier_id)
+        if pm_project_id:
+            q = q.where(FinVendorBill.pm_project_id == pm_project_id)
         r = await self.db.execute(q.offset(skip).limit(limit))
         return list(r.scalars().all())
 

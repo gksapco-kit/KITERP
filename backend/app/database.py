@@ -2331,6 +2331,24 @@ async def ensure_pm_tables() -> None:
         "ALTER TABLE pm_task ADD COLUMN IF NOT EXISTS parent_task_id UUID REFERENCES pm_task(id) ON DELETE SET NULL;",
         "ALTER TABLE pm_task ADD COLUMN IF NOT EXISTS linked_task_ids JSONB DEFAULT '[]'::jsonb;",
         "CREATE INDEX IF NOT EXISTS ix_pm_task_parent_task_id ON pm_task(parent_task_id);",
+        # ms005 — business-unit scope + catalog items
+        "ALTER TABLE pm_project ADD COLUMN IF NOT EXISTS store_id UUID REFERENCES store(id) ON DELETE SET NULL;",
+        "ALTER TABLE pm_project ADD COLUMN IF NOT EXISTS items JSONB DEFAULT '[]'::jsonb;",
+        "CREATE INDEX IF NOT EXISTS ix_pm_project_store_id ON pm_project(store_id);",
+        # ms011 — sales area scope
+        "ALTER TABLE pm_project ADD COLUMN IF NOT EXISTS sales_area_id UUID REFERENCES sales_area(id) ON DELETE SET NULL;",
+        "CREATE INDEX IF NOT EXISTS ix_pm_project_sales_area_id ON pm_project(sales_area_id);",
+        # pm002 — costing bridge
+        "ALTER TABLE pm_project ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES fin_company(id) ON DELETE SET NULL;",
+        "ALTER TABLE pm_project ADD COLUMN IF NOT EXISTS fin_project_id UUID REFERENCES fin_project(id) ON DELETE SET NULL;",
+        "ALTER TABLE pm_project ADD COLUMN IF NOT EXISTS co_order_id UUID REFERENCES co_manufacturing_order(id) ON DELETE SET NULL;",
+        "CREATE INDEX IF NOT EXISTS ix_pm_project_vendor_company ON pm_project(vendor_id, company_id);",
+        # pm003 — AP project tagging
+        "ALTER TABLE fin_vendor_bill ADD COLUMN IF NOT EXISTS pm_project_id UUID REFERENCES pm_project(id) ON DELETE SET NULL;",
+        "CREATE INDEX IF NOT EXISTS ix_fvb_pm_project ON fin_vendor_bill(pm_project_id) WHERE pm_project_id IS NOT NULL;",
+        "ALTER TABLE fin_vendor_bill_line ADD COLUMN IF NOT EXISTS cost_center_id UUID REFERENCES fin_cost_center(id) ON DELETE SET NULL;",
+        "ALTER TABLE fin_vendor_bill_line ADD COLUMN IF NOT EXISTS fin_project_id UUID REFERENCES fin_project(id) ON DELETE SET NULL;",
+        "ALTER TABLE fin_vendor_bill_line ADD COLUMN IF NOT EXISTS pm_project_id UUID REFERENCES pm_project(id) ON DELETE SET NULL;",
     ]
     async with engine.begin() as conn:
         for s in stmts:

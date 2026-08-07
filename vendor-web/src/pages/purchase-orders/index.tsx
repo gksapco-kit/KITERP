@@ -887,9 +887,10 @@ function CreatePOModal({
                         placeholder="Product / Service..."
                         aria-label="Product or service"
                         className="flex-1"
+                        triggerClassName="h-8 text-sm"
                       />
                       {items.length > 1 && (
-                        <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-400 hover:text-red-600 shrink-0" onClick={() => removeItem(idx)}>
+                        <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-400 hover:text-red-600 shrink-0" onClick={() => removeItem(idx)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
@@ -909,6 +910,7 @@ function CreatePOModal({
                           placeholder="— All / Product-level —"
                           aria-label="Variant"
                           className="flex-1"
+                          triggerClassName="h-8 text-sm"
                         />
                         {selectedVariant?.barcode && (
                           <span className="text-xs text-gray-400 font-mono shrink-0 hidden sm:block">{selectedVariant.barcode}</span>

@@ -12,7 +12,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.controlling import CoCostBooking, CoGlMapping, CoManufacturingOrder, CoOrderCostLine
+from app.models.finance import FinPeriod
 from app.services.finance.posting import post_event
+
+
+async def _check_period_open(db: AsyncSession, vendor_id: UUID, entry_date: date) -> None:
+    """Raise ValueError if the accounting period for entry_date is closed or locked."""
+    r = await db.execute(
+        select(FinPeriod)
+        .where(
+            FinPeriod.vendor_id == vendor_id,
+            FinPeriod.start_date <= entry_date,
+            FinPeriod.end_date >= entry_date,
+        )
+        .order_by(FinPeriod.start_date.desc())
+        .limit(1)
+    )
+    period = r.scalar_one_or_none()
+    if period and period.status in ("closed", "locked"):
+        raise ValueError(
+            f"Posting period '{period.name}' is {period.status}. "
+            "Reopen the period or choose a different entry date."
+        )
 
 
 def _line_amount(qty: Decimal, rate: Decimal) -> Decimal:
@@ -111,6 +132,8 @@ async def post_production_completion(
     if order.production_completion_journal_id:
         raise ValueError("Production completion already posted for this order")
 
+    await _check_period_open(db, vendor_id, entry_date or date.today())
+
     mapping = await get_gl_mapping(db, vendor_id, order.company_id)
     if not mapping or not mapping.wip_account_id or not mapping.finished_goods_account_id:
         raise ValueError("Configure WIP and finished goods accounts in CO GL mapping")
@@ -193,6 +216,8 @@ async def post_cogs_issue(
         raise ValueError("Order not found")
     if not order.production_completion_journal_id:
         raise ValueError("Post production completion before COGS issue")
+
+    await _check_period_open(db, vendor_id, entry_date or date.today())
 
     mapping = await get_gl_mapping(db, vendor_id, order.company_id)
     if not mapping or not mapping.cogs_account_id or not mapping.finished_goods_account_id:

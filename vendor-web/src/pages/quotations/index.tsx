@@ -23,11 +23,10 @@ import type { Order } from '@/types'
 import { toast } from 'sonner'
 import {
   Plus, Loader2, MessageSquare, FileText, Eye, Check, Settings2,
-  ArrowRight, Printer, Send, Inbox,
-  ScrollText, Clock, CheckCircle2, Ban,
+  ArrowRight, Printer, Send, Clock, CheckCircle2, Ban,
 } from 'lucide-react'
 
-type QuotationTab = 'all' | 'requests' | 'estimates'
+type QuotationTypeFilter = 'all' | 'request' | 'estimate'
 
 type QuotationRow = {
   id: string
@@ -64,12 +63,6 @@ const estimateStatusStyle: Record<string, string> = {
   overdue: 'bg-red-100 text-red-700',
   cancelled: 'bg-gray-100 text-gray-500',
 }
-
-const tabOptions: { key: QuotationTab; label: string; icon: typeof Inbox }[] = [
-  { key: 'all', label: 'All', icon: ScrollText },
-  { key: 'requests', label: 'Quote Requests', icon: Inbox },
-  { key: 'estimates', label: 'Estimates', icon: FileText },
-]
 
 function orderToRow(order: Order): QuotationRow {
   const firstItem = order.items?.[0] as unknown as Record<string, unknown> | undefined
@@ -170,7 +163,7 @@ export default function QuotationsPage() {
     [quoteSettings],
   )
 
-  const [tab, setTab] = useState<QuotationTab>('all')
+  const [typeFilter, setTypeFilter] = useState<QuotationTypeFilter>('all')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -233,10 +226,10 @@ export default function QuotationsPage() {
   }), [quoteOrders, estimates])
 
   const mergedRows = useMemo(() => {
-    if (tab === 'requests') return quoteOrders
-    if (tab === 'estimates') return estimates
+    if (typeFilter === 'request') return quoteOrders
+    if (typeFilter === 'estimate') return estimates
     return [...quoteOrders, ...estimates]
-  }, [tab, quoteOrders, estimates])
+  }, [typeFilter, quoteOrders, estimates])
 
   const displayRows = useMemo(() => {
     const statusKey = statusFilter
@@ -261,7 +254,47 @@ export default function QuotationsPage() {
     )
   }, [mergedRows, search, sortKey, sortDir, statusFilter])
 
-  const isLoading = (tab === 'estimates' ? estimatesLoading : tab === 'requests' ? ordersLoading : ordersLoading || estimatesLoading)
+  const isLoading = typeFilter === 'estimate'
+    ? estimatesLoading
+    : typeFilter === 'request'
+      ? ordersLoading
+      : ordersLoading || estimatesLoading
+
+  const statusOptions = useMemo(() => {
+    if (typeFilter === 'estimate') {
+      return [
+        { label: 'All statuses', value: '' },
+        { label: 'Draft', value: 'draft' },
+        { label: 'Sent', value: 'sent' },
+        { label: 'Cancelled', value: 'cancelled' },
+      ]
+    }
+    if (typeFilter === 'request') {
+      return [
+        { label: 'All statuses', value: '' },
+        { label: 'Awaiting Response', value: 'quote_requested' },
+        { label: 'Converted', value: 'confirmed' },
+        { label: 'Declined', value: 'cancelled' },
+      ]
+    }
+    return [
+      { label: 'All statuses', value: '' },
+      { label: 'Awaiting Response', value: 'quote_requested' },
+      { label: 'Draft', value: 'draft' },
+      { label: 'Sent', value: 'sent' },
+      { label: 'Converted', value: 'confirmed' },
+      { label: 'Cancelled', value: 'cancelled' },
+    ]
+  }, [typeFilter])
+
+  const moreOptionsActiveCount = useMemo(() => {
+    let count = 0
+    if (typeFilter !== 'all') count++
+    if (statusFilter) count++
+    if (sortKey !== 'created_at') count++
+    if (sortDir !== 'desc') count++
+    return count
+  }, [typeFilter, statusFilter, sortKey, sortDir])
 
   const openCreate = useCallback((prefill?: ReturnType<typeof buildEstimatePrefill>) => {
     setCreatePrefill(prefill)
@@ -336,41 +369,13 @@ export default function QuotationsPage() {
     }
   }, [navigate])
 
-  const statusOptions = useMemo(() => {
-    if (tab === 'estimates') {
-      return [
-        { label: 'All statuses', value: '' },
-        { label: 'Draft', value: 'draft' },
-        { label: 'Sent', value: 'sent' },
-        { label: 'Cancelled', value: 'cancelled' },
-      ]
-    }
-    if (tab === 'requests') {
-      return [
-        { label: 'All statuses', value: '' },
-        { label: 'Awaiting Response', value: 'quote_requested' },
-        { label: 'Converted', value: 'confirmed' },
-        { label: 'Declined', value: 'cancelled' },
-      ]
-    }
-    return [{ label: 'All statuses', value: '' }]
-  }, [tab])
-
-  const moreOptionsActiveCount = useMemo(() => {
-    let count = 0
-    if (statusFilter) count++
-    if (sortKey !== 'created_at') count++
-    if (sortDir !== 'desc') count++
-    return count
-  }, [statusFilter, sortKey, sortDir])
-
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Quotations</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Manage customer quote requests and send formal estimates.
+            Create and send quotations. Customer requests appear here until you turn them into a quotation.
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -401,7 +406,7 @@ export default function QuotationsPage() {
               <FileText className="w-4 h-4 text-muted-foreground" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Draft Estimates</p>
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Draft Quotations</p>
               <p className="text-lg font-bold text-foreground leading-tight">{stats.drafts}</p>
             </div>
           </CardContent>
@@ -442,23 +447,18 @@ export default function QuotationsPage() {
             moreOptionsActiveCount={moreOptionsActiveCount}
             leading={(
               <div className="flex flex-wrap items-center gap-2 min-w-0 w-full sm:w-auto">
-                <div className="flex gap-0.5 rounded-lg bg-muted p-0.5 w-full sm:w-auto">
-                  {tabOptions.map((t) => (
-                    <button
-                      key={t.key}
-                      type="button"
-                      onClick={() => { setTab(t.key); setStatusFilter(''); setPage(1) }}
-                      className={`flex flex-1 sm:flex-none items-center justify-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all whitespace-nowrap ${
-                        tab === t.key
-                          ? 'bg-card text-primary shadow-sm ring-1 ring-primary/15'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <t.icon className="w-3.5 h-3.5 shrink-0" />
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
+                <ThemeSelect
+                  value={typeFilter}
+                  onChange={(v) => { setTypeFilter(v as QuotationTypeFilter); setStatusFilter(''); setPage(1) }}
+                  aria-label="Filter by type"
+                  wrapperClassName="w-full min-w-[9.5rem] sm:w-[10.5rem]"
+                  triggerClassName="h-8 text-xs"
+                  options={[
+                    { value: 'all', label: 'All types' },
+                    { value: 'request', label: 'Customer requests' },
+                    { value: 'estimate', label: 'Quotations' },
+                  ]}
+                />
                 <SalesScopeFilters
                   businessUnitId={storeFilter}
                   branchId={branchFilter}
@@ -558,10 +558,10 @@ export default function QuotationsPage() {
               ) : displayRows.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-10 text-center text-sm text-muted-foreground px-4">
-                    {tab === 'requests'
-                      ? 'No quote requests yet — enable quote requests on your services to receive them.'
-                      : tab === 'estimates'
-                        ? 'No estimates yet — click New Quotation to create one.'
+                    {typeFilter === 'request'
+                      ? 'No customer requests yet — enable quote requests on your services to receive them.'
+                      : typeFilter === 'estimate'
+                        ? 'No quotations yet — click New Quotation to create one.'
                         : 'No quotations yet.'}
                   </td>
                 </tr>
@@ -589,7 +589,7 @@ export default function QuotationsPage() {
                         isRequest ? 'bg-primary/10 text-primary' : 'bg-accent text-primary'
                       }`}>
                         {isRequest ? <MessageSquare className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-                        {isRequest ? 'Request' : 'Estimate'}
+                        {isRequest ? 'Request' : 'Quotation'}
                       </span>
                     </td>
                     <td className="px-3 sm:px-4 py-2.5 text-sm text-foreground">{row.customer_name}</td>
@@ -635,7 +635,7 @@ export default function QuotationsPage() {
                               <>
                                 <button
                                   type="button"
-                                  title="Create estimate from request"
+                                  title="Create quotation from request"
                                   onClick={() => openCreate(buildEstimatePrefill(row.order!))}
                                   className="p-1.5 rounded-lg hover:bg-primary/10 text-primary"
                                 >
@@ -718,7 +718,7 @@ export default function QuotationsPage() {
           </ResizableTable>
           </div>
 
-          {tab === 'estimates' && estimatesData && (
+          {typeFilter === 'estimate' && estimatesData && (
             <TablePagination
               page={page}
               pages={estimatesData.pages || 1}
@@ -726,7 +726,7 @@ export default function QuotationsPage() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              itemLabel="estimates"
+              itemLabel="quotations"
             />
           )}
         </CardContent>

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException, status
 
-from app.models.order import Order, OrderStatusHistory
+from app.models.order import Order, OrderStatusHistory, OrderLine
 from app.models.payment import Payment
 from app.models.vendor_product import Product
 from app.schemas.order import (
@@ -28,6 +28,10 @@ from app.services.price_resolver import resolve_items_pricing
 from app.repositories.vendor_repo import VendorRepository
 from app.models.store import Store
 from app.services.store_resolver import resolve_store_id as resolve_txn_store_id
+from app.services.store_resolver import resolve_default_sales_area_id
+from app.services.crm.credit_gate import find_credit_control, evaluate_credit, adjust_outstanding
+from app.services.order_commitment_service import commit_order_lines
+from app.services.partner_service import seed_buyer
 
 log = logging.getLogger(__name__)
 
@@ -71,6 +75,81 @@ class OrderService:
             notes=notes,
         )
         self.db.add(entry)
+
+    def _create_order_lines(self, order: Order, items: list[dict]) -> None:
+        """Create normalized OrderLine rows from the resolved item dicts.
+
+        Runs after `order` has been flushed (so order.id is available).
+        Does NOT commit — the caller's transaction boundary applies.
+        """
+        for idx, item in enumerate(items):
+            line_no = (idx + 1) * 10
+            list_p = float(item.get("list_price") or item.get("price") or 0)
+            net_p = float(item.get("price") or 0)
+            qty = float(item.get("qty") or 1)
+            tax_r = float(item.get("tax_rate") or 0)
+            tax_a = float(item.get("tax_amount") or 0)
+            line_total = round(net_p * qty, 2)
+
+            # Discount (price resolver stores list_price alongside discounted price)
+            discount_a = round(max(0.0, list_p - net_p), 2)
+            discount_pct = round((discount_a / list_p * 100) if list_p > 0 else 0.0, 4)
+
+            # Price rule reference if the resolver attached one
+            rule = item.get("price_rule") or {}
+            rule_id = None
+            if rule.get("id"):
+                try:
+                    rule_id = UUID(str(rule["id"]))
+                except (ValueError, TypeError):
+                    pass
+
+            product_id = None
+            if item.get("product_id"):
+                try:
+                    product_id = UUID(str(item["product_id"]))
+                except (ValueError, TypeError):
+                    pass
+
+            variant_id = None
+            if item.get("variant_id"):
+                try:
+                    variant_id = UUID(str(item["variant_id"]))
+                except (ValueError, TypeError):
+                    pass
+
+            service_id = None
+            if item.get("service_id"):
+                try:
+                    service_id = UUID(str(item["service_id"]))
+                except (ValueError, TypeError):
+                    pass
+
+            line = OrderLine(
+                order_id=order.id,
+                vendor_id=order.vendor_id,
+                line_no=line_no,
+                product_id=product_id,
+                variant_id=variant_id,
+                service_id=service_id,
+                item_type=item.get("item_type") or ("service" if service_id else "product"),
+                item_name=str(item.get("name") or ""),
+                item_sku=item.get("sku") or None,
+                item_image_url=item.get("image_url") or None,
+                line_type="standard",
+                ordered_qty=qty,
+                unit_of_measure=item.get("uom") or "EA",
+                list_price=list_p,
+                net_price=net_p,
+                discount_pct=discount_pct,
+                discount_amount=discount_a,
+                tax_rate=tax_r,
+                tax_amount=tax_a,
+                line_total=line_total,
+                price_rule_id=rule_id,
+                price_rule_type=rule.get("type") or None,
+            )
+            self.db.add(line)
 
     async def _check_branch_open(self, vendor_id: UUID, branch_code: str | None) -> None:
         """Raise 422 if the specified branch exists but is currently closed."""
@@ -186,6 +265,36 @@ class OrderService:
         is_manual_proof = is_manual_upi
         is_online = data.payment_method.value in online_methods and not is_manual_proof
 
+        # Resolve sales area for this store (fix: was always None before)
+        sales_area_id = await resolve_default_sales_area_id(self.db, vendor_id, store_id)
+
+        # Credit gate — always evaluate, block only for pay_later orders
+        from decimal import Decimal as _Dec
+        credit_row = await find_credit_control(
+            self.db, vendor_id, customer_id=customer_id,
+        )
+        credit_result = evaluate_credit(credit_row, _Dec(str(total)))
+        is_pay_later_order = data.payment_method.value == "pay_later"
+        if is_pay_later_order and not credit_result["allowed"]:
+            raise HTTPException(status_code=402, detail=credit_result["reason"])
+        credit_status = (
+            "blocked" if not credit_result["allowed"]
+            else ("watch" if credit_result.get("available_credit") is not None
+                  and credit_result["available_credit"] < _Dec(str(total)) * _Dec("0.1")
+                  else "ok")
+            if credit_row else "not_checked"
+        )
+
+        # Parse optional date fields from schema
+        from datetime import date as _date
+        def _parse_date(v):
+            if not v:
+                return None
+            try:
+                return _date.fromisoformat(v)
+            except (ValueError, TypeError):
+                return None
+
         # Generate order number
         order_number = await self.order_repo.get_next_order_number(vendor_id)
 
@@ -195,6 +304,7 @@ class OrderService:
             vendor_id=vendor_id,
             customer_id=customer_id,
             store_id=store_id,
+            sales_area_id=sales_area_id,
             items=items,
             item_count=sum(i.get("qty", 0) for i in items),
             subtotal=subtotal,
@@ -209,9 +319,47 @@ class OrderService:
             notes=data.notes,
             coupon_code=data.coupon_code,
             source="online",
+            # Phase-1 header enrichment
+            order_type=getattr(data, "order_type", None) or "standard",
+            payment_terms_code=getattr(data, "payment_terms_code", None),
+            payment_terms_days=getattr(data, "payment_terms_days", None),
+            shipping_terms=getattr(data, "shipping_terms", None),
+            order_reason=getattr(data, "order_reason", None),
+            requested_delivery_date=_parse_date(getattr(data, "requested_delivery_date", None)),
+            pricing_date=_parse_date(getattr(data, "pricing_date", None)),
+            currency=getattr(data, "currency", None) or "INR",
+            exchange_rate=getattr(data, "exchange_rate", None) or 1.0,
+            credit_status=credit_status,
+            fulfillment_status="open",
+            billing_status="open",
         )
         self.db.add(order)
         await self.db.flush()
+
+        # Create normalized line rows (Phase-2); JSONB cache in order.items stays in sync
+        self._create_order_lines(order, items)
+
+        # Phase-3: ATP check + schedule line creation + stock reservation
+        # Runs after lines are flushed so line.id values are available.
+        # Failures are non-fatal — the order proceeds; commitment can be retried.
+        try:
+            # Collect the newly added (unflushed) lines from the session
+            from sqlalchemy import inspect as _sa_inspect
+            pending_lines = [
+                obj for obj in self.db.new
+                if isinstance(obj, OrderLine) and obj.order_id == order.id
+            ]
+            if pending_lines:
+                await self.db.flush()  # ensure line ids exist
+                await commit_order_lines(self.db, order, pending_lines)
+        except Exception as _exc:
+            log.warning("Schedule/commitment creation failed for order %s: %s", order.id, _exc)
+
+        # Phase-6: seed buyer partner row from customer record
+        try:
+            await seed_buyer(self.db, order)
+        except Exception as _exc:
+            log.warning("Partner seed failed for order %s: %s", order.id, _exc)
 
         self._record_status(order.id, None, "pending", changed_by_role="customer", notes="Order placed")
 
@@ -295,6 +443,15 @@ class OrderService:
 
         await self.db.commit()
         await self.db.refresh(order)
+
+        # Update credit outstanding for pay_later orders (upfront payment methods
+        # settle immediately so outstanding doesn't change)
+        if is_pay_later_order and credit_row:
+            try:
+                await adjust_outstanding(self.db, credit_row, _Dec(str(total)))
+                await self.db.commit()
+            except Exception as _exc:
+                log.warning("Credit outstanding update failed for order %s: %s", order.id, _exc)
 
         if data.coupon_code and discount_amount > 0:
             try:
@@ -561,9 +718,27 @@ class OrderService:
                     invoice.status = "paid"
             except Exception as e:
                 log.warning("Invoice payment update failed for order %s: %s", order_id, e)
+            # Phase-8: reduce credit outstanding when pay_later order is delivered/paid
+            if order.payment_method == "pay_later":
+                try:
+                    credit_row = await find_credit_control(self.db, vendor_id, customer_id=order.customer_id)
+                    if credit_row:
+                        from decimal import Decimal as _Dec
+                        await adjust_outstanding(self.db, credit_row, -_Dec(str(order.total or 0)))
+                except Exception as _exc:
+                    log.warning("Credit outstanding reduction failed on delivery for order %s: %s", order_id, _exc)
         elif new_status == "cancelled" and previous_status != "cancelled":
             if self._order_had_inventory_deducted(order, previous_status):
                 await self._restore_inventory_for_order(vendor_id, order)
+            # Phase-8: restore credit outstanding when a pay_later order is cancelled
+            if order.payment_method == "pay_later" and previous_status not in ("pending",):
+                try:
+                    credit_row = await find_credit_control(self.db, vendor_id, customer_id=order.customer_id)
+                    if credit_row:
+                        from decimal import Decimal as _Dec
+                        await adjust_outstanding(self.db, credit_row, -_Dec(str(order.total or 0)))
+                except Exception as _exc:
+                    log.warning("Credit restoration failed on cancel for order %s: %s", order.id, _exc)
             if data.cancel_reason:
                 order.cancel_reason = data.cancel_reason
             if data.cancel_attachments is not None:

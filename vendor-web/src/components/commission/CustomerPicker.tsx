@@ -14,6 +14,9 @@ interface Props {
   selected: CustomerPickerValue | null
   onSelect: (val: CustomerPickerValue | null) => void
   disabled?: boolean
+  /** Compact field height for dense forms. */
+  compact?: boolean
+  placeholder?: string
 }
 
 function buildSub(phone?: string | null, email?: string | null): string | undefined {
@@ -21,7 +24,7 @@ function buildSub(phone?: string | null, email?: string | null): string | undefi
   return parts.length ? parts.join(' • ') : undefined
 }
 
-export function CustomerPicker({ selected, onSelect, disabled }: Props) {
+export function CustomerPicker({ selected, onSelect, disabled, compact, placeholder }: Props) {
   const toOption = (v: CustomerPickerValue): PickerOption => ({
     id: v.id,
     label: v.full_name,
@@ -67,11 +70,12 @@ export function CustomerPicker({ selected, onSelect, disabled }: Props) {
 
   return (
     <MasterDataPicker
-      placeholder="Search customers by name, email or phone…"
+      placeholder={placeholder ?? 'Search customers…'}
       selected={selected ? toOption(selected) : null}
       onSearch={handleSearch}
       onSelect={handleSelect}
       disabled={disabled}
+      compact={compact}
     />
   )
 }

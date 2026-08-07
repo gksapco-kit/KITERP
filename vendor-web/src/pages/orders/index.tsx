@@ -21,6 +21,7 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 import type { Order } from '@/types'
 import { Search, Eye, Loader2, Globe, Monitor, CalendarDays, Download, X, MessageSquare, BarChart3, Lock, Plus } from 'lucide-react'
 import { CreateBookingModal } from '@/pages/bookings/CreateBookingModal'
+import { CreateOrderModal } from './CreateOrderModal'
 const statusFilters = [
   { label: 'All', value: '' },
   { label: 'Quote Requests', value: 'quote_requested' },
@@ -144,6 +145,7 @@ export default function Orders() {
   const [bulkStatus, setBulkStatus] = useState('')
   const [mrpOrder, setMrpOrder] = useState<{ id: string; order_number: string; items: MRPItem[] } | null>(null)
   const [showCreateBooking, setShowCreateBooking] = useState(false)
+  const [showCreateOrder, setShowCreateOrder] = useState(false)
 
   const { data, isLoading } = useOrders({
     page,
@@ -257,7 +259,7 @@ export default function Orders() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-foreground">Orders</h1>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
-          <Button size="sm" className="h-8 gap-1.5" onClick={() => navigate('/pos')}>
+          <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowCreateOrder(true)}>
             <Plus className="h-3.5 w-3.5" /> Create Order
           </Button>
           <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => navigate('/pos')}>
@@ -542,6 +544,16 @@ export default function Orders() {
           onCreated={(bookingId) => {
             setShowCreateBooking(false)
             navigate(`/bookings/${bookingId}`)
+          }}
+        />
+      )}
+
+      {showCreateOrder && (
+        <CreateOrderModal
+          onClose={() => setShowCreateOrder(false)}
+          onCreated={(orderId) => {
+            setShowCreateOrder(false)
+            navigate(`/orders/${orderId}`)
           }}
         />
       )}
