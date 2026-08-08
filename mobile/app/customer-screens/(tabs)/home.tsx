@@ -25,7 +25,7 @@ import { useCartStore } from '../../../stores/cartStore'
 import type { Product } from '../../../types'
 
 const { width } = Dimensions.get('window')
-const CARD_GAP = 12
+const CARD_GAP = 10
 const H_PAD = 16
 const CARD_WIDTH = (width - H_PAD * 2 - CARD_GAP) / 2
 
@@ -51,11 +51,7 @@ export default function CustomerHome() {
   const [storeName, setStoreName] = useState(vendorInfo?.display_name || 'Store')
 
   const refreshCartCount = useCallback(async () => {
-    if (!isAuthenticated) {
-      useCartStore.getState().clearLocal()
-      return
-    }
-    await loadCart()
+    await loadCart(isAuthenticated)
   }, [isAuthenticated, loadCart])
 
   const load = useCallback(async () => {
@@ -245,18 +241,22 @@ export default function CustomerHome() {
                       )}
                     </View>
                     <View style={styles.cardBodyTop}>
-                      <Text numberOfLines={2} style={styles.cardName}>{p.name}</Text>
+                      <Text numberOfLines={1} style={styles.cardName}>{p.name}</Text>
                       {!!p.category && (
                         <Text numberOfLines={1} style={styles.cardCat}>{p.category}</Text>
                       )}
-                      <Text style={styles.cardPrice}>
-                        {formatProductPriceLabel(pricing, formatCurrency)}
-                      </Text>
-                      {!!pricing.compareAt && pricing.compareAt > pricing.price && pricing.price > 0 && (
-                        <Text style={styles.cardCompare}>
-                          {formatCurrency(pricing.compareAt)}
+                      <View style={styles.priceRow}>
+                        <Text style={styles.cardPrice}>
+                          {formatProductPriceLabel(pricing, formatCurrency)}
                         </Text>
-                      )}
+                        {!!pricing.compareAt &&
+                          pricing.compareAt > pricing.price &&
+                          pricing.price > 0 && (
+                            <Text style={styles.cardCompare}>
+                              {formatCurrency(pricing.compareAt)}
+                            </Text>
+                          )}
+                      </View>
                     </View>
                   </TouchableOpacity>
                   <View style={styles.cardBodyBottom}>
@@ -379,34 +379,40 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     backgroundColor: BRAND.card,
-    borderRadius: 18,
+    borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: BRAND.border,
   },
-  cardImageWrap: { width: '100%', height: CARD_WIDTH * 0.95, backgroundColor: '#EEF2F0' },
+  cardImageWrap: { width: '100%', height: CARD_WIDTH * 0.78, backgroundColor: '#EEF2F0' },
   cardImage: { width: '100%', height: '100%' },
   cardImagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   discountBadge: {
     position: 'absolute',
-    top: 10,
-    left: 10,
+    top: 8,
+    left: 8,
     backgroundColor: '#FBBF24',
-    borderRadius: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    borderRadius: 7,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  discountText: { fontSize: 11, fontWeight: '800', color: BRAND.text },
-  cardBodyTop: { paddingHorizontal: 12, paddingTop: 12 },
-  cardBodyBottom: { paddingHorizontal: 12, paddingBottom: 12 },
-  cardName: { fontSize: 13, fontWeight: '600', color: BRAND.text, minHeight: 34 },
-  cardCat: { fontSize: 11, color: BRAND.textMuted, marginTop: 2 },
-  cardPrice: { fontSize: 14, fontWeight: '800', color: BRAND.primaryDark, marginTop: 8 },
+  discountText: { fontSize: 10, fontWeight: '800', color: BRAND.text },
+  cardBodyTop: { paddingHorizontal: 8, paddingTop: 8 },
+  cardBodyBottom: { paddingHorizontal: 8, paddingBottom: 8, paddingTop: 2 },
+  cardName: { fontSize: 12, fontWeight: '700', color: BRAND.text },
+  cardCat: { fontSize: 10, color: BRAND.textMuted, marginTop: 1 },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  cardPrice: { fontSize: 13, fontWeight: '800', color: BRAND.primaryDark },
   cardCompare: {
-    fontSize: 11,
+    fontSize: 10,
     color: BRAND.textMuted,
     textDecorationLine: 'line-through',
-    marginTop: 1,
   },
   empty: { alignItems: 'center', paddingVertical: 48, gap: 8 },
   emptyText: { color: BRAND.textMuted, fontSize: 14 },

@@ -1,5 +1,12 @@
-import apiClient from './client'
-import type { Product, Service, Cart, Order, PaginatedResponse } from '../types'
+import apiClient, { resolveVendorBySlug } from './client'
+import type {
+  Product,
+  Service,
+  Cart,
+  Order,
+  PaginatedResponse,
+  ManualUpiConfig,
+} from '../types'
 
 export type StoreCategory = {
   id?: string
@@ -23,6 +30,22 @@ export const storeApi = {
   listServices: async (params?: Record<string, unknown>): Promise<PaginatedResponse<Service>> =>
     (await apiClient.get('/catalog/services', { params })).data,
 
+  /** Manual UPI details from vendor theme (same source as website). */
+  getManualUpi: async (vendorSlug: string): Promise<ManualUpiConfig | null> => {
+    const vendor = await resolveVendorBySlug(vendorSlug)
+    const theme = (vendor.theme_config || {}) as Record<string, any>
+    const raw = theme?.checkout?.manual_upi as ManualUpiConfig | undefined
+    if (!raw?.enabled) return null
+    return {
+      enabled: true,
+      upi_id: raw.upi_id || null,
+      qr_code_url: raw.qr_code_url || null,
+      label: raw.label || 'UPI',
+      business_name: vendor.display_name || vendor.business_name || null,
+      logo_url: vendor.logo_url || null,
+    }
+  },
+
   // Cart
   getCart: async (): Promise<Cart> => (await apiClient.get('/store/cart')).data,
   addToCart: async (item: {
@@ -42,8 +65,47 @@ export const storeApi = {
   // Orders
   checkout: async (data: Record<string, unknown>): Promise<Order> =>
     (await apiClient.post('/store/orders/checkout', data)).data,
+
+  guestCheckout: async (data: {
+    customer: { full_name: string; email: string; phone?: string }
+    items: Array<{
+      product_id?: string
+      variant_id?: string
+      name: string
+      qty: number
+      price: number
+      image_url?: string
+    }>
+    shipping_address: Record<string, string>
+    payment_method: string
+  }): Promise<Order & {
+    access_token?: string
+    refresh_token?: string
+    customer?: { id: string; full_name: string; email: string; phone?: string }
+  }> =>
+    (await apiClient.post('/store/orders/guest-checkout', data)).data,
+
   listOrders: async (params?: Record<string, unknown>): Promise<PaginatedResponse<Order>> =>
     (await apiClient.get('/store/orders', { params })).data,
   getOrder: async (id: string): Promise<Order> =>
     (await apiClient.get(`/store/orders/${id}`)).data,
+
+  uploadOrderMedia: async (
+    orderId: string,
+    file: { uri: string; name: string; type: string },
+  ): Promise<{ url: string; kind: string }> => {
+    const form = new FormData()
+    form.append('file', file as unknown as Blob)
+    const res = await apiClient.post(`/store/orders/${orderId}/upload-media`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    })
+    return res.data
+  },
+
+  submitPaymentProof: async (
+    orderId: string,
+    data: { utr: string; screenshot_url: string },
+  ): Promise<Order> =>
+    (await apiClient.post(`/store/orders/${orderId}/payment-proof`, data)).data,
 }

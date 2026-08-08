@@ -13,10 +13,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { storeApi } from '../../api/store'
+import { apiErrorMessage } from '../../api/auth'
 import { useAuthStore } from '../../stores/authStore'
+import { useCartStore } from '../../stores/cartStore'
 import { formatCurrency } from '../../lib/utils'
 import { productImageUrl } from '../../lib/mediaUrl'
-import { getProductPricing } from '../../lib/productPricing'
+import { getProductPricing, isProductInStock } from '../../lib/productPricing'
 import { BRAND } from '../../utils/theme'
 import type { Product, ProductVariant } from '../../types'
 
@@ -24,6 +26,7 @@ export default function ProductDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
+  const addProduct = useCartStore((s) => s.addProduct)
   const [product, setProduct] = useState<Product | null>(null)
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -79,11 +82,8 @@ export default function ProductDetailScreen() {
       Alert.alert('Unavailable', 'This product does not have a sellable price yet.')
       return
     }
-    if (!isAuthenticated) {
-      Alert.alert('Sign in required', 'Please sign in to add items to your cart.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign in', onPress: () => router.push('/auth-screens/login') },
-      ])
+    if (!isProductInStock(product) && selectedVariant?.stock_status === 'out_of_stock') {
+      Alert.alert('Out of stock', 'This product is currently unavailable.')
       return
     }
     setAdding(true)
@@ -91,20 +91,23 @@ export default function ProductDetailScreen() {
       const lineName = selectedVariant?.name
         ? `${product.name} · ${selectedVariant.name}`
         : product.name
-      await storeApi.addToCart({
-        product_id: product.id,
-        variant_id: selectedVariant?.id,
-        name: lineName,
-        qty,
-        price: unitPrice,
-        image_url: productImageUrl(product) || undefined,
-      })
+      await addProduct(
+        {
+          product_id: product.id,
+          variant_id: selectedVariant?.id,
+          name: lineName,
+          qty,
+          price: unitPrice,
+          image_url: productImageUrl(product) || undefined,
+        },
+        isAuthenticated,
+      )
       Alert.alert('Added', 'Item added to cart', [
         { text: 'Keep shopping', style: 'cancel' },
         { text: 'View cart', onPress: () => router.push('/customer-screens/cart') },
       ])
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.detail || 'Failed to add')
+      Alert.alert('Error', apiErrorMessage(err, 'Failed to add'))
     } finally {
       setAdding(false)
     }
@@ -184,13 +187,6 @@ export default function ProductDetailScreen() {
             </>
           )}
 
-          {!!product.description && (
-            <>
-              <Text style={styles.sectionLabel}>Description</Text>
-              <Text style={styles.description}>{product.description}</Text>
-            </>
-          )}
-
           <Text style={styles.sectionLabel}>Quantity</Text>
           <View style={styles.qtyRow}>
             <TouchableOpacity
@@ -204,6 +200,13 @@ export default function ProductDetailScreen() {
               <Text style={styles.qtyBtnText}>+</Text>
             </TouchableOpacity>
           </View>
+
+          {!!product.description && (
+            <>
+              <Text style={styles.sectionLabel}>Description</Text>
+              <Text style={styles.description}>{product.description}</Text>
+            </>
+          )}
         </View>
       </ScrollView>
 

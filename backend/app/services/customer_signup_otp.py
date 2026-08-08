@@ -241,8 +241,22 @@ async def verify_customer_signup_otp(
     if phone:
         phone_norm = normalize_e164(phone)
         pk = phone_key(phone_norm)
-        if len(pk) >= 10:
-            candidates.append(("phone", pk, phone_norm))
+        # Try E.164 digits and common variants so app/web formatting mismatches still verify.
+        phone_keys: list[str] = []
+        for key in (pk, phone_key(phone), pk[-10:] if len(pk) >= 10 else ""):
+            if key and len(key) >= 10 and key not in phone_keys:
+                phone_keys.append(key)
+        # Also try with/without leading 91 for Indian mobiles.
+        if pk.startswith("91") and len(pk) == 12:
+            local = pk[2:]
+            if local not in phone_keys:
+                phone_keys.append(local)
+        elif len(pk) == 10 and pk[0] in "6789":
+            with_cc = f"91{pk}"
+            if with_cc not in phone_keys:
+                phone_keys.append(with_cc)
+        for key in phone_keys:
+            candidates.append(("phone", key, phone_norm or phone))
 
     if not candidates:
         raise HTTPException(
@@ -253,11 +267,19 @@ async def verify_customer_signup_otp(
     now = datetime.now(timezone.utc)
     last_detail = "Invalid or expired OTP. Request a new code and try again."
 
+    seen: set[tuple[str, str]] = set()
     for channel, contact, destination in candidates:
+        dedupe = (channel, contact)
+        if dedupe in seen:
+            continue
+        seen.add(dedupe)
+
         entry = await otp_get(vendor_id, store_id, channel, contact)
         if not entry:
             continue
         exp = entry.get("expires_at")
+        if exp and exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
         if exp and exp < now:
             await otp_pop(vendor_id, store_id, channel, contact)
             last_detail = "OTP has expired — request a new code"
@@ -270,7 +292,7 @@ async def verify_customer_signup_otp(
             if not check.approved:
                 last_detail = "Invalid or expired OTP"
                 continue
-        elif entry.get("code") != otp:
+        elif str(entry.get("code") or "").strip() != otp:
             last_detail = "Invalid or expired OTP"
             continue
 

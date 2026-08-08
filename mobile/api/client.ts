@@ -33,7 +33,7 @@ export async function resolveVendorBySlug(slug: string) {
   const res = await apiClient.get(`/catalog/vendor/${slug}`)
   return res.data as {
     id: string; business_name: string; display_name: string; slug: string
-    description?: string; logo_url?: string; theme_config: Record<string, string>
+    description?: string; logo_url?: string;     theme_config: Record<string, any>
     settings: Record<string, unknown>
   }
 }

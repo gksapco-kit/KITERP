@@ -24,7 +24,7 @@ import { BRAND } from '../../../utils/theme'
 import type { Product } from '../../../types'
 
 const { width } = Dimensions.get('window')
-const CARD_GAP = 12
+const CARD_GAP = 10
 const H_PAD = 16
 const CARD_WIDTH = (width - H_PAD * 2 - CARD_GAP) / 2
 
@@ -45,11 +45,7 @@ export default function BrowseProducts() {
   }, [])
 
   useEffect(() => {
-    if (isAuthenticated) {
-      void loadCart()
-    } else {
-      useCartStore.getState().clearLocal()
-    }
+    void loadCart(isAuthenticated)
   }, [isAuthenticated, loadCart])
 
   const filtered = useMemo(() => {
@@ -122,15 +118,17 @@ export default function BrowseProducts() {
                     )}
                   </View>
                   <View style={styles.bodyTop}>
-                    <Text numberOfLines={2} style={styles.name}>{item.name}</Text>
-                    <Text style={styles.price}>
-                      {formatProductPriceLabel(pricing, formatCurrency)}
-                    </Text>
-                    {!!pricing.compareAt &&
-                      pricing.compareAt > pricing.price &&
-                      pricing.price > 0 && (
-                        <Text style={styles.compare}>{formatCurrency(pricing.compareAt)}</Text>
-                      )}
+                    <Text numberOfLines={1} style={styles.name}>{item.name}</Text>
+                    <View style={styles.priceRow}>
+                      <Text style={styles.price}>
+                        {formatProductPriceLabel(pricing, formatCurrency)}
+                      </Text>
+                      {!!pricing.compareAt &&
+                        pricing.compareAt > pricing.price &&
+                        pricing.price > 0 && (
+                          <Text style={styles.compare}>{formatCurrency(pricing.compareAt)}</Text>
+                        )}
+                    </View>
                   </View>
                 </TouchableOpacity>
                 <View style={styles.bodyBottom}>
@@ -169,22 +167,28 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     backgroundColor: BRAND.card,
-    borderRadius: 18,
+    borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: BRAND.border,
   },
-  imageWrap: { width: '100%', height: CARD_WIDTH * 0.95, backgroundColor: '#EEF2F0' },
+  imageWrap: { width: '100%', height: CARD_WIDTH * 0.78, backgroundColor: '#EEF2F0' },
   image: { width: '100%', height: '100%' },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  bodyTop: { paddingHorizontal: 12, paddingTop: 12 },
-  bodyBottom: { paddingHorizontal: 12, paddingBottom: 12 },
-  name: { fontSize: 13, fontWeight: '600', color: BRAND.text, minHeight: 34 },
-  price: { fontSize: 14, fontWeight: '800', color: BRAND.primaryDark, marginTop: 8 },
+  bodyTop: { paddingHorizontal: 8, paddingTop: 8 },
+  bodyBottom: { paddingHorizontal: 8, paddingBottom: 8, paddingTop: 2 },
+  name: { fontSize: 12, fontWeight: '700', color: BRAND.text },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  price: { fontSize: 13, fontWeight: '800', color: BRAND.primaryDark },
   compare: {
-    fontSize: 11,
+    fontSize: 10,
     color: BRAND.textMuted,
     textDecorationLine: 'line-through',
-    marginTop: 1,
   },
 })

@@ -20,6 +20,13 @@ function activeVariants(product?: Product | null): ProductVariant[] {
   return list.filter((v) => v && v.is_active !== false)
 }
 
+function variantInStock(v: ProductVariant): boolean {
+  if (v.stock_status === 'out_of_stock') return false
+  // Prefer variant qty when inventory is tracked on the variant
+  if (v.quantity != null) return toNumber(v.quantity) > 0 || v.stock_status === 'backorder'
+  return v.stock_status !== 'out_of_stock'
+}
+
 /** Same rule as storefront: prefer priced variants when product.price is 0. */
 export function getProductPricing(product?: Product | null): ProductPricing {
   if (!product) return { price: 0, showFrom: false, variant: null }
@@ -53,6 +60,25 @@ export function getProductPricing(product?: Product | null): ProductPricing {
     showFrom: false,
     variant: variants[0] || null,
   }
+}
+
+/**
+ * Product-level qty is often 0 when stock lives on variants (e.g. Monstera).
+ * Prefer the sellable variant’s stock, matching the website.
+ */
+export function isProductInStock(product?: Product | null): boolean {
+  if (!product) return false
+  const pricing = getProductPricing(product)
+  if (pricing.variant) return variantInStock(pricing.variant)
+
+  const variants = activeVariants(product)
+  if (variants.length > 0) {
+    return variants.some(variantInStock)
+  }
+
+  if (product.stock_status === 'out_of_stock') return false
+  if (product.stock_status === 'backorder') return true
+  return toNumber(product.quantity) > 0 || product.stock_status === 'in_stock' || product.stock_status === 'low_stock'
 }
 
 export function formatProductPriceLabel(

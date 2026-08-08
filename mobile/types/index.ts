@@ -62,11 +62,34 @@ export interface CartItem {
 export interface Cart { id: string; items: CartItem[]; item_count: number; subtotal: number; discount_amount: number }
 
 export interface Order {
-  id: string; order_number: string; items: CartItem[]; item_count: number
-  subtotal: number; tax_amount: number; total: number
-  status: string; payment_status: string; payment_method?: string
-  shipping_address?: Record<string, string>; created_at: string
+  id: string
+  order_number: string
+  items: CartItem[]
+  item_count: number
+  subtotal: number
+  tax_amount: number
+  total: number
+  status: string
+  payment_status: string
+  payment_method?: string
+  payment_proof?: {
+    status?: string
+    utr?: string
+    screenshot_url?: string
+  } | null
+  shipping_address?: Record<string, string>
+  created_at: string
 }
+
+export type ManualUpiConfig = {
+  enabled: boolean
+  upi_id?: string | null
+  qr_code_url?: string | null
+  label?: string
+  business_name?: string | null
+  logo_url?: string | null
+}
+
 
 export interface OrderStats {
   total_orders: number; pending_orders: number; completed_orders: number

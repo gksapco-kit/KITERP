@@ -88,7 +88,17 @@ module.exports = () => ({
       output: "single",
       favicon: icon,
     },
-    plugins: ["expo-router", "expo-secure-store"],
+    plugins: [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          photosPermission:
+            "Allow Rainbow Nursery to access photos so you can upload UPI payment proof.",
+        },
+      ],
+    ],
     updates: {
       url: "https://u.expo.dev/9b598a58-a149-47f9-b5c0-574016f72caa",
     },

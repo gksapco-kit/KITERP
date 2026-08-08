@@ -7,13 +7,12 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native'
-import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { apiErrorMessage } from '../api/auth'
 import { useAuthStore } from '../stores/authStore'
 import { useCartStore } from '../stores/cartStore'
 import { productImageUrl } from '../lib/mediaUrl'
-import { getProductPricing } from '../lib/productPricing'
+import { getProductPricing, isProductInStock } from '../lib/productPricing'
 import { BRAND } from '../utils/theme'
 import type { Product } from '../types'
 
@@ -23,34 +22,22 @@ type Props = {
 }
 
 /**
- * Matches website CatalogAddOrQtyControl:
- * - not in cart → solid "Add" only (no fake qty of 1)
- * - in cart → Add | − cartQty +
- *
- * Parent screens should call useCartStore.getState().loadCart() once when signed in.
+ * Website-style control:
+ * - not in cart → "Add" only
+ * - in cart → Add | − qty +
+ * Guests can add locally; sign-in is only required at checkout.
  */
 export function ProductAddToCart({ product, onChanged }: Props) {
-  const router = useRouter()
   const { isAuthenticated } = useAuthStore()
   const addProduct = useCartStore((s) => s.addProduct)
   const setProductQty = useCartStore((s) => s.setProductQty)
   const pricing = getProductPricing(product)
   const variantId = pricing.variant?.id
-  const cartQty = useCartStore((s) =>
-    isAuthenticated ? s.qtyByKey[`${product.id}::${variantId || ''}`] || 0 : 0,
+  const cartQty = useCartStore(
+    (s) => s.qtyByKey[`${product.id}::${variantId || ''}`] || 0,
   )
   const [busy, setBusy] = useState(false)
-
-  const inStock =
-    product.stock_status !== 'out_of_stock' &&
-    (product.quantity == null || product.quantity > 0)
-
-  const requireAuth = () => {
-    Alert.alert('Sign in required', 'Please sign in to add items to your cart.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign in', onPress: () => router.push('/auth-screens/login') },
-    ])
-  }
+  const inStock = isProductInStock(product)
 
   const buildLine = () => {
     const variant = pricing.variant
@@ -73,14 +60,10 @@ export function ProductAddToCart({ product, onChanged }: Props) {
       Alert.alert('Unavailable', 'This product does not have a sellable price yet.')
       return
     }
-    if (!isAuthenticated) {
-      requireAuth()
-      return
-    }
 
     setBusy(true)
     try {
-      await addProduct(buildLine())
+      await addProduct(buildLine(), isAuthenticated)
       onChanged?.()
     } catch (err: any) {
       Alert.alert('Could not add', apiErrorMessage(err, 'Failed to add to cart'))
@@ -90,13 +73,9 @@ export function ProductAddToCart({ product, onChanged }: Props) {
   }
 
   const handleQtyChange = async (nextQty: number) => {
-    if (!isAuthenticated) {
-      requireAuth()
-      return
-    }
     setBusy(true)
     try {
-      await setProductQty(product.id, variantId, nextQty, buildLine())
+      await setProductQty(product.id, variantId, nextQty, isAuthenticated, buildLine())
       onChanged?.()
     } catch (err: any) {
       Alert.alert('Could not update', apiErrorMessage(err, 'Failed to update cart'))
@@ -183,30 +162,30 @@ export function ProductAddToCart({ product, onChanged }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: 10 },
+  wrap: { marginTop: 4 },
   stockBadge: {
     alignSelf: 'flex-start',
     backgroundColor: BRAND.primarySoft,
     borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginBottom: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginBottom: 4,
   },
   stockBadgeOut: {
     alignSelf: 'flex-start',
     backgroundColor: BRAND.dangerSoft,
     borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginBottom: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginBottom: 4,
   },
   stockText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: BRAND.primaryDark,
   },
   stockOutText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: BRAND.danger,
   },
@@ -215,13 +194,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: BRAND.primary,
-    borderRadius: 12,
-    minHeight: 40,
-    paddingHorizontal: 12,
+    borderRadius: 10,
+    minHeight: 34,
+    paddingHorizontal: 10,
   },
   pillAddOnly: {
     justifyContent: 'center',
-    gap: 6,
+    gap: 5,
   },
   pillDisabled: {
     opacity: 0.55,
@@ -230,26 +209,26 @@ const styles = StyleSheet.create({
   addSide: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     flexShrink: 1,
   },
-  addText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  addText: { color: '#fff', fontWeight: '800', fontSize: 12 },
   qtySide: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   qtyHit: {
-    width: 30,
-    height: 34,
+    width: 26,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  qtyBtn: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 20 },
+  qtyBtn: { color: '#fff', fontSize: 16, fontWeight: '700', lineHeight: 18 },
   qtyValue: {
     color: '#fff',
     fontWeight: '800',
-    fontSize: 14,
-    minWidth: 20,
+    fontSize: 13,
+    minWidth: 18,
     textAlign: 'center',
   },
 })

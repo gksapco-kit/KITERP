@@ -8,24 +8,30 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import { useAuthStore } from '../../stores/authStore'
 import { authApi, apiErrorMessage } from '../../api/auth'
 import { resolveVendorBySlug, setAuthToken, setVendorId, setVendorSlug } from '../../api/client'
 import { isBrandedApp, getVendorSlug, loadVendorBranding } from '../../utils/vendorConfig'
-import { BRAND } from '../../utils/theme'
+import { useCartStore } from '../../stores/cartStore'
+import { BRAND, withAlpha } from '../../utils/theme'
 
 type Role = 'vendor' | 'customer'
 
 export default function LoginScreen() {
   const router = useRouter()
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>()
   const { setVendorAuth, setCustomerAuth } = useAuthStore()
   const branded = isBrandedApp()
   const [role, setSelectedRole] = useState<Role>(branded ? 'customer' : 'vendor')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [storeSlug, setStoreSlug] = useState('')
   const [loading, setLoading] = useState(false)
   const [resolvedVendor, setResolvedVendor] = useState<{
@@ -74,7 +80,9 @@ export default function LoginScreen() {
   }
 
   const handleLogin = async () => {
-    if (!email || !password) return Alert.alert('Error', 'Please fill in all fields')
+    if (!email.trim() || !password) {
+      return Alert.alert('Error', 'Please fill in all fields')
+    }
     if (role === 'customer' && !resolvedVendor) {
       return Alert.alert('Error', 'Please find a store first')
     }
@@ -98,7 +106,16 @@ export default function LoginScreen() {
           slug: resolvedVendor!.slug,
           display_name: resolvedVendor!.display_name,
         })
-        router.replace('/customer-screens/home')
+        try {
+          await useCartStore.getState().mergeGuestIntoServer()
+        } catch (e) {
+          console.error(e)
+        }
+        if (returnTo === 'checkout') {
+          router.replace('/customer-screens/checkout')
+        } else {
+          router.replace('/customer-screens/home')
+        }
       }
     } catch (err: any) {
       Alert.alert('Login Failed', apiErrorMessage(err, 'Invalid credentials'))
@@ -107,232 +124,506 @@ export default function LoginScreen() {
     }
   }
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back()
+    } else if (branded) {
+      router.replace('/customer-screens/home')
+    } else {
+      router.replace('/')
+    }
+  }
+
+  const canSubmit = !loading && !(role === 'customer' && !resolvedVendor)
+
   return (
-    <SafeAreaView style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>
-          {branded ? `Welcome to ${storeName}` : 'Welcome to KITERP'}
-        </Text>
-        <Text style={styles.sub}>Sign in to continue</Text>
+    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+      <View style={styles.orbTop} pointerEvents="none" />
+      <View style={styles.orbBottom} pointerEvents="none" />
 
-        {!branded && (
-          <View style={styles.roleRow}>
-            {(['vendor', 'customer'] as Role[]).map((r) => (
-              <TouchableOpacity
-                key={r}
-                onPress={() => {
-                  setSelectedRole(r)
-                  setResolvedVendor(null)
-                }}
-                style={[styles.roleBtn, role === r && styles.roleBtnActive]}
-              >
-                <Text style={[styles.roleText, role === r && styles.roleTextActive]}>
-                  {r}
-                </Text>
-              </TouchableOpacity>
-            ))}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={goBack}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={22} color={BRAND.text} />
+          </TouchableOpacity>
+          <Text style={styles.topTitle}>Sign in</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.hero}>
+            <View style={styles.heroIcon}>
+              <Ionicons
+                name={role === 'vendor' ? 'briefcase-outline' : 'leaf'}
+                size={26}
+                color={BRAND.primaryDark}
+              />
+            </View>
+            <Text style={styles.heroTitle}>
+              {branded
+                ? role === 'vendor'
+                  ? 'Staff login'
+                  : `Welcome back`
+                : 'Welcome to KITERP'}
+            </Text>
+            <Text style={styles.heroSub}>
+              {role === 'vendor'
+                ? 'Sign in to manage orders and store settings'
+                : branded
+                  ? `Sign in to ${storeName} to track orders and checkout faster`
+                  : 'Sign in to continue'}
+            </Text>
           </View>
-        )}
 
-        {role === 'customer' && !branded && (
-          <View style={{ marginBottom: 16 }}>
-            <Text style={styles.label}>Enter store name to connect</Text>
-            <View style={styles.findRow}>
+          {branded && (
+            <View style={styles.segment}>
+              {([
+                { key: 'customer' as Role, label: 'Customer', icon: 'person-outline' as const },
+                { key: 'vendor' as Role, label: 'Staff', icon: 'briefcase-outline' as const },
+              ]).map((opt) => {
+                const active = role === opt.key
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                    onPress={() => setSelectedRole(opt.key)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name={opt.icon}
+                      size={16}
+                      color={active ? '#fff' : BRAND.textMuted}
+                    />
+                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          )}
+
+          {!branded && (
+            <View style={styles.segment}>
+              {(['vendor', 'customer'] as Role[]).map((r) => {
+                const active = role === r
+                return (
+                  <TouchableOpacity
+                    key={r}
+                    style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                    onPress={() => {
+                      setSelectedRole(r)
+                      setResolvedVendor(null)
+                    }}
+                  >
+                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                      {r === 'vendor' ? 'Vendor' : 'Customer'}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          )}
+
+          {role === 'customer' && branded && (
+            <View style={styles.storePill}>
+              {resolving ? (
+                <ActivityIndicator color={BRAND.primaryDark} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="storefront-outline" size={16} color={BRAND.primaryDark} />
+                  <Text style={styles.storePillText}>
+                    {resolvedVendor?.display_name || storeName}
+                  </Text>
+                  {!!resolvedVendor && (
+                    <Ionicons name="checkmark-circle" size={16} color={BRAND.primaryDark} />
+                  )}
+                </>
+              )}
+            </View>
+          )}
+
+          {role === 'customer' && !branded && (
+            <View style={styles.card}>
+              <Text style={styles.fieldLabel}>Connect to a store</Text>
+              <View style={styles.findRow}>
+                <View style={[styles.fieldRow, { flex: 1 }]}>
+                  <Ionicons
+                    name="search-outline"
+                    size={18}
+                    color={BRAND.textMuted}
+                    style={styles.fieldIcon}
+                  />
+                  <TextInput
+                    placeholder="Store slug (e.g. demo-store)"
+                    placeholderTextColor={BRAND.textMuted}
+                    value={storeSlug}
+                    onChangeText={(t) => {
+                      setStoreSlug(t)
+                      setResolvedVendor(null)
+                    }}
+                    autoCapitalize="none"
+                    style={styles.input}
+                  />
+                </View>
+                <TouchableOpacity
+                  onPress={handleResolveVendor}
+                  disabled={resolving || !storeSlug.trim()}
+                  style={[
+                    styles.findBtn,
+                    { opacity: resolving || !storeSlug.trim() ? 0.5 : 1 },
+                  ]}
+                >
+                  {resolving ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <Text style={styles.findBtnText}>Find</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+              {resolvedVendor && (
+                <View style={styles.connectedInline}>
+                  <Ionicons name="checkmark-circle" size={16} color={BRAND.primaryDark} />
+                  <Text style={styles.connectedInlineText}>
+                    Connected to {resolvedVendor.display_name}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          <View style={styles.card}>
+            <Text style={styles.fieldLabel}>
+              {role === 'vendor' ? 'Email' : 'Email or phone'}
+            </Text>
+            <View style={styles.fieldRow}>
+              <Ionicons
+                name={role === 'vendor' ? 'mail-outline' : 'person-outline'}
+                size={18}
+                color={BRAND.textMuted}
+                style={styles.fieldIcon}
+              />
               <TextInput
-                placeholder="Store slug (e.g. demo-store)"
-                value={storeSlug}
-                onChangeText={(t) => {
-                  setStoreSlug(t)
-                  setResolvedVendor(null)
-                }}
+                placeholder={role === 'vendor' ? 'you@company.com' : 'Email or phone'}
+                placeholderTextColor={BRAND.textMuted}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
                 autoCapitalize="none"
-                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                autoCorrect={false}
+                style={styles.input}
+              />
+            </View>
+
+            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Password</Text>
+            <View style={styles.fieldRow}>
+              <Ionicons
+                name="lock-closed-outline"
+                size={18}
+                color={BRAND.textMuted}
+                style={styles.fieldIcon}
+              />
+              <TextInput
+                placeholder="Your password"
+                placeholderTextColor={BRAND.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                style={styles.input}
               />
               <TouchableOpacity
-                onPress={handleResolveVendor}
-                disabled={resolving || !storeSlug.trim()}
-                style={[
-                  styles.findBtn,
-                  { opacity: resolving || !storeSlug.trim() ? 0.5 : 1 },
-                ]}
+                onPress={() => setShowPassword((v) => !v)}
+                hitSlop={8}
+                style={styles.eyeBtn}
               >
-                {resolving ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <Text style={styles.findBtnText}>Find</Text>
-                )}
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={BRAND.textMuted}
+                />
               </TouchableOpacity>
             </View>
-            {resolvedVendor && (
-              <View style={styles.connected}>
-                <Text style={styles.connectedText}>
-                  Connected to: {resolvedVendor.display_name}
-                </Text>
-              </View>
-            )}
           </View>
-        )}
 
-        {branded && role === 'customer' && (
-          <View style={styles.connected}>
-            {resolving ? (
-              <ActivityIndicator color={BRAND.primary} size="small" />
+          <TouchableOpacity
+            onPress={handleLogin}
+            disabled={!canSubmit}
+            style={[styles.submit, { opacity: canSubmit ? 1 : 0.5 }]}
+            activeOpacity={0.9}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.connectedText}>
-                {resolvedVendor
-                  ? `Connected to: ${resolvedVendor.display_name}`
-                  : 'Connecting to store…'}
-              </Text>
+              <>
+                <Text style={styles.submitText}>Sign in</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </>
             )}
-          </View>
-        )}
+          </TouchableOpacity>
 
-        <TextInput
-          placeholder="Email or phone"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          style={styles.input}
-        />
-
-        <TouchableOpacity
-          onPress={handleLogin}
-          disabled={loading || (role === 'customer' && !resolvedVendor)}
-          style={[
-            styles.submit,
-            {
-              opacity: loading || (role === 'customer' && !resolvedVendor) ? 0.5 : 1,
-            },
-          ]}
-        >
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.submitText}>Sign In</Text>
+          {role === 'customer' && (!!resolvedVendor || branded) && (
+            <TouchableOpacity
+              onPress={() => router.push('/auth-screens/register')}
+              style={styles.footerLink}
+            >
+              <Text style={styles.footerMuted}>
+                Don&apos;t have an account?{' '}
+                <Text style={styles.footerAccent}>Create account</Text>
+              </Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
 
-        {role === 'customer' && resolvedVendor && (
-          <TouchableOpacity
-            onPress={() => router.push('/auth-screens/register')}
-            style={{ marginTop: 16, alignItems: 'center' }}
-          >
-            <Text style={{ color: BRAND.textMuted, fontSize: 14 }}>
-              Don&apos;t have an account?{' '}
-              <Text style={{ color: BRAND.primary, fontWeight: '700' }}>Register</Text>
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {branded && role === 'customer' && (
-          <TouchableOpacity
-            onPress={() => setSelectedRole('vendor')}
-            style={{ marginTop: 18, alignItems: 'center' }}
-          >
-            <Text style={{ color: BRAND.textMuted, fontSize: 13 }}>
-              Staff? <Text style={{ color: BRAND.primary, fontWeight: '700' }}>Vendor login</Text>
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {branded && role === 'vendor' && (
-          <TouchableOpacity
-            onPress={() => setSelectedRole('customer')}
-            style={{ marginTop: 18, alignItems: 'center' }}
-          >
-            <Text style={{ color: BRAND.primary, fontWeight: '600' }}>Back to customer login</Text>
-          </TouchableOpacity>
-        )}
-
-        {branded && (
-          <TouchableOpacity
-            onPress={() => router.replace('/customer-screens/home')}
-            style={{ marginTop: 16, alignItems: 'center' }}
-          >
-            <Text style={{ color: BRAND.primaryDark, fontWeight: '600' }}>
-              Continue browsing as guest
-            </Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+          {branded && (
+            <TouchableOpacity
+              onPress={() => router.replace('/customer-screens/home')}
+              style={styles.guestBtn}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="storefront-outline" size={16} color={BRAND.primaryDark} />
+              <Text style={styles.guestBtnText}>Continue browsing as guest</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BRAND.card },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 8,
+  root: { flex: 1, backgroundColor: BRAND.bg },
+  orbTop: {
+    position: 'absolute',
+    top: -80,
+    right: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: withAlpha(BRAND.primary, 0.16),
+  },
+  orbBottom: {
+    position: 'absolute',
+    bottom: -100,
+    left: -70,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: withAlpha(BRAND.primaryDark, 0.1),
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: BRAND.card,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topTitle: {
+    fontSize: 16,
+    fontWeight: '700',
     color: BRAND.text,
   },
-  sub: {
+  scroll: {
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 4,
+  },
+  hero: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  heroIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: BRAND.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: BRAND.text,
+    textAlign: 'center',
+  },
+  heroSub: {
+    marginTop: 6,
     fontSize: 14,
+    lineHeight: 20,
     color: BRAND.textMuted,
     textAlign: 'center',
-    marginBottom: 28,
+    paddingHorizontal: 10,
   },
-  roleRow: {
+  segment: {
     flexDirection: 'row',
-    marginBottom: 24,
-    borderRadius: 12,
-    overflow: 'hidden',
+    backgroundColor: BRAND.card,
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 14,
+    gap: 4,
     borderWidth: 1,
     borderColor: BRAND.border,
   },
-  roleBtn: { flex: 1, paddingVertical: 12, backgroundColor: '#fff', alignItems: 'center' },
-  roleBtnActive: { backgroundColor: BRAND.primary },
-  roleText: {
-    fontWeight: '600',
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    borderRadius: 11,
+  },
+  segmentBtnActive: {
+    backgroundColor: BRAND.primary,
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '700',
     color: BRAND.textMuted,
     textTransform: 'capitalize',
   },
-  roleTextActive: { color: '#fff' },
-  label: { fontSize: 13, color: BRAND.textMuted, marginBottom: 6 },
-  findRow: { flexDirection: 'row', gap: 8 },
+  segmentTextActive: {
+    color: '#fff',
+  },
+  storePill: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: BRAND.primarySoft,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 999,
+    marginBottom: 14,
+    minHeight: 36,
+  },
+  storePillText: {
+    color: BRAND.primaryDark,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  card: {
+    backgroundColor: BRAND.card,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    marginBottom: 14,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: BRAND.text,
+    marginBottom: 6,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: BRAND.bg,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    minHeight: 50,
+  },
+  fieldIcon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: BRAND.text,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
+  },
+  eyeBtn: {
+    padding: 4,
+  },
+  findRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
   findBtn: {
     backgroundColor: BRAND.primary,
     paddingHorizontal: 16,
-    borderRadius: 10,
+    height: 50,
+    borderRadius: 14,
     justifyContent: 'center',
   },
-  findBtnText: { color: 'white', fontWeight: '700' },
-  connected: {
-    marginTop: 8,
-    marginBottom: 12,
-    padding: 12,
-    backgroundColor: BRAND.primarySoft,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
+  findBtnText: { color: 'white', fontWeight: '800' },
+  connectedInline: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  connectedText: { fontSize: 13, color: '#166534', fontWeight: '600' },
-  input: {
-    borderWidth: 1,
-    borderColor: BRAND.border,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    fontSize: 15,
-    backgroundColor: '#fff',
+  connectedInlineText: {
+    fontSize: 13,
+    color: BRAND.primaryDark,
+    fontWeight: '700',
   },
   submit: {
     backgroundColor: BRAND.primary,
-    paddingVertical: 15,
-    borderRadius: 14,
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 2,
   },
-  submitText: { color: 'white', fontWeight: '700', fontSize: 16 },
+  submitText: { color: 'white', fontWeight: '800', fontSize: 16 },
+  footerLink: {
+    marginTop: 18,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  footerMuted: {
+    color: BRAND.textMuted,
+    fontSize: 14,
+  },
+  footerAccent: {
+    color: BRAND.primaryDark,
+    fontWeight: '800',
+  },
+  guestBtn: {
+    marginTop: 8,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: BRAND.card,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  guestBtnText: {
+    color: BRAND.primaryDark,
+    fontWeight: '700',
+    fontSize: 13,
+  },
 })

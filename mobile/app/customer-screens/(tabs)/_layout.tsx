@@ -1,8 +1,21 @@
+import { useEffect } from 'react'
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { useAuthStore } from '../../../stores/authStore'
+import { useCartStore } from '../../../stores/cartStore'
 import { BRAND } from '../../../utils/theme'
 
 export default function CustomerTabsLayout() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const itemCount = useCartStore((s) => s.itemCount)
+  const loadCart = useCartStore((s) => s.loadCart)
+
+  useEffect(() => {
+    void loadCart(isAuthenticated)
+  }, [isAuthenticated, loadCart])
+
+  const badge = itemCount > 0 ? (itemCount > 99 ? '99+' : itemCount) : undefined
+
   return (
     <Tabs
       screenOptions={{
@@ -44,6 +57,17 @@ export default function CustomerTabsLayout() {
         name="cart"
         options={{
           title: 'Cart',
+          tabBarBadge: badge,
+          tabBarBadgeStyle: {
+            backgroundColor: BRAND.primary,
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: '700',
+            minWidth: 18,
+            height: 18,
+            lineHeight: 18,
+            borderRadius: 9,
+          },
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="bag-handle-outline" size={size} color={color} />
           ),

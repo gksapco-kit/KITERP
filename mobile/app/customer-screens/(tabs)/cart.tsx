@@ -7,16 +7,20 @@ import {
   ActivityIndicator,
   StyleSheet,
   Image,
+  Alert,
 } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { storeApi } from '../../../api/store'
+import { resolveVendorBySlug } from '../../../api/client'
 import { useAuthStore } from '../../../stores/authStore'
+import { useCartStore } from '../../../stores/cartStore'
 import { formatCurrency } from '../../../lib/utils'
 import { mediaUrl } from '../../../lib/mediaUrl'
+import { isSignInMandatory } from '../../../lib/deliveryConditions'
+import { getVendorSlug } from '../../../utils/vendorConfig'
 import { BRAND } from '../../../utils/theme'
-import type { Cart, CartItem } from '../../../types'
+import type { CartItem } from '../../../types'
 
 function CartLine({
   item,
@@ -47,7 +51,7 @@ function CartLine({
         <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
         <View style={styles.qtyRow}>
           <TouchableOpacity
-            onPress={() => onUpdateQty(index, Math.max(1, item.qty - 1))}
+            onPress={() => onUpdateQty(index, Math.max(0, item.qty - 1))}
             style={styles.qtyBtn}
           >
             <Text style={styles.qtyBtnText}>−</Text>
@@ -72,33 +76,30 @@ function CartLine({
 export default function CartScreen() {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
-  const [cart, setCart] = useState<Cart | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  const loadCart = useCallback(() => {
-    if (!isAuthenticated) {
-      setCart(null)
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    storeApi
-      .getCart()
-      .then(setCart)
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [isAuthenticated])
+  const items = useCartStore((s) => s.items)
+  const loading = useCartStore((s) => s.loading)
+  const loadCart = useCartStore((s) => s.loadCart)
+  const updateLineQty = useCartStore((s) => s.updateLineQty)
+  const removeLine = useCartStore((s) => s.removeLine)
+  // Default true to match storefront / API when settings are unknown
+  const [signInMandatory, setSignInMandatory] = useState(true)
 
   useFocusEffect(
     useCallback(() => {
-      loadCart()
-    }, [loadCart]),
+      void loadCart(isAuthenticated)
+      const slug = getVendorSlug()
+      if (!slug) return
+      resolveVendorBySlug(slug)
+        .then((vendor) => {
+          setSignInMandatory(isSignInMandatory(vendor.settings))
+        })
+        .catch(() => setSignInMandatory(true))
+    }, [isAuthenticated, loadCart]),
   )
 
   const updateQty = async (index: number, qty: number) => {
     try {
-      const updated = await storeApi.updateCartItem(index, qty)
-      setCart(updated)
+      await updateLineQty(index, qty, isAuthenticated)
     } catch (err) {
       console.error(err)
     }
@@ -106,32 +107,38 @@ export default function CartScreen() {
 
   const removeItem = async (index: number) => {
     try {
-      const updated = await storeApi.removeCartItem(index)
-      setCart(updated)
+      await removeLine(index, isAuthenticated)
     } catch (err) {
       console.error(err)
     }
   }
 
-  if (!isAuthenticated) {
-    return (
-      <SafeAreaView style={styles.root} edges={['top']}>
-        <View style={styles.center}>
-          <Ionicons name="bag-outline" size={48} color={BRAND.primary} />
-          <Text style={styles.emptyTitle}>Sign in to view cart</Text>
-          <Text style={styles.emptySub}>Save plants and checkout securely</Text>
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            onPress={() => router.push('/auth-screens/login')}
-          >
-            <Text style={styles.primaryBtnText}>Sign in</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    )
+  const proceedCheckout = () => {
+    if (!items.length) return
+    if (!isAuthenticated && signInMandatory) {
+      Alert.alert(
+        'Sign in required',
+        'Sign in is required to place an order at this store',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign in',
+            onPress: () =>
+              router.push({
+                pathname: '/auth-screens/login',
+                params: { returnTo: 'checkout' },
+              }),
+          },
+        ],
+      )
+      return
+    }
+    router.push('/customer-screens/checkout')
   }
 
-  if (loading) {
+  const needsSignIn = !isAuthenticated && signInMandatory
+
+  if (loading && isAuthenticated) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={BRAND.primary} />
@@ -139,17 +146,18 @@ export default function CartScreen() {
     )
   }
 
-  const subtotal = cart?.items?.reduce((sum, i) => sum + i.price * i.qty, 0) || 0
-  const items = cart?.items || []
+  const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0)
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Cart</Text>
-        <Text style={styles.sub}>{items.length} items</Text>
+        <Text style={styles.sub}>
+          {items.length} items{!isAuthenticated && items.length > 0 ? ' · Guest' : ''}
+        </Text>
       </View>
 
-      {items.length === 0 ? (
+      {!items.length ? (
         <View style={styles.center}>
           <Ionicons name="bag-handle-outline" size={48} color={BRAND.textMuted} />
           <Text style={styles.emptyTitle}>Cart is empty</Text>
@@ -165,7 +173,7 @@ export default function CartScreen() {
         <>
           <FlatList
             data={items}
-            keyExtractor={(_, i) => String(i)}
+            keyExtractor={(item, i) => `${item.product_id}-${item.variant_id || i}`}
             contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
             renderItem={({ item, index }) => (
               <CartLine
@@ -181,11 +189,20 @@ export default function CartScreen() {
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>{formatCurrency(subtotal)}</Text>
             </View>
-            <TouchableOpacity
-              style={styles.primaryBtnWide}
-              onPress={() => router.push('/customer-screens/checkout')}
-            >
-              <Text style={styles.primaryBtnText}>Proceed to checkout</Text>
+            {needsSignIn && (
+              <Text style={styles.checkoutHint}>
+                Sign in is required to checkout at this store.
+              </Text>
+            )}
+            {!isAuthenticated && !signInMandatory && (
+              <Text style={styles.checkoutHint}>
+                You can checkout as a guest — name and email are asked on the next screen.
+              </Text>
+            )}
+            <TouchableOpacity style={styles.primaryBtnWide} onPress={proceedCheckout}>
+              <Text style={styles.primaryBtnText}>
+                {needsSignIn ? 'Sign in & checkout' : 'Proceed to checkout'}
+              </Text>
             </TouchableOpacity>
           </View>
         </>
@@ -215,6 +232,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  checkoutHint: {
+    color: BRAND.textMuted,
+    fontSize: 12,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
   row: {
     backgroundColor: BRAND.card,
     borderRadius: 16,
