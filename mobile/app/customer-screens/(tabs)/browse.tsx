@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
   TextInput,
   StyleSheet,
   Dimensions,
+  RefreshControl,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { storeApi } from '../../../api/store'
@@ -34,19 +35,31 @@ export default function BrowseProducts() {
   const loadCart = useCartStore((s) => s.loadCart)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [search, setSearch] = useState('')
 
-  useEffect(() => {
-    storeApi
-      .listProducts({ page: 1, size: 80 })
-      .then((data) => setProducts(data.items || []))
-      .catch(console.error)
-      .finally(() => setLoading(false))
+  const fetchProducts = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true)
+    try {
+      const data = await storeApi.listProducts({ page: 1, size: 80 })
+      setProducts(data.items || [])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }, [])
 
   useEffect(() => {
-    void loadCart(isAuthenticated)
-  }, [isAuthenticated, loadCart])
+    void fetchProducts()
+  }, [fetchProducts])
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadCart(isAuthenticated).catch(() => undefined)
+    }, [isAuthenticated, loadCart]),
+  )
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -87,6 +100,18 @@ export default function BrowseProducts() {
           numColumns={2}
           columnWrapperStyle={{ gap: CARD_GAP, paddingHorizontal: H_PAD }}
           contentContainerStyle={{ paddingBottom: 24, gap: CARD_GAP }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true)
+                void fetchProducts({ silent: true })
+                void loadCart(isAuthenticated).catch(() => undefined)
+              }}
+              tintColor={BRAND.primary}
+              colors={[BRAND.primary]}
+            />
+          }
           ListEmptyComponent={
             <Text style={styles.empty}>No products found</Text>
           }

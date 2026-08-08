@@ -9,8 +9,9 @@ import {
   Dimensions,
   TextInput,
   StyleSheet,
+  RefreshControl,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { storeApi, type StoreCategory } from '../../../api/store'
@@ -18,7 +19,7 @@ import { useAuthStore } from '../../../stores/authStore'
 import { formatCurrency } from '../../../lib/utils'
 import { productImageUrl } from '../../../lib/mediaUrl'
 import { formatProductPriceLabel, getProductPricing } from '../../../lib/productPricing'
-import { loadVendorBranding } from '../../../utils/vendorConfig'
+import { clearBrandingCache, loadVendorBranding } from '../../../utils/vendorConfig'
 import { BRAND } from '../../../utils/theme'
 import { ProductAddToCart } from '../../../components/ProductAddToCart'
 import { useCartStore } from '../../../stores/cartStore'
@@ -48,15 +49,17 @@ export default function CustomerHome() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [storeName, setStoreName] = useState(vendorInfo?.display_name || 'Store')
 
   const refreshCartCount = useCallback(async () => {
-    await loadCart(isAuthenticated)
+    await loadCart(isAuthenticated).catch(() => undefined)
   }, [isAuthenticated, loadCart])
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (opts?: { silent?: boolean; bustCache?: boolean }) => {
+    if (!opts?.silent) setLoading(true)
     try {
+      if (opts?.bustCache) clearBrandingCache()
       const branding = await loadVendorBranding()
       if (branding.name) setStoreName(branding.name)
 
@@ -75,12 +78,19 @@ export default function CustomerHome() {
       console.error(e)
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }, [selectedCategory, refreshCartCount])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshCartCount()
+    }, [refreshCartCount]),
+  )
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -96,7 +106,21 @@ export default function CustomerHome() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true)
+              void load({ silent: true, bustCache: true })
+            }}
+            tintColor={BRAND.primary}
+            colors={[BRAND.primary]}
+          />
+        }
+      >
         {/* Header */}
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>

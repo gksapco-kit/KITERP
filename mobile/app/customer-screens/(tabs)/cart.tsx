@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Image,
   Alert,
+  RefreshControl,
 } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -83,18 +84,24 @@ export default function CartScreen() {
   const removeLine = useCartStore((s) => s.removeLine)
   // Default true to match storefront / API when settings are unknown
   const [signInMandatory, setSignInMandatory] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const syncCartAndSettings = useCallback(async () => {
+    await loadCart(isAuthenticated).catch(() => undefined)
+    const slug = getVendorSlug()
+    if (!slug) return
+    try {
+      const vendor = await resolveVendorBySlug(slug)
+      setSignInMandatory(isSignInMandatory(vendor.settings))
+    } catch {
+      setSignInMandatory(true)
+    }
+  }, [isAuthenticated, loadCart])
 
   useFocusEffect(
     useCallback(() => {
-      void loadCart(isAuthenticated)
-      const slug = getVendorSlug()
-      if (!slug) return
-      resolveVendorBySlug(slug)
-        .then((vendor) => {
-          setSignInMandatory(isSignInMandatory(vendor.settings))
-        })
-        .catch(() => setSignInMandatory(true))
-    }, [isAuthenticated, loadCart]),
+      void syncCartAndSettings()
+    }, [syncCartAndSettings]),
   )
 
   const updateQty = async (index: number, qty: number) => {
@@ -175,6 +182,18 @@ export default function CartScreen() {
             data={items}
             keyExtractor={(item, i) => `${item.product_id}-${item.variant_id || i}`}
             contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={async () => {
+                  setRefreshing(true)
+                  await syncCartAndSettings()
+                  setRefreshing(false)
+                }}
+                tintColor={BRAND.primary}
+                colors={[BRAND.primary]}
+              />
+            }
             renderItem={({ item, index }) => (
               <CartLine
                 item={item}

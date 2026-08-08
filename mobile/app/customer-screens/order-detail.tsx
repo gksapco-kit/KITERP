@@ -1,9 +1,19 @@
-import { useEffect, useState } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { useCallback, useState } from 'react'
+import {
+  View,
+  Text,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+  RefreshControl,
+  Image,
+} from 'react-native'
+import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import { storeApi } from '../../api/store'
 import { formatCurrency, formatDate } from '../../lib/utils'
+import { mediaUrl } from '../../lib/mediaUrl'
 import { BRAND } from '../../utils/theme'
 import type { Order } from '../../types'
 
@@ -13,14 +23,32 @@ export default function CustomerOrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
-    if (id) {
-      storeApi.getOrder(id).then(setOrder).catch(console.error).finally(() => setLoading(false))
-    }
-  }, [id])
+  const fetchOrder = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!id) return
+      if (!opts?.silent) setLoading(true)
+      try {
+        const data = await storeApi.getOrder(id)
+        setOrder(data)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+        setRefreshing(false)
+      }
+    },
+    [id],
+  )
 
-  if (loading) {
+  useFocusEffect(
+    useCallback(() => {
+      void fetchOrder()
+    }, [fetchOrder]),
+  )
+
+  if (loading && !refreshing) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={BRAND.primary} />
@@ -32,13 +60,29 @@ export default function CustomerOrderDetail() {
   }
 
   const currentStep = steps.indexOf(order.status)
+  const proofImg = mediaUrl(order.payment_proof?.screenshot_url)
+  const method = (order.payment_method || '').toLowerCase()
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true)
+              void fetchOrder({ silent: true })
+            }}
+            tintColor={BRAND.primary}
+            colors={[BRAND.primary]}
+          />
+        }
+      >
         <View style={styles.card}>
           <Text style={styles.orderNo}>{order.order_number}</Text>
           <Text style={styles.date}>{formatDate(order.created_at)}</Text>
+          <Text style={styles.syncHint}>Pull down to sync status from the store</Text>
           {order.status === 'cancelled' ? (
             <View style={styles.cancelled}>
               <Text style={{ color: BRAND.danger, fontWeight: '700' }}>Cancelled</Text>
@@ -69,6 +113,34 @@ export default function CustomerOrderDetail() {
                 </View>
               ))}
             </View>
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.section}>Payment</Text>
+          <View style={styles.payRow}>
+            <Ionicons
+              name={method === 'upi' ? 'qr-code-outline' : 'cash-outline'}
+              size={18}
+              color={BRAND.primaryDark}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.payMethod}>
+                {method === 'upi' ? 'UPI' : method === 'cod' ? 'Cash on Delivery' : method || '—'}
+              </Text>
+              <Text style={styles.payStatus}>
+                Status: {order.payment_status || '—'}
+              </Text>
+            </View>
+          </View>
+          {!!order.payment_proof?.utr && (
+            <Text style={styles.utr}>UTR / Transaction ID: {order.payment_proof.utr}</Text>
+          )}
+          {!!order.payment_proof?.status && (
+            <Text style={styles.utr}>Proof: {order.payment_proof.status}</Text>
+          )}
+          {!!proofImg && (
+            <Image source={{ uri: proofImg }} style={styles.proofImg} resizeMode="cover" />
           )}
         </View>
 
@@ -125,7 +197,8 @@ const styles = StyleSheet.create({
     borderColor: BRAND.border,
   },
   orderNo: { fontSize: 20, fontWeight: '800', color: BRAND.text, marginBottom: 4 },
-  date: { color: BRAND.textMuted, marginBottom: 16 },
+  date: { color: BRAND.textMuted, marginBottom: 6 },
+  syncHint: { fontSize: 11, color: BRAND.textMuted, marginBottom: 14 },
   cancelled: { backgroundColor: BRAND.dangerSoft, padding: 12, borderRadius: 10 },
   steps: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dot: {
@@ -136,6 +209,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   section: { fontWeight: '700', marginBottom: 12, color: BRAND.text },
+  payRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  payMethod: { fontWeight: '700', color: BRAND.text, fontSize: 15 },
+  payStatus: { marginTop: 2, fontSize: 12, color: BRAND.textMuted, textTransform: 'capitalize' },
+  utr: { marginTop: 10, fontSize: 13, color: BRAND.textMuted },
+  proofImg: {
+    marginTop: 12,
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: '#EEF2F0',
+  },
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
