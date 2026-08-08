@@ -18,10 +18,31 @@ export interface Vendor {
   primary_email: string; primary_phone: string; status: string
 }
 
+export interface ProductVariant {
+  id: string
+  name?: string
+  price: number
+  compare_at_price?: number | null
+  is_active?: boolean
+  price_type?: string
+  quantity?: number
+  stock_status?: string
+}
+
 export interface Product {
-  id: string; name: string; slug: string; description?: string; category?: string
-  price: number; compare_at_price?: number; images: { url: string; is_primary: boolean }[]
-  status: string; quantity: number
+  id: string
+  name: string
+  slug: string
+  description?: string
+  category?: string
+  price: number
+  compare_at_price?: number | null
+  currency?: string
+  images: { url: string; is_primary: boolean }[]
+  variants?: ProductVariant[]
+  status: string
+  quantity: number
+  stock_status?: string
 }
 
 export interface Service {
@@ -30,7 +51,12 @@ export interface Service {
 }
 
 export interface CartItem {
-  product_id: string; name: string; qty: number; price: number; image_url?: string
+  product_id: string
+  variant_id?: string
+  name: string
+  qty: number
+  price: number
+  image_url?: string
 }
 
 export interface Cart { id: string; items: CartItem[]; item_count: number; subtotal: number; discount_amount: number }

@@ -99,6 +99,8 @@ module.exports = () => ({
       vendorSlug: VENDOR_SLUG,
       isBrandedApp: !!VENDOR_SLUG,
       storefrontBaseUrl,
+      primaryColor,
+      appName,
       eas: {
         projectId:
           process.env.EAS_PROJECT_ID || "9b598a58-a149-47f9-b5c0-574016f72caa",

@@ -1,30 +1,108 @@
-import { useEffect, useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, SafeAreaView } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+} from 'react-native'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import { storeApi } from '../../api/store'
+import { useAuthStore } from '../../stores/authStore'
 import { formatCurrency } from '../../lib/utils'
-import type { Product } from '../../types'
+import { productImageUrl } from '../../lib/mediaUrl'
+import { getProductPricing } from '../../lib/productPricing'
+import { BRAND } from '../../utils/theme'
+import type { Product, ProductVariant } from '../../types'
 
 export default function ProductDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>()
+  const router = useRouter()
+  const { isAuthenticated } = useAuthStore()
   const [product, setProduct] = useState<Product | null>(null)
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [qty, setQty] = useState(1)
   const [adding, setAdding] = useState(false)
 
   useEffect(() => {
-    if (slug) storeApi.getProduct(slug).then(setProduct).catch(console.error).finally(() => setLoading(false))
+    if (!slug) return
+    setLoading(true)
+    storeApi
+      .getProduct(slug)
+      .then((p) => {
+        setProduct(p)
+        const pricing = getProductPricing(p)
+        setSelectedVariantId(pricing.variant?.id || p.variants?.[0]?.id || null)
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
   }, [slug])
+
+  const variants = useMemo(
+    () => (product?.variants || []).filter((v) => v.is_active !== false),
+    [product],
+  )
+
+  const selectedVariant: ProductVariant | null = useMemo(() => {
+    if (!variants.length) return null
+    return variants.find((v) => v.id === selectedVariantId) || variants[0]
+  }, [variants, selectedVariantId])
+
+  const unitPrice = useMemo(() => {
+    if (selectedVariant && Number(selectedVariant.price) > 0) {
+      return Number(selectedVariant.price)
+    }
+    return getProductPricing(product).price
+  }, [product, selectedVariant])
+
+  const compareAt = useMemo(() => {
+    if (selectedVariant?.compare_at_price != null) {
+      return Number(selectedVariant.compare_at_price)
+    }
+    return product?.compare_at_price != null ? Number(product.compare_at_price) : null
+  }, [product, selectedVariant])
+
+  const discount =
+    compareAt && compareAt > unitPrice && unitPrice > 0
+      ? Math.round(((compareAt - unitPrice) / compareAt) * 100)
+      : 0
 
   const addToCart = async () => {
     if (!product) return
+    if (!(unitPrice > 0)) {
+      Alert.alert('Unavailable', 'This product does not have a sellable price yet.')
+      return
+    }
+    if (!isAuthenticated) {
+      Alert.alert('Sign in required', 'Please sign in to add items to your cart.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign in', onPress: () => router.push('/auth-screens/login') },
+      ])
+      return
+    }
     setAdding(true)
     try {
+      const lineName = selectedVariant?.name
+        ? `${product.name} · ${selectedVariant.name}`
+        : product.name
       await storeApi.addToCart({
-        product_id: product.id, name: product.name, qty,
-        price: product.price, image_url: product.images?.[0]?.url,
+        product_id: product.id,
+        variant_id: selectedVariant?.id,
+        name: lineName,
+        qty,
+        price: unitPrice,
+        image_url: productImageUrl(product) || undefined,
       })
-      Alert.alert('Success', 'Added to cart!')
+      Alert.alert('Added', 'Item added to cart', [
+        { text: 'Keep shopping', style: 'cancel' },
+        { text: 'View cart', onPress: () => router.push('/customer-screens/cart') },
+      ])
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.detail || 'Failed to add')
     } finally {
@@ -32,39 +110,206 @@ export default function ProductDetailScreen() {
     }
   }
 
-  if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#2563eb" /></View>
-  if (!product) return <Text style={{ textAlign: 'center', padding: 32, color: '#9ca3af' }}>Product not found</Text>
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={BRAND.primary} />
+      </View>
+    )
+  }
+
+  if (!product) {
+    return <Text style={styles.notFound}>Product not found</Text>
+  }
+
+  const heroUri = productImageUrl(product)
+  const priceLabel = unitPrice > 0 ? formatCurrency(unitPrice) : 'Price on request'
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView style={styles.root} edges={['bottom']}>
       <ScrollView>
-        <View style={{ width: '100%', height: 300, backgroundColor: '#f3f4f6' }}>
-          {product.images?.[0] ? <Image source={{ uri: product.images[0].url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" /> : <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text style={{ fontSize: 48, color: '#d1d5db' }}>P</Text></View>}
+        <View style={styles.hero}>
+          {heroUri ? (
+            <Image source={{ uri: heroUri }} style={styles.heroImg} resizeMode="cover" />
+          ) : (
+            <View style={styles.heroPlaceholder}>
+              <Ionicons name="leaf-outline" size={48} color={BRAND.primary} />
+            </View>
+          )}
+          {discount > 0 && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>{discount}% off</Text>
+            </View>
+          )}
         </View>
-        <View style={{ padding: 16 }}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{product.name}</Text>
-          {product.category && <Text style={{ color: '#6b7280', marginTop: 2 }}>{product.category}</Text>}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
-            <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#2563eb' }}>{formatCurrency(product.price)}</Text>
-            {product.compare_at_price && product.compare_at_price > product.price && (
-              <Text style={{ fontSize: 16, color: '#9ca3af', textDecorationLine: 'line-through' }}>{formatCurrency(product.compare_at_price)}</Text>
-            )}
+
+        <View style={styles.body}>
+          <View style={styles.titleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>{product.name}</Text>
+              {!!product.category && (
+                <Text style={styles.category}>{product.category}</Text>
+              )}
+            </View>
+            <Text style={styles.price}>{priceLabel}</Text>
           </View>
-          {product.description && <Text style={{ color: '#4b5563', marginTop: 16, lineHeight: 22 }}>{product.description}</Text>}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24 }}>
-            <Text style={{ fontWeight: '600' }}>Quantity:</Text>
-            <TouchableOpacity onPress={() => setQty(Math.max(1, qty - 1))} style={{ width: 36, height: 36, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}><Text style={{ fontSize: 18 }}>-</Text></TouchableOpacity>
-            <Text style={{ fontSize: 16, fontWeight: '600', width: 32, textAlign: 'center' }}>{qty}</Text>
-            <TouchableOpacity onPress={() => setQty(qty + 1)} style={{ width: 36, height: 36, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}><Text style={{ fontSize: 18 }}>+</Text></TouchableOpacity>
+
+          {!!compareAt && compareAt > unitPrice && unitPrice > 0 && (
+            <Text style={styles.compare}>{formatCurrency(compareAt)}</Text>
+          )}
+
+          {variants.length > 1 && (
+            <>
+              <Text style={styles.sectionLabel}>Options</Text>
+              <View style={styles.variantRow}>
+                {variants.map((v) => {
+                  const active = v.id === selectedVariant?.id
+                  const vp = Number(v.price) || 0
+                  return (
+                    <TouchableOpacity
+                      key={v.id}
+                      onPress={() => setSelectedVariantId(v.id)}
+                      style={[styles.variantChip, active && styles.variantChipActive]}
+                    >
+                      <Text style={[styles.variantName, active && styles.variantNameActive]}>
+                        {v.name || 'Option'}
+                      </Text>
+                      <Text style={[styles.variantPrice, active && styles.variantNameActive]}>
+                        {vp > 0 ? formatCurrency(vp) : '—'}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </>
+          )}
+
+          {!!product.description && (
+            <>
+              <Text style={styles.sectionLabel}>Description</Text>
+              <Text style={styles.description}>{product.description}</Text>
+            </>
+          )}
+
+          <Text style={styles.sectionLabel}>Quantity</Text>
+          <View style={styles.qtyRow}>
+            <TouchableOpacity
+              onPress={() => setQty(Math.max(1, qty - 1))}
+              style={styles.qtyBtn}
+            >
+              <Text style={styles.qtyBtnText}>−</Text>
+            </TouchableOpacity>
+            <Text style={styles.qty}>{qty}</Text>
+            <TouchableOpacity onPress={() => setQty(qty + 1)} style={styles.qtyBtn}>
+              <Text style={styles.qtyBtnText}>+</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
-      <View style={{ padding: 16, borderTopWidth: 1, borderColor: '#e5e7eb' }}>
-        <TouchableOpacity onPress={addToCart} disabled={adding}
-          style={{ backgroundColor: '#2563eb', paddingVertical: 16, borderRadius: 12, alignItems: 'center', opacity: adding ? 0.7 : 1 }}>
-          {adding ? <ActivityIndicator color="white" /> : <Text style={{ color: 'white', fontWeight: '700', fontSize: 16 }}>Add to Cart - {formatCurrency(product.price * qty)}</Text>}
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          onPress={addToCart}
+          disabled={adding || !(unitPrice > 0)}
+          style={[styles.cta, { opacity: adding || !(unitPrice > 0) ? 0.7 : 1 }]}
+        >
+          {adding ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Ionicons name="bag-add-outline" size={20} color="#fff" />
+              <Text style={styles.ctaText}>
+                {unitPrice > 0
+                  ? `Add to cart · ${formatCurrency(unitPrice * qty)}`
+                  : 'Price on request'}
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: BRAND.card },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  notFound: { textAlign: 'center', padding: 32, color: BRAND.textMuted },
+  hero: { width: '100%', height: 320, backgroundColor: '#EEF2F0' },
+  heroImg: { width: '100%', height: '100%' },
+  heroPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  discountBadge: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    backgroundColor: '#FBBF24',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  discountText: { fontWeight: '800', fontSize: 12, color: BRAND.text },
+  body: { padding: 20 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  name: { fontSize: 24, fontWeight: '800', color: BRAND.text },
+  category: { color: BRAND.textMuted, marginTop: 4, fontSize: 14 },
+  price: { fontSize: 22, fontWeight: '800', color: BRAND.primaryDark },
+  compare: {
+    marginTop: 4,
+    color: BRAND.textMuted,
+    textDecorationLine: 'line-through',
+    fontSize: 14,
+  },
+  sectionLabel: {
+    marginTop: 22,
+    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: '700',
+    color: BRAND.text,
+  },
+  description: { color: '#4b5563', lineHeight: 22, fontSize: 14 },
+  variantRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  variantChip: {
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: BRAND.bg,
+    minWidth: 110,
+  },
+  variantChipActive: {
+    borderColor: BRAND.primary,
+    backgroundColor: BRAND.primarySoft,
+  },
+  variantName: { fontWeight: '700', color: BRAND.text, fontSize: 13 },
+  variantNameActive: { color: BRAND.primaryDark },
+  variantPrice: { marginTop: 2, fontSize: 12, color: BRAND.textMuted, fontWeight: '600' },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  qtyBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qtyBtnText: { fontSize: 20, fontWeight: '600', color: BRAND.text },
+  qty: { fontSize: 18, fontWeight: '700', minWidth: 28, textAlign: 'center' },
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: BRAND.card,
+  },
+  cta: {
+    backgroundColor: BRAND.primary,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  ctaText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+})

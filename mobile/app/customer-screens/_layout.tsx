@@ -1,16 +1,21 @@
 import { Stack } from 'expo-router'
+import { BRAND } from '../../utils/theme'
 
 export default function CustomerLayout() {
   return (
-    <Stack>
-      <Stack.Screen name="home" options={{ title: 'Home', headerShown: true }} />
-      <Stack.Screen name="browse" options={{ title: 'Browse', headerShown: true }} />
-      <Stack.Screen name="product-detail" options={{ title: 'Product', headerShown: true }} />
-      <Stack.Screen name="cart" options={{ title: 'Cart', headerShown: true }} />
-      <Stack.Screen name="checkout" options={{ title: 'Checkout', headerShown: true }} />
-      <Stack.Screen name="orders" options={{ title: 'My Orders', headerShown: true }} />
-      <Stack.Screen name="order-detail" options={{ title: 'Order Detail', headerShown: true }} />
-      <Stack.Screen name="account" options={{ title: 'Account', headerShown: true }} />
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: BRAND.card },
+        headerTintColor: BRAND.text,
+        headerTitleStyle: { fontWeight: '700' },
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: BRAND.bg },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="product-detail" options={{ title: 'Product' }} />
+      <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
+      <Stack.Screen name="order-detail" options={{ title: 'Order Detail' }} />
     </Stack>
   )
 }
