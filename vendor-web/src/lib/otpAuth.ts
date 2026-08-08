@@ -35,8 +35,8 @@ export function friendlyOtpDeliveryMessage(
       : "We couldn't send email right now. Please use phone verification, or try again later."
   }
 
-  if (/FROM_EMAIL|Sender Authentication|\.env\.config|SMTP_PASSWORD|SENDGRID_API_KEY/i.test(d)) {
-    return "We couldn't send email right now. Please use phone verification, or contact support."
+  if (/not verified in SendGrid|Sender Identity|Sender Authentication|FROM_EMAIL|\.env\.config|SMTP_PASSWORD|SENDGRID_API_KEY/i.test(d)) {
+    return "We couldn't send email right now (sender not verified). Please use phone verification, or contact support."
   }
 
   if (/sendgrid send failed|couldn't send the verification email|couldn't send email|email service is not configured/i.test(d)) {

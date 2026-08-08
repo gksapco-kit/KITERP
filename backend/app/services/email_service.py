@@ -56,17 +56,21 @@ def resolve_from_email() -> str:
 
 
 def sendgrid_api_keys() -> list[str]:
-    """Configured SendGrid API keys. SENDGRID_API_KEY is primary (SendGrid-only mode).
+    """Configured SendGrid API keys for the HTTP mail API.
 
-    SMTP_PASSWORD is only included as a legacy fallback when it starts with SG.
+    Prefer SENDGRID_API_KEY only. A stale/different SMTP_PASSWORD=SG.* (common after
+    rotating the key in .env.config but leaving SMTP_PASSWORD) used to be tried as a
+    second key and could mask the real failure or keep using a revoked key.
+    SMTP_PASSWORD is used only when SENDGRID_API_KEY is unset.
     """
     settings = get_settings()
-    keys: list[str] = []
-    for raw in (settings.SENDGRID_API_KEY, settings.SMTP_PASSWORD):
-        key = (raw or "").strip()
-        if key.startswith("SG.") and key not in keys:
-            keys.append(key)
-    return keys
+    primary = (settings.SENDGRID_API_KEY or "").strip()
+    if primary.startswith("SG."):
+        return [primary]
+    legacy = (settings.SMTP_PASSWORD or "").strip()
+    if legacy.startswith("SG."):
+        return [legacy]
+    return []
 
 
 def sendgrid_api_key() -> str:
@@ -139,10 +143,16 @@ def _humanize_sendgrid_error(status_code: int, body: str, from_email: str) -> st
         or "sender" in lower
         or ("from" in lower and "verified" in lower)
         or "does not match a verified" in lower
+        or "sender identity" in lower
     ):
+        logger.error(
+            "SendGrid rejected From address %r — verify it under Sender Authentication "
+            "(Single Sender or Domain Auth) for this API key's account.",
+            from_email,
+        )
         return (
-            "We couldn't send email from this store right now. "
-            "Please use Via Phone to receive your code, or contact support."
+            "We couldn't send the verification email. "
+            "Please use Via Phone to receive your code, or try again later."
         )
 
     if status_code == 400:
@@ -360,7 +370,13 @@ async def _try_sendgrid_api(
             logger.info("Email sent via SendGrid API to %s (subject=%r)", to, subject)
             return True, None
         err = _humanize_sendgrid_error(resp.status_code, resp.text, from_email)
-        logger.error("SendGrid API send failed (%s): %s", resp.status_code, resp.text[:300])
+        logger.error(
+            "SendGrid API send failed (status=%s, from=%s, to=%s): %s",
+            resp.status_code,
+            from_email,
+            to,
+            (resp.text or "")[:300],
+        )
         return False, err
     except Exception as e:
         logger.warning("SendGrid API send error for %s: %s", to, e)

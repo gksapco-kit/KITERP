@@ -124,11 +124,12 @@ async def lifespan(app: FastAPI):
     from app.services.email_service import email_is_configured, resolve_from_email, sendgrid_api_key, sendgrid_api_keys
 
     keys = sendgrid_api_keys()
-    if len(keys) > 1:
+    sg = (settings.SENDGRID_API_KEY or "").strip()
+    smtp_pwd = (settings.SMTP_PASSWORD or "").strip()
+    if sg.startswith("SG.") and smtp_pwd.startswith("SG.") and sg != smtp_pwd:
         logger.warning(
-            "SENDGRID_API_KEY and SMTP_PASSWORD are different SG. keys — "
-            "set them to the SAME key in .env.config or email OTP may fail. "
-            "FROM_EMAIL=%s",
+            "SENDGRID_API_KEY differs from SMTP_PASSWORD — only SENDGRID_API_KEY is used for "
+            "email OTP. Sync SMTP_PASSWORD to the same SG. key or clear it. FROM_EMAIL=%s",
             resolve_from_email(),
         )
     if email_is_configured():
@@ -141,9 +142,9 @@ async def lifespan(app: FastAPI):
         )
     else:
         logger.warning(
-            "Email delivery NOT configured — set SENDGRID_API_KEY or SMTP_HOST/SMTP_PASSWORD "
-            "in backend/.env, then restart the backend. Until then, emails are logged only "
-            "and OTP codes appear as dev_hint in the UI."
+            "Email delivery NOT configured — set SENDGRID_API_KEY (and verified FROM_EMAIL) "
+            "in .env.config (prod) or backend/.env (dev), then recreate the backend container. "
+            "Until then, emails are logged only and OTP codes appear as dev_hint in the UI."
         )
     yield
     await close_redis()
@@ -290,20 +291,29 @@ async def global_exception_handler(request: Request, exc: Exception):
 async def health_check():
     from app.services.email_service import (
         email_is_configured,
+        last_email_send_error,
         resolve_from_email,
         sendgrid_api_key,
         sendgrid_api_keys,
     )
 
     configured = email_is_configured()
+    key = sendgrid_api_key()
+    sg = (settings.SENDGRID_API_KEY or "").strip()
+    smtp_pwd = (settings.SMTP_PASSWORD or "").strip()
     return {
         "status": "healthy",
         "email_otp_configured": configured,
         "email_provider": (
-            "sendgrid" if sendgrid_api_key() else "smtp" if configured else "none"
+            "sendgrid" if key else "smtp" if configured else "none"
         ),
         "email_from": resolve_from_email() if configured else None,
         "sendgrid_keys_configured": len(sendgrid_api_keys()),
+        "sendgrid_key_suffix": key[-4:] if key else None,
+        "sendgrid_smtp_password_mismatch": bool(
+            sg.startswith("SG.") and smtp_pwd.startswith("SG.") and sg != smtp_pwd
+        ),
+        "last_email_send_error": last_email_send_error(),
     }
 
 

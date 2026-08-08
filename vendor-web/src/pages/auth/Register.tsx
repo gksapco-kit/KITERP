@@ -326,38 +326,33 @@ export default function Register() {
       setCheckingContact(false)
     }
 
-    // Prefer email OTP when both are valid (SendGrid); phone SMS needs Twilio.
-    if (emailOk) {
+    // Prefer email OTP when email is valid; keep phone so user can switch if SendGrid fails.
+    if (emailOk || phoneOk) {
       setOtpSendError(null)
       setOtpVerifyError(null)
-      setOtpChannel('email')
+      setOtpChannel(emailOk ? 'email' : 'phone')
       setPendingSignup({
         full_name: data.full_name,
         business_name: data.business_name,
         business_category: data.business_category,
-        email: emailTrim,
-        phone: undefined,
+        email: emailOk ? emailTrim : undefined,
+        phone: phoneOk ? phoneTrim : undefined,
         password: data.password,
       })
       setOtpModalOpen(true)
-      return
     }
+  }
 
-    if (phoneOk) {
-      setOtpSendError(null)
-      setOtpVerifyError(null)
-      setOtpChannel('phone')
-      setPendingSignup({
-        full_name: data.full_name,
-        business_name: data.business_name,
-        business_category: data.business_category,
-        email: undefined,
-        phone: phoneTrim,
-        password: data.password,
-      })
-      setOtpModalOpen(true)
-      return
-    }
+  const switchOtpChannel = (channel: OtpChannel) => {
+    if (!pendingSignup || otpChannel === channel) return
+    const target = channel === 'email' ? pendingSignup.email : pendingSignup.phone
+    if (!target) return
+    setOtpChannel(channel)
+    setOtpSendError(null)
+    setOtpVerifyError(null)
+    setModalOtp('')
+    otpAutoSentRef.current = false
+    sendOtpMut.mutate({ channel, target })
   }
 
   const submitSignupWithOtp = () => {
@@ -599,6 +594,26 @@ export default function Register() {
             {otpSendError ? (
               <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-left text-sm text-red-700">
                 <p>{otpSendError}</p>
+                {otpChannel === 'email' && pendingSignup.phone ? (
+                  <button
+                    type="button"
+                    className="mt-2 font-semibold underline underline-offset-2 hover:text-red-900"
+                    disabled={sendOtpMut.isPending}
+                    onClick={() => switchOtpChannel('phone')}
+                  >
+                    Send code via phone instead
+                  </button>
+                ) : null}
+                {otpChannel === 'phone' && pendingSignup.email ? (
+                  <button
+                    type="button"
+                    className="mt-2 font-semibold underline underline-offset-2 hover:text-red-900"
+                    disabled={sendOtpMut.isPending}
+                    onClick={() => switchOtpChannel('email')}
+                  >
+                    Send code via email instead
+                  </button>
+                ) : null}
               </div>
             ) : null}
 

@@ -69,11 +69,47 @@ log "Using env file: $ENV_FILE"
 log "Using compose: $COMPOSE"
 
 # Warn if email OTP cannot send (common cause of "no OTP on prod").
-if ! grep -qE '^SENDGRID_API_KEY=SG\.' "$ENV_FILE" 2>/dev/null; then
-    if ! grep -qE '^SMTP_PASSWORD=SG\.' "$ENV_FILE" 2>/dev/null; then
-        warn "SENDGRID_API_KEY (or SMTP_PASSWORD=SG...) missing in $ENV_FILE — vendor signup email OTP will NOT send."
-        warn "Copy SENDGRID_API_KEY from your dev machine's backend/.env into $ENV_FILE on this server."
+SG_KEY="${SENDGRID_API_KEY:-}"
+SMTP_PWD="${SMTP_PASSWORD:-}"
+FROM_ADDR="${SENDGRID_FROM_EMAIL:-${FROM_EMAIL:-noreply@kiterp.com}}"
+if [[ ! "$SG_KEY" =~ ^SG\. ]] && [[ ! "$SMTP_PWD" =~ ^SG\. ]]; then
+    warn "SENDGRID_API_KEY (or SMTP_PASSWORD=SG...) missing in $ENV_FILE — email OTP will NOT send."
+    warn "Set SENDGRID_API_KEY=SG.... in $ENV_FILE, ensure FROM_EMAIL is verified in SendGrid, then redeploy."
+elif [[ "$SG_KEY" =~ ^SG\. ]] && [[ "$SMTP_PWD" =~ ^SG\. ]] && [[ "$SG_KEY" != "$SMTP_PWD" ]]; then
+    warn "SENDGRID_API_KEY and SMTP_PASSWORD are different SG. keys. Prefer SENDGRID_API_KEY; sync SMTP_PASSWORD to the same value to avoid confusion."
+fi
+if [[ "$SG_KEY" =~ ^SG\. ]] || [[ "$SMTP_PWD" =~ ^SG\. ]]; then
+    CHECK_KEY="$SG_KEY"
+    [[ "$CHECK_KEY" =~ ^SG\. ]] || CHECK_KEY="$SMTP_PWD"
+    HTTP_CODE=$(curl -s -o /tmp/kiterp_sg_check.json -w "%{http_code}" \
+        -H "Authorization: Bearer ${CHECK_KEY}" \
+        "https://api.sendgrid.com/v3/scopes" || echo "000")
+    if [ "$HTTP_CODE" = "200" ]; then
+        log "SendGrid API key OK (HTTP 200). Checking sender identity for: $FROM_ADDR"
+        SENDERS_JSON=$(curl -s -H "Authorization: Bearer ${CHECK_KEY}" \
+            "https://api.sendgrid.com/v3/verified_senders?limit=100" || echo "")
+        DOMAINS_JSON=$(curl -s -H "Authorization: Bearer ${CHECK_KEY}" \
+            "https://api.sendgrid.com/v3/whitelabel/domains" || echo "")
+        FROM_DOMAIN="${FROM_ADDR#*@}"
+        if echo "$SENDERS_JSON" | grep -Fqi "\"from_email\":\"${FROM_ADDR}\"" \
+            || echo "$SENDERS_JSON" | grep -Fqi "\"from_email\": \"${FROM_ADDR}\""; then
+            log "Verified Single Sender found for $FROM_ADDR"
+        elif echo "$DOMAINS_JSON" | grep -Fqi "\"domain\":\"${FROM_DOMAIN}\"" \
+            || echo "$DOMAINS_JSON" | grep -Fqi "\"domain\": \"${FROM_DOMAIN}\""; then
+            log "Authenticated domain found for $FROM_DOMAIN"
+        else
+            warn "No verified Sender Identity for $FROM_ADDR (and no domain auth for $FROM_DOMAIN)."
+            warn "Email OTP will fail with 403 until you fix this in SendGrid:"
+            warn "  Settings → Sender Authentication → Verify a Single Sender OR Authenticate Domain"
+            warn "  Then set FROM_EMAIL and SENDGRID_FROM_EMAIL to that verified address in $ENV_FILE"
+        fi
+    elif [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
+        warn "SendGrid rejected the API key (HTTP $HTTP_CODE). Create a new key with Mail Send permission and update SENDGRID_API_KEY in $ENV_FILE."
+        warn "Also verify sender identity for: $FROM_ADDR (SendGrid → Settings → Sender Authentication)."
+    else
+        warn "Could not validate SendGrid key from this host (HTTP $HTTP_CODE). Check outbound HTTPS and the key in $ENV_FILE."
     fi
+    rm -f /tmp/kiterp_sg_check.json 2>/dev/null || true
 fi
 
 SKIP_MIGRATE=false
@@ -87,9 +123,10 @@ for arg in "$@"; do
 done
 
 if [ "$RESTART_ONLY" = true ]; then
-    log "Restarting containers..."
-    $COMPOSE restart
-    log "Restart complete."
+    # `restart` keeps old env vars — recreate so .env.config SendGrid changes apply.
+    log "Recreating containers so env from $ENV_FILE is applied..."
+    $COMPOSE up -d --force-recreate backend
+    log "Recreate complete."
     $COMPOSE ps
     exit 0
 fi
