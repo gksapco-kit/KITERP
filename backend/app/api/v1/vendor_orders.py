@@ -24,6 +24,7 @@ from app.schemas.order import (
     ReturnResolveRequest,
     PaymentProofReview,
     VendorOrderCreateRequest,
+    CheckoutRequest,
     GuestCheckoutRequest,
     GuestCustomerInfo,
     GuestCartItem,
@@ -375,47 +376,21 @@ async def create_vendor_order(
             country=body.shipping_country,
         )
 
-    if body.customer_id:
-        # Existing customer — resolve name/email from DB for the guest_checkout path
-        from sqlalchemy import select as _select
-        from app.models.customer import Customer
-        try:
-            cust_uuid = UUID(body.customer_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid customer_id")
-        cust_row = await db.execute(_select(Customer).where(Customer.id == cust_uuid))
-        customer_obj = cust_row.scalar_one_or_none()
-        if not customer_obj:
-            raise HTTPException(status_code=404, detail="Customer not found")
-        guest_customer = GuestCustomerInfo(
-            full_name=customer_obj.full_name,
-            email=customer_obj.email,
-            phone=customer_obj.phone or None,
-        )
-    else:
-        guest_customer = GuestCustomerInfo(
-            full_name=body.customer_name,
-            email=body.customer_email,
-            phone=body.customer_phone or None,
-        )
-
-    guest_items = [
-        GuestCartItem(
-            product_id=i.product_id,
-            service_id=i.service_id,
-            item_type=i.item_type,
-            variant_id=i.variant_id,
-            name=i.name,
-            qty=i.qty,
-            price=i.price,
-            image_url=i.image_url,
-        )
+    items = [
+        {
+            "product_id": i.product_id,
+            "service_id": i.service_id,
+            "item_type": i.item_type,
+            "variant_id": i.variant_id,
+            "name": i.name,
+            "qty": i.qty,
+            "price": i.price,
+            "image_url": i.image_url,
+        }
         for i in body.items
     ]
 
-    guest_req = GuestCheckoutRequest(
-        customer=guest_customer,
-        items=guest_items,
+    checkout_data = CheckoutRequest(
         shipping_address=shipping_addr,
         payment_method=body.payment_method,
         shipping_method_id=body.shipping_method_id,
@@ -433,7 +408,69 @@ async def create_vendor_order(
         exchange_rate=body.exchange_rate,
     )
 
-    order = await service.guest_checkout(vendor_id, guest_req)
+    if body.customer_id:
+        # Existing CRM customer — checkout directly. Email may be null (phone-only
+        # contacts), so never route through GuestCustomerInfo / guest_checkout.
+        from app.models.customer import Customer
+        try:
+            cust_uuid = UUID(body.customer_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid customer_id")
+        cust_row = await db.execute(
+            select(Customer).where(
+                Customer.id == cust_uuid,
+                Customer.vendor_id == vendor_id,
+            )
+        )
+        customer_obj = cust_row.scalar_one_or_none()
+        if not customer_obj:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        order = await service.checkout(
+            vendor_id,
+            customer_obj.id,
+            checkout_data,
+            items_override=items,
+            clear_cart=False,
+        )
+    else:
+        guest_customer = GuestCustomerInfo(
+            full_name=body.customer_name,
+            email=body.customer_email,
+            phone=body.customer_phone or None,
+        )
+        guest_items = [
+            GuestCartItem(
+                product_id=i.product_id,
+                service_id=i.service_id,
+                item_type=i.item_type,
+                variant_id=i.variant_id,
+                name=i.name,
+                qty=i.qty,
+                price=i.price,
+                image_url=i.image_url,
+            )
+            for i in body.items
+        ]
+        guest_req = GuestCheckoutRequest(
+            customer=guest_customer,
+            items=guest_items,
+            shipping_address=shipping_addr,
+            payment_method=body.payment_method,
+            shipping_method_id=body.shipping_method_id,
+            notes=body.notes,
+            coupon_code=body.coupon_code,
+            store_id=body.store_id,
+            order_type=body.order_type,
+            payment_terms_code=body.payment_terms_code,
+            payment_terms_days=body.payment_terms_days,
+            shipping_terms=body.shipping_terms,
+            order_reason=body.order_reason,
+            requested_delivery_date=body.requested_delivery_date,
+            pricing_date=body.pricing_date,
+            currency=body.currency,
+            exchange_rate=body.exchange_rate,
+        )
+        order = await service.guest_checkout(vendor_id, guest_req)
 
     # Mark as vendor / counter-sale source
     order.source = "pos"

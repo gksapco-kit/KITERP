@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from uuid import UUID
 from datetime import datetime, timezone
@@ -34,6 +35,130 @@ from app.services.order_commitment_service import commit_order_lines
 from app.services.partner_service import seed_buyer
 
 log = logging.getLogger(__name__)
+
+
+async def _run_order_placed_side_effects(
+    *,
+    vendor_id: UUID,
+    order_id: UUID,
+    customer_id: UUID | None,
+    notify_admin: bool,
+    notify_customer_channels: bool,
+    dispatch_webhook: bool,
+) -> None:
+    """Send notifications/webhooks in a fresh session so checkout is not blocked."""
+    from app.database import AsyncSessionLocal
+    from app.services.vendor_service import VendorService
+    from app.services.website_webhooks import dispatch_event_for_vendor, order_payload
+
+    async with AsyncSessionLocal() as db:
+        try:
+            order = await db.get(Order, order_id)
+            if not order:
+                return
+            vendor_svc = VendorService(db)
+            vendor = await vendor_svc.get_by_id(vendor_id)
+            if not vendor:
+                return
+
+            if notify_admin:
+                notif_svc = NotificationService(db)
+                await notif_svc.notify_order_received(
+                    vendor_id=vendor_id,
+                    vendor_phone=vendor.primary_phone,
+                    vendor_name=vendor.display_name or vendor.business_name,
+                    order_number=order.order_number,
+                    total=float(order.total or 0),
+                    order_id=order.id,
+                )
+
+            if notify_customer_channels:
+                customer = None
+                if customer_id:
+                    customer = await CustomerRepository(db).get_by_vendor_and_id(
+                        vendor_id, customer_id
+                    )
+                await send_order_placed_notifications(
+                    db,
+                    vendor=vendor,
+                    order=order,
+                    customer=customer,
+                )
+
+            await db.commit()
+        except Exception as exc:
+            log.warning(
+                "Order placement notifications failed for order %s: %s",
+                order_id,
+                exc,
+                exc_info=True,
+            )
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+
+        if dispatch_webhook:
+            try:
+                order = await db.get(Order, order_id)
+                if order:
+                    await dispatch_event_for_vendor(
+                        db,
+                        vendor_id=vendor_id,
+                        event="order.placed",
+                        payload=order_payload(order),
+                    )
+            except Exception as exc:
+                log.warning(
+                    "order.placed webhook dispatch failed for order %s: %s",
+                    order_id,
+                    exc,
+                )
+
+
+def _schedule_order_placed_side_effects(
+    *,
+    vendor_id: UUID,
+    order_id: UUID,
+    customer_id: UUID | None,
+    notify_admin: bool,
+    notify_customer_channels: bool,
+    dispatch_webhook: bool,
+) -> None:
+    """Fire-and-forget post-checkout notifications (email/SMS/WhatsApp/webhooks)."""
+    try:
+        task = asyncio.create_task(
+            _run_order_placed_side_effects(
+                vendor_id=vendor_id,
+                order_id=order_id,
+                customer_id=customer_id,
+                notify_admin=notify_admin,
+                notify_customer_channels=notify_customer_channels,
+                dispatch_webhook=dispatch_webhook,
+            )
+        )
+
+        def _log_task_error(done: asyncio.Task) -> None:
+            try:
+                exc = done.exception()
+            except asyncio.CancelledError:
+                return
+            if exc:
+                log.warning(
+                    "Background order side effects task failed for %s: %s",
+                    order_id,
+                    exc,
+                    exc_info=exc,
+                )
+
+        task.add_done_callback(_log_task_error)
+    except Exception as exc:
+        log.warning(
+            "Could not schedule order side effects for %s: %s",
+            order_id,
+            exc,
+        )
+
 
 # Valid status transitions: maps current status → allowed next statuses
 VALID_TRANSITIONS: dict[str, set[str]] = {
@@ -422,7 +547,13 @@ class OrderService:
         # Pay later: clear cart (order is placed) but defer stock until admin confirms.
         # Online / manual UPI: defer stock until payment verify.
         if data.payment_method.value == "cod":
-            await self._deduct_inventory_for_order(vendor_id, order)
+            try:
+                await self._deduct_inventory_for_order(vendor_id, order)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(exc),
+                ) from exc
             if clear_cart and cart is not None:
                 await self.cart_repo.clear_cart(cart)
         elif is_pay_later:
@@ -466,56 +597,19 @@ class OrderService:
             except Exception as e:
                 log.warning("Coupon usage record failed for order %s: %s", order.id, e)
 
-        # In-app + email notifications for new order (best-effort)
-        try:
-            from app.services.vendor_service import VendorService
-            vendor_svc = VendorService(self.db)
-            vendor = await vendor_svc.get_by_id(vendor_id)
-            if vendor:
-                notif_svc = NotificationService(self.db)
-                # Manual UPI: defer admin "New Order" + customer confirmations until payment proof is submitted.
-                # Pay later / COD: notify admin immediately so they can approve (pay later) or fulfill (COD).
-                if not is_manual_proof:
-                    await notif_svc.notify_order_received(
-                        vendor_id=vendor_id,
-                        vendor_phone=vendor.primary_phone,
-                        vendor_name=vendor.display_name or vendor.business_name,
-                        order_number=order.order_number,
-                        total=float(order.total or 0),
-                        order_id=order.id,
-                    )
-                # Online card/UPI gateway: defer email/SMS/WhatsApp until payment is confirmed
-                # (see PaymentGatewayService._finalize_paid_order).
-                # Manual UPI: deferred to submit_payment_proof.
-                # Pay later: customer gets placed notice; confirmation is after admin approve.
-                if data.payment_method.value in ("cod", "pay_later"):
-                    customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, customer_id)
-                    await send_order_placed_notifications(
-                        self.db,
-                        vendor=vendor,
-                        order=order,
-                        customer=customer,
-                    )
-                # Persist in-app row: checkout already committed; session closes without a commit otherwise.
-                await self.db.commit()
-        except Exception as exc:
-            log.warning("Order placement notifications failed for order %s: %s", order.id, exc, exc_info=True)
-
-        # Fan-out the `order.placed` webhook — defer for manual UPI until proof is submitted.
-        if not is_manual_proof:
-            try:
-                from app.services.website_webhooks import (
-                    dispatch_event_for_vendor,
-                    order_payload,
-                )
-                await dispatch_event_for_vendor(
-                    self.db,
-                    vendor_id=vendor_id,
-                    event="order.placed",
-                    payload=order_payload(order),
-                )
-            except Exception as exc:
-                log.warning("order.placed webhook dispatch failed for order %s: %s", order.id, exc)
+        # Notifications / webhooks are best-effort and can hang on SMTP/Twilio.
+        # Run them in the background so create-order returns before the client 30s timeout.
+        # Manual UPI: defer admin notify + customer channels + webhook until payment proof.
+        # Online gateway: defer customer channels until payment is confirmed.
+        pm = data.payment_method.value
+        _schedule_order_placed_side_effects(
+            vendor_id=vendor_id,
+            order_id=order.id,
+            customer_id=customer_id,
+            notify_admin=not is_manual_proof,
+            notify_customer_channels=pm in ("cod", "pay_later"),
+            dispatch_webhook=not is_manual_proof,
+        )
 
         return order
 
@@ -548,6 +642,15 @@ class OrderService:
             coupon_code=data.coupon_code,
             branch_code=data.branch_code,
             store_id=getattr(data, "store_id", None),
+            order_type=getattr(data, "order_type", None),
+            payment_terms_code=getattr(data, "payment_terms_code", None),
+            payment_terms_days=getattr(data, "payment_terms_days", None),
+            shipping_terms=getattr(data, "shipping_terms", None),
+            order_reason=getattr(data, "order_reason", None),
+            requested_delivery_date=getattr(data, "requested_delivery_date", None),
+            pricing_date=getattr(data, "pricing_date", None),
+            currency=getattr(data, "currency", None),
+            exchange_rate=getattr(data, "exchange_rate", None),
         )
         return await self.checkout(
             vendor_id,
@@ -933,41 +1036,15 @@ class OrderService:
         except Exception as exc:
             log.warning("Cart clear after payment proof failed for %s: %s", order.id, exc)
 
-        try:
-            from app.services.vendor_service import VendorService
-            vendor_svc = VendorService(self.db)
-            vendor = await vendor_svc.get_by_id(vendor_id)
-            if vendor:
-                customer = await self.customer_repo.get_by_vendor_and_id(vendor_id, customer_id)
-                notif_svc = NotificationService(self.db)
-                await notif_svc.notify_order_received(
-                    vendor_id=vendor_id,
-                    vendor_phone=vendor.primary_phone,
-                    vendor_name=vendor.display_name or vendor.business_name,
-                    order_number=order.order_number,
-                    total=float(order.total or 0),
-                    order_id=order.id,
-                )
-                await send_order_placed_notifications(
-                    self.db, vendor=vendor, order=order, customer=customer,
-                )
-                await self.db.commit()
-        except Exception as exc:
-            log.warning("Notifications after payment proof failed for %s: %s", order.id, exc)
-
-        try:
-            from app.services.website_webhooks import (
-                dispatch_event_for_vendor,
-                order_payload,
-            )
-            await dispatch_event_for_vendor(
-                self.db,
-                vendor_id=vendor_id,
-                event="order.placed",
-                payload=order_payload(order),
-            )
-        except Exception as exc:
-            log.warning("order.placed webhook after payment proof failed for %s: %s", order.id, exc)
+        # Same as checkout: don't block payment-proof response on email/SMS/webhooks.
+        _schedule_order_placed_side_effects(
+            vendor_id=vendor_id,
+            order_id=order.id,
+            customer_id=customer_id,
+            notify_admin=True,
+            notify_customer_channels=True,
+            dispatch_webhook=True,
+        )
 
         return order
 
