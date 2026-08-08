@@ -61,11 +61,25 @@ class OtpSendResult:
             )
         msg = (self.twilio_message or "").strip()
         if msg and (
-            msg.startswith("SendGrid ")
+            msg.startswith("We couldn't send")
+            or msg.startswith("Email delivery is temporarily")
+            or msg.startswith("SendGrid ")
             or msg.startswith("SMTP ")
+            or "Via Phone" in msg
             or "FROM_EMAIL" in msg
             or "Sender Authentication" in msg
         ):
+            # Prefer user-friendly copy; rewrite leftover technical SendGrid lines.
+            if "HTTP 401" in msg or "API key was rejected" in msg:
+                return (
+                    "We couldn't send email right now. Please use Via Phone to receive your code, "
+                    "or try again in a few minutes."
+                )
+            if "HTTP " in msg and msg.startswith("SendGrid send failed"):
+                return (
+                    "Email delivery is temporarily unavailable. "
+                    "Please use Via Phone to receive your code, or try again later."
+                )
             return msg
         if self.twilio_message and settings.DEBUG:
             return f"{fallback} (Twilio: {self.twilio_message})"

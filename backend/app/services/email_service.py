@@ -96,20 +96,65 @@ def email_is_configured() -> bool:
 
 
 def _humanize_sendgrid_error(status_code: int, body: str, from_email: str) -> str:
+    """User-facing email failure text (no secrets, no admin .env instructions)."""
     lower = (body or "").lower()
-    if status_code in (401, 403) and ("authorization" in lower or "permission" in lower or "unauthorized" in lower):
-        return (
-            "SendGrid API key was rejected. Use one valid key for both SENDGRID_API_KEY and "
-            "SMTP_PASSWORD in .env.config, then restart the backend."
+
+    # Trial ended / plan quota / credits (often 401 or 403 with these phrases).
+    if any(
+        token in lower
+        for token in (
+            "maximum credits exceeded",
+            "credits exceeded",
+            "over quota",
+            "quota exceeded",
+            "trial",
+            "upgrade",
+            "0 emails",
+            "access forbidden",
+            "account is not allowed",
+            "payment",
+            "billing",
         )
-    if status_code == 403 or "sender" in lower or ("from" in lower and "verified" in lower):
+    ) or status_code == 429:
         return (
-            f"SendGrid rejected FROM_EMAIL ({from_email}). In SendGrid → Settings → Sender Authentication, "
-            f"verify that address (or your domain), set FROM_EMAIL to it in .env.config, and restart."
+            "Email delivery is temporarily unavailable (email provider limit or plan reached). "
+            "Please use Via Phone to get your code, or try again later."
         )
+
+    if status_code in (401, 403) and (
+        "authorization" in lower
+        or "permission" in lower
+        or "unauthorized" in lower
+        or "api key" in lower
+        or not lower.strip()
+    ):
+        # 401 with empty/generic body is common for revoked keys OR locked free accounts.
+        return (
+            "We couldn't send email right now. Please use Via Phone to receive your code, "
+            "or try again in a few minutes."
+        )
+
+    if (
+        status_code == 403
+        or "sender" in lower
+        or ("from" in lower and "verified" in lower)
+        or "does not match a verified" in lower
+    ):
+        return (
+            "We couldn't send email from this store right now. "
+            "Please use Via Phone to receive your code, or contact support."
+        )
+
     if status_code == 400:
-        return "SendGrid rejected the email request. Check FROM_EMAIL and the recipient address."
-    return f"SendGrid send failed (HTTP {status_code})."
+        return (
+            "We couldn't send the verification email to this address. "
+            "Check the email, or use Via Phone instead."
+        )
+
+    return (
+        "We couldn't send the verification email. "
+        "Please use Via Phone to receive your code, or try again later."
+    )
 
 
 async def send_email_for_vendor(

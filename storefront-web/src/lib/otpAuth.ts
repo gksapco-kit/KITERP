@@ -1,4 +1,4 @@
-/** Shared helpers for storefront forgot-password OTP flows. */
+/** Shared helpers for storefront forgot-password OTP and signup/checkout OTP flows. */
 
 export const NOT_REGISTERED_EMAIL =
   'This email is not registered for this store. Check the address or create an account first.'
@@ -16,6 +16,43 @@ export function resetCodeWasIssued(
   return Boolean(data.sent)
 }
 
+/** Rewrite technical email/SMS provider errors into customer-friendly copy. */
+export function friendlyOtpDeliveryMessage(
+  detail: string,
+  channel?: OtpChannel,
+): string {
+  const d = (detail || '').trim()
+  if (!d) return d
+
+  if (/maximum credits|credits exceeded|over quota|trial ended|0 emails|email provider limit|plan reached/i.test(d)) {
+    return channel === 'phone'
+      ? "We couldn't send an SMS right now. Please try again in a few minutes."
+      : 'Email delivery is temporarily unavailable (provider limit reached). Please use a phone number for OTP, or try again later.'
+  }
+
+  if (/sendgrid.*401|api key was rejected|unauthorized|authorization/i.test(d)) {
+    return channel === 'phone'
+      ? "We couldn't send the code right now. Please try again in a few minutes."
+      : "We couldn't send email right now. Please enter a phone number for OTP, or try again later."
+  }
+
+  if (/FROM_EMAIL|Sender Authentication|\.env\.config|SMTP_PASSWORD|SENDGRID_API_KEY/i.test(d)) {
+    return "We couldn't send email from this store right now. Please use a phone number for OTP, or contact the store."
+  }
+
+  if (/sendgrid send failed|couldn't send the verification email|couldn't send email|email service is not configured/i.test(d)) {
+    return channel === 'phone'
+      ? d
+      : "We couldn't send the verification email. Please use a phone number for OTP, or try again later."
+  }
+
+  if (/sms service is not configured|could not send sms/i.test(d)) {
+    return "We couldn't send an SMS right now. Please try email instead, or try again later."
+  }
+
+  return d
+}
+
 export function normalizeAuthApiDetail(
   detail: unknown,
   fallback: string,
@@ -27,12 +64,12 @@ export function normalizeAuthApiDetail(
       if (channel === 'phone') return NOT_REGISTERED_PHONE
       return fallback
     }
-    return detail
+    return friendlyOtpDeliveryMessage(detail.trim(), channel)
   }
   if (Array.isArray(detail) && detail.length > 0) {
     const first = detail[0]
     if (first && typeof first === 'object' && 'msg' in first) {
-      return String((first as { msg: unknown }).msg)
+      return friendlyOtpDeliveryMessage(String((first as { msg: unknown }).msg), channel)
     }
   }
   return fallback

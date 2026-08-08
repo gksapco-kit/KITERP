@@ -4,19 +4,33 @@ import type { Token, User, Customer } from '../types'
 /** Turn FastAPI / axios error payloads into a readable string. */
 export function apiErrorMessage(err: any, fallback = 'Something went wrong'): string {
   const detail = err?.response?.data?.detail
-  if (typeof detail === 'string' && detail.trim()) return detail
+  const soften = (msg: string) => {
+    if (/maximum credits|credits exceeded|over quota|trial|0 emails|email provider limit|plan reached/i.test(msg)) {
+      return 'Email delivery is temporarily unavailable (provider limit reached). Please use phone OTP, or try again later.'
+    }
+    if (/sendgrid.*401|api key was rejected|unauthorized|sendgrid send failed/i.test(msg)) {
+      return "We couldn't send email right now. Please use phone OTP, or try again later."
+    }
+    if (/FROM_EMAIL|Sender Authentication|\.env\.config|SENDGRID_API_KEY/i.test(msg)) {
+      return "We couldn't send email from this store right now. Please use phone OTP, or contact the store."
+    }
+    return msg
+  }
+  if (typeof detail === 'string' && detail.trim()) return soften(detail)
   if (Array.isArray(detail) && detail.length) {
-    return detail
-      .map((d: any) => {
-        if (typeof d === 'string') return d
-        const loc = Array.isArray(d?.loc) ? d.loc.filter((x: any) => x !== 'body').join('.') : ''
-        const msg = d?.msg || d?.message || 'Invalid value'
-        return loc ? `${loc}: ${msg}` : msg
-      })
-      .join('\n')
+    return soften(
+      detail
+        .map((d: any) => {
+          if (typeof d === 'string') return d
+          const loc = Array.isArray(d?.loc) ? d.loc.filter((x: any) => x !== 'body').join('.') : ''
+          const msg = d?.msg || d?.message || 'Invalid value'
+          return loc ? `${loc}: ${msg}` : msg
+        })
+        .join('\n'),
+    )
   }
   if (detail && typeof detail === 'object' && typeof detail.message === 'string') {
-    return detail.message
+    return soften(detail.message)
   }
   return err?.message || fallback
 }

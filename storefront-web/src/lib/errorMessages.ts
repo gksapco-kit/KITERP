@@ -1,5 +1,6 @@
 import { AxiosError, isAxiosError } from 'axios'
 import { toast } from 'sonner'
+import { friendlyOtpDeliveryMessage } from './otpAuth'
 
 interface ApiErrorDetail {
   loc?: (string | number)[]
@@ -65,7 +66,7 @@ export function extractApiError(error: unknown, context: string): string {
   }
 
   if (data?.detail && typeof data.detail === 'string') {
-    return `${context}: ${data.detail}`
+    return `${context}: ${friendlyOtpDeliveryMessage(data.detail)}`
   }
 
   if (data?.message && typeof data.message === 'string') {
@@ -140,8 +141,9 @@ export function formatCustomerAuthError(
     if (/UndefinedColumn|asyncpg|sqlalchemy|does not exist|traceback|MultipleResultsFound/i.test(detail)) {
       return 'Sign-in is temporarily unavailable. Please try again in a moment.'
     }
-    if (detail.length <= 120 && !/class\s+['"]/.test(detail)) {
-      return detail
+    const friendly = friendlyOtpDeliveryMessage(detail)
+    if (friendly.length <= 200 && !/class\s+['"]/.test(friendly)) {
+      return friendly
     }
   }
 

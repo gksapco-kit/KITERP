@@ -599,13 +599,6 @@ export default function Register() {
             {otpSendError ? (
               <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-left text-sm text-red-700">
                 <p>{otpSendError}</p>
-                {!/SendGrid|FROM_EMAIL|SMTP /i.test(otpSendError) ? (
-                  <p className="mt-1.5 text-xs text-red-600/90">
-                    On production, set a valid <code className="rounded bg-red-100 px-1">SENDGRID_API_KEY</code> and
-                    verified <code className="rounded bg-red-100 px-1">FROM_EMAIL</code> in{' '}
-                    <code className="rounded bg-red-100 px-1">.env.config</code>, then restart the backend.
-                  </p>
-                ) : null}
               </div>
             ) : null}
 
