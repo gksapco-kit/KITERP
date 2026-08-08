@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     FROM_EMAIL: str = "noreply@kiterp.com"
+    # Optional alias; used when FROM_EMAIL is blank.
+    SENDGRID_FROM_EMAIL: str = ""
     # SendGrid HTTP API (preferred over SMTP in Docker). Falls back to SMTP_PASSWORD if it starts with SG.
     SENDGRID_API_KEY: str = ""
     # Twilio Verify → SendGrid dynamic template (set subject in SendGrid or run scripts/fix_sendgrid_otp_subject.py)

@@ -66,9 +66,14 @@ export default function Register() {
   const [otp, setOtp] = useState('')
   const [otpSending, setOtpSending] = useState(false)
   const [otpSendError, setOtpSendError] = useState<string | null>(null)
+  const [formBannerError, setFormBannerError] = useState<string | null>(null)
   const [otpSentTo, setOtpSentTo] = useState<string | null>(null)
   const [devHint, setDevHint] = useState<string | undefined>()
+  const [startingOtp, setStartingOtp] = useState(false)
   const autoSentRef = useRef(false)
+
+  const isAlreadyRegisteredError = (msg: string | null | undefined) =>
+    !!msg && /already registered/i.test(msg)
 
   const closeOtp = useCallback(() => {
     setOtpOpen(false)
@@ -80,7 +85,7 @@ export default function Register() {
     autoSentRef.current = false
   }, [])
 
-  const sendOtp = useCallback(async (channel: OtpChannel, data: FormData) => {
+  const sendOtp = useCallback(async (channel: OtpChannel, data: FormData, opts?: { quiet?: boolean }) => {
     setOtpSending(true)
     setOtpSendError(null)
     try {
@@ -95,16 +100,64 @@ export default function Register() {
       setOtpSentTo(res.to || (channel === 'email' ? data.email! : data.phone!))
       setDevHint(res.dev_hint)
       toast.success(channel === 'email' ? 'Verification code sent to your email' : 'Verification code sent to your phone')
+      return res
     } catch (err: unknown) {
       const msg = extractAuthApiDetail(err, 'Could not send verification code', channel)
       setOtpSendError(msg)
-      toast.error(msg)
+      if (!opts?.quiet) toast.error(msg)
       throw err
     } finally {
       setOtpSending(false)
     }
   }, [])
 
+  const onSubmit = async (data: FormData) => {
+    const emailOk = !!(data.email && z.string().email().safeParse(data.email).success)
+    const phoneOk = !!(data.phone && phoneRegex.test(data.phone))
+    if (!emailOk && !phoneOk) {
+      toast.error('Provide a valid email or phone number')
+      return
+    }
+
+    setFormBannerError(null)
+    setOtpSendError(null)
+    setDevHint(undefined)
+    setStartingOtp(true)
+
+    // Prefer email; if SendGrid fails and phone is present, fall back to SMS (Twilio works on prod).
+    const tryOrder: OtpChannel[] = emailOk && phoneOk ? ['email', 'phone'] : emailOk ? ['email'] : ['phone']
+
+    try {
+      let lastMsg = 'Could not send verification code'
+      for (let i = 0; i < tryOrder.length; i++) {
+        const channel = tryOrder[i]
+        const hasFallback = i < tryOrder.length - 1
+        setOtpChannel(channel)
+        try {
+          await sendOtp(channel, data, { quiet: hasFallback })
+          setPending(data)
+          setOtp('')
+          autoSentRef.current = true
+          setOtpOpen(true)
+          setFormBannerError(null)
+          return
+        } catch (err: unknown) {
+          lastMsg = extractAuthApiDetail(err, 'Could not send verification code', channel)
+          if (isAlreadyRegisteredError(lastMsg)) {
+            setFormBannerError(lastMsg)
+            toast.error(lastMsg)
+            return
+          }
+        }
+      }
+      setFormBannerError(lastMsg)
+      toast.error(lastMsg)
+    } finally {
+      setStartingOtp(false)
+    }
+  }
+
+  // Keep auto-resend only when modal re-opens without a prior successful send (e.g. after close).
   useEffect(() => {
     if (!otpOpen || !pending || autoSentRef.current) return
     autoSentRef.current = true
@@ -112,24 +165,6 @@ export default function Register() {
       autoSentRef.current = false
     })
   }, [otpOpen, pending, otpChannel, sendOtp])
-
-  const onSubmit = (data: FormData) => {
-    const emailOk = !!(data.email && z.string().email().safeParse(data.email).success)
-    const phoneOk = !!(data.phone && phoneRegex.test(data.phone))
-    // Prefer email OTP when both are valid (same as vendor signup).
-    const channel: OtpChannel = emailOk ? 'email' : 'phone'
-    if (!emailOk && !phoneOk) {
-      toast.error('Provide a valid email or phone number')
-      return
-    }
-    setOtpChannel(channel)
-    setPending(data)
-    setOtp('')
-    setOtpSendError(null)
-    setDevHint(undefined)
-    autoSentRef.current = false
-    setOtpOpen(true)
-  }
 
   const completeRegister = (otpCode: string) => {
     if (!pending) return
@@ -174,7 +209,7 @@ export default function Register() {
     completeRegister(code)
   }
 
-  const isLoading = registerMut.isPending || loginMut.isPending
+  const isLoading = registerMut.isPending || loginMut.isPending || startingOtp
 
   const { primary, background, linkColor, btnText, panelGradient, fontFamily } = useAuthStoreTheme()
 
@@ -248,12 +283,32 @@ export default function Register() {
               </p>
             </div>
 
-            {(registerMut.isError || loginMut.isError) && (
-              <div className="mb-2.5 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
-                {formatCustomerAuthError(
-                  registerMut.error ?? loginMut.error,
-                  'Registration failed. Please try again.',
-                )}
+            {(registerMut.isError || loginMut.isError || formBannerError) && (
+              <div className="mb-2.5 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 space-y-2">
+                <p>
+                  {formBannerError
+                    ?? formatCustomerAuthError(
+                      registerMut.error ?? loginMut.error,
+                      'Registration failed. Please try again.',
+                    )}
+                </p>
+                {isAlreadyRegisteredError(formBannerError) ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      to={storePath('/login')}
+                      className="inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-semibold text-white"
+                      style={{ backgroundColor: primary }}
+                    >
+                      Sign in
+                    </Link>
+                    <Link
+                      to={storePath('/forgot-password')}
+                      className="inline-flex items-center rounded-md border border-red-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-red-800"
+                    >
+                      Forgot password
+                    </Link>
+                  </div>
+                ) : null}
               </div>
             )}
 
@@ -322,7 +377,7 @@ export default function Register() {
                 disabled={isLoading}
               >
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Continue — verify OTP
+                {startingOtp ? 'Sending code…' : 'Continue — verify OTP'}
               </Button>
             </form>
 
@@ -399,8 +454,53 @@ export default function Register() {
             </div>
 
             {otpSendError ? (
-              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {otpSendError}
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 space-y-2">
+                <p>{otpSendError}</p>
+                {isAlreadyRegisteredError(otpSendError) ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      to={storePath('/login')}
+                      className="inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-semibold text-white"
+                      style={{ backgroundColor: primary }}
+                      onClick={closeOtp}
+                    >
+                      Sign in
+                    </Link>
+                    <Link
+                      to={storePath('/forgot-password')}
+                      className="inline-flex items-center rounded-md border border-red-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-red-800"
+                      onClick={closeOtp}
+                    >
+                      Forgot password
+                    </Link>
+                  </div>
+                ) : null}
+                {!isAlreadyRegisteredError(otpSendError)
+                  && otpChannel === 'email'
+                  && pending?.phone
+                  && phoneRegex.test(pending.phone) ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-red-300 text-red-800"
+                    disabled={otpSending}
+                    onClick={() => {
+                      setOtpChannel('phone')
+                      autoSentRef.current = false
+                      void sendOtp('phone', pending)
+                        .then(() => {
+                          setOtpSendError(null)
+                          autoSentRef.current = true
+                        })
+                        .catch(() => {
+                          autoSentRef.current = false
+                        })
+                    }}
+                  >
+                    Send code to phone instead
+                  </Button>
+                ) : null}
               </div>
             ) : null}
 
@@ -409,6 +509,10 @@ export default function Register() {
                 <Loader2 className="w-5 h-5 animate-spin" style={{ color: primary }} />
                 Sending code…
               </div>
+            ) : isAlreadyRegisteredError(otpSendError) ? (
+              <Button type="button" variant="outline" className="w-full" onClick={closeOtp}>
+                Close
+              </Button>
             ) : (
               <>
                 <Input

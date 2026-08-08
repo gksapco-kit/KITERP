@@ -10,6 +10,7 @@ Production should set SENDGRID_API_KEY (or SMTP_PASSWORD with a SendGrid key) an
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from email.message import EmailMessage
 from typing import Optional
 from uuid import UUID
@@ -21,16 +22,56 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+# Last platform send failure (no secrets) — used for clearer OTP 503 messages.
+_last_send_error: str | None = None
+
+
+@dataclass
+class EmailSendResult:
+    ok: bool
+    error: str | None = None
+
+
+def last_email_send_error() -> str | None:
+    return _last_send_error
+
+
+def _set_last_send_error(msg: str | None) -> None:
+    global _last_send_error
+    _last_send_error = (msg or "").strip() or None
+
+
+def resolve_from_email() -> str:
+    """Sender address for platform email.
+
+    Prefer SENDGRID_FROM_EMAIL when set (SendGrid-only setups), else FROM_EMAIL.
+    Must match a verified Sender Identity in the SendGrid account for SENDGRID_API_KEY.
+    """
+    settings = get_settings()
+    for raw in (settings.SENDGRID_FROM_EMAIL, settings.FROM_EMAIL):
+        val = (raw or "").strip()
+        if val:
+            return val
+    return "noreply@kiterp.com"
+
+
+def sendgrid_api_keys() -> list[str]:
+    """Configured SendGrid API keys. SENDGRID_API_KEY is primary (SendGrid-only mode).
+
+    SMTP_PASSWORD is only included as a legacy fallback when it starts with SG.
+    """
+    settings = get_settings()
+    keys: list[str] = []
+    for raw in (settings.SENDGRID_API_KEY, settings.SMTP_PASSWORD):
+        key = (raw or "").strip()
+        if key.startswith("SG.") and key not in keys:
+            keys.append(key)
+    return keys
+
 
 def sendgrid_api_key() -> str:
-    settings = get_settings()
-    key = (settings.SENDGRID_API_KEY or "").strip()
-    if key.startswith("SG."):
-        return key
-    pwd = (settings.SMTP_PASSWORD or "").strip()
-    if pwd.startswith("SG."):
-        return pwd
-    return ""
+    keys = sendgrid_api_keys()
+    return keys[0] if keys else ""
 
 
 def resolve_effective_sendgrid_key(creds: dict | None = None) -> str:
@@ -46,12 +87,29 @@ def resolve_effective_sendgrid_key(creds: dict | None = None) -> str:
 def email_is_configured() -> bool:
     """True when platform email can be sent (SendGrid API or SMTP with credentials)."""
     settings = get_settings()
-    if sendgrid_api_key():
+    if sendgrid_api_keys():
         return True
     host = (settings.SMTP_HOST or "").strip()
     if not host:
         return False
     return bool((settings.SMTP_PASSWORD or "").strip() or (settings.SMTP_USER or "").strip())
+
+
+def _humanize_sendgrid_error(status_code: int, body: str, from_email: str) -> str:
+    lower = (body or "").lower()
+    if status_code in (401, 403) and ("authorization" in lower or "permission" in lower or "unauthorized" in lower):
+        return (
+            "SendGrid API key was rejected. Use one valid key for both SENDGRID_API_KEY and "
+            "SMTP_PASSWORD in .env.config, then restart the backend."
+        )
+    if status_code == 403 or "sender" in lower or ("from" in lower and "verified" in lower):
+        return (
+            f"SendGrid rejected FROM_EMAIL ({from_email}). In SendGrid → Settings → Sender Authentication, "
+            f"verify that address (or your domain), set FROM_EMAIL to it in .env.config, and restart."
+        )
+    if status_code == 400:
+        return "SendGrid rejected the email request. Check FROM_EMAIL and the recipient address."
+    return f"SendGrid send failed (HTTP {status_code})."
 
 
 async def send_email_for_vendor(
@@ -63,6 +121,20 @@ async def send_email_for_vendor(
     text: Optional[str] = None,
 ) -> bool:
     """Send email using the vendor CRM integration when configured, else platform .env."""
+    result = await send_email_detailed_for_vendor(
+        db, vendor_id, to=to, subject=subject, html=html, text=text
+    )
+    return result.ok
+
+
+async def send_email_detailed_for_vendor(
+    db: AsyncSession,
+    vendor_id: UUID,
+    to: str,
+    subject: str,
+    html: str,
+    text: Optional[str] = None,
+) -> EmailSendResult:
     from app.integrations.registry import IntegrationRegistry
 
     registry = IntegrationRegistry(db)
@@ -71,12 +143,13 @@ async def send_email_for_vendor(
         result = await adapter.send(to=to, subject=subject, html=html, text=text)
         if result.get("ok"):
             logger.info("Email sent via vendor integration to %s (subject=%r)", to, subject)
-            return True
+            _set_last_send_error(None)
+            return EmailSendResult(ok=True)
         logger.warning(
             "Vendor email integration failed for %s: %s — falling back to platform email",
             to, result.get("error"),
         )
-    return await send_email(to=to, subject=subject, html=html, text=text)
+    return await send_email_detailed(to=to, subject=subject, html=html, text=text)
 
 
 async def send_email(
@@ -86,29 +159,56 @@ async def send_email(
     text: Optional[str] = None,
 ) -> bool:
     """Send an HTML email. Returns True on success, False on (silent) dev fallback."""
+    result = await send_email_detailed(to=to, subject=subject, html=html, text=text)
+    return result.ok
+
+
+async def send_email_detailed(
+    to: str,
+    subject: str,
+    html: str,
+    text: Optional[str] = None,
+) -> EmailSendResult:
+    """Send an HTML email and return success plus a safe error message on failure."""
     settings = get_settings()
     host = (settings.SMTP_HOST or "").strip()
-    from_email = (settings.FROM_EMAIL or "noreply@kiterp.com").strip()
-    api_key = sendgrid_api_key()
+    from_email = resolve_from_email()
+    keys = sendgrid_api_keys()
+    last_error: str | None = None
 
-    if api_key:
-        if await _try_sendgrid_api(
+    # Prefer HTTPS API (works when Docker/EC2 blocks outbound SMTP :587).
+    for api_key in keys:
+        ok, err = await _try_sendgrid_api(
             to=to,
             subject=subject,
             html=html,
             text=text,
             from_email=from_email,
             api_key=api_key,
-        ):
-            return True
-        logger.warning("SendGrid API send failed for %s; trying SMTP if configured", to)
+        )
+        if ok:
+            _set_last_send_error(None)
+            return EmailSendResult(ok=True)
+        last_error = err or last_error
+
+    if keys:
+        logger.warning(
+            "SendGrid API send failed for %s with %s key(s); trying SMTP if configured",
+            to,
+            len(keys),
+        )
 
     if not host:
+        if keys:
+            _set_last_send_error(last_error)
+            return EmailSendResult(ok=False, error=last_error)
         logger.info(
             "[email:dev] -> %s | subject=%r | text=%s",
             to, subject, (text or _strip_html(html))[:500],
         )
-        return False
+        msg = "Email delivery not configured"
+        _set_last_send_error(msg)
+        return EmailSendResult(ok=False, error=msg)
 
     try:
         import aiosmtplib
@@ -121,7 +221,9 @@ async def send_email(
             "[email:fallback] -> %s | subject=%r | text=%s",
             to, subject, (text or _strip_html(html))[:500],
         )
-        return False
+        msg = last_error or "SMTP library missing and SendGrid API failed"
+        _set_last_send_error(msg)
+        return EmailSendResult(ok=False, error=msg)
 
     msg = EmailMessage()
     msg["From"] = from_email
@@ -133,31 +235,52 @@ async def send_email(
     else:
         msg.add_alternative(html, subtype="html")
 
-    try:
-        await aiosmtplib.send(
-            msg,
-            hostname=host,
-            port=settings.SMTP_PORT or 587,
-            username=settings.SMTP_USER or None,
-            password=settings.SMTP_PASSWORD or None,
-            start_tls=True,
-            timeout=15,
-        )
-        logger.info("Email sent via SMTP to %s (subject=%r)", to, subject)
-        return True
-    except Exception as e:
-        logger.warning("SMTP send failed for %s: %s", to, e)
-        if api_key and await _try_sendgrid_api(
+    smtp_passwords: list[str | None] = []
+    primary_pwd = (settings.SMTP_PASSWORD or "").strip() or None
+    if primary_pwd:
+        smtp_passwords.append(primary_pwd)
+    for key in keys:
+        if key not in smtp_passwords:
+            smtp_passwords.append(key)
+    if not smtp_passwords:
+        smtp_passwords.append(None)
+
+    for pwd in smtp_passwords:
+        try:
+            await aiosmtplib.send(
+                msg,
+                hostname=host,
+                port=settings.SMTP_PORT or 587,
+                username=settings.SMTP_USER or None,
+                password=pwd,
+                start_tls=True,
+                timeout=15,
+            )
+            logger.info("Email sent via SMTP to %s (subject=%r)", to, subject)
+            _set_last_send_error(None)
+            return EmailSendResult(ok=True)
+        except Exception as e:
+            logger.warning("SMTP send failed for %s: %s", to, e)
+            last_error = f"SMTP send failed: {e}"
+
+    # Final API retry in case SMTP was blocked and a key was only tried via SMTP.
+    for api_key in keys:
+        ok, err = await _try_sendgrid_api(
             to=to,
             subject=subject,
             html=html,
             text=text,
             from_email=from_email,
             api_key=api_key,
-        ):
-            return True
-        logger.exception("Failed to send email to %s", to)
-        return False
+        )
+        if ok:
+            _set_last_send_error(None)
+            return EmailSendResult(ok=True)
+        last_error = err or last_error
+
+    logger.error("Failed to send email to %s: %s", to, last_error)
+    _set_last_send_error(last_error)
+    return EmailSendResult(ok=False, error=last_error)
 
 
 async def _try_sendgrid_api(
@@ -168,10 +291,10 @@ async def _try_sendgrid_api(
     text: Optional[str],
     from_email: str,
     api_key: str,
-) -> bool:
-    """Send via SendGrid REST API (works reliably from Docker)."""
+) -> tuple[bool, str | None]:
+    """Send via SendGrid REST API (works reliably from Docker). Returns (ok, error)."""
     if not api_key.startswith("SG."):
-        return False
+        return False, "Invalid SendGrid API key format"
     body: dict = {
         "personalizations": [{"to": [{"email": to}]}],
         "from": {"email": from_email, "name": "KITERP"},
@@ -190,11 +313,13 @@ async def _try_sendgrid_api(
             )
         if resp.status_code in (200, 202):
             logger.info("Email sent via SendGrid API to %s (subject=%r)", to, subject)
-            return True
+            return True, None
+        err = _humanize_sendgrid_error(resp.status_code, resp.text, from_email)
         logger.error("SendGrid API send failed (%s): %s", resp.status_code, resp.text[:300])
+        return False, err
     except Exception as e:
         logger.warning("SendGrid API send error for %s: %s", to, e)
-    return False
+        return False, f"Network error contacting SendGrid: {e}"
 
 
 def _strip_html(html: str) -> str:
@@ -264,9 +389,16 @@ def _verification_email_bodies(intro: str, code: str) -> tuple[str, str]:
 
 async def send_verification_code_email(to: str, code: str, purpose: str = "verify") -> bool:
     """Send a 6-digit verification code via email."""
+    result = await send_verification_code_email_detailed(to, code, purpose=purpose)
+    return result.ok
+
+
+async def send_verification_code_email_detailed(
+    to: str, code: str, purpose: str = "verify"
+) -> EmailSendResult:
     subject, intro = _verification_email_content(purpose)
     html, text = _verification_email_bodies(intro, code)
-    return await send_email(to=to, subject=subject, html=html, text=text)
+    return await send_email_detailed(to=to, subject=subject, html=html, text=text)
 
 
 async def send_verification_code_email_for_vendor(
@@ -277,20 +409,21 @@ async def send_verification_code_email_for_vendor(
     purpose: str = "verify",
 ) -> bool:
     """Send OTP email via vendor CRM integration when configured, else platform .env."""
-    from app.integrations.registry import IntegrationRegistry
+    result = await send_verification_code_email_for_vendor_detailed(
+        db, vendor_id, to, code, purpose=purpose
+    )
+    return result.ok
 
+
+async def send_verification_code_email_for_vendor_detailed(
+    db: AsyncSession,
+    vendor_id: UUID,
+    to: str,
+    code: str,
+    purpose: str = "verify",
+) -> EmailSendResult:
     subject, intro = _verification_email_content(purpose)
     html, text = _verification_email_bodies(intro, code)
-    registry = IntegrationRegistry(db)
-    adapter = await registry.get_email_adapter(vendor_id)
-    if adapter:
-        result = await adapter.send(to=to, subject=subject, html=html, text=text)
-        if result.get("ok"):
-            logger.info("Verification email sent via vendor integration to %s", to)
-            return True
-        logger.warning(
-            "Vendor email integration failed for %s: %s — falling back to platform email",
-            to,
-            result.get("error"),
-        )
-    return await send_email(to=to, subject=subject, html=html, text=text)
+    return await send_email_detailed_for_vendor(
+        db, vendor_id, to=to, subject=subject, html=html, text=text
+    )

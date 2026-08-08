@@ -50,7 +50,7 @@ class IntegrationRegistry:
         return creds
 
     async def get_email_adapter(self, vendor_id: UUID) -> Optional[EmailAdapter]:
-        from app.services.email_service import resolve_effective_sendgrid_key, sendgrid_api_key
+        from app.services.email_service import resolve_effective_sendgrid_key, resolve_from_email, sendgrid_api_key
 
         def _sendgrid_adapter(creds: dict, *, from_email: str | None = None) -> Optional[EmailAdapter]:
             api_key = resolve_effective_sendgrid_key(creds)
@@ -63,7 +63,7 @@ class IntegrationRegistry:
                     creds.get("from")
                     or creds.get("from_email")
                     or from_email
-                    or settings.FROM_EMAIL
+                    or resolve_from_email()
                 ),
                 "from_name": creds.get("from_name"),
             }
@@ -92,7 +92,7 @@ class IntegrationRegistry:
         if platform_key:
             adapter = _sendgrid_adapter(
                 {"api_key": platform_key},
-                from_email=settings.FROM_EMAIL,
+                from_email=resolve_from_email(),
             )
             if adapter:
                 return adapter

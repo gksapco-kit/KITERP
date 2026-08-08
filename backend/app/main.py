@@ -121,11 +121,24 @@ async def lifespan(app: FastAPI):
         await ensure_product_soft_delete()
         await ensure_pharma_schema()
     await connect_redis()
-    from app.services.email_service import email_is_configured, sendgrid_api_key
+    from app.services.email_service import email_is_configured, resolve_from_email, sendgrid_api_key, sendgrid_api_keys
 
+    keys = sendgrid_api_keys()
+    if len(keys) > 1:
+        logger.warning(
+            "SENDGRID_API_KEY and SMTP_PASSWORD are different SG. keys — "
+            "set them to the SAME key in .env.config or email OTP may fail. "
+            "FROM_EMAIL=%s",
+            resolve_from_email(),
+        )
     if email_is_configured():
         via = "SendGrid API" if sendgrid_api_key() else "SMTP"
-        logger.info("Email delivery configured (%s). Order emails and OTP will send.", via)
+        logger.info(
+            "Email delivery configured (%s, from=%s, keys=%s). Order emails and OTP will send.",
+            via,
+            resolve_from_email(),
+            len(keys),
+        )
     else:
         logger.warning(
             "Email delivery NOT configured — set SENDGRID_API_KEY or SMTP_HOST/SMTP_PASSWORD "
@@ -275,7 +288,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 async def health_check():
-    from app.services.email_service import email_is_configured, sendgrid_api_key
+    from app.services.email_service import (
+        email_is_configured,
+        resolve_from_email,
+        sendgrid_api_key,
+        sendgrid_api_keys,
+    )
 
     configured = email_is_configured()
     return {
@@ -284,6 +302,8 @@ async def health_check():
         "email_provider": (
             "sendgrid" if sendgrid_api_key() else "smtp" if configured else "none"
         ),
+        "email_from": resolve_from_email() if configured else None,
+        "sendgrid_keys_configured": len(sendgrid_api_keys()),
     }
 
 
