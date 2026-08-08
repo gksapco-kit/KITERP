@@ -3,6 +3,17 @@ import type { Token, User, Customer } from '../types'
 
 /** Turn FastAPI / axios error payloads into a readable string. */
 export function apiErrorMessage(err: any, fallback = 'Something went wrong'): string {
+  const status = err?.response?.status as number | undefined
+  if (status === 502 || status === 503 || status === 504) {
+    return 'Server is temporarily unavailable. Please try again in a moment.'
+  }
+  if (err?.code === 'ECONNABORTED' || /timeout/i.test(String(err?.message || ''))) {
+    return 'Request timed out. Check your internet connection and try again.'
+  }
+  if (!err?.response && (err?.message === 'Network Error' || err?.code === 'ERR_NETWORK')) {
+    return 'Network error. Check your connection, or restart Expo with EXPO_PUBLIC_API_URL set to https://kiterp.com/api/v1'
+  }
+
   const detail = err?.response?.data?.detail
   const soften = (msg: string) => {
     if (/maximum credits|credits exceeded|over quota|trial|0 emails|email provider limit|plan reached/i.test(msg)) {
@@ -31,6 +42,9 @@ export function apiErrorMessage(err: any, fallback = 'Something went wrong'): st
   }
   if (detail && typeof detail === 'object' && typeof detail.message === 'string') {
     return soften(detail.message)
+  }
+  if (status && status >= 500) {
+    return 'Server error. Please try again shortly.'
   }
   return err?.message || fallback
 }

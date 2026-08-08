@@ -11,7 +11,7 @@ export default function CustomerTabsLayout() {
   const loadCart = useCartStore((s) => s.loadCart)
 
   useEffect(() => {
-    void loadCart(isAuthenticated)
+    void loadCart(isAuthenticated).catch(() => undefined)
   }, [isAuthenticated, loadCart])
 
   const badge = itemCount > 0 ? (itemCount > 99 ? '99+' : itemCount) : undefined
