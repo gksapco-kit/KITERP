@@ -1,7 +1,19 @@
 const path = require("path");
 const fs = require("fs");
 
-const VENDOR_SLUG = process.env.VENDOR_SLUG || null;
+function readBuildTargetSlug() {
+  const targetPath = path.resolve(__dirname, "vendors", "_build_target.json");
+  if (!fs.existsSync(targetPath)) return null;
+  try {
+    const data = JSON.parse(fs.readFileSync(targetPath, "utf-8"));
+    return data?.vendorSlug || null;
+  } catch {
+    return null;
+  }
+}
+
+// Prefer env (local/EAS), then admin/build-runner target file for multi-vendor builds.
+const VENDOR_SLUG = process.env.VENDOR_SLUG || readBuildTargetSlug() || null;
 
 function loadVendorConfig(slug) {
   const configPath = path.resolve(__dirname, "vendors", slug, "config.json");

@@ -62,7 +62,12 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - SKIP_MIGRATIONS=${SKIP_MIGRATIONS:-false}
+      # Branded-app build runner (scripts/build-runner.py on EC2 or CI host)
+      - BUILD_RUNNER_API_KEY=${BUILD_RUNNER_API_KEY:-}
     volumes:
+      # Code is baked into the image; mount mobile so admin "save config / trigger build"
+      # can write vendors/<slug>/ on the EC2 host for the build runner.
+      - ./mobile:/app/mobile
       - backend_uploads:/app/uploads
     networks:
       - internal

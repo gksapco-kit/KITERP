@@ -85,8 +85,11 @@ services:
       # Force polling so uvicorn --reload picks up Python edits without restarting the container.
       - WATCHFILES_FORCE_POLLING=true
       - WATCHFILES_POLL_DELAY_MS=1000
+      - BUILD_RUNNER_API_KEY=${BUILD_RUNNER_API_KEY:-kiterp-local-build-runner}
     volumes:
       - ./backend:/app
+      # So branded-app builds can write mobile/vendors/<slug>/ on the host
+      - ./mobile:/app/mobile
       - backend_uploads:/app/uploads
     depends_on:
       postgres:

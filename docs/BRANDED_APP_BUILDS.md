@@ -149,10 +149,66 @@ python -m migrations.add_vendor_app_builds
 4. **Apple Developer Account** (for iOS builds)
 5. **Google Play Console** service account (for Android submissions)
 
+## Admin UI workflow (recommended)
+
+1. Open **Branded App** for the vendor in the admin dashboard.
+2. **Edit** → upload a 1024×1024 icon (or paste a URL) → **Save Configuration**.
+   - This writes `mobile/vendors/<slug>/config.json`, `icon.png`, and `vendors/_build_target.json`.
+3. Click **Build Android APK** (or iOS / both). Status becomes **Config Ready**.
+4. Keep the build runner running on a machine with EAS CLI logged in:
+
+```bash
+export BUILD_RUNNER_API_KEY="your-secret-key"
+export API_URL="https://kiterp.com/api/v1"   # or local API
+python scripts/build-runner.py
+```
+
+5. Watch the live banner / Build History (polls every 3s while a build is active). When status is **Built**, download links appear if EAS returned artifact URLs.
+
+## Production EC2 deploy checklist
+
+**Ship these changes** (code + compose):
+
+| Path | Why |
+|------|-----|
+| `backend/app/api/v1/app_builds.py` | Upload, pause/resume, delete, runner status API |
+| `backend/app/services/app_build_service.py` | Write `mobile/vendors/<slug>/` + icons |
+| `backend/app/schemas/app_build.py` | Schema / `paused` status |
+| `frontend/src/pages/dashboard/VendorAppBuilds.tsx` (+ api/hooks/utils) | Admin branded-app UI |
+| `frontend/vite.config.ts` | Local `/uploads` proxy only (harmless in prod image) |
+| `mobile/app.config.js`, `mobile/eas.json` | Multi-vendor EAS config |
+| `scripts/build-runner.py` | Polls API → `eas build` |
+| `docker-compose.prod.yml` | Mounts `./mobile`, passes `BUILD_RUNNER_API_KEY` |
+| `docs/BRANDED_APP_BUILDS.md`, `.env.config.example` | Ops docs |
+
+**Do not deploy / do not commit:**
+
+- `backend/.env` (local secrets; already gitignored)
+- `mobile/vendors/_build_target.json` (runtime; gitignored)
+- Per-vendor generated `icon.png` from local testing (created on the server when admin saves)
+- Local-only vendor config edits under `mobile/vendors/<slug>/` from your laptop
+
+**On EC2 after pull/build:**
+
+1. Set a strong `BUILD_RUNNER_API_KEY` in `.env.config`
+2. Redeploy:  
+   `docker compose --env-file .env.config -f docker-compose.prod.yml up -d --build backend frontend`
+3. On the EC2 host (or a build machine with Expo login), run the runner against prod API:
+
+```bash
+export BUILD_RUNNER_API_KEY="same-as-.env.config"
+export API_URL="https://kiterp.com/api/v1"
+python3 scripts/build-runner.py
+```
+
+4. Ensure `eas` CLI is installed and logged in on that host (`eas whoami`).
+
 ## Custom Assets
 
-To use a vendor's custom icon:
+Icon upload from the admin UI is preferred. Manual option:
 
 1. Place `icon.png` (1024x1024) in `mobile/vendors/<slug>/`
 2. Optionally add `adaptive-icon.png` for Android
 3. The build system auto-detects and uses these files
+
+`app.config.js` resolves the vendor via `VENDOR_SLUG` env, or `mobile/vendors/_build_target.json` written by the admin API / runner.
