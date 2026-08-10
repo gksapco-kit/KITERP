@@ -1,20 +1,11 @@
 import apiClient from './client'
 
-export interface AppFilesStatus {
-  vendor_slug?: string
-  config_path?: string
-  icon_ready?: boolean
-  files_ready?: boolean
-  target_path?: string
-}
-
 export interface AppConfig {
   app_name?: string
   primary_color?: string
   icon_url?: string
   splash_color?: string
   bundle_id_suffix?: string
-  files?: AppFilesStatus
 }
 
 export interface AppBuild {
@@ -53,13 +44,6 @@ export const appBuildApi = {
     return res.data
   },
 
-  uploadAppIcon: async (vendorId: string, file: File): Promise<AppConfig> => {
-    const form = new FormData()
-    form.append('file', file)
-    const res = await apiClient.post(`/admin/vendors/${vendorId}/app-icon`, form)
-    return res.data
-  },
-
   triggerBuild: async (vendorId: string, platform: string = 'all'): Promise<AppBuild> => {
     const res = await apiClient.post(`/admin/vendors/${vendorId}/app-builds`, { platform })
     return res.data
@@ -75,20 +59,6 @@ export const appBuildApi = {
 
   getBuild: async (buildId: string): Promise<AppBuild> => {
     const res = await apiClient.get(`/admin/app-builds/${buildId}`)
-    return res.data
-  },
-
-  deleteBuild: async (buildId: string): Promise<void> => {
-    await apiClient.delete(`/admin/app-builds/${buildId}`)
-  },
-
-  pauseBuild: async (buildId: string): Promise<AppBuild> => {
-    const res = await apiClient.post(`/admin/app-builds/${buildId}/pause`)
-    return res.data
-  },
-
-  resumeBuild: async (buildId: string): Promise<AppBuild> => {
-    const res = await apiClient.post(`/admin/app-builds/${buildId}/resume`)
     return res.data
   },
 

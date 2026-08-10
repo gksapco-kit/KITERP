@@ -36,11 +36,6 @@ export default defineConfig(({ mode }) => {
           target: apiProxyTarget,
           changeOrigin: true,
         },
-        // Uploaded media is served at /uploads on the backend (not under /api).
-        '/uploads': {
-          target: apiProxyTarget,
-          changeOrigin: true,
-        },
       },
     },
   }

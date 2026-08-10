@@ -48,25 +48,10 @@ export function formatDateTime(date: string | Date): string {
   }).format(new Date(date))
 }
 
-const BACKEND_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace(
-  /\/api\/v1\/?$/,
-  '',
-)
+const BACKEND_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')
 
 export function mediaUrl(url?: string | null): string {
   if (!url) return ''
-  if (
-    url.startsWith('http://') ||
-    url.startsWith('https://') ||
-    url.startsWith('data:') ||
-    url.startsWith('blob:')
-  ) {
-    return url
-  }
-  const path = url.startsWith('/') ? url : `/${url}`
-  // Dev uses Vite same-origin proxies for /api and /uploads (see vite.config.ts).
-  if (import.meta.env.DEV) {
-    return path
-  }
-  return `${BACKEND_BASE}${path}`
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) return url
+  return `${BACKEND_BASE}${url}`
 }

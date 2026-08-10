@@ -1,6 +1,8 @@
 # app/schemas/app_build.py
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
+from datetime import datetime
+from uuid import UUID
 from enum import Enum
 
 
@@ -14,7 +16,6 @@ class BuildStatus(str, Enum):
     PENDING = "pending"
     CONFIG_GENERATED = "config_generated"
     BUILDING = "building"
-    PAUSED = "paused"
     BUILT = "built"
     SUBMITTED = "submitted"
     PUBLISHED = "published"
@@ -33,29 +34,12 @@ class AppConfigUpdate(BaseModel):
     )
 
 
-class AppFilesStatus(BaseModel):
-    vendor_slug: Optional[str] = None
-    config_path: Optional[str] = None
-    icon_ready: bool = False
-    files_ready: bool = False
-    target_path: Optional[str] = None
-
-
 class AppConfigResponse(BaseModel):
     app_name: Optional[str] = None
     primary_color: Optional[str] = None
     icon_url: Optional[str] = None
     splash_color: Optional[str] = None
     bundle_id_suffix: Optional[str] = None
-    files: Optional[AppFilesStatus] = None
-
-    @classmethod
-    def from_service_dict(cls, data: dict) -> "AppConfigResponse":
-        payload = {k: v for k, v in data.items() if not str(k).startswith("_")}
-        files = data.get("_files") or data.get("files")
-        if files and isinstance(files, dict):
-            payload["files"] = AppFilesStatus(**files)
-        return cls(**payload)
 
 
 class TriggerBuildRequest(BaseModel):
@@ -109,12 +93,3 @@ class BuildResponse(BaseModel):
 class BuildListResponse(BaseModel):
     items: List[BuildResponse]
     total: int
-
-
-class BuildStatusUpdateBody(BaseModel):
-    status: str
-    eas_build_id_android: Optional[str] = None
-    eas_build_id_ios: Optional[str] = None
-    artifact_url_android: Optional[str] = None
-    artifact_url_ios: Optional[str] = None
-    error_message: Optional[str] = None
