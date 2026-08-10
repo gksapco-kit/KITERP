@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   View,
   Text,
@@ -54,12 +54,23 @@ export default function CheckoutScreen() {
   const [fullName, setFullName] = useState(customer?.full_name || '')
   const [email, setEmail] = useState(customer?.email || '')
   const [phone, setPhone] = useState(customer?.phone || '')
+  /** Delivery contact — autofill when account has phone (phone signup/login). */
+  const [shippingPhone, setShippingPhone] = useState(customer?.phone || '')
   const [street, setStreet] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [postalCode, setPostalCode] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi'>('cod')
   const [loading, setLoading] = useState(false)
+
+  const phoneDigits = (value: string) => value.replace(/\D/g, '')
+  const hasAccountPhone = !!(customer?.phone && phoneDigits(customer.phone).length >= 10)
+
+  useEffect(() => {
+    const accountPhone = customer?.phone?.trim()
+    if (!accountPhone) return
+    setShippingPhone((prev) => (prev.trim() ? prev : accountPhone))
+  }, [customer?.phone])
 
   const itemCount = useMemo(
     () => items.reduce((sum, i) => sum + (i.qty || 0), 0),
@@ -96,12 +107,20 @@ export default function CheckoutScreen() {
     if (!street.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
       return Alert.alert('Address needed', 'Fill in all shipping address fields')
     }
+    if (phoneDigits(shippingPhone).length < 10) {
+      return Alert.alert(
+        'Phone required',
+        hasAccountPhone
+          ? 'Enter a valid 10-digit delivery phone number'
+          : 'Add a phone number for delivery updates (required when you signed in with email)',
+      )
+    }
 
     if (!isAuthenticated) {
       if (!fullName.trim() || !email.trim()) {
         return Alert.alert('Error', 'Enter your name and email to continue as guest')
       }
-      if (phone.trim() && phone.trim().replace(/\D/g, '').length < 10) {
+      if (phone.trim() && phoneDigits(phone).length < 10) {
         return Alert.alert('Error', 'Phone must be at least 10 digits')
       }
     }
@@ -114,6 +133,7 @@ export default function CheckoutScreen() {
         state: state.trim(),
         postal_code: postalCode.trim(),
         country: 'India',
+        phone: shippingPhone.trim(),
       }
 
       if (isAuthenticated) {
@@ -129,7 +149,7 @@ export default function CheckoutScreen() {
         customer: {
           full_name: fullName.trim(),
           email: email.trim().toLowerCase(),
-          phone: phone.trim() || undefined,
+          phone: phone.trim() || shippingPhone.trim() || undefined,
         },
         items: items.map((i) => ({
           product_id: i.product_id,
@@ -349,7 +369,7 @@ export default function CheckoutScreen() {
               </Field>
             </View>
 
-            <Field label="Postal code" icon="pin-outline" style={{ marginBottom: 0 }}>
+            <Field label="Postal code" icon="pin-outline">
               <TextInput
                 placeholder="6-digit PIN"
                 placeholderTextColor={BRAND.textMuted}
@@ -360,6 +380,31 @@ export default function CheckoutScreen() {
                 maxLength={10}
               />
             </Field>
+
+            <Field
+              label={hasAccountPhone ? 'Phone number' : 'Phone number (required)'}
+              icon="call-outline"
+              style={{ marginBottom: 0 }}
+            >
+              <TextInput
+                placeholder={
+                  hasAccountPhone
+                    ? 'Delivery phone'
+                    : 'Required for delivery updates'
+                }
+                placeholderTextColor={BRAND.textMuted}
+                value={shippingPhone}
+                onChangeText={setShippingPhone}
+                keyboardType="phone-pad"
+                style={styles.input}
+                autoComplete="tel"
+              />
+            </Field>
+            {isAuthenticated && !hasAccountPhone ? (
+              <Text style={styles.phoneHint}>
+                You signed in with email — add a phone number so we can contact you about this delivery.
+              </Text>
+            ) : null}
           </View>
 
           <View style={styles.card}>
@@ -522,6 +567,12 @@ const styles = StyleSheet.create({
   signInAccent: { color: BRAND.primaryDark, fontWeight: '800' },
   signedName: { fontSize: 15, fontWeight: '700', color: BRAND.text, marginTop: 4 },
   signedMeta: { fontSize: 13, color: BRAND.textMuted, marginTop: 2 },
+  phoneHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: BRAND.textMuted,
+    lineHeight: 17,
+  },
   method: {
     flexDirection: 'row',
     alignItems: 'center',

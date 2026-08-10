@@ -6,18 +6,28 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
-  Image,
 } from 'react-native'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { storeApi } from '../../api/store'
 import { formatCurrency, formatDate } from '../../lib/utils'
-import { mediaUrl } from '../../lib/mediaUrl'
 import { BRAND } from '../../utils/theme'
 import type { Order } from '../../types'
 
 const steps = ['pending', 'confirmed', 'shipped', 'delivered']
+
+function prettyStatus(value?: string | null) {
+  if (!value) return '—'
+  return value.replace(/_/g, ' ').trim()
+}
+
+function methodLabel(method: string) {
+  if (method === 'upi') return 'UPI'
+  if (method === 'cod') return 'Cash on Delivery'
+  if (!method) return 'Not specified'
+  return method.toUpperCase()
+}
 
 export default function CustomerOrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -56,143 +66,179 @@ export default function CustomerOrderDetail() {
     )
   }
   if (!order) {
-    return <Text style={styles.notFound}>Order not found</Text>
+    return (
+      <View style={styles.center}>
+        <Text style={styles.notFound}>Order not found</Text>
+      </View>
+    )
   }
 
   const currentStep = steps.indexOf(order.status)
-  const proofImg = mediaUrl(order.payment_proof?.screenshot_url)
   const method = (order.payment_method || '').toLowerCase()
+  const paid = (order.payment_status || '').toLowerCase() === 'paid'
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <ScrollView
-        contentContainerStyle={{ padding: 16 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true)
-              void fetchOrder({ silent: true })
-            }}
-            tintColor={BRAND.primary}
-            colors={[BRAND.primary]}
-          />
-        }
-      >
-        <View style={styles.card}>
-          <Text style={styles.orderNo}>{order.order_number}</Text>
-          <Text style={styles.date}>{formatDate(order.created_at)}</Text>
-          <Text style={styles.syncHint}>Pull down to sync status from the store</Text>
-          {order.status === 'cancelled' ? (
-            <View style={styles.cancelled}>
-              <Text style={{ color: BRAND.danger, fontWeight: '700' }}>Cancelled</Text>
-            </View>
-          ) : (
-            <View style={styles.steps}>
-              {steps.map((s, i) => (
-                <View key={s} style={{ alignItems: 'center', flex: 1 }}>
-                  <View
-                    style={[
-                      styles.dot,
-                      { backgroundColor: i <= currentStep ? BRAND.primary : BRAND.border },
-                    ]}
-                  >
-                    {i <= currentStep && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      marginTop: 4,
-                      textTransform: 'capitalize',
-                      color: i <= currentStep ? BRAND.primary : BRAND.textMuted,
-                      fontWeight: '600',
-                    }}
-                  >
-                    {s}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.section}>Payment</Text>
-          <View style={styles.payRow}>
-            <Ionicons
-              name={method === 'upi' ? 'qr-code-outline' : 'cash-outline'}
-              size={18}
-              color={BRAND.primaryDark}
+      <View style={styles.screenFill}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true)
+                void fetchOrder({ silent: true })
+              }}
+              tintColor={BRAND.primary}
+              colors={[BRAND.primary]}
             />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.payMethod}>
-                {method === 'upi' ? 'UPI' : method === 'cod' ? 'Cash on Delivery' : method || '—'}
-              </Text>
-              <Text style={styles.payStatus}>
-                Status: {order.payment_status || '—'}
-              </Text>
-            </View>
-          </View>
-          {!!order.payment_proof?.utr && (
-            <Text style={styles.utr}>UTR / Transaction ID: {order.payment_proof.utr}</Text>
-          )}
-          {!!order.payment_proof?.status && (
-            <Text style={styles.utr}>Proof: {order.payment_proof.status}</Text>
-          )}
-          {!!proofImg && (
-            <Image source={{ uri: proofImg }} style={styles.proofImg} resizeMode="cover" />
-          )}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.section}>Items</Text>
-          {order.items.map((item, i) => (
-            <View
-              key={i}
-              style={[
-                styles.itemRow,
-                i < order.items.length - 1 && { borderBottomWidth: 1, borderColor: '#f3f4f6' },
-              ]}
-            >
-              <View>
-                <Text style={{ fontWeight: '600' }}>{item.name}</Text>
-                <Text style={{ fontSize: 12, color: BRAND.textMuted }}>Qty: {item.qty}</Text>
-              </View>
-              <Text style={{ fontWeight: '700' }}>{formatCurrency(item.price * item.qty)}</Text>
-            </View>
-          ))}
-          <View style={styles.totalRow}>
-            <Text style={{ fontWeight: '800' }}>Total</Text>
-            <Text style={{ fontWeight: '800', color: BRAND.primaryDark }}>
-              {formatCurrency(order.total)}
-            </Text>
-          </View>
-        </View>
-
-        {order.shipping_address && (
+          }
+        >
           <View style={styles.card}>
-            <Text style={styles.section}>Shipping address</Text>
-            <Text style={{ color: '#4b5563' }}>{order.shipping_address.street_address}</Text>
-            <Text style={{ color: '#4b5563' }}>
-              {order.shipping_address.city}, {order.shipping_address.state}{' '}
-              {order.shipping_address.postal_code}
-            </Text>
+            <Text style={styles.orderNo}>{order.order_number}</Text>
+            <Text style={styles.date}>{formatDate(order.created_at)}</Text>
+            <Text style={styles.syncHint}>Pull down to sync status from the store</Text>
+            {order.status === 'cancelled' ? (
+              <View style={styles.cancelled}>
+                <Text style={{ color: BRAND.danger, fontWeight: '700' }}>Cancelled</Text>
+              </View>
+            ) : (
+              <View style={styles.steps}>
+                {steps.map((s, i) => (
+                  <View key={s} style={styles.stepItem}>
+                    <View
+                      style={[
+                        styles.dot,
+                        { backgroundColor: i <= currentStep ? BRAND.primary : BRAND.border },
+                      ]}
+                    >
+                      {i <= currentStep ? (
+                        <Text style={styles.dotCheck}>✓</Text>
+                      ) : null}
+                    </View>
+                    <Text
+                      style={[
+                        styles.stepLabel,
+                        { color: i <= currentStep ? BRAND.primary : BRAND.textMuted },
+                      ]}
+                    >
+                      {s}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
-        )}
-      </ScrollView>
+
+          <View style={styles.card}>
+            <Text style={styles.section}>Payment details</Text>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Payment method</Text>
+              <View style={styles.methodChip}>
+                <Ionicons
+                  name={method === 'upi' ? 'qr-code-outline' : 'cash-outline'}
+                  size={16}
+                  color={BRAND.primaryDark}
+                />
+                <Text style={styles.methodChipText}>{methodLabel(method)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Payment status</Text>
+              <Text style={[styles.infoValue, paid && styles.infoValueOk]}>
+                {prettyStatus(order.payment_status)}
+              </Text>
+            </View>
+
+            {!!order.payment_proof?.utr && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>UTR / Transaction ID</Text>
+                <Text style={styles.infoValueMono} selectable>
+                  {order.payment_proof.utr}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.section}>Items</Text>
+            {order.items.map((item, i) => (
+              <View
+                key={`${item.name}-${i}`}
+                style={[
+                  styles.itemRow,
+                  i < order.items.length - 1 && styles.itemRowBorder,
+                ]}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemQty}>Qty: {item.qty}</Text>
+                </View>
+                <Text style={styles.itemPrice}>
+                  {formatCurrency(item.price * item.qty)}
+                </Text>
+              </View>
+            ))}
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>{formatCurrency(order.total)}</Text>
+            </View>
+          </View>
+
+          {order.shipping_address ? (
+            <View style={styles.card}>
+              <Text style={styles.section}>Shipping address</Text>
+              <Text style={styles.addressLine}>{order.shipping_address.street_address}</Text>
+              <Text style={styles.addressLine}>
+                {order.shipping_address.city}, {order.shipping_address.state}{' '}
+                {order.shipping_address.postal_code}
+              </Text>
+              {!!order.shipping_address.phone && (
+                <Text style={styles.addressLine}>Phone: {order.shipping_address.phone}</Text>
+              )}
+            </View>
+          ) : null}
+        </ScrollView>
+      </View>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BRAND.bg },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  root: {
+    flex: 1,
+    backgroundColor: BRAND.bg,
+  },
+  screenFill: {
+    flex: 1,
+    backgroundColor: BRAND.bg,
+  },
+  scroll: {
+    flex: 1,
+    backgroundColor: BRAND.bg,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 16,
+    paddingBottom: 32,
+    backgroundColor: BRAND.bg,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: BRAND.bg,
+  },
   notFound: { textAlign: 'center', padding: 32, color: BRAND.textMuted },
   card: {
-    backgroundColor: BRAND.card,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: BRAND.border,
   },
@@ -200,7 +246,8 @@ const styles = StyleSheet.create({
   date: { color: BRAND.textMuted, marginBottom: 6 },
   syncHint: { fontSize: 11, color: BRAND.textMuted, marginBottom: 14 },
   cancelled: { backgroundColor: BRAND.dangerSoft, padding: 12, borderRadius: 10 },
-  steps: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  steps: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  stepItem: { alignItems: 'center', flex: 1 },
   dot: {
     width: 24,
     height: 24,
@@ -208,29 +255,77 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  section: { fontWeight: '700', marginBottom: 12, color: BRAND.text },
-  payRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  payMethod: { fontWeight: '700', color: BRAND.text, fontSize: 15 },
-  payStatus: { marginTop: 2, fontSize: 12, color: BRAND.textMuted, textTransform: 'capitalize' },
-  utr: { marginTop: 10, fontSize: 13, color: BRAND.textMuted },
-  proofImg: {
-    marginTop: 12,
-    width: '100%',
-    height: 180,
+  dotCheck: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  stepLabel: {
+    fontSize: 10,
+    marginTop: 4,
+    textTransform: 'capitalize',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  section: { fontWeight: '800', marginBottom: 14, color: BRAND.text, fontSize: 16 },
+  infoRow: {
+    marginBottom: 14,
+  },
+  infoLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: BRAND.textMuted,
+    marginBottom: 6,
+  },
+  infoValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: BRAND.text,
+    textTransform: 'capitalize',
+    lineHeight: 22,
+  },
+  infoValueMono: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: BRAND.text,
+    lineHeight: 22,
+  },
+  infoValueOk: { color: BRAND.primaryDark },
+  methodChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: BRAND.primarySoft,
+    borderWidth: 1,
+    borderColor: BRAND.primary,
     borderRadius: 12,
-    backgroundColor: '#EEF2F0',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  methodChipText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '700',
+    color: BRAND.text,
+    flexShrink: 1,
   },
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
+  itemRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  itemName: { fontWeight: '600', color: BRAND.text },
+  itemQty: { fontSize: 12, color: BRAND.textMuted, marginTop: 2 },
+  itemPrice: { fontWeight: '700', color: BRAND.text },
   totalRow: {
     borderTopWidth: 1,
     borderColor: BRAND.border,
-    marginTop: 12,
+    marginTop: 8,
     paddingTop: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  totalLabel: { fontWeight: '800', color: BRAND.text },
+  totalValue: { fontWeight: '800', color: BRAND.primaryDark },
+  addressLine: { color: '#4B5563', lineHeight: 20 },
 })

@@ -10,7 +10,13 @@ export interface Customer {
 }
 
 export interface Address {
-  street_address: string; city: string; state: string; postal_code: string; country: string; label?: string
+  street_address: string
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  label?: string
+  phone?: string
 }
 
 export interface Vendor {

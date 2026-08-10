@@ -29,6 +29,10 @@ export default function LoginScreen() {
   const { setVendorAuth, setCustomerAuth } = useAuthStore()
   const branded = isBrandedApp()
   const [role, setSelectedRole] = useState<Role>(branded ? 'customer' : 'vendor')
+
+  useEffect(() => {
+    if (branded) setSelectedRole('customer')
+  }, [branded])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -167,54 +171,22 @@ export default function LoginScreen() {
           <View style={styles.hero}>
             <View style={styles.heroIcon}>
               <Ionicons
-                name={role === 'vendor' ? 'briefcase-outline' : 'leaf'}
+                name={branded || role === 'customer' ? 'leaf' : 'briefcase-outline'}
                 size={26}
                 color={BRAND.primaryDark}
               />
             </View>
             <Text style={styles.heroTitle}>
-              {branded
-                ? role === 'vendor'
-                  ? 'Staff login'
-                  : `Welcome back`
-                : 'Welcome to KITERP'}
+              {branded ? 'Welcome back' : 'Welcome to KITERP'}
             </Text>
             <Text style={styles.heroSub}>
-              {role === 'vendor'
-                ? 'Sign in to manage orders and store settings'
-                : branded
-                  ? `Sign in to ${storeName} to track orders and checkout faster`
+              {branded
+                ? `Sign in to ${storeName} to track orders and checkout faster`
+                : role === 'vendor'
+                  ? 'Sign in to manage orders and store settings'
                   : 'Sign in to continue'}
             </Text>
           </View>
-
-          {branded && (
-            <View style={styles.segment}>
-              {([
-                { key: 'customer' as Role, label: 'Customer', icon: 'person-outline' as const },
-                { key: 'vendor' as Role, label: 'Staff', icon: 'briefcase-outline' as const },
-              ]).map((opt) => {
-                const active = role === opt.key
-                return (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[styles.segmentBtn, active && styles.segmentBtnActive]}
-                    onPress={() => setSelectedRole(opt.key)}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons
-                      name={opt.icon}
-                      size={16}
-                      color={active ? '#fff' : BRAND.textMuted}
-                    />
-                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-          )}
 
           {!branded && (
             <View style={styles.segment}>
@@ -238,7 +210,7 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {role === 'customer' && branded && (
+          {branded && (
             <View style={styles.storePill}>
               {resolving ? (
                 <ActivityIndicator color={BRAND.primaryDark} size="small" />

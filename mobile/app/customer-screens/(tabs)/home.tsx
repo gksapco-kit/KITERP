@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -48,9 +48,21 @@ export default function CustomerHome() {
   const [categories, setCategories] = useState<StoreCategory[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [storeName, setStoreName] = useState(vendorInfo?.display_name || 'Store')
+  const searchInputRef = useRef<TextInput>(null)
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    setSearch('')
+  }, [])
+
+  const openSearch = useCallback(() => {
+    setSearchOpen(true)
+    requestAnimationFrame(() => searchInputRef.current?.focus())
+  }, [])
 
   const refreshCartCount = useCallback(async () => {
     await loadCart(isAuthenticated).catch(() => undefined)
@@ -123,22 +135,81 @@ export default function CustomerHome() {
       >
         {/* Header */}
         <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>Welcome to</Text>
-            <Text style={styles.storeTitle} numberOfLines={1}>{storeName}</Text>
-            <Text style={styles.hello}>Hello, {greeting}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.cartBtn}
-            onPress={() => router.push('/customer-screens/cart')}
-          >
-            <Ionicons name="bag-handle-outline" size={22} color={BRAND.white} />
-            {cartItemCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{cartItemCount > 9 ? '9+' : cartItemCount}</Text>
+          {searchOpen ? (
+            <View style={styles.headerSearchWrap}>
+              <View style={styles.headerSearchBox}>
+                <Ionicons name="search-outline" size={18} color={BRAND.textMuted} />
+                <TextInput
+                  ref={searchInputRef}
+                  placeholder="Search plants, pots, tools…"
+                  placeholderTextColor={BRAND.textMuted}
+                  value={search}
+                  onChangeText={setSearch}
+                  style={styles.headerSearchInput}
+                  returnKeyType="search"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                />
+                {search.length > 0 ? (
+                  <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+                    <Ionicons name="close-circle" size={18} color={BRAND.textMuted} />
+                  </TouchableOpacity>
+                ) : null}
               </View>
-            )}
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.searchCancelBtn} onPress={closeSearch} hitSlop={8}>
+                <Text style={styles.searchCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.headerBrand}>
+              <Text style={styles.eyebrow}>Welcome to</Text>
+              <Text style={styles.storeTitle} numberOfLines={1}>
+                {storeName}
+              </Text>
+              <Text style={styles.hello}>Hello, {greeting}</Text>
+            </View>
+          )}
+
+          {!searchOpen ? (
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={openSearch}
+                accessibilityLabel="Search"
+              >
+                <Ionicons name="search-outline" size={22} color={BRAND.primaryDark} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cartBtn}
+                onPress={() => router.push('/customer-screens/cart')}
+                accessibilityLabel="Cart"
+              >
+                <Ionicons name="bag-handle-outline" size={22} color={BRAND.white} />
+                {cartItemCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {cartItemCount > 9 ? '9+' : cartItemCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.cartBtnCompact}
+              onPress={() => router.push('/customer-screens/cart')}
+              accessibilityLabel="Cart"
+            >
+              <Ionicons name="bag-handle-outline" size={20} color={BRAND.white} />
+              {cartItemCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {cartItemCount > 9 ? '9+' : cartItemCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Promo banner */}
@@ -154,23 +225,6 @@ export default function CustomerHome() {
           >
             <Text style={styles.bannerCtaText}>Shop now</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Search */}
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={20} color={BRAND.textMuted} />
-          <TextInput
-            placeholder="Search plants, pots, tools…"
-            placeholderTextColor={BRAND.textMuted}
-            value={search}
-            onChangeText={setSearch}
-            style={styles.searchInput}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={BRAND.textMuted} />
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Categories */}
@@ -301,18 +355,69 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 28 },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: H_PAD,
     paddingTop: 8,
     marginBottom: 16,
+    gap: 10,
+    minHeight: 56,
   },
+  headerBrand: { flex: 1, minWidth: 0, paddingRight: 4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerSearchWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0,
+  },
+  headerSearchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: BRAND.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    paddingHorizontal: 12,
+    height: 44,
+    minWidth: 0,
+  },
+  headerSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: BRAND.text,
+    paddingVertical: 0,
+    minWidth: 0,
+  },
+  searchCancelBtn: { paddingVertical: 8, paddingHorizontal: 2 },
+  searchCancelText: { fontSize: 14, fontWeight: '600', color: BRAND.primaryDark },
   eyebrow: { fontSize: 12, color: BRAND.textMuted, fontWeight: '600', letterSpacing: 0.4 },
   storeTitle: { fontSize: 22, fontWeight: '800', color: BRAND.text, marginTop: 2 },
   hello: { fontSize: 13, color: BRAND.textMuted, marginTop: 4 },
+  iconBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: BRAND.card,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   cartBtn: {
     width: 46,
     height: 46,
     borderRadius: 14,
+    backgroundColor: BRAND.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartBtnCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: BRAND.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -345,7 +450,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 8,
   },
-  bannerTitle: { color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 8 },
+  bannerTitle: { color: '#fff', fontSize: 26, fontWeight: '700', marginBottom: 8 },
   bannerSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, lineHeight: 19, marginBottom: 16 },
   bannerCta: {
     alignSelf: 'flex-start',
@@ -355,20 +460,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   bannerCtaText: { color: BRAND.primaryDark, fontWeight: '700', fontSize: 14 },
-  searchBox: {
-    marginHorizontal: H_PAD,
-    backgroundColor: BRAND.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BRAND.border,
-    paddingHorizontal: 14,
-    height: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 18,
-  },
-  searchInput: { flex: 1, fontSize: 15, color: BRAND.text, paddingVertical: 0 },
   sectionHeader: {
     paddingHorizontal: H_PAD,
     flexDirection: 'row',

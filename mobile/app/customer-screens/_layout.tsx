@@ -37,7 +37,9 @@ export default function CustomerLayout() {
         headerTitleStyle: { fontWeight: '700' },
         headerShadowVisible: false,
         headerBackVisible: false,
-        contentStyle: { backgroundColor: BRAND.bg },
+        contentStyle: { backgroundColor: BRAND.bg, flex: 1 },
+        animation: 'slide_from_right',
+        freezeOnBlur: true,
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -53,6 +55,8 @@ export default function CustomerLayout() {
         options={{
           title: 'Checkout',
           headerLeft: () => <HeaderBack fallback="/customer-screens/(tabs)/cart" />,
+          // Avoid checkout UI ghosting under later screens on Android
+          unmountOnBlur: true,
         }}
       />
       <Stack.Screen
@@ -60,17 +64,19 @@ export default function CustomerLayout() {
         options={{
           title: 'UPI Payment',
           headerLeft: () => <HeaderBack fallback="/customer-screens/(tabs)/cart" />,
+          unmountOnBlur: true,
         }}
       />
       <Stack.Screen
         name="order-success"
-        options={{ title: 'Order placed', headerLeft: () => null }}
+        options={{ title: 'Order placed', headerLeft: () => null, unmountOnBlur: true }}
       />
       <Stack.Screen
         name="order-detail"
         options={{
           title: 'Order Detail',
           headerLeft: () => <HeaderBack fallback="/customer-screens/(tabs)/orders" />,
+          contentStyle: { backgroundColor: BRAND.bg, flex: 1 },
         }}
       />
     </Stack>

@@ -319,12 +319,16 @@ export default function OrderSuccessScreen() {
         {!!orderId && (
           <TouchableOpacity
             style={styles.secondary}
-            onPress={() =>
+            onPress={() => {
+              // Clear checkout/UPI from the stack so their UI cannot ghost under order detail
+              if (typeof (router as any).dismissAll === 'function') {
+                ;(router as any).dismissAll()
+              }
               router.replace({
                 pathname: '/customer-screens/order-detail',
                 params: { id: orderId },
               })
-            }
+            }}
           >
             <Text style={styles.secondaryText}>View order status</Text>
           </TouchableOpacity>
