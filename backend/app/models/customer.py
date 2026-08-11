@@ -18,6 +18,8 @@ class Customer(Base):
     # Business unit this storefront account belongs to. NULL = legacy vendor-wide
     # (shared/global site with no active BU). Each BU website has its own accounts.
     store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Default sales area for this customer (orders/invoices inherit when unset).
+    sales_area_id = Column(UUID(as_uuid=True), ForeignKey("sales_area.id", ondelete="SET NULL"), nullable=True, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=True)
 
     # Profile

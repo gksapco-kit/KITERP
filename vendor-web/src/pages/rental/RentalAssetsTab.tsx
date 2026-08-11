@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Calendar, MapPin, Package, Pencil, Plus, Search, X } from 'lucide-react'
+import { Calendar, Layers, MapPin, Package, Pencil, Plus, Search, Tag, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -141,6 +141,18 @@ export default function RentalAssetsTab({
                     <span>Route · {salesAreaLabelById.get(a.sales_area_id)}</span>
                   )}
                   {a.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{a.location}</span>}
+                  {a.unit_mode === 'hierarchy' && (a.child_count ?? 0) > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-sky-700 dark:text-sky-300">
+                      <Layers className="h-3 w-3" />
+                      {a.child_count} sub-asset{a.child_count === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  {a.unit_mode === 'serialized' && (a.unit_count ?? 0) > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-700 dark:text-violet-300">
+                      <Tag className="h-3 w-3" />
+                      {a.unit_count} unit{a.unit_count === 1 ? '' : 's'}
+                    </span>
+                  )}
                 </div>
                 <div className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${
                   availability.kind === 'range'

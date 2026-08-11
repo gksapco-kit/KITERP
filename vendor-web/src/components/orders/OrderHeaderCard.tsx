@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime, formatDate, mediaUrl } from '@/lib/utils'
 import type { Order } from '@/types'
 import { MetricTile } from './OrderDetailPrimitives'
+import { useSalesAreas } from '@/hooks/useVendor'
 
 const statusTimeline = [
   { key: 'pending', label: 'Pending', icon: Clock },
@@ -106,6 +107,16 @@ export function OrderHeaderCard({
   const currentStepIdx = activeTimeline.findIndex((s) => s.key === order.status)
   const SourceIcon = orderSourceIcon(order.source)
   const placedBy = resolvePlacedBy(order)
+  const { data: salesAreaData } = useSalesAreas({ is_active: true })
+  const salesAreaLabel = (() => {
+    if (!order.sales_area_id) return null
+    const area = (salesAreaData?.sales_areas ?? []).find((a) => a.id === order.sales_area_id)
+    if (!area) return null
+    const code = (area.code || '').trim()
+    const name = (area.name || '').trim()
+    if (name && code) return `${name} (${code})`
+    return name || code || null
+  })()
 
   return (
     <div className="rounded-xl border bg-card shadow-sm shrink-0 overflow-hidden">
@@ -191,6 +202,9 @@ export function OrderHeaderCard({
           sub={order.store_name || undefined}
           icon={SourceIcon}
         />
+        {salesAreaLabel && (
+          <MetricTile label="Sales area" value={salesAreaLabel} />
+        )}
         <MetricTile
           label="Placed by"
           value={placedBy.name}

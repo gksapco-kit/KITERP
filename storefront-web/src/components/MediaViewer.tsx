@@ -40,8 +40,8 @@ interface MediaViewerProps {
 
 const STAGE_LAYOUT: Record<MediaViewerLayout, { stage: string; image: string; video: string }> = {
   detail: {
-    stage: 'aspect-square w-full max-w-[640px] mx-auto lg:mx-0',
-    image: 'object-cover',
+    stage: 'aspect-square w-full max-w-[280px] sm:max-w-[360px] lg:max-w-[400px] mx-auto lg:mx-0',
+    image: 'object-contain',
     video: 'object-contain',
   },
   square: {
@@ -341,7 +341,7 @@ export default function MediaViewer({
     <div
       className={cn(
         useLeftThumbs
-          ? 'flex flex-row gap-2 shrink-0 overflow-x-auto pb-1 scrollbar-hide md:flex-col md:max-h-[640px] md:overflow-y-auto md:overflow-x-hidden md:pb-0 md:pr-0.5 md:scrollbar-thin'
+          ? 'flex flex-row gap-2 shrink-0 overflow-x-auto pb-1 scrollbar-hide md:flex-col md:max-h-[400px] md:overflow-y-auto md:overflow-x-hidden md:pb-0 md:pr-0.5 md:scrollbar-thin'
           : 'flex gap-2 overflow-x-auto scrollbar-hide pb-1',
       )}
     >

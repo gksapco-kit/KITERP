@@ -35,6 +35,7 @@ def _inv_dict(inv) -> dict:
         "id": str(inv.id), "vendor_id": str(inv.vendor_id),
         "store_id": str(inv.store_id) if getattr(inv, "store_id", None) else None,
         "customer_id": str(inv.customer_id) if inv.customer_id else None,
+        "sales_area_id": str(inv.sales_area_id) if getattr(inv, "sales_area_id", None) else None,
         "order_id": str(inv.order_id) if inv.order_id else None,
         "order_number": getattr(inv, "order_number", None),
         "booking_id": str(inv.booking_id) if getattr(inv, "booking_id", None) else None,

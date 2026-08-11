@@ -190,6 +190,36 @@ async def ensure_customer_store_id_column() -> None:
     logger.info("ensure_customer_store_id_column: customer.store_id ready")
 
 
+async def ensure_customer_sales_area_column() -> None:
+    """Default sales area on customer master (orders/invoices inherit when unset)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "ALTER TABLE customer ADD COLUMN IF NOT EXISTS sales_area_id UUID"
+        ))
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'sales_area')
+                   AND NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'fk_customer_sales_area_id'
+                   ) THEN
+                    ALTER TABLE customer
+                    ADD CONSTRAINT fk_customer_sales_area_id
+                    FOREIGN KEY (sales_area_id) REFERENCES sales_area(id) ON DELETE SET NULL;
+                END IF;
+            END $$;
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_customer_sales_area_id ON customer (sales_area_id)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_customer_vendor_sales_area ON customer (vendor_id, sales_area_id)"
+        ))
+    logger.info("ensure_customer_sales_area_column: customer.sales_area_id ready")
+
+
 async def ensure_user_platform_staff_role_column() -> None:
     """Add user columns/indexes the SQLAlchemy model expects but older DBs may lack (avoids 500 on auth).
 

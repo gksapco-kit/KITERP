@@ -95,6 +95,34 @@ def service_available_at_store(store_id: UUID):
     )
 
 
+def rental_asset_available_at_store(store_id: UUID):
+    """SQLAlchemy filter: rental asset visible at the given business unit."""
+    from app.models.rental import RentalAsset, RentalAssetStore
+    assigned = select(RentalAssetStore.asset_id).where(RentalAssetStore.store_id == store_id)
+    return or_(
+        RentalAsset.store_scope.in_(("all", None)),
+        RentalAsset.id.in_(assigned),
+    )
+
+
+async def sync_rental_asset_stores(
+    db: AsyncSession,
+    vendor_id: UUID,
+    asset_id: UUID,
+    store_scope: StoreScope,
+    store_ids: Optional[list[str]],
+) -> None:
+    from app.models.rental import RentalAssetStore
+    await db.execute(delete(RentalAssetStore).where(RentalAssetStore.asset_id == asset_id))
+    if store_scope != "selected":
+        return
+    validated = await validate_store_ids(db, vendor_id, store_ids or [])
+    if not validated:
+        raise HTTPException(400, "Select at least one business unit when scope is 'selected'")
+    for sid in validated:
+        db.add(RentalAssetStore(vendor_id=vendor_id, asset_id=asset_id, store_id=sid))
+
+
 async def resolve_store_id(
     db: AsyncSession,
     vendor_id: UUID,

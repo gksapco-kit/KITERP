@@ -160,6 +160,10 @@ async def ensure_default_store_if_missing(
     )
     if (r.scalar_one() or 0) > 0:
         return False
+    from app.models.vendor import Vendor
+    from app.utils.vendor_address import store_address_from_vendor
+
+    vendor = await db.get(Vendor, vendor_id)
     code = await allocate_default_business_store_code(db, vendor_id)
     name = (location_name or "Main location").strip()[:200] or "Main location"
     db.add(
@@ -168,7 +172,7 @@ async def ensure_default_store_if_missing(
             name=name,
             code=code,
             description=None,
-            address={},
+            address=store_address_from_vendor(vendor) if vendor else {},
             is_default=True,
             is_active=True,
             is_open=True,

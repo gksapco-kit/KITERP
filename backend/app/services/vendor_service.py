@@ -117,6 +117,7 @@ class VendorService:
 
         from app.models.store import Store
         from app.utils.store_codes import allocate_default_business_store_code
+        from app.utils.vendor_address import store_address_from_vendor
 
         await self.db.flush()
         store_code = await allocate_default_business_store_code(self.db, vendor.id)
@@ -125,7 +126,7 @@ class VendorService:
             name=(vendor.display_name or vendor.business_name or "")[:200] or "Main location",
             code=store_code,
             description=None,
-            address={},
+            address=store_address_from_vendor(vendor),
             is_default=True,
             is_active=True,
         )

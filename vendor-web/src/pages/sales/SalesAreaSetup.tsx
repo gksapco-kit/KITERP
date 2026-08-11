@@ -655,8 +655,8 @@ function SalesAreasTab() {
                   const branchLabel = formatBranchLabel(a)
                   return (
                     <tr key={a.id} className="hover:bg-gray-50/80">
-                      <SalesAreaTruncCell title={a.code || a.name || undefined} className="font-mono font-medium text-foreground">
-                        {a.code || a.name || '—'}
+                      <SalesAreaTruncCell title={a.name || a.code || undefined} className="font-medium text-foreground">
+                        {a.name || a.code || '—'}
                       </SalesAreaTruncCell>
                       <SalesAreaTruncCell title={buLabel} className="font-medium text-foreground">
                         {buLabel}

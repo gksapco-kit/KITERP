@@ -9,7 +9,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy import select, func, update
+from sqlalchemy import select, func, update, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -563,11 +563,15 @@ async def list_sales_areas(
     q = select(SalesArea).where(SalesArea.vendor_id == vendor_id)
     if business_unit_id:
         bu_uuid = UUID(business_unit_id)
-        branch_rows = await db.execute(select(Store.id).where(Store.parent_id == bu_uuid))
+        branch_rows = await db.execute(
+            select(Store.id).where(Store.parent_id == bu_uuid, Store.vendor_id == vendor_id)
+        )
         scope_ids = [bu_uuid, *branch_rows.scalars().all()]
         q = q.where(SalesArea.business_unit_id.in_(scope_ids))
-    if is_active is not None:
-        q = q.where(SalesArea.is_active == is_active)
+    if is_active is True:
+        q = q.where(or_(SalesArea.is_active.is_(True), SalesArea.is_active.is_(None)))
+    elif is_active is False:
+        q = q.where(SalesArea.is_active.is_(False))
     q = q.order_by(SalesArea.is_default.desc(), SalesArea.created_at)
     result = await db.execute(q)
     areas = result.scalars().all()
@@ -633,6 +637,7 @@ async def create_sales_area(
         division_id=dv.id,
         code=code,
         name=explicit_name or auto_name,
+        is_active=True,
         is_default=bool(data.is_default),
     )
     db.add(sales_area)

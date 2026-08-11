@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/authStore'
 import type { VendorRole } from '@/types'
 import { cn } from '@/lib/utils'
 import { PERMISSION_MODULE_ICONS, PERMISSION_MODULE_LABELS } from '@/lib/permissionModules'
+import { INTERNAL_ROLE_SLUGS, humanizeRoleSlug } from '@/lib/vendorRoles'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 const BUILTIN_ROLE_STYLES: Record<string, { container: string; header: string }> = {
@@ -125,6 +126,7 @@ export default function RolesPage() {
   const [editRole, setEditRole] = useState<VendorRole | null>(null)
   const [expandedRole, setExpandedRole] = useState<string | null>(null)
   const [expandedBuiltIn, setExpandedBuiltIn] = useState<string | null>(null)
+  const [customGrantedOnly, setCustomGrantedOnly] = useState(false)
 
   // Auto-expand built-in roles — runs whenever the URL params change (handles
   // navigating from team page to the same /roles route without remounting).
@@ -149,7 +151,8 @@ export default function RolesPage() {
   const roles = rolesData?.roles || []
   const allPerms = permData?.permissions || {}
   const allPermsList = permData?.all || []
-  const defaultRoles = (defaultsData?.roles || []) as { name: string; permissions: string[] }[]
+  const defaultRoles = ((defaultsData?.roles || []) as { name: string; permissions: string[] }[])
+    .filter((r) => !INTERNAL_ROLE_SLUGS.includes(r.name))
 
   const canManageRoles = user?.vendor_role?.permissions?.includes('roles.manage')
 
@@ -267,7 +270,7 @@ export default function RolesPage() {
                 <div className="flex items-center gap-3">
                   {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
                   <Shield className={cn('w-4 h-4', styles.header)} />
-                  <span className={cn('font-medium capitalize', styles.header)}>{dr.name}</span>
+                  <span className={cn('font-medium', styles.header)}>{humanizeRoleSlug(dr.name)}</span>
                 </div>
                 <span className="text-xs text-muted-foreground">
                   {permCount === allPermsList.length ? 'All permissions' : `${permCount} of ${allPermsList.length} permissions`}
@@ -317,7 +320,20 @@ export default function RolesPage() {
 
       {/* Custom Roles List */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">Custom Roles</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-foreground">Custom Roles</h2>
+          {roles.length > 0 && (
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={customGrantedOnly}
+                onChange={(e) => setCustomGrantedOnly(e.target.checked)}
+                className="rounded border-input text-primary focus:ring-primary/20"
+              />
+              Only show apps this role can access
+            </label>
+          )}
+        </div>
         {isLoading ? (
           <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
             Loading roles...
@@ -389,7 +405,7 @@ export default function RolesPage() {
                     {Object.entries(allPerms).map(([module, perms]) => {
                       const modulePerms = (perms as { key: string; action: string }[]).map((p) => p.key)
                       const hasAny = modulePerms.some((p) => role.permissions.includes(p))
-                      if (!hasAny) return null
+                      if (customGrantedOnly && !hasAny) return null
                       const Icon = MODULE_ICONS[module] || Shield
                       return (
                         <div key={module} className="bg-card rounded-lg border border-border p-3">
@@ -403,9 +419,15 @@ export default function RolesPage() {
                                 {role.permissions.includes(p.key) ? (
                                   <Check className="w-3 h-3 text-green-500 dark:text-green-400" />
                                 ) : (
-                                  <X className="w-3 h-3 text-muted-foreground/50" />
+                                  <X className="w-3 h-3 text-red-400 dark:text-red-300" />
                                 )}
-                                <span className={role.permissions.includes(p.key) ? 'text-foreground' : 'text-muted-foreground'}>
+                                <span
+                                  className={cn(
+                                    role.permissions.includes(p.key)
+                                      ? 'text-foreground'
+                                      : 'text-muted-foreground line-through',
+                                  )}
+                                >
                                   {p.action}
                                 </span>
                               </div>
@@ -466,10 +488,10 @@ export default function RolesPage() {
                   >
                     <option value="">— Start blank —</option>
                     {defaultRoles
-                      .filter((r) => !['owner', 'platform_staff'].includes(r.name))
+                      .filter((r) => r.name !== 'owner')
                       .map((r) => (
                         <option key={r.name} value={r.name}>
-                          {r.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} ({r.permissions.length} permissions)
+                          {humanizeRoleSlug(r.name)} ({r.permissions.length} permissions)
                         </option>
                       ))}
                   </select>

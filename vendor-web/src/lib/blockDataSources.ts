@@ -29,6 +29,7 @@ export type DataSourceDefinition = {
 export const DATA_SOURCES: DataSourceDefinition[] = [
   { id: 'products', label: 'Products', desc: 'Your product catalog', group: 'catalog', blockTypes: ['product_grid', 'menu_grid', 'live_stock', 'live_quote', 'gallery_masonry', 'product_detail', 'related_products', 'cart_drawer', 'recently_viewed', 'product_filters', 'checkout_form'], selectable: true },
   { id: 'services', label: 'Services', desc: 'Your service offerings', group: 'catalog', blockTypes: ['services_cards', 'services_list', 'booking_widget', 'booking_slot_picker', 'menu_grid'], selectable: true },
+  { id: 'rentals', label: 'Rental Assets', desc: 'Bookable assets from Sales → Rental Assets', group: 'catalog', blockTypes: ['rental_grid', 'rental_list'], selectable: false },
   { id: 'categories', label: 'Categories', desc: 'Active categories from Sales → Categories', group: 'catalog', blockTypes: ['menu_grid', 'category_cards', 'product.categories', 'product_filters'], selectable: false },
   { id: 'testimonials', label: 'Testimonials', desc: 'Curated quotes from Sales → Testimonials (falls back to verified 4★+ reviews)', group: 'people', blockTypes: ['testimonials', 'testimonials_grid', 'product_reviews', 'service.testimonials'], selectable: false },
   { id: 'team', label: 'Team', desc: 'Active employees & roles', group: 'people', blockTypes: ['team_grid', 'team_list'], selectable: false },
@@ -111,6 +112,8 @@ export const BLOCK_AUTO_SOURCE: Record<string, LiveResource> = {
   blog_list: 'blog',
   pricing: 'plans',
   'service.pricing': 'plans',
+  rental_grid: 'rentals',
+  rental_list: 'rentals',
   'vertical.propertyListing': 'properties',
   'vertical.courseCatalog': 'courses',
   'vertical.fitnessSchedule': 'fitness_classes',
@@ -223,6 +226,12 @@ export const RESOURCE_SYNC_BLOCK_TYPES = new Set<string>([
   'booking.resource',
 ])
 
+/** Website builder sections that show the Rental Assets sync banner in the sidebar. */
+export const RENTALS_SYNC_BLOCK_TYPES = new Set<string>([
+  'rental_grid',
+  'rental_list',
+])
+
 export function isProductSyncedBlock(blockType: string): boolean {
   return PRODUCT_SYNC_BLOCK_TYPES.has(blockType)
 }
@@ -271,6 +280,10 @@ export function isResourceSyncedBlock(blockType: string): boolean {
   return RESOURCE_SYNC_BLOCK_TYPES.has(blockType)
 }
 
+export function isRentalsSyncedBlock(blockType: string): boolean {
+  return RENTALS_SYNC_BLOCK_TYPES.has(blockType)
+}
+
 export function inferCommerceAutoSource(blockType: string): LiveResource | undefined {
   if (blockType.startsWith('product.')) {
     return blockType.includes('categories') || blockType.includes('filters') ? 'categories' : 'products'
@@ -281,6 +294,7 @@ export function inferCommerceAutoSource(blockType: string): LiveResource | undef
     if (blockType.includes('pricing')) return 'plans'
     return 'services'
   }
+  if (blockType.startsWith('rental.')) return 'rentals'
   if (blockType.startsWith('menu.')) return 'products'
   if (blockType.startsWith('booking.')) return 'bookings'
   if (blockType.startsWith('commerce.')) return 'products'

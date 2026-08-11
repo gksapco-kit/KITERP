@@ -27,6 +27,7 @@ import {
 import { QuickCreateCustomerModal } from '@/components/customers/QuickCreateCustomerModal'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
+import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { QuotationExtraFieldsEditor } from '@/components/quotations/QuotationExtraFieldsEditor'
 import { serializeQuotationExtraFields, type QuotationExtraField } from '@/types/quotation'
@@ -913,6 +914,8 @@ export function CreateInvoiceModal({
   const [form, setForm] = useState({
     invoice_type: defaultType,
     order_id: prefill?.order_id || '',
+    customer_id: '',
+    sales_area_id: '',
     customer_name: prefill?.customer_name || '',
     customer_email: prefill?.customer_email || '',
     customer_phone: prefill?.customer_phone || '',
@@ -975,20 +978,32 @@ export function CreateInvoiceModal({
     enabled: custOpen,
     staleTime: 30_000,
   })
-  const customers: Array<{ id: string; full_name: string; phone?: string; email?: string; gstin?: string }> = custData ?? []
-
-  const applyCustomer = (c: {
+  const customers: Array<{
+    id: string
     full_name: string
     phone?: string
     email?: string
     gstin?: string
+    sales_area_id?: string | null
+  }> = custData ?? []
+
+  const applyCustomer = (c: {
+    id?: string
+    full_name: string
+    phone?: string
+    email?: string
+    gstin?: string
+    sales_area_id?: string | null
   }) => {
     setForm(f => ({
       ...f,
+      customer_id: c.id || f.customer_id,
       customer_name: c.full_name,
       customer_phone: c.phone || f.customer_phone,
       customer_email: c.email || f.customer_email,
       customer_gstin: c.gstin || f.customer_gstin,
+      // Prefill from customer master; leave the current pick if the customer has none.
+      sales_area_id: c.sales_area_id || f.sales_area_id,
     }))
     setCustOpen(false)
     setCustSearch(c.full_name)
@@ -1024,6 +1039,8 @@ export function CreateInvoiceModal({
         ...form,
         store_id: effectiveStoreId || undefined,
         order_id: form.order_id || undefined,
+        customer_id: form.customer_id || undefined,
+        sales_area_id: form.sales_area_id || undefined,
         items: items.map(({ name, hsn_sac, qty, rate, discount, tax_rate }) => ({
           name, hsn_sac, qty, rate, discount, tax_rate,
         })),
@@ -1063,118 +1080,79 @@ export function CreateInvoiceModal({
           <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="rounded-lg p-1 hover:bg-muted"><X className="h-5 w-5" /></button>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 space-y-2.5">
-          {/* Header: 2 rows — BU/branch + customer search, then invoice meta */}
-          <div className="relative space-y-2.5">
-            {isQuotation ? (
-              <>
-                <div>
-                  <Label className="text-xs">Business unit</Label>
-                  <div className="mt-0.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <BusinessUnitSelect
-                      value={storeId}
-                      onChange={(id) => { setStoreId(id); setBranchId('') }}
-                      className="min-w-0 w-full"
-                      triggerClassName="h-8"
-                    />
-                    <BranchSelect
-                      businessUnitId={storeId || null}
-                      value={branchId}
-                      onChange={setBranchId}
-                      allowAll
-                      className="min-w-0 w-full"
-                      triggerClassName="h-8"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)_auto]">
-                  <div className="min-w-0">
-                    <Label className="text-xs">Select Customer (optional)</Label>
-                    <div className="relative mt-0.5">
-                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                      <Input
-                        placeholder="Search customers…"
-                        className="h-8 w-full pl-8 text-sm"
-                        value={custSearch}
-                        onFocus={() => setCustOpen(true)}
-                        onChange={e => { setCustSearch(e.target.value); setCustOpen(true) }}
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 shrink-0 gap-1 px-2 text-xs"
-                    onClick={() => setShowQuickCreate(true)}
-                  >
-                    <UserPlus className="h-3.5 w-3.5" /> Create
-                  </Button>
-                  <div className="min-w-0">
-                    <Label className="text-xs">Valid Until</Label>
+          {/* Header: 3-column grid so labels and controls share one right edge */}
+          <div className="relative">
+            <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3">
+              <div className="min-w-0">
+                <Label className="text-xs">Business unit</Label>
+                <BusinessUnitSelect
+                  value={storeId}
+                  onChange={(id) => { setStoreId(id); setBranchId('') }}
+                  className="mt-0.5 min-w-0 w-full"
+                  triggerClassName="h-8"
+                />
+              </div>
+              <div className="min-w-0">
+                <Label className="text-xs">Branch</Label>
+                <BranchSelect
+                  businessUnitId={storeId || null}
+                  value={branchId}
+                  onChange={setBranchId}
+                  allowAll
+                  className="mt-0.5 min-w-0 w-full"
+                  triggerClassName="h-8"
+                />
+              </div>
+              <div className="min-w-0">
+                <Label className="text-xs">Sales Area</Label>
+                <SalesAreaSelect
+                  value={form.sales_area_id}
+                  onChange={(sales_area_id) => setForm((f) => ({ ...f, sales_area_id }))}
+                  allowAll={false}
+                  requireBusinessUnit={false}
+                  className="mt-0.5 min-w-0 w-full"
+                  triggerClassName="h-8"
+                />
+              </div>
+
+              <div className="relative min-w-0 sm:col-span-2">
+                <Label className="text-xs">{isQuotation ? 'Select Customer (optional)' : 'Customer'}</Label>
+                <div className="mt-0.5 flex items-center gap-1.5">
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      type="date"
-                      className="mt-0.5 h-8 w-full min-w-[10.5rem] text-sm"
-                      value={form.due_date}
-                      onChange={e => setForm({ ...form, due_date: e.target.value })}
+                      placeholder={isQuotation ? 'Search customers…' : 'Search or create a customer…'}
+                      className="h-8 w-full pl-8 pr-8 text-sm"
+                      value={custSearch}
+                      onFocus={() => setCustOpen(true)}
+                      onChange={e => {
+                        const v = e.target.value
+                        setCustSearch(v)
+                        setCustOpen(true)
+                        if (!isQuotation && !v.trim()) {
+                          setForm(f => ({
+                            ...f,
+                            customer_id: '',
+                            customer_name: '',
+                            customer_phone: '',
+                            customer_email: '',
+                            customer_gstin: '',
+                          }))
+                        }
+                      }}
                     />
-                  </div>
-                  <div className="min-w-0">
-                    <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
-                    <Input
-                      className="mt-0.5 h-8 w-full text-sm"
-                      value={form.customer_gstin}
-                      onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })}
-                      maxLength={15}
-                    />
-                  </div>
-                  <CheckboxFieldLabel
-                    label="Inter-state (IGST)"
-                    checked={form.is_inter_state}
-                    onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
-                    helpKey="inter-state supply (igst)"
-                    className="shrink-0 pb-1.5 whitespace-nowrap"
-                    labelClassName="text-xs"
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="grid grid-cols-1 gap-x-2 gap-y-2 sm:grid-cols-12">
-                <div className="min-w-0 sm:col-span-3">
-                  <Label className="text-xs">Business unit</Label>
-                  <BusinessUnitSelect
-                    value={storeId}
-                    onChange={(id) => { setStoreId(id); setBranchId('') }}
-                    className="mt-0.5 min-w-0 w-full"
-                    triggerClassName="h-8"
-                  />
-                </div>
-                <div className="min-w-0 sm:col-span-3">
-                  <Label className="text-xs">Branch</Label>
-                  <BranchSelect
-                    businessUnitId={storeId || null}
-                    value={branchId}
-                    onChange={setBranchId}
-                    allowAll
-                    className="mt-0.5 min-w-0 w-full"
-                    triggerClassName="h-8"
-                  />
-                </div>
-                <div className="relative min-w-0 sm:col-span-6">
-                  <Label className="text-xs">Customer</Label>
-                  <div className="mt-0.5 flex gap-1.5">
-                    <div className="relative min-w-0 flex-1">
-                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        placeholder="Search or create a customer…"
-                        className="h-8 w-full pl-8 pr-8 text-sm"
-                        value={custSearch}
-                        onFocus={() => setCustOpen(true)}
-                        onChange={e => {
-                          const v = e.target.value
-                          setCustSearch(v)
-                          setCustOpen(true)
-                          if (!v.trim()) {
+                    {custSearch ? (
+                      <button
+                        type="button"
+                        aria-label="Clear customer"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setCustSearch('')
+                          setCustOpen(false)
+                          if (!isQuotation) {
                             setForm(f => ({
                               ...f,
+                              customer_id: '',
                               customer_name: '',
                               customer_phone: '',
                               customer_email: '',
@@ -1182,78 +1160,86 @@ export function CreateInvoiceModal({
                             }))
                           }
                         }}
-                      />
-                      {custSearch ? (
-                        <button
-                          type="button"
-                          aria-label="Clear customer"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-                          onClick={() => {
-                            setCustSearch('')
-                            setCustOpen(false)
-                            setForm(f => ({
-                              ...f,
-                              customer_name: '',
-                              customer_phone: '',
-                              customer_email: '',
-                              customer_gstin: '',
-                            }))
-                          }}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      ) : null}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 shrink-0 gap-1 px-2.5 text-xs"
-                      onClick={() => setShowQuickCreate(true)}
-                    >
-                      <UserPlus className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Create</span>
-                    </Button>
-                  </div>
-                  {custOpen && (
-                    <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-40 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
-                      {customers.length === 0 ? (
-                        <p className="px-3 py-2.5 text-sm text-muted-foreground">No customers found</p>
-                      ) : customers.map(c => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          className="w-full border-b border-border px-3 py-2 text-left transition-colors last:border-0 hover:bg-muted/60"
-                          onClick={() => applyCustomer(c)}
-                        >
-                          <p className="text-sm font-medium text-foreground">{c.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{[c.phone, c.gstin].filter(Boolean).join(' · ')}</p>
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="w-full px-3 py-2 text-xs text-muted-foreground hover:bg-muted/40"
-                        onClick={() => setCustOpen(false)}
                       >
-                        Close
+                        <X className="h-3.5 w-3.5" />
                       </button>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 shrink-0 gap-1 px-2.5 text-xs"
+                    onClick={() => setShowQuickCreate(true)}
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Create</span>
+                  </Button>
                 </div>
+                {custOpen && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-40 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+                    {customers.length === 0 ? (
+                      <p className="px-3 py-2.5 text-sm text-muted-foreground">No customers found</p>
+                    ) : customers.map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="w-full border-b border-border px-3 py-2 text-left transition-colors last:border-0 hover:bg-muted/60"
+                        onClick={() => applyCustomer(c)}
+                      >
+                        <p className="text-sm font-medium text-foreground">{c.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{[c.phone, c.gstin].filter(Boolean).join(' · ')}</p>
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-xs text-muted-foreground hover:bg-muted/40"
+                      onClick={() => setCustOpen(false)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                )}
+              </div>
 
-                <div className="min-w-0 sm:col-span-3">
+              {isQuotation ? (
+                <div className="min-w-0">
+                  <Label className="text-xs">Valid Until</Label>
+                  <Input
+                    type="date"
+                    className="mt-0.5 h-8 w-full text-sm"
+                    value={form.due_date}
+                    onChange={e => setForm({ ...form, due_date: e.target.value })}
+                  />
+                </div>
+              ) : (
+                <div className="min-w-0">
                   <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
                   <Input
-                    className="mt-0.5 h-8 font-mono text-sm tracking-wide"
+                    className="mt-0.5 h-8 w-full font-mono text-sm tracking-wide"
                     value={form.customer_gstin}
                     onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })}
                     maxLength={15}
                     placeholder="Optional"
                   />
                 </div>
-                <div className="min-w-0 sm:col-span-4">
+              )}
+
+              {isQuotation ? (
+                <div className="min-w-0">
+                  <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
+                  <Input
+                    className="mt-0.5 h-8 w-full font-mono text-sm tracking-wide"
+                    value={form.customer_gstin}
+                    onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })}
+                    maxLength={15}
+                    placeholder="Optional"
+                  />
+                </div>
+              ) : (
+                <div className="min-w-0">
                   <Label className="text-xs">Phone</Label>
                   <PhoneInput
-                    className="mt-0.5"
+                    className="mt-0.5 [&_[data-phone-input]]:h-8 [&_[data-phone-input]]:sm:h-8"
                     compact
                     compactCountry
                     value={form.customer_phone}
@@ -1261,16 +1247,23 @@ export function CreateInvoiceModal({
                     defaultCountryIso="IN"
                   />
                 </div>
-                <div className="min-w-0 sm:col-span-3">
+              )}
+
+              {!isQuotation && (
+                <div className="min-w-0">
                   <Label className="text-xs">Due date</Label>
                   <Input
                     type="date"
-                    className="mt-0.5 h-8 w-full min-w-[10.5rem] text-sm"
+                    className="mt-0.5 h-8 w-full text-sm"
                     value={form.due_date}
                     onChange={e => setForm({ ...form, due_date: e.target.value })}
                   />
                 </div>
-                <div className="flex min-w-0 items-end pb-1.5 sm:col-span-2">
+              )}
+
+              <div className={cn('min-w-0', isQuotation && 'sm:col-span-2')}>
+                <Label className="text-xs">GST</Label>
+                <div className="mt-0.5 flex h-8 items-center">
                   <CheckboxFieldLabel
                     label="Inter-state (IGST)"
                     checked={form.is_inter_state}
@@ -1281,30 +1274,12 @@ export function CreateInvoiceModal({
                   />
                 </div>
               </div>
-            )}
+            </div>
             {isQuotation && form.customer_name && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
                 Selected: <span className="font-medium text-foreground">{form.customer_name}</span>
                 {form.customer_phone ? ` · ${form.customer_phone}` : ''}
               </p>
-            )}
-            {isQuotation && custOpen && (
-              <div className="absolute left-0 right-0 z-30 mt-1 max-h-40 overflow-y-auto rounded-lg border border-border bg-card shadow-lg sm:left-auto sm:right-0 sm:w-[min(24rem,100%)]">
-                {customers.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-muted-foreground">No customers found</p>
-                ) : customers.map(c => (
-                  <button key={c.id} type="button"
-                    className="w-full border-b border-border px-4 py-2 text-left transition-colors last:border-0 hover:bg-muted/60"
-                    onClick={() => applyCustomer(c)}
-                  >
-                    <p className="text-sm font-medium text-foreground">{c.full_name}</p>
-                    <p className="text-xs text-muted-foreground">{[c.phone, c.gstin].filter(Boolean).join(' · ')}</p>
-                  </button>
-                ))}
-                <button type="button" className="w-full px-4 py-2 text-xs text-muted-foreground hover:bg-muted/40" onClick={() => setCustOpen(false)}>
-                  Close
-                </button>
-              </div>
             )}
           </div>
 
@@ -1399,6 +1374,7 @@ export function CreateInvoiceModal({
         <QuickCreateCustomerModal
           onSelect={(c) => {
             applyCustomer({
+              id: c.id,
               full_name: c.full_name,
               phone: c.phone,
               email: c.email,

@@ -566,6 +566,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'category_cards', label: 'Category Cards', icon: Layers, desc: 'Shop-by-category grid — synced from Categories', category: 'ecommerce', defaultProps: CATEGORY_CARDS_DEFAULTS },
   { type: 'menu_grid', label: 'Menu / Catalog', icon: List, desc: 'Restaurant-style menu grid', category: 'food', defaultProps: { title: 'Our Menu', categories: ['Starters', 'Mains', 'Desserts', 'Drinks'] } },
   { type: 'services_cards', label: 'Services Cards', icon: Briefcase, desc: 'Service offering cards', category: 'content', defaultProps: { title: 'Our services', columns: 3, features: [{ icon: 'Zap', title: 'Consultation', desc: 'Expert advice tailored to your needs.' }, { icon: 'Shield', title: 'Installation', desc: 'Professional setup you can rely on.' }, { icon: 'Star', title: 'Support', desc: 'Friendly help after you buy.' }] } },
+  { type: 'rental_grid', label: 'Rental Assets Grid', icon: Package, desc: 'Rental asset catalog cards — synced from Sales → Rental Assets', category: 'ecommerce', defaultProps: { title: 'Rentals', columns: 3 } },
   { type: 'html_embed', label: 'HTML Embed', icon: Code, desc: 'Custom HTML/widget embed', category: 'advanced', defaultProps: { html: '<p>Add your custom HTML here</p>' } },
 
   // ERP / live data blocks

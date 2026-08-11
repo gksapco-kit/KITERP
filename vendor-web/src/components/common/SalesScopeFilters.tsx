@@ -74,6 +74,7 @@ export function SalesScopeFilters({
           value={salesAreaId}
           onChange={onSalesAreaChange}
           allowAll={allowAll}
+          restrictToScope
           disabled={disabled}
           triggerClassName={triggerClassName}
           className="w-full min-w-0"

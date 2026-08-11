@@ -11,7 +11,12 @@ from app.models.order import Order
 from app.models.customer import Customer
 from app.models.pos import POSTransaction
 from app.models.booking import Booking
-from app.services.store_resolver import resolve_store_id as resolve_txn_store_id, get_default_store_id
+from app.services.store_resolver import (
+    resolve_store_id as resolve_txn_store_id,
+    get_default_store_id,
+    parse_explicit_sales_area_id,
+    resolve_txn_sales_area_id,
+)
 
 log = logging.getLogger(__name__)
 
@@ -181,16 +186,30 @@ class InvoiceService:
 
         order_uuid = UUID(data["order_id"]) if data.get("order_id") else None
         store_id = data.get("store_id")
-        if not store_id and order_uuid:
-            linked = await self.db.get(Order, order_uuid)
-            store_id = linked.store_id if linked else None
+        linked = await self.db.get(Order, order_uuid) if order_uuid else None
+        if not store_id and linked:
+            store_id = linked.store_id
         store_id = await resolve_txn_store_id(self.db, vendor_id, store_id=store_id)
+
+        cust_uuid = UUID(data["customer_id"]) if data.get("customer_id") else None
+        explicit_sa = await parse_explicit_sales_area_id(
+            self.db, vendor_id, data.get("sales_area_id"),
+        )
+        sales_area_id = await resolve_txn_sales_area_id(
+            self.db,
+            vendor_id,
+            store_id=store_id,
+            customer_id=cust_uuid,
+            explicit=explicit_sa,
+            source_sales_area_id=getattr(linked, "sales_area_id", None) if linked else None,
+        )
 
         invoice = Invoice(
             vendor_id=vendor_id,
-            customer_id=UUID(data["customer_id"]) if data.get("customer_id") else None,
+            customer_id=cust_uuid,
             order_id=order_uuid,
             store_id=store_id,
+            sales_area_id=sales_area_id,
             invoice_number=invoice_number,
             invoice_type=invoice_type,
             document_type=doc_type,
@@ -251,12 +270,20 @@ class InvoiceService:
             raise ValueError(f"Cannot edit invoice in '{invoice.status}' status")
 
         if invoice.order_id:
-            raise ValueError(
-                "This invoice is linked to an order and cannot be edited. Update the order instead."
-            )
+            extra = {k for k in data.keys() if k != "sales_area_id"}
+            if extra:
+                raise ValueError(
+                    "This invoice is linked to an order and cannot be edited. Update the order instead."
+                )
 
         if "due_date" in data:
             data = {**data, "due_date": _parse_optional_date(data.get("due_date"))}
+
+        if "sales_area_id" in data:
+            invoice.sales_area_id = await parse_explicit_sales_area_id(
+                self.db, vendor_id, data.get("sales_area_id"),
+            )
+            data = {k: v for k, v in data.items() if k != "sales_area_id"}
 
         for key, value in data.items():
             if value is not None and hasattr(invoice, key) and key not in ("id", "vendor_id", "invoice_number"):
@@ -507,12 +534,20 @@ class InvoiceService:
         paid = grand if order.payment_status == "paid" else 0
 
         store_id = order.store_id or await get_default_store_id(self.db, order.vendor_id)
+        sales_area_id = await resolve_txn_sales_area_id(
+            self.db,
+            order.vendor_id,
+            store_id=store_id,
+            customer_id=order.customer_id,
+            source_sales_area_id=getattr(order, "sales_area_id", None),
+        )
 
         invoice = Invoice(
             vendor_id=order.vendor_id,
             customer_id=order.customer_id,
             order_id=order.id,
             store_id=store_id,
+            sales_area_id=sales_area_id,
             order_number=getattr(order, "order_number", None),
             invoice_number=invoice_number,
             invoice_type="invoice",
@@ -618,12 +653,20 @@ class InvoiceService:
         grand = round(grand)
 
         store_id = getattr(txn, "store_id", None) or await get_default_store_id(self.db, txn.vendor_id)
+        sales_area_id = await resolve_txn_sales_area_id(
+            self.db,
+            txn.vendor_id,
+            store_id=store_id,
+            customer_id=txn.customer_id,
+            source_sales_area_id=getattr(txn, "sales_area_id", None),
+        )
 
         invoice = Invoice(
             vendor_id=txn.vendor_id,
             customer_id=txn.customer_id,
             order_id=order_id,
             store_id=store_id,
+            sales_area_id=sales_area_id,
             invoice_number=invoice_number,
             invoice_type="invoice",
             document_type="tax_invoice" if vendor_gst else "bill_of_supply",
@@ -727,12 +770,20 @@ class InvoiceService:
             linked = await self.db.get(Order, booking_order_id)
             store_id = linked.store_id if linked else None
         store_id = store_id or await get_default_store_id(self.db, booking.vendor_id)
+        sales_area_id = await resolve_txn_sales_area_id(
+            self.db,
+            booking.vendor_id,
+            store_id=store_id,
+            customer_id=booking.customer_id,
+            source_sales_area_id=getattr(booking, "sales_area_id", None),
+        )
 
         invoice = Invoice(
             vendor_id=booking.vendor_id,
             customer_id=booking.customer_id,
             order_id=booking_order_id,
             store_id=store_id,
+            sales_area_id=sales_area_id,
             booking_id=booking.id,
             booking_number=booking.booking_number,
             invoice_number=invoice_number,

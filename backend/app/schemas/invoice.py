@@ -49,6 +49,7 @@ class InvoiceCreate(BaseModel):
     invoice_type: InvoiceType = InvoiceType.INVOICE
     store_id: Optional[str] = None
     customer_id: Optional[str] = None
+    sales_area_id: Optional[str] = None
     customer_name: Optional[str] = None
     customer_email: Optional[str] = None
     customer_phone: Optional[str] = None
@@ -72,6 +73,7 @@ class InvoiceUpdate(BaseModel):
     customer_email: Optional[str] = None
     customer_phone: Optional[str] = None
     customer_gstin: Optional[str] = None
+    sales_area_id: Optional[str] = None
     billing_address: Optional[dict] = None
     shipping_address: Optional[dict] = None
     items: Optional[List[InvoiceLineItem]] = None
@@ -102,6 +104,7 @@ class InvoiceResponse(BaseModel):
     id: str
     vendor_id: str
     customer_id: Optional[str] = None
+    sales_area_id: Optional[str] = None
     order_id: Optional[str] = None
     order_number: Optional[str] = None
     invoice_number: str

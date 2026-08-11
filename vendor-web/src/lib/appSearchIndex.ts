@@ -114,6 +114,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Queries':                              ['contact us', 'contact query', 'customer message', 'support query', 'issue'],
   'Reviews':                              ['feedback', 'rating', 'testimonial', 'review'],
   'Sales Area':                           ['sales area', 'division', 'distribution channel', 'delivery channel', 'sales organization', 'sd'],
+  'Sales Area Dues':                      ['sales area dues', 'outstanding', 'overdue', 'aging', 'receivables', 'customer dues'],
   'Employees':                            ['staff', 'worker', 'hr', 'people', 'employee list'],
   'Designations':                         ['title', 'designation', 'position', 'job title'],
   'Departments':                          ['dept', 'division', 'team', 'department'],

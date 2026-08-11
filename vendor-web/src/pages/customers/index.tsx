@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useCustomers, useCreateCustomer, useUpdateCustomer } from '@/hooks/useVendor'
+import { useCustomers, useCreateCustomer, useUpdateCustomer, useSalesAreas } from '@/hooks/useVendor'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
@@ -323,6 +323,16 @@ export default function Customers() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const { data, isLoading } = useCustomers({ page, size: pageSize, search: search || undefined })
+  const { data: salesAreaData } = useSalesAreas({ is_active: true })
+  const salesAreaLabelById = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const a of salesAreaData?.sales_areas ?? []) {
+      const raw = (a.name || '').trim()
+      const name = raw && raw.toLowerCase() !== 'null' ? raw : ''
+      m.set(a.id, name || a.code || 'Sales area')
+    }
+    return m
+  }, [salesAreaData?.sales_areas])
   const updateCustomer = useUpdateCustomer()
   const { isSaving, patchField } = useInlineFieldPatch(updateCustomer)
 
@@ -435,6 +445,11 @@ export default function Customers() {
                         {c.customer_group && c.customer_group !== 'retail' && (
                           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 capitalize shrink-0">
                             {c.customer_group}
+                          </span>
+                        )}
+                        {c.sales_area_id && salesAreaLabelById.get(c.sales_area_id) && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 shrink-0">
+                            {salesAreaLabelById.get(c.sales_area_id)}
                           </span>
                         )}
                       </div>

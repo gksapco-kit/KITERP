@@ -26,6 +26,48 @@ export function hqAddressLabelFromVendor(vendor: Vendor | null | undefined): str
   return typeof raw === 'string' ? raw : ''
 }
 
+export type UnitAddressForm = {
+  label: string
+  street: string
+  city: string
+  state: string
+  country: string
+  pincode: string
+}
+
+/** True when the business-unit card has no real location (country-only does not count). */
+export function storeAddressIsEmpty(addr: StoreRecord['address'] | undefined): boolean {
+  return !Boolean(
+    addr?.street?.trim() || addr?.city?.trim() || addr?.state?.trim() || addr?.pincode?.trim(),
+  )
+}
+
+/** Unit address fields, falling back to vendor HQ when the store address was never set. */
+export function unitAddressFromStore(
+  store: StoreRecord | undefined,
+  vendor: Vendor | null,
+): UnitAddressForm {
+  const addr = store?.address
+  if (!storeAddressIsEmpty(addr) || !vendor) {
+    return {
+      label: addr?.label?.trim() ?? '',
+      street: addr?.street ?? '',
+      city: addr?.city ?? '',
+      state: addr?.state ?? '',
+      country: addr?.country || 'India',
+      pincode: addr?.pincode ?? '',
+    }
+  }
+  return {
+    label: addr?.label?.trim() ?? '',
+    street: vendor.street_address || '',
+    city: vendor.city || '',
+    state: vendor.state || '',
+    country: vendor.country || 'India',
+    pincode: vendor.postal_code || '',
+  }
+}
+
 function normStr(v: string | null | undefined): string {
   return (v ?? '').trim()
 }
@@ -208,19 +250,19 @@ export function isAddressSectionDirty(
       normStr(hqForm.street_address) !== normStr(vendor.street_address) ||
       normStr(hqForm.city) !== normStr(vendor.city) ||
       normStr(hqForm.state) !== normStr(vendor.state) ||
-      normStr(hqForm.country) !== normStr(vendor.country) ||
+      normStr(hqForm.country) !== normStr(vendor.country || 'India') ||
       normStr(hqForm.postal_code) !== normStr(vendor.postal_code)
   }
   if (unitEditable && activeStore) {
-    const addr = activeStore.address
+    const saved = unitAddressFromStore(activeStore, vendor)
     dirty =
       dirty ||
-      normStr(unitForm.label) !== normStr(addr?.label) ||
-      normStr(unitForm.street) !== normStr(addr?.street) ||
-      normStr(unitForm.city) !== normStr(addr?.city) ||
-      normStr(unitForm.state) !== normStr(addr?.state) ||
-      normStr(unitForm.country) !== normStr(addr?.country) ||
-      normStr(unitForm.pincode) !== normStr(addr?.pincode)
+      normStr(unitForm.label) !== normStr(saved.label) ||
+      normStr(unitForm.street) !== normStr(saved.street) ||
+      normStr(unitForm.city) !== normStr(saved.city) ||
+      normStr(unitForm.state) !== normStr(saved.state) ||
+      normStr(unitForm.country) !== normStr(saved.country) ||
+      normStr(unitForm.pincode) !== normStr(saved.pincode)
   }
   return dirty
 }

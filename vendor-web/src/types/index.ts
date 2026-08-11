@@ -560,6 +560,8 @@ export interface Customer {
   phone?: string
   /** Pricing group — drives which "party" price rules (retail/wholesale/distributor/agent/…) apply at checkout & POS. */
   customer_group?: string
+  /** Default sales area — new orders/invoices inherit this; dues fall back to it. */
+  sales_area_id?: string | null
   gstin?: string
   pan_number?: string
   cin?: string

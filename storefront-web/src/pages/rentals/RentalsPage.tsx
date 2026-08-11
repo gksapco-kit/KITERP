@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Calendar, Loader2, Package, MapPin, Search, Scale, Boxes, Shield,
-  ChevronRight, Truck, CreditCard, CheckCircle2,
+  ChevronRight, Truck, CreditCard, CheckCircle2, ChevronLeft,
 } from 'lucide-react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { storeApi } from '@/api/store'
+import { useCatalogRentals } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { formatCurrency } from '@/lib/utils'
@@ -90,6 +91,10 @@ export default function RentalsPage() {
 
   const [step, setStep] = useState<Step>('browse')
   const [query, setQuery] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [category, setCategory] = useState('')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 12
 
   const [selected, setSelected] = useState<RentalAsset | null>(null)
   const [bookQty, setBookQty] = useState('1')
@@ -102,28 +107,17 @@ export default function RentalsPage() {
   const [confirmedBooking, setConfirmedBooking] = useState<Record<string, unknown> | null>(null)
   const [payMethod, setPayMethod] = useState('upi')
 
-  const { data: assets = [], isLoading } = useQuery({
-    queryKey: ['store-rentals'],
-    queryFn: () => storeApi.listRentalAssets(),
-  })
+  const rentalParams = useMemo(() => ({
+    page,
+    size: PAGE_SIZE,
+    search: query || undefined,
+    category: category || undefined,
+  }), [page, query, category])
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const list = assets as RentalAsset[]
-    if (!q) return list
-    return list.filter((a) => {
-      const hay = [
-        a.name,
-        a.asset_code,
-        a.category,
-        a.asset_type,
-        a.description,
-        a.location,
-        a.capacity_unit,
-      ].join(' ').toLowerCase()
-      return hay.includes(q)
-    })
-  }, [assets, query])
+  const { data: rentalsData, isLoading } = useCatalogRentals(rentalParams)
+  const filtered: RentalAsset[] = (rentalsData?.items ?? []) as RentalAsset[]
+  const totalCount: number = rentalsData?.total ?? 0
+  const totalPages: number = rentalsData?.pages ?? 0
 
   const book = useMutation({
     mutationFn: () =>
@@ -215,7 +209,7 @@ export default function RentalsPage() {
                 {!isLoading && (
                   <div className="rounded-2xl border border-white/70 bg-white/70 backdrop-blur px-4 py-2.5 shadow-sm">
                     <p className="text-[11px] uppercase tracking-wide text-gray-400">Listed now</p>
-                    <p className="text-xl font-semibold text-gray-900 tabular-nums">{filtered.length}</p>
+                    <p className="text-xl font-semibold text-gray-900 tabular-nums">{totalCount}</p>
                   </div>
                 )}
               </div>
@@ -224,8 +218,12 @@ export default function RentalsPage() {
                 <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" />
                 <Input
                   className="pl-11 h-12 rounded-2xl border-gray-200/80 bg-white/90 shadow-sm focus-visible:ring-primary/30"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => {
+                    setSearchInput(e.target.value)
+                    setQuery(e.target.value)
+                    setPage(1)
+                  }}
                   placeholder="Search by name, location, or type…"
                 />
               </div>
@@ -352,6 +350,57 @@ export default function RentalsPage() {
                     </article>
                   )
                 })}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 rounded-lg"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                  Prev
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                  .reduce<(number | '…')[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…')
+                    acc.push(p)
+                    return acc
+                  }, [])
+                  .map((p, i) =>
+                    p === '…' ? (
+                      <span key={`ellipsis-${i}`} className="px-1 text-gray-400 text-sm">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPage(p as number)}
+                        className={`h-8 min-w-[2rem] rounded-lg border px-2.5 text-sm font-medium transition-colors ${
+                          p === page
+                            ? 'bg-primary text-white border-primary'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-primary/40'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 rounded-lg"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                  <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
               </div>
             )}
           </>

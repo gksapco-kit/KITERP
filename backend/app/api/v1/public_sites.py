@@ -465,7 +465,7 @@ def _norm_item(**kw) -> Dict[str, Any]:
 # ── Public site endpoints ─────────────────────────────────────────────────────
 
 _LIVE_CATALOG_RESOURCES = frozenset({
-    "products", "services", "categories", "testimonials", "team", "kpis",
+    "products", "services", "rentals", "categories", "testimonials", "team", "kpis",
     "profile", "customers", "orders", "bookings", "media", "stores", "blog",
     "plans", "properties", "courses", "fitness_classes", "vehicles", "events",
     "recurring_plans", "booking_wizard_steps", "booking_resources",
@@ -978,6 +978,58 @@ async def get_live_resource_public(
                     "allow_quote_request": bool(s.allow_quote_request),
                     "subscription_label": (getattr(s, "subscription_label", None) or "Subscription").strip() or "Subscription",
                     "quote_request_label": (getattr(s, "quote_request_label", None) or "Quote Requests").strip() or "Quote Requests",
+                },
+            ))
+
+    elif resource == "rentals":
+        from app.models.rental import RentalAsset
+        from sqlalchemy import or_ as _or
+        import datetime as _live_dt
+        _today = _live_dt.date.today()
+        q = (
+            select(RentalAsset)
+            .where(
+                RentalAsset.vendor_id == vendor.id,
+                RentalAsset.is_active.is_(True),
+                RentalAsset.is_visible.is_(True),
+                RentalAsset.status.notin_(["maintenance", "unavailable", "retired"]),
+                _or(
+                    RentalAsset.display_end_date.is_(None),
+                    RentalAsset.display_end_date >= _today,
+                ),
+            )
+            .order_by(RentalAsset.name)
+            .limit(limit)
+        )
+        rows = (await db.execute(q)).scalars().all()
+        for a in rows:
+            daily = float(a.daily_rate or 0)
+            monthly = float(a.monthly_rate or 0)
+            price_formatted = (
+                f"₹{daily:,.0f}/day" if daily > 0 else
+                f"₹{monthly:,.0f}/mo" if monthly > 0 else None
+            )
+            items.append(_norm_item(
+                id=str(a.id),
+                title=a.name or "",
+                subtitle=(a.category or "").replace("_", " ").title(),
+                description=a.description,
+                image_url=a.image_url,
+                price=daily if daily > 0 else (monthly if monthly > 0 else None),
+                price_formatted=price_formatted,
+                url=f"/rentals/{a.slug}" if getattr(a, "slug", None) else None,
+                meta={
+                    "slug": getattr(a, "slug", None),
+                    "category": a.category,
+                    "asset_type": a.asset_type,
+                    "status": a.status,
+                    "daily_rate": daily,
+                    "weekly_rate": float(a.weekly_rate or 0),
+                    "monthly_rate": monthly,
+                    "deposit_amount": float(a.deposit_amount or 0),
+                    "location": a.location,
+                    "available_capacity": max(0.0, float(a.capacity_max or 0) - float(a.current_occupancy or 0)),
+                    "capacity_unit": a.capacity_unit,
                 },
             ))
 

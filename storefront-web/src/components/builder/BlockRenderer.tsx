@@ -69,6 +69,7 @@ function lazyBlock<T extends ComponentType<unknown>>(
 const HeroBlock = lazyBlock(() => import('@/components/builder/blocks/HeroBlock'))
 const FeaturesBlock = lazyBlock(() => import('@/components/builder/blocks/FeaturesBlock'))
 const ServicesCardsBlock = lazyBlock(() => import('@/components/builder/blocks/ServicesCardsBlock'))
+const RentalGridBlock = lazyBlock(() => import('@/components/builder/blocks/RentalGridBlock'))
 const TestimonialsBlock = lazyBlock(() => import('@/components/builder/blocks/TestimonialsBlock'))
 const TeamGridBlock = lazyBlock(() => import('@/components/builder/blocks/TeamGridBlock'))
 const StatsBlock = lazyBlock(() => import('@/components/builder/blocks/StatsBlock'))
@@ -131,13 +132,14 @@ const SUSPENSE_NULL_FALLBACK_BLOCKS = new Set([
 
 // ── Live data hook ─────────────────────────────────────────────────────────
 
-type LiveResource = 'products' | 'services' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores' | 'blog' | 'plans' | 'properties' | 'courses' | 'fitness_classes' | 'vehicles' | 'events' | 'recurring_plans' | 'booking_wizard_steps' | 'booking_resources'
+type LiveResource = 'products' | 'services' | 'rentals' | 'testimonials' | 'team' | 'kpis' | 'profile' | 'pages' | 'categories' | 'customers' | 'orders' | 'bookings' | 'media' | 'stores' | 'blog' | 'plans' | 'properties' | 'courses' | 'fitness_classes' | 'vehicles' | 'events' | 'recurring_plans' | 'booking_wizard_steps' | 'booking_resources'
 
 const BLOCK_LIVE_RESOURCE: Record<string, LiveResource> = {
   product_grid: 'products', live_stock: 'products', live_quote: 'products', related_products: 'products', product_detail: 'products',
   cart_drawer: 'products',
   category_cards: 'categories',
   services_cards: 'services', booking_widget: 'services', booking_slot_picker: 'services', services_list: 'services',
+  rental_grid: 'rentals', rental_list: 'rentals',
   testimonials: 'testimonials', testimonials_grid: 'testimonials', product_reviews: 'testimonials',
   team_grid: 'team',
   stats: 'kpis',
@@ -340,6 +342,8 @@ export function SingleBlock({
       case 'related_products': return <ProductGridBlock {...commonProps} blockType={block.block_type} />
       case 'services_cards':
       case 'services_list':    return <ServicesCardsBlock {...commonProps} />
+      case 'rental_grid':
+      case 'rental_list':      return <RentalGridBlock {...commonProps} />
       case 'testimonials':
       case 'testimonials_grid': return <TestimonialsBlock {...commonProps} />
       case 'product_reviews':  return <ProductReviewsBlock {...commonProps} />

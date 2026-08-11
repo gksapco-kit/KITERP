@@ -451,3 +451,17 @@ export const useCheckCreditControl = () =>
       amount: number
     }) => crmApi.checkCreditControl(data),
   })
+
+// Sales area dues
+export const useSalesAreaDuesSummary = (params: Record<string, unknown> = {}) =>
+  useQuery({
+    queryKey: KEY('sales-area-dues-summary', params),
+    queryFn: () => crmApi.getSalesAreaDuesSummary(params),
+  })
+
+export const useSalesAreaDues = (params: Record<string, unknown> = {}, enabled = true) =>
+  useQuery({
+    queryKey: KEY('sales-area-dues', params),
+    queryFn: () => crmApi.listSalesAreaDues(params),
+    enabled,
+  })

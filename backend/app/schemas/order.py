@@ -79,6 +79,7 @@ class CheckoutRequest(BaseModel):
     coupon_code: Optional[str] = Field(None, max_length=50)
     branch_code: Optional[str] = Field(None, max_length=100)
     store_id: Optional[str] = Field(None, max_length=36)
+    sales_area_id: Optional[str] = Field(None, max_length=36)
     # Phase-1 header enrichment — all optional so existing storefronts keep working
     order_type: Optional[str] = Field(None, max_length=30)
     payment_terms_code: Optional[str] = Field(None, max_length=50)
@@ -142,6 +143,7 @@ class GuestCheckoutRequest(BaseModel):
     coupon_code: Optional[str] = Field(None, max_length=50)
     branch_code: Optional[str] = Field(None, max_length=100)
     store_id: Optional[str] = Field(None, max_length=36)
+    sales_area_id: Optional[str] = Field(None, max_length=36)
     # Phase-1 header enrichment
     order_type: Optional[str] = Field(None, max_length=30)
     payment_terms_code: Optional[str] = Field(None, max_length=50)
@@ -363,6 +365,7 @@ class VendorOrderCreateRequest(BaseModel):
     shipping_country: str = "India"
 
     store_id: Optional[str] = Field(None, max_length=36)
+    sales_area_id: Optional[str] = Field(None, max_length=36)
     # Phase-1 header enrichment
     order_type: Optional[str] = Field("standard", max_length=30)
     payment_terms_code: Optional[str] = Field(None, max_length=50)

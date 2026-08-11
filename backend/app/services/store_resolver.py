@@ -137,3 +137,46 @@ async def resolve_default_sales_area_id(
         .limit(1)
     )
     return row.scalars().first()
+
+
+async def parse_explicit_sales_area_id(
+    db: AsyncSession,
+    vendor_id: UUID,
+    raw: object,
+) -> Optional[UUID]:
+    """Validate a picker value and return the UUID, or None when blank."""
+    if raw in (None, ""):
+        return None
+    try:
+        uid = UUID(str(raw))
+    except (ValueError, TypeError) as exc:
+        raise ValueError("Invalid sales_area_id") from exc
+    area = await db.get(SalesArea, uid)
+    if not area or area.vendor_id != vendor_id:
+        raise ValueError("Sales area not found")
+    return uid
+
+
+async def resolve_txn_sales_area_id(
+    db: AsyncSession,
+    vendor_id: UUID,
+    *,
+    store_id: Optional[UUID] = None,
+    customer_id: Optional[UUID] = None,
+    explicit: Optional[UUID] = None,
+    source_sales_area_id: Optional[UUID] = None,
+) -> Optional[UUID]:
+    """Pick a sales area for a new order / invoice / POS txn.
+
+    Priority: explicit picker → source document → customer default → store default.
+    """
+    if explicit:
+        return explicit
+    if source_sales_area_id:
+        return source_sales_area_id
+    if customer_id:
+        from app.models.customer import Customer
+        cust = await db.get(Customer, customer_id)
+        if cust and cust.vendor_id == vendor_id and getattr(cust, "sales_area_id", None):
+            return cust.sales_area_id
+    return await resolve_default_sales_area_id(db, vendor_id, store_id)

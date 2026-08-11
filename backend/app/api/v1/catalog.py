@@ -1508,3 +1508,58 @@ async def record_service_view(
         "view_count": int(svc.view_count or 0),
         "counted": True,
     }
+
+
+# ── Rental Assets (public catalog) ───────────────────────────────────────────
+
+@router.get("/rentals")
+async def list_catalog_rentals(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    min_daily_rate: Optional[float] = Query(None, ge=0, description="Minimum daily rate filter"),
+    max_daily_rate: Optional[float] = Query(None, ge=0, description="Maximum daily rate filter"),
+    branch: Optional[str] = Query(None, description="Business unit code or UUID"),
+    store_id: Optional[str] = Query(None, description="Business unit UUID"),
+    vendor_id: UUID = Depends(get_vendor_id_from_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Paginated public rental asset catalog — same tenant resolution as /catalog/products."""
+    from app.services.catalog_store_scope import resolve_store_id
+    from app.services.rental_service import RentalService
+
+    sid = await resolve_store_id(db, vendor_id, store_id=store_id, branch=branch)
+    svc = RentalService(db)
+    items, total = await svc.list_catalog_assets(
+        vendor_id,
+        page=page,
+        size=size,
+        search=search,
+        category=category,
+        min_daily_rate=min_daily_rate,
+        max_daily_rate=max_daily_rate,
+        store_id=sid,
+    )
+    return JSONResponse(content={
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size) if total > 0 else 0,
+    })
+
+
+@router.get("/rentals/{slug}")
+async def get_catalog_rental(
+    slug: str,
+    vendor_id: UUID = Depends(get_vendor_id_from_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a single rental asset by slug for the public catalog."""
+    from app.services.rental_service import RentalService
+
+    asset = await RentalService(db).get_catalog_asset_by_slug(vendor_id, slug)
+    if not asset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rental asset not found")
+    return JSONResponse(content=asset)

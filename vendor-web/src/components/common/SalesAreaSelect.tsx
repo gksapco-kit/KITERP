@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ThemeSelect, type ThemeSelectOption } from '@/components/common/ThemeSelect'
-import { useSalesAreas } from '@/hooks/useVendor'
+import { vendorApi, type SalesAreaRecord } from '@/api/vendor'
+import { vendorKeys } from '@/hooks/useVendor'
 
 interface SalesAreaSelectProps {
   businessUnitId?: string | null
@@ -17,18 +19,32 @@ interface SalesAreaSelectProps {
   showSelectedHint?: boolean
   disabled?: boolean
   id?: string
+  /** When false, the list is not locked to a business unit (invoice/order edit). */
+  requireBusinessUnit?: boolean
+  /**
+   * When true, only areas for the selected BU/branch are listed (list-page filters).
+   * Document pickers leave this false so a named area like GACHIBOWLI always appears.
+   */
+  restrictToScope?: boolean
 }
 
-function salesAreaLabel(code?: string | null, name?: string | null): string {
-  const c = (code || '').trim()
-  const raw = (name || '').trim()
-  const n = raw && raw.toLowerCase() !== 'null' ? raw : ''
-  if (n && c) return `${n} (${c})`
-  return n || c || 'Sales area'
+function clean(value?: string | null): string {
+  const v = (value || '').trim()
+  return v && v.toLowerCase() !== 'null' ? v : ''
+}
+
+function salesAreaOptionLabel(a: SalesAreaRecord): string {
+  const name = clean(a.name)
+  const branch = clean(a.branch_name)
+  const code = clean(a.code)
+  const primary = name || branch
+  if (primary && code && primary.toLowerCase() !== code.toLowerCase()) return `${primary} (${code})`
+  return primary || code || 'Sales area'
 }
 
 /**
- * Sales area selector scoped to the selected business unit (and optionally branch).
+ * Sales area selector. Document forms show every active area (name first).
+ * List filters can pass restrictToScope to keep the BU → branch cascade.
  */
 export function SalesAreaSelect({
   businessUnitId,
@@ -41,28 +57,48 @@ export function SalesAreaSelect({
   showSelectedHint = false,
   disabled,
   id,
+  requireBusinessUnit = true,
+  restrictToScope = false,
 }: SalesAreaSelectProps) {
-  const { data, isLoading } = useSalesAreas(
-    businessUnitId ? { business_unit_id: businessUnitId, is_active: true } : undefined,
-  )
+  const { data, isLoading } = useQuery({
+    queryKey: vendorKeys.salesAreas(),
+    queryFn: () => vendorApi.listSalesAreas(),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
 
   const areas = useMemo(() => {
-    const rows = (data?.sales_areas ?? []).filter((a) => a.is_active)
-    if (!branchId) return rows
-    return rows.filter((a) => !a.branch_id || a.branch_id === branchId)
-  }, [data?.sales_areas, branchId])
+    const rows = (data?.sales_areas ?? []).filter((a) => a.is_active !== false || a.id === value)
+    if (!restrictToScope) return rows
+    if (!businessUnitId) return rows
+    const forBu = rows.filter(
+      (a) =>
+        a.business_unit_id === businessUnitId ||
+        a.store_id === businessUnitId ||
+        a.branch_id === businessUnitId,
+    )
+    const scoped = forBu.length > 0 ? forBu : rows
+    if (!branchId) return scoped
+    const forBranch = scoped.filter((a) => !a.branch_id || a.branch_id === branchId || a.id === value)
+    return forBranch.length > 0 ? forBranch : scoped
+  }, [data?.sales_areas, businessUnitId, branchId, value, restrictToScope])
 
   useEffect(() => {
-    if (!value) return
+    if (!value || isLoading) return
     if (!areas.some((a) => a.id === value)) onChange('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [areas, value])
+  }, [areas, value, isLoading])
 
   const options = useMemo((): ThemeSelectOption[] => {
     const list: ThemeSelectOption[] = areas.map((a) => ({
       value: a.id,
-      label: salesAreaLabel(a.code, a.name),
-      hint: [a.distribution_channel_code, a.division_code].filter(Boolean).join(' · ') || undefined,
+      label: salesAreaOptionLabel(a),
+      hint: [
+        a.branch_name,
+        a.business_unit_code || a.business_unit_name,
+        a.distribution_channel_name || a.distribution_channel_code,
+        a.division_name || a.division_code,
+      ].filter((part) => clean(part)).join(' · ') || undefined,
     }))
     if (allowAll) {
       list.unshift({ value: '', label: 'All sales areas', hint: 'No filter applied' })
@@ -70,7 +106,7 @@ export function SalesAreaSelect({
     return list
   }, [areas, allowAll])
 
-  const noBu = !businessUnitId
+  const noBu = requireBusinessUnit && !businessUnitId
   const empty = !isLoading && areas.length === 0
   const defaultPlaceholder = allowAll ? 'All sales areas' : 'Select sales area'
 
@@ -81,6 +117,8 @@ export function SalesAreaSelect({
       onChange={onChange}
       options={options}
       disabled={disabled || noBu}
+      searchable
+      searchPlaceholder="Search sales area…"
       placeholder={
         noBu
           ? 'Select business unit first'

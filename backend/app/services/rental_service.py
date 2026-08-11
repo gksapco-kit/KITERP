@@ -1,14 +1,15 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from math import ceil
+import re
 from uuid import UUID
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.rental import RentalAsset, RentalAssetUnit, RentalBooking, RentalReturn
+from app.models.rental import RentalAsset, RentalAssetStore, RentalAssetUnit, RentalBooking, RentalReturn
 
 ACTIVE_BOOKING_STATUSES = ("pending", "approved", "confirmed", "active")
 # Once approved (or later), display-window / booking date changes must keep covering these.
@@ -43,6 +44,39 @@ class RentalService:
             return "partially_occupied"
         return "available"
 
+    # ── Slug helpers ──────────────────────────────────────────────
+
+    @staticmethod
+    def _slugify(text: str) -> str:
+        text = text.lower().strip()
+        text = re.sub(r"[^\w\s-]", "", text)
+        text = re.sub(r"[\s_-]+", "-", text)
+        return text.strip("-")[:120] or "asset"
+
+    async def _slug_exists(self, vendor_id: UUID, slug: str, exclude_id: Optional[UUID] = None) -> bool:
+        q = select(func.count()).select_from(RentalAsset).where(
+            RentalAsset.vendor_id == vendor_id,
+            RentalAsset.slug == slug,
+        )
+        if exclude_id:
+            q = q.where(RentalAsset.id != exclude_id)
+        result = await self.db.execute(q)
+        return result.scalar_one() > 0
+
+    async def _unique_slug(self, vendor_id: UUID, name: str, asset_code: Optional[str] = None, exclude_id: Optional[UUID] = None) -> str:
+        base = self._slugify(name)
+        slug = base
+        if await self._slug_exists(vendor_id, slug, exclude_id):
+            if asset_code:
+                slug = f"{base}-{self._slugify(asset_code)}"
+            counter = 2
+            candidate = slug
+            while await self._slug_exists(vendor_id, candidate, exclude_id):
+                candidate = f"{slug}-{counter}"
+                counter += 1
+            slug = candidate
+        return slug
+
     def _asset_dict(self, a: RentalAsset) -> dict:
         available = self._available_capacity(a)
         status = self._derive_asset_status(a)
@@ -50,6 +84,7 @@ class RentalService:
             "id": str(a.id),
             "vendor_id": str(a.vendor_id),
             "name": a.name,
+            "slug": a.slug if hasattr(a, "slug") else None,
             "asset_code": a.asset_code,
             "sku": a.sku,
             "product_id": str(a.product_id) if a.product_id else None,
@@ -85,6 +120,8 @@ class RentalService:
             "display_start_date": a.display_start_date.isoformat() if a.display_start_date else None,
             "display_end_date": a.display_end_date.isoformat() if a.display_end_date else None,
             "is_active": bool(a.is_active) if a.is_active is not None else True,
+            "is_visible": bool(a.is_visible) if hasattr(a, "is_visible") and a.is_visible is not None else True,
+            "store_scope": (a.store_scope if hasattr(a, "store_scope") else None) or "all",
             "notes": a.notes,
             "parent_asset_id": str(a.parent_asset_id) if a.parent_asset_id else None,
             "is_bookable": bool(a.is_bookable) if a.is_bookable is not None else True,
@@ -434,10 +471,110 @@ class RentalService:
         # Status is derived in Python (capacity-based), so filter post-serialization
         if status:
             items = [a for a in items if a["status"] == status]
+
+        # Annotate each asset with child_count (hierarchy) and unit_count (serialized)
+        asset_ids = [UUID(a["id"]) for a in items]
+        if asset_ids:
+            child_rows = await self.db.execute(
+                select(RentalAsset.parent_asset_id, func.count(RentalAsset.id).label("cnt"))
+                .where(RentalAsset.parent_asset_id.in_(asset_ids))
+                .group_by(RentalAsset.parent_asset_id)
+            )
+            child_counts: dict[str, int] = {str(r.parent_asset_id): r.cnt for r in child_rows}
+
+            unit_rows = await self.db.execute(
+                select(RentalAssetUnit.asset_id, func.count(RentalAssetUnit.id).label("cnt"))
+                .where(RentalAssetUnit.asset_id.in_(asset_ids))
+                .group_by(RentalAssetUnit.asset_id)
+            )
+            unit_counts: dict[str, int] = {str(r.asset_id): r.cnt for r in unit_rows}
+
+            for a in items:
+                a["child_count"] = child_counts.get(a["id"], 0)
+                a["unit_count"] = unit_counts.get(a["id"], 0)
+
         return items
 
     async def get_asset(self, vendor_id: UUID, asset_id: UUID) -> dict:
         return self._asset_dict(await self._get_asset(vendor_id, asset_id))
+
+    # ── Public / catalog-facing methods ─────────────────────────────────────
+
+    def _storefront_where(self, vendor_id: UUID, store_id: Optional[UUID] = None):
+        """Return SQLAlchemy WHERE clauses for the public catalog listing."""
+        today = date.today()
+        clauses = [
+            RentalAsset.vendor_id == vendor_id,
+            RentalAsset.is_active.is_(True),
+            RentalAsset.is_visible.is_(True),
+            # Exclude hard-unavailable states; capacity-derived statuses (fully_occupied, etc.)
+            # are computed in Python, so we keep those rows and let _derive_asset_status decide.
+            RentalAsset.status.notin_(["maintenance", "unavailable", "retired"]),
+            # Display window: hide only when end date has passed.
+            or_(
+                RentalAsset.display_end_date.is_(None),
+                RentalAsset.display_end_date >= today,
+            ),
+        ]
+        if store_id:
+            from app.services.catalog_store_scope import rental_asset_available_at_store
+            clauses.append(rental_asset_available_at_store(store_id))
+        return clauses
+
+    async def list_catalog_assets(
+        self,
+        vendor_id: UUID,
+        *,
+        page: int = 1,
+        size: int = 20,
+        search: Optional[str] = None,
+        category: Optional[str] = None,
+        min_daily_rate: Optional[float] = None,
+        max_daily_rate: Optional[float] = None,
+        store_id: Optional[UUID] = None,
+    ) -> tuple[list[dict], int]:
+        """Paginated public catalog list — mirrors GET /catalog/products pattern."""
+        where = self._storefront_where(vendor_id, store_id)
+
+        if search:
+            like = f"%{search.lower()}%"
+            where.append(or_(
+                func.lower(RentalAsset.name).like(like),
+                func.lower(RentalAsset.description).like(like),
+                func.lower(RentalAsset.location).like(like),
+                func.lower(RentalAsset.asset_code).like(like),
+            ))
+        if category:
+            where.append(func.lower(RentalAsset.category) == category.lower())
+        if min_daily_rate is not None:
+            where.append(RentalAsset.daily_rate >= min_daily_rate)
+        if max_daily_rate is not None:
+            where.append(RentalAsset.daily_rate <= max_daily_rate)
+
+        count_q = select(func.count()).select_from(RentalAsset).where(*where)
+        total = (await self.db.execute(count_q)).scalar_one()
+
+        skip = (page - 1) * size
+        items_q = (
+            select(RentalAsset)
+            .where(*where)
+            .order_by(RentalAsset.name)
+            .offset(skip)
+            .limit(size)
+        )
+        rows = (await self.db.execute(items_q)).scalars().all()
+        items = [self._asset_dict(r) for r in rows]
+        return items, total
+
+    async def get_catalog_asset_by_slug(self, vendor_id: UUID, slug: str) -> Optional[dict]:
+        """Fetch a single asset by slug for the public catalog; applies all visibility gates."""
+        where = self._storefront_where(vendor_id)
+        where.append(RentalAsset.slug == slug)
+        result = await self.db.execute(select(RentalAsset).where(*where))
+        asset = result.scalar_one_or_none()
+        if not asset:
+            return None
+        return self._asset_dict(asset)
 
     async def create_asset(self, vendor_id: UUID, data: dict) -> dict:
         code = data.get("asset_code") or await self._next_asset_code(vendor_id)
@@ -445,9 +582,11 @@ class RentalService:
         display_end = self._parse_optional_date(data.get("display_end_date") or data.get("end_date"))
         if display_start and display_end and display_end < display_start:
             raise HTTPException(400, "Display end date must be on or after start date")
+        slug = data.get("slug") or await self._unique_slug(vendor_id, data["name"], code)
         asset = RentalAsset(
             vendor_id=vendor_id,
             name=data["name"],
+            slug=slug,
             asset_code=code,
             sku=data.get("sku") or code,
             product_id=UUID(data["product_id"]) if data.get("product_id") else None,
@@ -481,6 +620,8 @@ class RentalService:
             display_end_date=display_end,
             notes=data.get("notes"),
             is_active=data.get("is_active", True),
+            is_visible=data.get("is_visible", True),
+            store_scope=data.get("store_scope") or "all",
             parent_asset_id=UUID(data["parent_asset_id"]) if data.get("parent_asset_id") else None,
             is_bookable=data.get("is_bookable", True),
             unit_mode=data.get("unit_mode") or "none",
@@ -494,19 +635,31 @@ class RentalService:
     async def update_asset(self, vendor_id: UUID, asset_id: UUID, data: dict) -> dict:
         asset = await self._get_asset(vendor_id, asset_id)
         fields = [
-            "name", "asset_code", "sku", "category", "asset_type", "description",
+            "asset_code", "sku", "category", "asset_type", "description",
             "capacity_max", "capacity_unit", "max_weight", "weight_unit",
             "daily_rate", "weekly_rate", "monthly_rate", "deposit_amount",
             "extra_qty_charge", "extra_weight_charge",
             "price_per_unit", "pricing_uom",
             "hourly_rate", "per_minute_rate", "yearly_rate",
             "location", "section", "row_label", "rack_number", "image_url",
-            "status", "notes", "is_active",
+            "status", "notes", "is_active", "is_visible", "store_scope",
             "is_bookable", "unit_mode",
         ]
         for f in fields:
             if f in data:
                 setattr(asset, f, data[f])
+        # Re-slug when name changes (or explicit slug provided)
+        if "name" in data:
+            asset.name = data["name"]
+            new_slug = data.get("slug") or await self._unique_slug(
+                vendor_id, data["name"], asset.asset_code, exclude_id=asset_id
+            )
+            asset.slug = new_slug
+        elif "slug" in data and data["slug"]:
+            candidate = self._slugify(data["slug"])
+            if await self._slug_exists(vendor_id, candidate, exclude_id=asset_id):
+                raise HTTPException(400, f"Slug '{candidate}' is already in use")
+            asset.slug = candidate
         if "sales_area_id" in data:
             asset.sales_area_id = UUID(data["sales_area_id"]) if data.get("sales_area_id") else None
         if "parent_asset_id" in data:

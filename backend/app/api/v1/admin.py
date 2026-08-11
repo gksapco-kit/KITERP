@@ -32,6 +32,10 @@ from app.schemas.vendor import (
     serialize_vendor_admin,
 )
 from app.services.vendor_service import VendorService
+from app.utils.vendor_address import (
+    VENDOR_ADDRESS_UPDATE_FIELDS,
+    sync_vendor_address_to_default_store,
+)
 from app.repositories.vendor_repo import VendorRepository
 from app.repositories.user_repo import UserRepository
 from app.core.security import get_password_hash, create_vendor_handoff_token
@@ -755,6 +759,9 @@ async def update_vendor(
 
     for field, value in update_data.items():
         setattr(vendor, field, value)
+
+    if VENDOR_ADDRESS_UPDATE_FIELDS & update_data.keys():
+        await sync_vendor_address_to_default_store(db, vendor)
 
     await db.commit()
     await db.refresh(vendor)

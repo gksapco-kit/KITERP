@@ -506,6 +506,58 @@ export type CreditControlCheckResult = {
   payment_blocked: boolean
 }
 
+// ── Sales area dues types ────────────────────────────────────────────────────
+
+export type SalesAreaDuesAgingBuckets = {
+  total_due: number
+  not_due: number
+  days_1_30: number
+  days_31_60: number
+  days_61_90: number
+  days_90_plus: number
+  overdue_due: number
+}
+
+export type SalesAreaDuesSummaryRow = SalesAreaDuesAgingBuckets & {
+  sales_area_id: string | null
+  sales_area_code: string | null
+  sales_area_name: string | null
+  business_unit_id: string | null
+  business_unit_name: string | null
+  customer_count: number
+  open_invoice_count: number
+}
+
+export type SalesAreaDuesSummaryResponse = {
+  areas: SalesAreaDuesSummaryRow[]
+  totals: SalesAreaDuesAgingBuckets
+}
+
+export type SalesAreaDuesInvoiceRow = {
+  id: string
+  invoice_number: string
+  status: string | null
+  created_at: string | null
+  due_date: string | null
+  total: number
+  balance_due: number
+}
+
+export type SalesAreaDuesCustomerRow = SalesAreaDuesAgingBuckets & {
+  sales_area_id: string | null
+  customer_id: string | null
+  customer_name: string
+  phone: string | null
+  email: string | null
+  customer_group: string | null
+  open_invoices: number
+  oldest_due_date: string | null
+  days_overdue: number | null
+  credit_limit: number | null
+  payment_blocked: boolean | null
+  invoices?: SalesAreaDuesInvoiceRow[]
+}
+
 // ── API helpers ─────────────────────────────────────────────────────────────
 
 export type CrmDocument = {
@@ -791,6 +843,14 @@ export const crmApi = {
     apiClient.post<IntakeToken>(`${BASE}/intake-tokens`, data).then(r => r.data),
   revokeIntakeToken: (id: string) =>
     apiClient.post(`${BASE}/intake-tokens/${id}/revoke`).then(r => r.data),
+
+  // Sales area dues
+  getSalesAreaDuesSummary: (params: Record<string, unknown> = {}) =>
+    apiClient.get<SalesAreaDuesSummaryResponse>(`${BASE}/sales-area-dues/summary`, { params }).then(r => r.data),
+  listSalesAreaDues: (params: Record<string, unknown> = {}) =>
+    apiClient.get<Paginated<SalesAreaDuesCustomerRow>>(`${BASE}/sales-area-dues`, {
+      params: clampPageSize(params),
+    }).then(r => r.data),
 
   // Payment follow-ups
   listPaymentFollowups: (params: Record<string, unknown> = {}) =>

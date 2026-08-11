@@ -24,7 +24,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { vendorApi } from '@/api/vendor'
-import { useCreateCustomer, useCreateSupplier, useUpdateCustomer, useUpdateSupplier, useCreateBusinessPartner } from '@/hooks/useVendor'
+import { useCreateCustomer, useCreateSupplier, useUpdateCustomer, useUpdateSupplier, useCreateBusinessPartner, useSalesAreas } from '@/hooks/useVendor'
 import type { PartyType, Customer, Supplier } from '@/types'
 import {
   X, Loader2, ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
@@ -964,6 +964,28 @@ export function AddPartyModal({
     }
     return 'retail'
   })
+  const [salesAreaId, setSalesAreaId] = useState<string>(() => {
+    if (editRecord?.kind === 'customer') {
+      return (editRecord.raw as unknown as Record<string, string>).sales_area_id || ''
+    }
+    return ''
+  })
+  const { data: salesAreaData } = useSalesAreas({ is_active: true })
+  const salesAreaOptions = (salesAreaData?.sales_areas ?? [])
+    .filter((a) => a.is_active)
+    .map((a) => {
+      const raw = (a.name || '').trim()
+      const name = raw && raw.toLowerCase() !== 'null' ? raw : ''
+      const code = (a.code || '').trim()
+      const label = name && code ? `${name} (${code})` : name || code || 'Sales area'
+      return {
+        value: a.id,
+        label,
+        hint: [a.business_unit_name || a.business_unit_code, a.distribution_channel_name, a.division_name]
+          .filter(Boolean)
+          .join(' · ') || undefined,
+      }
+    })
   const [contactPerson, setContactPerson] = useState('')
   const [notes, setNotes] = useState('')
   // Bank details
@@ -1022,6 +1044,8 @@ export function AddPartyModal({
       setAccountHolderName(c.account_holder_name || '')
       setAccountType(c.account_type || 'savings')
       setIfscCode(c.ifsc_code || '')
+      setCustomerGroup(c.customer_group || 'retail')
+      setSalesAreaId(c.sales_area_id || '')
     } else {
       const s = raw as Supplier
       const metaLine = (s.notes || '').split('\n').find(l => l.startsWith('__meta__:'))
@@ -1352,6 +1376,7 @@ export function AddPartyModal({
             opening_balance: openingBalance ? parseFloat(openingBalance) : 0,
             billing_address: billingAddress, notes: notes || undefined,
             customer_group: customerGroup,
+            sales_area_id: salesAreaId || null,
             ...bankPayload,
           }
           const updated = await updateCustomer.mutateAsync({ id, data: payload })
@@ -1397,7 +1422,9 @@ export function AddPartyModal({
       const rolesToCreate = selectedRoles.length > 0 ? selectedRoles : [partyType]
       const roleDefs = rolesToCreate.map(r => ({
         role: r,
-        attributes: r === 'customer' ? { customer_group: customerGroup } : undefined,
+        attributes: r === 'customer'
+          ? { customer_group: customerGroup, ...(salesAreaId ? { sales_area_id: salesAreaId } : {}) }
+          : undefined,
       }))
 
       const created = await createBP.mutateAsync({
@@ -2137,17 +2164,30 @@ export function AddPartyModal({
                   )}
                 </div>
 
-                {/* Pricing Group (customer only) — must match a product's "Party" price rule to apply */}
+                {/* Pricing Group + Sales Area (customer only) */}
                 {partyType === 'customer' && (
-                  <div>
-                    <Label className="flex items-center gap-1 text-xs"><Tag className="w-3 h-3" /> Pricing Group</Label>
-                    <ThemeSelect
-                      value={customerGroup}
-                      onChange={setCustomerGroup}
-                      options={CUSTOMER_PRICING_GROUPS.map(g => ({ value: g.value, label: g.label }))}
-                      className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                    />
-                    <p className="text-xs text-gray-400 mt-0.5">Determines which retail/wholesale/distributor/agent price rules apply to this customer at checkout &amp; POS.</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label className="flex items-center gap-1 text-xs"><Tag className="w-3 h-3" /> Pricing Group</Label>
+                      <ThemeSelect
+                        value={customerGroup}
+                        onChange={setCustomerGroup}
+                        options={CUSTOMER_PRICING_GROUPS.map(g => ({ value: g.value, label: g.label }))}
+                        className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
+                      />
+                      <p className="text-xs text-gray-400 mt-0.5">Price rules at checkout &amp; POS.</p>
+                    </div>
+                    <div>
+                      <Label className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" /> Sales Area</Label>
+                      <ThemeSelect
+                        value={salesAreaId}
+                        onChange={setSalesAreaId}
+                        options={[{ value: '', label: 'Unassigned' }, ...salesAreaOptions]}
+                        placeholder={salesAreaOptions.length ? 'Select sales area' : 'No sales areas yet'}
+                        className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
+                      />
+                      <p className="text-xs text-gray-400 mt-0.5">Default area for orders, invoices, and dues.</p>
+                    </div>
                   </div>
                 )}
 

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Numeric, Date, Boolean
+from sqlalchemy import Column, Index, String, Text, DateTime, ForeignKey, Numeric, Date, Boolean
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 import uuid
@@ -14,6 +14,7 @@ class RentalAsset(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
+    slug = Column(String(160), nullable=False)
     asset_code = Column(String(50))
     sku = Column(String(100))
     product_id = Column(UUID(as_uuid=True), ForeignKey("product.id"), nullable=True)
@@ -65,6 +66,10 @@ class RentalAsset(Base):
     display_end_date = Column(Date)
     notes = Column(Text)
     is_active = Column(Boolean, default=True)
+    # Explicit storefront toggle — mirrors Product.is_visible / Service.is_visible
+    is_visible = Column(Boolean, default=True, server_default="true")
+    # "all" = shown in every business unit; "selected" = only the units in rental_asset_store
+    store_scope = Column(String(20), default="all", server_default="all")
 
     # ── Sub-asset / unit tracking ─────────────────────────────────────
     # Hierarchy: an asset may be a child of another (e.g. single van inside a fleet).
@@ -77,6 +82,32 @@ class RentalAsset(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index("uq_rental_asset_vendor_slug", "vendor_id", "slug", unique=True),
+    )
+
+
+class RentalAssetStore(Base):
+    """Catalog availability: which business units offer this rental asset.
+
+    Only consulted when store_scope == 'selected'; when scope is 'all' the
+    asset appears across every business unit regardless of this table.
+    """
+
+    __tablename__ = "rental_asset_store"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+    asset_id = Column(UUID(as_uuid=True), ForeignKey("rental_asset.id", ondelete="CASCADE"), nullable=False)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_rental_asset_store_asset", "asset_id"),
+        Index("idx_rental_asset_store_store", "store_id"),
+        Index("uq_rental_asset_store", "asset_id", "store_id", unique=True),
+    )
 
 
 class RentalBooking(Base):

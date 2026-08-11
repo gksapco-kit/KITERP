@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useCustomer } from '@/hooks/useVendor'
+import { useCustomer, useSalesAreas } from '@/hooks/useVendor'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Loading } from '@/components/common/Loading'
 import { ArrowLeft, Building2, MapPin, CreditCard, Landmark, FileText, Tag } from 'lucide-react'
@@ -26,6 +26,7 @@ export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: customer, isLoading } = useCustomer(id!)
+  const { data: salesAreaData } = useSalesAreas({ is_active: true })
 
   if (isLoading) {
     return (
@@ -107,6 +108,20 @@ export default function CustomerDetail() {
         <CardContent className="space-y-0">
           <InfoRow label="Email" value={customer.email} />
           <InfoRow label="Phone" value={customer.phone} />
+          <InfoRow
+            label="Sales Area"
+            value={
+              customer.sales_area_id
+                ? (() => {
+                    const area = (salesAreaData?.sales_areas ?? []).find((a) => a.id === customer.sales_area_id)
+                    if (!area) return 'Assigned'
+                    const raw = (area.name || '').trim()
+                    const name = raw && raw.toLowerCase() !== 'null' ? raw : ''
+                    return name || area.code || 'Assigned'
+                  })()
+                : 'Unassigned'
+            }
+          />
           <div className="flex justify-between py-2.5 border-b last:border-0">
             <span className="text-sm text-gray-500">Status</span>
             <span className="text-sm font-medium">{customer.is_active ? 'Active' : 'Inactive'}</span>

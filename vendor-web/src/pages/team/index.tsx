@@ -41,12 +41,18 @@ import { processRows, type SortDir } from '@/lib/tableList'
 import { extractApiError } from '@/lib/errorMessages'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { employeeContactEmail, employeeContactPhone, employeeDisplayName } from '@/lib/hrEmployeeDisplay'
+import {
+  humanizeRoleSlug,
+  pluralizeRoleLabel,
+  roleBadgeColor,
+  rolePermissionsPath,
+  summarizePermissionsByModule,
+} from '@/lib/vendorRoles'
 import { toast } from 'sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
-const SYSTEM_ROLES = ['owner', 'admin', 'manager', 'sales', 'staff']
 
 type MemberUpdatePayload = {
   role?: string
@@ -55,15 +61,6 @@ type MemberUpdatePayload = {
   access_starts_at?: string | null
   access_ends_at?: string | null
   clear_access_ends_at?: boolean
-}
-
-const roleColors: Record<string, string> = {
-  owner: 'bg-primary/12 text-primary',
-  admin: 'bg-blue-100 text-blue-700',
-  manager: 'bg-green-100 text-green-700',
-  sales: 'bg-amber-100 text-amber-700',
-  staff: 'bg-gray-100 text-gray-700',
-  custom: 'bg-indigo-100 text-indigo-700',
 }
 
 export default function TeamPage() {
@@ -214,6 +211,24 @@ export default function TeamPage() {
   const canManageTeam = user?.vendor_role?.permissions?.includes('team.manage')
   const canInvite = user?.vendor_role?.permissions?.includes('team.invite')
 
+  // Derived from the roles actually in use — any of the 21 built-in roles or a custom role can
+  // appear, so a fixed list of four would leave members uncounted.
+  const roleCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const m of members) counts.set(m.role, (counts.get(m.role) ?? 0) + 1)
+    const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    const top = ranked.slice(0, 4).map(([role, count]) => ({
+      key: role,
+      label: role === 'custom' ? 'Custom roles' : pluralizeRoleLabel(humanizeRoleSlug(role)),
+      count,
+    }))
+    const remainder = ranked.slice(4).reduce((sum, [, count]) => sum + count, 0)
+    if (remainder > 0) {
+      top[3] = { key: '__other__', label: `Other roles (${ranked.length - 3})`, count: remainder + top[3].count }
+    }
+    return top
+  }, [members])
+
   const handleInvite = () => {
     inviteMutation.mutate({
       email: inviteForm.email,
@@ -327,17 +342,16 @@ export default function TeamPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {['owner', 'admin', 'manager', 'staff'].map((role) => {
-          const count = members.filter((m) => m.role === role).length
-          return (
-            <div key={role} className="bg-white rounded-lg border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 uppercase tracking-wide">{role}s</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{count}</p>
+      {roleCounts.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {roleCounts.map((stat) => (
+            <div key={stat.key} className="bg-white rounded-lg border border-gray-200 p-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">{stat.label}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stat.count}</p>
             </div>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Members Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -453,16 +467,8 @@ export default function TeamPage() {
                           <button
                             type="button"
                             title="View role permissions"
-                            onClick={() => {
-                              const isBuiltIn = SYSTEM_ROLES.includes(member.role)
-                              const dest = isBuiltIn
-                                ? `/roles?builtin=${member.role}&from=team`
-                                : member.role_id
-                                  ? `/roles?roleId=${member.role_id}&from=team`
-                                  : '/roles?from=team'
-                              navigate(dest)
-                            }}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-75 ${roleColors[member.role] || roleColors.custom}`}
+                            onClick={() => navigate(rolePermissionsPath(member))}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-75 ${roleBadgeColor(member.role)}`}
                           >
                             <Shield className="w-3 h-3" />
                             {member.role_name}
@@ -472,16 +478,8 @@ export default function TeamPage() {
                         <button
                           type="button"
                           title="View role permissions"
-                          onClick={() => {
-                            const isBuiltIn = SYSTEM_ROLES.includes(member.role)
-                            const dest = isBuiltIn
-                              ? `/roles?builtin=${member.role}&from=team`
-                              : member.role_id
-                                ? `/roles?roleId=${member.role_id}&from=team`
-                                : '/roles?from=team'
-                            navigate(dest)
-                          }}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-75 ${roleColors[member.role] || roleColors.custom}`}
+                          onClick={() => navigate(rolePermissionsPath(member))}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-75 ${roleBadgeColor(member.role)}`}
                         >
                           <Shield className="w-3 h-3" />
                           {member.role_name}
@@ -914,6 +912,11 @@ function MemberDetailDrawer({
   const [accessEndsAt, setAccessEndsAt] = useState(toDateInputValue(member.access_ends_at))
   const [endSource, setEndSource] = useState(member.access_end_source ?? null)
 
+  const permissionSummary = useMemo(
+    () => summarizePermissionsByModule(member.permissions ?? []),
+    [member.permissions],
+  )
+
   const hrLwd = hrEmployee?.lwd ? toDateInputValue(hrEmployee.lwd) : null
   const parsed = parseRoleSelectValue(selectValue, customRoles)
   const role = parsed.role
@@ -978,7 +981,7 @@ function MemberDetailDrawer({
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 text-base truncate">{member.user?.full_name || 'Unknown'}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${roleColors[member.role] || roleColors.custom}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${roleBadgeColor(member.role)}`}>
                   <Shield className="w-3 h-3" />
                   {member.role_name}
                 </span>
@@ -1119,6 +1122,49 @@ function MemberDetailDrawer({
               </div>
             </div>
           )}
+
+          {/* App Permissions */}
+          <div className="space-y-2">
+            <FormColumnLabel className="tracking-wide">App Permissions</FormColumnLabel>
+            <div className="rounded-xl border border-gray-100 bg-white p-4 space-y-3">
+              {permissionSummary.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  This role grants no app permissions yet.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-500">
+                    <span className="font-medium text-gray-700">{member.permissions.length}</span>
+                    {' '}permission{member.permissions.length === 1 ? '' : 's'} across{' '}
+                    <span className="font-medium text-gray-700">{permissionSummary.length}</span>
+                    {' '}app{permissionSummary.length === 1 ? '' : 's'}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {permissionSummary.map((mod) => (
+                      <span
+                        key={mod.module}
+                        className="inline-flex items-center gap-1 rounded-full bg-gray-50 border border-gray-100 px-2 py-0.5 text-xs text-gray-700"
+                      >
+                        {mod.label}
+                        <span className="text-gray-400">{mod.count}</span>
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+              <Link
+                to={rolePermissionsPath(member)}
+                onClick={onClose}
+                className="flex items-center justify-between rounded-lg bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+              >
+                <span className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  View full permission matrix
+                </span>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
 
           {/* HR Profile Link */}
           {employeeId && (

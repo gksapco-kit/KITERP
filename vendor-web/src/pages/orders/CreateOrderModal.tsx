@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
+import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { CustomerPicker, type CustomerPickerValue } from '@/components/commission/CustomerPicker'
 import { CatalogItemPicker, type CatalogPickerItem } from '@/components/common/CatalogItemPicker'
 import { vendorApi } from '@/api/vendor'
@@ -56,6 +57,7 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
   // Scope
   const [storeId, setStoreId] = useState('')
   const [branchId, setBranchId] = useState('')
+  const [salesAreaId, setSalesAreaId] = useState('')
   const effectiveStoreId = branchId || storeId
 
   // Items
@@ -114,6 +116,7 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
         payment_method: paymentMethod,
         notes: notes.trim() || undefined,
         store_id: effectiveStoreId || undefined,
+        sales_area_id: salesAreaId || undefined,
         order_type: orderType || 'standard',
         payment_terms_code: paymentTermsCode.trim() || undefined,
         payment_terms_days: paymentTermsDays ? parseInt(paymentTermsDays) : undefined,
@@ -160,8 +163,8 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
 
             {/* Business unit */}
             <div className={fieldGap}>
-              <Label className={labelCls}>Business unit / Branch</Label>
-              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              <Label className={labelCls}>Business unit / Branch / Sales area</Label>
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                 <BusinessUnitSelect
                   value={storeId}
                   onChange={(id) => { setStoreId(id); setBranchId(''); setCatalogItems([]); setOrderItems([]) }}
@@ -174,6 +177,14 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
                   value={branchId}
                   onChange={(id) => { setBranchId(id); setCatalogItems([]); setOrderItems([]) }}
                   allowAll
+                  className="min-w-0"
+                  triggerClassName="h-8 text-sm"
+                />
+                <SalesAreaSelect
+                  value={salesAreaId}
+                  onChange={setSalesAreaId}
+                  allowAll={false}
+                  requireBusinessUnit={false}
                   className="min-w-0"
                   triggerClassName="h-8 text-sm"
                 />
@@ -195,7 +206,10 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
               {useExistingCustomer ? (
                 <CustomerPicker
                   selected={customer}
-                  onSelect={setCustomer}
+                  onSelect={(val) => {
+                    setCustomer(val)
+                    if (val?.sales_area_id) setSalesAreaId(val.sales_area_id)
+                  }}
                   compact
                   placeholder="Search customers…"
                 />

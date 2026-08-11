@@ -1321,6 +1321,7 @@ export const vendorApi = {
     payment_method: string
     notes?: string
     store_id?: string
+    sales_area_id?: string
     shipping_street?: string
     shipping_city?: string
     shipping_state?: string

@@ -57,6 +57,7 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/team': 'system',
   '/roles': 'system',
   '/system/upi-checkout': 'system',
+  '/crm/sales-area-dues': 'sales',
 }
 
 /** When pinning, insert after this sibling route when it exists in that section. */
@@ -74,6 +75,7 @@ const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/system/upi-checkout': '/roles',
   '/system/assets/images': '/system/upi-checkout',
   '/procurement/goods': '/storage-locations',
+  '/crm/sales-area-dues': '/sales/sales-area',
 }
 
 /** When pinning, insert before this sibling route (wins over INSERT_AFTER when both resolve). */
@@ -431,6 +433,7 @@ export function reconcileNavPlacements(
     '/sales/events',
     '/sales/coverage',
     '/sales/sales-area',
+    '/crm/sales-area-dues',
     '/marketplace',
     '/sales/testimonials',
   ]

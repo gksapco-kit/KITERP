@@ -4,7 +4,8 @@ import { useStoreName } from '@/components/common/BusinessUnitSelect'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
-import { useUpdateInvoice, useInvoiceSettings, useQuotationSettings } from '@/hooks/useVendor'
+import { useUpdateInvoice, useInvoiceSettings, useQuotationSettings, useSalesAreas } from '@/hooks/useVendor'
+import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -498,6 +499,18 @@ export default function InvoiceDetail() {
   /** Invoices created from a web-store / POS / booking order stay in sync with that order. */
   const isOrderLinked = Boolean((inv as { order_id?: string } | undefined)?.order_id)
   const canEditInvoice = Boolean(inv) && !isOrderLinked && inv?.status !== 'paid' && inv?.status !== 'cancelled'
+  const canChangeSalesArea = Boolean(inv) && inv?.status !== 'paid' && inv?.status !== 'cancelled'
+  const { data: salesAreaData } = useSalesAreas({ is_active: true })
+  const invoiceSalesAreaLabel = (() => {
+    const sid = String((inv as { sales_area_id?: string | null } | undefined)?.sales_area_id || '')
+    if (!sid) return null
+    const area = (salesAreaData?.sales_areas ?? []).find((a) => a.id === sid)
+    if (!area) return null
+    const code = (area.code || '').trim()
+    const name = (area.name || '').trim()
+    if (name && code) return `${name} (${code})`
+    return name || code || null
+  })()
 
   useEffect(() => {
     if (!inv || isLoading || !id) return
@@ -514,6 +527,7 @@ export default function InvoiceDetail() {
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerGstin, setCustomerGstin] = useState('')
+  const [salesAreaId, setSalesAreaId] = useState('')
   const [notes, setNotes] = useState('')
   const [editItems, setEditItems] = useState<LineItem[]>([])
   const [editExtraFields, setEditExtraFields] = useState<QuotationExtraField[]>([])
@@ -640,6 +654,7 @@ export default function InvoiceDetail() {
     setCustomerName(inv.customer_name || '')
     setCustomerPhone(inv.customer_phone || '')
     setCustomerGstin(inv.customer_gstin || '')
+    setSalesAreaId(String((inv as { sales_area_id?: string | null }).sales_area_id || ''))
     setNotes(inv.notes || '')
     setEditItems(parseLineItems(inv.items || []))
     setEditExtraFields(normalizeQuotationExtraFields(inv.extra_fields))
@@ -649,6 +664,11 @@ export default function InvoiceDetail() {
   useEffect(() => {
     if (!canEditInvoice && isEditing) setIsEditing(false)
   }, [canEditInvoice, isEditing])
+
+  useEffect(() => {
+    if (!inv || isEditing) return
+    setSalesAreaId(String((inv as { sales_area_id?: string | null }).sales_area_id || ''))
+  }, [inv, isEditing])
 
   const cancelEditing = useCallback(() => {
     setIsEditing(false)
@@ -700,6 +720,7 @@ export default function InvoiceDetail() {
           customer_name: customerName,
           customer_phone: customerPhone,
           customer_gstin: customerGstin,
+          sales_area_id: salesAreaId || null,
           notes,
           items: validItems.map(item => ({
             name: item.name,
@@ -717,7 +738,7 @@ export default function InvoiceDetail() {
         },
       },
     )
-  }, [id, editItems, editExtraFields, isQuotation, customerName, customerPhone, customerGstin, notes, updateInvoice])
+  }, [id, editItems, editExtraFields, isQuotation, customerName, customerPhone, customerGstin, salesAreaId, notes, updateInvoice])
 
   if (isLoading) {
     return (
@@ -987,6 +1008,25 @@ export default function InvoiceDetail() {
               )}
               {inv.place_of_supply && (
                 <InfoRow compact icon={MapPin} label="Place of Supply" value={inv.place_of_supply} />
+              )}
+              {canChangeSalesArea ? (
+                <div className="min-w-0 sm:col-span-2">
+                  <Label className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Sales Area</Label>
+                  <SalesAreaSelect
+                    value={salesAreaId}
+                    onChange={(next) => {
+                      setSalesAreaId(next)
+                      if (!id || isEditing) return
+                      updateInvoice.mutate({ id, data: { sales_area_id: next || null } })
+                    }}
+                    allowAll={false}
+                    requireBusinessUnit={false}
+                    className="mt-0.5 min-w-0 w-full"
+                    triggerClassName="h-8"
+                  />
+                </div>
+              ) : (
+                <InfoRow compact icon={MapPin} label="Sales Area" value={invoiceSalesAreaLabel} />
               )}
             </div>
             {inv.is_inter_state && (

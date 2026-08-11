@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.database import get_db
 from app.models.store import Store, StoreInventory
@@ -22,6 +23,11 @@ from app.utils.store_codes import (
     ensure_default_store_if_missing,
     ensure_store_code_unique,
     normalize_branch_code_for_parent,
+)
+from app.utils.vendor_address import (
+    apply_vendor_fallback_to_store_address,
+    store_address_from_vendor,
+    store_address_is_empty,
 )
 
 router = APIRouter(dependencies=[Depends(require_permission("settings.edit"))])
@@ -54,7 +60,11 @@ async def _get_business_unit_or_404(bu_id: UUID, vendor_id: UUID, db: AsyncSessi
     return store
 
 
-def _store_to_dict(s: Store, include_staff: bool = False) -> dict:
+def _store_to_dict(s: Store, include_staff: bool = False, vendor: Optional[Vendor] = None) -> dict:
+    address = s.address or {}
+    if vendor is not None and (s.is_default or s.parent_id is None):
+        address = apply_vendor_fallback_to_store_address(address, vendor)
+
     d = {
         "id": str(s.id),
         "vendor_id": str(s.vendor_id),
@@ -65,7 +75,7 @@ def _store_to_dict(s: Store, include_staff: bool = False) -> dict:
         "description": s.description,
         "phone": s.phone,
         "email": s.email,
-        "address": s.address or {},
+        "address": address,
         "manager_id": str(s.manager_id) if s.manager_id else None,
         "is_active": s.is_active,
         "is_open": s.is_open if s.is_open is not None else True,
@@ -99,6 +109,7 @@ class AddressSchema(BaseModel):
     country: Optional[str] = "India"
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    label: Optional[str] = None
 
 
 class StoreCreate(BaseModel):
@@ -188,6 +199,20 @@ async def list_stores(
     result = await db.execute(q)
     stores = result.scalars().all()
 
+    if vendor:
+        healed = False
+        for s in stores:
+            if s.parent_id is not None:
+                continue
+            if store_address_is_empty(s.address):
+                s.address = store_address_from_vendor(
+                    vendor, s.address if isinstance(s.address, dict) else {}
+                )
+                flag_modified(s, "address")
+                healed = True
+        if healed:
+            await db.commit()
+
     # enrich with inventory counts
     out = []
     for s in stores:
@@ -202,7 +227,7 @@ async def list_stores(
             branch_count = (await db.execute(
                 select(func.count()).where(Store.parent_id == s.id)
             )).scalar() or 0
-        d = _store_to_dict(s)
+        d = _store_to_dict(s, vendor=vendor)
         d["inventory_count"] = inv_count
         d["staff_count"] = staff_count
         d["branch_count"] = branch_count
@@ -306,7 +331,9 @@ async def get_store(
     db: AsyncSession = Depends(get_db),
 ):
     store = await _get_store_or_404(store_id, vendor_id, db)
-    return {"store": _store_to_dict(store, include_staff=True)}
+    vrow = await db.execute(select(Vendor).where(Vendor.id == vendor_id))
+    vendor = vrow.scalar_one_or_none()
+    return {"store": _store_to_dict(store, include_staff=True, vendor=vendor)}
 
 
 @router.put("/stores/{store_id}")

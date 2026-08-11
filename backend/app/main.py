@@ -42,6 +42,7 @@ from app.database import (
     ensure_user_platform_staff_role_column,
     ensure_customer_verification_columns,
     ensure_customer_store_id_column,
+    ensure_customer_sales_area_column,
     ensure_txn_store_id_columns,
     ensure_store_hierarchy_columns,
     ensure_sales_area_tables,
@@ -110,6 +111,7 @@ async def lifespan(app: FastAPI):
         await ensure_txn_store_id_columns()
         await ensure_store_hierarchy_columns()
         await ensure_sales_area_tables()
+        await ensure_customer_sales_area_column()
         await ensure_controlling_area_tables()
         await ensure_production_materials_columns()
         await ensure_production_routing_tables()

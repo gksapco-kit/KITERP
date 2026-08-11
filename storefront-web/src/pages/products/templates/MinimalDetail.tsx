@@ -108,7 +108,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       </nav>
 
       {/* Hero Media */}
-      <div className="mb-8">
+      <div className="mb-8 max-w-[400px] mx-auto">
         <MediaViewer
           items={displayMedia}
           selectedIndex={selectedImage}

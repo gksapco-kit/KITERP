@@ -13,6 +13,7 @@ from uuid import UUID
 from typing import Optional, List
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_password_hash
@@ -88,7 +89,11 @@ class BusinessPartnerService:
         }
 
     async def _provision_customer(
-        self, vendor_id: UUID, bp: BusinessPartner, customer_group: Optional[str] = None,
+        self,
+        vendor_id: UUID,
+        bp: BusinessPartner,
+        customer_group: Optional[str] = None,
+        sales_area_id: Optional[UUID] = None,
     ) -> Customer:
         """Create a Customer row seeded from the BP identity.
 
@@ -117,6 +122,7 @@ class BusinessPartnerService:
             account_type=bp.account_type or "savings",
             ifsc_code=bp.ifsc_code,
             customer_group=customer_group or "retail",
+            sales_area_id=sales_area_id,
             is_active=True,
         )
         self.db.add(customer)
@@ -244,7 +250,29 @@ class BusinessPartnerService:
         supplier_id = None
 
         if role == "customer":
-            c = await self._provision_customer(vendor_id, bp, customer_group=(attributes or {}).get("customer_group"))
+            attrs = attributes or {}
+            raw_sa = attrs.get("sales_area_id")
+            sa_uuid = None
+            if raw_sa:
+                try:
+                    sa_uuid = raw_sa if isinstance(raw_sa, UUID) else UUID(str(raw_sa))
+                except (ValueError, TypeError):
+                    sa_uuid = None
+                if sa_uuid:
+                    from app.models.sales_area import SalesArea
+                    found = await self.db.execute(
+                        select(SalesArea.id).where(
+                            SalesArea.id == sa_uuid, SalesArea.vendor_id == vendor_id,
+                        )
+                    )
+                    if not found.scalar_one_or_none():
+                        raise HTTPException(status_code=400, detail="sales_area_id does not belong to this vendor")
+            c = await self._provision_customer(
+                vendor_id,
+                bp,
+                customer_group=attrs.get("customer_group"),
+                sales_area_id=sa_uuid,
+            )
             customer_id = c.id
         else:
             # All non-customer roles map to a supplier row

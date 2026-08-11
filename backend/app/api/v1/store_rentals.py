@@ -1,7 +1,8 @@
+import datetime as _dt
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_active_customer, get_store_vendor_id
@@ -43,7 +44,23 @@ async def get_store_rental_asset(
     vendor_id: UUID = Depends(get_store_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
-    return await RentalService(db).get_asset(vendor_id, asset_id)
+    svc = RentalService(db)
+    asset = await svc.get_asset(vendor_id, asset_id)
+    # Apply the same visibility gates as the listing so retired / hidden assets
+    # cannot be fetched by UUID even if the caller guesses the ID.
+    _not_found = HTTPException(status_code=404, detail="Rental asset not found")
+    if not asset.get("is_active", True):
+        raise _not_found
+    if not asset.get("is_visible", True):
+        raise _not_found
+    if asset.get("status") in ("maintenance", "unavailable", "retired"):
+        raise _not_found
+    end = asset.get("display_end_date")
+    if end:
+        end_d = _dt.date.fromisoformat(str(end)[:10])
+        if _dt.date.today() > end_d:
+            raise _not_found
+    return asset
 
 
 @router.post("/bookings", status_code=status.HTTP_201_CREATED)

@@ -300,6 +300,10 @@ export type RentalAsset = {
   is_bookable?: boolean
   /** none | hierarchy | serialized */
   unit_mode?: string
+  /** Number of direct child assets (hierarchy mode) */
+  child_count?: number
+  /** Number of serialized units (serialized mode) */
+  unit_count?: number
   max_weight?: number | null
   weight_unit?: string
   daily_rate?: number

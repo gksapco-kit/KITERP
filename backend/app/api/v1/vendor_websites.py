@@ -895,6 +895,31 @@ async def ensure_rentals_page(
         seo_description="Browse and book rental assets — vehicles, equipment, storage and more.",
     )
     db.add(page)
+    await db.flush()  # populate page.id before creating blocks
+
+    # Seed default rental page blocks (mirror pattern from AI site gen)
+    seed_blocks = [
+        WebsiteBlock(
+            id=uuid.uuid4(), page_id=page.id,
+            block_type="hero_minimal", sort_order=0,
+            props=_wire_block_auto_source("hero_minimal", {
+                "headline": "Rentals",
+                "subtitle": "Browse and book available assets — vehicles, equipment, storage and more.",
+                "bg_style": "gradient",
+            }),
+        ),
+        WebsiteBlock(
+            id=uuid.uuid4(), page_id=page.id,
+            block_type="rental_grid", sort_order=1,
+            props=_wire_block_auto_source("rental_grid", {
+                "title": "Available for Rent",
+                "columns": 3,
+            }),
+        ),
+    ]
+    for b in seed_blocks:
+        db.add(b)
+
     await db.commit()
     return await _get_page(db, str(page.id), site_id)
 
@@ -2843,6 +2868,9 @@ BLOCK_AUTO_SOURCE: dict[str, str] = {
     "blog_list":          "blog",
     "pricing":            "plans",
     "service.pricing":    "plans",
+    # Rental assets
+    "rental_grid":        "rentals",
+    "rental_list":        "rentals",
 }
 
 
@@ -3850,6 +3878,7 @@ Fill in real copy for the business. No placeholder text."""
         elif slug == "rentals":
             page_blocks = [
                 {"block_type": "hero_minimal", "label": "Hero", "props": _enrich_block_props_with_category("hero_minimal", {"headline": "Rentals", "subtitle": "Browse and book available assets — vehicles, equipment, storage and more.", "bg_style": "gradient"}, imgs, img_cursor)},
+                {"block_type": "rental_grid",  "label": "Rental Assets", "props": _wire_block_auto_source("rental_grid", {"title": "Available for Rent", "columns": 3})},
                 {"block_type": "features",     "label": "Why Rent With Us", "props": {"title": "Why Rent With Us", "columns": 3, "items": [{"icon": "truck", "title": "Flexible Durations", "description": "Daily, weekly or monthly plans."}, {"icon": "shield", "title": "Secure Deposits", "description": "Transparent refundable deposits."}, {"icon": "check-circle", "title": "Easy Booking", "description": "Request in a few taps."}]}},
             ]
 

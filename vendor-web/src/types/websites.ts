@@ -430,6 +430,7 @@ export interface WebsiteMedia {
 export type LiveResource =
   | 'products'
   | 'services'
+  | 'rentals'
   | 'testimonials'
   | 'team'
   | 'customers'

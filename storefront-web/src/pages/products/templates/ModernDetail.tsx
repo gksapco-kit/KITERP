@@ -125,7 +125,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left — Sticky Image Gallery */}
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-4">
           <div className="lg:sticky lg:top-4">
             <MediaViewer
               items={displayMedia}
@@ -158,7 +158,7 @@ export default function ModernDetail(props: ProductDetailTemplateProps) {
         </div>
 
         {/* Center — Product Info */}
-        <div className="lg:col-span-4 space-y-5">
+        <div className="lg:col-span-5 space-y-5">
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-2">
               {isDisplayFieldEnabled(sf, 'brand') && product.brand && (

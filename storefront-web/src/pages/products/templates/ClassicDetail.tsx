@@ -216,7 +216,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
       </nav>
 
       <div className={`${catalogCard} p-4 sm:p-6 lg:p-8`}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] gap-8 lg:gap-10 items-start">
           {/* Media Gallery — variant media takes priority over product media */}
           <MediaViewer
             items={displayMedia}

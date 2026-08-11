@@ -10,15 +10,20 @@ test.describe('Feature 5: Roles — detailed permissions breakdown', () => {
 
     await expect(page.getByText('Built-in System Roles')).toBeVisible({ timeout: 10000 });
 
-    // Roles are displayed with CSS capitalize, raw text is lowercase
-    for (const role of ['owner', 'admin', 'manager', 'sales', 'staff']) {
-      await expect(page.locator('.capitalize', { hasText: new RegExp(`^${role}$`, 'i') }).first()).toBeVisible({ timeout: 5000 });
+    // Role slugs are humanized for display, so multi-word roles render with a space
+    for (const role of ['Owner', 'Admin', 'Manager', 'Sales', 'Staff', 'Delivery Staff', 'QA Officer', 'HR Manager']) {
+      await expect(
+        page.locator('span.font-medium', { hasText: new RegExp(`^${role}$`) }).first(),
+      ).toBeVisible({ timeout: 5000 });
     }
+
+    // platform_staff is granted only via admin handoff and must stay out of the vendor list
+    await expect(page.getByText(/platform.staff/i)).toHaveCount(0);
 
     // Click the Owner row to expand it
     const ownerRow = page
       .locator('.cursor-pointer')
-      .filter({ has: page.locator('.capitalize', { hasText: /^owner$/i }) })
+      .filter({ has: page.locator('span.font-medium', { hasText: /^Owner$/ }) })
       .first();
     await ownerRow.click();
 

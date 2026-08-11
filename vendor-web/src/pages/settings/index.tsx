@@ -33,7 +33,7 @@ import {
   Clock, ChevronDown, ChevronUp, Building2, Phone,
   Camera, ImageIcon, X, Eye, Copy, ExternalLink, ShoppingBag,
   ChevronRight, Check,
-  Info, CheckCircle2, Landmark, Lock, Building, Plus,
+  Info, CheckCircle2, Landmark, Lock, Plus,
   Link2, AlertCircle, BadgeCheck, Mail, Star, Server, ListChecks, ShieldCheck,
 } from 'lucide-react'
 import {
@@ -48,6 +48,7 @@ import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog'
 import { CompanyTypeDropdown } from '@/components/common/CompanyTypeDropdown'
+import { AddressCard, AddressFields } from '@/components/common/AddressFields'
 import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import { DisabledOptionCard } from '@/components/common/DisabledOptionCard'
 import {
@@ -83,6 +84,7 @@ import {
   HQ_ADDRESS_LABEL_KEY,
   hqAddressLabelFromVendor,
   isAddressSectionDirty,
+  unitAddressFromStore,
   isBusinessHoursSectionDirty,
   isContactSectionDirty,
   isExternalDomainSectionDirty,
@@ -1578,10 +1580,6 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
             }}
           />
         </div>
-
-        <div className="flex justify-end border-t border-border/60 pt-2">
-          <SaveButton loading={profileSaving || onSave.isPending} />
-        </div>
       </form>
     </SectionWrapper>
   )
@@ -1815,9 +1813,6 @@ function ContactSection({
             </Button>
           </div>
         </div>
-        <div className="flex justify-end pt-2">
-          <SaveButton loading={contactSaving} />
-        </div>
       </form>
     </SectionWrapper>
   )
@@ -1834,82 +1829,8 @@ function ReadOnlyBanner({ message }: { message: string }) {
   )
 }
 
-type AddressFieldValues = {
-  street: string
-  city: string
-  state: string
-  country: string
-  postal: string
-}
-
-function UniformAddressFields({
-  values,
-  onChange,
-  streetPlaceholder = '123 Main Street',
-}: {
-  values: AddressFieldValues
-  onChange: (patch: Partial<AddressFieldValues>) => void
-  streetPlaceholder?: string
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="space-y-1">
-        <Label className="text-xs font-medium text-muted-foreground">Street address</Label>
-        <Input
-          value={values.street}
-          onChange={(e) => onChange({ street: e.target.value })}
-          placeholder={streetPlaceholder}
-          className="h-8 text-sm"
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-muted-foreground">City</Label>
-          <Input
-            value={values.city}
-            onChange={(e) => onChange({ city: e.target.value })}
-            placeholder="Hyderabad"
-            className="h-8 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-muted-foreground">State</Label>
-          <Input
-            value={values.state}
-            onChange={(e) => onChange({ state: e.target.value })}
-            placeholder="Telangana"
-            className="h-8 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-muted-foreground">Country</Label>
-          <Input
-            value={values.country}
-            onChange={(e) => onChange({ country: e.target.value })}
-            placeholder="India"
-            className="h-8 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs font-medium text-muted-foreground">Postal code</Label>
-          <Input
-            value={values.postal}
-            onChange={(e) => onChange({ postal: e.target.value })}
-            placeholder="500001"
-            className="h-8 text-sm"
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function AddressPanelShell({
-  name,
-  onNameChange,
-  namePlaceholder,
-  icon: Icon,
-  hint,
+  title = 'Address',
   editable,
   readOnlyMessage,
   onDelete,
@@ -1917,11 +1838,7 @@ function AddressPanelShell({
   onSubmit,
   saving,
 }: {
-  name: string
-  onNameChange: (name: string) => void
-  namePlaceholder: string
-  icon: React.ElementType
-  hint?: string
+  title?: string
   editable: boolean
   readOnlyMessage?: string
   onDelete?: () => void
@@ -1930,61 +1847,39 @@ function AddressPanelShell({
   saving: boolean
 }) {
   return (
-    <form
-      onSubmit={onSubmit}
-      className={cn(
-        'flex flex-col rounded-lg border border-border bg-background',
-        !editable && 'opacity-[0.98]',
-      )}
-    >
-      <div className="flex items-start gap-2 border-b border-border px-2.5 py-2.5">
-        <span className="mt-5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <Icon className="h-3.5 w-3.5" />
-        </span>
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="space-y-1">
-            <Label className="text-xs font-medium text-muted-foreground">Address name</Label>
-            <Input
-              value={name}
-              onChange={(e) => onNameChange(e.target.value)}
-              placeholder={namePlaceholder}
-              disabled={!editable}
-              className="h-8 text-sm disabled:opacity-100"
-            />
+    <form onSubmit={onSubmit} className={cn(!editable && 'opacity-[0.98]')}>
+      <AddressCard
+        title={title}
+        headerRight={
+          <div className="flex items-center gap-1">
+            {onDelete && editable ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                aria-label="Remove address"
+                onClick={onDelete}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            ) : null}
+            {!editable ? (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                <Lock className="h-2.5 w-2.5" />
+                View only
+              </span>
+            ) : (
+              <FormSaveBar loading={saving} compact top />
+            )}
           </div>
-          {hint ? <p className="text-xs leading-snug text-muted-foreground">{hint}</p> : null}
-        </div>
-        <div className="flex shrink-0 items-start gap-1">
-          {onDelete && editable ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="mt-4 h-7 w-7 text-muted-foreground hover:text-destructive"
-              aria-label="Remove address"
-              onClick={onDelete}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          ) : null}
-          {!editable ? (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
-              <Lock className="h-2.5 w-2.5" />
-              View only
-            </span>
-          ) : null}
-        </div>
-      </div>
-      <div className="flex flex-col gap-2 p-2.5">
-        {editable ? <FormSaveBar loading={saving} compact top /> : null}
+        }
+      >
         {!editable && readOnlyMessage ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
         <fieldset disabled={!editable} className="contents [&_input]:disabled:cursor-default [&_input]:disabled:opacity-100">
           {children}
         </fieldset>
-        {editable ? (
-          <FormSaveBar loading={saving} compact />
-        ) : null}
-      </div>
+      </AddressCard>
     </form>
   )
 }
@@ -2009,9 +1904,6 @@ function AddressSection({
   onSaveVendor,
 }: AddressSectionProps) {
   const updateStore = useUpdateStore()
-
-  const defaultUnitLabel = `${BUSINESS_UNIT_STORE_LABEL} address`
-  const defaultHqLabel = 'Headquarters (HQ)'
 
   const [hqForm, setHqForm] = useState({
     label: '',
@@ -2048,7 +1940,7 @@ function AddressSection({
         street_address: vendor.street_address || '',
         city: vendor.city || '',
         state: vendor.state || '',
-        country: vendor.country || '',
+        country: vendor.country || 'India',
         postal_code: vendor.postal_code || '',
       })
       setHqHydrated(true)
@@ -2064,17 +1956,10 @@ function AddressSection({
       setUnitHydrated(false)
       return
     }
-    const addr = activeStore.address
-    setUnitForm({
-      label: addr?.label?.trim() ?? '',
-      street: addr?.street ?? '',
-      city: addr?.city ?? '',
-      state: addr?.state ?? '',
-      country: addr?.country ?? '',
-      pincode: addr?.pincode ?? '',
-    })
+    setUnitForm(unitAddressFromStore(activeStore, vendor))
     setUnitHydrated(true)
   }, [
+    vendor,
     activeStore?.id,
     activeStore?.address?.label,
     activeStore?.address?.street,
@@ -2201,10 +2086,6 @@ function AddressSection({
     )
   }
 
-  const unitHint = activeStore
-    ? `Location for ${activeStore.name ?? 'this unit'}`
-    : `Add a ${BUSINESS_UNIT_STORE_LABEL} to set a branch address`
-
   const isDirty = useMemo(
     () => isAddressSectionDirty(hqForm, unitForm, vendor, activeStore, hqEditable, unitEditable),
     [hqForm, unitForm, vendor, activeStore, hqEditable, unitEditable],
@@ -2215,17 +2096,14 @@ function AddressSection({
   const renderUnitPanel = (deletable: boolean) =>
     hasUnitAddress ? (
       <AddressPanelShell
-        name={unitForm.label}
-        onNameChange={(label) => setUnitForm({ ...unitForm, label })}
-        namePlaceholder={defaultUnitLabel}
-        icon={Building}
-        hint={unitHint}
+        title="Address"
         editable={unitEditable}
         onDelete={deletable ? handleDeleteUnit : undefined}
         onSubmit={handleUnitSubmit}
         saving={updateStore.isPending}
       >
-        <UniformAddressFields
+        <AddressFields
+          idPrefix="unit-addr"
           values={{
             street: unitForm.street,
             city: unitForm.city,
@@ -2250,17 +2128,14 @@ function AddressSection({
   const renderHqPanel = (deletable: boolean) =>
     hasHqAddress ? (
       <AddressPanelShell
-        name={hqForm.label}
-        onNameChange={(label) => setHqForm({ ...hqForm, label })}
-        namePlaceholder={defaultHqLabel}
-        icon={MapPin}
-        hint="Legal / service location for your business"
+        title="Address"
         editable={hqEditable}
         onDelete={deletable ? handleDeleteHq : undefined}
         onSubmit={handleHqSubmit}
         saving={onSaveVendor.isPending}
       >
-        <UniformAddressFields
+        <AddressFields
+          idPrefix="hq-addr"
           values={{
             street: hqForm.street_address,
             city: hqForm.city,
@@ -2278,7 +2153,6 @@ function AddressSection({
               postal_code: patch.postal ?? hqForm.postal_code,
             })
           }
-          streetPlaceholder="123 Main Street, Suite 100"
         />
       </AddressPanelShell>
     ) : null
@@ -2419,10 +2293,6 @@ function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
             placeholder="AAAAA0000A"
             maxLength={10}
           />
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <SaveButton loading={onSave.isPending} />
         </div>
       </form>
     </SectionWrapper>
@@ -2586,10 +2456,6 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
               ))}
             </div>
           )}
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <SaveButton loading={onSave.isPending} />
         </div>
       </form>
     </SectionWrapper>
@@ -2775,10 +2641,6 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
             )}
           </>
         )}
-
-        <div className="flex justify-end pt-2">
-          <SaveButton loading={onSave.isPending} />
-        </div>
       </form>
     </SectionWrapper>
   )

@@ -7,6 +7,7 @@ export interface CustomerPickerValue {
   full_name: string
   phone?: string
   email?: string
+  sales_area_id?: string | null
   bank?: BankInfo
 }
 
@@ -51,6 +52,7 @@ export function CustomerPicker({ selected, onSelect, disabled, compact, placehol
     type CustomerMeta = {
       bank_name?: string; account_number?: string
       account_holder_name?: string; account_type?: string; ifsc_code?: string
+      sales_area_id?: string | null
     }
     const c = (opt.meta as CustomerMeta | undefined)
     onSelect({
@@ -58,6 +60,7 @@ export function CustomerPicker({ selected, onSelect, disabled, compact, placehol
       full_name: opt.label,
       phone: opt.phone,
       email: opt.email,
+      sales_area_id: c?.sales_area_id ?? null,
       bank: c ? {
         bank_name: c.bank_name,
         account_number: c.account_number,

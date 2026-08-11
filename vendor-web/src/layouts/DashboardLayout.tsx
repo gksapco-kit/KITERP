@@ -557,6 +557,45 @@ type NavDragOverlayPayload =
   | { kind: 'item'; item: NavItem }
   | { kind: 'section'; title: string; subtitle?: string; Icon: ElementType }
 
+/**
+ * A module section only survives the permission filter if at least one of its already-filtered
+ * items is gated on a permission in the section's own namespace. Cross-cutting permissions like
+ * `reports.view` or `pos.view` can render items *inside* a section they belong to, but they
+ * cannot cause an *unrelated* section to appear. Absent from the map = no namespace check (my-kit
+ * is all alwaysShow by design and always shows).
+ *
+ * Logic: sectionHasOwnershipItem = filtered items includes ≥1 item whose requiresPermission starts
+ * with one of the listed prefixes, OR has no requiresPermission but the section is in the map
+ * (alwaysShow items inside a mapped section don't count as "ownership" items — they can't pull
+ * the whole section in, but they will render if the section is already visible for another reason).
+ */
+const SECTION_PERMISSION_NAMESPACES: Record<string, string[]> = {
+  'website-management': ['websites'],
+  sales: ['orders', 'quotations', 'bookings', 'projects', 'pos', 'subscriptions', 'invoices', 'memos', 'coupons'],
+  inventory: ['products', 'services', 'inventory', 'procurement'],
+  'master-data': ['masterdata'],
+  crm: ['crm'],
+  rental: ['rentals'],
+  production: ['production'],
+  pharma: ['pharma'],
+  restaurant: ['restaurant'],
+  commission: ['commission'],
+  procurement: ['procurement'],
+  finance: ['finance'],
+  controlling: ['controlling'],
+  hr: ['hr'],
+  system: ['system', 'team', 'roles', 'documents', 'settings'],
+}
+
+function sectionHasOwnershipItem(sectionId: string, filteredItems: NavItem[]): boolean {
+  const namespaces = SECTION_PERMISSION_NAMESPACES[sectionId]
+  if (!namespaces) return true // no constraint (e.g. my-kit)
+  return filteredItems.some((item) => {
+    if (!item.requiresPermission) return false
+    return namespaces.some((ns) => item.requiresPermission!.startsWith(ns + '.') || item.requiresPermission === ns)
+  })
+}
+
 const allSections: NavSection[] = [
   {
     id: 'my-kit',
@@ -613,8 +652,10 @@ const allSections: NavSection[] = [
       { to: '/sales/booking-resources', icon: Warehouse, label: 'Resources', requiresPermission: 'bookings.view' },
       { to: '/sales/coverage', icon: MapPin, label: 'Store Coverage', requiresPermission: 'orders.view', groupLabel: 'Territory & Coverage', groupColor: 'emerald' },
       { to: '/sales/sales-area', icon: LayoutGrid, label: 'Sales Area', requiresPermission: 'orders.view' },
+      { to: '/crm/sales-area-dues', icon: MapPin, label: 'Sales Area Dues', requiresPermission: 'crm.view' },
       { to: '/marketplace', icon: Target, label: 'Marketplace Leads', requiresPermission: 'orders.view', groupLabel: 'Growth & Social Proof', groupColor: 'rose' },
       { to: '/sales/testimonials', icon: Quote, label: 'Testimonials', requiresPermission: 'reviews.view' },
+      { to: '/reviews', icon: MessageSquare, label: 'Reviews', requiresPermission: 'reviews.view' },
     ],
   },
   {
@@ -640,7 +681,6 @@ const allSections: NavSection[] = [
     icon: Database,
     items: [
       { to: '/master-data', icon: PieChart, label: 'Master Data — Customers & Suppliers', labelSize: 'text-sm', requiresPermission: 'masterdata.view' },
-      { to: '/reviews', icon: MessageSquare, label: 'Reviews', requiresPermission: 'reviews.view' },
     ],
   },
   {
@@ -1302,6 +1342,7 @@ const pageTitles: Record<string, string> = {
   '/crm/templates': 'Email Templates',
   '/crm/campaigns': 'Marketing Campaigns',
   '/crm/care-reminder': 'Care & Reminders',
+  '/crm/sales-area-dues': 'Sales Area Dues',
   '/crm/payment-followups': 'Payment Follow-ups',
   '/crm/credit-control': 'Credit Control',
   '/crm/workflows': 'Workflow Automation',
@@ -2046,15 +2087,18 @@ export default function DashboardLayout() {
       if (item.to === '/projects' && !isProjectsNavVisible(vendorSettings)) return false
       if (item.to === '/subscriptions' && !isSubscriptionsNavVisible(vendorSettings)) return false
       // offering_type no longer gates nav — module toggles control visibility instead
-      if (item.requiresPermission && vendorRole && !isOwnerOrAdmin) {
-        if (!permissions.includes(item.requiresPermission)) return false
+      // Wait for the session to be ready before showing permission-gated items so modules don't
+      // flash visible on first load before permissions resolve.
+      if (item.requiresPermission) {
+        if (!sessionReady) return false
+        if (vendorRole && !isOwnerOrAdmin && !permissions.includes(item.requiresPermission)) return false
       }
       if (item.requiresFinanceMode) {
         if (item.requiresFinanceMode !== financeMode) return false
       }
       return true
     },
-    [vendor, vendor?.offering_type, vendorSettings, vendorRole, isOwnerOrAdmin, permissions, financeMode, planFeatures],
+    [vendor, vendor?.offering_type, vendorSettings, vendorRole, isOwnerOrAdmin, permissions, financeMode, planFeatures, sessionReady],
   )
 
   const visibleSections = useMemo(
@@ -2078,8 +2122,16 @@ export default function DashboardLayout() {
           return true
         })
         .map((section) => ({ ...section, items: section.items.filter(filterItem) }))
-        .filter((section) => section.items.length > 0),
-    [filterItem, hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible, controllingNavVisible, productionNavVisible, pharmaNavVisible, rentalNavVisible],
+        // A section must have at least one item gated on its own permission namespace —
+        // cross-cutting permissions (reports.view, pos.view, etc.) can render items they
+        // belong to but cannot make an unrelated module appear.
+        .filter((section) => section.items.length > 0 && sectionHasOwnershipItem(section.id, section.items)),
+    [
+      filterItem,
+      hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible,
+      controllingNavVisible, productionNavVisible, pharmaNavVisible, rentalNavVisible,
+      vendorSettings, vendor?.offering_type, planFeatures,
+    ],
   )
 
   const { data: essProfile } = useESSProfile()

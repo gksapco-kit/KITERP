@@ -2417,12 +2417,14 @@ export function useHRTrackingLive(refetchIntervalMs = 30_000) {
 export function useHRTrackingTrail(
   employeeId: string | null,
   params?: { from_dt?: string; to_dt?: string },
+  options?: { refetchInterval?: number | false },
 ) {
   return useQuery({
     queryKey: [...vendorKeys.all, 'hr-tracking-trail', employeeId, params],
     queryFn: () => vendorApi.hrTrackingTrail(employeeId!, params),
     enabled: !!employeeId,
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchInterval: options?.refetchInterval,
   })
 }
 export function useHRToggleTracking() {

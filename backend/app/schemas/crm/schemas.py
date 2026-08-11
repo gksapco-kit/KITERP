@@ -1064,3 +1064,59 @@ class CreditControlCheckResponse(BaseModel):
     current_outstanding: Optional[Decimal] = None
     available_credit: Optional[Decimal] = None
     payment_blocked: bool = False
+
+
+# ── Sales area dues ───────────────────────────────────────────────────────────
+
+class SalesAreaDuesAgingMixin(BaseModel):
+    total_due: Decimal = Decimal("0")
+    not_due: Decimal = Decimal("0")
+    days_1_30: Decimal = Decimal("0")
+    days_31_60: Decimal = Decimal("0")
+    days_61_90: Decimal = Decimal("0")
+    days_90_plus: Decimal = Decimal("0")
+    overdue_due: Decimal = Decimal("0")
+
+
+class SalesAreaDuesSummaryRow(SalesAreaDuesAgingMixin):
+    """One row per sales area in the summary (group header KPIs)."""
+    sales_area_id: Optional[UUID] = None   # None → "Unassigned"
+    sales_area_code: Optional[str] = None
+    sales_area_name: Optional[str] = None
+    business_unit_id: Optional[UUID] = None
+    business_unit_name: Optional[str] = None
+    customer_count: int = 0
+    open_invoice_count: int = 0
+
+
+class SalesAreaDuesSummaryResponse(BaseModel):
+    areas: list[SalesAreaDuesSummaryRow]
+    totals: SalesAreaDuesAgingMixin
+
+
+class SalesAreaDuesInvoiceRow(BaseModel):
+    """One open invoice listed under a customer on the dues page."""
+    id: str
+    invoice_number: str
+    status: Optional[str] = None
+    created_at: Optional[str] = None
+    due_date: Optional[date] = None
+    total: Decimal = Decimal("0")
+    balance_due: Decimal = Decimal("0")
+
+
+class SalesAreaDuesCustomerRow(SalesAreaDuesAgingMixin):
+    """One row per (sales_area, customer) in the detail list."""
+    sales_area_id: Optional[UUID] = None
+    customer_id: Optional[UUID] = None
+    customer_name: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    customer_group: Optional[str] = None
+    open_invoices: int = 0
+    oldest_due_date: Optional[date] = None
+    days_overdue: Optional[int] = None
+    # From crm_credit_control if one exists
+    credit_limit: Optional[Decimal] = None
+    payment_blocked: Optional[bool] = None
+    invoices: list[SalesAreaDuesInvoiceRow] = []

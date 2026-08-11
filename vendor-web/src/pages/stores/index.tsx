@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Card, CardContent } from '@/components/ui/card'
+import { AddressCard, AddressFields } from '@/components/common/AddressFields'
 import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import {
   Plus, Store,
@@ -66,6 +67,7 @@ interface StoreFormData {
   city: string
   state: string
   pincode: string
+  country: string
   is_default: boolean
   company_type: string
 }
@@ -74,7 +76,7 @@ const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
 
 const EMPTY_FORM: StoreFormData = {
   name: '', code: '', description: '', phone: '', email: '', gstin: '',
-  street: '', city: '', state: '', pincode: '', is_default: false,
+  street: '', city: '', state: '', pincode: '', country: 'India', is_default: false,
   company_type: '',
 }
 
@@ -136,11 +138,12 @@ function StoreModal({
         gstin: branchGstinFromStore(store),
         street: store.address?.street ?? '', city: store.address?.city ?? '',
         state: store.address?.state ?? '', pincode: store.address?.pincode ?? '',
+        country: store.address?.country || defaultCountry,
         is_default: store.is_default,
         company_type,
       }
     }
-    return { ...EMPTY_FORM, code: autoCode, company_type }
+    return { ...EMPTY_FORM, code: autoCode, company_type, country: defaultCountry }
   })
 
   useEffect(() => {
@@ -154,6 +157,7 @@ function StoreModal({
         gstin: branchGstinFromStore(store),
         street: store.address?.street ?? '', city: store.address?.city ?? '',
         state: store.address?.state ?? '', pincode: store.address?.pincode ?? '',
+        country: store.address?.country || defaultCountry,
         is_default: store.is_default,
         company_type,
       })
@@ -215,7 +219,7 @@ function StoreModal({
       address: {
         street: form.street || undefined, city: form.city || undefined,
         state: form.state || undefined, pincode: form.pincode || undefined,
-        country: store?.address?.country || defaultCountry,
+        country: form.country || defaultCountry,
       },
       settings: parentBu
         ? { ...baseSettings, gstin: gstin || null }
@@ -350,13 +354,28 @@ function StoreModal({
           ) : null}
 
           <div className="col-span-2">
-            <Label className="text-xs text-muted-foreground">Address</Label>
-            <div className="mt-0.5 grid grid-cols-6 gap-2">
-              <Input value={form.street} onChange={set('street')} placeholder="Street / Area" className="col-span-6 h-9" />
-              <Input value={form.city} onChange={set('city')} placeholder="City" className="col-span-2 h-9" />
-              <Input value={form.state} onChange={set('state')} placeholder="State" className="col-span-2 h-9" />
-              <Input value={form.pincode} onChange={set('pincode')} placeholder="Pincode" className="col-span-2 h-9" />
-            </div>
+            <AddressCard>
+              <AddressFields
+                idPrefix="store-addr"
+                values={{
+                  street: form.street,
+                  city: form.city,
+                  state: form.state,
+                  postal: form.pincode,
+                  country: form.country,
+                }}
+                onChange={(patch) =>
+                  setForm((f) => ({
+                    ...f,
+                    street: patch.street ?? f.street,
+                    city: patch.city ?? f.city,
+                    state: patch.state ?? f.state,
+                    pincode: patch.postal ?? f.pincode,
+                    country: patch.country ?? f.country,
+                  }))
+                }
+              />
+            </AddressCard>
           </div>
 
           <div className="col-span-2 flex items-center justify-between gap-3 pt-1">

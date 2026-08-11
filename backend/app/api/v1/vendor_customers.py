@@ -21,6 +21,7 @@ from app.services.sms_service import normalize_e164, is_valid_e164
 from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
 from app.models.customer import Customer
+from app.models.sales_area import SalesArea
 from app.models.platform_setting import PlatformSetting
 from app.services.vendor_service import VendorService
 from app.repositories.customer_repo import CustomerRepository
@@ -94,6 +95,22 @@ async def _get_vendor_id(user: User, db: AsyncSession) -> UUID:
     return vendor.id
 
 
+async def _validate_customer_sales_area(
+    db: AsyncSession, vendor_id: UUID, sales_area_id: Optional[UUID],
+) -> Optional[UUID]:
+    if not sales_area_id:
+        return None
+    row = await db.execute(
+        select(SalesArea.id).where(
+            SalesArea.id == sales_area_id,
+            SalesArea.vendor_id == vendor_id,
+        )
+    )
+    if not row.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="sales_area_id does not belong to this vendor")
+    return sales_area_id
+
+
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
 class BillingAddress(BaseModel):
@@ -130,6 +147,7 @@ class VendorCreateCustomer(BaseModel):
     # Pricing group — drives which "party" price rules apply at checkout/POS
     # (retail, wholesale, distributor, agent, dealer, vip, employee, institutional, government, custom).
     customer_group: Optional[str] = Field(None, max_length=50)
+    sales_area_id: Optional[UUID] = None
 
     @model_validator(mode="after")
     def require_email_or_phone(self):
@@ -177,6 +195,7 @@ class VendorUpdateCustomer(BaseModel):
     account_type: Optional[str] = Field(None, pattern=r"^(savings|current)$")
     ifsc_code: Optional[str] = Field(None, max_length=15)
     customer_group: Optional[str] = Field(None, max_length=50)
+    sales_area_id: Optional[UUID] = None
 
     @model_validator(mode="after")
     def validate_gstin_and_pan(self):
@@ -202,6 +221,7 @@ def _customer_dict(customer: Customer) -> dict:
         "email": customer.email,
         "phone": customer.phone,
         "customer_group": customer.customer_group or "retail",
+        "sales_area_id": str(customer.sales_area_id) if getattr(customer, "sales_area_id", None) else None,
         "linked_customer_id": str(customer.linked_customer_id) if customer.linked_customer_id else None,
         "is_active": customer.is_active,
         "total_orders": customer.total_orders or 0,
@@ -399,6 +419,7 @@ async def create_customer(
         shipping_addresses=data.shipping_addresses or [],
         is_active=True,
         customer_group=data.customer_group or "retail",
+        sales_area_id=await _validate_customer_sales_area(db, vendor_id, data.sales_area_id),
         gstin=data.gstin,
         pan_number=data.pan_number,
         cin=data.cin,
@@ -549,6 +570,10 @@ async def update_customer(
         customer.ifsc_code = data.ifsc_code
     if data.customer_group is not None:
         customer.customer_group = data.customer_group
+    if "sales_area_id" in data.model_fields_set:
+        customer.sales_area_id = await _validate_customer_sales_area(
+            db, vendor_id, data.sales_area_id,
+        )
 
     await db.commit()
     await db.refresh(customer)

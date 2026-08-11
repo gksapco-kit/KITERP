@@ -300,6 +300,10 @@ class POSService:
         }
 
         # store_id is the cashier's locked business unit (resolved at the API layer).
+        from app.services.store_resolver import resolve_txn_sales_area_id
+        sales_area_id = await resolve_txn_sales_area_id(
+            self.db, vendor_id, store_id=store_id, customer_id=customer_id,
+        )
 
         txn = POSTransaction(
             vendor_id=vendor_id,
@@ -307,6 +311,7 @@ class POSService:
             store_id=store_id,
             cashier_id=cashier_id,
             customer_id=customer_id,
+            sales_area_id=sales_area_id,
             sales_person_vendor_user_id=sp_vu_id,
             transaction_number=txn_number,
             transaction_type=transaction_type,

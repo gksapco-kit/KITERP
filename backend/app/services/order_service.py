@@ -29,7 +29,7 @@ from app.services.price_resolver import resolve_items_pricing
 from app.repositories.vendor_repo import VendorRepository
 from app.models.store import Store
 from app.services.store_resolver import resolve_store_id as resolve_txn_store_id
-from app.services.store_resolver import resolve_default_sales_area_id
+from app.services.store_resolver import parse_explicit_sales_area_id, resolve_txn_sales_area_id
 from app.services.crm.credit_gate import find_credit_control, evaluate_credit, adjust_outstanding
 from app.services.order_commitment_service import commit_order_lines
 from app.services.partner_service import seed_buyer
@@ -390,8 +390,14 @@ class OrderService:
         is_manual_proof = is_manual_upi
         is_online = data.payment_method.value in online_methods and not is_manual_proof
 
-        # Resolve sales area for this store (fix: was always None before)
-        sales_area_id = await resolve_default_sales_area_id(self.db, vendor_id, store_id)
+        # Explicit picker → customer default → store default
+        explicit_sa = await parse_explicit_sales_area_id(
+            self.db, vendor_id, getattr(data, "sales_area_id", None),
+        )
+        sales_area_id = await resolve_txn_sales_area_id(
+            self.db, vendor_id, store_id=store_id, customer_id=customer_id,
+            explicit=explicit_sa,
+        )
 
         # Credit gate — always evaluate, block only for pay_later orders
         from decimal import Decimal as _Dec
@@ -642,6 +648,7 @@ class OrderService:
             coupon_code=data.coupon_code,
             branch_code=data.branch_code,
             store_id=getattr(data, "store_id", None),
+            sales_area_id=getattr(data, "sales_area_id", None),
             order_type=getattr(data, "order_type", None),
             payment_terms_code=getattr(data, "payment_terms_code", None),
             payment_terms_days=getattr(data, "payment_terms_days", None),

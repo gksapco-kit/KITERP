@@ -28,6 +28,7 @@ ALL_PERMISSIONS = [
     "pharma.quality.manage", "pharma.deviation.manage",
     # Project management
     "projects.view", "projects.manage",
+    "projects.costing.post",
     # Customers & reviews
     "customers.view", "customers.manage",
     "reviews.view", "reviews.reply",

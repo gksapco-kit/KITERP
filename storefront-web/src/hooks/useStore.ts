@@ -19,6 +19,8 @@ export const storeKeys = {
   product: (slug: string) => ['product', slug] as const,
   services: (p?: Record<string, unknown>) => ['services', p] as const,
   service: (slug: string) => ['service', slug] as const,
+  rentals: (p?: Record<string, unknown>) => ['catalog-rentals', p] as const,
+  rental: (slug: string) => ['catalog-rental', slug] as const,
   cart: ['cart'] as const,
   orders: (p?: Record<string, unknown>) => ['orders', p] as const,
   order: (id: string) => ['order', id] as const,
@@ -171,6 +173,25 @@ export function useService(slug: string) {
     queryKey: [...storeKeys.service(slug), vendorSlug],
     queryFn: () => storeApi.getService(slug),
     enabled: !!slug && !!vendorSlug,
+  })
+}
+
+export function useCatalogRentals(params?: Record<string, unknown> | null) {
+  const { vendorSlug } = useVendor()
+  return useQuery({
+    queryKey: [...storeKeys.rentals(params ?? undefined), vendorSlug],
+    queryFn: () => storeApi.listCatalogRentals(params ?? undefined),
+    enabled: !!vendorSlug && params !== null,
+  })
+}
+
+export function useCatalogRental(slug: string) {
+  const { vendorSlug } = useVendor()
+  return useQuery({
+    queryKey: [...storeKeys.rental(slug), vendorSlug],
+    queryFn: () => storeApi.getCatalogRental(slug),
+    enabled: !!slug && !!vendorSlug,
+    staleTime: 0,
   })
 }
 
