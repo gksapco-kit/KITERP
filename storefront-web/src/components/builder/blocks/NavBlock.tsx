@@ -22,6 +22,7 @@ import {
   resolveCurrentNavActiveKey,
   resolveNavBlockLinks,
   resolveNavCtaLabel,
+  resolveNavCtaUrl,
 } from '@/lib/siteNavPages'
 import { isVendorBlogEnabled, isVendorRentalsEnabled } from '@/lib/catalogNavCapabilities'
 import {
@@ -146,7 +147,7 @@ export default function NavBlock({
   const showCart = props.show_cart !== false
   const showAccount = props.show_login !== false && props.show_account !== false
   const ctaLabel = resolveNavCtaLabel(props.cta_label as string | null)
-  const ctaUrl = (props.cta_url as string | null) || '/contact'
+  const ctaUrl = resolveNavCtaUrl(props.cta_url as string | null, ctaLabel)
   const announcement = (props.announcement as string | undefined) || null
 
   const shell = resolveNavBlockShell(props, style)

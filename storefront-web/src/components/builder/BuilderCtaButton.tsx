@@ -135,11 +135,11 @@ export function BuilderCtaButton({
   // Same shell + label typography + position wrapper as the editor so preview/live
   // keep CTA colors, sizes, offsets, and text styles from the canvas.
   const shell = isProtocol || isAnchor ? (
-    <a href={target} className={buttonClass} style={shellStyle} data-builder-cta-shell="true">
+    <a href={target} title={label} className={buttonClass} style={shellStyle} data-builder-cta-shell="true">
       {inner}
     </a>
   ) : (
-    <Link to={to} className={buttonClass} style={shellStyle} data-builder-cta-shell="true">
+    <Link to={to} title={label} className={buttonClass} style={shellStyle} data-builder-cta-shell="true">
       {inner}
     </Link>
   )

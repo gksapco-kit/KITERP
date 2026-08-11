@@ -165,10 +165,9 @@ export function resolveNavBlockLinks(
   const skipCatalogInjection = previewShell || isEditorCanvas
   const blogEnabled = options?.blogEnabled !== false
 
-  // If the builder site owns its pages, tie rentals visibility to whether a
-  // `rentals` page actually exists — deleting the page removes the nav link
-  // and the route.  Fall back to the feature-flag alone when no CMS pages are
-  // present (legacy / no builder site).
+  // If the builder site owns its pages, tie rentals *nav-link* visibility to whether a
+  // `rentals` page exists. The header CTA is resolved separately (see resolveNavCtaUrl)
+  // so a mislabeled "Rentals" button still reaches /rentals even without a CMS page.
   const featureFlagEnabled = options?.rentalsEnabled !== false
   const siteHasManagedPages = Boolean(site?.pages?.length)
   const siteHasRentalsPage = !siteHasManagedPages ||
@@ -278,6 +277,27 @@ export function resolveNavCtaLabel(raw: string | null | undefined): string | nul
   return label
 }
 
+/** True when nav/CTA copy clearly refers to the rentals marketplace. */
+export function isRentalsNavLabel(label: string | null | undefined): boolean {
+  return /rentals?|storage\s*rack/i.test((label || '').trim())
+}
+
+/**
+ * Resolve the nav CTA destination.
+ * When the button is labeled Rentals but the URL was left empty / defaulted to
+ * Contact (common builder misconfig), send shoppers to the rentals catalog.
+ */
+export function resolveNavCtaUrl(
+  rawUrl: string | null | undefined,
+  label?: string | null,
+): string {
+  const url = (rawUrl || '').trim()
+  const relative = url.split('?')[0].split('#')[0].replace(/\/+$/, '') || ''
+  const isEmptyOrContact = !relative || relative.toLowerCase() === '/contact' || relative.toLowerCase() === 'contact'
+  if (isRentalsNavLabel(label) && isEmptyOrContact) return '/rentals'
+  return url || '/contact'
+}
+
 export function resolveStorefrontHeaderCta(
   site: PublicSite | null | undefined,
   storePath: (p: string) => string,
@@ -285,7 +305,7 @@ export function resolveStorefrontHeaderCta(
   const props = pickHomeNavBlockProps(site)
   const label = resolveNavCtaLabel(props.cta_label)
   if (!label) return undefined
-  return { label, href: storePath(props.cta_url || '/contact') }
+  return { label, href: storePath(resolveNavCtaUrl(props.cta_url, label)) }
 }
 
 /** Canonical storefront path for comparing nav link active state (/, /about, /products, …). */

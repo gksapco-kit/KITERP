@@ -329,7 +329,9 @@ export function UnifiedNav({
           )}
 
           {cta && (
-            <Button asChild className="hidden lg:inline-flex"><Link to={cta.href}>{cta.label}</Link></Button>
+            <Button asChild className="hidden lg:inline-flex">
+              <Link to={cta.href} title={cta.label}>{cta.label}</Link>
+            </Button>
           )}
         </div>
       </div>

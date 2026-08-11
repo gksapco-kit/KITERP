@@ -243,6 +243,16 @@ export function enrichNavLinksWithBlogLink(
   return out
 }
 
+function isRentalsHref(href: string, storePath: (p: string) => string): boolean {
+  const rel = pathRelativeToStore(href, storePath).toLowerCase()
+  const firstSeg = rel.replace(/^\//, '').split('/')[0] || ''
+  return rel === '/rentals' || rel.startsWith('/rentals/') || firstSeg === 'rentals' || firstSeg === 'rental'
+}
+
+function isRentalsLabel(label: string): boolean {
+  return /rentals?|storage\s*rack/i.test(label || '')
+}
+
 /** Rentals marketplace at `/rentals` — vendor storefront only (via storePath). */
 export function enrichNavLinksWithRentalsLink(
   links: NavLinkItem[],
@@ -252,8 +262,23 @@ export function enrichNavLinksWithRentalsLink(
   if (!rentalsEnabled) {
     return links.filter(l => !navLinksIncludeCatalogPath([l], storePath, 'rentals'))
   }
-  if (navLinksIncludeCatalogPath(links, storePath, 'rentals')) return links
-  const out = [...links]
+
+  const rentalsHref = storePath('/rentals')
+  // Repair misconfigured "Rentals" links that point elsewhere (often /contact).
+  const repaired = links.map((link) => {
+    if (!link?.href) return link
+    if (isRentalsHref(link.href, storePath)) return link
+    if (!isRentalsLabel(link.label || '')) return link
+    return { ...link, label: link.label?.trim() || 'Rentals', href: rentalsHref }
+  })
+
+  if (navLinksIncludeCatalogPath(repaired, storePath, 'rentals')) {
+    // Prefer a real /rentals href over a label-only match that somehow survived.
+    const hasCorrectHref = repaired.some(l => l?.href && isRentalsHref(l.href, storePath))
+    if (hasCorrectHref) return repaired
+  }
+
+  const out = [...repaired]
   const servicesIdx = out.findIndex(l => navLinksIncludeCatalogPath([l], storePath, 'services'))
   const productsIdx = out.findIndex(l => navLinksIncludeCatalogPath([l], storePath, 'products'))
   const blogIdx = out.findIndex(l => navLinksIncludeCatalogPath([l], storePath, 'blog'))
@@ -264,7 +289,7 @@ export function enrichNavLinksWithRentalsLink(
     : blogIdx >= 0 ? blogIdx
     : contactIdx >= 0 ? contactIdx
     : out.length
-  out.splice(insertIdx, 0, { label: 'Rentals', href: storePath('/rentals') })
+  out.splice(insertIdx, 0, { label: 'Rentals', href: rentalsHref })
   return out
 }
 
