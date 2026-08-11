@@ -1,0 +1,12 @@
+{
+  "name": "SR Marketing and Services",
+  "slug": "kiterp-sr-marketing",
+  "scheme": "kiterp-sr-marketing",
+  "package": "com.kiterp.vendor.srmarketing",
+  "bundleId": "com.kiterp.vendor.srmarketing",
+  "vendorSlug": "sr-marketing-and-services",
+  "vendorId": "a675cb6b-dab6-417b-95fb-87d0e986c307",
+  "primaryColor": "#2563EB",
+  "splashColor": "#000000",
+  "storefrontBaseUrl": "https://kiterp.com"
+}

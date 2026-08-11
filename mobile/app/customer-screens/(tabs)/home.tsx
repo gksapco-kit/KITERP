@@ -15,13 +15,19 @@ import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { storeApi, type StoreCategory } from '../../../api/store'
+import { formatApiFailure } from '../../../api/client'
 import { useAuthStore } from '../../../stores/authStore'
 import { formatCurrency } from '../../../lib/utils'
 import { productImageUrl } from '../../../lib/mediaUrl'
 import { formatProductPriceLabel, getProductPricing } from '../../../lib/productPricing'
-import { clearBrandingCache, loadVendorBranding } from '../../../utils/vendorConfig'
+import {
+  clearBrandingCache,
+  isSrMarketingStore,
+  loadVendorBranding,
+} from '../../../utils/vendorConfig'
 import { BRAND } from '../../../utils/theme'
 import { ProductAddToCart } from '../../../components/ProductAddToCart'
+import { SrProductCard } from '../../../components/SrProductCard'
 import { useCartStore } from '../../../stores/cartStore'
 import type { Product } from '../../../types'
 
@@ -29,6 +35,7 @@ const { width } = Dimensions.get('window')
 const CARD_GAP = 10
 const H_PAD = 16
 const CARD_WIDTH = (width - H_PAD * 2 - CARD_GAP) / 2
+const SR_CARD_WIDTH = CARD_WIDTH
 
 function flattenCategories(cats: StoreCategory[]): StoreCategory[] {
   const out: StoreCategory[] = []
@@ -42,6 +49,7 @@ function flattenCategories(cats: StoreCategory[]): StoreCategory[] {
 export default function CustomerHome() {
   const router = useRouter()
   const { customer, vendorInfo, isAuthenticated } = useAuthStore()
+  const authVendorSlug = useAuthStore((s) => s.vendorSlug)
   const loadCart = useCartStore((s) => s.loadCart)
   const cartItemCount = useCartStore((s) => s.itemCount)
   const [products, setProducts] = useState<Product[]>([])
@@ -52,6 +60,10 @@ export default function CustomerHome() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [storeName, setStoreName] = useState(vendorInfo?.display_name || 'Store')
+  const [srStore, setSrStore] = useState(() =>
+    isSrMarketingStore(vendorInfo?.slug || authVendorSlug),
+  )
+  const [loadError, setLoadError] = useState<string | null>(null)
   const searchInputRef = useRef<TextInput>(null)
 
   const closeSearch = useCallback(() => {
@@ -74,6 +86,7 @@ export default function CustomerHome() {
       if (opts?.bustCache) clearBrandingCache()
       const branding = await loadVendorBranding()
       if (branding.name) setStoreName(branding.name)
+      setSrStore(isSrMarketingStore(branding.vendorSlug || vendorInfo?.slug || authVendorSlug))
 
       const [prodRes, cats] = await Promise.all([
         storeApi.listProducts({
@@ -85,14 +98,17 @@ export default function CustomerHome() {
       ])
       setProducts(prodRes.items || [])
       setCategories(flattenCategories(cats).slice(0, 12))
+      setLoadError(null)
       await refreshCartCount()
     } catch (e) {
-      console.error(e)
+      console.warn('[home]', formatApiFailure(e, 'Failed to load store'))
+      setLoadError(formatApiFailure(e, 'Failed to load store'))
+      setProducts([])
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [selectedCategory, refreshCartCount])
+  }, [selectedCategory, refreshCartCount, vendorInfo?.slug, authVendorSlug])
 
   useEffect(() => {
     void load()
@@ -133,58 +149,74 @@ export default function CustomerHome() {
           />
         }
       >
-        {/* Header */}
-        <View style={styles.headerRow}>
-          {searchOpen ? (
-            <View style={styles.headerSearchWrap}>
-              <View style={styles.headerSearchBox}>
-                <Ionicons name="search-outline" size={18} color={BRAND.textMuted} />
-                <TextInput
-                  ref={searchInputRef}
-                  placeholder="Search plants, pots, tools…"
-                  placeholderTextColor={BRAND.textMuted}
-                  value={search}
-                  onChangeText={setSearch}
-                  style={styles.headerSearchInput}
-                  returnKeyType="search"
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                />
-                {search.length > 0 ? (
-                  <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
-                    <Ionicons name="close-circle" size={18} color={BRAND.textMuted} />
-                  </TouchableOpacity>
-                ) : null}
+        {/* Header — SR Marketing only: search icon beside cart; expands over store name */}
+        {srStore ? (
+          <View style={styles.headerRow}>
+            {searchOpen ? (
+              <View style={styles.headerSearchWrap}>
+                <View style={styles.headerSearchBox}>
+                  <Ionicons name="search-outline" size={18} color={BRAND.textMuted} />
+                  <TextInput
+                    ref={searchInputRef}
+                    placeholder="Search milk, curd, dairy…"
+                    placeholderTextColor={BRAND.textMuted}
+                    value={search}
+                    onChangeText={setSearch}
+                    style={styles.headerSearchInput}
+                    returnKeyType="search"
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                  />
+                  {search.length > 0 ? (
+                    <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+                      <Ionicons name="close-circle" size={18} color={BRAND.textMuted} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                <TouchableOpacity style={styles.searchCancelBtn} onPress={closeSearch} hitSlop={8}>
+                  <Text style={styles.searchCancelText}>Cancel</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.searchCancelBtn} onPress={closeSearch} hitSlop={8}>
-                <Text style={styles.searchCancelText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.headerBrand}>
-              <Text style={styles.eyebrow}>Welcome to</Text>
-              <Text style={styles.storeTitle} numberOfLines={1}>
-                {storeName}
-              </Text>
-              <Text style={styles.hello}>Hello, {greeting}</Text>
-            </View>
-          )}
+            ) : (
+              <View style={styles.headerBrand}>
+                <Text style={styles.hello}>Hello, {greeting}</Text>
+                <Text style={styles.srEyebrow} numberOfLines={1}>
+                  {storeName}
+                </Text>
+              </View>
+            )}
 
-          {!searchOpen ? (
-            <View style={styles.headerActions}>
+            {!searchOpen ? (
+              <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={styles.iconBtn}
+                  onPress={openSearch}
+                  accessibilityLabel="Search"
+                >
+                  <Ionicons name="search-outline" size={22} color="#2563EB" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cartBtn}
+                  onPress={() => router.push('/customer-screens/cart')}
+                  accessibilityLabel="Cart"
+                >
+                  <Ionicons name="bag-handle-outline" size={22} color={BRAND.white} />
+                  {cartItemCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {cartItemCount > 9 ? '9+' : cartItemCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
               <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={openSearch}
-                accessibilityLabel="Search"
-              >
-                <Ionicons name="search-outline" size={22} color={BRAND.primaryDark} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.cartBtn}
+                style={styles.cartBtnCompact}
                 onPress={() => router.push('/customer-screens/cart')}
                 accessibilityLabel="Cart"
               >
-                <Ionicons name="bag-handle-outline" size={22} color={BRAND.white} />
+                <Ionicons name="bag-handle-outline" size={20} color={BRAND.white} />
                 {cartItemCount > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>
@@ -193,39 +225,129 @@ export default function CustomerHome() {
                   </View>
                 )}
               </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.cartBtnCompact}
-              onPress={() => router.push('/customer-screens/cart')}
-              accessibilityLabel="Cart"
-            >
-              <Ionicons name="bag-handle-outline" size={20} color={BRAND.white} />
-              {cartItemCount > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>
-                    {cartItemCount > 9 ? '9+' : cartItemCount}
-                  </Text>
+            )}
+          </View>
+        ) : (
+          <View style={styles.headerRow}>
+            {searchOpen ? (
+              <View style={styles.headerSearchWrap}>
+                <View style={styles.headerSearchBox}>
+                  <Ionicons name="search-outline" size={18} color={BRAND.textMuted} />
+                  <TextInput
+                    ref={searchInputRef}
+                    placeholder="Search plants, pots, tools…"
+                    placeholderTextColor={BRAND.textMuted}
+                    value={search}
+                    onChangeText={setSearch}
+                    style={styles.headerSearchInput}
+                    returnKeyType="search"
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                  />
+                  {search.length > 0 ? (
+                    <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+                      <Ionicons name="close-circle" size={18} color={BRAND.textMuted} />
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
+                <TouchableOpacity style={styles.searchCancelBtn} onPress={closeSearch} hitSlop={8}>
+                  <Text style={styles.searchCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.headerBrand}>
+                <Text style={styles.eyebrow}>Welcome to</Text>
+                <Text style={styles.storeTitle} numberOfLines={1}>
+                  {storeName}
+                </Text>
+                <Text style={styles.hello}>Hello, {greeting}</Text>
+              </View>
+            )}
+
+            {!searchOpen ? (
+              <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={styles.iconBtn}
+                  onPress={openSearch}
+                  accessibilityLabel="Search"
+                >
+                  <Ionicons name="search-outline" size={22} color={BRAND.primaryDark} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cartBtn}
+                  onPress={() => router.push('/customer-screens/cart')}
+                  accessibilityLabel="Cart"
+                >
+                  <Ionicons name="bag-handle-outline" size={22} color={BRAND.white} />
+                  {cartItemCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {cartItemCount > 9 ? '9+' : cartItemCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.cartBtnCompact}
+                onPress={() => router.push('/customer-screens/cart')}
+                accessibilityLabel="Cart"
+              >
+                <Ionicons name="bag-handle-outline" size={20} color={BRAND.white} />
+                {cartItemCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {cartItemCount > 9 ? '9+' : cartItemCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Promo banner */}
         <View style={styles.banner}>
-          <Text style={styles.bannerTag}>FRESH & GREEN</Text>
-          <Text style={styles.bannerTitle}>Root Nature Grow</Text>
-          <Text style={styles.bannerSub}>
-            Healthy plants, gardening essentials & expert care — for home and terrace.
-          </Text>
+          {srStore ? (
+            <>
+              <Text style={styles.bannerTitle}>Dairy & rentals, made simple</Text>
+              <Text style={styles.bannerSub}>
+                Fresh milk and curd for every day — plus crates and storage you can rent when you need them.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.bannerTag}>FRESH & GREEN</Text>
+              <Text style={styles.bannerTitle}>Root Nature Grow</Text>
+              <Text style={styles.bannerSub}>
+                Healthy plants, gardening essentials & expert care — for home and terrace.
+              </Text>
+            </>
+          )}
           <TouchableOpacity
-            style={styles.bannerCta}
+            style={[styles.bannerCta, srStore && styles.bannerCtaBlue]}
             onPress={() => router.push('/customer-screens/browse')}
           >
-            <Text style={styles.bannerCtaText}>Shop now</Text>
+            <Text style={[styles.bannerCtaText, srStore && styles.bannerCtaTextBlue]}>Shop now</Text>
           </TouchableOpacity>
         </View>
+
+        {loadError ? (
+          <View style={styles.errorBanner}>
+            <Ionicons name="cloud-offline-outline" size={18} color="#92400E" />
+            <Text style={styles.errorBannerText}>{loadError}</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setRefreshing(true)
+                void load({ silent: true, bustCache: true })
+              }}
+              hitSlop={8}
+            >
+              <Text style={styles.errorRetry}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {/* Categories */}
         <View style={styles.sectionHeader}>
@@ -244,7 +366,7 @@ export default function CustomerHome() {
             style={[styles.catChip, !selectedCategory && styles.catChipActive]}
           >
             <Ionicons
-              name="leaf-outline"
+              name={srStore ? 'storefront-outline' : 'leaf-outline'}
               size={16}
               color={!selectedCategory ? BRAND.white : BRAND.primary}
             />
@@ -283,6 +405,17 @@ export default function CustomerHome() {
         ) : (
           <View style={styles.grid}>
             {filtered.map((p) => {
+              if (srStore) {
+                return (
+                  <SrProductCard
+                    key={p.id}
+                    product={p}
+                    width={SR_CARD_WIDTH}
+                    onChanged={refreshCartCount}
+                  />
+                )
+              }
+
               const imageUri = productImageUrl(p)
               const pricing = getProductPricing(p)
               const discount =
@@ -361,6 +494,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 10,
     minHeight: 56,
+  },
+  srEyebrow: {
+    fontSize: 12,
+    color: BRAND.textMuted,
+    fontWeight: '600',
+    marginTop: 2,
   },
   headerBrand: { flex: 1, minWidth: 0, paddingRight: 4 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -460,6 +599,27 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   bannerCtaText: { color: BRAND.primaryDark, fontWeight: '700', fontSize: 14 },
+  bannerCtaBlue: {
+    backgroundColor: '#FFFFFF',
+  },
+  bannerCtaTextBlue: {
+    color: '#2563EB',
+  },
+  errorBanner: {
+    marginHorizontal: H_PAD,
+    marginBottom: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  errorBannerText: { flex: 1, fontSize: 12, color: '#92400E', fontWeight: '600' },
+  errorRetry: { fontSize: 12, fontWeight: '800', color: BRAND.primaryDark },
   sectionHeader: {
     paddingHorizontal: H_PAD,
     flexDirection: 'row',

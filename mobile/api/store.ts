@@ -108,4 +108,28 @@ export const storeApi = {
     data: { utr: string; screenshot_url: string },
   ): Promise<Order> =>
     (await apiClient.post(`/store/orders/${orderId}/payment-proof`, data)).data,
+
+  listRentalAssets: async (params?: Record<string, unknown>): Promise<any[]> => {
+    // Prefer public catalog (same as website), fall back to store rentals.
+    try {
+      const data = (await apiClient.get('/catalog/rentals', { params: { page: 1, size: 100, ...params } })).data
+      if (Array.isArray(data?.items)) return data.items
+      if (Array.isArray(data)) return data
+    } catch {
+      /* fall through */
+    }
+    const data = (await apiClient.get('/store/rentals/assets', { params })).data
+    if (Array.isArray(data)) return data
+    if (Array.isArray(data?.items)) return data.items
+    if (Array.isArray(data?.assets)) return data.assets
+    return []
+  },
+
+  createRentalBooking: async (data: {
+    asset_id: string
+    start_date: string
+    end_date: string
+    quantity?: number
+    notes?: string
+  }) => (await apiClient.post('/store/rentals/bookings', data)).data,
 }

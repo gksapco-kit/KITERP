@@ -1,11 +1,15 @@
 import Constants from 'expo-constants'
 
-/** Brand primary — vendor config at build time, else KITERP blue */
+const extra = (Constants.expoConfig?.extra || {}) as { primaryColor?: string } | undefined
+const configuredPrimary = extra?.primaryColor?.trim() || ''
+const primary = configuredPrimary || '#64C3A0'
+const usingCustomPrimary = Boolean(configuredPrimary)
+
+/** Brand primary — vendor config at build time, else KITERP mint */
 export const BRAND = {
-  primary: (Constants.expoConfig?.extra as { primaryColor?: string } | undefined)?.primaryColor
-    || '#64C3A0',
-  primaryDark: '#4AA886',
-  primarySoft: '#E8F8F2',
+  primary,
+  primaryDark: usingCustomPrimary ? primary : '#4AA886',
+  primarySoft: usingCustomPrimary ? '#DBEAFE' : '#E8F8F2',
   bg: '#F5F7F6',
   card: '#FFFFFF',
   text: '#1A2E28',

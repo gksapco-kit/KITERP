@@ -20,12 +20,23 @@ const BUILD_NAME: string = extra.appName || "KITERP";
 
 let _cachedBranding: VendorBranding | null = null;
 
+/** Branded APK / store slug for SR Marketing and Services only. */
+export const SR_MARKETING_SLUG = "sr-marketing-and-services";
+
 export function getVendorSlug(): string | null {
   return VENDOR_SLUG;
 }
 
 export function isBrandedApp(): boolean {
   return IS_BRANDED_APP;
+}
+
+/** True only for the SR Marketing branded app / store — never other vendors. */
+export function isSrMarketingStore(slug?: string | null): boolean {
+  const candidates = [slug, VENDOR_SLUG, _cachedBranding?.vendorSlug]
+    .filter(Boolean)
+    .map((s) => String(s).toLowerCase().trim());
+  return candidates.some((s) => s === SR_MARKETING_SLUG);
 }
 
 export async function loadVendorBranding(): Promise<VendorBranding> {
@@ -51,7 +62,7 @@ export async function loadVendorBranding(): Promise<VendorBranding> {
     setVendorId(vendor.id);
     setVendorSlug(vendor.slug || VENDOR_SLUG);
     _cachedBranding = {
-      vendorSlug: VENDOR_SLUG,
+      vendorSlug: vendor.slug || VENDOR_SLUG,
       vendorId: vendor.id,
       isBrandedApp: true,
       name: vendor.display_name || vendor.business_name || BUILD_NAME,

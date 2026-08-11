@@ -5,6 +5,7 @@ import Constants from 'expo-constants'
 // Avoid defaulting to 10.0.2.2 — that only works on Android emulator and causes
 // failures / proxy 502s on iOS and physical devices when Expo is restarted without env.
 const extra = (Constants.expoConfig?.extra || {}) as { apiUrl?: string }
+// Prefer explicit env / app config; default to public API (works on device + simulator).
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   extra.apiUrl ||
@@ -37,6 +38,25 @@ export function setVendorSlug(slug: string | null) {
   currentVendorSlug = slug
 }
 
+/** Short message for network / gateway failures (avoid dumping Axios stacks). */
+export function formatApiFailure(err: unknown, fallback = 'Request failed'): string {
+  const anyErr = err as any
+  const status = anyErr?.response?.status as number | undefined
+  if (status === 502 || status === 503 || status === 504) {
+    return `Server temporarily unavailable (${status}). Try again in a moment.`
+  }
+  if (anyErr?.code === 'ECONNABORTED' || /timeout/i.test(String(anyErr?.message || ''))) {
+    return 'Request timed out. Check your connection.'
+  }
+  if (!anyErr?.response && (anyErr?.message === 'Network Error' || anyErr?.code === 'ERR_NETWORK')) {
+    return 'Network error. Check connection or API URL.'
+  }
+  const detail = anyErr?.response?.data?.detail
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (typeof anyErr?.message === 'string' && anyErr.message.trim()) return anyErr.message
+  return fallback
+}
+
 /** Resolve a vendor by slug and return its data */
 export async function resolveVendorBySlug(slug: string) {
   const res = await apiClient.get(`/catalog/vendor/${slug}`)
@@ -54,5 +74,17 @@ apiClient.interceptors.request.use((config) => {
   if (currentVendorId) config.headers['X-Vendor-Id'] = currentVendorId
   return config
 })
+
+apiClient.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (__DEV__) {
+      const method = String(err?.config?.method || 'get').toUpperCase()
+      const url = String(err?.config?.url || '')
+      console.warn(`[api] ${method} ${url} — ${formatApiFailure(err)}`)
+    }
+    return Promise.reject(err)
+  },
+)
 
 export default apiClient

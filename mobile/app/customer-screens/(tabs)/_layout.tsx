@@ -1,18 +1,40 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuthStore } from '../../../stores/authStore'
 import { useCartStore } from '../../../stores/cartStore'
 import { BRAND } from '../../../utils/theme'
+import { isSrMarketingStore, loadVendorBranding } from '../../../utils/vendorConfig'
 
 export default function CustomerTabsLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const vendorInfo = useAuthStore((s) => s.vendorInfo)
+  const vendorSlug = useAuthStore((s) => s.vendorSlug)
   const itemCount = useCartStore((s) => s.itemCount)
   const loadCart = useCartStore((s) => s.loadCart)
+  const [srStore, setSrStore] = useState(() =>
+    isSrMarketingStore(vendorInfo?.slug || vendorSlug),
+  )
 
   useEffect(() => {
     void loadCart(isAuthenticated).catch(() => undefined)
   }, [isAuthenticated, loadCart])
+
+  useEffect(() => {
+    let alive = true
+    loadVendorBranding()
+      .then((b) => {
+        if (!alive) return
+        setSrStore(isSrMarketingStore(b.vendorSlug || vendorInfo?.slug || vendorSlug))
+      })
+      .catch(() => {
+        if (!alive) return
+        setSrStore(isSrMarketingStore(vendorInfo?.slug || vendorSlug))
+      })
+    return () => {
+      alive = false
+    }
+  }, [vendorInfo?.slug, vendorSlug])
 
   const badge = itemCount > 0 ? (itemCount > 99 ? '99+' : itemCount) : undefined
 
@@ -74,13 +96,34 @@ export default function CustomerTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="rental"
+        options={
+          srStore
+            ? {
+                title: 'Rental',
+                tabBarIcon: ({ color, size }) => (
+                  <Ionicons name="cube-outline" size={size} color={color} />
+                ),
+              }
+            : {
+                href: null,
+              }
+        }
+      />
+      <Tabs.Screen
         name="orders"
-        options={{
-          title: 'Orders',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt-outline" size={size} color={color} />
-          ),
-        }}
+        options={
+          srStore
+            ? {
+                href: null,
+              }
+            : {
+                title: 'Orders',
+                tabBarIcon: ({ color, size }) => (
+                  <Ionicons name="receipt-outline" size={size} color={color} />
+                ),
+              }
+        }
       />
       <Tabs.Screen
         name="account"

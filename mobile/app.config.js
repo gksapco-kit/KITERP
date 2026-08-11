@@ -109,8 +109,7 @@ module.exports = () => ({
       vendorSlug: VENDOR_SLUG,
       isBrandedApp: !!VENDOR_SLUG,
       storefrontBaseUrl,
-      apiUrl:
-        process.env.EXPO_PUBLIC_API_URL || "https://kiterp.com/api/v1",
+      apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://kiterp.com/api/v1",
       primaryColor,
       appName,
       eas: {
