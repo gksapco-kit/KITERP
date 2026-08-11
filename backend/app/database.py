@@ -1854,6 +1854,28 @@ async def ensure_rental_schema() -> None:
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS display_start_date DATE",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS display_end_date DATE",
+        # Storefront visibility / multi-store (rent008) — columns + join table only.
+        # Unique index is owned by alembic rent008 (avoid startup crash on duplicate slugs).
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS slug VARCHAR(160)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS is_visible BOOLEAN DEFAULT true",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS store_scope VARCHAR(20) DEFAULT 'all'",
+        """
+        UPDATE rental_asset
+        SET slug = 'asset-' || REPLACE(id::text, '-', '')
+        WHERE slug IS NULL OR btrim(slug) = ''
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS rental_asset_store (
+            id UUID PRIMARY KEY,
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            asset_id UUID NOT NULL REFERENCES rental_asset(id) ON DELETE CASCADE,
+            store_id UUID NOT NULL REFERENCES store(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_rental_asset_store_asset ON rental_asset_store(asset_id)",
+        "CREATE INDEX IF NOT EXISTS idx_rental_asset_store_store ON rental_asset_store(store_id)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_rental_asset_store ON rental_asset_store(asset_id, store_id)",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS sales_area_id UUID REFERENCES sales_area(id) ON DELETE SET NULL",
         "CREATE INDEX IF NOT EXISTS ix_rental_asset_sales_area ON rental_asset(sales_area_id)",
         "ALTER TABLE rental_asset ALTER COLUMN status TYPE VARCHAR(30)",
