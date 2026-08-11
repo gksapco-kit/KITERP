@@ -1,4 +1,3 @@
-# app/api/v1/catalog.py
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, status, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -374,7 +373,8 @@ async def list_storefront_vendors(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Public directory of vendors that can be opened on the path-based business front
+    Public directory of vendors opted into Community / Our Partners
+    (``show_in_community``) that can be opened on the path-based business front
     (``/store/{slug}``). Used by the marketing landing page and Our Partners page.
     """
     repo = VendorRepository(db)

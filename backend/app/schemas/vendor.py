@@ -206,6 +206,7 @@ class VendorResponse(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     checkout_layout: Optional[str] = None
+    show_in_community: Optional[bool] = False
 
     # External domain access fields
     external_domain_enabled: Optional[bool] = False

@@ -1,4 +1,3 @@
-# app/database.py
 import logging
 from contextlib import asynccontextmanager
 from sqlalchemy import text
@@ -125,6 +124,26 @@ async def ensure_vendor_external_domain_columns() -> None:
     async with engine.begin() as conn:
         for stmt in stmts:
             await conn.execute(text(stmt))
+
+
+async def ensure_vendor_show_in_community_column() -> None:
+    """Ensure vendor.show_in_community exists (Our Partners / Community listing)."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS "
+                "show_in_community BOOLEAN NOT NULL DEFAULT FALSE"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_vendor_show_in_community "
+                "ON vendor (show_in_community)"
+            )
+        )
+    logger.info("ensure_vendor_show_in_community_column: vendor.show_in_community ready")
 
 
 async def ensure_user_contact_not_globally_unique() -> None:

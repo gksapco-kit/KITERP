@@ -80,6 +80,9 @@ class Vendor(Base):
     verification_status = Column(String(30), default="pending")
     verified_at = Column(DateTime(timezone=True))
     rejection_reason = Column(Text)
+
+    # Public Our Partners / Community directory (admin opt-in)
+    show_in_community = Column(Boolean, default=False, nullable=False, index=True)
     
     # Settings
     settings = Column(JSONB, default={

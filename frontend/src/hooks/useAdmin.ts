@@ -79,7 +79,18 @@ export function useUpdateAdminVendor() {
       if ('relationship_manager_user_id' in variables.data) {
         queryClient.invalidateQueries({ queryKey: platformStaffKeys.all })
       }
-      toast.success('Vendor updated successfully!')
+      if (
+        Object.keys(variables.data).length === 1 &&
+        'show_in_community' in variables.data
+      ) {
+        toast.success(
+          variables.data.show_in_community
+            ? 'Store will appear on Our Partners'
+            : 'Store removed from Our Partners',
+        )
+      } else {
+        toast.success('Vendor updated successfully!')
+      }
     },
     onError: (error: unknown) => {
       const message =

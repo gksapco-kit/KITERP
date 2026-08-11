@@ -464,10 +464,13 @@ class VendorRepository(BaseRepository[Vendor]):
         skip: int = 0,
         limit: int = 60,
     ) -> tuple[List[Vendor], int]:
-        """Vendors visible on the public path business front (approved or legacy active)."""
-        live = Vendor.status.in_(("approved", "active"))
-        query = select(Vendor).where(live)
-        count_query = select(func.count()).select_from(Vendor).where(live)
+        """Vendors on Our Partners / Community: approved/active and admin-listed."""
+        listed = and_(
+            Vendor.status.in_(("approved", "active")),
+            Vendor.show_in_community.is_(True),
+        )
+        query = select(Vendor).where(listed)
+        count_query = select(func.count()).select_from(Vendor).where(listed)
         if search and search.strip():
             term = f"%{search.strip()}%"
             filt = or_(

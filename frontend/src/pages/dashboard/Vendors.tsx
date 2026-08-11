@@ -11,6 +11,7 @@ import {
   useRejectVendor,
   useDeleteVendor,
   useRelationshipManagerOptions,
+  useUpdateAdminVendor,
 } from '@/hooks/useAdmin'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -109,7 +110,9 @@ export default function Vendors() {
   const approveVendor = useApproveVendor()
   const rejectVendor = useRejectVendor()
   const deleteVendor = useDeleteVendor()
+  const updateVendor = useUpdateAdminVendor()
   const [deleteTarget, setDeleteTarget] = useState<AdminVendor | null>(null)
+  const [communityToggleId, setCommunityToggleId] = useState<string | null>(null)
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -128,6 +131,15 @@ export default function Vendors() {
     if (reason && reason.length >= 10) {
       rejectVendor.mutate({ vendorId, reason })
     }
+  }
+
+  const handleCommunityToggle = (vendor: AdminVendor, enabled: boolean) => {
+    if (!canApproveRejectVendors) return
+    setCommunityToggleId(vendor.id)
+    updateVendor.mutate(
+      { vendorId: vendor.id, data: { show_in_community: enabled } },
+      { onSettled: () => setCommunityToggleId(null) },
+    )
   }
 
   type VendorRow = NonNullable<typeof data>['items'][number]
@@ -153,6 +165,7 @@ export default function Vendors() {
         relationship_manager: (v: VendorRow) =>
           v.relationship_manager?.full_name || '',
         status: (v: VendorRow) => v.status,
+        show_in_community: (v: VendorRow) => (v.show_in_community ? 1 : 0),
         created_at: (v: VendorRow) => v.created_at,
       },
     )
@@ -249,48 +262,57 @@ export default function Vendors() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex flex-col lg:flex-row gap-4 lg:items-end lg:flex-wrap">
+        <CardContent className="pt-6 space-y-3">
+          <div
+            className={cn(
+              'grid grid-cols-1 gap-4 items-start',
+              showRmDropdown || showRmReadOnlyBanner
+                ? 'xl:grid-cols-[minmax(0,1.4fr)_minmax(15rem,18rem)_auto]'
+                : 'xl:grid-cols-[minmax(0,1fr)_auto]',
+            )}
+          >
             {/* Search */}
-            <form onSubmit={handleSearch} className="flex-1 flex gap-2 min-w-[240px]">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search by business name, email..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Button type="submit" variant="outline">
-                Search
-              </Button>
-            </form>
+            <div className="min-w-0 space-y-1.5">
+              <Label htmlFor="vendor-search">Search</Label>
+              <form onSubmit={handleSearch} className="flex gap-2 items-center">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <Input
+                    id="vendor-search"
+                    placeholder="Search by business name, email..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button type="submit" variant="outline" className="shrink-0">
+                  Search
+                </Button>
+              </form>
+            </div>
 
             {showRmReadOnlyBanner && (
-              <div className="w-full sm:max-w-md shrink-0 space-y-1">
-                <p className="text-sm font-medium text-gray-900">Relationship manager</p>
-                <p className="text-sm text-gray-800">{rmFilteredReadOnlyLine}</p>
-                <button
-                  type="button"
-                  className="text-sm text-primary hover:underline font-medium"
-                  onClick={() => setRmFilter('')}
-                >
-                  Show all accounts
-                </button>
-                <p className="text-xs text-muted-foreground">
-                  Limited to accounts assigned to this manager. Open full directory from an RM&apos;s profile uses
-                  the same filter.
-                </p>
+              <div className="min-w-0 space-y-1.5">
+                <Label>Relationship manager</Label>
+                <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/40 px-3">
+                  <p className="truncate text-sm text-gray-800">{rmFilteredReadOnlyLine}</p>
+                  <button
+                    type="button"
+                    className="shrink-0 text-sm text-primary hover:underline font-medium"
+                    onClick={() => setRmFilter('')}
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
             )}
 
             {showRmDropdown && (
-              <div className="w-full sm:w-72 shrink-0">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="vendor-rm-filter">Relationship manager</Label>
                 <Select
                   id="vendor-rm-filter"
-                  className={cn(platformTeamSelectClassName, 'mt-1')}
+                  className={platformTeamSelectClassName}
                   value={rmFilterFromUrl}
                   onChange={setRmFilter}
                   options={selectOptionsWithBlank(
@@ -308,30 +330,37 @@ export default function Vendors() {
                     }),
                   )}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Limit rows to accounts assigned to this RM. Open full directory from an RM&apos;s profile applies
-                  the same filter.
-                </p>
               </div>
             )}
 
             {/* Status filter */}
-            <div className="flex gap-1 flex-wrap lg:flex-1 lg:justify-end">
-              {statusFilters.map((filter) => (
-                <Button
-                  key={filter.value}
-                  variant={statusFilter === filter.value ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter(filter.value)
-                    setPage(1)
-                  }}
-                >
-                  {filter.label}
-                </Button>
-              ))}
+            <div className="min-w-0 space-y-1.5">
+              <Label>Status</Label>
+              <div className="flex min-h-10 items-center gap-1.5 flex-wrap">
+                {statusFilters.map((filter) => (
+                  <Button
+                    key={filter.value}
+                    variant={statusFilter === filter.value ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setStatusFilter(filter.value)
+                      setPage(1)
+                    }}
+                  >
+                    {filter.label}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
+
+          {(showRmDropdown || showRmReadOnlyBanner) && (
+            <p className="text-xs text-muted-foreground max-w-2xl">
+              {showRmReadOnlyBanner
+                ? "Limited to accounts assigned to this manager. Open full directory from an RM's profile uses the same filter."
+                : "Limit rows to accounts assigned to this RM. Open full directory from an RM's profile applies the same filter."}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -350,6 +379,7 @@ export default function Vendors() {
               { value: 'business_type', label: 'Type' },
               { value: 'relationship_manager', label: 'RM' },
               { value: 'status', label: 'Status' },
+              { value: 'show_in_community', label: 'Community' },
             ]}
             sortKey={sortKey}
             sortDir={sortDir}
@@ -360,25 +390,31 @@ export default function Vendors() {
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Business
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Contact
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     RM
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    title="Show this store on the public Our Partners / Community page"
+                  >
+                    Community
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -386,14 +422,14 @@ export default function Vendors() {
               <tbody className="divide-y divide-gray-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center">
+                    <td colSpan={8} className="px-4 py-12 text-center">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
                       <p className="text-sm text-gray-500 mt-2">Loading business accounts...</p>
                     </td>
                   </tr>
                 ) : !data?.items?.length ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center">
+                    <td colSpan={8} className="px-4 py-12 text-center">
                       <Store className="w-10 h-10 mx-auto text-gray-300" />
                       {relationshipManagerUserIdForApi ? (
                         <>
@@ -460,7 +496,7 @@ export default function Vendors() {
                       role="link"
                       aria-label={`Open business account ${vendor.display_name || vendor.business_name}`}
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                             <Store className="w-5 h-5 text-primary" />
@@ -487,21 +523,21 @@ export default function Vendors() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <p className="text-sm text-gray-900">{vendor.primary_email}</p>
-                        <p className="text-xs text-gray-500">{vendor.primary_phone}</p>
+                        <p className="text-xs text-gray-500">{vendor.primary_phone || '—'}</p>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span className="text-sm text-gray-700 capitalize">
                           {vendor.business_type?.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
+                      <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
                         {vendor.relationship_manager?.full_name || (
                           <span className="text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-full capitalize ${
                             statusStyles[vendor.status] || 'bg-gray-100 text-gray-700'
@@ -510,10 +546,46 @@ export default function Vendors() {
                           {vendor.status?.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td
+                        className="px-4 py-4"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={!!vendor.show_in_community}
+                          aria-label={`${vendor.show_in_community ? 'Hide' : 'Show'} ${vendor.business_name} on Our Partners`}
+                          title={
+                            canApproveRejectVendors
+                              ? vendor.show_in_community
+                                ? 'Listed on Our Partners — click to hide'
+                                : 'Not listed — click to show on Our Partners'
+                              : 'Only platform admins can change Community listing'
+                          }
+                          disabled={!canApproveRejectVendors || communityToggleId === vendor.id}
+                          onClick={() =>
+                            handleCommunityToggle(vendor, !vendor.show_in_community)
+                          }
+                          className={cn(
+                            'relative inline-flex h-5 w-10 shrink-0 rounded-full transition-colors',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                            'disabled:cursor-not-allowed disabled:opacity-60',
+                            vendor.show_in_community ? 'bg-primary' : 'bg-gray-300',
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
+                              vendor.show_in_community ? 'translate-x-5' : 'translate-x-0.5',
+                            )}
+                          />
+                        </button>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
                         {formatDate(vendor.created_at)}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <div
                           className="flex items-center justify-end gap-1"
                           onClick={(e) => e.stopPropagation()}

@@ -127,6 +127,7 @@ export interface AdminVendorUpdatePayload {
   status?: string
   relationship_manager_user_id?: string | null
   external_domain_access_status?: 'not_requested' | 'pending' | 'active' | 'revoked'
+  show_in_community?: boolean
 }
 
 export interface VendorRmQueryAdminRow {

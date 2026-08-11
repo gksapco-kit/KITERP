@@ -1,4 +1,3 @@
-# app/main.py
 import logging
 import mimetypes
 import traceback
@@ -20,6 +19,7 @@ from app.database import (
     ensure_fiscal_year_schema,
     ensure_vendor_order_acceptance_columns,
     ensure_vendor_external_domain_columns,
+    ensure_vendor_show_in_community_column,
     ensure_product_uom_column,
     ensure_service_booking_label_column,
     ensure_service_storefront_label_columns,
@@ -86,6 +86,7 @@ async def lifespan(app: FastAPI):
         await ensure_fiscal_year_schema()
         await ensure_vendor_order_acceptance_columns()
         await ensure_vendor_external_domain_columns()
+        await ensure_vendor_show_in_community_column()
         await ensure_product_uom_column()
         await ensure_service_booking_label_column()
         await ensure_service_storefront_label_columns()

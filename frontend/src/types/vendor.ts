@@ -118,6 +118,8 @@ export interface Vendor {
   activated_at?: string
   created_at: string
   updated_at: string
+  /** Admin opt-in: show on Our Partners / Community directory */
+  show_in_community?: boolean
   // External domain
   external_domain_enabled?: boolean
   external_domain_scope?: 'all' | 'per_unit'

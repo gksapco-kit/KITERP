@@ -1,4 +1,3 @@
-# app/api/v1/admin.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy import select, update, func, or_, and_
@@ -189,6 +188,10 @@ class AdminVendorUpdate(BaseModel):
     external_domain_access_status: Optional[str] = Field(
         None,
         description="Admin-controlled domain access status: not_requested | pending | active | revoked",
+    )
+    show_in_community: Optional[bool] = Field(
+        None,
+        description="When true, approved/active vendor appears on Our Partners / Community directory",
     )
 
 
