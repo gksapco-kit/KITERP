@@ -1,5 +1,27 @@
-import type { ReactNode } from 'react'
+import {
+  createElement,
+  isValidElement,
+  type ComponentType,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import type { StyleConfig } from '@/blocks/registry'
+
+type IconInput = ReactNode | ComponentType<{ className?: string; style?: CSSProperties }>
+
+function renderIcon(icon: IconInput | undefined, primary: string): ReactNode {
+  if (!icon) return null
+  // Already a React element / string / number — render as-is
+  if (isValidElement(icon) || typeof icon === 'string' || typeof icon === 'number') {
+    return icon
+  }
+  // Lucide / forwardRef component mistakenly passed as `icon={Package}` instead of `<Package />`
+  if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null && '$$typeof' in icon)) {
+    const Icon = icon as ComponentType<{ className?: string; style?: CSSProperties }>
+    return createElement(Icon, { className: 'w-10 h-10', style: { color: primary } })
+  }
+  return null
+}
 
 /** Friendly builder/preview placeholder when a section has no content yet. */
 export default function BlockEmptyPlaceholder({
@@ -15,7 +37,8 @@ export default function BlockEmptyPlaceholder({
   message: string
   hint?: string
   style?: StyleConfig
-  icon?: ReactNode
+  /** Prefer a React element (`<Icon />`). Component types are also accepted safely. */
+  icon?: IconInput
   /** Optional dashboard deep-link (e.g. create product). */
   actionHref?: string
   actionLabel?: string
@@ -23,6 +46,7 @@ export default function BlockEmptyPlaceholder({
   const textColor = style?.text_color || '#374151'
   const surface = style?.surface_color || style?.bg_color || '#f9fafb'
   const primary = style?.primary_color || '#6366f1'
+  const iconNode = renderIcon(icon, primary)
 
   return (
     <section
@@ -33,7 +57,7 @@ export default function BlockEmptyPlaceholder({
         className="rounded-2xl border-2 border-dashed px-6 py-10 text-center"
         style={{ borderColor: `${primary}44`, backgroundColor: `${primary}08` }}
       >
-        {icon && <div className="mb-4 flex justify-center opacity-60">{icon}</div>}
+        {iconNode ? <div className="mb-4 flex justify-center opacity-60">{iconNode}</div> : null}
         {title ? (
           <h3
             className="text-lg sm:text-xl font-semibold mb-2"

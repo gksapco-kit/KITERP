@@ -89,10 +89,13 @@ export default function RentalGridBlock({ style, props, liveItems, blockId }: Pr
           />
         )}
         <BlockEmptyPlaceholder
-          icon={Package2}
-          label="No rental assets yet"
-          hint="Add assets in Sales → Rental Assets. They'll appear here automatically."
-          cta={{ label: 'Add rental assets', href: vendorDashboardUrl('/rentals/assets') }}
+          style={style}
+          title="No rental assets yet"
+          message="Rental assets from your catalog will appear here once you add them."
+          hint="Add assets in Rental → Assets. They'll appear here automatically."
+          actionHref={vendorDashboardUrl('/rental/assets')}
+          actionLabel="Add rental assets"
+          icon={<Package2 className="w-10 h-10" style={{ color: style.primary_color }} />}
         />
       </section>
     )
