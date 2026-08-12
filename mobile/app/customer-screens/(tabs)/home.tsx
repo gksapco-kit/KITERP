@@ -29,6 +29,7 @@ import { BRAND } from '../../../utils/theme'
 import { ProductAddToCart } from '../../../components/ProductAddToCart'
 import { SrProductCard } from '../../../components/SrProductCard'
 import { useCartStore } from '../../../stores/cartStore'
+import { useWishlistStore } from '../../../stores/wishlistStore'
 import type { Product } from '../../../types'
 
 const { width } = Dimensions.get('window')
@@ -52,6 +53,7 @@ export default function CustomerHome() {
   const authVendorSlug = useAuthStore((s) => s.vendorSlug)
   const loadCart = useCartStore((s) => s.loadCart)
   const cartItemCount = useCartStore((s) => s.itemCount)
+  const loadWishlist = useWishlistStore((s) => s.load)
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<StoreCategory[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -80,6 +82,12 @@ export default function CustomerHome() {
     await loadCart(isAuthenticated).catch(() => undefined)
   }, [isAuthenticated, loadCart])
 
+  const refreshWishlist = useCallback(async () => {
+    if (isAuthenticated) {
+      await loadWishlist(true).catch(() => undefined)
+    }
+  }, [isAuthenticated, loadWishlist])
+
   const load = useCallback(async (opts?: { silent?: boolean; bustCache?: boolean }) => {
     if (!opts?.silent) setLoading(true)
     try {
@@ -100,6 +108,7 @@ export default function CustomerHome() {
       setCategories(flattenCategories(cats).slice(0, 12))
       setLoadError(null)
       await refreshCartCount()
+      await refreshWishlist()
     } catch (e) {
       console.warn('[home]', formatApiFailure(e, 'Failed to load store'))
       setLoadError(formatApiFailure(e, 'Failed to load store'))
@@ -108,7 +117,7 @@ export default function CustomerHome() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [selectedCategory, refreshCartCount, vendorInfo?.slug, authVendorSlug])
+  }, [selectedCategory, refreshCartCount, refreshWishlist, vendorInfo?.slug, authVendorSlug])
 
   useEffect(() => {
     void load()
@@ -117,7 +126,8 @@ export default function CustomerHome() {
   useFocusEffect(
     useCallback(() => {
       void refreshCartCount()
-    }, [refreshCartCount]),
+      void refreshWishlist()
+    }, [refreshCartCount, refreshWishlist]),
   )
 
   const filtered = useMemo(() => {

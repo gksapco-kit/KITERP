@@ -110,26 +110,111 @@ export const storeApi = {
     (await apiClient.post(`/store/orders/${orderId}/payment-proof`, data)).data,
 
   listRentalAssets: async (params?: Record<string, unknown>): Promise<any[]> => {
-    // Prefer public catalog (same as website), fall back to store rentals.
+    // Live catalog from vendor admin — no app rebuild needed for name/price/new items.
+    // `_ts` avoids intermediary HTTP caches so pull-to-refresh always hits the API.
+    const ts = Date.now()
     try {
-      const data = (await apiClient.get('/catalog/rentals', { params: { page: 1, size: 100, ...params } })).data
+      const data = (
+        await apiClient.get('/catalog/rentals', {
+          params: { page: 1, size: 100, _ts: ts, ...params },
+        })
+      ).data
       if (Array.isArray(data?.items)) return data.items
       if (Array.isArray(data)) return data
     } catch {
       /* fall through */
     }
-    const data = (await apiClient.get('/store/rentals/assets', { params })).data
+    const data = (
+      await apiClient.get('/store/rentals/assets', { params: { _ts: ts, ...params } })
+    ).data
     if (Array.isArray(data)) return data
     if (Array.isArray(data?.items)) return data.items
     if (Array.isArray(data?.assets)) return data.assets
     return []
   },
 
+  /** Fresh single-asset snapshot (name, rates, capacity) after vendor edits. */
+  getRentalAsset: async (id: string): Promise<any> =>
+    (await apiClient.get(`/store/rentals/assets/${id}`, { params: { _ts: Date.now() } })).data,
+
+  /** Date-aware availability (catalog list ignores date holds / pending bookings). */
+  searchAvailableRentals: async (params: {
+    quantity?: number
+    start_date: string
+    end_date: string
+    category?: string
+  }): Promise<any[]> => {
+    const data = (
+      await apiClient.get('/store/rentals/assets', {
+        params: {
+          quantity: params.quantity ?? 1,
+          start_date: params.start_date,
+          end_date: params.end_date,
+          category: params.category,
+          _ts: Date.now(),
+        },
+      })
+    ).data
+    if (Array.isArray(data)) return data
+    if (Array.isArray(data?.items)) return data.items
+    if (Array.isArray(data?.assets)) return data.assets
+    return []
+  },
+
+  getWishlist: async () =>
+    (await apiClient.get('/store/wishlist')).data as {
+      id: string
+      items: Array<{
+        product_id: string
+        variant_id?: string
+        name: string
+        price: number
+        image_url?: string
+        slug?: string
+        saved_at?: string
+      }>
+      item_count?: number
+    },
+
+  toggleWishlistItem: async (item: {
+    product_id: string
+    variant_id?: string
+    name: string
+    price: number
+    image_url?: string
+    slug?: string
+  }) => (await apiClient.post('/store/wishlist/toggle', item)).data,
+
+  removeWishlistItem: async (productId: string) =>
+    (await apiClient.delete(`/store/wishlist/items/${productId}`)).data,
+
   createRentalBooking: async (data: {
     asset_id: string
     start_date: string
     end_date: string
     quantity?: number
+    weight_requested?: number
+    pricing_plan?: string
     notes?: string
+    delivery_address?: string
+    needs_delivery?: boolean
   }) => (await apiClient.post('/store/rentals/bookings', data)).data,
+
+  listMyRentalBookings: async (): Promise<any[]> => {
+    const data = (await apiClient.get('/store/rentals/my-bookings')).data
+    if (Array.isArray(data)) return data
+    if (Array.isArray(data?.items)) return data.items
+    return []
+  },
+
+  getMyRentalBooking: async (id: string) =>
+    (await apiClient.get(`/store/rentals/my-bookings/${id}`)).data,
+
+  payRentalBooking: async (
+    id: string,
+    data: { payment_method?: string; payment_reference?: string } = {},
+  ) => (await apiClient.post(`/store/rentals/my-bookings/${id}/pay`, data)).data,
+
+  cancelRentalBooking: async (id: string) =>
+    (await apiClient.post(`/store/rentals/my-bookings/${id}/cancel`)).data,
 }

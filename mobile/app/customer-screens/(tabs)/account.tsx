@@ -1,9 +1,11 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { useCallback } from 'react'
 import { useAuthStore } from '../../../stores/authStore'
 import { useCartStore } from '../../../stores/cartStore'
+import { useWishlistStore } from '../../../stores/wishlistStore'
 import { isBrandedApp } from '../../../utils/vendorConfig'
 import { formatCurrency } from '../../../lib/utils'
 import { BRAND, withAlpha } from '../../../utils/theme'
@@ -21,6 +23,14 @@ export default function CustomerAccount() {
   const router = useRouter()
   const { customer, vendorInfo, isAuthenticated, logout } = useAuthStore()
   const cartCount = useCartStore((s) => s.itemCount)
+  const wishlistCount = useWishlistStore((s) => s.items.length)
+  const loadWishlist = useWishlistStore((s) => s.load)
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isAuthenticated) void loadWishlist(true).catch(() => undefined)
+    }, [isAuthenticated, loadWishlist]),
+  )
 
   const handleLogout = () => {
     logout()
@@ -65,6 +75,21 @@ export default function CustomerAccount() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={styles.guestWishlist}
+              onPress={() =>
+                router.push({
+                  pathname: '/auth-screens/login',
+                  params: { returnTo: 'wishlist' },
+                })
+              }
+              activeOpacity={0.85}
+            >
+              <Ionicons name="heart" size={18} color="#EF4444" />
+              <Text style={styles.guestWishlistText}>Wishlist</Text>
+              <Ionicons name="chevron-forward" size={16} color={BRAND.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={styles.guestBrowse}
               onPress={() => router.push('/customer-screens/browse')}
             >
@@ -81,12 +106,30 @@ export default function CustomerAccount() {
 
   const menu: MenuItem[] = [
     {
+      key: 'wishlist',
+      title: 'Wishlist',
+      subtitle:
+        wishlistCount > 0
+          ? `${wishlistCount} saved item${wishlistCount === 1 ? '' : 's'}`
+          : 'Save products you like',
+      icon: 'heart-outline',
+      onPress: () => router.push('/customer-screens/wishlist'),
+      badge: wishlistCount > 0 ? wishlistCount : undefined,
+    },
+    {
       key: 'orders',
       title: 'My orders',
       subtitle: 'Track and review purchases',
       icon: 'receipt-outline',
       onPress: () => router.push('/customer-screens/orders'),
       badge: customer.total_orders || undefined,
+    },
+    {
+      key: 'my-rentals',
+      title: 'My Rentals',
+      subtitle: 'Track bookings, payments & delivery',
+      icon: 'car-outline',
+      onPress: () => router.push('/customer-screens/my-rentals'),
     },
     {
       key: 'cart',
@@ -284,6 +327,19 @@ const styles = StyleSheet.create({
   secondaryBtnText: { color: BRAND.primaryDark, fontWeight: '800' },
   guestBrowse: { marginTop: 16, paddingVertical: 8 },
   guestBrowseText: { color: BRAND.textMuted, fontWeight: '600', fontSize: 13 },
+  guestWishlist: {
+    marginTop: 16,
+    minWidth: 220,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  guestWishlistText: { flex: 1, color: BRAND.text, fontWeight: '700', fontSize: 14 },
   profileCard: {
     backgroundColor: BRAND.card,
     borderRadius: 22,

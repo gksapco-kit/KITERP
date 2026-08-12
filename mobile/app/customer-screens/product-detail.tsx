@@ -16,6 +16,7 @@ import { storeApi } from '../../api/store'
 import { apiErrorMessage } from '../../api/auth'
 import { useAuthStore } from '../../stores/authStore'
 import { useCartStore } from '../../stores/cartStore'
+import { useWishlistStore } from '../../stores/wishlistStore'
 import { formatCurrency } from '../../lib/utils'
 import { productImageUrl } from '../../lib/mediaUrl'
 import { getProductPricing, isProductInStock } from '../../lib/productPricing'
@@ -27,11 +28,20 @@ export default function ProductDetailScreen() {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
   const addProduct = useCartStore((s) => s.addProduct)
+  const hasWishlist = useWishlistStore((s) => s.has)
+  const toggleWishlist = useWishlistStore((s) => s.toggleProduct)
+  const loadWishlist = useWishlistStore((s) => s.load)
   const [product, setProduct] = useState<Product | null>(null)
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [qty, setQty] = useState(1)
   const [adding, setAdding] = useState(false)
+  const [wishBusy, setWishBusy] = useState(false)
+  const wishlisted = product ? hasWishlist(product.id) : false
+
+  useEffect(() => {
+    if (isAuthenticated) void loadWishlist(true).catch(() => undefined)
+  }, [isAuthenticated, loadWishlist])
 
   useEffect(() => {
     if (!slug) return
@@ -113,6 +123,25 @@ export default function ProductDetailScreen() {
     }
   }
 
+  const handleWishlist = async () => {
+    if (!product) return
+    if (!isAuthenticated) {
+      router.push({
+        pathname: '/auth-screens/login',
+        params: { returnTo: 'wishlist' },
+      })
+      return
+    }
+    setWishBusy(true)
+    try {
+      await toggleWishlist(product, true)
+    } catch (err: any) {
+      Alert.alert('Wishlist', apiErrorMessage(err, 'Could not update wishlist'))
+    } finally {
+      setWishBusy(false)
+    }
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -144,6 +173,22 @@ export default function ProductDetailScreen() {
               <Text style={styles.discountText}>{discount}% off</Text>
             </View>
           )}
+          <TouchableOpacity
+            style={styles.wishBtn}
+            onPress={handleWishlist}
+            disabled={wishBusy}
+            accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+          >
+            {wishBusy ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <Ionicons
+                name={wishlisted ? 'heart' : 'heart-outline'}
+                size={22}
+                color={wishlisted ? '#EF4444' : '#111827'}
+              />
+            )}
+          </TouchableOpacity>
         </View>
 
         <View style={styles.body}>
@@ -251,6 +296,22 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   discountText: { fontWeight: '800', fontSize: 12, color: BRAND.text },
+  wishBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
   body: { padding: 20 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   name: { fontSize: 24, fontWeight: '800', color: BRAND.text },

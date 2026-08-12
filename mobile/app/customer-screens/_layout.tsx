@@ -79,6 +79,20 @@ export default function CustomerLayout() {
           contentStyle: { backgroundColor: BRAND.bg, flex: 1 },
         }}
       />
+      <Stack.Screen
+        name="wishlist"
+        options={{
+          title: 'Wishlist',
+          headerLeft: () => <HeaderBack fallback="/customer-screens/(tabs)/account" />,
+        }}
+      />
+      <Stack.Screen
+        name="my-rentals"
+        options={{
+          title: 'My Rentals',
+          headerLeft: () => <HeaderBack fallback="/customer-screens/(tabs)/account" />,
+        }}
+      />
     </Stack>
   )
 }

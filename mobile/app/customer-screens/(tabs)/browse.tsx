@@ -10,17 +10,22 @@ import {
   StyleSheet,
   Dimensions,
   RefreshControl,
+  Alert,
 } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { storeApi } from '../../../api/store'
+import { apiErrorMessage } from '../../../api/auth'
 import { useAuthStore } from '../../../stores/authStore'
 import { useCartStore } from '../../../stores/cartStore'
+import { useWishlistStore } from '../../../stores/wishlistStore'
 import { formatCurrency } from '../../../lib/utils'
 import { productImageUrl } from '../../../lib/mediaUrl'
 import { formatProductPriceLabel, getProductPricing } from '../../../lib/productPricing'
 import { ProductAddToCart } from '../../../components/ProductAddToCart'
+import { SrProductCard } from '../../../components/SrProductCard'
+import { isSrMarketingStore, loadVendorBranding } from '../../../utils/vendorConfig'
 import { BRAND } from '../../../utils/theme'
 import type { Product } from '../../../types'
 
@@ -29,18 +34,71 @@ const CARD_GAP = 10
 const H_PAD = 16
 const CARD_WIDTH = (width - H_PAD * 2 - CARD_GAP) / 2
 
-export default function BrowseProducts() {
+function BrowseWishButton({ product }: { product: Product }) {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
+  const wishlisted = useWishlistStore((s) => s.has(product.id))
+  const toggleWishlist = useWishlistStore((s) => s.toggleProduct)
+  const [busy, setBusy] = useState(false)
+
+  const onPress = async () => {
+    if (!isAuthenticated) {
+      router.push({
+        pathname: '/auth-screens/login',
+        params: { returnTo: 'wishlist' },
+      })
+      return
+    }
+    setBusy(true)
+    try {
+      await toggleWishlist(product, true)
+    } catch (err: any) {
+      Alert.alert('Wishlist', apiErrorMessage(err, 'Could not update wishlist'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <TouchableOpacity
+      style={styles.wishBtn}
+      onPress={onPress}
+      disabled={busy}
+      hitSlop={8}
+      accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+    >
+      {busy ? (
+        <ActivityIndicator size="small" color="#EF4444" />
+      ) : (
+        <Ionicons
+          name={wishlisted ? 'heart' : 'heart-outline'}
+          size={18}
+          color={wishlisted ? '#EF4444' : '#111827'}
+        />
+      )}
+    </TouchableOpacity>
+  )
+}
+
+export default function BrowseProducts() {
+  const router = useRouter()
+  const { isAuthenticated, vendorInfo } = useAuthStore()
+  const authVendorSlug = useAuthStore((s) => s.vendorSlug)
   const loadCart = useCartStore((s) => s.loadCart)
+  const loadWishlist = useWishlistStore((s) => s.load)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [search, setSearch] = useState('')
+  const [srStore, setSrStore] = useState(
+    isSrMarketingStore(vendorInfo?.slug || authVendorSlug),
+  )
 
   const fetchProducts = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true)
     try {
+      const branding = await loadVendorBranding()
+      setSrStore(isSrMarketingStore(branding.vendorSlug || vendorInfo?.slug || authVendorSlug))
       const data = await storeApi.listProducts({ page: 1, size: 80 })
       setProducts(data.items || [])
     } catch (e) {
@@ -49,7 +107,7 @@ export default function BrowseProducts() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [vendorInfo?.slug, authVendorSlug])
 
   useEffect(() => {
     void fetchProducts()
@@ -58,7 +116,8 @@ export default function BrowseProducts() {
   useFocusEffect(
     useCallback(() => {
       void loadCart(isAuthenticated).catch(() => undefined)
-    }, [isAuthenticated, loadCart]),
+      if (isAuthenticated) void loadWishlist(true).catch(() => undefined)
+    }, [isAuthenticated, loadCart, loadWishlist]),
   )
 
   const filtered = useMemo(() => {
@@ -116,20 +175,24 @@ export default function BrowseProducts() {
             <Text style={styles.empty}>No products found</Text>
           }
           renderItem={({ item }) => {
+            if (srStore) {
+              return <SrProductCard product={item} width={CARD_WIDTH} />
+            }
             const imageUri = productImageUrl(item)
             const pricing = getProductPricing(item)
             return (
               <View style={styles.card}>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/customer-screens/product-detail',
-                      params: { slug: item.slug },
-                    })
-                  }
-                >
-                  <View style={styles.imageWrap}>
+                <View style={styles.imageWrap}>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={StyleSheet.absoluteFill}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/customer-screens/product-detail',
+                        params: { slug: item.slug },
+                      })
+                    }
+                  >
                     {imageUri ? (
                       <Image
                         source={{ uri: imageUri }}
@@ -141,7 +204,18 @@ export default function BrowseProducts() {
                         <Ionicons name="image-outline" size={28} color="#C5CDCA" />
                       </View>
                     )}
-                  </View>
+                  </TouchableOpacity>
+                  <BrowseWishButton product={item} />
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/customer-screens/product-detail',
+                      params: { slug: item.slug },
+                    })
+                  }
+                >
                   <View style={styles.bodyTop}>
                     <Text numberOfLines={1} style={styles.name}>{item.name}</Text>
                     <View style={styles.priceRow}>
@@ -197,9 +271,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BRAND.border,
   },
-  imageWrap: { width: '100%', height: CARD_WIDTH * 0.78, backgroundColor: '#EEF2F0' },
+  imageWrap: {
+    width: '100%',
+    height: CARD_WIDTH * 0.78,
+    backgroundColor: '#EEF2F0',
+    position: 'relative',
+  },
   image: { width: '100%', height: '100%' },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  wishBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
   bodyTop: { paddingHorizontal: 8, paddingTop: 8 },
   bodyBottom: { paddingHorizontal: 8, paddingBottom: 8, paddingTop: 2 },
   name: { fontSize: 12, fontWeight: '700', color: BRAND.text },

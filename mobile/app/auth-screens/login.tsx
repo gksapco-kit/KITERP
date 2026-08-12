@@ -117,6 +117,12 @@ export default function LoginScreen() {
         }
         if (returnTo === 'checkout') {
           router.replace('/customer-screens/checkout')
+        } else if (returnTo === 'wishlist') {
+          router.replace('/customer-screens/wishlist')
+        } else if (returnTo === 'my-rentals') {
+          router.replace('/customer-screens/my-rentals')
+        } else if (returnTo === 'rentals') {
+          router.replace('/customer-screens/rental')
         } else {
           router.replace('/customer-screens/home')
         }

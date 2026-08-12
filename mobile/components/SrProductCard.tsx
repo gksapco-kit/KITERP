@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { apiErrorMessage } from '../api/auth'
 import { useAuthStore } from '../stores/authStore'
 import { useCartStore } from '../stores/cartStore'
+import { useWishlistStore } from '../stores/wishlistStore'
 import { productImageUrl } from '../lib/mediaUrl'
 import { formatCurrency } from '../lib/utils'
 import { BRAND } from '../utils/theme'
@@ -51,6 +52,9 @@ export function SrProductCard({ product, width, onChanged }: Props) {
   const { isAuthenticated } = useAuthStore()
   const addProduct = useCartStore((s) => s.addProduct)
   const setProductQty = useCartStore((s) => s.setProductQty)
+  const wishlisted = useWishlistStore((s) => s.has(product.id))
+  const toggleWishlist = useWishlistStore((s) => s.toggleProduct)
+  const [wishBusy, setWishBusy] = useState(false)
   const variants = useMemo(() => sellableVariants(product), [product])
 
   const defaultVariantId = useMemo(() => {
@@ -124,18 +128,37 @@ export function SrProductCard({ product, width, onChanged }: Props) {
     }
   }
 
+  const handleWishlist = async () => {
+    if (!isAuthenticated) {
+      router.push({
+        pathname: '/auth-screens/login',
+        params: { returnTo: 'wishlist' },
+      })
+      return
+    }
+    setWishBusy(true)
+    try {
+      await toggleWishlist(product, true)
+    } catch (err: any) {
+      Alert.alert('Wishlist', apiErrorMessage(err, 'Could not update wishlist'))
+    } finally {
+      setWishBusy(false)
+    }
+  }
+
   return (
     <View style={[styles.card, { width }]}>
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() =>
-          router.push({
-            pathname: '/customer-screens/product-detail',
-            params: { slug: product.slug },
-          })
-        }
-      >
-        <View style={styles.imageWrap}>
+      <View style={styles.imageWrap}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={StyleSheet.absoluteFill}
+          onPress={() =>
+            router.push({
+              pathname: '/customer-screens/product-detail',
+              params: { slug: product.slug },
+            })
+          }
+        >
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
           ) : (
@@ -143,8 +166,25 @@ export function SrProductCard({ product, width, onChanged }: Props) {
               <Ionicons name="image-outline" size={32} color="#C5CDCA" />
             </View>
           )}
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.wishBtn}
+          onPress={handleWishlist}
+          disabled={wishBusy}
+          hitSlop={8}
+          accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+        >
+          {wishBusy ? (
+            <ActivityIndicator size="small" color="#EF4444" />
+          ) : (
+            <Ionicons
+              name={wishlisted ? 'heart' : 'heart-outline'}
+              size={18}
+              color={wishlisted ? '#EF4444' : '#111827'}
+            />
+          )}
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1}>
@@ -244,9 +284,28 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     backgroundColor: '#EEF2F0',
+    position: 'relative',
   },
   image: { width: '100%', height: '100%' },
   imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  wishBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
   body: { padding: 8 },
   name: {
     fontSize: 13,
