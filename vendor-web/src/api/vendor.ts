@@ -1432,6 +1432,100 @@ export const vendorApi = {
     await apiClient.delete(`/vendors/me/orders/${orderId}/partners/${role}`)
   },
 
+  // ── Line CRUD (Phase-8) ───────────────────────────────────
+  addOrderLine: async (orderId: string, data: {
+    item_type?: string
+    product_id?: string
+    variant_id?: string
+    service_id?: string
+    item_name: string
+    item_sku?: string
+    item_image_url?: string
+    line_type?: string
+    ordered_qty?: number
+    unit_of_measure?: string
+    list_price?: number
+    net_price?: number
+    discount_pct?: number
+    discount_amount?: number
+    tax_rate?: number
+    batch_number?: string
+    serial_numbers?: string[]
+    cost_center_id?: string
+    profit_center_id?: string
+    plant_id?: string
+    storage_location_id?: string
+    line_notes?: string
+  }): Promise<import('@/types').Order> => {
+    const response = await apiClient.post(`/vendors/me/orders/${orderId}/lines`, data)
+    return response.data
+  },
+
+  updateOrderLine: async (orderId: string, lineId: string, data: {
+    item_name?: string
+    item_sku?: string
+    line_type?: string
+    ordered_qty?: number
+    unit_of_measure?: string
+    list_price?: number
+    net_price?: number
+    discount_pct?: number
+    discount_amount?: number
+    tax_rate?: number
+    batch_number?: string
+    serial_numbers?: string[]
+    rejection_reason?: string
+    line_notes?: string
+    cost_center_id?: string
+    profit_center_id?: string
+    plant_id?: string
+    storage_location_id?: string
+  }): Promise<import('@/types').Order> => {
+    const response = await apiClient.patch(`/vendors/me/orders/${orderId}/lines/${lineId}`, data)
+    return response.data
+  },
+
+  deleteOrderLine: async (orderId: string, lineId: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/orders/${orderId}/lines/${lineId}`)
+  },
+
+  addLineSchedule: async (orderId: string, lineId: string, data: {
+    requested_date?: string
+    confirmed_date?: string
+    requested_qty?: number
+    confirmed_qty?: number
+    commitment_source?: string
+    notes?: string
+  }): Promise<import('@/types').Order> => {
+    const response = await apiClient.post(`/vendors/me/orders/${orderId}/lines/${lineId}/schedules`, data)
+    return response.data
+  },
+
+  updateLineSchedule: async (orderId: string, lineId: string, scheduleId: string, data: {
+    requested_date?: string
+    confirmed_date?: string
+    requested_qty?: number
+    confirmed_qty?: number
+    commitment_source?: string
+    status?: string
+    notes?: string
+  }): Promise<import('@/types').Order> => {
+    const response = await apiClient.patch(`/vendors/me/orders/${orderId}/lines/${lineId}/schedules/${scheduleId}`, data)
+    return response.data
+  },
+
+  deleteLineSchedule: async (orderId: string, lineId: string, scheduleId: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/orders/${orderId}/lines/${lineId}/schedules/${scheduleId}`)
+  },
+
+  getLineHistory: async (orderId: string, lineId: string): Promise<{
+    id: string; field_name: string; old_value: string | null; new_value: string | null
+    changed_by: string | null; changed_by_role: string | null; notes: string | null; timestamp: string
+  }[]> => {
+    const response = await apiClient.get(`/vendors/me/orders/${orderId}/lines/${lineId}/history`)
+    return response.data
+  },
+
   // ── Pricing conditions (Phase-7) ──────────────────────────
   addPricingCondition: async (
     orderId: string,

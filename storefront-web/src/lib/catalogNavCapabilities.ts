@@ -156,7 +156,8 @@ export function navLinksIncludeCatalogPath(
     if (kind === 'rentals') {
       if (rel === '/rentals' || rel.startsWith('/rentals/')) return true
       if (firstSeg === 'rentals' || firstSeg === 'rental') return true
-      if (/rentals?|storage\s*rack/i.test(label)) return true
+      // Exact marketplace labels only — "My Rentals" is the account bookings page.
+      if (/^(rentals?|storage\s*racks?)$/i.test(label.trim())) return true
       continue
     }
     if (kind === 'products') {
@@ -243,14 +244,32 @@ export function enrichNavLinksWithBlogLink(
   return out
 }
 
+/** Canonical marketplace path: `/rentals` or `/rentals/:slug`. */
+function isCanonicalRentalsHref(href: string, storePath: (p: string) => string): boolean {
+  const rel = pathRelativeToStore(href, storePath).toLowerCase()
+  return rel === '/rentals' || rel.startsWith('/rentals/')
+}
+
+/**
+ * Any href that looks rental-related — including singular `/rental` CMS pages.
+ * Singular paths must be repaired to `/rentals` (they hit the builder catch-all
+ * and skip the live catalog).
+ */
 function isRentalsHref(href: string, storePath: (p: string) => string): boolean {
   const rel = pathRelativeToStore(href, storePath).toLowerCase()
   const firstSeg = rel.replace(/^\//, '').split('/')[0] || ''
-  return rel === '/rentals' || rel.startsWith('/rentals/') || firstSeg === 'rentals' || firstSeg === 'rental'
+  return isCanonicalRentalsHref(href, storePath) || firstSeg === 'rentals' || firstSeg === 'rental'
 }
 
-function isRentalsLabel(label: string): boolean {
-  return /rentals?|storage\s*rack/i.test(label || '')
+/** Marketplace nav labels only — must NOT match "My Rentals" (account bookings). */
+function isRentalsMarketplaceLabel(label: string): boolean {
+  return /^(rentals?|storage\s*racks?)$/i.test((label || '').trim())
+}
+
+/** Customer bookings page under account — never rewrite these to the public catalog. */
+function isAccountRentalsHref(href: string, storePath: (p: string) => string): boolean {
+  const rel = pathRelativeToStore(href, storePath).toLowerCase().split('?')[0] || ''
+  return rel === '/account/rentals' || rel === '/account/my-rentals' || rel.startsWith('/account/rentals/')
 }
 
 /** Rentals marketplace at `/rentals` — vendor storefront only (via storePath). */
@@ -260,21 +279,27 @@ export function enrichNavLinksWithRentalsLink(
   rentalsEnabled = true,
 ): NavLinkItem[] {
   if (!rentalsEnabled) {
-    return links.filter(l => !navLinksIncludeCatalogPath([l], storePath, 'rentals'))
+    return links.filter((l) => {
+      if (l?.href && isAccountRentalsHref(l.href, storePath)) return true
+      return !navLinksIncludeCatalogPath([l], storePath, 'rentals')
+    })
   }
 
   const rentalsHref = storePath('/rentals')
-  // Repair misconfigured "Rentals" links that point elsewhere (often /contact).
+  // Repair misconfigured marketplace "Rentals" links (often /contact) and singular /rental
+  // CMS slugs. Never rewrite /account/rentals (My Rentals bookings).
   const repaired = links.map((link) => {
     if (!link?.href) return link
-    if (isRentalsHref(link.href, storePath)) return link
-    if (!isRentalsLabel(link.label || '')) return link
-    return { ...link, label: link.label?.trim() || 'Rentals', href: rentalsHref }
+    if (isAccountRentalsHref(link.href, storePath)) return link
+    if (isCanonicalRentalsHref(link.href, storePath)) return link
+    if (isRentalsHref(link.href, storePath) || isRentalsMarketplaceLabel(link.label || '')) {
+      return { ...link, label: link.label?.trim() || 'Rentals', href: rentalsHref }
+    }
+    return link
   })
 
   if (navLinksIncludeCatalogPath(repaired, storePath, 'rentals')) {
-    // Prefer a real /rentals href over a label-only match that somehow survived.
-    const hasCorrectHref = repaired.some(l => l?.href && isRentalsHref(l.href, storePath))
+    const hasCorrectHref = repaired.some(l => l?.href && isCanonicalRentalsHref(l.href, storePath))
     if (hasCorrectHref) return repaired
   }
 

@@ -331,7 +331,18 @@ export function ThemeSelect({
         aria-selected={isSelected}
         data-theme-select-option={flatIndex}
         onMouseEnter={() => setHighlightIndex(flatIndex)}
-        onClick={() => selectOption(opt)}
+        // Select on mousedown (with preventDefault) so the choice sticks inside
+        // portaled modals: searchable menus focus an input, and a blur/close race
+        // can swallow the subsequent click before onChange runs.
+        onMouseDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          selectOption(opt)
+        }}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
         className={cn(
           themeSelectUi.item,
           isSelected && themeSelectUi.itemActive,

@@ -828,6 +828,88 @@ export function useRequestReturnExchange() {
   })
 }
 
+// ── Line mutations (Phase-8) ─────────────────────────────────
+
+export function useAddOrderLine(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Parameters<typeof vendorApi.addOrderLine>[1]) =>
+      vendorApi.addOrderLine(orderId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.order(orderId) })
+    },
+    onError: apiError('Could not add line item'),
+  })
+}
+
+export function useUpdateOrderLine(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ lineId, data }: { lineId: string; data: Parameters<typeof vendorApi.updateOrderLine>[2] }) =>
+      vendorApi.updateOrderLine(orderId, lineId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.order(orderId) })
+    },
+    onError: apiError('Could not update line item'),
+  })
+}
+
+export function useDeleteOrderLine(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (lineId: string) => vendorApi.deleteOrderLine(orderId, lineId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.order(orderId) })
+      toast.success('Line removed')
+    },
+    onError: apiError('Could not remove line item'),
+  })
+}
+
+export function useAddLineSchedule(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ lineId, data }: { lineId: string; data: Parameters<typeof vendorApi.addLineSchedule>[2] }) =>
+      vendorApi.addLineSchedule(orderId, lineId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.order(orderId) })
+    },
+    onError: apiError('Could not add delivery schedule'),
+  })
+}
+
+export function useUpdateLineSchedule(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ lineId, scheduleId, data }: { lineId: string; scheduleId: string; data: Parameters<typeof vendorApi.updateLineSchedule>[3] }) =>
+      vendorApi.updateLineSchedule(orderId, lineId, scheduleId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.order(orderId) })
+    },
+    onError: apiError('Could not update delivery schedule'),
+  })
+}
+
+export function useDeleteLineSchedule(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ lineId, scheduleId }: { lineId: string; scheduleId: string }) =>
+      vendorApi.deleteLineSchedule(orderId, lineId, scheduleId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.order(orderId) })
+    },
+    onError: apiError('Could not remove delivery schedule'),
+  })
+}
+
+export function useLineHistory(orderId: string, lineId: string) {
+  return useQuery({
+    queryKey: ['vendor', 'order-line-history', orderId, lineId],
+    queryFn: () => vendorApi.getLineHistory(orderId, lineId),
+    enabled: !!orderId && !!lineId,
+  })
+}
+
 export function useOrderInvoice(orderId: string) {
   return useQuery({
     queryKey: ['vendor', 'invoice-by-order', orderId],

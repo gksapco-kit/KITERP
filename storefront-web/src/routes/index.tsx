@@ -44,6 +44,7 @@ import MyWishlist from '@/pages/account/MyWishlist'
 import MySubscriptions from '@/pages/account/MySubscriptions'
 import MyMarketplace from '@/pages/account/MyMarketplace'
 import RentalsBuilderPage from '@/pages/rentals/RentalsBuilderPage'
+import RentalDetailPage from '@/pages/rentals/RentalDetailPage'
 import MyRentals from '@/pages/account/MyRentals'
 import MyNotifications from '@/pages/account/MyNotifications'
 import BlogList from '@/pages/blog/BlogList'
@@ -88,6 +89,12 @@ function LegacyEmployeeToHrRedirect() {
   return <Navigate to={`/store/${vendorSlug}/hr${tail || ''}`} replace />
 }
 
+/** Singular `/rental` CMS slugs used to hit the builder catch-all without the live catalog. */
+function RedirectToRentalsCatalog() {
+  const { storePath } = useVendor()
+  return <Navigate to={storePath('/rentals')} replace />
+}
+
 function HrPortalLayout() {
   const { vendorSlug, vendor } = useVendor()
   useEffect(() => {
@@ -127,6 +134,11 @@ const draftCatalogShellChildren = [
   { path: 'account/subscriptions', element: <ProtectedRoute><MySubscriptions /></ProtectedRoute> },
   { path: 'account/marketplace', element: <ProtectedRoute><MyMarketplace /></ProtectedRoute> },
   { path: 'account/notifications', element: <ProtectedRoute><MyNotifications /></ProtectedRoute> },
+  { path: 'account/rentals', element: <ProtectedRoute><MyRentals /></ProtectedRoute> },
+  { path: 'rentals', element: <RentalsBuilderPage /> },
+  { path: 'rentals/:slug', element: <RentalDetailPage /> },
+  { path: 'rental', element: <RedirectToRentalsCatalog /> },
+  { path: 'rental/*', element: <RedirectToRentalsCatalog /> },
   { path: '*', element: <DraftCatalogEmbedBlocked /> },
 ]
 
@@ -217,9 +229,12 @@ export const router = createBrowserRouter([
       { path: 'account/wishlist', element: <ProtectedRoute><MyWishlist /></ProtectedRoute> },
       { path: 'account/subscriptions', element: <ProtectedRoute><MySubscriptions /></ProtectedRoute> },
       { path: 'account/marketplace', element: <ProtectedRoute><MyMarketplace /></ProtectedRoute> },
-      { path: 'rentals', element: <RentalsBuilderPage /> },
       { path: 'account/rentals', element: <ProtectedRoute><MyRentals /></ProtectedRoute> },
       { path: 'account/notifications', element: <ProtectedRoute><MyNotifications /></ProtectedRoute> },
+      { path: 'rentals', element: <RentalsBuilderPage /> },
+      { path: 'rentals/:slug', element: <RentalDetailPage /> },
+      { path: 'rental', element: <RedirectToRentalsCatalog /> },
+      { path: 'rental/*', element: <RedirectToRentalsCatalog /> },
       { path: 'blog', element: <BlogList /> },
       { path: 'blog/:slug', element: <BlogPost /> },
       { path: 'policies', element: <Policies /> },

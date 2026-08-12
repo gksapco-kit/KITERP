@@ -7,6 +7,7 @@ from enum import Enum
 class AppliesTo(str, Enum):
     PRODUCT = "product"
     SERVICE = "service"
+    RENTAL = "rental"
     BOTH = "both"
 
 

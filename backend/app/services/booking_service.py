@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 
 from app.models.booking import Booking
 from app.models.vendor_service import Service, ServiceAvailability, ServicePlan
+from app.services.store_resolver import resolve_txn_sales_area_id
 
 log = logging.getLogger(__name__)
 
@@ -84,9 +85,20 @@ class BookingService:
 
         booking_number = await self._next_booking_number(vendor_id)
 
+        store_id = UUID(str(data["store_id"])) if data.get("store_id") else None
+        explicit_area = UUID(str(data["sales_area_id"])) if data.get("sales_area_id") else None
+        sales_area_id = await resolve_txn_sales_area_id(
+            self.db,
+            vendor_id,
+            store_id=store_id,
+            customer_id=customer_id,
+            explicit=explicit_area,
+        )
+
         booking = Booking(
             vendor_id=vendor_id,
-            store_id=UUID(str(data["store_id"])) if data.get("store_id") else None,
+            store_id=store_id,
+            sales_area_id=sales_area_id,
             customer_id=customer_id,
             service_id=service_id,
             service_plan_id=plan.id if plan else None,

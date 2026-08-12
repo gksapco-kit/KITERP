@@ -252,6 +252,13 @@ class InvoiceService:
             terms_and_conditions=data.get("terms_and_conditions"),
             extra_fields=data.get("extra_fields") or [],
             created_by=created_by,
+            # Vendor-panel "Create Invoice" issues the document immediately so it
+            # appears in Outstanding AR. Estimates stay draft until converted.
+            # Callers may still pass an explicit status (e.g. draft / paid).
+            status=(
+                data.get("status")
+                or ("draft" if invoice_type == "estimate" else "sent")
+            ),
         )
         self.db.add(invoice)
         await self.db.commit()

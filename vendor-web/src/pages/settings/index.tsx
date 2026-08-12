@@ -5,7 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, selectOptionsWithBlank } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select, selectOptionsWithBlank, type SelectOption } from '@/components/ui/select'
+import {
+  TAX_COUNTRIES,
+  buildTaxRateSelectOptions,
+  defaultRateForCountry,
+  getTaxCountry,
+  isStandardTaxRate,
+  mergeCustomTaxRate,
+  parseCustomTaxRates,
+  registrationLabel,
+} from '@/lib/taxCountries'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useUpdateVendor, useUpdateStore, useStores, vendorKeys } from '@/hooks/useVendor'
 import type { StoreRecord } from '@/api/vendor'
@@ -41,7 +52,7 @@ import {
   type ExternalDomainDnsMode,
 } from '@/lib/externalDomainDns'
 import { toast } from 'sonner'
-import { extractApiError, GSTIN_FORMAT_MSG } from '@/lib/errorMessages'
+import { extractApiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { BUSINESS_UNIT_STORE_LABEL } from '@/lib/businessUnitLabels'
 import { getBusinessUnitVisual } from '@/lib/businessUnitVisuals'
@@ -94,6 +105,7 @@ import {
   profileFormFromStore,
   profileCompanyTypeFromVendor,
   isTaxSectionDirty,
+  taxFormFromStoreOrVendor,
   supportEmailsFromStore,
   supportEmailsFromVendor,
   supportPhonesFromStore,
@@ -717,6 +729,8 @@ function SettingsPageBody() {
           <div id="form-section-tax" className={formDisplayCompact.scrollMarginView}>
             <TaxSection
               vendor={vendor}
+              activeStore={activeStoreRecord}
+              multiStore={stores.length > 1}
               open={openSection === 'tax'}
               toggle={() => toggleSection('tax')}
               onSave={updateVendor}
@@ -2183,118 +2197,510 @@ function AddressSection({
   )
 }
 
-// â”€â”€ Tax Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tax Section ──────────────────────────────────────────────────────────────
 
-const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
+const CUSTOM_RATE_VALUE = '__custom__'
 
-function TaxSection({ vendor, open, toggle, onSave }: SectionProps) {
-  const [form, setForm] = useState({
-    is_gst_registered: false,
-    gstin: '',
-    pan_number: '',
-    default_tax_rate: '',
-  })
-  const [fieldErrors, setFieldErrors] = useState<{ gstin?: string }>({})
+function TaxSection({
+  vendor,
+  activeStore,
+  multiStore,
+  open,
+  toggle,
+  onSave,
+}: SectionProps & { activeStore?: StoreRecord; multiStore: boolean }) {
+  // Only unused in "all units" view when multiple stores exist.
+  // With a specific store selected, tax is editable for that store.
+  const unused = multiStore && !activeStore
+  const updateStore = useUpdateStore()
+  const savingRef = useRef(false)
+
+  const [form, setForm] = useState(() => taxFormFromStoreOrVendor(activeStore, vendor))
+  const [rateMode, setRateMode] = useState<'preset' | 'custom'>('preset')
+  const [fieldErrors, setFieldErrors] = useState<{ gstin?: string; pan_number?: string }>({})
   const [taxHydrated, setTaxHydrated] = useState(false)
 
+  const country = useMemo(() => getTaxCountry(form.tax_country_code), [form.tax_country_code])
+  const regField = country.identifier_schema.registration[0]
+  const entityFields = country.identifier_schema.entity
+  const parsedCustomRates = useMemo(
+    () => parseCustomTaxRates(form.custom_tax_rates),
+    [form.custom_tax_rates],
+  )
+
+  const countryOptions: SelectOption[] = useMemo(
+    () => TAX_COUNTRIES.map((c) => ({ value: c.code, label: `${c.name} (${c.tax_label})` })),
+    [],
+  )
+
+  const rateOptions: SelectOption[] = useMemo(
+    () => buildTaxRateSelectOptions(country, parsedCustomRates, CUSTOM_RATE_VALUE),
+    [country, parsedCustomRates],
+  )
+
+  const isKnownSelectableRate = (raw: string) => {
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return false
+    return (
+      isStandardTaxRate(country, n) ||
+      parsedCustomRates.some((r) => Math.abs(r.rate - n) < 0.0001)
+    )
+  }
+
   useLayoutEffect(() => {
-    if (vendor) {
-      setForm({
-        is_gst_registered: vendor.is_gst_registered ?? false,
-        gstin: vendor.gstin || '',
-        pan_number: vendor.pan_number || '',
-        default_tax_rate: vendor.default_tax_rate != null ? String(vendor.default_tax_rate) : '',
-      })
+    if (savingRef.current) return
+    if (unused) {
+      setTaxHydrated(true)
+      return
+    }
+    if (activeStore || vendor) {
+      const next = taxFormFromStoreOrVendor(activeStore, vendor)
+      const cfg = getTaxCountry(next.tax_country_code)
+      const customs = parseCustomTaxRates(next.custom_tax_rates)
+      const defaultNum = Number(next.default_tax_rate || 0)
+      const known =
+        cfg.standard_rates.some((r) => Math.abs(r.rate - defaultNum) < 0.0001) ||
+        customs.some((r) => Math.abs(r.rate - defaultNum) < 0.0001)
+      setForm(next)
+      setRateMode(known ? 'preset' : 'custom')
       setTaxHydrated(true)
     } else {
       setTaxHydrated(false)
     }
-  }, [vendor])
+  }, [vendor, activeStore?.id, activeStore?.settings, unused])
+
+  const handleCountryChange = (code: string) => {
+    const cfg = getTaxCountry(code)
+    setForm((prev) => ({
+      ...prev,
+      tax_country_code: code,
+      default_tax_rate: String(defaultRateForCountry(cfg)),
+      gstin: '',
+      custom_tax_rates: [],
+    }))
+    setRateMode('preset')
+    setFieldErrors({})
+  }
+
+  const handleRateSelect = (value: string) => {
+    if (value === CUSTOM_RATE_VALUE) {
+      setRateMode('custom')
+      return
+    }
+    setRateMode('preset')
+    setForm((prev) => ({ ...prev, default_tax_rate: value }))
+  }
+
+  const addCustomTaxRateRow = () => {
+    setForm((prev) => ({
+      ...prev,
+      custom_tax_rates: [...prev.custom_tax_rates, { rate: '', label: '' }],
+    }))
+  }
+
+  const updateCustomTaxRateRow = (
+    index: number,
+    patch: Partial<{ rate: string; label: string }>,
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      custom_tax_rates: prev.custom_tax_rates.map((row, i) =>
+        i === index ? { ...row, ...patch } : row,
+      ),
+    }))
+  }
+
+  const removeCustomTaxRateRow = (index: number) => {
+    setForm((prev) => {
+      const removed = prev.custom_tax_rates[index]
+      const nextRows = prev.custom_tax_rates.filter((_, i) => i !== index)
+      const removedNum = Number(removed?.rate)
+      const stillDefault =
+        Number.isFinite(removedNum) &&
+        Math.abs(removedNum - Number(prev.default_tax_rate || 0)) < 0.0001 &&
+        !isStandardTaxRate(getTaxCountry(prev.tax_country_code), removedNum)
+      return {
+        ...prev,
+        custom_tax_rates: nextRows,
+        ...(stillDefault
+          ? { default_tax_rate: String(defaultRateForCountry(getTaxCountry(prev.tax_country_code))) }
+          : {}),
+      }
+    })
+    setRateMode('preset')
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const gstin = form.is_gst_registered ? form.gstin.trim().toUpperCase() : ''
-    const pan = form.pan_number.trim()
-    const rateRaw = form.default_tax_rate.trim()
+    if (unused) return
 
-    if (form.is_gst_registered && gstin && !GSTIN_RE.test(gstin)) {
-      setFieldErrors({ gstin: GSTIN_FORMAT_MSG })
-      toast.error(GSTIN_FORMAT_MSG)
+    const gstinRaw = form.is_gst_registered ? form.gstin.trim() : ''
+    const gstin = regField?.uppercase ? gstinRaw.toUpperCase() : gstinRaw
+    const panRaw = form.pan_number.trim()
+    const pan = entityFields.some((f) => f.key === 'pan_number' && f.uppercase)
+      ? panRaw.toUpperCase()
+      : panRaw
+    const rateRaw = form.default_tax_rate.trim()
+    const errors: { gstin?: string; pan_number?: string } = {}
+
+    if (form.is_gst_registered && regField?.regex && gstin) {
+      try {
+        if (!new RegExp(regField.regex).test(gstin)) {
+          errors.gstin = `Enter a valid ${regField.label}`
+        }
+      } catch {
+        /* ignore bad regex */
+      }
+    }
+    if (form.is_gst_registered && regField?.required_when_registered && !gstin) {
+      errors.gstin = `${regField.label} is required when registered`
+    }
+    for (const field of entityFields) {
+      const val = field.key === 'pan_number' ? pan : ''
+      if (val && field.regex) {
+        try {
+          if (!new RegExp(field.regex).test(val)) {
+            errors.pan_number = `Enter a valid ${field.label}`
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    for (const row of form.custom_tax_rates) {
+      const trimmed = row.rate.trim()
+      if (!trimmed && !row.label.trim()) continue
+      if (!trimmed) {
+        toast.error('Enter a rate % for each additional tax row (or clear the description)')
+        return
+      }
+      const n = Number(trimmed)
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        toast.error('Additional tax rates must be between 0 and 100')
+        return
+      }
+    }
+
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors)
+      toast.error(Object.values(errors)[0])
       return
     }
     setFieldErrors({})
+
+    const rateNum = rateRaw ? parseFloat(rateRaw) : null
+    if (rateNum != null && (Number.isNaN(rateNum) || rateNum < 0 || rateNum > 100)) {
+      toast.error('Default tax rate must be between 0 and 100')
+      return
+    }
+
+    let customRates = parseCustomTaxRates(form.custom_tax_rates).filter(
+      (r) => !isStandardTaxRate(country, r.rate),
+    )
+    if (rateNum != null && !isStandardTaxRate(country, rateNum)) {
+      customRates = mergeCustomTaxRate(customRates, rateNum)
+    }
+
+    const taxSettings = {
+      tax_country_code: form.tax_country_code,
+      is_tax_registered: form.is_gst_registered,
+      tax_registration_id: gstin || null,
+      gstin: gstin || null,
+      default_tax_rate: rateNum,
+      pan_number: pan || null,
+      custom_tax_rates: customRates,
+    }
+
+    if (activeStore) {
+      savingRef.current = true
+      updateStore.mutate(
+        {
+          id: activeStore.id,
+          data: {
+            settings: {
+              ...(activeStore.settings ?? {}),
+              ...taxSettings,
+            },
+          },
+        },
+        { onSettled: () => { savingRef.current = false } },
+      )
+      return
+    }
 
     onSave.mutate({
       is_gst_registered: form.is_gst_registered,
       gstin: gstin || null,
       pan_number: pan || null,
-      default_tax_rate: rateRaw ? parseFloat(rateRaw) : null,
+      default_tax_rate: rateNum,
+      settings: {
+        ...(vendor?.settings ?? {}),
+        tax_country_code: form.tax_country_code,
+        custom_tax_rates: customRates,
+      },
     } as Partial<Vendor>)
   }
 
-  const isDirty = useMemo(() => isTaxSectionDirty(form, vendor), [form, vendor])
-  useSettingsSectionDirty('tax', isDirty, taxHydrated)
+  const isDirty = useMemo(
+    () => isTaxSectionDirty(form, vendor, { unused, store: activeStore }),
+    [form, vendor, unused, activeStore],
+  )
+  useSettingsSectionDirty('tax', isDirty, taxHydrated && !unused)
+
+  const rateSelectValue =
+    rateMode === 'custom'
+      ? CUSTOM_RATE_VALUE
+      : isKnownSelectableRate(form.default_tax_rate)
+        ? form.default_tax_rate
+        : CUSTOM_RATE_VALUE
+
+  const saving = activeStore ? updateStore.isPending : onSave.isPending
+
+  const taxScopeBadge = unused ? (
+    <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
+      Per store
+    </span>
+  ) : activeStore ? (
+    <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
+      This store
+    </span>
+  ) : null
 
   return (
-    <SectionWrapper title="Tax & Compliance" helpText="GST, PAN, GSTIN and tax registration details" icon={FileText} open={open} toggle={toggle}>
-      <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-        <FormSaveBar loading={onSave.isPending} top />
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.is_gst_registered}
-            onChange={(e) => setForm({ ...form, is_gst_registered: e.target.checked })}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600"
-          />
-          <span className="text-sm font-medium text-gray-700">GST Registered</span>
-        </label>
-
-        {form.is_gst_registered && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>GSTIN</Label>
-              <Input
-                value={form.gstin}
-                onChange={(e) => {
-                  setFieldErrors((prev) => ({ ...prev, gstin: undefined }))
-                  setForm({ ...form, gstin: e.target.value.toUpperCase().slice(0, 15) })
-                }}
-                placeholder="22AAAAA0000A1Z5"
-                maxLength={15}
-                className={`font-mono uppercase ${fieldErrors.gstin ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
-              />
-              {fieldErrors.gstin && (
-                <p className="text-xs text-red-500">{fieldErrors.gstin}</p>
-              )}
-              {!fieldErrors.gstin && form.gstin.length > 0 && form.gstin.length < 15 && (
-                <p className="text-xs text-muted-foreground">{form.gstin.length}/15 characters</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Default Tax Rate (%)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min={0}
-                max={100}
-                value={form.default_tax_rate}
-                onChange={(e) => setForm({ ...form, default_tax_rate: e.target.value })}
-                placeholder="18"
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-1.5">
-          <Label>PAN Number</Label>
-          <Input
-            value={form.pan_number}
-            onChange={(e) => setForm({ ...form, pan_number: e.target.value.toUpperCase() })}
-            placeholder="AAAAA0000A"
-            maxLength={10}
-          />
+    <SectionWrapper
+      title="Tax & Compliance"
+      subtitle={
+        unused
+          ? `Set on each ${BUSINESS_UNIT_STORE_LABEL}`
+          : activeStore
+            ? `Applies to ${activeStore.name}`
+            : undefined
+      }
+      helpText={
+        unused
+          ? 'Tax country and registration are set on each Business Unit / Store'
+          : activeStore
+            ? `Tax country, registration and default rates for ${activeStore.name}`
+            : 'Tax country, registration IDs and default rates for this business'
+      }
+      icon={FileText}
+      open={open}
+      toggle={toggle}
+      badge={taxScopeBadge}
+    >
+      {unused ? (
+        <div className="space-y-3">
+          <p className="flex items-start gap-2 rounded-lg border border-border/80 bg-background/80 px-3 py-2.5 text-xs leading-snug text-muted-foreground">
+            <Store className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+            <span>
+              Tax is store-specific when you have more than one Business Unit / Store.
+              Select a unit in the top bar (or open Business Units) to set its tax country,
+              registration ID and default rate.
+            </span>
+          </p>
+          <Button asChild size="sm" className="gap-1.5">
+            <Link to="/stores">
+              <Store className="h-3.5 w-3.5" />
+              Go to Business Units / Stores
+            </Link>
+          </Button>
         </div>
-      </form>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <FormSaveBar loading={saving} top />
+
+          <fieldset className="space-y-5">
+            <div className="space-y-1.5">
+              <Label className="font-semibold text-foreground">Tax Country</Label>
+              <Select
+                value={form.tax_country_code}
+                onChange={handleCountryChange}
+                options={countryOptions}
+                searchable
+                searchPlaceholder="Search countries…"
+                placeholder="Select tax country"
+              />
+              <p className="text-xs text-muted-foreground">
+                Must match the legal entity&apos;s country of incorporation / registration.
+              </p>
+            </div>
+
+            <label className="flex cursor-pointer items-center gap-3">
+              <Checkbox
+                checked={form.is_gst_registered}
+                onCheckedChange={(checked) =>
+                  setForm({ ...form, is_gst_registered: checked })
+                }
+                aria-label={registrationLabel(country)}
+              />
+              <span className="text-sm font-semibold text-foreground">
+                {registrationLabel(country)}
+              </span>
+            </label>
+
+            {form.is_gst_registered && regField ? (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="font-semibold text-foreground">{regField.label}</Label>
+                  <Input
+                    value={form.gstin}
+                    onChange={(e) => {
+                      setFieldErrors((prev) => ({ ...prev, gstin: undefined }))
+                      const next = regField.uppercase
+                        ? e.target.value.toUpperCase()
+                        : e.target.value
+                      setForm({ ...form, gstin: next.slice(0, regField.max_length) })
+                    }}
+                    placeholder={regField.placeholder}
+                    maxLength={regField.max_length}
+                    className={cn(
+                      'font-mono tracking-wide',
+                      regField.uppercase && 'uppercase',
+                      fieldErrors.gstin && 'border-destructive focus-visible:ring-destructive',
+                    )}
+                  />
+                  {fieldErrors.gstin ? (
+                    <p className="text-xs text-destructive">{fieldErrors.gstin}</p>
+                  ) : regField.help ? (
+                    <p className="text-xs text-muted-foreground">{regField.help}</p>
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-semibold text-foreground">
+                    Default {country.tax_label} Rate (%)
+                  </Label>
+                  <Select
+                    value={rateSelectValue}
+                    onChange={handleRateSelect}
+                    options={rateOptions}
+                    placeholder="Select rate"
+                  />
+                  {(rateMode === 'custom' || rateSelectValue === CUSTOM_RATE_VALUE) && (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      max={100}
+                      value={form.default_tax_rate}
+                      onChange={(e) => setForm({ ...form, default_tax_rate: e.target.value })}
+                      placeholder={String(defaultRateForCountry(country))}
+                      className="mt-1.5"
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Applied when a product or service has no rate assigned.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            {form.is_gst_registered ? (
+              <div className="space-y-3 rounded-lg border border-border/70 bg-background/80 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      Additional {country.tax_label} rates
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Add rates outside the standard list with an optional description.
+                      They stay listed here after you save so you can edit them, and also
+                      appear in the default rate dropdown (e.g. 40% — Luxury jewellery).
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 gap-1"
+                    onClick={addCustomTaxRateRow}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add
+                  </Button>
+                </div>
+                {form.custom_tax_rates.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No additional rates yet. Use Add to create one (e.g. 40 + description).
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="hidden gap-2 text-[11px] font-medium text-muted-foreground sm:flex">
+                      <span className="w-[7.5rem] shrink-0">Rate (%)</span>
+                      <span className="min-w-0 flex-1">Description</span>
+                      <span className="w-9 shrink-0" aria-hidden />
+                    </div>
+                    {form.custom_tax_rates.map((row, index) => (
+                      <div key={index} className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+                        <div className="relative w-full shrink-0 sm:w-[7.5rem]">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            max={100}
+                            value={row.rate}
+                            onChange={(e) => updateCustomTaxRateRow(index, { rate: e.target.value })}
+                            placeholder="e.g. 40"
+                            className="pr-8 font-mono"
+                            aria-label={`Additional ${country.tax_label} rate ${index + 1}`}
+                          />
+                          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                            %
+                          </span>
+                        </div>
+                        <Input
+                          value={row.label}
+                          onChange={(e) => updateCustomTaxRateRow(index, { label: e.target.value })}
+                          placeholder="Description (e.g. Luxury jewellery)"
+                          className="min-w-0 flex-1"
+                          aria-label={`Description for additional rate ${index + 1}`}
+                          maxLength={80}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="shrink-0 text-destructive hover:text-destructive"
+                          onClick={() => removeCustomTaxRateRow(index)}
+                          aria-label={`Remove additional rate ${index + 1}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {entityFields.map((field) => (
+              <div key={field.key} className="space-y-1.5">
+                <Label className="font-semibold text-foreground">{field.label}</Label>
+                <Input
+                  value={field.key === 'pan_number' ? form.pan_number : ''}
+                  onChange={(e) => {
+                    setFieldErrors((prev) => ({ ...prev, pan_number: undefined }))
+                    const next = field.uppercase ? e.target.value.toUpperCase() : e.target.value
+                    if (field.key === 'pan_number') {
+                      setForm({ ...form, pan_number: next.slice(0, field.max_length) })
+                    }
+                  }}
+                  placeholder={field.placeholder}
+                  maxLength={field.max_length}
+                  className={cn('font-mono tracking-wide', field.uppercase && 'uppercase')}
+                />
+                {fieldErrors.pan_number ? (
+                  <p className="text-xs text-destructive">{fieldErrors.pan_number}</p>
+                ) : field.help ? (
+                  <p className="text-xs text-muted-foreground">{field.help}</p>
+                ) : null}
+              </div>
+            ))}
+          </fieldset>
+
+          <FormSaveBar loading={saving} />
+        </form>
+      )}
     </SectionWrapper>
   )
 }

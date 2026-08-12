@@ -50,6 +50,7 @@ import SubscriptionsSalesPage from '@/pages/sales/Subscriptions'
 import MarketplaceLeadsPage from '@/pages/sales/MarketplaceLeads'
 import RentalDashboardPage from '@/pages/rental/RentalDashboardPage'
 import RentalAssetsPage from '@/pages/rental/RentalAssetsPage'
+import RentalAssetFormPage from '@/pages/rental/RentalAssetFormPage'
 import RentalBookingsPage from '@/pages/rental/RentalBookingsPage'
 import RentalCalendarPage from '@/pages/rental/RentalCalendarPage'
 import RentalReturnsPage from '@/pages/rental/RentalReturnsPage'
@@ -455,6 +456,9 @@ export const router = createBrowserRouter([
       { path: 'rental', element: <Navigate to="/rental/dashboard" replace /> },
       { path: 'rental/dashboard', element: <RentalDashboardPage /> },
       { path: 'rental/assets', element: <RentalAssetsPage /> },
+      { path: 'rental/assets/new', element: <RentalAssetFormPage /> },
+      { path: 'rental/assets/:assetId/edit', element: <RentalAssetFormPage /> },
+      { path: 'rental/assets/:assetId', element: <RentalAssetFormPage /> },
       { path: 'rental/bookings', element: <RentalBookingsPage /> },
       { path: 'rental/calendar', element: <RentalCalendarPage /> },
       { path: 'rental/returns', element: <RentalReturnsPage /> },

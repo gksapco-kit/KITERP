@@ -37,6 +37,7 @@ def _booking_dict(b: Booking) -> dict:
         "id": str(b.id),
         "vendor_id": str(b.vendor_id),
         "store_id": str(b.store_id) if getattr(b, "store_id", None) else None,
+        "sales_area_id": str(b.sales_area_id) if getattr(b, "sales_area_id", None) else None,
         "customer_id": str(b.customer_id) if b.customer_id else None,
         "service_id": str(b.service_id) if b.service_id else None,
         "booking_number": b.booking_number,

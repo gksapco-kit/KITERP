@@ -121,6 +121,7 @@ def _product_to_dict(p) -> dict:
         "category": p.category,
         "subcategory": p.subcategory,
         "tags": p.tags or [],
+        "division_id": str(p.division_id) if getattr(p, "division_id", None) else None,
         # Unit of Measure
         "uom": p.uom or "piece",
         "uom_quantity": _num(p.uom_quantity),
@@ -534,6 +535,13 @@ async def create_product(
     store_ids = data.store_ids or []
     fields["store_scope"] = store_scope
     fields["slug"] = slug
+    # Convert division_id string → UUID (FK to sales_division table)
+    if fields.get("division_id"):
+        from uuid import UUID as _UUID
+        try:
+            fields["division_id"] = _UUID(str(fields["division_id"]))
+        except (ValueError, TypeError):
+            fields.pop("division_id", None)
     material_code = (data.material_code or "").strip()
     if not material_code:
         material_code = await generate_product_material_code(db, vendor_id)
@@ -633,6 +641,16 @@ async def update_product(
     variants_payload = update_data.pop("variants", None)
     store_ids_payload = update_data.pop("store_ids", None)
     _coerce_date_fields(update_data)
+    # Convert division_id string → UUID when provided
+    if "division_id" in update_data:
+        from uuid import UUID as _UUID
+        raw_div = update_data.get("division_id")
+        if raw_div:
+            try:
+                update_data["division_id"] = _UUID(str(raw_div))
+            except (ValueError, TypeError):
+                update_data.pop("division_id", None)
+        # None means "clear the division" — leave as-is (setattr will set NULL)
 
     if "name" in update_data and await repo.name_exists(
         vendor_id, str(update_data["name"]), exclude_id=product_id

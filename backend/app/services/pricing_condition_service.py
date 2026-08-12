@@ -6,7 +6,7 @@ Responsibilities:
                              Order.discount_amount / shipping_amount / total.
   remove_header_condition()  Delete a header condition and recalculate totals.
   reprice_order()            Re-run the pricing engine on all order lines
-                             (updates unit_price, discount, totals).
+                             (updates net_price, discount, totals).
   recalculate_order_totals() Pure recalculation pass — called after any change.
   condition_to_dict()        Serialise an OrderPricingCondition.
 
@@ -57,9 +57,9 @@ async def recalculate_order_totals(db: AsyncSession, order: Order) -> None:
     )
     lines = lines_result.scalars().all()
 
-    lines_subtotal = sum(float(l.ordered_qty) * float(l.unit_price or 0) for l in lines)
+    lines_subtotal = sum(float(l.ordered_qty) * float(l.net_price or 0) for l in lines)
     lines_tax = sum(float(l.tax_amount or 0) for l in lines)
-    lines_discount = sum(float(l.discount_amount or 0) for l in lines)
+    lines_discount = sum(float(l.discount_amount or 0) * float(l.ordered_qty or 1) for l in lines)
 
     # Header conditions
     cond_result = await db.execute(
@@ -241,7 +241,7 @@ async def reprice_order(
         if not line.product_id:
             continue
         rules = rules_by_product.get(line.product_id, [])
-        list_price = float(line.list_price or line.unit_price or 0)
+        list_price = float(line.list_price or line.net_price or 0)
         resolution = resolve_price(
             rules,
             variant_id=line.variant_id,
@@ -250,17 +250,17 @@ async def reprice_order(
         )
         effective_price = resolution.price
         discount_pct = round((1 - effective_price / list_price) * 100, 4) if list_price > 0 else 0
-        discount_amount = round((list_price - effective_price) * float(line.ordered_qty), 2)
-        tax_rate = float(line.tax_pct or 0)
-        net = effective_price * float(line.ordered_qty)
+        discount_amount_per_unit = round(list_price - effective_price, 2)
+        tax_rate = float(line.tax_rate or 0)
+        qty = float(line.ordered_qty or 1)
+        net = effective_price * qty
         tax_amount = round(net * tax_rate / 100, 2)
 
-        line.unit_price = Decimal(str(effective_price))
+        line.net_price = Decimal(str(effective_price))
         line.discount_pct = Decimal(str(discount_pct))
-        line.discount_amount = Decimal(str(discount_amount))
+        line.discount_amount = Decimal(str(discount_amount_per_unit))
         line.tax_amount = Decimal(str(tax_amount))
-        line.net_price = Decimal(str(round(effective_price * (1 + tax_rate / 100), 4)))
-        line.line_total = Decimal(str(round(net + tax_amount, 2)))
+        line.line_total = Decimal(str(round(net, 2)))
         if resolution.matched:
             line.price_rule_id = _UUID(resolution.rule_id) if resolution.rule_id else None
             line.price_rule_type = resolution.rule_type

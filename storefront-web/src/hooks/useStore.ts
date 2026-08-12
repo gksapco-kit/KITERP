@@ -195,6 +195,18 @@ export function useCatalogRental(slug: string) {
   })
 }
 
+/** Detail fetch by catalog slug, or by UUID via store rentals API. */
+export function useStorefrontRental(idOrSlug: string) {
+  const { vendorSlug } = useVendor()
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idOrSlug)
+  return useQuery({
+    queryKey: ['storefront-rental', idOrSlug, vendorSlug, isUuid ? 'id' : 'slug'],
+    queryFn: () => (isUuid ? storeApi.getRentalAsset(idOrSlug) : storeApi.getCatalogRental(idOrSlug)),
+    enabled: !!idOrSlug && !!vendorSlug,
+    staleTime: 30_000,
+  })
+}
+
 function syncCartStore(cart: Cart) {
   useCartStore.getState().setCart(cart)
 }

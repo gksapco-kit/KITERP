@@ -1017,7 +1017,7 @@ async def get_live_resource_public(
                 image_url=a.image_url,
                 price=daily if daily > 0 else (monthly if monthly > 0 else None),
                 price_formatted=price_formatted,
-                url=f"/rentals/{a.slug}" if getattr(a, "slug", None) else None,
+                url=f"/rentals/{a.slug}" if getattr(a, "slug", None) else f"/rentals/{a.id}",
                 meta={
                     "slug": getattr(a, "slug", None),
                     "category": a.category,

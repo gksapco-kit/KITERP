@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Calendar, MapPin, Boxes, Shield, ArrowRight, Package2 } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import type { StyleConfig, LiveItem } from '@/blocks/registry'
@@ -58,6 +58,7 @@ function statusTone(status?: string) {
 
 export default function RentalGridBlock({ style, props, liveItems, blockId }: Props) {
   const { storePath } = useVendor()
+  const navigate = useNavigate()
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : 'desktop'
@@ -120,16 +121,33 @@ export default function RentalGridBlock({ style, props, liveItems, blockId }: Pr
           const capacityUnit = (meta.capacity_unit as string | undefined) ?? 'units'
           const category = ((meta.category as string | undefined) ?? '').replace(/_/g, ' ')
 
-          const itemUrl = item.url ? storePath(item.url) : storePath('/rentals')
+          const itemUrl = item.url
+            ? storePath(item.url)
+            : storePath(`/rentals/${item.id}`)
+          const goDetail = () => {
+            if (isEditorCanvas) return
+            navigate(itemUrl)
+          }
 
           return (
             <article
               key={item.id}
+              role={isEditorCanvas ? undefined : 'link'}
+              tabIndex={isEditorCanvas ? undefined : 0}
+              onClick={goDetail}
+              onKeyDown={(e) => {
+                if (isEditorCanvas) return
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  goDetail()
+                }
+              }}
               className={cn(
                 'builder-tile-card bg-white border border-gray-100 transition-all duration-200',
                 'flex flex-col overflow-hidden',
                 cardLayout.cardRadius,
                 'hover:shadow-lg hover:-translate-y-0.5',
+                !isEditorCanvas && 'cursor-pointer',
               )}
             >
               {/* Image or gradient placeholder */}
@@ -212,10 +230,11 @@ export default function RentalGridBlock({ style, props, liveItems, blockId }: Pr
                   </div>
                   <Link
                     to={itemUrl}
+                    onClick={(e) => e.stopPropagation()}
                     className="shrink-0 inline-flex items-center gap-1 text-sm font-semibold hover:gap-2 transition-all"
                     style={{ color: style.primary_color }}
                   >
-                    Book <ArrowRight className="w-3.5 h-3.5" />
+                    Details <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
               </div>

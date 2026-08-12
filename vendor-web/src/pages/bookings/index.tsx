@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
+import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
 import { createPortal } from 'react-dom'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -430,6 +431,7 @@ export default function BookingsPage() {
   // Business unit selected in the create form (scopes the service dropdown)
   const [selectedStore, setSelectedStore] = useState('')
   const [selectedBranch, setSelectedBranch] = useState('')
+  const [selectedSalesArea, setSelectedSalesArea] = useState('')
   const effectiveSelectedStore = selectedBranch || selectedStore
 
   // Services list for dropdown — scoped to the selected business unit
@@ -658,6 +660,7 @@ export default function BookingsPage() {
 
   const resetCreateForm = () => {
     setSelectedService(''); setSelectedStaff(''); setSelectedStore('')
+    setSelectedBranch(''); setSelectedSalesArea('')
     setBookingDate(''); setStartTime(''); setEndTime('')
     setNotes(''); setSelectedCustomer(null); setCustSearch(''); setDateSlots([])
     setShowQuickCreate(false); setShowSlotPicker(false); setShowAllSlots(false)
@@ -708,6 +711,7 @@ export default function BookingsPage() {
             : { assigned_staff_name: name }
         })(),
         ...(effectiveSelectedStore ? { store_id: effectiveSelectedStore } : {}),
+        ...(selectedSalesArea ? { sales_area_id: selectedSalesArea } : {}),
       })
       toast.success('Booking created successfully')
       qc.invalidateQueries({ queryKey: ['bookings'] })
@@ -1007,6 +1011,21 @@ export default function BookingsPage() {
                       />
                     </div>
                   )}
+
+                  {/* Sales Area */}
+                  <div>
+                    <label className={`${bm.fieldLabel} block mb-1.5`}>Sales Area</label>
+                    <SalesAreaSelect
+                      businessUnitId={selectedStore || null}
+                      branchId={selectedBranch || null}
+                      value={selectedSalesArea}
+                      onChange={setSelectedSalesArea}
+                      allowAll={false}
+                      requireBusinessUnit={false}
+                      showSelectedHint
+                      triggerClassName={bm.input}
+                    />
+                  </div>
 
                   {/* Payment */}
                   <div>

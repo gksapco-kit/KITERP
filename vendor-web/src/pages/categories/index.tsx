@@ -40,6 +40,7 @@ const APPLIES_OPTIONS = [
   { value: 'both', label: 'Product & Service' },
   { value: 'product', label: 'Product only' },
   { value: 'service', label: 'Service only' },
+  { value: 'rental', label: 'Rental only' },
 ]
 
 const FIELD_TYPES = [

@@ -125,6 +125,8 @@ export interface Vendor {
   pan_number?: string
   is_gst_registered?: boolean
   default_tax_rate?: number | null
+  /** ISO-2 tax regime country; also mirrored in settings.tax_country_code */
+  tax_country_code?: string
   logo_url?: string
   banner_url?: string
   business_hours?: Record<string, { open: string; close: string; closed?: boolean }>
@@ -932,7 +934,7 @@ export interface VendorCategory {
   slug: string
   description?: string
   image_url?: string | null
-  applies_to: 'product' | 'service' | 'both'
+  applies_to: 'product' | 'service' | 'rental' | 'both'
   is_active: boolean
   sort_order: number
   custom_fields: CustomField[]

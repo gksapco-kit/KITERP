@@ -1,5 +1,13 @@
 import type { StoreRecord } from '@/api/vendor'
 import type { Vendor } from '@/types'
+import {
+  defaultRateForCountry,
+  getTaxCountry,
+  isStandardTaxRate,
+  mergeCustomTaxRate,
+  parseCustomTaxRates,
+  resolveVendorTaxCountryCode,
+} from '@/lib/taxCountries'
 import { resolveStorefrontLinkMode } from '@/lib/liveStorefrontUrl'
 
 export const SETTINGS_SECTION_KEYS = [
@@ -267,17 +275,110 @@ export function isAddressSectionDirty(
   return dirty
 }
 
-export function isTaxSectionDirty(
-  form: { is_gst_registered: boolean; gstin: string; pan_number: string; default_tax_rate: string },
+export type TaxSectionForm = {
+  tax_country_code: string
+  is_gst_registered: boolean
+  gstin: string
+  pan_number: string
+  default_tax_rate: string
+  /** Additional selectable rates with optional description. */
+  custom_tax_rates: { rate: string; label: string }[]
+}
+
+function storeSettingsStr(settings: Record<string, unknown> | null | undefined, key: string): string {
+  const raw = settings?.[key]
+  return typeof raw === 'string' ? raw : typeof raw === 'number' ? String(raw) : ''
+}
+
+function hydrateCustomTaxRateRows(
+  settings: Record<string, unknown> | null | undefined,
+  countryCode: string,
+  defaultTaxRate: string,
+): { rate: string; label: string }[] {
+  const cfg = getTaxCountry(countryCode)
+  let rates = parseCustomTaxRates(settings?.custom_tax_rates)
+  const defaultNum = Number(defaultTaxRate)
+  if (
+    Number.isFinite(defaultNum) &&
+    defaultNum >= 0 &&
+    defaultNum <= 100 &&
+    !isStandardTaxRate(cfg, defaultNum)
+  ) {
+    rates = mergeCustomTaxRate(rates, defaultNum)
+  }
+  return rates.map((r) => ({ rate: String(r.rate), label: r.label }))
+}
+
+/** Hydrate Tax & Compliance form from a store (preferred) or vendor fallback. */
+export function taxFormFromStoreOrVendor(
+  store: StoreRecord | null | undefined,
   vendor: Vendor | null,
+): TaxSectionForm {
+  if (store) {
+    const settings = (store.settings ?? {}) as Record<string, unknown>
+    const code =
+      storeSettingsStr(settings, 'tax_country_code').toUpperCase() ||
+      resolveVendorTaxCountryCode(vendor?.settings, vendor?.country)
+    const cfg = getTaxCountry(code)
+    const savedRateRaw = storeSettingsStr(settings, 'default_tax_rate')
+    const savedRateNum = savedRateRaw ? Number(savedRateRaw) : NaN
+    const gstin =
+      storeSettingsStr(settings, 'gstin') || storeSettingsStr(settings, 'tax_registration_id')
+    const default_tax_rate =
+      savedRateRaw && !Number.isNaN(savedRateNum) && savedRateNum !== 0
+        ? savedRateRaw
+        : String(defaultRateForCountry(cfg))
+    return {
+      tax_country_code: code,
+      is_gst_registered:
+        Boolean(settings.is_tax_registered) || Boolean(gstin) || Boolean(settings.is_gst_registered),
+      gstin,
+      pan_number: storeSettingsStr(settings, 'pan_number'),
+      default_tax_rate,
+      custom_tax_rates: hydrateCustomTaxRateRows(settings, code, default_tax_rate),
+    }
+  }
+
+  const code = resolveVendorTaxCountryCode(vendor?.settings, vendor?.country)
+  const cfg = getTaxCountry(code)
+  const savedRateRaw = vendor?.default_tax_rate != null ? Number(vendor.default_tax_rate) : null
+  const default_tax_rate =
+    savedRateRaw != null && savedRateRaw !== 0
+      ? String(savedRateRaw)
+      : String(defaultRateForCountry(cfg))
+  return {
+    tax_country_code: code,
+    is_gst_registered: vendor?.is_gst_registered ?? false,
+    gstin: vendor?.gstin || '',
+    pan_number: vendor?.pan_number || '',
+    default_tax_rate,
+    custom_tax_rates: hydrateCustomTaxRateRows(
+      (vendor?.settings ?? {}) as Record<string, unknown>,
+      code,
+      default_tax_rate,
+    ),
+  }
+}
+
+function normalizedCustomRateKey(rows: { rate: string; label: string }[]): string {
+  return parseCustomTaxRates(rows).map((r) => `${r.rate}:${r.label}`).join('|')
+}
+
+export function isTaxSectionDirty(
+  form: TaxSectionForm,
+  vendor: Vendor | null,
+  opts: { unused?: boolean; store?: StoreRecord | null } = {},
 ): boolean {
-  if (!vendor) return false
-  const savedRate = vendor.default_tax_rate != null ? String(vendor.default_tax_rate) : ''
+  if (opts.unused) return false
+  const saved = taxFormFromStoreOrVendor(opts.store, vendor)
   return (
-    form.is_gst_registered !== (vendor.is_gst_registered ?? false) ||
-    normStr(form.gstin) !== normStr(vendor.gstin) ||
-    normStr(form.pan_number) !== normStr(vendor.pan_number) ||
-    normStr(form.default_tax_rate) !== normStr(savedRate)
+    normStr(form.tax_country_code) !== normStr(saved.tax_country_code) ||
+    form.is_gst_registered !== saved.is_gst_registered ||
+    normStr(form.gstin) !== normStr(saved.gstin) ||
+    normStr(form.pan_number) !== normStr(saved.pan_number) ||
+    normStr(form.default_tax_rate) !== normStr(saved.default_tax_rate) ||
+    normalizedCustomRateKey(form.custom_tax_rates) !==
+      normalizedCustomRateKey(saved.custom_tax_rates)
   )
 }
 

@@ -4,7 +4,7 @@ import { statusBadgeClass } from './rentalConstants'
 
 export function StatusBadge({ status }: { status?: string }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border capitalize ${statusBadgeClass(status)}`}>
+    <span className={`inline-flex items-center whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium border capitalize ${statusBadgeClass(status)}`}>
       {(status || '—').replace(/_/g, ' ')}
     </span>
   )
@@ -63,16 +63,27 @@ export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: nu
 /** Skeleton cards while an asset grid loads. */
 export function CardGridSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="grid sm:grid-cols-2 gap-3">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <div className="flex justify-between gap-2">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-5 w-16 rounded-full" />
+        <div key={i} className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex gap-3 p-3 pb-2.5">
+            <Skeleton className="h-14 w-14 shrink-0 rounded-lg" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex justify-between gap-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="h-3 w-20" />
+            </div>
           </div>
-          <Skeleton className="h-1.5 w-full rounded-full" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-2/3" />
+          <div className="space-y-2 px-3 pb-2.5">
+            <Skeleton className="h-1.5 w-full rounded-full" />
+            <Skeleton className="h-5 w-24 rounded-md" />
+            <Skeleton className="h-5 w-32 rounded-md" />
+          </div>
+          <div className="border-t border-border/70 bg-muted/20 px-3 py-2">
+            <Skeleton className="h-4 w-40" />
+          </div>
         </div>
       ))}
     </div>

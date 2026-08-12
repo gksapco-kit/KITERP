@@ -501,17 +501,19 @@ async def get_current_customer(
     if not customer:
         return None
 
-    # Reject when the token/customer belongs to a different business unit.
+    # Reject only when the request supplies a BU *and* it differs from the customer's BU.
+    # A missing X-Store-Id / X-Branch (browser before branches load) must not 401.
     try:
         ctx_store_id = await resolve_storefront_store_id(request, ctx_vendor_id, db)
     except HTTPException:
-        return None
+        ctx_store_id = None
     token_store = payload.get("store_id")
     token_store_id = UUID(str(token_store)) if token_store else None
     customer_store_id = customer.store_id
-    if ctx_store_id != customer_store_id:
+    # Both sides must declare a BU for a mismatch to be meaningful.
+    if ctx_store_id is not None and customer_store_id is not None and ctx_store_id != customer_store_id:
         return None
-    if token_store_id is not None and token_store_id != customer_store_id:
+    if token_store_id is not None and customer_store_id is not None and token_store_id != customer_store_id:
         return None
 
     return customer

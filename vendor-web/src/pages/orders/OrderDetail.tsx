@@ -420,9 +420,9 @@ export default function OrderDetail() {
         </div>
       )}
 
+      {/* ── Order header info: customer, shipping, delivery staff ── */}
       <Card className="shadow-sm overflow-hidden">
-        <div className="grid grid-cols-1 xl:grid-cols-12 xl:divide-x xl:min-h-[280px]">
-          <OrderItemsPanel order={order} />
+        <div className="grid grid-cols-1 xl:grid-cols-12 xl:divide-x xl:min-h-[220px]">
           <CustomerShippingPanel order={order} />
           <DeliveryStaffPanel
             order={order}
@@ -436,6 +436,11 @@ export default function OrderDetail() {
             onAssign={assignDeliveryStaff}
           />
         </div>
+      </Card>
+
+      {/* ── Line items (full width, two-pane with detail panel) ── */}
+      <Card className="shadow-sm overflow-hidden">
+        <OrderItemsPanel order={order} />
       </Card>
 
       <CreditStatusPanel order={order} isTerminal={isTerminal} />

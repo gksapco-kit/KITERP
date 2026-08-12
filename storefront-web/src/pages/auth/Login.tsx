@@ -47,11 +47,25 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false)
   const { ready: authReady, isLoggedIn } = useIsCustomerLoggedIn()
 
-  const from = (routeLocation.state as { from?: string } | null)?.from
-    ?? new URLSearchParams(routeLocation.search).get('from')
-    ?? storePath('/')
+  const from = useMemo(() => {
+    const stateFrom = (routeLocation.state as { from?: unknown } | null)?.from
+    const queryFrom = new URLSearchParams(routeLocation.search).get('from')
+    const raw = stateFrom ?? queryFrom
+    if (typeof raw === 'string' && raw.trim()) {
+      const path = raw.trim()
+      // Only allow same-store relative / absolute storefront paths (block open redirects).
+      if (path.startsWith('/') && !path.startsWith('//')) return path
+    }
+    if (raw && typeof raw === 'object' && raw !== null && 'pathname' in raw) {
+      const loc = raw as { pathname?: string; search?: string }
+      if (typeof loc.pathname === 'string' && loc.pathname.startsWith('/')) {
+        return `${loc.pathname}${loc.search || ''}`
+      }
+    }
+    return storePath('/')
+  }, [routeLocation.state, routeLocation.search, storePath])
 
-  // Already signed in — skip login/signup and continue to checkout (or home)
+  // Already signed in — skip login/signup and continue to the intended page (or home)
   useEffect(() => {
     if (authReady && isLoggedIn) {
       navigate(from, { replace: true })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ChevronRight, Loader2, PackageOpen, Truck, CreditCard, MapPin, Calendar,
@@ -58,22 +58,37 @@ function badge(status?: string) {
 }
 
 export default function MyRentals() {
-  const { storePath } = useVendor()
+  const { storePath, vendorSlug } = useVendor()
   const qc = useQueryClient()
   const [selected, setSelected] = useState<Booking | null>(null)
   const [payMethod, setPayMethod] = useState('upi')
 
-  const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ['my-rentals'],
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    // Scope by vendor so switching storefronts never shows another shop's bookings.
+    queryKey: ['my-rentals', vendorSlug],
     queryFn: storeApi.listMyRentalBookings,
+    enabled: !!vendorSlug,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
+
+  const bookings: Booking[] = useMemo(() => {
+    if (Array.isArray(data)) return data as Booking[]
+    if (data && typeof data === 'object') {
+      const items = (data as { items?: unknown }).items
+      if (Array.isArray(items)) return items as Booking[]
+    }
+    return []
+  }, [data])
+
+  const timelineOf = (b: Booking) => (Array.isArray(b.timeline) ? b.timeline : [])
 
   const pay = useMutation({
     mutationFn: (id: string) =>
       storeApi.payRentalBooking(id, { payment_method: payMethod, payment_reference: `SF-${Date.now()}` }),
-    onSuccess: (data) => {
+    onSuccess: (payload) => {
       toast.success('Payment successful')
-      setSelected(data)
+      setSelected(payload as Booking)
       qc.invalidateQueries({ queryKey: ['my-rentals'] })
     },
     onError: () => toast.error('Payment failed'),
@@ -81,9 +96,9 @@ export default function MyRentals() {
 
   const cancel = useMutation({
     mutationFn: (id: string) => storeApi.cancelRentalBooking(id),
-    onSuccess: (data) => {
+    onSuccess: (payload) => {
       toast.success('Booking cancelled')
-      setSelected(data)
+      setSelected(payload as Booking)
       qc.invalidateQueries({ queryKey: ['my-rentals'] })
     },
     onError: (err: unknown) => {
@@ -107,7 +122,7 @@ export default function MyRentals() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <PackageOpen className="w-6 h-6 text-primary" /> My Rentals
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Track bookings, payments, and delivery vans.</p>
+          <p className="text-sm text-gray-500 mt-1">Track bookings, payments, and delivery.</p>
         </div>
         <Link to={storePath('/rentals')}>
           <Button size="sm">Browse Rentals</Button>
@@ -116,15 +131,23 @@ export default function MyRentals() {
 
       {isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
-      ) : (bookings as Booking[]).length === 0 ? (
+      ) : isError ? (
+        <div className="border border-dashed rounded-xl p-10 text-center">
+          <p className="text-sm text-gray-700 mb-1 font-medium">Could not load your rental bookings.</p>
+          <p className="text-xs text-gray-500 mb-3">Check your connection and try again.</p>
+          <Button size="sm" variant="outline" disabled={isFetching} onClick={() => void refetch()}>
+            {isFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Retry'}
+          </Button>
+        </div>
+      ) : bookings.length === 0 ? (
         <div className="border border-dashed rounded-xl p-10 text-center">
           <p className="text-sm text-gray-500 mb-3">You have no rental bookings yet.</p>
-          <Link to={storePath('/rentals')}><Button size="sm">Find a rack</Button></Link>
+          <Link to={storePath('/rentals')}><Button size="sm">Browse Rentals</Button></Link>
         </div>
       ) : (
         <div className="grid lg:grid-cols-5 gap-4">
           <div className={`${selected ? 'lg:col-span-3' : 'lg:col-span-5'} space-y-3`}>
-            {(bookings as Booking[]).map((b) => (
+            {bookings.map((b) => (
               <button
                 key={b.id}
                 type="button"
@@ -173,7 +196,7 @@ export default function MyRentals() {
                   <dd>{selected.start_date} – {selected.end_date}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-gray-400">Storage</dt>
+                  <dt className="text-xs text-gray-400">Quantity</dt>
                   <dd>{selected.quantity} / {selected.capacity_max || '—'} {selected.capacity_unit}</dd>
                 </div>
                 <div className="col-span-2">
@@ -219,14 +242,14 @@ export default function MyRentals() {
               {selected.delivery_status && selected.delivery_status !== 'not_required' && (
                 <div className="border-t pt-3 space-y-2">
                   <h3 className="text-sm font-semibold flex items-center gap-1.5">
-                    <Truck className="w-4 h-4" /> Delivery van tracking
+                    <Truck className="w-4 h-4" /> Delivery tracking
                   </h3>
                   <p className={`text-xs inline-flex px-2 py-0.5 rounded-full capitalize ${badge(selected.delivery_status)}`}>
                     {(selected.delivery_status || '').replace(/_/g, ' ')}
                   </p>
                   {selected.van_number ? (
                     <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700 space-y-1">
-                      <p><span className="text-gray-400">Van:</span> {selected.van_number}</p>
+                      <p><span className="text-gray-400">Vehicle:</span> {selected.van_number}</p>
                       {selected.van_vehicle_type && <p><span className="text-gray-400">Type:</span> {selected.van_vehicle_type}</p>}
                       {selected.van_driver_name && <p><span className="text-gray-400">Driver:</span> {selected.van_driver_name}</p>}
                       {selected.van_driver_phone && (
@@ -244,7 +267,7 @@ export default function MyRentals() {
                       {selected.delivery_notes && <p className="text-xs text-gray-500">{selected.delivery_notes}</p>}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-500">Waiting for vendor to assign a delivery van.</p>
+                    <p className="text-xs text-gray-500">Waiting for vendor to assign delivery.</p>
                   )}
                   {selected.delivery_address && (
                     <p className="text-xs text-gray-500">Address: {selected.delivery_address}</p>
@@ -252,11 +275,11 @@ export default function MyRentals() {
                 </div>
               )}
 
-              {(selected.timeline || []).length > 0 && (
+              {timelineOf(selected).length > 0 && (
                 <div className="border-t pt-3">
                   <h3 className="text-sm font-semibold mb-2">Timeline</h3>
                   <ol className="space-y-2">
-                    {(selected.timeline || []).map((t, i) => (
+                    {timelineOf(selected).map((t, i) => (
                       <li key={i} className="text-xs flex gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                         <div>

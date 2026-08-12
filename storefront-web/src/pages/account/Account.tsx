@@ -1,32 +1,50 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useCustomerLogout } from '@/hooks/useStore'
 import { Package, User, MapPin, ChevronRight, Heart, Settings, ShoppingBag, CalendarDays, Bell, Repeat, MessageSquareQuote, PackageOpen, Truck, LogOut } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
+import { isVendorRentalsEnabled } from '@/lib/catalogNavCapabilities'
 
 export default function Account() {
   const { customer } = useAuthStore()
-  const { storePath } = useVendor()
+  const { storePath, vendor } = useVendor()
+  const { vendorSlug } = useParams<{ vendorSlug: string }>()
   const navigate = useNavigate()
   const logout = useCustomerLogout()
+  const rentalsEnabled = isVendorRentalsEnabled(vendor?.settings as Record<string, unknown> | null | undefined)
 
   const handleLogout = () => {
     logout()
     navigate(storePath('/login'))
   }
 
+  // Prefer storePath; fall back to an absolute store URL so a missing vendor context
+  // can never produce `/account/rentals` (which the app catch-all sends to home).
+  const absStorePath = (path: string) => {
+    const href = storePath(path)
+    if (href.startsWith('/store/')) return href
+    const slug = vendorSlug || vendor?.slug
+    if (!slug) return href
+    const clean = path.startsWith('/') ? path : `/${path}`
+    return `/store/${slug}${clean}`
+  }
+
   const menuItems = [
-    { to: storePath('/account/notifications'), icon: Bell, label: 'Notifications', desc: 'Order updates and alerts', color: 'bg-sky-50 text-sky-600' },
-    { to: storePath('/account/orders'), icon: Package, label: 'Your Orders', desc: 'Track, return, or buy again', color: 'bg-blue-50 text-blue-600' },
-    { to: storePath('/account/bookings'), icon: CalendarDays, label: 'Your Bookings', desc: 'View service appointments', color: 'bg-indigo-50 text-indigo-600' },
-    { to: storePath('/account/wishlist'), icon: Heart, label: 'Wishlist', desc: 'Saved products you love', color: 'bg-rose-50 text-rose-600' },
-    { to: storePath('/account/subscriptions'), icon: Repeat, label: 'Subscriptions', desc: 'Manage recurring orders', color: 'bg-violet-50 text-violet-600' },
-    { to: storePath('/account/marketplace'), icon: MessageSquareQuote, label: 'Marketplace', desc: 'Post requirements & compare quotes', color: 'bg-orange-50 text-orange-600' },
-    { to: storePath('/rentals'), icon: PackageOpen, label: 'Rent Storage', desc: 'Find racks and book capacity', color: 'bg-teal-50 text-teal-600' },
-    { to: storePath('/account/rentals'), icon: Truck, label: 'My Rentals', desc: 'Track bookings, payments & delivery vans', color: 'bg-cyan-50 text-cyan-600' },
-    { to: storePath('/account/addresses'), icon: MapPin, label: 'Saved Addresses', desc: 'Manage delivery addresses', color: 'bg-green-50 text-green-600' },
-    { to: storePath('/account/profile'), icon: Settings, label: 'Profile & Settings', desc: 'Edit profile, password, notifications', color: 'bg-accent text-primary' },
-    { to: storePath('/cart'), icon: ShoppingBag, label: 'Your Cart', desc: 'View items in your cart', color: 'bg-amber-50 text-amber-600' },
+    { to: absStorePath('/account/notifications'), icon: Bell, label: 'Notifications', desc: 'Order updates and alerts', color: 'bg-sky-50 text-sky-600' },
+    { to: absStorePath('/account/orders'), icon: Package, label: 'Your Orders', desc: 'Track, return, or buy again', color: 'bg-blue-50 text-blue-600' },
+    { to: absStorePath('/account/bookings'), icon: CalendarDays, label: 'Your Bookings', desc: 'View service appointments', color: 'bg-indigo-50 text-indigo-600' },
+    { to: absStorePath('/account/wishlist'), icon: Heart, label: 'Wishlist', desc: 'Saved products you love', color: 'bg-rose-50 text-rose-600' },
+    { to: absStorePath('/account/subscriptions'), icon: Repeat, label: 'Subscriptions', desc: 'Manage recurring orders', color: 'bg-violet-50 text-violet-600' },
+    { to: absStorePath('/account/marketplace'), icon: MessageSquareQuote, label: 'Marketplace', desc: 'Post requirements & compare quotes', color: 'bg-orange-50 text-orange-600' },
+    ...(rentalsEnabled
+      ? [
+          { to: absStorePath('/rentals'), icon: PackageOpen, label: 'Browse Rentals', desc: 'See available rentals and book slots', color: 'bg-teal-50 text-teal-600' },
+          { to: absStorePath('/account/rentals'), icon: Truck, label: 'My Rentals', desc: 'Track bookings, payments & delivery', color: 'bg-cyan-50 text-cyan-600' },
+        ]
+      : []),
+    { to: absStorePath('/account/addresses'), icon: MapPin, label: 'Saved Addresses', desc: 'Manage delivery addresses', color: 'bg-green-50 text-green-600' },
+    { to: absStorePath('/account/profile'), icon: Settings, label: 'Profile & Settings', desc: 'Edit profile, password, notifications', color: 'bg-accent text-primary' },
+    { to: absStorePath('/cart'), icon: ShoppingBag, label: 'Your Cart', desc: 'View items in your cart', color: 'bg-amber-50 text-amber-600' },
   ]
 
   return (
@@ -82,14 +100,17 @@ export default function Account() {
       {/* Quick links */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {menuItems.map((item) => (
-          <Link key={item.to} to={item.to}
-            className="bg-white rounded-xl border p-5 hover:shadow-md transition-all flex items-center gap-4 group max-h-[90vh] overflow-y-auto">
+          <Link
+            key={item.to}
+            to={item.to}
+            className="bg-white rounded-xl border p-5 hover:shadow-md transition-all flex items-center gap-4 group"
+          >
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${item.color}`}>
               <item.icon className="w-6 h-6" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{item.label}</p>
-              <p className="text-sm text-gray-500">{item.desc}</p>
+              <p className="text-sm text-gray-500 truncate">{item.desc}</p>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-600 transition-colors shrink-0" />
           </Link>

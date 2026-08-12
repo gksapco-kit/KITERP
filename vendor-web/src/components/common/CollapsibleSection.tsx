@@ -114,7 +114,11 @@ export function CollapsibleSection({
             {headerAction}
           </div>
         ) : null}
-        {badge}
+        {badge ? (
+          <div className="flex shrink-0 items-center self-center py-3 pr-3 sm:pr-4">
+            {badge}
+          </div>
+        ) : null}
       </div>
       {open ? (
         <CardContent className="border-t border-border/80 bg-muted/25 px-3 pb-5 pt-4 sm:px-5">

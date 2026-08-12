@@ -87,11 +87,44 @@ async def dashboard_stats(
         prod_conds.append(or_(Product.store_scope.in_(("all", None)), Product.id.in_(assigned)))
     total_products = (await db.execute(select(sqlfunc.count(Product.id)).where(and_(*prod_conds)))).scalar_one()
 
-    # Invoices
-    inv_conds = [Invoice.vendor_id == vid, Invoice.status.in_(["sent", "partially_paid", "overdue"])]
+    # Outstanding AR — same rules as invoice list "outstanding" filter:
+    # exclude paid/cancelled/draft/estimates; only balances still due.
+    inv_conds = [
+        Invoice.vendor_id == vid,
+        Invoice.invoice_type != "estimate",
+        Invoice.status.notin_(("paid", "cancelled", "draft")),
+        Invoice.balance_due > 0,
+    ]
     if sid is not None:
         inv_conds.append(Invoice.store_id == sid)
     unpaid_invoices = (await db.execute(select(sqlfunc.coalesce(sqlfunc.sum(Invoice.balance_due), 0)).where(and_(*inv_conds)))).scalar_one()
+
+    # Billed vs collected (invoice side — distinct from order revenue)
+    inv_issued_conds = [
+        Invoice.vendor_id == vid,
+        Invoice.invoice_type != "estimate",
+        Invoice.status.notin_(("cancelled", "draft")),
+        cast(Invoice.created_at, Date) >= month_start,
+    ]
+    if sid is not None:
+        inv_issued_conds.append(Invoice.store_id == sid)
+    invoiced_mtd = (await db.execute(
+        select(sqlfunc.coalesce(sqlfunc.sum(Invoice.total), 0)).where(and_(*inv_issued_conds))
+    )).scalar_one()
+    collected_mtd = (await db.execute(
+        select(sqlfunc.coalesce(sqlfunc.sum(Invoice.amount_paid), 0)).where(and_(*inv_issued_conds))
+    )).scalar_one()
+    inv_today_conds = [
+        Invoice.vendor_id == vid,
+        Invoice.invoice_type != "estimate",
+        Invoice.status.notin_(("cancelled", "draft")),
+        cast(Invoice.created_at, Date) == today,
+    ]
+    if sid is not None:
+        inv_today_conds.append(Invoice.store_id == sid)
+    invoiced_today = (await db.execute(
+        select(sqlfunc.coalesce(sqlfunc.sum(Invoice.total), 0)).where(and_(*inv_today_conds))
+    )).scalar_one()
 
     return JSONResponse(content={
         "total_orders": total_orders, "today_orders": today_orders,
@@ -99,6 +132,9 @@ async def dashboard_stats(
         "month_revenue": float(month_revenue), "pos_today": float(pos_today),
         "total_customers": total_customers, "total_products": total_products,
         "unpaid_invoices": float(unpaid_invoices),
+        "invoiced_mtd": float(invoiced_mtd),
+        "collected_mtd": float(collected_mtd),
+        "invoiced_today": float(invoiced_today),
     })
 
 

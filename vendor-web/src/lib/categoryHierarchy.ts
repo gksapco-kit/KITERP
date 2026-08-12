@@ -95,7 +95,7 @@ export function collectCustomFieldsFromSelection(
 
 export function filterCategoryTree(
   tree: VendorCategory[],
-  appliesTo: 'product' | 'service' | 'both',
+  appliesTo: 'product' | 'service' | 'rental' | 'both',
 ): VendorCategory[] {
   const keep = (c: VendorCategory) =>
     c.applies_to === appliesTo || c.applies_to === 'both'

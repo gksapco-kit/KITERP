@@ -166,12 +166,15 @@ export function resolveNavBlockLinks(
   const blogEnabled = options?.blogEnabled !== false
 
   // If the builder site owns its pages, tie rentals *nav-link* visibility to whether a
-  // `rentals` page exists. The header CTA is resolved separately (see resolveNavCtaUrl)
-  // so a mislabeled "Rentals" button still reaches /rentals even without a CMS page.
+  // rentals page exists (slug `rentals` or singular `rental`). The header CTA is resolved
+  // separately (see resolveNavCtaUrl) so a mislabeled "Rentals" button still reaches /rentals.
   const featureFlagEnabled = options?.rentalsEnabled !== false
   const siteHasManagedPages = Boolean(site?.pages?.length)
   const siteHasRentalsPage = !siteHasManagedPages ||
-    site.pages.some(p => p.slug === 'rentals' && p.is_published !== false)
+    site.pages.some(p => {
+      const slug = String(p.slug || '').toLowerCase()
+      return (slug === 'rentals' || slug === 'rental') && p.is_published !== false
+    })
   const rentalsEnabled = featureFlagEnabled && siteHasRentalsPage
   const showNavLinks = props.show_nav_links !== false
   if (!showNavLinks) return []
@@ -277,9 +280,9 @@ export function resolveNavCtaLabel(raw: string | null | undefined): string | nul
   return label
 }
 
-/** True when nav/CTA copy clearly refers to the rentals marketplace. */
+/** True when nav/CTA copy clearly refers to the rentals marketplace (not "My Rentals"). */
 export function isRentalsNavLabel(label: string | null | undefined): boolean {
-  return /rentals?|storage\s*rack/i.test((label || '').trim())
+  return /^(rentals?|storage\s*racks?)$/i.test((label || '').trim())
 }
 
 /**
@@ -295,6 +298,8 @@ export function resolveNavCtaUrl(
   const relative = url.split('?')[0].split('#')[0].replace(/\/+$/, '') || ''
   const isEmptyOrContact = !relative || relative.toLowerCase() === '/contact' || relative.toLowerCase() === 'contact'
   if (isRentalsNavLabel(label) && isEmptyOrContact) return '/rentals'
+  // Singular /rental CMS pages never mount the live catalog.
+  if (relative.toLowerCase() === '/rental' || relative.toLowerCase() === 'rental') return '/rentals'
   return url || '/contact'
 }
 

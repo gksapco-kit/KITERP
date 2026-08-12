@@ -498,7 +498,7 @@ export default function InvoicesPage() {
         </CardContent>
       </Card>
 
-      {showCreate && <CreateInvoiceModal onClose={() => setShowCreate(false)} onCreated={() => { qc.invalidateQueries({ queryKey: ['invoices'] }); setShowCreate(false) }} />}
+      {showCreate && <CreateInvoiceModal onClose={() => setShowCreate(false)} onCreated={() => { qc.invalidateQueries({ queryKey: ['invoices'] }); qc.invalidateQueries({ queryKey: ['reports'] }); setShowCreate(false) }} />}
     </div>
   )
 }
@@ -1106,6 +1106,8 @@ export function CreateInvoiceModal({
               <div className="min-w-0">
                 <Label className="text-xs">Sales Area</Label>
                 <SalesAreaSelect
+                  businessUnitId={storeId || null}
+                  branchId={branchId || null}
                   value={form.sales_area_id}
                   onChange={(sales_area_id) => setForm((f) => ({ ...f, sales_area_id }))}
                   allowAll={false}

@@ -60,7 +60,7 @@ export function SalesAreaSelect({
   requireBusinessUnit = true,
   restrictToScope = false,
 }: SalesAreaSelectProps) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: vendorKeys.salesAreas(),
     queryFn: () => vendorApi.listSalesAreas(),
     staleTime: 0,
@@ -84,10 +84,12 @@ export function SalesAreaSelect({
   }, [data?.sales_areas, businessUnitId, branchId, value, restrictToScope])
 
   useEffect(() => {
-    if (!value || isLoading) return
+    // Don't clear while the list is still loading/refetching — otherwise a
+    // just-selected value can be wiped when options briefly look empty.
+    if (!value || isLoading || isFetching) return
     if (!areas.some((a) => a.id === value)) onChange('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [areas, value, isLoading])
+  }, [areas, value, isLoading, isFetching])
 
   const options = useMemo((): ThemeSelectOption[] => {
     const list: ThemeSelectOption[] = areas.map((a) => ({
@@ -132,6 +134,7 @@ export function SalesAreaSelect({
       wrapperClassName={className ?? 'w-full min-w-[8.5rem]'}
       triggerClassName={triggerClassName}
       showSelectedHint={showSelectedHint}
+      menuZIndex={11000}
     />
   )
 }

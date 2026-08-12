@@ -173,7 +173,7 @@ export default function CustomerRentals() {
         <Text style={styles.kicker}>MARKETPLACE</Text>
         <Text style={styles.title}>Rentals</Text>
         <Text style={styles.sub}>
-          Find vehicles, equipment, and storage — book available slots in a few taps.
+          Browse available rentals and book slots in a few taps.
         </Text>
         <View style={styles.searchBox}>
           <Ionicons name="search-outline" size={18} color={BRAND.textMuted} />

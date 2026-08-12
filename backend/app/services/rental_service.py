@@ -89,7 +89,9 @@ class RentalService:
             "sku": a.sku,
             "product_id": str(a.product_id) if a.product_id else None,
             "category": a.category or "milk_dairy",
+            "category_id": str(a.category_id) if (hasattr(a, "category_id") and a.category_id) else None,
             "asset_type": a.asset_type or "storage_rack",
+            "short_description": getattr(a, "short_description", None),
             "description": a.description,
             "capacity_max": float(a.capacity_max or 0),
             "capacity_unit": a.capacity_unit or "units",
@@ -99,6 +101,7 @@ class RentalService:
             "available_capacity": available,
             "max_weight": float(a.max_weight) if a.max_weight is not None else None,
             "weight_unit": a.weight_unit or "kg",
+            "currency": (getattr(a, "currency", None) or "INR").upper(),
             "daily_rate": float(a.daily_rate or 0),
             "weekly_rate": float(a.weekly_rate or 0),
             "monthly_rate": float(a.monthly_rate or 0),
@@ -116,6 +119,7 @@ class RentalService:
             "row_label": a.row_label,
             "rack_number": a.rack_number,
             "image_url": a.image_url,
+            "media": list(a.media or []) if hasattr(a, "media") else [],
             "status": status,
             "display_start_date": a.display_start_date.isoformat() if a.display_start_date else None,
             "display_end_date": a.display_end_date.isoformat() if a.display_end_date else None,
@@ -302,12 +306,28 @@ class RentalService:
             raise HTTPException(404, "Rental asset not found")
         return asset
 
+    async def _asset_code_prefix(self, vendor_id: UUID) -> str:
+        """Generic master-ID prefix (default AST). Configurable via rental_settings.asset_code_prefix."""
+        prefix = "AST"
+        try:
+            from app.models.vendor import Vendor
+            result = await self.db.execute(select(Vendor.settings).where(Vendor.id == vendor_id))
+            settings = result.scalar_one_or_none() or {}
+            rs = (settings or {}).get("rental_settings") or {}
+            raw = str(rs.get("asset_code_prefix") or "AST").strip().upper().rstrip("-")
+            if raw:
+                prefix = re.sub(r"[^A-Z0-9]", "", raw)[:6] or "AST"
+        except Exception:
+            pass
+        return prefix
+
     async def _next_asset_code(self, vendor_id: UUID) -> str:
+        prefix = await self._asset_code_prefix(vendor_id)
         result = await self.db.execute(
             select(func.count()).select_from(RentalAsset).where(RentalAsset.vendor_id == vendor_id)
         )
         n = int(result.scalar() or 0) + 1
-        return f"RACK-{n:03d}"
+        return f"{prefix}-{n:03d}"
 
     async def _next_booking_number(self, vendor_id: UUID) -> str:
         result = await self.db.execute(
@@ -446,6 +466,7 @@ class RentalService:
         vendor_id: UUID,
         status: Optional[str] = None,
         category: Optional[str] = None,
+        category_id: Optional[str] = None,
         q: Optional[str] = None,
         is_active: Optional[bool] = None,
     ) -> list[dict]:
@@ -454,6 +475,8 @@ class RentalService:
             query = query.where(RentalAsset.is_active == is_active)
         if category:
             query = query.where(RentalAsset.category == category)
+        if category_id:
+            query = query.where(RentalAsset.category_id == UUID(category_id))
         if q:
             like = f"%{q.lower()}%"
             from sqlalchemy import or_
@@ -591,13 +614,16 @@ class RentalService:
             sku=data.get("sku") or code,
             product_id=UUID(data["product_id"]) if data.get("product_id") else None,
             category=data.get("category") or "milk_dairy",
+            category_id=UUID(data["category_id"]) if data.get("category_id") else None,
             asset_type=data.get("asset_type") or "storage_rack",
+            short_description=data.get("short_description") or None,
             description=data.get("description") or data.get("notes"),
             capacity_max=data.get("capacity_max", 1),
             capacity_unit=data.get("capacity_unit") or "units",
             current_occupancy=data.get("current_occupancy", 0),
             max_weight=data.get("max_weight"),
             weight_unit=data.get("weight_unit") or "kg",
+            currency=(data.get("currency") or "INR").upper()[:3],
             daily_rate=data.get("daily_rate", 0),
             weekly_rate=data.get("weekly_rate", 0),
             monthly_rate=data.get("monthly_rate", 0),
@@ -615,6 +641,7 @@ class RentalService:
             row_label=data.get("row_label"),
             rack_number=data.get("rack_number"),
             image_url=data.get("image_url"),
+            media=data.get("media") or [],
             status=data.get("status") or "available",
             display_start_date=display_start,
             display_end_date=display_end,
@@ -630,13 +657,23 @@ class RentalService:
         self.db.add(asset)
         await self.db.commit()
         await self.db.refresh(asset)
+
+        # Sync store assignments when store_scope="selected"
+        store_scope = data.get("store_scope") or "all"
+        store_ids = data.get("store_ids")
+        if store_scope == "selected" and store_ids is not None:
+            from app.services.catalog_store_scope import sync_rental_asset_stores
+            await sync_rental_asset_stores(self.db, vendor_id, asset.id, store_scope, store_ids)
+            await self.db.commit()
+
         return self._asset_dict(asset)
 
     async def update_asset(self, vendor_id: UUID, asset_id: UUID, data: dict) -> dict:
         asset = await self._get_asset(vendor_id, asset_id)
         fields = [
-            "asset_code", "sku", "category", "asset_type", "description",
+            "asset_code", "sku", "category", "asset_type", "short_description", "description",
             "capacity_max", "capacity_unit", "max_weight", "weight_unit",
+            "currency",
             "daily_rate", "weekly_rate", "monthly_rate", "deposit_amount",
             "extra_qty_charge", "extra_weight_charge",
             "price_per_unit", "pricing_uom",
@@ -647,7 +684,10 @@ class RentalService:
         ]
         for f in fields:
             if f in data:
-                setattr(asset, f, data[f])
+                val = data[f]
+                if f == "currency" and val is not None:
+                    val = str(val).upper()[:3] or "INR"
+                setattr(asset, f, val)
         # Re-slug when name changes (or explicit slug provided)
         if "name" in data:
             asset.name = data["name"]
@@ -687,10 +727,42 @@ class RentalService:
             )
         if "product_id" in data:
             asset.product_id = UUID(data["product_id"]) if data.get("product_id") else None
+        if "category_id" in data:
+            asset.category_id = UUID(data["category_id"]) if data.get("category_id") else None
         self._sync_occupancy_status(asset)
         await self.db.commit()
         await self.db.refresh(asset)
+
+        # Sync store assignments whenever store_scope or store_ids is touched
+        if "store_scope" in data or "store_ids" in data:
+            scope = data.get("store_scope") or getattr(asset, "store_scope", "all") or "all"
+            store_ids = data.get("store_ids")
+            from app.services.catalog_store_scope import sync_rental_asset_stores
+            await sync_rental_asset_stores(self.db, vendor_id, asset.id, scope, store_ids)
+            await self.db.commit()
+
         return self._asset_dict(asset)
+
+    async def delete_asset(self, vendor_id: UUID, asset_id: UUID) -> None:
+        """Delete a rental asset.
+
+        Guard: refuses if there are active bookings (pending/approved/confirmed/active).
+        """
+        asset = await self._get_asset(vendor_id, asset_id)
+        active = await self.db.execute(
+            select(func.count()).select_from(RentalBooking).where(
+                RentalBooking.asset_id == asset_id,
+                RentalBooking.status.in_(ACTIVE_BOOKING_STATUSES),
+            )
+        )
+        if active.scalar_one() > 0:
+            raise HTTPException(
+                409,
+                "Cannot delete: this asset has active or pending bookings. "
+                "Cancel or complete them first.",
+            )
+        await self.db.delete(asset)
+        await self.db.commit()
 
     def list_storefront_assets(self, assets: list[dict]) -> list[dict]:
         today = date.today()
@@ -758,6 +830,8 @@ class RentalService:
         status: Optional[str] = None,
         customer_id: Optional[UUID] = None,
         asset_id: Optional[UUID] = None,
+        customer_email: Optional[str] = None,
+        unlinked_email_only: bool = False,
         limit: Optional[int] = None,
         offset: int = 0,
     ) -> list[dict]:
@@ -772,6 +846,11 @@ class RentalService:
             q = q.where(RentalBooking.customer_id == customer_id)
         if asset_id:
             q = q.where(RentalBooking.asset_id == asset_id)
+        if customer_email:
+            email = customer_email.strip().lower()
+            q = q.where(func.lower(RentalBooking.customer_email) == email)
+            if unlinked_email_only:
+                q = q.where(RentalBooking.customer_id.is_(None))
         q = q.order_by(RentalBooking.start_date.desc(), RentalBooking.created_at.desc())
         if offset:
             q = q.offset(offset)
@@ -1376,7 +1455,7 @@ class RentalService:
         """Create a sequence of serialized units in one call.
 
         Body:
-          prefix    – leading text, e.g. "RACK-" or "CYL"  (may be empty)
+          prefix    – leading text, e.g. "AST-" or "CYL"  (may be empty)
           start     – first sequence number (int, default 1)
           end       – last sequence number (int, default start)
           padding   – zero-pad width, e.g. 3 → "001". 0 = no padding

@@ -90,7 +90,9 @@ export default function RentalCalendarTab({ assets, assetId, onAssetChange }: Pr
             onChange={(v) => onAssetChange(v === '__none__' ? '' : v)}
             options={[
               { value: '__none__', label: 'Choose an asset…' },
-              ...assets.map((a) => ({ value: a.id, label: `${a.name}${a.asset_code ? ` (${a.asset_code})` : ''}` })),
+              ...assets
+                .filter((a) => a.is_bookable !== false)
+                .map((a) => ({ value: a.id, label: `${a.name}${a.asset_code ? ` (${a.asset_code})` : ''}` })),
             ]}
           />
         </div>

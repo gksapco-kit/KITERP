@@ -1,4 +1,6 @@
-export const RENTAL_CATEGORIES = [
+/** Asset Kind options — drive the adaptive form fields (capacity, location labels, etc.).
+ *  Separate from vendor-managed categories (category_id FK). */
+export const RENTAL_ASSET_KINDS = [
   { value: 'milk_dairy', label: 'Milk Dairy' },
   { value: 'furniture', label: 'Furniture' },
   { value: 'equipment', label: 'Equipment' },
@@ -6,6 +8,18 @@ export const RENTAL_CATEGORIES = [
   { value: 'vehicles', label: 'Vehicles' },
   { value: 'other', label: 'Other' },
 ]
+
+/** @deprecated Use RENTAL_ASSET_KINDS */
+export const RENTAL_CATEGORIES = RENTAL_ASSET_KINDS
+
+/** Default Master ID prefix for rental assets (generic — not rack-specific). */
+export const DEFAULT_ASSET_CODE_PREFIX = 'AST'
+
+/** Build a preview master ID like AST-005. */
+export function previewAssetCode(index: number, prefix = DEFAULT_ASSET_CODE_PREFIX) {
+  const clean = (prefix || DEFAULT_ASSET_CODE_PREFIX).replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6) || DEFAULT_ASSET_CODE_PREFIX
+  return `${clean}-${String(Math.max(1, index)).padStart(3, '0')}`
+}
 
 export const ASSET_TYPES = [
   { value: 'storage_rack', label: 'Storage Rack' },
@@ -18,6 +32,22 @@ export const ASSET_TYPES = [
   { value: 'other', label: 'Other' },
 ]
 
+/** Flat label suggestions for the free-text Asset Kind input. */
+export const ASSET_KIND_SUGGESTIONS = [
+  'Milk Dairy', 'Furniture', 'Equipment', 'Storage', 'Vehicles',
+  'Electronics', 'Appliances', 'Crockery', 'Linen & Bedding', 'Tents & Canopy',
+  'Audio / Visual', 'Lighting', 'Scaffolding', 'Tools', 'Bikes', 'Two-wheelers',
+  'Four-wheelers', 'Heavy Machinery', 'Party Supplies', 'Event Décor', 'Sports Gear', 'Other',
+]
+
+/** Flat label suggestions for the free-text Asset Type input. */
+export const ASSET_TYPE_SUGGESTIONS = [
+  'Storage Rack', 'Chair', 'Table', 'Bed', 'Refrigerator', 'Machine', 'Unit',
+  'Sofa', 'Cupboard', 'Wardrobe', 'Desk', 'Shelf', 'Ladder', 'Generator',
+  'AC', 'Fan', 'Water Cooler', 'Projector', 'Speaker', 'Microphone',
+  'Bicycle', 'Scooter', 'Bike', 'Car', 'Van', 'Truck', 'Tractor', 'Other',
+]
+
 export const CAPACITY_UNITS = [
   { value: 'packets', label: 'Packets' },
   { value: 'boxes', label: 'Boxes' },
@@ -25,6 +55,25 @@ export const CAPACITY_UNITS = [
   { value: 'kg', label: 'Kg' },
   { value: 'units', label: 'Units' },
   { value: 'custom', label: 'Custom' },
+]
+
+/** Broad list of common UOMs offered as autocomplete suggestions.
+ *  The capacity_unit field is a free-text input — this is the datalist. */
+export const UOM_SUGGESTIONS = [
+  // Count / generic
+  'Units', 'Pieces', 'Nos', 'Sets', 'Pairs', 'Items',
+  // Packaging
+  'Packets', 'Boxes', 'Cases', 'Cartons', 'Bags', 'Bundles', 'Rolls', 'Pallets', 'Crates',
+  // Weight
+  'Kg', 'g', 'Tonnes', 'MT', 'Lbs', 'Quintal',
+  // Volume / liquid
+  'Litres', 'mL', 'kL', 'Gallons',
+  // Area / length
+  'Sq ft', 'Sq m', 'Sq yard', 'm', 'ft', 'Inches', 'Feet',
+  // Time-based (for capacity-per-period)
+  'Hours', 'Days', 'Slots',
+  // Industry specific
+  'Cylinders', 'Racks', 'Tanks', 'Trays', 'Drums', 'Cans', 'Vans', 'Seats', 'Tables', 'Chairs',
 ]
 
 export type CategoryFieldConfig = {
@@ -79,7 +128,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       location: 'Warehouse Location',
       locationPlaceholder: 'Dairy Warehouse – Hyderabad',
     },
-    defaults: { asset_type: 'storage_rack', capacity_max: '100', capacity_unit: 'packets', max_weight: '500' },
+    defaults: { asset_type: 'Storage Rack', capacity_max: '100', capacity_unit: 'Packets', max_weight: '500' },
   },
   furniture: {
     assetTypes: [
@@ -107,7 +156,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       location: 'Pickup / Storage Location',
       locationPlaceholder: 'Warehouse – Furniture Bay',
     },
-    defaults: { asset_type: 'chair', capacity_max: '50', capacity_unit: 'units', max_weight: '' },
+    defaults: { asset_type: 'Chair', capacity_max: '50', capacity_unit: 'Units', max_weight: '' },
   },
   equipment: {
     assetTypes: [
@@ -135,7 +184,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       location: 'Equipment Yard / Location',
       locationPlaceholder: 'Equipment Yard – Block B',
     },
-    defaults: { asset_type: 'refrigerator', capacity_max: '5', capacity_unit: 'units', max_weight: '200' },
+    defaults: { asset_type: 'Refrigerator', capacity_max: '5', capacity_unit: 'Units', max_weight: '200' },
   },
   storage: {
     assetTypes: [
@@ -164,7 +213,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       location: 'Facility Location',
       locationPlaceholder: 'Storage Facility – Hyderabad',
     },
-    defaults: { asset_type: 'storage_unit', capacity_max: '50', capacity_unit: 'boxes', max_weight: '1000' },
+    defaults: { asset_type: 'Storage Unit', capacity_max: '50', capacity_unit: 'Boxes', max_weight: '1000' },
   },
   vehicles: {
     assetTypes: [
@@ -192,7 +241,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       location: 'Garage / Stand Location',
       locationPlaceholder: 'Madhapur Stand',
     },
-    defaults: { asset_type: 'cab', capacity_max: '1', capacity_unit: 'units', max_weight: '' },
+    defaults: { asset_type: 'Cab / Car', capacity_max: '1', capacity_unit: 'Vehicles', max_weight: '' },
   },
   other: {
     assetTypes: [
@@ -214,12 +263,28 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
       location: 'Location',
       locationPlaceholder: 'Location',
     },
-    defaults: { asset_type: 'unit', capacity_max: '1', capacity_unit: 'units', max_weight: '' },
+    defaults: { asset_type: 'Unit', capacity_max: '1', capacity_unit: 'Units', max_weight: '' },
   },
 }
 
+/** Convert a stored slug or label to a human-readable display value.
+ *  'milk_dairy' → 'Milk Dairy', 'storage_rack' → 'Storage Rack', 'packets' → 'Packets'. */
+export function toReadableValue(raw: string, suggestions: string[]): string {
+  if (!raw) return ''
+  // Already looks like a label (starts uppercase, no underscores)
+  if (/^[A-Z]/.test(raw) && !raw.includes('_')) return raw
+  const normalised = raw.toLowerCase().replace(/_/g, ' ')
+  const match = suggestions.find((s) => s.toLowerCase() === normalised)
+  return match ?? raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 export function getCategoryConfig(category?: string): CategoryFieldConfig {
-  return CATEGORY_FIELD_CONFIG[category || ''] || CATEGORY_FIELD_CONFIG.other
+  if (!category) return CATEGORY_FIELD_CONFIG.other
+  // Direct slug match (legacy stored values)
+  if (CATEGORY_FIELD_CONFIG[category]) return CATEGORY_FIELD_CONFIG[category]
+  // Try converting label → slug: "Milk Dairy" → "milk_dairy"
+  const slug = category.toLowerCase().replace(/[\s/&]+/g, '_').replace(/[^a-z_]/g, '')
+  return CATEGORY_FIELD_CONFIG[slug] || CATEGORY_FIELD_CONFIG.other
 }
 
 export const ASSET_STATUSES = [
@@ -231,6 +296,53 @@ export const ASSET_STATUSES = [
   { value: 'unavailable', label: 'Temporarily Unavailable' },
   { value: 'retired', label: 'Retired' },
 ]
+
+/** Sticky-bar catalog lifecycle (same as products). */
+export const ASSET_CATALOG_STATUSES = [
+  { value: 'active', label: 'Active' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'archived', label: 'Archived' },
+] as const
+
+const OPERATIONAL_STATUS_SET = new Set(ASSET_STATUSES.map((s) => s.value))
+
+/** Map API asset → sticky-bar Active / Draft / Archived. */
+export function catalogStatusFromAsset(a: { status?: string | null; is_active?: boolean | null }): string {
+  const s = String(a.status || '')
+  if (s === 'retired' || s === 'archived') return 'archived'
+  if (s === 'draft' || a.is_active === false) return 'draft'
+  if (s === 'active') return 'active'
+  return 'active'
+}
+
+/** Preserve occupancy / ops status when loading for edit. */
+export function operationalStatusFromAsset(a: { status?: string | null }): string {
+  const s = String(a.status || 'available')
+  if (OPERATIONAL_STATUS_SET.has(s)) return s
+  if (s === 'archived') return 'retired'
+  if (s === 'draft') return 'unavailable'
+  return 'available'
+}
+
+/** Map sticky-bar catalog status back to API status + is_active. */
+export function resolveAssetStatusForSave(
+  catalog: string,
+  operational: string,
+): { status: string; is_active: boolean } {
+  if (catalog === 'archived') return { status: 'retired', is_active: false }
+  if (catalog === 'draft') {
+    const op =
+      OPERATIONAL_STATUS_SET.has(operational) && operational !== 'retired'
+        ? operational
+        : 'unavailable'
+    return { status: op, is_active: false }
+  }
+  const op =
+    OPERATIONAL_STATUS_SET.has(operational) && operational !== 'retired'
+      ? operational
+      : 'available'
+  return { status: op, is_active: true }
+}
 
 export const BOOKING_STATUSES = [
   { value: 'pending', label: 'Pending' },
@@ -281,12 +393,61 @@ export type RentalReturn = {
   returned_at: string
 }
 
+export type RentalMediaItem = {
+  id: string
+  url: string
+  media_type: 'image' | 'video' | 'model3d'
+  is_primary: boolean
+  alt_text?: string
+  position: number
+}
+
+/** True for media staged locally before the asset exists on the server. */
+export function isPendingRentalMediaId(id: string): boolean {
+  return id.startsWith('pending-')
+}
+
+export function detectRentalMediaType(file: File): RentalMediaItem['media_type'] {
+  if (file.type.startsWith('video/')) return 'video'
+  const ext = file.name.split('.').pop()?.toLowerCase() || ''
+  if (ext === 'glb' || ext === 'gltf') return 'model3d'
+  return 'image'
+}
+
+/** Build a local preview item; caller must keep the File in a Map keyed by `id`. */
+export function makePendingRentalMedia(
+  file: File,
+  position: number,
+  makePrimary: boolean,
+): RentalMediaItem {
+  return {
+    id: `pending-${crypto.randomUUID()}`,
+    url: URL.createObjectURL(file),
+    media_type: detectRentalMediaType(file),
+    is_primary: makePrimary,
+    alt_text: file.name,
+    position,
+  }
+}
+
+export function revokeRentalMediaUrls(items: RentalMediaItem[]) {
+  for (const item of items) {
+    if (isPendingRentalMediaId(item.id) && item.url.startsWith('blob:')) {
+      URL.revokeObjectURL(item.url)
+    }
+  }
+}
+
 export type RentalAsset = {
   id: string
   name: string
   asset_code?: string
+  /** Asset kind / form preset (milk_dairy | furniture | equipment | storage | vehicles | other) */
   category?: string
+  /** Merchandising category UUID from vendor_category tree */
+  category_id?: string | null
   asset_type?: string
+  short_description?: string | null
   description?: string
   product_id?: string | null
   capacity_max?: number
@@ -306,6 +467,8 @@ export type RentalAsset = {
   unit_count?: number
   max_weight?: number | null
   weight_unit?: string
+  /** ISO 4217 currency code for rates (default INR). */
+  currency?: string
   daily_rate?: number
   weekly_rate?: number
   monthly_rate?: number
@@ -326,10 +489,13 @@ export type RentalAsset = {
   row_label?: string
   rack_number?: string
   image_url?: string
+  media?: RentalMediaItem[]
   status?: string
   display_start_date?: string | null
   display_end_date?: string | null
   is_active?: boolean
+  is_visible?: boolean
+  store_scope?: string
   notes?: string
 }
 
@@ -411,18 +577,53 @@ export const AVAILABILITY_OPTIONS = [
   { value: 'date_range', label: 'Date range' },
 ]
 
+export const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: '₹',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  AED: 'د.إ',
+  SAR: '﷼',
+  SGD: 'S$',
+  JPY: '¥',
+}
+
+export const CURRENCY_SELECT_OPTIONS = [
+  { value: 'INR', label: '₹ INR' },
+  { value: 'USD', label: '$ USD' },
+  { value: 'EUR', label: '€ EUR' },
+  { value: 'GBP', label: '£ GBP' },
+  { value: 'AED', label: 'AED' },
+  { value: 'SAR', label: 'SAR' },
+  { value: 'SGD', label: 'S$ SGD' },
+  { value: 'JPY', label: '¥ JPY' },
+]
+
+export function currencySymbol(code?: string | null): string {
+  const key = (code || 'INR').toUpperCase()
+  return CURRENCY_SYMBOLS[key] || key
+}
+
 export const emptyAssetForm = () => ({
   name: '',
-  category: 'milk_dairy',
-  asset_type: 'storage_rack',
+  /** Asset kind / form preset (kept for API; not shown on Basics) */
+  category: 'Other',
+  /** Merchandising category UUID */
+  category_id: '' as string,
+  asset_type: '',
+  short_description: '',
   description: '',
-  capacity_max: '100',
-  capacity_unit: 'packets',
-  max_weight: '500',
+  /** Master ID — blank on create → server auto-assigns AST-00N (optional manual before save) */
+  asset_code: '',
+  product_id: '' as string,
+  capacity_max: '1',
+  capacity_unit: 'Units',
+  max_weight: '',
   weight_unit: 'kg',
-  daily_rate: '500',
-  weekly_rate: '3000',
-  monthly_rate: '10000',
+  currency: 'INR',
+  daily_rate: '0',
+  weekly_rate: '0',
+  monthly_rate: '0',
   // Keep deposit low for dairy demo (credit gate uses total = rental + deposit)
   deposit_amount: '0',
   extra_qty_charge: '0',
@@ -432,7 +633,10 @@ export const emptyAssetForm = () => ({
   section: '',
   row_label: '',
   rack_number: '',
-  status: 'available',
+  /** Catalog lifecycle for sticky bar: active | draft | archived */
+  status: 'active',
+  /** Occupancy / ops status sent to API (available, maintenance, …) */
+  operational_status: 'available',
   /** always = no storefront date window; date_range = use start/end */
   availability_mode: 'always' as 'always' | 'date_range',
   display_start_date: '',
@@ -442,6 +646,8 @@ export const emptyAssetForm = () => ({
   unit_mode: 'none' as string,
   parent_asset_id: '' as string,
   is_bookable: true as boolean,
+  is_visible: true as boolean,
+  store_scope: 'all' as string,
   price_per_unit: '0',
   pricing_uom: '',
   hourly_rate: '0',

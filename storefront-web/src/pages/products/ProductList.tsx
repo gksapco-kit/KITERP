@@ -252,6 +252,14 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
   const [inStockOnly, setInStockOnly] = useState(false)
 
   const pageTitle = defaultFilterType === 'services' ? 'Services' : 'Products'
+  const pageDescription =
+    defaultFilterType === 'services'
+      ? 'Browse available services and book in a few taps.'
+      : 'Browse products and add what you need in a few taps.'
+  const accountLink =
+    defaultFilterType === 'services'
+      ? { to: storePath('/account/bookings'), label: 'My Bookings' }
+      : { to: storePath('/account/orders'), label: 'My Orders' }
   const { data: catData } = useStoreCategories({ tree: true })
   const categories = catData?.categories || []
 
@@ -380,15 +388,32 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
           : 'Products & Services'
 
   return (
-    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-3">
       {/* Breadcrumb */}
-      <nav className={`${themeUi.breadcrumbNav} mb-4`}>
+      <nav className={`${themeUi.breadcrumbNav} mb-1 text-xs sm:text-sm leading-none`}>
         <Link to={storePath('/')} className={themeUi.linkOnPage}>Home</Link>
-        <span className={themeUi.pageTextMuted}>/</span>
+        <ChevronRight className="w-3 h-3 opacity-50" />
         <span className={themeUi.breadcrumbCurrent}>{pageTitle}</span>
+        {isAuthenticated && (
+          <>
+            <span className="mx-2 text-gray-300">|</span>
+            <Link to={accountLink.to} className="text-primary hover:underline">
+              {accountLink.label}
+            </Link>
+          </>
+        )}
       </nav>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <header className="mb-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-gray-900 leading-none">
+          {pageTitle}
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-500 leading-snug">
+          {pageDescription}
+        </p>
+      </header>
+
+      <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
         {/* Sidebar Filters - toggled by Filters button */}
         {showFilters && (
         <aside className="w-full lg:w-64 shrink-0">
@@ -482,7 +507,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
         {/* Main content */}
         <div className="flex-1 min-w-0">
           {/* Unified toolbar: search + sort + view + count + active chips */}
-          <div className={`mb-4 rounded-xl border shadow-sm overflow-hidden ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
+          <div className={`mb-3 rounded-xl border shadow-sm overflow-hidden ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             <div className="flex flex-col gap-2 p-2.5 sm:p-3">
               <div className="flex flex-col lg:flex-row lg:items-center gap-2">
                 <div className="flex flex-wrap items-center gap-2 shrink-0">

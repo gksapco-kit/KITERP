@@ -73,8 +73,13 @@ export default function CouponsPage() {
   }, [storesData])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['coupons', page, storeFilter, branchFilter],
-    queryFn: () => vendorApi.listCoupons({ page, size: 20, store_id: branchFilter || storeFilter || undefined }),
+    queryKey: ['coupons', page, storeFilter, branchFilter, salesAreaFilter],
+    queryFn: () => vendorApi.listCoupons({
+      page,
+      size: 20,
+      store_id: branchFilter || storeFilter || undefined,
+      sales_area_id: salesAreaFilter || undefined,
+    }),
   })
 
   const deleteCoupon = useMutation({

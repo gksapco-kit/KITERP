@@ -14,6 +14,7 @@ from app.models.user import User
 from app.models.vendor_category import VendorCategory
 from app.models.vendor_product import Product
 from app.models.vendor_service import Service
+from app.models.rental import RentalAsset
 from app.schemas.vendor_category import CategoryCreate, CategoryUpdate
 from app.repositories.vendor_category_repo import VendorCategoryRepository
 from app.services.vendor_service import VendorService
@@ -251,12 +252,39 @@ async def get_category_catalogues(
                 "status": s.status,
             })
 
+    # ── Rental assets — direct FK join ───────────────────────────────────────
+    rentals_list = []
+    if category.applies_to in ("rental", "both"):
+        result = await db.execute(
+            select(RentalAsset)
+            .where(
+                RentalAsset.vendor_id == vendor_id,
+                RentalAsset.category_id == category_id,
+            )
+            .order_by(RentalAsset.name)
+            .limit(CATALOGUE_ITEM_LIMIT)
+        )
+        for a in result.scalars().all():
+            rentals_list.append({
+                "id": str(a.id),
+                "name": a.name,
+                "slug": a.slug,
+                "category": a.category,
+                "category_id": str(a.category_id) if a.category_id else None,
+                "asset_type": a.asset_type,
+                "daily_rate": float(a.daily_rate or 0),
+                "image_url": a.image_url,
+                "status": a.status,
+            })
+
     return JSONResponse(content={
         "category": _category_to_dict(category),
         "products": products_list,
         "services": services_list,
+        "rentals": rentals_list,
         "product_count": len(products_list),
         "service_count": len(services_list),
+        "rental_count": len(rentals_list),
     })
 
 

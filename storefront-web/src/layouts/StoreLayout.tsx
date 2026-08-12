@@ -654,6 +654,7 @@ function StoreContent() {
           account: storePath('/account'),
           orders: storePath('/account/orders'),
           bookings: storePath('/account/bookings'),
+          rentals: storePath('/account/rentals'),
           wishlist: storePath('/account/wishlist'),
           profile: storePath('/account/profile'),
           notifications: storePath('/account/notifications'),

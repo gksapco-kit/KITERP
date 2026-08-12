@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Calendar as CalendarIcon, Plus, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -26,6 +26,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function RentalHubPage() {
   const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
   const [selectedBooking, setSelectedBooking] = useState<RentalBooking | null>(null)
   const [returnBooking, setReturnBooking] = useState<RentalBooking | null>(null)
 
@@ -108,7 +109,6 @@ export default function RentalHubPage() {
   )
 
   const openCreateAsset = () => patch({ tab: 'assets', asset: 'new' }, false)
-  const openEditAsset = (a: RentalAsset) => patch({ tab: 'assets', asset: a.id }, false)
   const closeAssetSheet = () => patch({ asset: null }, false)
 
   const openCreateBooking = () => patch({ tab: 'bookings', booking: 'new' }, false)
@@ -185,7 +185,8 @@ export default function RentalHubPage() {
           category={assetCategory}
           onCategoryChange={(v) => patch({ category: v || null })}
           onCreate={openCreateAsset}
-          onEdit={openEditAsset}
+          onView={(a) => navigate(`/rental/assets/${a.id}`)}
+          onEdit={(a) => navigate(`/rental/assets/${a.id}/edit`)}
         />
       )}
 

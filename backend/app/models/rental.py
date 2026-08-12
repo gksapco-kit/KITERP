@@ -18,8 +18,20 @@ class RentalAsset(Base):
     asset_code = Column(String(50))
     sku = Column(String(100))
     product_id = Column(UUID(as_uuid=True), ForeignKey("product.id"), nullable=True)
-    category = Column(String(50), default="milk_dairy")  # milk_dairy, furniture, equipment, storage, vehicles, other
+    # Asset kind / form preset: milk_dairy | furniture | equipment | storage | vehicles | other
+    # This drives the adaptive form fields (capacity units, location labels, etc.)
+    # It is intentionally separate from category_id which is the merchandising category.
+    category = Column(String(50), default="milk_dairy")
+    # Merchandising category — FK to vendor_category tree (nullable, optional).
+    # ON DELETE SET NULL keeps the asset alive if the vendor removes the category node.
+    category_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("vendor_category.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     asset_type = Column(String(80), default="storage_rack")
+    short_description = Column(String(500))
     description = Column(Text)
 
     # Capacity inventory
@@ -34,6 +46,7 @@ class RentalAsset(Base):
     weight_unit = Column(String(20), default="kg")
 
     # Pricing
+    currency = Column(String(3), default="INR", server_default="INR")
     daily_rate = Column(Numeric(12, 2), default=0)
     weekly_rate = Column(Numeric(12, 2), default=0)
     monthly_rate = Column(Numeric(12, 2), default=0)
@@ -57,7 +70,11 @@ class RentalAsset(Base):
     section = Column(String(100))
     row_label = Column(String(100))
     rack_number = Column(String(50))
-    image_url = Column(String(500))
+    # Denormalised primary thumbnail — kept in sync with the first is_primary item in media.
+    image_url = Column(Text)
+    # Structured media gallery: [{id, url, media_type, is_primary, alt_text, position}]
+    # Mirrors vendor_service.media — supports images, video, and 3D models.
+    media = Column(JSONB, default=[])
 
     # available | partially_occupied | fully_occupied | reserved | maintenance | unavailable | retired
     status = Column(String(30), default="available")

@@ -20,27 +20,37 @@ export default function RentalsBuilderPage() {
   const { builderSite, isLoading } = useBuilderSite()
 
   const { rentalsPage, contentBlocks } = useMemo(() => {
-    const anyRentalsPage = builderSite?.pages?.find(p => p.slug === 'rentals') ?? null
+    const pages = builderSite?.pages || []
+    const anyRentalsPage =
+      pages.find(p => String(p.slug || '').toLowerCase() === 'rentals')
+      ?? pages.find(p => String(p.slug || '').toLowerCase() === 'rental')
+      ?? null
     const page = anyRentalsPage?.is_published !== false ? anyRentalsPage : null
     if (!page?.blocks?.length) {
       return { rentalsPage: null, contentBlocks: [] as PublicBlock[] }
     }
+    // Keep marketing/rental blocks; drop other catalog grids so a mis-built
+    // "rentals" CMS page does not show products/services as if they were rentals.
+    const OTHER_CATALOG_BLOCKS = new Set([
+      'product_grid', 'product_list', 'product_carousel', 'featured_products',
+      'service_grid', 'service_list', 'service_carousel', 'featured_services',
+      'category_grid', 'menu_grid',
+    ])
     const blocks = stripSharedShellBlocksFromPage(page.blocks as PublicBlock[])
+      .filter(b => !OTHER_CATALOG_BLOCKS.has(b.block_type))
     return { rentalsPage: page, contentBlocks: blocks }
   }, [builderSite])
 
-  // Still fetching site shell — avoid a content flash
-  if (isLoading) return null
-
   return (
     <>
-      {contentBlocks.length > 0 && rentalsPage && builderSite && (
+      {!isLoading && contentBlocks.length > 0 && rentalsPage && builderSite && (
         <BlockRenderer
           blocks={contentBlocks}
           site={builderSite}
           pageId={rentalsPage.id}
         />
       )}
+      {/* Always show the live catalog — never blank the page while CMS shell loads */}
       <RentalsPage />
     </>
   )

@@ -8,7 +8,18 @@ import type { StoreRecord } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, selectOptionsWithBlank } from '@/components/ui/select'
+import { Select, selectOptionsWithBlank, type SelectOption } from '@/components/ui/select'
+import {
+  TAX_COUNTRIES,
+  buildTaxRateSelectOptions,
+  defaultRateForCountry,
+  getTaxCountry,
+  isStandardTaxRate,
+  mergeCustomTaxRate,
+  parseCustomTaxRates,
+  registrationLabel,
+  resolveVendorTaxCountryCode,
+} from '@/lib/taxCountries'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Card, CardContent } from '@/components/ui/card'
 import { AddressCard, AddressFields } from '@/components/common/AddressFields'
@@ -63,6 +74,11 @@ interface StoreFormData {
   phone: string   // full E.164 string e.g. '+919876543210"
   email: string
   gstin: string
+  is_tax_registered: boolean
+  tax_country_code: string
+  default_tax_rate: string
+  custom_tax_rates: { rate: string; label: string }[]
+  pan_number: string
   street: string
   city: string
   state: string
@@ -72,17 +88,57 @@ interface StoreFormData {
   company_type: string
 }
 
-const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
-
 const EMPTY_FORM: StoreFormData = {
   name: '', code: '', description: '', phone: '', email: '', gstin: '',
+  is_tax_registered: false, tax_country_code: 'IN', default_tax_rate: '18', custom_tax_rates: [], pan_number: '',
   street: '', city: '', state: '', pincode: '', country: 'India', is_default: false,
   company_type: '',
 }
 
+function storeSettingsStr(store: StoreRecord | null | undefined, key: string): string {
+  const raw = (store?.settings as Record<string, unknown> | undefined)?.[key]
+  return typeof raw === 'string' ? raw : typeof raw === 'number' ? String(raw) : ''
+}
+
+function storeSettingsBool(store: StoreRecord | null | undefined, key: string): boolean {
+  return Boolean((store?.settings as Record<string, unknown> | undefined)?.[key])
+}
+
 function branchGstinFromStore(store: StoreRecord): string {
-  const raw = (store.settings as Record<string, unknown> | undefined)?.gstin
-  return typeof raw === 'string' ? raw : ''
+  return storeSettingsStr(store, 'gstin') || storeSettingsStr(store, 'tax_registration_id')
+}
+
+function taxFieldsFromStore(
+  store: StoreRecord | undefined,
+  vendorTaxCountry: string,
+): Pick<
+  StoreFormData,
+  'gstin' | 'is_tax_registered' | 'tax_country_code' | 'default_tax_rate' | 'custom_tax_rates' | 'pan_number'
+> {
+  const code =
+    storeSettingsStr(store, 'tax_country_code').toUpperCase() || vendorTaxCountry || 'IN'
+  const cfg = getTaxCountry(code)
+  const settings = (store?.settings ?? {}) as Record<string, unknown>
+  const savedRate = storeSettingsStr(store, 'default_tax_rate')
+  const rateNum = savedRate ? Number(savedRate) : NaN
+  const default_tax_rate =
+    savedRate && !Number.isNaN(rateNum) && rateNum !== 0
+      ? savedRate
+      : String(defaultRateForCountry(cfg))
+  let customs = parseCustomTaxRates(settings.custom_tax_rates)
+  if (Number.isFinite(rateNum) && rateNum !== 0 && !isStandardTaxRate(cfg, rateNum)) {
+    customs = mergeCustomTaxRate(customs, rateNum)
+  }
+  return {
+    gstin: store ? branchGstinFromStore(store) : '',
+    is_tax_registered: store
+      ? storeSettingsBool(store, 'is_tax_registered') || Boolean(branchGstinFromStore(store))
+      : false,
+    tax_country_code: code,
+    default_tax_rate,
+    custom_tax_rates: customs.map((r) => ({ rate: String(r.rate), label: r.label })),
+    pan_number: storeSettingsStr(store, 'pan_number'),
+  }
 }
 
 // ── StoreModal ─────────────────────────────────────────────────────────────
@@ -116,6 +172,7 @@ function StoreModal({
   useEscapeToClose(onClose)
 
   const vendor = useVendorStore((s) => s.vendor)
+  const vendorTaxCountry = resolveVendorTaxCountryCode(vendor?.settings, vendor?.country)
 
   const autoCode = store
     ? (store.code ?? '')
@@ -131,11 +188,12 @@ function StoreModal({
 
   const [form, setForm] = useState<StoreFormData>(() => {
     const company_type = resolveCompanyType()
+    const tax = taxFieldsFromStore(store ?? undefined, vendorTaxCountry)
     if (store) {
       return {
         name: store.name, code: store.code ?? '', description: store.description ?? '',
         phone: store.phone ?? '', email: store.email ?? '',
-        gstin: branchGstinFromStore(store),
+        ...tax,
         street: store.address?.street ?? '', city: store.address?.city ?? '',
         state: store.address?.state ?? '', pincode: store.address?.pincode ?? '',
         country: store.address?.country || defaultCountry,
@@ -143,34 +201,54 @@ function StoreModal({
         company_type,
       }
     }
-    return { ...EMPTY_FORM, code: autoCode, company_type, country: defaultCountry }
+    return { ...EMPTY_FORM, ...tax, code: autoCode, company_type, country: defaultCountry }
   })
 
   useEffect(() => {
     const company_type = store
       ? profileFormFromStore(store, vendor).company_type
       : profileCompanyTypeFromVendor(vendor)
+    const tax = taxFieldsFromStore(store ?? undefined, vendorTaxCountry)
     if (store) {
       setForm({
         name: store.name, code: store.code ?? '', description: store.description ?? '',
         phone: store.phone ?? '', email: store.email ?? '',
-        gstin: branchGstinFromStore(store),
+        ...tax,
         street: store.address?.street ?? '', city: store.address?.city ?? '',
         state: store.address?.state ?? '', pincode: store.address?.pincode ?? '',
         country: store.address?.country || defaultCountry,
         is_default: store.is_default,
         company_type,
       })
-      return
+    } else {
+      setForm({ ...EMPTY_FORM, ...tax, code: autoCode, company_type, country: defaultCountry })
     }
     if (company_type) {
       setForm((f) => (f.company_type.trim() ? f : { ...f, company_type }))
     }
   }, [
-    store,
-    vendor,
+    store?.id,
+    store?.name,
+    store?.code,
+    store?.description,
+    store?.phone,
+    store?.email,
+    store?.is_default,
+    store?.address?.street,
+    store?.address?.city,
+    store?.address?.state,
+    store?.address?.pincode,
+    store?.address?.country,
+    (store?.settings as Record<string, unknown> | undefined)?.gstin,
+    (store?.settings as Record<string, unknown> | undefined)?.tax_country_code,
+    (store?.settings as Record<string, unknown> | undefined)?.is_tax_registered,
+    (store?.settings as Record<string, unknown> | undefined)?.default_tax_rate,
+    (store?.settings as Record<string, unknown> | undefined)?.pan_number,
     (store?.settings as Record<string, unknown> | undefined)?.company_type,
-    vendor?.business_type,
+    vendorTaxCountry,
+    defaultCountry,
+    autoCode,
+    parentBu?.id,
   ])
 
   useEffect(() => {
@@ -203,15 +281,68 @@ function StoreModal({
     })
   }
 
+  const taxCountry = getTaxCountry(form.tax_country_code)
+  const regField = taxCountry.identifier_schema.registration[0]
+  const entityFields = taxCountry.identifier_schema.entity
+  const countryOptions: SelectOption[] = TAX_COUNTRIES.map((c) => ({
+    value: c.code,
+    label: `${c.name} (${c.tax_label})`,
+  }))
+  const parsedCustomRates = parseCustomTaxRates(form.custom_tax_rates)
+  const rateOptions: SelectOption[] = buildTaxRateSelectOptions(taxCountry, parsedCustomRates)
+  const rateIsKnown =
+    taxCountry.standard_rates.some((r) => String(r.rate) === form.default_tax_rate) ||
+    parsedCustomRates.some((r) => String(r.rate) === form.default_tax_rate)
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const gstin = form.gstin.trim().toUpperCase()
-    if (parentBu && gstin && !GSTIN_RE.test(gstin)) {
-      setGstinError('Enter a valid 15-character GSTIN')
+    const gstinRaw = form.is_tax_registered ? form.gstin.trim() : ''
+    const gstin = regField?.uppercase ? gstinRaw.toUpperCase() : gstinRaw
+    if (form.is_tax_registered && regField?.regex && gstin) {
+      try {
+        if (!new RegExp(regField.regex).test(gstin)) {
+          setGstinError(`Enter a valid ${regField.label}`)
+          return
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    if (form.is_tax_registered && regField?.required_when_registered && !gstin) {
+      setGstinError(`${regField.label} is required when registered`)
       return
     }
+    for (const row of form.custom_tax_rates) {
+      const trimmed = row.rate.trim()
+      if (!trimmed && !row.label.trim()) continue
+      if (!trimmed) {
+        toast.error('Enter a rate % for each additional tax row (or clear the description)')
+        return
+      }
+      const n = Number(trimmed)
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        toast.error('Additional tax rates must be between 0 and 100')
+        return
+      }
+    }
     setGstinError(null)
+    const rateNum = form.default_tax_rate ? parseFloat(form.default_tax_rate) : null
+    let customRates = parseCustomTaxRates(form.custom_tax_rates).filter(
+      (r) => !isStandardTaxRate(taxCountry, r.rate),
+    )
+    if (rateNum != null && !Number.isNaN(rateNum) && !isStandardTaxRate(taxCountry, rateNum)) {
+      customRates = mergeCustomTaxRate(customRates, rateNum)
+    }
     const baseSettings = { ...((store?.settings ?? {}) as Record<string, unknown>) }
+    const taxSettings = {
+      tax_country_code: form.tax_country_code,
+      is_tax_registered: form.is_tax_registered,
+      tax_registration_id: gstin || null,
+      gstin: gstin || null,
+      default_tax_rate: rateNum,
+      pan_number: form.pan_number.trim() || null,
+      custom_tax_rates: customRates,
+    }
     onSave({
       name: form.name, code: form.code || undefined, description: form.description || undefined,
       phone: form.phone || undefined, email: form.email || undefined,
@@ -222,8 +353,8 @@ function StoreModal({
         country: form.country || defaultCountry,
       },
       settings: parentBu
-        ? { ...baseSettings, gstin: gstin || null }
-        : { ...baseSettings, company_type: form.company_type || undefined },
+        ? { ...baseSettings, ...taxSettings }
+        : { ...baseSettings, company_type: form.company_type || undefined, ...taxSettings },
       ...(parentBu && !store ? { parent_id: parentBu.id } : {}),
     })
   }
@@ -297,22 +428,7 @@ function StoreModal({
             <Input type="email" value={form.email} onChange={set('email')} placeholder="store@example.com" className="mt-0.5 h-9" />
           </div>
 
-          {parentBu ? (
-            <div>
-              <Label className="text-xs">GSTIN <span className="font-normal text-muted-foreground">(optional)</span></Label>
-              <Input
-                value={form.gstin}
-                onChange={(e) => {
-                  setGstinError(null)
-                  setForm(f => ({ ...f, gstin: e.target.value.toUpperCase() }))
-                }}
-                placeholder="22AAAAA0000A1Z5"
-                maxLength={15}
-                className={cn('mt-0.5 h-9 font-mono uppercase tracking-wide', gstinError && 'border-destructive')}
-              />
-              {gstinError ? <p className="mt-0.5 text-[11px] text-destructive">{gstinError}</p> : null}
-            </div>
-          ) : (
+          {parentBu ? null : (
             <div>
               <Label className="text-xs">Description</Label>
               <AiDescriptionTextarea
@@ -352,6 +468,194 @@ function StoreModal({
               />
             </div>
           ) : null}
+
+          <div className="col-span-2 space-y-2.5 rounded-lg border border-border/70 bg-muted/20 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Tax registration
+            </p>
+            <div className="space-y-1">
+              <Label className="text-xs">Tax Country</Label>
+              <Select
+                value={form.tax_country_code}
+                onChange={(code) => {
+                  const cfg = getTaxCountry(code)
+                  setGstinError(null)
+                  setForm((f) => ({
+                    ...f,
+                    tax_country_code: code,
+                    gstin: '',
+                    default_tax_rate: String(defaultRateForCountry(cfg)),
+                    custom_tax_rates: [],
+                  }))
+                }}
+                options={countryOptions}
+                searchable
+                searchPlaceholder="Search countries…"
+                placeholder="Select tax country"
+              />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.is_tax_registered}
+                onChange={(e) => setForm((f) => ({ ...f, is_tax_registered: e.target.checked }))}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600"
+              />
+              <span className="text-sm font-medium">{registrationLabel(taxCountry)}</span>
+            </label>
+            {form.is_tax_registered && regField ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">{regField.label}</Label>
+                  <Input
+                    value={form.gstin}
+                    onChange={(e) => {
+                      setGstinError(null)
+                      const next = regField.uppercase ? e.target.value.toUpperCase() : e.target.value
+                      setForm((f) => ({ ...f, gstin: next.slice(0, regField.max_length) }))
+                    }}
+                    placeholder={regField.placeholder}
+                    maxLength={regField.max_length}
+                    className={cn(
+                      'mt-0.5 h-9 font-mono tracking-wide',
+                      regField.uppercase && 'uppercase',
+                      gstinError && 'border-destructive',
+                    )}
+                  />
+                  {gstinError ? <p className="mt-0.5 text-[11px] text-destructive">{gstinError}</p> : null}
+                </div>
+                <div>
+                  <Label className="text-xs">Default {taxCountry.tax_label} Rate (%)</Label>
+                  <Select
+                    value={rateIsKnown ? form.default_tax_rate : '__custom__'}
+                    onChange={(v) => {
+                      if (v === '__custom__') {
+                        setForm((f) => ({
+                          ...f,
+                          default_tax_rate: rateIsKnown ? '' : f.default_tax_rate,
+                        }))
+                        return
+                      }
+                      setForm((f) => ({ ...f, default_tax_rate: v }))
+                    }}
+                    options={rateOptions}
+                    placeholder="Select rate"
+                    className="mt-0.5"
+                  />
+                  {!rateIsKnown ? (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      max={100}
+                      value={form.default_tax_rate}
+                      onChange={(e) => setForm((f) => ({ ...f, default_tax_rate: e.target.value }))}
+                      placeholder={String(defaultRateForCountry(taxCountry))}
+                      className="mt-1.5 h-9"
+                    />
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {form.is_tax_registered ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">Additional {taxCountry.tax_label} rates</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1 px-2 text-xs"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        custom_tax_rates: [...f.custom_tax_rates, { rate: '', label: '' }],
+                      }))
+                    }
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add
+                  </Button>
+                </div>
+                {form.custom_tax_rates.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Optional rates outside the standard list (rate + description).
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {form.custom_tax_rates.map((row, index) => (
+                      <div key={index} className="flex flex-wrap items-center gap-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          max={100}
+                          value={row.rate}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              custom_tax_rates: f.custom_tax_rates.map((r, i) =>
+                                i === index ? { ...r, rate: e.target.value } : r,
+                              ),
+                            }))
+                          }
+                          placeholder="e.g. 40"
+                          className="h-8 w-[6.5rem] font-mono"
+                        />
+                        <span className="text-xs text-muted-foreground">%</span>
+                        <Input
+                          value={row.label}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              custom_tax_rates: f.custom_tax_rates.map((r, i) =>
+                                i === index ? { ...r, label: e.target.value } : r,
+                              ),
+                            }))
+                          }
+                          placeholder="Description"
+                          className="h-8 min-w-[8rem] flex-1"
+                          maxLength={80}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-destructive"
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              custom_tax_rates: f.custom_tax_rates.filter((_, i) => i !== index),
+                            }))
+                          }
+                          aria-label={`Remove rate ${index + 1}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
+            {entityFields.map((field) => (
+              <div key={field.key}>
+                <Label className="text-xs">{field.label}</Label>
+                <Input
+                  value={field.key === 'pan_number' ? form.pan_number : ''}
+                  onChange={(e) => {
+                    const next = field.uppercase ? e.target.value.toUpperCase() : e.target.value
+                    if (field.key === 'pan_number') {
+                      setForm((f) => ({ ...f, pan_number: next.slice(0, field.max_length) }))
+                    }
+                  }}
+                  placeholder={field.placeholder}
+                  maxLength={field.max_length}
+                  className={cn('mt-0.5 h-9 font-mono', field.uppercase && 'uppercase')}
+                />
+              </div>
+            ))}
+          </div>
 
           <div className="col-span-2">
             <AddressCard>

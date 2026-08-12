@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from uuid import UUID
 import math
 
 from app.database import get_db
 from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
+from app.models.sales_area import SalesArea
 from app.services.vendor_service import VendorService
 from app.services.coupon_service import CouponService
 from app.schemas.coupon import CouponCreate, CouponUpdate, CouponValidate
@@ -42,7 +44,22 @@ def _coupon_dict(c) -> dict:
 
 
 @router.get("")
-async def list_coupons(is_active: bool = None, store_id: str = None, page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=200), vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def list_coupons(
+    is_active: bool = None,
+    store_id: str = None,
+    sales_area_id: str = None,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=200),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    # Resolve sales_area_id → store_id when not already filtered by store
+    if sales_area_id and not store_id:
+        area = (await db.execute(
+            select(SalesArea).where(SalesArea.id == UUID(sales_area_id), SalesArea.vendor_id == vid)
+        )).scalar_one_or_none()
+        if area and area.business_unit_id:
+            store_id = str(area.business_unit_id)
     svc = CouponService(db)
     items, total = await svc.list_coupons(vid, is_active, page, size, store_id=store_id)
     return JSONResponse(content={"items": [_coupon_dict(c) for c in items], "total": total, "page": page, "size": size, "pages": math.ceil(total / size) if total else 0})

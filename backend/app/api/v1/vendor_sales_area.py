@@ -29,8 +29,9 @@ router = APIRouter(dependencies=[Depends(require_permission("orders.view"))])
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 async def _ensure_defaults(db: AsyncSession, vendor_id: UUID) -> None:
-    """Seed a Default division, Retail distribution channel, and Standard
-    delivery channel the first time a vendor touches this master data."""
+    """Seed a Default division, Retail distribution channel, Standard delivery
+    channel, and a default sales area the first time a vendor touches this
+    master data."""
     changed = False
 
     div_count = (await db.execute(
@@ -56,6 +57,48 @@ async def _ensure_defaults(db: AsyncSession, vendor_id: UUID) -> None:
 
     if changed:
         await db.flush()
+
+    # Auto-create a default SalesArea using the first available BU so that
+    # resolve_txn_sales_area_id never returns None for new vendors.
+    area_count = (await db.execute(
+        select(func.count()).select_from(SalesArea).where(SalesArea.vendor_id == vendor_id)
+    )).scalar_one() or 0
+    if area_count == 0:
+        bu_row = await db.execute(
+            select(Store)
+            .where(Store.vendor_id == vendor_id, Store.parent_id.is_(None))
+            .order_by(Store.created_at.asc())
+            .limit(1)
+        )
+        bu = bu_row.scalar_one_or_none()
+        if bu:
+            div = (await db.execute(
+                select(SalesDivision)
+                .where(SalesDivision.vendor_id == vendor_id, SalesDivision.is_default.is_(True))
+                .limit(1)
+            )).scalar_one_or_none() or (await db.execute(
+                select(SalesDivision).where(SalesDivision.vendor_id == vendor_id).limit(1)
+            )).scalar_one_or_none()
+            dc = (await db.execute(
+                select(DistributionChannel)
+                .where(DistributionChannel.vendor_id == vendor_id, DistributionChannel.is_default.is_(True))
+                .limit(1)
+            )).scalar_one_or_none() or (await db.execute(
+                select(DistributionChannel).where(DistributionChannel.vendor_id == vendor_id).limit(1)
+            )).scalar_one_or_none()
+            if div and dc:
+                scope_label = bu.code or bu.name
+                db.add(SalesArea(
+                    vendor_id=vendor_id,
+                    business_unit_id=bu.id,
+                    distribution_channel_id=dc.id,
+                    division_id=div.id,
+                    code=f"{scope_label}/{dc.code}/{div.code}",
+                    name=f"{scope_label} · {dc.name} · {div.name}",
+                    is_active=True,
+                    is_default=True,
+                ))
+                await db.flush()
 
 
 async def _get_division_or_404(division_id: UUID, vendor_id: UUID, db: AsyncSession) -> SalesDivision:
@@ -560,6 +603,9 @@ async def list_sales_areas(
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
+    await _ensure_defaults(db, vendor_id)
+    await db.commit()
+
     q = select(SalesArea).where(SalesArea.vendor_id == vendor_id)
     if business_unit_id:
         bu_uuid = UUID(business_unit_id)

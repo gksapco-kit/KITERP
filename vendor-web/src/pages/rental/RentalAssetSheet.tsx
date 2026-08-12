@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CalendarRange, IndianRupee, Layers, Loader2, MapPin, Plus, Tag } from 'lucide-react'
+import { AlertTriangle, CalendarRange, Image, IndianRupee, Layers, Link2, Loader2, MapPin, Plus, Tag, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
@@ -11,15 +11,58 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { FieldLabel } from '@/components/common/FieldLabel'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
+import { CatalogMediaUpload } from '@/components/common/ImageUpload'
 import { extractApiError } from '@/lib/errorMessages'
 import { formatDate } from '@/lib/utils'
+import { filterCategoryTree } from '@/lib/categoryHierarchy'
+import { useCategoryTree } from '@/hooks/useVendor'
+import { useVendorStore } from '@/stores/vendorStore'
 import { rentalApi } from './api'
 import { toDateInputValue, pickDisplayDates } from './rentalDates'
 import {
-  ASSET_STATUSES, AVAILABILITY_OPTIONS, RENTAL_CATEGORIES, emptyAssetForm, getCategoryConfig,
-  type RentalAsset, type RentalBooking,
+  ASSET_STATUSES, AVAILABILITY_OPTIONS, UOM_SUGGESTIONS,
+  ASSET_KIND_SUGGESTIONS, ASSET_TYPE_SUGGESTIONS, toReadableValue, emptyAssetForm, getCategoryConfig,
+  catalogStatusFromAsset, operationalStatusFromAsset,
+  isPendingRentalMediaId, makePendingRentalMedia, revokeRentalMediaUrls, currencySymbol,
+  DEFAULT_ASSET_CODE_PREFIX, previewAssetCode,
+  type RentalAsset, type RentalBooking, type RentalMediaItem,
 } from './rentalConstants'
 import RentalAssetUnitsPanel from './RentalAssetUnitsPanel'
+import RentalAssetPricingFields from './RentalAssetPricingFields'
+import { RentalSuggestionCombobox } from './RentalSuggestionCombobox'
+import type { VendorCategory } from '@/types'
+import { flattenCategoryTree } from '@/lib/categoryHierarchy'
+
+/**
+ * A thin wrapper that maps category_id ↔ the tree for rental assets.
+ * CategoryHierarchyPicker works by name/subcategory strings, but for rentals
+ * we store the category UUID directly. This component bridges that.
+ */
+function RentalCategoryPicker({
+  tree, categoryId, onChange,
+}: {
+  tree: VendorCategory[]
+  categoryId: string
+  onChange: (id: string) => void
+}) {
+  const flatOptions = useMemo(() => flattenCategoryTree(tree), [tree])
+  const options = useMemo(() => [
+    { value: '', label: 'Select category (optional)…' },
+    ...flatOptions.map((o) => ({ value: o.id, label: o.label.replace(/^\s+/, '').replace(/\s{2,}/g, ' · ') })),
+  ], [flatOptions])
+
+  return (
+    <select
+      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+      value={categoryId}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>{o.label}</option>
+      ))}
+    </select>
+  )
+}
 
 type AssetFormState = ReturnType<typeof emptyAssetForm>
 
@@ -28,13 +71,18 @@ function assetToForm(a: Partial<RentalAsset> & Record<string, unknown>): AssetFo
   const hasRange = Boolean(start || end)
   return {
     name: String(a.name || ''),
-    category: String(a.category || 'milk_dairy'),
-    asset_type: String(a.asset_type || 'storage_rack'),
+    category: toReadableValue(String(a.category || 'Other'), ASSET_KIND_SUGGESTIONS),
+    category_id: String(a.category_id || ''),
+    asset_type: toReadableValue(String(a.asset_type || 'Other'), ASSET_TYPE_SUGGESTIONS),
+    short_description: String(a.short_description || ''),
     description: String(a.description || ''),
+    asset_code: String(a.asset_code || ''),
+    product_id: String(a.product_id || ''),
     capacity_max: String(a.capacity_max ?? 1),
-    capacity_unit: String(a.capacity_unit || 'units'),
+    capacity_unit: toReadableValue(String(a.capacity_unit || 'Units'), UOM_SUGGESTIONS),
     max_weight: a.max_weight != null ? String(a.max_weight) : '',
     weight_unit: String(a.weight_unit || 'kg'),
+    currency: String(a.currency || 'INR').toUpperCase(),
     daily_rate: String(a.daily_rate ?? 0),
     weekly_rate: String(a.weekly_rate ?? 0),
     monthly_rate: String(a.monthly_rate ?? 0),
@@ -46,7 +94,10 @@ function assetToForm(a: Partial<RentalAsset> & Record<string, unknown>): AssetFo
     section: String(a.section || ''),
     row_label: String(a.row_label || ''),
     rack_number: String(a.rack_number || ''),
-    status: String(a.status || 'available'),
+    status: catalogStatusFromAsset(a),
+    operational_status: operationalStatusFromAsset(a),
+    is_visible: a.is_visible !== false,
+    store_scope: String(a.store_scope || 'all'),
     availability_mode: hasRange ? 'date_range' : 'always',
     display_start_date: start,
     display_end_date: end,
@@ -88,6 +139,7 @@ export default function RentalAssetSheet({
   const qc = useQueryClient()
   const [form, setForm] = useState<AssetFormState>(emptyAssetForm())
   const [loading, setLoading] = useState(false)
+  const [manualMasterId, setManualMasterId] = useState(false)
   const [openSections, setOpenSections] = useState({
     basics: true, pricing: false, availability: false, location: false, subAssets: false,
   })
@@ -95,6 +147,31 @@ export default function RentalAssetSheet({
   // The units panel is only rendered when this matches 'serialized' so users
   // cannot attempt to add units before the mode change has been persisted.
   const [savedUnitMode, setSavedUnitMode] = useState<string>('none')
+
+  // ── Media state ──────────────────────────────────────────────────────────
+  // savedMedia: gallery for an existing asset, or locally staged items for create
+  const [savedMedia, setSavedMedia] = useState<RentalMediaItem[]>([])
+  const pendingFilesRef = useRef<Map<string, File>>(new Map())
+  const savedMediaRef = useRef(savedMedia)
+  savedMediaRef.current = savedMedia
+
+  // ── Feature flags from vendor settings ───────────────────────────────────
+  const { vendor } = useVendorStore()
+  const rentalSettings = (vendor?.settings as Record<string, unknown> | undefined)?.rental_settings as Record<string, unknown> | undefined
+  const featureCategories = rentalSettings?.feature_categories !== false
+  const featureMediaGallery = rentalSettings?.feature_media_gallery !== false
+  const featureCapacityTracking = rentalSettings?.feature_capacity_tracking !== false
+  const featureUnitTracking = rentalSettings?.feature_unit_tracking !== false
+  const featureExtendedRates = rentalSettings?.feature_extended_rates !== false
+  const featurePerUnitPricing = rentalSettings?.feature_per_unit_pricing !== false
+  const assetCodePrefix = String(rentalSettings?.asset_code_prefix || DEFAULT_ASSET_CODE_PREFIX)
+
+  // ── Category tree ─────────────────────────────────────────────────────────
+  const { data: categoryTreeData } = useCategoryTree()
+  const rentalCategoryTree = useMemo(() => {
+    const raw = (categoryTreeData as { categories?: unknown[] } | undefined)?.categories ?? []
+    return filterCategoryTree(raw as Parameters<typeof filterCategoryTree>[0], 'rental')
+  }, [categoryTreeData])
 
   useEffect(() => {
     if (!open) return
@@ -105,7 +182,11 @@ export default function RentalAssetSheet({
           ? { ...base, parent_asset_id: initialParentId, unit_mode: 'hierarchy' }
           : base,
       )
+      setManualMasterId(false)
       setSavedUnitMode('none')
+      revokeRentalMediaUrls(savedMediaRef.current)
+      pendingFilesRef.current.clear()
+      setSavedMedia([])
       setOpenSections({
         basics: true, pricing: false, availability: false, location: false,
         subAssets: Boolean(initialParentId),
@@ -116,12 +197,14 @@ export default function RentalAssetSheet({
     if (initialAsset) {
       setForm(assetToForm(initialAsset as RentalAsset & Record<string, unknown>))
       setSavedUnitMode(initialAsset.unit_mode ?? 'none')
+      setSavedMedia((initialAsset.media ?? []) as RentalMediaItem[])
     }
     setLoading(true)
     rentalApi.getAsset(assetId)
       .then((fresh) => {
         setForm(assetToForm(fresh as RentalAsset & Record<string, unknown>))
         setSavedUnitMode(fresh.unit_mode ?? 'none')
+        setSavedMedia((fresh.media ?? []) as RentalMediaItem[])
       })
       .catch((e) => toast.error(extractApiError(e, 'Load asset for edit')))
       .finally(() => setLoading(false))
@@ -132,6 +215,30 @@ export default function RentalAssetSheet({
   const toggleSection = (key: keyof typeof openSections) =>
     setOpenSections((s) => ({ ...s, [key]: !s[key] }))
 
+  // Product search state for the "Link to Product" picker
+  const [productSearch, setProductSearch] = useState('')
+  const [productPickerOpen, setProductPickerOpen] = useState(false)
+  const productPickerRef = useRef<HTMLDivElement>(null)
+
+  const { data: productOptions = [] } = useQuery({
+    queryKey: ['rental-products-for-link', productSearch],
+    queryFn: () => rentalApi.listProductsForRental(productSearch || undefined),
+    enabled: open && productPickerOpen,
+    staleTime: 30_000,
+  })
+
+  // Close product picker when clicking outside
+  useEffect(() => {
+    if (!productPickerOpen) return
+    const handler = (e: MouseEvent) => {
+      if (productPickerRef.current && !productPickerRef.current.contains(e.target as Node)) {
+        setProductPickerOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [productPickerOpen])
+
   // Parent asset options for hierarchy mode (all assets of this vendor, minus self)
   const { data: allAssets = [] } = useQuery<RentalAsset[]>({
     queryKey: ['rental-assets'],
@@ -139,6 +246,7 @@ export default function RentalAssetSheet({
     enabled: open,
     staleTime: 30_000,
   })
+  const nextAssetCodePreview = previewAssetCode(allAssets.length + 1, assetCodePrefix)
   const parentOptions = useMemo(() => {
     const opts = allAssets
       .filter((a) => a.id !== assetId && !a.parent_asset_id) // only top-level assets as parents
@@ -154,38 +262,6 @@ export default function RentalAssetSheet({
   })
 
   const categoryConfig = getCategoryConfig(form.category)
-
-  const assetTypeOptions = useMemo(() => {
-    const opts = [...categoryConfig.assetTypes]
-    if (form.asset_type && !opts.some((o) => o.value === form.asset_type)) {
-      opts.push({ value: form.asset_type, label: form.asset_type.replace(/_/g, ' ') })
-    }
-    return opts
-  }, [categoryConfig.assetTypes, form.asset_type])
-
-  const onCategoryChange = (category: string) => {
-    setForm((f) => {
-      if (f.category === category) return f
-      const cfg = getCategoryConfig(category)
-      return {
-        ...f,
-        category,
-        asset_type: cfg.defaults.asset_type,
-        capacity_max: cfg.defaults.capacity_max,
-        capacity_unit: cfg.defaults.capacity_unit,
-        max_weight: cfg.defaults.max_weight,
-        weight_unit: cfg.showWeight ? (f.weight_unit || 'kg') : '',
-        extra_qty_charge: cfg.showExtraQtyCharge ? f.extra_qty_charge : '0',
-        extra_weight_charge: cfg.showExtraWeightCharge ? f.extra_weight_charge : '0',
-        section: cfg.showRackLocation ? f.section : '',
-        row_label: cfg.showRackLocation ? f.row_label : '',
-        rack_number: cfg.showRackLocation ? f.rack_number : '',
-        availability_mode: f.availability_mode,
-        display_start_date: f.display_start_date,
-        display_end_date: f.display_end_date,
-      }
-    })
-  }
 
   const onAvailabilityModeChange = (mode: string) => {
     const nextMode = mode === 'date_range' ? 'date_range' : 'always'
@@ -217,6 +293,111 @@ export default function RentalAssetSheet({
     return null
   }, [assetId, lockedBookings, form.availability_mode, form.display_start_date, form.display_end_date])
 
+  // ── Media callbacks (persist when editing; stage locally when creating) ──
+  const handleUploadMedia = useCallback(async (file: File) => {
+    if (assetId) {
+      try {
+        const res = await rentalApi.uploadAssetMedia(assetId, file)
+        setSavedMedia(res.media)
+      } catch (e) {
+        toast.error(extractApiError(e, 'Upload media'))
+      }
+      return
+    }
+    setSavedMedia((prev) => {
+      const item = makePendingRentalMedia(
+        file,
+        prev.length,
+        !prev.some((m) => m.is_primary),
+      )
+      if (item.media_type !== 'image') item.is_primary = false
+      pendingFilesRef.current.set(item.id, file)
+      return [...prev, item]
+    })
+  }, [assetId])
+
+  const handleDeleteMedia = useCallback(async (mediaId: string) => {
+    if (assetId && !isPendingRentalMediaId(mediaId)) {
+      try {
+        const res = await rentalApi.deleteAssetMedia(assetId, mediaId)
+        setSavedMedia(res.media)
+      } catch (e) {
+        toast.error(extractApiError(e, 'Delete media'))
+      }
+      return
+    }
+    setSavedMedia((prev) => {
+      const target = prev.find((m) => m.id === mediaId)
+      if (target) revokeRentalMediaUrls([target])
+      pendingFilesRef.current.delete(mediaId)
+      const next = prev.filter((m) => m.id !== mediaId).map((m, i) => ({ ...m, position: i }))
+      if (target?.is_primary) {
+        const firstImage = next.find((m) => m.media_type === 'image')
+        if (firstImage) {
+          return next.map((m) => ({ ...m, is_primary: m.id === firstImage.id }))
+        }
+      }
+      return next
+    })
+  }, [assetId])
+
+  const handleSetPrimaryMedia = useCallback(async (mediaId: string) => {
+    if (assetId && !isPendingRentalMediaId(mediaId)) {
+      try {
+        const res = await rentalApi.setAssetMediaPrimary(assetId, mediaId)
+        setSavedMedia(res.media)
+      } catch (e) {
+        toast.error(extractApiError(e, 'Set primary media'))
+      }
+      return
+    }
+    setSavedMedia((prev) => prev.map((m) => ({ ...m, is_primary: m.id === mediaId })))
+  }, [assetId])
+
+  const handleReorderMedia = useCallback(async (mediaIds: string[]) => {
+    if (assetId && mediaIds.every((id) => !isPendingRentalMediaId(id))) {
+      try {
+        const res = await rentalApi.reorderAssetMedia(assetId, mediaIds)
+        setSavedMedia(res.media)
+      } catch (e) {
+        toast.error(extractApiError(e, 'Reorder media'))
+      }
+      return
+    }
+    setSavedMedia((prev) => {
+      const byId = new Map(prev.map((m) => [m.id, m]))
+      return mediaIds
+        .map((id, position) => {
+          const item = byId.get(id)
+          return item ? { ...item, position } : null
+        })
+        .filter((m): m is RentalMediaItem => Boolean(m))
+    })
+  }, [assetId])
+
+  const flushPendingMedia = useCallback(async (newAssetId: string) => {
+    const pending = pendingFilesRef.current
+    if (pending.size === 0) return
+    const ordered = [...savedMediaRef.current]
+      .sort((a, b) => a.position - b.position)
+      .filter((m) => isPendingRentalMediaId(m.id) && pending.has(m.id))
+    const primaryPendingId = ordered.find((m) => m.is_primary)?.id
+    for (const item of ordered) {
+      const file = pending.get(item.id)
+      if (!file) continue
+      try {
+        const res = await rentalApi.uploadAssetMedia(newAssetId, file)
+        if (item.id === primaryPendingId && res.item?.id && !res.item.is_primary) {
+          await rentalApi.setAssetMediaPrimary(newAssetId, res.item.id)
+        }
+      } catch (e) {
+        toast.error(extractApiError(e, 'Upload media'))
+      }
+    }
+    revokeRentalMediaUrls(ordered)
+    pending.clear()
+  }, [])
+
   const assetPayload = () => {
     const cfg = getCategoryConfig(form.category)
     const useRange = form.availability_mode === 'date_range'
@@ -224,13 +405,18 @@ export default function RentalAssetSheet({
     const end = useRange ? toDateInputValue(form.display_end_date) : ''
     return {
       name: form.name,
+      asset_code: (assetId || manualMasterId) ? ((form.asset_code || '').trim() || undefined) : undefined,
       category: form.category,
+      category_id: form.category_id || null,
       asset_type: form.asset_type,
+      short_description: (form.short_description || '').trim() || undefined,
       description: form.description || undefined,
+      product_id: form.product_id || null,
       capacity_max: Number(form.capacity_max) || 1,
       capacity_unit: form.capacity_unit,
       max_weight: cfg.showWeight && form.max_weight ? Number(form.max_weight) : null,
       weight_unit: form.weight_unit,
+      currency: (form.currency || 'INR').toUpperCase(),
       daily_rate: Number(form.daily_rate) || 0,
       weekly_rate: Number(form.weekly_rate) || 0,
       monthly_rate: Number(form.monthly_rate) || 0,
@@ -242,7 +428,9 @@ export default function RentalAssetSheet({
       section: form.section || undefined,
       row_label: form.row_label || undefined,
       rack_number: form.rack_number || undefined,
-      status: form.status,
+      status: form.operational_status || 'available',
+      is_visible: form.is_visible,
+      store_scope: form.store_scope || 'all',
       display_start_date: useRange ? (start || null) : null,
       display_end_date: useRange ? (end || null) : null,
       notes: form.notes || undefined,
@@ -250,7 +438,7 @@ export default function RentalAssetSheet({
       parent_asset_id: form.parent_asset_id || null,
       is_bookable: form.is_bookable,
       price_per_unit: Number(form.price_per_unit) || 0,
-      pricing_uom: form.pricing_uom.trim() || null,
+      pricing_uom: (form.pricing_uom || '').trim() || null,
       hourly_rate: Number(form.hourly_rate) || 0,
       per_minute_rate: Number(form.per_minute_rate) || 0,
       yearly_rate: Number(form.yearly_rate) || 0,
@@ -265,10 +453,12 @@ export default function RentalAssetSheet({
 
   const createAsset = useMutation({
     mutationFn: (body: Record<string, unknown>) => rentalApi.createAsset(body),
-    onSuccess: (data: RentalAsset) => {
-      toast.success('Rental asset created')
+    onSuccess: async (data: RentalAsset) => {
       setSavedUnitMode(data.unit_mode ?? 'none')
+      await flushPendingMedia(data.id)
+      setSavedMedia([])
       invalidate()
+      toast.success('Rental asset created')
       onSaved(data)
     },
     onError: (e) => toast.error(extractApiError(e, 'Create rental asset')),
@@ -318,11 +508,15 @@ export default function RentalAssetSheet({
         return
       }
     }
-    const body = assetPayload()
-    if (assetId) {
-      updateAsset.mutate({ id: assetId, body })
-    } else {
-      createAsset.mutate(body)
+    try {
+      const body = assetPayload()
+      if (assetId) {
+        updateAsset.mutate({ id: assetId, body })
+      } else {
+        createAsset.mutate(body)
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not prepare asset for save')
     }
   }
 
@@ -357,7 +551,7 @@ export default function RentalAssetSheet({
             toggle={() => toggleSection('basics')}
           >
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
+              <div>
                 <FieldLabel required>Asset Name</FieldLabel>
                 <Input
                   value={form.name}
@@ -366,14 +560,108 @@ export default function RentalAssetSheet({
                 />
               </div>
               <div>
-                <FieldLabel>Category</FieldLabel>
-                <Select value={form.category} onChange={onCategoryChange} options={RENTAL_CATEGORIES} />
+                <FieldLabel>Master ID</FieldLabel>
+                {assetId ? (
+                  <>
+                    <Input
+                      value={form.asset_code}
+                      readOnly
+                      title="Assigned master ID"
+                      className="cursor-default bg-muted/40 font-mono tracking-wide"
+                    />
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">Asset master ID</p>
+                  </>
+                ) : manualMasterId ? (
+                  <>
+                    <Input
+                      value={form.asset_code}
+                      onChange={(e) => set('asset_code', e.target.value.toUpperCase())}
+                      placeholder={`e.g. ${nextAssetCodePreview}`}
+                      className="font-mono tracking-wide"
+                      autoFocus
+                    />
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Manual ID ·{' '}
+                      <button
+                        type="button"
+                        className="font-medium text-primary hover:underline"
+                        onClick={() => {
+                          setManualMasterId(false)
+                          set('asset_code', '')
+                        }}
+                      >
+                        Use auto instead
+                      </button>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      value=""
+                      readOnly
+                      title="Unique master ID, assigned automatically on save"
+                      placeholder={`Auto · ${nextAssetCodePreview}`}
+                      className="cursor-default bg-muted/40 font-mono tracking-wide text-muted-foreground"
+                    />
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Auto-created on save ·{' '}
+                      <button
+                        type="button"
+                        className="font-medium text-primary hover:underline"
+                        onClick={() => setManualMasterId(true)}
+                      >
+                        Enter manually
+                      </button>
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* ── Category (merchandising tree) ── */}
+              {featureCategories && rentalCategoryTree.length > 0 && (
+                <div className="sm:col-span-2">
+                  <FieldLabel>Category</FieldLabel>
+                  <RentalCategoryPicker
+                    tree={rentalCategoryTree}
+                    categoryId={form.category_id}
+                    onChange={(id) => set('category_id', id)}
+                  />
+                  {form.category_id && (
+                    <button
+                      type="button"
+                      className="mt-1 text-xs text-muted-foreground hover:text-destructive"
+                      onClick={() => set('category_id', '')}
+                    >
+                      ✕ Clear category
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Type — pick a suggestion or type a custom value */}
+              <div className="sm:col-span-2">
+                <FieldLabel>Type</FieldLabel>
+                <RentalSuggestionCombobox
+                  value={form.asset_type}
+                  onChange={(v) => set('asset_type', v)}
+                  suggestions={ASSET_TYPE_SUGGESTIONS}
+                  placeholder="Type or select… e.g. Chair, Generator"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Choose from the list or type your own type name.
+                </p>
               </div>
               <div>
-                <FieldLabel>Asset Type</FieldLabel>
-                <Select value={form.asset_type} onChange={(v) => set('asset_type', v)} options={assetTypeOptions} />
+                <FieldLabel>Short Description</FieldLabel>
+                <Textarea
+                  rows={2}
+                  maxLength={500}
+                  value={form.short_description}
+                  onChange={(e) => set('short_description', e.target.value)}
+                  placeholder="Brief summary for listings (max 500 chars)"
+                />
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <FieldLabel>Description</FieldLabel>
                 <Textarea
                   rows={2}
@@ -382,6 +670,95 @@ export default function RentalAssetSheet({
                   placeholder={categoryConfig.labels.descriptionPlaceholder}
                 />
               </div>
+
+              {/* ── Link to existing product ── */}
+              <div className="sm:col-span-2">
+                <FieldLabel>
+                  <span className="flex items-center gap-1">
+                    <Link2 className="h-3.5 w-3.5" />
+                    Link to Product <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>
+                  </span>
+                </FieldLabel>
+
+                {form.product_id ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+                    <Link2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <span className="flex-1 truncate font-medium">
+                      {productOptions.find((p) => p.id === form.product_id)?.name
+                        || `Product linked (ID: ${form.product_id.slice(0, 8)}…)`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => set('product_id', '')}
+                      className="ml-auto text-muted-foreground hover:text-destructive"
+                      title="Unlink product"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div ref={productPickerRef} className="relative">
+                    <Input
+                      placeholder="Search products to link…"
+                      value={productSearch}
+                      onFocus={() => setProductPickerOpen(true)}
+                      onChange={(e) => {
+                        setProductSearch(e.target.value)
+                        setProductPickerOpen(true)
+                      }}
+                    />
+                    {productPickerOpen && (
+                      <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
+                        {productOptions.length === 0 ? (
+                          <p className="px-3 py-2 text-xs text-muted-foreground">No products found</p>
+                        ) : (
+                          productOptions.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                              onClick={() => {
+                                set('product_id', p.id)
+                                setProductPickerOpen(false)
+                                setProductSearch('')
+                              }}
+                            >
+                              <span className="flex-1 truncate font-medium">{p.name}</span>
+                              {p.sku && <span className="text-xs text-muted-foreground">{p.sku}</span>}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Associate this rental asset with a product in your catalog. This converts/links the product as a rentable item.
+                </p>
+              </div>
+
+              {/* ── Media gallery ── */}
+              {featureMediaGallery && <div className="sm:col-span-2">
+                <FieldLabel>
+                  <span className="flex items-center gap-1">
+                    <Image className="h-3.5 w-3.5" /> Photos &amp; Media
+                  </span>
+                </FieldLabel>
+                <CatalogMediaUpload
+                  media={savedMedia}
+                  pickerTitle="Rental asset media"
+                  onUpload={handleUploadMedia}
+                  onDelete={handleDeleteMedia}
+                  onSetPrimary={handleSetPrimaryMedia}
+                  onReorder={handleReorderMedia}
+                />
+                {!assetId && savedMedia.length > 0 && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Photos are kept until you save the asset, then uploaded automatically.
+                  </p>
+                )}
+              </div>}
+
             </div>
           </CollapsibleSection>
 
@@ -390,112 +767,23 @@ export default function RentalAssetSheet({
             icon={IndianRupee}
             subtitle={
               Number(form.price_per_unit) > 0
-                ? `₹${form.daily_rate}/day · ₹${form.price_per_unit}/${form.pricing_uom.trim() || form.capacity_unit || 'unit'}`
+                ? `${currencySymbol(form.currency)}${form.daily_rate}/day · ${currencySymbol(form.currency)}${form.price_per_unit}/${(form.pricing_uom || '').trim() || form.capacity_unit || 'unit'}`
                 : Number(form.daily_rate) > 0
-                  ? `₹${form.daily_rate}/day`
+                  ? `${currencySymbol(form.currency)}${form.daily_rate}/day`
                   : undefined
             }
             open={openSections.pricing}
             toggle={() => toggleSection('pricing')}
           >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <FieldLabel>Daily Rate (₹)</FieldLabel>
-                <Input type="number" value={form.daily_rate} onChange={(e) => set('daily_rate', e.target.value)} />
-              </div>
-              <div>
-                <FieldLabel>Weekly Rate (₹)</FieldLabel>
-                <Input type="number" value={form.weekly_rate} onChange={(e) => set('weekly_rate', e.target.value)} />
-              </div>
-              <div>
-                <FieldLabel>Monthly Rate (₹)</FieldLabel>
-                <Input type="number" value={form.monthly_rate} onChange={(e) => set('monthly_rate', e.target.value)} />
-              </div>
-              <div>
-                <FieldLabel>Security Deposit (₹)</FieldLabel>
-                <Input type="number" value={form.deposit_amount} onChange={(e) => set('deposit_amount', e.target.value)} />
-              </div>
-              {categoryConfig.showExtraQtyCharge && (
-                <div>
-                  <FieldLabel>Extra Qty Charge</FieldLabel>
-                  <Input type="number" value={form.extra_qty_charge} onChange={(e) => set('extra_qty_charge', e.target.value)} />
-                </div>
-              )}
-              {categoryConfig.showExtraWeightCharge && (
-                <div>
-                  <FieldLabel>Extra Weight Charge</FieldLabel>
-                  <Input type="number" value={form.extra_weight_charge} onChange={(e) => set('extra_weight_charge', e.target.value)} />
-                </div>
-              )}
-
-              {/* ── Extended time-plan rates ── */}
-              <div className="col-span-2 border-t border-border/60 pt-1">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                  More time plans (optional)
-                </p>
-              </div>
-
-              <div>
-                <FieldLabel>Hourly Rate (₹)</FieldLabel>
-                <Input
-                  type="number" min={0} step="0.01" placeholder="0"
-                  value={form.hourly_rate}
-                  onChange={(e) => set('hourly_rate', e.target.value)}
-                />
-              </div>
-              <div>
-                <FieldLabel>Per-Minute Rate (₹)</FieldLabel>
-                <Input
-                  type="number" min={0} step="0.01" placeholder="0"
-                  value={form.per_minute_rate}
-                  onChange={(e) => set('per_minute_rate', e.target.value)}
-                />
-              </div>
-              <div>
-                <FieldLabel>Yearly Rate (₹)</FieldLabel>
-                <Input
-                  type="number" min={0} step="0.01" placeholder="0"
-                  value={form.yearly_rate}
-                  onChange={(e) => set('yearly_rate', e.target.value)}
-                />
-              </div>
-
-              {/* ── Per-unit pricing ── */}
-              <div className="col-span-2 border-t border-border/60 pt-1">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                  Per-unit pricing
-                </p>
-              </div>
-
-              <div>
-                <FieldLabel>
-                  Price per {form.pricing_uom.trim() || form.capacity_unit || 'unit'} (₹)
-                </FieldLabel>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  placeholder="0"
-                  value={form.price_per_unit}
-                  onChange={(e) => set('price_per_unit', e.target.value)}
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Charged per {form.pricing_uom.trim() || form.capacity_unit || 'unit'} per day. Leave 0 to use only the flat daily rate.
-                </p>
-              </div>
-
-              <div>
-                <FieldLabel>Pricing UOM</FieldLabel>
-                <Input
-                  placeholder={form.capacity_unit || 'e.g. packet, kg, unit'}
-                  value={form.pricing_uom}
-                  onChange={(e) => set('pricing_uom', e.target.value)}
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Unit label for per-unit price. Leave blank to use the asset's capacity unit ({form.capacity_unit || '—'}).
-                </p>
-              </div>
-            </div>
+            <RentalAssetPricingFields
+              form={form}
+              set={set}
+              compact
+              syncKey={assetId || 'new'}
+              featureCapacityTracking={featureCapacityTracking}
+              featureExtendedRates={featureExtendedRates}
+              featurePerUnitPricing={featurePerUnitPricing}
+            />
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -610,8 +898,41 @@ export default function RentalAssetSheet({
               )}
               <div>
                 <FieldLabel>Status</FieldLabel>
-                <Select value={form.status} onChange={(v) => set('status', v)} options={ASSET_STATUSES} />
+                <Select
+                  value={form.operational_status}
+                  onChange={(v) => setForm((f) => ({ ...f, operational_status: v }))}
+                  options={ASSET_STATUSES}
+                />
               </div>
+
+              {/* ── Storefront visibility ── */}
+              <div className="sm:col-span-2">
+                <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
+                  <input
+                    id="is_visible"
+                    type="checkbox"
+                    checked={form.is_visible}
+                    onChange={(e) => setForm((f) => ({ ...f, is_visible: e.target.checked }))}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <label htmlFor="is_visible" className="cursor-pointer text-sm">
+                    Visible on storefront
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <FieldLabel>Store Scope</FieldLabel>
+                <Select
+                  value={form.store_scope}
+                  onChange={(v) => set('store_scope', v)}
+                  options={[
+                    { value: 'all', label: 'All business units' },
+                    { value: 'selected', label: 'Selected units only' },
+                  ]}
+                />
+              </div>
+
               <div className="sm:col-span-2">
                 <FieldLabel>Internal Notes</FieldLabel>
                 <Textarea
@@ -624,7 +945,7 @@ export default function RentalAssetSheet({
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection
+          {featureUnitTracking && <CollapsibleSection
             title="Sub-assets & Unit Tracking"
             icon={Layers}
             subtitle={form.unit_mode === 'none' ? 'Off' : form.unit_mode === 'hierarchy' ? 'Hierarchy' : 'Serialized units'}
@@ -648,20 +969,22 @@ export default function RentalAssetSheet({
                 />
               </div>
 
-              {/* Is this a bookable asset or just a container? */}
               {form.unit_mode !== 'none' && (
-                <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
+                <label className="flex cursor-pointer items-start gap-2.5 text-sm select-none">
                   <input
                     id="is_bookable"
                     type="checkbox"
                     checked={form.is_bookable}
                     onChange={(e) => setForm((f) => ({ ...f, is_bookable: e.target.checked }))}
-                    className="h-4 w-4 rounded border-border"
+                    className="mt-0.5 h-4 w-4 rounded border-border"
                   />
-                  <label htmlFor="is_bookable" className="cursor-pointer text-sm">
-                    This asset is directly bookable (uncheck for container-only assets like a fleet group)
-                  </label>
-                </div>
+                  <span>
+                    <span className="font-medium">Directly bookable</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Uncheck for container-only assets (e.g. a fleet group that is not rented as a whole).
+                    </span>
+                  </span>
+                </label>
               )}
 
               {/* Hierarchy: parent picker */}
@@ -731,7 +1054,7 @@ export default function RentalAssetSheet({
                 )
               )}
             </div>
-          </CollapsibleSection>
+          </CollapsibleSection>}
         </div>
 
         <SheetFooter className="border-t border-border px-5 py-3">

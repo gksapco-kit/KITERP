@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useCategoryTree, useCreateCategory, useProductMerchandising, useSyncProductMerchandising, useBundles, usePriceRules, useCreatePriceRule, useUpdatePriceRule, useDeletePriceRule, useStores, vendorKeys } from '@/hooks/useVendor'
+import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useCategoryTree, useCreateCategory, useProductMerchandising, useSyncProductMerchandising, useBundles, usePriceRules, useCreatePriceRule, useUpdatePriceRule, useDeletePriceRule, useStores, useDivisions, vendorKeys } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { mediaUrl, cn } from '@/lib/utils'
 import type { Product, ProductPriceRule, PriceRuleType } from '@/types'
@@ -186,6 +186,7 @@ const schema = z.object({
   category: optStr,
   subcategory: optStr,
   tags: z.string().optional().or(z.literal('')),
+  division_id: optStr,
   // Unit of Measure
   uom: z.string().default('piece'),
   uom_quantity: optNum,
@@ -1088,6 +1089,8 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
   const [deletingVariantId, setDeletingVariantId] = useState<string | null>(null)
   const { data: storesData } = useStores()
   const businessUnits = storesData?.stores ?? []
+  const { data: divisionsData } = useDivisions()
+  const divisions = (divisionsData?.divisions ?? []).filter((d: any) => d.is_active !== false)
   const showTab = (key: string) => activeViewTab === key
 
   const viewSections: FormSectionDef[] = useMemo(() => [
@@ -1209,6 +1212,10 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
             <DisplayField label="Category" value={product.category} />
             <DisplayField label="Subcategory" value={product.subcategory} />
             <DisplayField label="Unit of Measure" value={uomLabel} />
+            {(product as any).division_id && (() => {
+              const div = divisions.find((d) => d.id === (product as any).division_id)
+              return <DisplayField label="Sales Division" value={div ? `${div.name} (${div.code})` : (product as any).division_id} />
+            })()}
           </div>
           {product.short_description && (
             <DisplayField label="Short Description" value={product.short_description} />
@@ -2526,6 +2533,8 @@ export default function ProductForm() {
   const deleteProduct = useDeleteProduct()
   const { data: categoryData } = useCategoryTree()
   const createCategory = useCreateCategory()
+  const { data: divisionsData } = useDivisions()
+  const divisions = (divisionsData?.divisions ?? []).filter((d) => d.is_active !== false)
   const { data: allProductsData } = useProducts({ size: 500 })
   const allProducts = (allProductsData?.items || []) as Array<{ id: string; name: string; category?: string; sku?: string }>
   const productCategories = useMemo(
@@ -2979,6 +2988,7 @@ export default function ProductForm() {
       brand: product.brand || '', product_type: product.product_type || 'physical',
       category: product.category || '', subcategory: product.subcategory || '',
       tags: (product.tags || []).join(', '),
+      division_id: (product as any).division_id || '',
       uom: product.uom || 'piece',
       uom_quantity: product.uom_quantity ?? undefined,
       price: product.price, compare_at_price: product.compare_at_price ?? undefined,
@@ -4051,6 +4061,25 @@ export default function ProductForm() {
               <FormField label="Tags (comma separated)">
                 <Input className="w-full min-w-0" {...register('tags')} placeholder="tag1, tag2, tag3" />
               </FormField>
+              {divisions.length > 0 && (
+                <FormField label="Sales Division">
+                  <Controller
+                    name="division_id"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={String(field.value ?? '')}
+                        onChange={field.onChange}
+                        options={[
+                          { value: '', label: '— None —' },
+                          ...divisions.map((d) => ({ value: d.id, label: d.name ? `${d.name} (${d.code})` : d.code })),
+                        ]}
+                        className={cn(selectCls, 'h-8 min-h-8 w-full min-w-0 sm:h-9')}
+                      />
+                    )}
+                  />
+                </FormField>
+              )}
             </div>
             {showCreateCategory && (
               <div className="flex flex-col gap-2 rounded-lg border border-dashed border-blue-200 bg-blue-50/70 p-3 sm:flex-row sm:items-center">

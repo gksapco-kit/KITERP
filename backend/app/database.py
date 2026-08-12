@@ -1972,6 +1972,14 @@ async def ensure_rental_schema() -> None:
         """,
         "CREATE INDEX IF NOT EXISTS ix_rental_return_booking_id ON rental_return(booking_id)",
         "CREATE INDEX IF NOT EXISTS ix_rental_return_vendor_id ON rental_return(vendor_id)",
+        # rent009: media gallery + merchandising category FK
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS media JSONB DEFAULT '[]'::jsonb",
+        "ALTER TABLE rental_asset ALTER COLUMN image_url TYPE TEXT USING image_url::text",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES vendor_category(id) ON DELETE SET NULL",
+        "CREATE INDEX IF NOT EXISTS ix_rental_asset_category_id ON rental_asset(vendor_id, category_id)",
+        # rent010 / rent011
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS short_description VARCHAR(500)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'INR'",
     ]
     async with engine.begin() as conn:
         for s in stmts:

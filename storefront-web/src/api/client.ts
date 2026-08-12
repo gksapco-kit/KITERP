@@ -149,18 +149,19 @@ export function setStorefrontBuContext(storeId: string | null, branch: string | 
           accessToken: nextAccess,
           isAuthenticated: true,
         })
-      } else {
-        useAuthStore.getState().logout()
       }
+      // Do NOT logout here — a JSON parse failure must not wipe a live session.
     }
   } else if (nextAccess) {
     useAuthStore.setState({
       accessToken: nextAccess,
       isAuthenticated: true,
     })
-  } else {
-    useAuthStore.getState().logout()
   }
+  // Do NOT call logout() when the new scope has no bag yet; the first
+  // authenticated API call will either succeed (session is fine) or return 401
+  // (interceptor will then token-refresh or redirect to login). Proactively
+  // logging out here is what creates the "redirect to home" loop.
 }
 
 export const apiClient = axios.create({ baseURL: API_URL, headers: { 'Content-Type': 'application/json' }, timeout: 30_000 })
@@ -239,7 +240,29 @@ function storefrontPathRequiresLogin(pathname: string): boolean {
   return /^\/account(\/|$)/.test(tail) || tail === '/checkout'
 }
 
+/**
+ * Wipe every scoped customer token key from localStorage so a forced logout
+ * cannot leave the app in a half-authenticated state.  Without this, a stale
+ * `customer_access_token:<scope>` key survives a zustand `logout()` and the
+ * next setStorefrontBuContext call re-reads it, making the app appear signed-in.
+ */
+function clearAllScopedCustomerKeys() {
+  try {
+    const keys: string[] = []
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i)
+      if (k && (k.startsWith('customer_access_token:') || k.startsWith('customer_refresh_token:') || k.startsWith('customer-auth-storage:'))) {
+        keys.push(k)
+      }
+    }
+    keys.forEach((k) => safeLocalRemove(k))
+  } catch {
+    // Storage blocked — in-memory store will be wiped by logout() below.
+  }
+}
+
 function clearStaleCustomerAuth() {
+  clearAllScopedCustomerKeys()
   useAuthStore.getState().logout()
 }
 
@@ -252,7 +275,14 @@ function clearAuthAndRedirect() {
   }
   const slug = getVendorSlug()
   const search = window.location.search
-  window.location.href = slug ? `/store/${slug}/login${search}` : '/'
+  const returnTo = `${pathname}${search}`
+  if (!slug) {
+    window.location.href = '/'
+    return
+  }
+  // Preserve where the shopper was so login can send them back (not home).
+  const fromQs = `from=${encodeURIComponent(returnTo)}`
+  window.location.href = `/store/${slug}/login?${fromQs}`
 }
 
 apiClient.interceptors.response.use(

@@ -87,7 +87,27 @@ async def list_my_rental_bookings(
     vendor_id: UUID = Depends(get_store_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
-    return await RentalService(db).list_bookings(vendor_id, customer_id=customer.id)
+    """Customer's rental bookings for this storefront.
+
+    Prefer customer_id match; also include vendor-desk bookings that were created
+    with the same email but no linked customer_id so My Rentals is not empty.
+    """
+    svc = RentalService(db)
+    by_id = await svc.list_bookings(vendor_id, customer_id=customer.id)
+    email = (customer.email or "").strip()
+    if not email:
+        return by_id
+    orphans = await svc.list_bookings(
+        vendor_id,
+        customer_email=email,
+        unlinked_email_only=True,
+    )
+    seen = {b["id"] for b in by_id}
+    for b in orphans:
+        if b["id"] not in seen:
+            by_id.append(b)
+            seen.add(b["id"])
+    return by_id
 
 
 @router.get("/my-bookings/{booking_id}")

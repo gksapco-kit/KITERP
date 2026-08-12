@@ -1071,6 +1071,180 @@ async def reorder_service_media(
     return JSONResponse(content={"media": reordered})
 
 
+# ── Rental Asset Media ──────────────────────────────────────────────────────
+
+@router.post("/rentals/{asset_id}/media")
+async def upload_rental_asset_media(
+    asset_id: UUID,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload media (image / video / 3D model) for a rental asset."""
+    from app.models.rental import RentalAsset
+    from sqlalchemy.orm.attributes import flag_modified
+
+    vendor_id = await _get_vendor_id(current_user, db)
+    result = await db.execute(
+        select(RentalAsset).where(RentalAsset.id == asset_id, RentalAsset.vendor_id == vendor_id)
+    )
+    asset = result.scalar_one_or_none()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Rental asset not found")
+
+    media_type = detect_media_type(file)
+    url = await _save_file(file, "rental-assets")
+
+    current_media = list(asset.media or [])
+    is_primary = len(current_media) == 0 and media_type == "image"
+    media_item = {
+        "id": uuid.uuid4().hex,
+        "url": url,
+        "media_type": media_type,
+        "is_primary": is_primary,
+        "alt_text": asset.name,
+        "position": len(current_media),
+    }
+    current_media.append(media_item)
+    asset.media = current_media
+
+    if media_type == "image" and (is_primary or not (asset.image_url or "").strip()):
+        asset.image_url = url
+
+    flag_modified(asset, "media")
+    await db.commit()
+
+    return JSONResponse(content={"media": current_media, "item": media_item})
+
+
+@router.delete("/rentals/{asset_id}/media/{media_id}")
+async def delete_rental_asset_media(
+    asset_id: UUID,
+    media_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a media item from a rental asset."""
+    from app.models.rental import RentalAsset
+    from sqlalchemy.orm.attributes import flag_modified
+
+    vendor_id = await _get_vendor_id(current_user, db)
+    result = await db.execute(
+        select(RentalAsset).where(RentalAsset.id == asset_id, RentalAsset.vendor_id == vendor_id)
+    )
+    asset = result.scalar_one_or_none()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Rental asset not found")
+
+    current_media = list(asset.media or [])
+    target = next((m for m in current_media if m.get("id") == media_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Media item not found")
+
+    await delete_stored_file(target.get("url", ""))
+    current_media = [m for m in current_media if m.get("id") != media_id]
+
+    # Reassign primary if the deleted item was primary
+    if target.get("is_primary") and current_media:
+        images = [m for m in current_media if m.get("media_type") == "image"]
+        if images:
+            images[0]["is_primary"] = True
+            asset.image_url = images[0]["url"]
+        else:
+            asset.image_url = None
+    elif not current_media:
+        asset.image_url = None
+
+    for pos, item in enumerate(current_media):
+        item["position"] = pos
+
+    asset.media = current_media
+    flag_modified(asset, "media")
+    await db.commit()
+
+    return JSONResponse(content={"media": current_media})
+
+
+@router.put("/rentals/{asset_id}/media/{media_id}/primary")
+async def set_primary_rental_asset_media(
+    asset_id: UUID,
+    media_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set a media item as the primary rental asset image."""
+    from app.models.rental import RentalAsset
+    from sqlalchemy.orm.attributes import flag_modified
+
+    vendor_id = await _get_vendor_id(current_user, db)
+    result = await db.execute(
+        select(RentalAsset).where(RentalAsset.id == asset_id, RentalAsset.vendor_id == vendor_id)
+    )
+    asset = result.scalar_one_or_none()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Rental asset not found")
+
+    current_media = list(asset.media or [])
+    target = next((m for m in current_media if m.get("id") == media_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Media item not found")
+    if target.get("media_type") != "image":
+        raise HTTPException(status_code=400, detail="Only images can be set as primary")
+
+    for item in current_media:
+        item["is_primary"] = item.get("id") == media_id
+    asset.image_url = target["url"]
+
+    asset.media = current_media
+    flag_modified(asset, "media")
+    await db.commit()
+
+    return JSONResponse(content={"media": current_media})
+
+
+@router.put("/rentals/{asset_id}/media/reorder")
+async def reorder_rental_asset_media(
+    asset_id: UUID,
+    body: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reorder rental asset media by id list (display order)."""
+    from app.models.rental import RentalAsset
+    from sqlalchemy.orm.attributes import flag_modified
+
+    vendor_id = await _get_vendor_id(current_user, db)
+    result = await db.execute(
+        select(RentalAsset).where(RentalAsset.id == asset_id, RentalAsset.vendor_id == vendor_id)
+    )
+    asset = result.scalar_one_or_none()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Rental asset not found")
+
+    media_ids = body.get("media_ids") or []
+    if not media_ids:
+        raise HTTPException(status_code=400, detail="media_ids required")
+
+    current_media = list(asset.media or [])
+    id_to_item = {item.get("id"): item for item in current_media if item.get("id")}
+    reordered = []
+    for pos, mid in enumerate(media_ids):
+        item = id_to_item.get(mid)
+        if item:
+            item["position"] = pos
+            reordered.append(item)
+    for item in current_media:
+        if item.get("id") not in media_ids:
+            item["position"] = len(reordered)
+            reordered.append(item)
+
+    asset.media = reordered
+    flag_modified(asset, "media")
+    await db.commit()
+
+    return JSONResponse(content={"media": reordered})
+
+
 # -- HR Document Upload --
 
 

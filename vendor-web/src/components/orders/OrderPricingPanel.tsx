@@ -213,7 +213,7 @@ export function OrderPricingPanel({ order, isTerminal }: Props) {
   })
 
   // Lines that had a price rule applied
-  const pricedLines = lines.filter((l) => l.price_rule_id || (l.list_price && l.list_price !== l.unit_price))
+  const pricedLines = lines.filter((l) => l.price_rule_id || (l.list_price && l.list_price !== l.net_price))
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -259,17 +259,17 @@ export function OrderPricingPanel({ order, isTerminal }: Props) {
               <div className="space-y-1 pl-1">
                 {pricedLines.map((l) => (
                   <div key={l.id} className="flex items-center gap-2 text-[11px]">
-                    <span className="flex-1 truncate text-muted-foreground">{l.product_name || `Line ${l.line_no}`}</span>
-                    {l.list_price && l.list_price !== l.unit_price ? (
+                    <span className="flex-1 truncate text-muted-foreground">{l.item_name || `Line ${l.line_no}`}</span>
+                    {l.list_price && l.list_price !== l.net_price ? (
                       <>
                         <span className="line-through text-muted-foreground">{formatCurrency(l.list_price)}</span>
-                        <span className="font-medium">{formatCurrency(l.unit_price)}</span>
+                        <span className="font-medium">{formatCurrency(l.net_price)}</span>
                         <span className="text-emerald-600 dark:text-emerald-400">
-                          −{((1 - l.unit_price / l.list_price) * 100).toFixed(1)}%
+                          −{((1 - l.net_price / l.list_price) * 100).toFixed(1)}%
                         </span>
                       </>
                     ) : (
-                      <span>{formatCurrency(l.unit_price)}</span>
+                      <span>{formatCurrency(l.net_price)}</span>
                     )}
                     {l.price_rule_type && (
                       <Badge className="text-[9px] px-1 py-0 bg-muted text-muted-foreground">{l.price_rule_type}</Badge>

@@ -181,6 +181,8 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
                   triggerClassName="h-8 text-sm"
                 />
                 <SalesAreaSelect
+                  businessUnitId={storeId || null}
+                  branchId={branchId || null}
                   value={salesAreaId}
                   onChange={setSalesAreaId}
                   allowAll={false}

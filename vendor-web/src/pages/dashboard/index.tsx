@@ -37,7 +37,12 @@ export default function Dashboard() {
   const { data: hrLeaveData } = useHRLeaveRequests({ status: 'pending', limit: 1 })
   const { data: hrToday } = useHRMyToday()
 
-  const { data: dashboard, isLoading: dashLoading } = useQuery({ queryKey: ['reports', 'dashboard', storeId], queryFn: () => vendorApi.getDashboardStats(storeId) })
+  const { data: dashboard, isLoading: dashLoading } = useQuery({
+    queryKey: ['reports', 'dashboard', storeId],
+    queryFn: () => vendorApi.getDashboardStats(storeId),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
   const { data: revenue } = useQuery({ queryKey: ['reports', 'revenue', storeId], queryFn: () => vendorApi.getRevenueSummary(storeId) })
   const { data: topProducts } = useQuery({ queryKey: ['reports', 'top-products', storeId], queryFn: () => vendorApi.getTopProducts(10, storeId) })
   const { data: topCustomers } = useQuery({ queryKey: ['reports', 'top-customers', storeId], queryFn: () => vendorApi.getTopCustomers(10, storeId) })
@@ -176,11 +181,10 @@ export default function Dashboard() {
     const priorOrd  = sum(prior, 'orders')
     const recentOrd = sum(recent, 'orders')
 
-    // Cost proxy: unpaid_invoices as "outstanding costs"; expense % from orders avg
+    // unpaid_invoices = outstanding AR from sent/partially-paid/overdue invoices
     const totalRev    = dashboard?.total_revenue ?? 0
     const totalOrders = dashboard?.total_orders  ?? 0
     const unpaid      = dashboard?.unpaid_invoices ?? 0
-    const avgOrder    = totalOrders > 0 ? totalRev / totalOrders : 0
 
     // Sparkline path generator (w=120, h=40)
     const spark = (values: number[]): string => {
@@ -207,22 +211,24 @@ export default function Dashboard() {
 
     return [
       {
-        label:     'Earning',
+        label:     'Revenue',
         icon:      ShoppingCart,
         value:     formatCurrency(totalRev),
         pct:       revPct,
         spark:     spark(revValues),
         sparkColor:'#64C3A0',
         link:      '/orders',
+        tooltip:   'Total revenue from paid orders',
       },
       {
-        label:     'Customer',
+        label:     'Customers',
         icon:      Users,
         value:     String(dashboard?.total_customers ?? 0),
         pct:       custPct,
         spark:     spark(ordValues),
         sparkColor:'#3B82F6',
         link:      '/customers',
+        tooltip:   'Customer change estimated from order trend',
       },
       {
         label:     'Orders',
@@ -232,16 +238,17 @@ export default function Dashboard() {
         spark:     spark(ordValues),
         sparkColor:'#F59E0B',
         link:      '/orders',
+        tooltip:   'All orders across all statuses',
       },
       {
-        label:     'Expense / Cost',
+        label:     'Outstanding AR',
         icon:      Wallet,
         value:     formatCurrency(unpaid),
-        pct:       unpaid > 0 ? -Math.abs(pct(recentRev * 0.35, priorRev * 0.35)) : 0,
-        spark:     spark(revValues.map(v => v * 0.35)),
+        pct:       0,
+        spark:     '',
         sparkColor:'#EF4444',
         link:      '/invoices',
-        tooltip:   'Outstanding unpaid invoices',
+        tooltip:   'Outstanding invoice balances still due (not order revenue)',
       },
     ]
   }, [salesByDay, dashboard])
@@ -265,12 +272,16 @@ export default function Dashboard() {
   const stats = [
     { label: 'Total Orders',   value: dashboard?.total_orders ?? 0,                   icon: ShoppingCart, chipBg: 'bg-info/10',              chipText: 'text-info',              link: '/orders' },
     { label: 'Today Orders',   value: dashboard?.today_orders ?? 0,                   icon: Receipt,      chipBg: 'bg-primary/15',         chipText: 'text-primary',           link: '/orders' },
-    { label: 'Total Revenue',  value: formatCurrency(dashboard?.total_revenue ?? 0),  icon: IndianRupee,  chipBg: 'bg-success/10',           chipText: 'text-success',           link: '/orders' },
-    { label: 'Today Revenue',  value: formatCurrency(dashboard?.today_revenue ?? 0),  icon: TrendingUp,   chipBg: 'bg-warning/15',           chipText: 'text-warning', link: '/orders' },
-    { label: 'POS Today',      value: formatCurrency(dashboard?.pos_today ?? 0),      icon: BarChart3,    chipBg: 'bg-sidebar-foreground/10', chipText: 'text-sidebar-foreground', link: '/pos' },
+    { label: 'Total Revenue',  value: formatCurrency(dashboard?.total_revenue ?? 0),  icon: IndianRupee,  chipBg: 'bg-success/10',           chipText: 'text-success',           link: '/orders',  tooltip: 'Revenue from paid orders (delivered / confirmed / shipped) — not from unpaid invoices' },
+    { label: 'Today Revenue',  value: formatCurrency(dashboard?.today_revenue ?? 0),  icon: TrendingUp,   chipBg: 'bg-warning/15',           chipText: 'text-warning',           link: '/orders',  tooltip: 'Paid-order revenue created today' },
+    { label: 'This Month',     value: formatCurrency(dashboard?.month_revenue ?? 0),  icon: IndianRupee,  chipBg: 'bg-success/15',           chipText: 'text-success',           link: '/orders',  tooltip: 'Revenue from paid orders this calendar month' },
+    { label: 'POS Today',      value: formatCurrency(dashboard?.pos_today ?? 0),      icon: BarChart3,    chipBg: 'bg-sidebar-foreground/10', chipText: 'text-sidebar-foreground', link: '/pos',    tooltip: 'Walk-in POS transactions today (includes customer POS; may overlap with Today Revenue for customer-linked sales)' },
     { label: 'Customers',      value: dashboard?.total_customers ?? 0,                icon: Users,        chipBg: 'bg-accent',               chipText: 'text-accent-foreground', link: '/customers' },
     { label: 'Active Products',value: dashboard?.total_products ?? 0,                 icon: Package,      chipBg: 'bg-primary/10',           chipText: 'text-primary',           link: '/products' },
-    { label: 'Unpaid Invoices',value: formatCurrency(dashboard?.unpaid_invoices ?? 0),icon: FileText,     chipBg: 'bg-destructive/10',       chipText: 'text-destructive',       link: '/invoices' },
+    { label: 'Invoiced Today', value: formatCurrency(dashboard?.invoiced_today ?? 0), icon: FileText,     chipBg: 'bg-info/15',              chipText: 'text-info',              link: '/invoices', tooltip: 'Invoice totals issued today (excludes drafts & estimates)' },
+    { label: 'Invoiced (MTD)', value: formatCurrency(dashboard?.invoiced_mtd ?? 0),   icon: FileText,     chipBg: 'bg-primary/10',           chipText: 'text-primary',           link: '/invoices', tooltip: 'Total billed on invoices created this month (excludes drafts & estimates)' },
+    { label: 'Collected (MTD)',value: formatCurrency(dashboard?.collected_mtd ?? 0),  icon: Wallet,       chipBg: 'bg-success/10',           chipText: 'text-success',           link: '/invoices', tooltip: 'Amount paid against invoices created this month' },
+    { label: 'Unpaid Invoices',value: formatCurrency(dashboard?.unpaid_invoices ?? 0),icon: FileText,     chipBg: 'bg-destructive/10',       chipText: 'text-destructive',       link: '/invoices', tooltip: 'Outstanding invoice balances due (excludes drafts, estimates, and paid)' },
   ]
 
   return (
@@ -353,11 +364,12 @@ export default function Dashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4">
         {stats.map(s => (
           <div key={s.label}
             className="min-w-0 cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 transition-shadow hover:shadow-md group sm:p-4"
             onClick={() => navigate(s.link)}
+            title={s.tooltip}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
@@ -480,8 +492,8 @@ export default function Dashboard() {
             <Receipt className="h-5 w-5 text-success" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-2xl font-bold text-foreground">{dashboard?.total_orders ?? 0}</p>
-            <p className="text-xs text-muted-foreground">Invoices</p>
+            <p className="text-2xl font-bold text-foreground">{formatCurrency(dashboard?.unpaid_invoices ?? 0)}</p>
+            <p className="text-xs text-muted-foreground">Outstanding AR</p>
           </div>
           <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-success" />
         </div>

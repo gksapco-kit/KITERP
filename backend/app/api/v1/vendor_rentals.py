@@ -24,11 +24,18 @@ async def rental_dashboard(
 @router.get("/assets")
 async def list_rental_assets(
     status: str | None = Query(None),
+    category: str | None = Query(None, description="Filter by asset kind (milk_dairy, furniture, …)"),
+    category_id: str | None = Query(None, description="Filter by vendor category UUID"),
+    q: str | None = Query(None, description="Full-text search on name, code, location"),
+    is_active: bool | None = Query(None),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_active_user),
 ):
-    return await RentalService(db).list_assets(vendor_id, status=status)
+    return await RentalService(db).list_assets(
+        vendor_id, status=status, category=category, category_id=category_id,
+        q=q, is_active=is_active,
+    )
 
 
 @router.get("/assets/{asset_id}")
@@ -60,6 +67,17 @@ async def update_rental_asset(
     _user: User = Depends(get_current_active_user),
 ):
     return await RentalService(db).update_asset(vendor_id, asset_id, body)
+
+
+@router.delete("/assets/{asset_id}", status_code=204, dependencies=[Depends(require_permission("rentals.manage"))])
+async def delete_rental_asset(
+    asset_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Delete a rental asset. Blocked if there are active bookings."""
+    await RentalService(db).delete_asset(vendor_id, asset_id)
 
 
 @router.get("/assets/{asset_id}/calendar")

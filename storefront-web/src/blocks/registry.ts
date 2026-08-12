@@ -8,7 +8,7 @@
  */
 
 export type LiveResource =
-  | 'products' | 'services' | 'testimonials' | 'team' | 'kpis'
+  | 'products' | 'services' | 'rentals' | 'testimonials' | 'team' | 'kpis'
   | 'profile' | 'pages' | 'categories' | 'customers' | 'orders'
   | 'bookings' | 'media' | 'stores' | 'blog' | 'plans' | 'properties' | 'courses' | 'fitness_classes' | 'vehicles' | 'events' | 'recurring_plans' | 'booking_wizard_steps' | 'booking_resources'
 

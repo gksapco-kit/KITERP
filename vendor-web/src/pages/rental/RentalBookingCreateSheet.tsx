@@ -56,13 +56,13 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
 
   const bookableAssetOptions = useMemo(() => {
     return assets
-      .filter((a) => !['maintenance', 'unavailable', 'retired'].includes(a.status || ''))
+      .filter((a) => a.is_bookable !== false && !['maintenance', 'unavailable', 'retired'].includes(a.status || ''))
       .map((a) => ({ value: a.id, label: `${a.name}${a.location ? ` · ${a.location}` : ''}` }))
   }, [assets])
 
   useEffect(() => {
     if (!open) return
-    const first = assets.find((a) => !['maintenance', 'unavailable', 'retired'].includes(a.status || ''))
+    const first = assets.find((a) => a.is_bookable !== false && !['maintenance', 'unavailable', 'retired'].includes(a.status || ''))
     const defaultPlan = (() => {
       if (!first) return 'daily'
       if (Number(first.per_minute_rate) > 0) return 'per_minute'

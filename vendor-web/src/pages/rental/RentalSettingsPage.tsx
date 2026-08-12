@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useUpdateVendor } from '@/hooks/useVendor'
 import { toast } from 'sonner'
-import { RENTAL_CATEGORIES } from './rentalConstants'
+import { RENTAL_CATEGORIES, DEFAULT_ASSET_CODE_PREFIX } from './rentalConstants'
 
 type RentalSettings = {
   default_category: string
@@ -16,6 +16,15 @@ type RentalSettings = {
   storefront_show_rates: boolean
   storefront_enabled: boolean
   booking_number_prefix: string
+  /** Generic master ID prefix for assets (e.g. AST-001). */
+  asset_code_prefix: string
+  // Feature toggles — control which sections show in the asset form
+  feature_categories: boolean
+  feature_media_gallery: boolean
+  feature_capacity_tracking: boolean
+  feature_unit_tracking: boolean
+  feature_extended_rates: boolean
+  feature_per_unit_pricing: boolean
 }
 
 const PRICING_PLAN_OPTIONS = [
@@ -35,6 +44,13 @@ function readRentalSettings(settings: Record<string, unknown> | undefined): Rent
     storefront_show_rates: r.storefront_show_rates !== false,
     storefront_enabled: r.storefront_enabled !== false,
     booking_number_prefix: (r.booking_number_prefix as string) || 'RNT',
+    asset_code_prefix: (r.asset_code_prefix as string) || DEFAULT_ASSET_CODE_PREFIX,
+    feature_categories: r.feature_categories !== false,
+    feature_media_gallery: r.feature_media_gallery !== false,
+    feature_capacity_tracking: r.feature_capacity_tracking !== false,
+    feature_unit_tracking: r.feature_unit_tracking !== false,
+    feature_extended_rates: r.feature_extended_rates !== false,
+    feature_per_unit_pricing: r.feature_per_unit_pricing !== false,
   }
 }
 
@@ -158,6 +174,20 @@ export default function RentalSettingsPage() {
             />
             <p className="text-xs text-muted-foreground">Example: {form.booking_number_prefix}-0001</p>
           </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground">Asset Master ID Prefix</label>
+            <Input
+              value={form.asset_code_prefix}
+              onChange={(e) => set('asset_code_prefix', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+              placeholder={DEFAULT_ASSET_CODE_PREFIX}
+              maxLength={6}
+              className="max-w-[120px] font-mono tracking-wide"
+            />
+            <p className="text-xs text-muted-foreground">
+              Generic asset code — Example: {form.asset_code_prefix || DEFAULT_ASSET_CODE_PREFIX}-001
+            </p>
+          </div>
         </section>
 
         {/* Booking behaviour */}
@@ -197,6 +227,50 @@ export default function RentalSettingsPage() {
             hint="Display daily / weekly / monthly rates on the public asset cards."
             checked={form.storefront_show_rates}
             onChange={(v) => set('storefront_show_rates', v)}
+          />
+        </section>
+
+        {/* Feature toggles */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Asset Form Features</h2>
+          <p className="text-xs text-muted-foreground">
+            Enable or disable sections of the rental asset form to keep it focused for your use case.
+          </p>
+          <Toggle
+            label="Merchandising categories"
+            hint="Show a category picker in the asset form, letting you assign assets to your category tree for storefront browsing."
+            checked={form.feature_categories}
+            onChange={(v) => set('feature_categories', v)}
+          />
+          <Toggle
+            label="Media gallery"
+            hint="Show the photo and video upload section on each rental asset."
+            checked={form.feature_media_gallery}
+            onChange={(v) => set('feature_media_gallery', v)}
+          />
+          <Toggle
+            label="Capacity tracking"
+            hint="Show max capacity and UOM fields on the asset form."
+            checked={form.feature_capacity_tracking}
+            onChange={(v) => set('feature_capacity_tracking', v)}
+          />
+          <Toggle
+            label="Unit tracking (hierarchy & serialized)"
+            hint="Show the sub-asset and serialized unit tracking section."
+            checked={form.feature_unit_tracking}
+            onChange={(v) => set('feature_unit_tracking', v)}
+          />
+          <Toggle
+            label="Extended rates (hourly / yearly / per-minute)"
+            hint="Show a “More rates” section for hourly, per-minute, and yearly pricing."
+            checked={form.feature_extended_rates}
+            onChange={(v) => set('feature_extended_rates', v)}
+          />
+          <Toggle
+            label="Per-unit pricing"
+            hint="Allow pricing by capacity unit (e.g. per packet / per chair) in addition to period rates."
+            checked={form.feature_per_unit_pricing}
+            onChange={(v) => set('feature_per_unit_pricing', v)}
           />
         </section>
 

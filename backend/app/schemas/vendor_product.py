@@ -193,6 +193,8 @@ class ProductCreate(BaseModel):
     category: Optional[str] = None
     subcategory: Optional[str] = None
     tags: List[str] = []
+    # Sales & Distribution division this product belongs to
+    division_id: Optional[str] = None
 
     # Unit of Measure
     uom: Optional[str] = "piece"
@@ -324,6 +326,8 @@ class ProductUpdate(BaseModel):
     category: Optional[str] = None
     subcategory: Optional[str] = None
     tags: Optional[List[str]] = None
+    # Sales & Distribution division this product belongs to
+    division_id: Optional[str] = None
 
     # Unit of Measure
     uom: Optional[str] = None

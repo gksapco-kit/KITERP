@@ -12,7 +12,7 @@ import math
 from app.database import get_db
 from app.api.deps import get_current_active_user, require_permission
 from app.models.user import User
-from app.models.order import Order, OrderLine, OrderDelivery, DeliveryLine
+from app.models.order import Order, OrderLine, OrderDelivery, DeliveryLine, OrderLineSchedule, OrderLineHistory
 from app.models.store import Store
 from app.models.pos import POSTransaction
 from app.models.booking import Booking
@@ -1369,3 +1369,549 @@ async def get_credit_status(
             else None
         ),
     }
+
+
+# ── Helpers shared by line & schedule endpoints ────────────────────────────────
+
+TERMINAL_STATUSES = frozenset({
+    "delivered", "cancelled", "refunded", "returned", "exchanged",
+    "return_requested", "exchange_requested",
+})
+
+
+async def _get_order_for_line_write(
+    db: AsyncSession,
+    vendor_id: UUID,
+    order_id: UUID,
+) -> Order:
+    """Fetch order, reject if terminal."""
+    result = await db.execute(
+        select(Order).where(Order.id == order_id, Order.vendor_id == vendor_id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order.status in TERMINAL_STATUSES:
+        raise HTTPException(409, f"Order is {order.status}; line changes are not allowed")
+    return order
+
+
+async def _get_line(
+    db: AsyncSession,
+    vendor_id: UUID,
+    order_id: UUID,
+    line_id: UUID,
+) -> OrderLine:
+    result = await db.execute(
+        select(OrderLine).where(
+            OrderLine.id == line_id,
+            OrderLine.order_id == order_id,
+            OrderLine.vendor_id == vendor_id,
+        )
+    )
+    line = result.scalar_one_or_none()
+    if not line:
+        raise HTTPException(404, "Order line not found")
+    return line
+
+
+def _line_is_locked(line: OrderLine) -> bool:
+    """True when quantity/price changes are forbidden (already shipped or invoiced)."""
+    return float(line.shipped_qty or 0) > 0 or float(line.invoiced_qty or 0) > 0
+
+
+async def _sync_items_cache(db: AsyncSession, order: Order) -> None:
+    """Rebuild order.items JSONB cache and item_count from order_line rows."""
+    lines_result = await db.execute(
+        select(OrderLine)
+        .where(OrderLine.order_id == order.id)
+        .order_by(OrderLine.line_no)
+    )
+    lines = lines_result.scalars().all()
+    order.items = [
+        {
+            "product_id": str(ln.product_id) if ln.product_id else None,
+            "variant_id": str(ln.variant_id) if ln.variant_id else None,
+            "service_id": str(ln.service_id) if ln.service_id else None,
+            "item_type": ln.item_type,
+            "name": ln.item_name,
+            "qty": float(ln.ordered_qty),
+            "price": float(ln.net_price),
+            "image_url": ln.item_image_url,
+        }
+        for ln in lines
+    ]
+    order.item_count = len(lines)
+
+
+async def _write_line_history(
+    db: AsyncSession,
+    line: OrderLine,
+    changes: dict,
+    changed_by: UUID | None,
+) -> None:
+    for field, (old_val, new_val) in changes.items():
+        entry = OrderLineHistory(
+            order_line_id=line.id,
+            order_id=line.order_id,
+            vendor_id=line.vendor_id,
+            field_name=field,
+            old_value=str(old_val) if old_val is not None else None,
+            new_value=str(new_val) if new_val is not None else None,
+            changed_by=changed_by,
+            changed_by_role="vendor",
+        )
+        db.add(entry)
+
+
+def _next_line_no(existing_lines: list[OrderLine]) -> int:
+    if not existing_lines:
+        return 10
+    return (max(ln.line_no for ln in existing_lines) // 10 + 1) * 10
+
+
+# ── Line CRUD ─────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel as _BM
+from typing import Optional as _Opt, List as _List
+
+
+class OrderLineCreate(_BM):
+    item_type: str = "product"
+    product_id: _Opt[str] = None
+    variant_id: _Opt[str] = None
+    service_id: _Opt[str] = None
+    item_name: str
+    item_sku: _Opt[str] = None
+    item_image_url: _Opt[str] = None
+    line_type: str = "standard"
+    ordered_qty: float = 1.0
+    unit_of_measure: str = "EA"
+    list_price: float = 0.0
+    net_price: float = 0.0
+    discount_pct: float = 0.0
+    discount_amount: float = 0.0
+    tax_rate: float = 0.0
+    batch_number: _Opt[str] = None
+    serial_numbers: _Opt[_List[str]] = None
+    cost_center_id: _Opt[str] = None
+    profit_center_id: _Opt[str] = None
+    plant_id: _Opt[str] = None
+    storage_location_id: _Opt[str] = None
+    line_notes: _Opt[str] = None
+
+
+class OrderLineUpdate(_BM):
+    """All fields optional — only provided fields are updated."""
+    item_name: _Opt[str] = None
+    item_sku: _Opt[str] = None
+    line_type: _Opt[str] = None
+    ordered_qty: _Opt[float] = None
+    unit_of_measure: _Opt[str] = None
+    list_price: _Opt[float] = None
+    net_price: _Opt[float] = None
+    discount_pct: _Opt[float] = None
+    discount_amount: _Opt[float] = None
+    tax_rate: _Opt[float] = None
+    batch_number: _Opt[str] = None
+    serial_numbers: _Opt[_List[str]] = None
+    rejection_reason: _Opt[str] = None
+    line_notes: _Opt[str] = None
+    cost_center_id: _Opt[str] = None
+    profit_center_id: _Opt[str] = None
+    plant_id: _Opt[str] = None
+    storage_location_id: _Opt[str] = None
+
+
+def _uuid_or_none(v: str | None) -> UUID | None:
+    if not v:
+        return None
+    try:
+        return UUID(v)
+    except ValueError:
+        raise HTTPException(400, f"Invalid UUID: {v}")
+
+
+@router.post(
+    "/{order_id}/lines",
+    dependencies=[Depends(require_permission("orders.manage"))],
+    status_code=201,
+)
+async def add_order_line(
+    order_id: UUID,
+    body: OrderLineCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a new line item to an existing order and recalculate totals."""
+    from app.services.pricing_condition_service import recalculate_order_totals
+
+    vendor_id = await _get_vendor_id(current_user, db)
+    order = await _get_order_for_line_write(db, vendor_id, order_id)
+
+    existing = (await db.execute(
+        select(OrderLine).where(OrderLine.order_id == order_id)
+    )).scalars().all()
+
+    qty = body.ordered_qty or 1.0
+    net_p = body.net_price or 0.0
+    list_p = body.list_price or net_p
+    discount_a = body.discount_amount if body.discount_amount else round(max(0.0, list_p - net_p), 2)
+    discount_pct = body.discount_pct if body.discount_pct else (
+        round((discount_a / list_p) * 100, 4) if list_p > 0 else 0.0
+    )
+    tax_r = body.tax_rate or 0.0
+    tax_a = round(net_p * qty * tax_r / 100, 2)
+    line_total = round(net_p * qty, 2)
+
+    line = OrderLine(
+        order_id=order_id,
+        vendor_id=vendor_id,
+        line_no=_next_line_no(existing),
+        product_id=_uuid_or_none(body.product_id),
+        variant_id=_uuid_or_none(body.variant_id),
+        service_id=_uuid_or_none(body.service_id),
+        item_type=body.item_type,
+        item_name=body.item_name,
+        item_sku=body.item_sku,
+        item_image_url=body.item_image_url,
+        line_type=body.line_type,
+        ordered_qty=Decimal(str(qty)),
+        unit_of_measure=body.unit_of_measure,
+        list_price=Decimal(str(list_p)),
+        net_price=Decimal(str(net_p)),
+        discount_pct=Decimal(str(discount_pct)),
+        discount_amount=Decimal(str(discount_a)),
+        tax_rate=Decimal(str(tax_r)),
+        tax_amount=Decimal(str(tax_a)),
+        line_total=Decimal(str(line_total)),
+        batch_number=body.batch_number,
+        serial_numbers=body.serial_numbers or [],
+        cost_center_id=_uuid_or_none(body.cost_center_id),
+        profit_center_id=_uuid_or_none(body.profit_center_id),
+        plant_id=_uuid_or_none(body.plant_id),
+        storage_location_id=_uuid_or_none(body.storage_location_id),
+        line_notes=body.line_notes,
+    )
+    db.add(line)
+    await db.flush()
+
+    await _sync_items_cache(db, order)
+    await recalculate_order_totals(db, order)
+    await db.commit()
+
+    repo = OrderRepository(db)
+    order = await repo.get_by_vendor_and_id(vendor_id, order_id)
+    return JSONResponse(
+        status_code=201,
+        content=await _enrich_order_dict(db, order, _order_to_dict(order)),
+    )
+
+
+@router.patch(
+    "/{order_id}/lines/{line_id}",
+    dependencies=[Depends(require_permission("orders.manage"))],
+)
+async def update_order_line(
+    order_id: UUID,
+    line_id: UUID,
+    body: OrderLineUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update one or more fields on a line item.
+
+    Quantity and price fields are rejected when the line has already been
+    shipped or invoiced.  All derived fields (tax_amount, line_total) are
+    recomputed server-side from the stored values after the update.
+    """
+    from app.services.pricing_condition_service import recalculate_order_totals
+
+    vendor_id = await _get_vendor_id(current_user, db)
+    await _get_order_for_line_write(db, vendor_id, order_id)
+    line = await _get_line(db, vendor_id, order_id, line_id)
+
+    locked = _line_is_locked(line)
+    qty_price_fields = {"ordered_qty", "list_price", "net_price", "discount_pct", "discount_amount", "tax_rate"}
+
+    changes: dict = {}
+    payload = body.model_dump(exclude_none=True)
+
+    for field, new_val in payload.items():
+        if field in qty_price_fields and locked:
+            raise HTTPException(
+                409,
+                f"Field '{field}' cannot be changed after the line has been shipped or invoiced",
+            )
+        old_val = getattr(line, field, None)
+        if field in ("cost_center_id", "profit_center_id", "plant_id", "storage_location_id"):
+            new_val = _uuid_or_none(str(new_val) if new_val else None)
+        if str(old_val) != str(new_val):
+            changes[field] = (old_val, new_val)
+            setattr(line, field, new_val)
+
+    if not changes:
+        repo = OrderRepository(db)
+        order = await repo.get_by_vendor_and_id(vendor_id, order_id)
+        return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))
+
+    # Recompute derived values
+    qty = float(line.ordered_qty or 1)
+    net_p = float(line.net_price or 0)
+    tax_r = float(line.tax_rate or 0)
+    line.tax_amount = Decimal(str(round(net_p * qty * tax_r / 100, 2)))
+    line.line_total = Decimal(str(round(net_p * qty, 2)))
+
+    await _write_line_history(db, line, changes, current_user.id)
+
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one()
+    await _sync_items_cache(db, order)
+    await recalculate_order_totals(db, order)
+    await db.commit()
+
+    repo = OrderRepository(db)
+    order = await repo.get_by_vendor_and_id(vendor_id, order_id)
+    return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))
+
+
+@router.delete(
+    "/{order_id}/lines/{line_id}",
+    dependencies=[Depends(require_permission("orders.manage"))],
+    status_code=204,
+)
+async def delete_order_line(
+    order_id: UUID,
+    line_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a line from the order and recalculate totals.
+
+    Forbidden when the line has been shipped or invoiced.
+    """
+    from app.services.pricing_condition_service import recalculate_order_totals
+
+    vendor_id = await _get_vendor_id(current_user, db)
+    await _get_order_for_line_write(db, vendor_id, order_id)
+    line = await _get_line(db, vendor_id, order_id, line_id)
+
+    if _line_is_locked(line):
+        raise HTTPException(409, "Cannot remove a line that has been shipped or invoiced")
+
+    await db.delete(line)
+    await db.flush()
+
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one()
+    await _sync_items_cache(db, order)
+    await recalculate_order_totals(db, order)
+    await db.commit()
+
+
+# ── Schedule endpoints ─────────────────────────────────────────────────────────
+
+class ScheduleCreate(_BM):
+    requested_date: _Opt[str] = None
+    confirmed_date: _Opt[str] = None
+    requested_qty: float = 0.0
+    confirmed_qty: float = 0.0
+    commitment_source: str = "manual"
+    notes: _Opt[str] = None
+
+
+class ScheduleUpdate(_BM):
+    requested_date: _Opt[str] = None
+    confirmed_date: _Opt[str] = None
+    requested_qty: _Opt[float] = None
+    confirmed_qty: _Opt[float] = None
+    commitment_source: _Opt[str] = None
+    status: _Opt[str] = None
+    notes: _Opt[str] = None
+
+
+def _parse_date(v: str | None):
+    if not v:
+        return None
+    from datetime import date
+    try:
+        return date.fromisoformat(v)
+    except ValueError:
+        raise HTTPException(400, f"Invalid date: {v}. Use YYYY-MM-DD.")
+
+
+def _next_schedule_no(schedules: list) -> int:
+    if not schedules:
+        return 1
+    return max(s.schedule_no for s in schedules) + 1
+
+
+@router.post(
+    "/{order_id}/lines/{line_id}/schedules",
+    dependencies=[Depends(require_permission("orders.manage"))],
+    status_code=201,
+)
+async def add_line_schedule(
+    order_id: UUID,
+    line_id: UUID,
+    body: ScheduleCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a delivery schedule commitment to a line."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    await _get_order_for_line_write(db, vendor_id, order_id)
+    line = await _get_line(db, vendor_id, order_id, line_id)
+
+    existing_schedules = (await db.execute(
+        select(OrderLineSchedule).where(OrderLineSchedule.order_line_id == line_id)
+    )).scalars().all()
+
+    confirmed_qty = body.confirmed_qty or 0.0
+    schedule = OrderLineSchedule(
+        order_line_id=line_id,
+        order_id=order_id,
+        vendor_id=vendor_id,
+        schedule_no=_next_schedule_no(existing_schedules),
+        requested_date=_parse_date(body.requested_date),
+        confirmed_date=_parse_date(body.confirmed_date),
+        requested_qty=Decimal(str(body.requested_qty or 0)),
+        confirmed_qty=Decimal(str(confirmed_qty)),
+        status="committed" if confirmed_qty > 0 else "open",
+        commitment_source=body.commitment_source,
+        notes=body.notes,
+    )
+    db.add(schedule)
+
+    if confirmed_qty > 0:
+        line.committed_qty = Decimal(str(
+            float(line.committed_qty or 0) + confirmed_qty
+        ))
+
+    await db.commit()
+
+    repo = OrderRepository(db)
+    order = await repo.get_by_vendor_and_id(vendor_id, order_id)
+    return JSONResponse(
+        status_code=201,
+        content=await _enrich_order_dict(db, order, _order_to_dict(order)),
+    )
+
+
+@router.patch(
+    "/{order_id}/lines/{line_id}/schedules/{schedule_id}",
+    dependencies=[Depends(require_permission("orders.manage"))],
+)
+async def update_line_schedule(
+    order_id: UUID,
+    line_id: UUID,
+    schedule_id: UUID,
+    body: ScheduleUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a delivery schedule row."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    await _get_order_for_line_write(db, vendor_id, order_id)
+    line = await _get_line(db, vendor_id, order_id, line_id)
+
+    result = await db.execute(
+        select(OrderLineSchedule).where(
+            OrderLineSchedule.id == schedule_id,
+            OrderLineSchedule.order_line_id == line_id,
+        )
+    )
+    sched = result.scalar_one_or_none()
+    if not sched:
+        raise HTTPException(404, "Schedule not found")
+
+    old_confirmed = float(sched.confirmed_qty or 0)
+
+    payload = body.model_dump(exclude_none=True)
+    for field, val in payload.items():
+        if field in ("requested_date", "confirmed_date"):
+            val = _parse_date(val)
+        setattr(sched, field, val)
+
+    new_confirmed = float(sched.confirmed_qty or 0)
+    delta = new_confirmed - old_confirmed
+    if delta != 0:
+        line.committed_qty = Decimal(str(max(0.0, float(line.committed_qty or 0) + delta)))
+
+    await db.commit()
+
+    repo = OrderRepository(db)
+    order = await repo.get_by_vendor_and_id(vendor_id, order_id)
+    return JSONResponse(content=await _enrich_order_dict(db, order, _order_to_dict(order)))
+
+
+@router.delete(
+    "/{order_id}/lines/{line_id}/schedules/{schedule_id}",
+    dependencies=[Depends(require_permission("orders.manage"))],
+    status_code=204,
+)
+async def delete_line_schedule(
+    order_id: UUID,
+    line_id: UUID,
+    schedule_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a delivery schedule row and adjust committed_qty."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    await _get_order_for_line_write(db, vendor_id, order_id)
+    line = await _get_line(db, vendor_id, order_id, line_id)
+
+    result = await db.execute(
+        select(OrderLineSchedule).where(
+            OrderLineSchedule.id == schedule_id,
+            OrderLineSchedule.order_line_id == line_id,
+        )
+    )
+    sched = result.scalar_one_or_none()
+    if not sched:
+        raise HTTPException(404, "Schedule not found")
+
+    was_committed = float(sched.confirmed_qty or 0)
+    await db.delete(sched)
+
+    if was_committed > 0:
+        line.committed_qty = Decimal(str(max(0.0, float(line.committed_qty or 0) - was_committed)))
+
+    await db.commit()
+
+
+# ── Line history ───────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{order_id}/lines/{line_id}/history",
+)
+async def get_line_history(
+    order_id: UUID,
+    line_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the change log for a single order line."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    await _get_line(db, vendor_id, order_id, line_id)
+
+    rows = (await db.execute(
+        select(OrderLineHistory)
+        .where(OrderLineHistory.order_line_id == line_id)
+        .order_by(OrderLineHistory.timestamp.desc())
+    )).scalars().all()
+
+    return [
+        {
+            "id": str(r.id),
+            "field_name": r.field_name,
+            "old_value": r.old_value,
+            "new_value": r.new_value,
+            "changed_by": str(r.changed_by) if r.changed_by else None,
+            "changed_by_role": r.changed_by_role,
+            "notes": r.notes,
+            "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+        }
+        for r in rows
+    ]

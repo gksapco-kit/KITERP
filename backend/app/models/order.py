@@ -470,6 +470,14 @@ class OrderPricingCondition(Base):
     is_manual = Column(Integer, nullable=False, default=1)  # 1 = True, 0 = False
     applied_by = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
 
+    # When set, scopes this condition to a single line; NULL = header-level.
+    order_line_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("order_line.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -479,4 +487,38 @@ class OrderPricingCondition(Base):
     __table_args__ = (
         Index("ix_opc_order", "order_id"),
         Index("ix_opc_vendor", "vendor_id"),
+        Index("ix_opc_line", "order_line_id"),
+    )
+
+
+class OrderLineHistory(Base):
+    """Field-level change log for a single order line.
+
+    Written by the line PATCH handler before overwriting each field.
+    Powers the per-line History tab in the vendor dashboard.
+    """
+    __tablename__ = "order_line_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_line_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("order_line.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    order_id = Column(UUID(as_uuid=True), ForeignKey("order.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False)
+
+    field_name = Column(String(100), nullable=False)
+    old_value = Column(Text, nullable=True)
+    new_value = Column(Text, nullable=True)
+
+    changed_by = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    changed_by_role = Column(String(20), nullable=True)
+    notes = Column(Text, nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("ix_olh_order_line", "order_line_id"),
+        Index("ix_olh_order", "order_id"),
     )

@@ -51,6 +51,7 @@ export interface UnifiedNavProps {
     account?: string;
     orders?: string;
     bookings?: string;
+    rentals?: string;
     wishlist?: string;
     profile?: string;
     notifications?: string;
@@ -129,6 +130,7 @@ export function UnifiedNav({
     account: accountPaths.account ?? "/account",
     orders: accountPaths.orders ?? "/account/orders",
     bookings: accountPaths.bookings ?? "/account/bookings",
+    rentals: accountPaths.rentals ?? "/account/rentals",
     wishlist: accountPaths.wishlist ?? "/account/wishlist",
     profile: accountPaths.profile ?? "/account/profile",
     notifications: accountPaths.notifications ?? "/account/notifications",
@@ -220,6 +222,7 @@ export function UnifiedNav({
                   <Link to={p.account} className="px-3 py-2 rounded-md hover:bg-muted text-base flex items-center gap-2"><User className="h-4 w-4" />My Account</Link>
                   <Link to={p.orders} className="px-3 py-2 rounded-md hover:bg-muted text-base flex items-center gap-2"><Package className="h-4 w-4" />My Orders</Link>
                   <Link to={p.bookings} className="px-3 py-2 rounded-md hover:bg-muted text-base flex items-center gap-2"><Package className="h-4 w-4" />My Bookings</Link>
+                  <Link to={p.rentals} className="px-3 py-2 rounded-md hover:bg-muted text-base flex items-center gap-2"><Package className="h-4 w-4" />My Rentals</Link>
                   <Link to={p.wishlist} className="px-3 py-2 rounded-md hover:bg-muted text-base flex items-center gap-2"><User className="h-4 w-4" />Wishlist</Link>
                   <Link to={p.notifications} className="px-3 py-2 rounded-md hover:bg-muted text-base flex items-center gap-2"><Bell className="h-4 w-4" />Notifications</Link>
                   <button onClick={onSignOut} className="text-left px-3 py-2 rounded-md hover:bg-muted text-base flex items-center gap-2 text-destructive"><LogOut className="h-4 w-4" />Sign out</button>
@@ -306,6 +309,7 @@ export function UnifiedNav({
                     <DropdownMenuItem asChild><Link to={p.account}><User className="mr-2 h-4 w-4" />My Account</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link to={p.orders}><Package className="mr-2 h-4 w-4" />My Orders</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link to={p.bookings}><Package className="mr-2 h-4 w-4" />My Bookings</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link to={p.rentals}><Package className="mr-2 h-4 w-4" />My Rentals</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link to={p.wishlist}><User className="mr-2 h-4 w-4" />Wishlist</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link to={p.notifications}><Bell className="mr-2 h-4 w-4" />Notifications</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link to={p.profile}><User className="mr-2 h-4 w-4" />Profile & Settings</Link></DropdownMenuItem>

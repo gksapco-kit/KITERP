@@ -488,9 +488,15 @@ interface ServiceMediaUploadProps {
   onReorder?: (mediaIds: string[]) => Promise<void>
   onEditMedia?: (mediaId: string, file: File, wasPrimary: boolean) => Promise<void>
   disabled?: boolean
+  /** Label shown in the media source picker modal. Defaults to 'Service media'. */
+  pickerTitle?: string
 }
 
-export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, onReorder, onEditMedia, disabled }: ServiceMediaUploadProps) {
+/** Generic re-export alias — use this for any catalog entity (products, services, rentals, …). */
+export { ServiceMediaUpload as CatalogMediaUpload }
+export type { ServiceMediaUploadProps as CatalogMediaUploadProps }
+
+export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, onReorder, onEditMedia, disabled, pickerTitle = 'Media' }: ServiceMediaUploadProps) {
   const [uploading, setUploading] = useState(false)
 
   const sortedMedia = useMemo(
@@ -529,7 +535,7 @@ export function ServiceMediaUpload({ media, onUpload, onDelete, onSetPrimary, on
   }, [processFiles])
 
   const { openPicker, modal: pickerModal } = useImageSourcePicker({
-    title: 'Service media',
+    title: pickerTitle,
     accept: ACCEPT,
     deviceHint: MEDIA_DEVICE_HINT,
     galleryMultiSelect: true,
