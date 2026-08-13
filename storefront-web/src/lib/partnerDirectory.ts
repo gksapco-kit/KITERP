@@ -19,6 +19,7 @@ export type PartnerVendor = {
   } | null
   business_hours?: Record<string, { open?: string; close?: string; closed?: boolean }> | null
   visit_count?: number
+  description?: string | null
 }
 
 const DAY_ORDER = [

@@ -103,6 +103,11 @@ export interface Product {
   track_inventory?: boolean
   created_at?: string
   allow_backorders?: boolean
+  meta_title?: string | null
+  meta_description?: string | null
+  meta_keywords?: string[] | string | null
+  og_image_url?: string | null
+  canonical_url?: string | null
 }
 
 export interface ServicePlan {
@@ -203,6 +208,9 @@ export interface Service {
   availability?: ServiceAvailability[]
   plans?: ServicePlan[]
   created_at?: string
+  meta_title?: string | null
+  meta_description?: string | null
+  meta_keywords?: string[] | string | null
 }
 
 export interface DisplayFields {

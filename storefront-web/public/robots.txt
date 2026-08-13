@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+Disallow: /store/*/account
+Disallow: /store/*/cart
+Disallow: /store/*/checkout
+Disallow: /store/*/login
+Disallow: /store/*/register
+Disallow: /store/*/forgot-password
+Disallow: /store/*/hr
+Disallow: /store/*/employee
+Disallow: /store/*/preview
+Disallow: /store/*/draft-catalog
+Disallow: /store/*/order
+Disallow: /create-business/verify-email
+Disallow: /template-browser
+Disallow: /local/
+Disallow: /admin
+Disallow: /vendor
+
+Sitemap: https://kiterp.com/sitemap.xml
+Sitemap: https://kiterp.com/api/v1/catalog/sitemap.xml

@@ -12,6 +12,7 @@ import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import type { StorefrontVendor } from '@/components/landing/landingData'
 import { PLATFORM_SEO, useDocumentSeo } from '@/lib/documentSeo'
+import { compactJsonLd, organizationJsonLd, websiteJsonLd } from '@/lib/catalogSeo'
 import '@/styles/kiterp-landing.css'
 
 type StoreDirectoryItem = StorefrontVendor
@@ -29,7 +30,9 @@ export default function Landing() {
     keywords: PLATFORM_SEO.defaultKeywords,
     canonicalPath: '/',
     ogImage: '/favicon-192.png',
+    ogImageAlt: PLATFORM_SEO.siteName,
     ogType: 'website',
+    jsonLd: compactJsonLd([organizationJsonLd(), websiteJsonLd()]),
   })
 
   useEffect(() => {

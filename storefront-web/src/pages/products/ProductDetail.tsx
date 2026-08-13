@@ -31,6 +31,8 @@ import { isSignInMandatory } from '@/lib/deliveryConditions'
 import { hasStorefrontDisplayPrice } from '@/lib/servicePricing'
 import { storeApi } from '@/api/store'
 import { toast } from 'sonner'
+import { useDocumentSeo, vendorPageTitle } from '@/lib/documentSeo'
+import { breadcrumbJsonLd, compactJsonLd, productJsonLd, seoKeywords } from '@/lib/catalogSeo'
 
 export default function ProductDetail() {
   const { storePath, vendorSlug, displayFields, vendor } = useVendor()
@@ -210,6 +212,50 @@ export default function ProductDetail() {
     if (!claimSessionTrack('product', product.slug)) return
     storeApi.recordProductView(product.slug, getVisitorId()).catch(() => {})
   }, [product?.slug])
+
+  const productPath = storePath(`/products/${product?.slug || slug || ''}`)
+  const productImage = product
+    ? (product.og_image_url || resolveProductThumbnailUrl({ images: product.images, variants: activeVariants }))
+    : null
+  const productDescription = product?.meta_description || product?.short_description || product?.description
+  const vendorName = vendor?.display_name || vendor?.business_name || vendorSlug
+  useDocumentSeo({
+    title: product
+      ? (product.meta_title?.trim() || `${product.name} | ${vendorName}`)
+      : vendorPageTitle('Product', vendorName),
+    description: product
+      ? (productDescription || `Buy ${product.name} from ${vendorName} on KITERP.`)
+      : undefined,
+    keywords: seoKeywords(product?.meta_keywords) || product?.tags?.join(', '),
+    canonicalUrl: product?.canonical_url,
+    canonicalPath: product?.canonical_url ? undefined : productPath,
+    ogType: 'product',
+    ogImage: productImage || vendor?.logo_url || '/favicon-192.png',
+    ogImageAlt: product?.name || vendorName,
+    ogSiteName: vendorName,
+    jsonLd: product
+      ? compactJsonLd([
+          productJsonLd({
+            name: product.name,
+            description: productDescription,
+            image: productImage,
+            sku: product.sku,
+            brand: product.brand || vendorName,
+            price: hasDisplayPrice ? displayPrice : product.price,
+            currency: displayCurrency,
+            availability: displayStock,
+            url: productPath,
+            rating: product.avg_rating,
+            reviewCount: product.review_count,
+          }),
+          breadcrumbJsonLd([
+            { name: vendorName, path: storePath('/') },
+            { name: 'Products', path: storePath('/products') },
+            { name: product.name, path: productPath },
+          ]),
+        ])
+      : null,
+  })
 
   const variantColors = useMemo(() => {
     const options = getProductPageColorOptions(activeVariants, product?.images)

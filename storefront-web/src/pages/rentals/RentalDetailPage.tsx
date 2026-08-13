@@ -14,6 +14,8 @@ import { formatCurrency, mediaUrl } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { useDocumentSeo, vendorPageTitle } from '@/lib/documentSeo'
+import { breadcrumbJsonLd, compactJsonLd, rentalJsonLd } from '@/lib/catalogSeo'
 
 type RentalAsset = {
   id: string
@@ -91,7 +93,7 @@ export default function RentalDetailPage() {
   const { slug = '' } = useParams<{ slug: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { storePath } = useVendor()
+  const { storePath, vendor } = useVendor()
   const theme = useTheme()
   const { customer, isAuthenticated } = useAuthStore()
   const qc = useQueryClient()
@@ -127,6 +129,36 @@ export default function RentalDetailPage() {
     unique.sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
     return unique
   }, [asset])
+
+  const vendorName = vendor?.display_name || vendor?.business_name || 'Store'
+  const rentalPath = storePath(`/rentals/${asset?.slug || slug}`)
+  const rentalImage = mediaItems[0]?.url || asset?.image_url || vendor?.logo_url
+  useDocumentSeo({
+    title: asset ? `${asset.name} | ${vendorName}` : vendorPageTitle('Rental', vendorName),
+    description: asset
+      ? (asset.short_description || asset.description || `Rent ${asset.name} from ${vendorName}.`)
+      : undefined,
+    canonicalPath: rentalPath,
+    ogImage: rentalImage || '/favicon-192.png',
+    ogImageAlt: asset?.name || vendorName,
+    ogSiteName: vendorName,
+    jsonLd: asset
+      ? compactJsonLd([
+          rentalJsonLd({
+            name: asset.name,
+            description: asset.short_description || asset.description,
+            image: rentalImage,
+            url: rentalPath,
+            dailyRate: asset.daily_rate,
+          }),
+          breadcrumbJsonLd([
+            { name: vendorName, path: storePath('/') },
+            { name: 'Rentals', path: storePath('/rentals') },
+            { name: asset.name, path: rentalPath },
+          ]),
+        ])
+      : null,
+  })
 
   useEffect(() => {
     setActiveMedia(0)

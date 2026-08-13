@@ -7,6 +7,7 @@ import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import { useDocumentSeo } from '@/lib/documentSeo'
+import { compactJsonLd, contactPageJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import '@/styles/kiterp-landing.css'
 
@@ -33,6 +34,7 @@ export default function LandingContact() {
     keywords: 'KITERP contact, KIT ERP support, business platform help',
     canonicalPath: '/contact',
     ogImage: '/favicon-192.png',
+    jsonLd: compactJsonLd([organizationJsonLd(), contactPageJsonLd()]),
   })
 
   useEffect(() => {

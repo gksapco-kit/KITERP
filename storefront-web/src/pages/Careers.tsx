@@ -32,6 +32,8 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingFooter } from '@/components/landing/LandingFooter'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
+import { useDocumentSeo } from '@/lib/documentSeo'
+import { compactJsonLd, faqJsonLd, jobPostingJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
 import '@/styles/kiterp-landing.css'
 
 const ACCEPTED_CV =
@@ -195,6 +197,32 @@ export default function Careers() {
   const cvRef = useRef<HTMLInputElement>(null)
   const photoRef = useRef<HTMLInputElement>(null)
   const openingsRef = useRef<HTMLElement>(null)
+  const careersJsonLd = useMemo(
+    () => compactJsonLd([
+      organizationJsonLd(),
+      faqJsonLd(FAQS.map((item) => ({ q: item.q, a: item.a }))),
+      ...openings.slice(0, 20).map((job) => jobPostingJsonLd({
+        title: job.title,
+        description: job.description || job.requirements,
+        employmentType: job.employment_type,
+        location: job.location,
+        datePosted: job.posted_at,
+        salaryMin: job.salary_min,
+        salaryMax: job.salary_max,
+      })),
+    ]),
+    [openings],
+  )
+  useDocumentSeo({
+    title: 'Careers at KITERP — Join the KIT ERP Team',
+    description:
+      'Explore open roles at KITERP. Apply for full-time, part-time, contract, and internship positions across product, engineering, sales, and operations.',
+    keywords: 'KITERP careers, KIT ERP jobs, hiring, internships',
+    canonicalPath: '/careers',
+    ogImage: '/images/careers-why-join.png',
+    ogImageAlt: 'Careers at KITERP',
+    jsonLd: careersJsonLd,
+  })
 
   useEffect(() => {
     let cancelled = false

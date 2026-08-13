@@ -265,7 +265,7 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
     if (page.noindex) {
       setMetaTag('name', 'robots', 'noindex, nofollow')
     } else {
-      setMetaTag('name', 'robots', null)
+      setMetaTag('name', 'robots', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1')
     }
 
     // Canonical

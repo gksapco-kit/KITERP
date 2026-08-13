@@ -21,6 +21,8 @@ import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
 import type { Product, PaginatedResponse } from '@/types'
 import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
 import { mediaUrl } from '@/lib/utils'
+import { useDocumentSeo } from '@/lib/documentSeo'
+import { compactJsonLd, localBusinessJsonLd } from '@/lib/catalogSeo'
 import '@/styles/kiterp-landing.css'
 
 type PartnerProfile = PartnerVendor & {
@@ -137,6 +139,36 @@ export default function PartnerDetail() {
   const whatsapp = vendor ? partnerWhatsAppHref(vendor) : null
   const website = vendor ? partnerWebsiteHref(vendor) : null
   const maps = vendor ? partnerMapsHref(vendor) : null
+
+  useDocumentSeo({
+    title: name ? `${name} — KITERP Partner` : 'Partner — KITERP',
+    description: vendor?.description?.trim()
+      || (name
+        ? `${name}${location ? ` in ${location}` : ''} on the KITERP partner directory.`
+        : 'View this KITERP partner business.'),
+    canonicalPath: `/partners/${slug}`,
+    ogImage: vendor?.logo_url || '/favicon-192.png',
+    ogImageAlt: name || 'KITERP partner',
+    ogType: 'profile',
+    jsonLd: vendor
+      ? compactJsonLd([
+          localBusinessJsonLd({
+            name,
+            description: vendor.description,
+            url: `/partners/${slug}`,
+            logo: vendor.logo_url,
+            street: vendor.street_address,
+            city: vendor.city,
+            state: vendor.state,
+            postalCode: vendor.postal_code,
+            country: vendor.country,
+            latitude: vendor.latitude,
+            longitude: vendor.longitude,
+          }),
+        ])
+      : null,
+    noindex: !loading && !vendor,
+  })
 
   const showStoreName =
     Boolean(vendor?.store_name) &&

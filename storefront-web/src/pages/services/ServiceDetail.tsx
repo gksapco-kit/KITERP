@@ -26,6 +26,8 @@ import { serviceBookingLabel, serviceBookingCtaLabel, serviceSubscriptionLabel, 
 import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
 import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 import { useQueryClient } from '@tanstack/react-query'
+import { useDocumentSeo, vendorPageTitle } from '@/lib/documentSeo'
+import { breadcrumbJsonLd, compactJsonLd, seoKeywords, serviceJsonLd } from '@/lib/catalogSeo'
 
 const SERVICE_MODE_LABELS: Record<string, string> = {
   in_store: 'In-Store', on_site: 'On-Site', remote: 'Remote',
@@ -704,6 +706,46 @@ export default function ServiceDetail() {
     if (!claimSessionTrack('service', service.slug)) return
     storeApi.recordServiceView(service.slug, getVisitorId()).catch(() => {})
   }, [service?.slug])
+
+  const vendorName = vendor?.display_name || vendor?.business_name || vendorSlug
+  const servicePath = storePath(`/services/${service?.slug || slug || ''}`)
+  const serviceImage = service
+    ? resolveServiceThumbnailUrl({ image_url: service.image_url, media: service.media, gallery: service.gallery })
+    : null
+  const serviceDescription = service?.meta_description || service?.short_description || service?.description
+  useDocumentSeo({
+    title: service
+      ? (service.meta_title?.trim() || `${service.name} | ${vendorName}`)
+      : vendorPageTitle('Service', vendorName),
+    description: service
+      ? (serviceDescription || `Book ${service.name} from ${vendorName} on KITERP.`)
+      : undefined,
+    keywords: seoKeywords(service?.meta_keywords) || service?.tags?.join(', '),
+    canonicalPath: servicePath,
+    ogType: 'website',
+    ogImage: serviceImage || vendor?.logo_url || '/favicon-192.png',
+    ogImageAlt: service?.name || vendorName,
+    ogSiteName: vendorName,
+    jsonLd: service
+      ? compactJsonLd([
+          serviceJsonLd({
+            name: service.name,
+            description: serviceDescription,
+            image: serviceImage,
+            serviceType: service.category || service.service_type,
+            price: service.price,
+            currency: service.currency,
+            url: servicePath,
+            providerName: vendorName,
+          }),
+          breadcrumbJsonLd([
+            { name: vendorName, path: storePath('/') },
+            { name: 'Services', path: storePath('/services') },
+            { name: service.name, path: servicePath },
+          ]),
+        ])
+      : null,
+  })
 
   const activePlans = useMemo(() => (service?.plans || []).filter(p => p.is_active), [service])
   const selectedPlan = useMemo(

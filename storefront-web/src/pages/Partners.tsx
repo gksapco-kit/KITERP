@@ -18,6 +18,7 @@ import {
 } from '@/lib/partnerDirectory'
 import { mediaUrl } from '@/lib/utils'
 import { useDocumentSeo } from '@/lib/documentSeo'
+import { compactJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
 import '@/styles/kiterp-landing.css'
 
 const FAV_KEY = 'kiterp_partner_favorites'
@@ -63,6 +64,7 @@ export default function Partners() {
     keywords: 'KITERP partners, business directory, multi-vendor stores',
     canonicalPath: '/partners',
     ogImage: '/favicon-192.png',
+    jsonLd: compactJsonLd([organizationJsonLd()]),
   })
 
   useEffect(() => {

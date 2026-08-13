@@ -9,6 +9,8 @@ import { useBlogPost, useBlogPosts } from '@/hooks/useStore'
 import { imgUrl } from '@/lib/utils'
 import { isVendorBlogEnabled } from '@/lib/catalogNavCapabilities'
 import type { StoreBlogPost } from '@/api/store'
+import { useDocumentSeo, vendorPageTitle } from '@/lib/documentSeo'
+import { articleJsonLd, breadcrumbJsonLd, compactJsonLd } from '@/lib/catalogSeo'
 
 function fmtDate(iso?: string | null) {
   if (!iso) return ''
@@ -104,6 +106,36 @@ export default function BlogPost() {
   const { data: post, isLoading, isError } = useBlogPost(slug ?? '')
   const { data: relatedData } = useBlogPosts({ size: 4 })
   const related = (relatedData?.items ?? []).filter(p => p.slug !== slug).slice(0, 3)
+  const vendorName = vendor?.display_name || vendor?.business_name || 'Store'
+  const postPath = storePath(`/blog/${post?.slug || slug || ''}`)
+  useDocumentSeo({
+    title: post ? `${post.title} | ${vendorName}` : vendorPageTitle('Blog', vendorName),
+    description: post?.excerpt || post?.content || `Read ${post?.title || 'this post'} from ${vendorName}.`,
+    keywords: post?.tags?.join(', ') || post?.category || undefined,
+    canonicalPath: postPath,
+    ogType: 'article',
+    ogImage: post?.cover_url || vendor?.logo_url || '/favicon-192.png',
+    ogImageAlt: post?.title || vendorName,
+    ogSiteName: vendorName,
+    jsonLd: post
+      ? compactJsonLd([
+          articleJsonLd({
+            title: post.title,
+            description: post.excerpt,
+            image: post.cover_url,
+            url: postPath,
+            datePublished: post.published_at,
+            authorName: post.author_name,
+            publisherName: vendorName,
+          }),
+          breadcrumbJsonLd([
+            { name: vendorName, path: storePath('/') },
+            { name: 'Blog', path: storePath('/blog') },
+            { name: post.title, path: postPath },
+          ]),
+        ])
+      : null,
+  })
 
   if (!isVendorBlogEnabled(vendor?.settings)) {
     return <Navigate to={storePath('/')} replace />

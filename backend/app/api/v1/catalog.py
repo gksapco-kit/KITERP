@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, status, Query, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from uuid import UUID
+from datetime import datetime, timezone
+from xml.sax.saxutils import escape
 import logging
 import math
 import re
@@ -387,6 +389,55 @@ async def list_storefront_vendors(
         ],
         "total": total,
     })
+
+
+def _sitemap_url(loc: str, changefreq: str, priority: str, lastmod: Optional[str] = None) -> str:
+    lastmod_xml = f"    <lastmod>{escape(lastmod)}</lastmod>\n" if lastmod else ""
+    return (
+        "  <url>\n"
+        f"    <loc>{escape(loc)}</loc>\n"
+        f"{lastmod_xml}"
+        f"    <changefreq>{changefreq}</changefreq>\n"
+        f"    <priority>{priority}</priority>\n"
+        "  </url>"
+    )
+
+
+@router.get("/sitemap.xml")
+async def get_platform_sitemap(db: AsyncSession = Depends(get_db)):
+    """Public sitemap of marketing pages, partner profiles, and store homes."""
+    base = "https://kiterp.com"
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    urls = [
+        _sitemap_url(f"{base}/", "daily", "1.0", today),
+        _sitemap_url(f"{base}/partners", "daily", "0.9", today),
+        _sitemap_url(f"{base}/careers", "weekly", "0.8", today),
+        _sitemap_url(f"{base}/contact", "monthly", "0.7", today),
+        _sitemap_url(f"{base}/create-business", "monthly", "0.8", today),
+    ]
+
+    repo = VendorRepository(db)
+    skip = 0
+    page_size = 100
+    while skip < 2000:
+        items, total = await repo.list_storefront_directory(skip=skip, limit=page_size)
+        for vendor in items:
+            slug = (vendor.slug or "").strip()
+            if not slug:
+                continue
+            urls.append(_sitemap_url(f"{base}/partners/{slug}", "weekly", "0.7", today))
+            urls.append(_sitemap_url(f"{base}/store/{slug}", "daily", "0.8", today))
+        skip += page_size
+        if skip >= total or not items:
+            break
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(urls)
+        + "\n</urlset>\n"
+    )
+    return Response(content=xml, media_type="application/xml")
 
 
 @router.post("/vendor/{vendor_slug}/visit")

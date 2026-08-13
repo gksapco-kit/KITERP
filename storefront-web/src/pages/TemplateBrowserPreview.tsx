@@ -19,6 +19,7 @@ import type { StorefrontConfig } from '@/storefront/theming'
 import { EditContext, type ContentMap } from '@/storefront/editContext'
 import { CONTENT_SCHEMAS, type ContentSchema, type EditSection } from '@/storefront/contentSchema'
 import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
+import { useDocumentSeo } from '@/lib/documentSeo'
 
 // ── Business Front template map ──────────────────────────────────────────────────
 const FashionTemplate     = lazy(() => import('@/storefront/templates/FashionTemplate').then(m => ({ default: m.FashionTemplate })))
@@ -982,6 +983,11 @@ function BlockBasedPreview({ templateId }: { templateId: string }) {
 // ── Main export ──────────────────────────────────────────────────────────────
 export default function TemplateBrowserPreview() {
   const { templateId = '' } = useParams<{ templateId: string }>()
+  useDocumentSeo({
+    title: 'Template Preview — KITERP',
+    description: 'Private KITERP website template preview.',
+    noindex: true,
+  })
   if (!templateId) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
       <p className="text-gray-700 mb-3">Missing template id.</p>

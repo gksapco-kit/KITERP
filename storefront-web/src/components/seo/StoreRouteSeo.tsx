@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
 import { useVendor } from '@/contexts/VendorContext'
-import { applyDocumentSeo, vendorPageTitle, PLATFORM_SEO } from '@/lib/documentSeo'
+import { useBuilderSite } from '@/contexts/BuilderSiteContext'
+import { applyDocumentSeo, vendorPageTitle, PLATFORM_SEO, PAGE_JSON_LD_ID } from '@/lib/documentSeo'
+import { compactJsonLd, localBusinessJsonLd } from '@/lib/catalogSeo'
 
 function isShellRelativePath(relative: string): boolean {
   if (relative === '/' || relative === '') return true
@@ -30,40 +32,70 @@ function isShellRelativePath(relative: string): boolean {
   return shellRoots.some((root) => relative === root || relative.startsWith(`${root}/`))
 }
 
+/** Detail routes apply their own title, description, OG image, and JSON-LD. */
+function isOwnedDetailPath(relative: string): boolean {
+  return (
+    /^\/products\/[^/]+\/?$/.test(relative)
+    || /^\/services\/[^/]+\/?$/.test(relative)
+    || /^\/blog\/[^/]+\/?$/.test(relative)
+    || /^\/rentals\/[^/]+\/?$/.test(relative)
+  )
+}
+
 /** Default document SEO for catalog shell routes (detail/builder pages override with richer meta). */
 export default function StoreRouteSeo() {
   const { pathname } = useLocation()
   const { vendorSlug = '' } = useParams<{ vendorSlug: string }>()
   const { vendor } = useVendor()
+  const { builderSite } = useBuilderSite()
   const vendorName = vendor?.display_name || vendor?.business_name || vendorSlug
   const base = `/store/${vendorSlug}`
   const relative = pathname.startsWith(base) ? pathname.slice(base.length) || '/' : pathname
+  const homepageHasBuilderBlocks = Boolean(
+    (builderSite?.pages?.find((page) => page.is_homepage) || builderSite?.pages?.[0])?.blocks?.length,
+  )
 
   useEffect(() => {
-    if (!isShellRelativePath(relative)) return
+    if (isOwnedDetailPath(relative)) return
+    if (!isShellRelativePath(relative) || ((relative === '/' || relative === '') && homepageHasBuilderBlocks)) {
+      document.getElementById(PAGE_JSON_LD_ID)?.remove()
+      return
+    }
 
     let pageLabel = 'Home'
     let description = vendor?.description?.trim()
       || `Shop products and services from ${vendorName} on KITERP.`
     let noindex = false
+    let jsonLd = null as ReturnType<typeof compactJsonLd>
 
     if (relative === '/' || relative === '') {
       pageLabel = vendorName
-    } else if (relative.startsWith('/products/') && relative !== '/products/') {
-      pageLabel = 'Product'
+      jsonLd = compactJsonLd([
+        localBusinessJsonLd({
+          name: vendorName,
+          description: vendor?.description,
+          url: pathname,
+          logo: vendor?.logo_url,
+          telephone: vendor?.primary_phone || vendor?.support_phone,
+          email: vendor?.primary_email || vendor?.support_email,
+          street: vendor?.street_address,
+          city: vendor?.city,
+          state: vendor?.state,
+          postalCode: vendor?.postal_code,
+          country: vendor?.country,
+          latitude: vendor?.latitude,
+          longitude: vendor?.longitude,
+        }),
+      ])
     } else if (relative.startsWith('/products')) {
       pageLabel = 'Products'
       description = `Browse products from ${vendorName}.`
     } else if (relative.startsWith('/services/') && relative.includes('/book')) {
       pageLabel = 'Book Service'
       noindex = true
-    } else if (relative.startsWith('/services/') && relative !== '/services/') {
-      pageLabel = 'Service'
     } else if (relative.startsWith('/services')) {
       pageLabel = 'Services'
       description = `Browse services from ${vendorName}.`
-    } else if (relative.startsWith('/blog/') && relative !== '/blog/') {
-      pageLabel = 'Blog'
     } else if (relative.startsWith('/blog')) {
       pageLabel = 'Blog'
       description = `News and updates from ${vendorName}.`
@@ -89,6 +121,7 @@ export default function StoreRouteSeo() {
       noindex = true
     } else if (relative.startsWith('/rentals')) {
       pageLabel = 'Rentals'
+      description = `Browse rental assets from ${vendorName}.`
     } else if (relative.startsWith('/reserve') || relative.startsWith('/table') || relative.startsWith('/menu')) {
       pageLabel = 'Ordering'
       noindex = true
@@ -108,9 +141,29 @@ export default function StoreRouteSeo() {
       canonicalPath: pathname,
       ogSiteName: vendorName || PLATFORM_SEO.siteName,
       ogImage: vendor?.logo_url || '/favicon-192.png',
+      ogImageAlt: vendorName,
       noindex,
+      jsonLd,
     })
-  }, [pathname, relative, vendorName, vendor?.description, vendor?.logo_url])
+  }, [
+    pathname,
+    relative,
+    vendorName,
+    vendor?.description,
+    vendor?.logo_url,
+    vendor?.primary_phone,
+    vendor?.support_phone,
+    vendor?.primary_email,
+    vendor?.support_email,
+    vendor?.street_address,
+    vendor?.city,
+    vendor?.state,
+    vendor?.postal_code,
+    vendor?.country,
+    vendor?.latitude,
+    vendor?.longitude,
+    homepageHasBuilderBlocks,
+  ])
 
   return null
 }

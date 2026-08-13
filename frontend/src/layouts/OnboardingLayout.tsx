@@ -1,6 +1,12 @@
 import { Outlet } from 'react-router-dom'
+import { useDocumentSeo, adminPageTitle } from '@/lib/documentSeo'
 
 export default function OnboardingLayout() {
+  useDocumentSeo({
+    title: adminPageTitle('Store Setup'),
+    description: 'Complete KIT ERP onboarding to launch your store.',
+    noindex: true,
+  })
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">

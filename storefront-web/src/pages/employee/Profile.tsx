@@ -4,16 +4,16 @@ import { useESSProfile, useESSUpdateProfile } from '@/hooks/useESS'
 import { useHrAuthStore } from '@/stores/hrAuthStore'
 import { hrApiClient } from '@/api/hrClient'
 import { useVendor } from '@/contexts/VendorContext'
-import { User, Phone, Mail, AlertCircle, KeyRound, Eye, EyeOff, Loader2, Save, Pencil, X } from 'lucide-react'
+import { User, Phone, Mail, KeyRound, Eye, EyeOff, Loader2, Save, Pencil, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 
 function Section({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border p-6 mb-4">
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b">
-        <Icon className="w-4 h-4 text-primary" />
-        <h2 className="font-semibold text-gray-900">{title}</h2>
+    <div className="bg-white rounded-lg border p-4">
+      <div className="flex items-center gap-2 mb-2.5 pb-2 border-b">
+        <Icon className="w-3.5 h-3.5 text-primary" />
+        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
       </div>
       {children}
     </div>
@@ -22,9 +22,9 @@ function Section({ title, icon: Icon, children }: { title: string; icon: React.E
 
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">{label}</p>
-      <p className="text-sm text-gray-800">{value || <span className="text-gray-400">—</span>}</p>
+    <div className="flex items-baseline gap-2 min-w-0 py-0.5">
+      <p className="text-[11px] font-medium text-gray-400 shrink-0 w-[7.25rem] leading-tight">{label}</p>
+      <p className="text-sm text-gray-800 truncate leading-tight">{value || <span className="text-gray-400">—</span>}</p>
     </div>
   )
 }
@@ -98,152 +98,154 @@ export default function ESSProfile() {
   const department = (emp?.department as { name?: string } | undefined)?.name ?? ''
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-xl font-bold text-gray-900 mb-6">My Profile</h1>
+    <div className="p-4 max-w-5xl mx-auto h-full min-h-0 flex flex-col">
+      <h1 className="text-lg font-bold text-gray-900 mb-3 shrink-0">My Profile</h1>
 
-      {/* ── Identity ── */}
-      <Section title="Employee Information" icon={User}>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Full name" value={employee?.full_name} />
-          <Field label="Employee code" value={String(emp?.employee_code ?? '')} />
-          {(emp?.employee_code_custom as string | undefined) && (
-            <Field label="Custom code / username" value={emp.employee_code_custom as string} />
-          )}
-          <Field label="Department" value={department} />
-          <Field label="Designation" value={designation} />
-          <Field label="Employment type" value={String(emp?.employment_type ?? '').replace('_', ' ')} />
-          <Field label="Status" value={String(emp?.status ?? '')} />
-          <Field label="Date of joining" value={emp?.date_of_joining as string | null} />
-          <Field label="Login (email)" value={employee?.email} />
-        </div>
-      </Section>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 auto-rows-min">
+        {/* ── Identity ── */}
+        <Section title="Employee Information" icon={User}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+            <Field label="Full name" value={employee?.full_name} />
+            <Field label="Employee code" value={String(emp?.employee_code ?? '')} />
+            {(emp?.employee_code_custom as string | undefined) && (
+              <Field label="Custom code" value={emp.employee_code_custom as string} />
+            )}
+            <Field label="Department" value={department} />
+            <Field label="Designation" value={designation} />
+            <Field label="Employment type" value={String(emp?.employment_type ?? '').replace('_', ' ')} />
+            <Field label="Status" value={String(emp?.status ?? '')} />
+            <Field label="Date of joining" value={emp?.date_of_joining as string | null} />
+            <Field label="Login (email)" value={employee?.email} />
+          </div>
+        </Section>
 
-      {/* ── Contact ── */}
-      <Section title="Personal Contact" icon={Phone}>
-        {!editContact ? (
-          <>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <Field label="Personal email" value={emp?.personal_email as string | null} />
-              <Field label="Personal phone" value={emp?.personal_phone as string | null} />
-              <Field label="Emergency contact" value={emp?.emergency_contact_name as string | null} />
-              <Field label="Emergency phone" value={emp?.emergency_contact_phone as string | null} />
-              <Field label="Relationship" value={emp?.emergency_contact_relation as string | null} />
-            </div>
-            <button
-              type="button"
-              onClick={openContactEdit}
-              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-            >
-              <Pencil className="w-3.5 h-3.5" /> Edit contact details
-            </button>
-          </>
-        ) : (
-          <form onSubmit={saveContact} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Personal email</label>
-                <input type="email" value={contactForm.personal_email} onChange={e => setContactForm(f => ({ ...f, personal_email: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" placeholder="you@example.com" />
+        {/* ── Contact ── */}
+        <Section title="Personal Contact" icon={Phone}>
+          {!editContact ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                <Field label="Personal email" value={emp?.personal_email as string | null} />
+                <Field label="Personal phone" value={emp?.personal_phone as string | null} />
+                <Field label="Emergency contact" value={emp?.emergency_contact_name as string | null} />
+                <Field label="Emergency phone" value={emp?.emergency_contact_phone as string | null} />
+                <Field label="Relationship" value={emp?.emergency_contact_relation as string | null} />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Personal phone</label>
-                <PhoneInput
-                  value={contactForm.personal_phone}
-                  onChange={v => setContactForm(f => ({ ...f, personal_phone: v }))}
-                  defaultCountryIso="IN"
-                  autoComplete="tel"
-                  name="personal_phone"
-                  size="sm"
-                  showStatusHints={false}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Emergency contact name</label>
-                <input value={contactForm.emergency_contact_name} onChange={e => setContactForm(f => ({ ...f, emergency_contact_name: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Emergency phone</label>
-                <PhoneInput
-                  value={contactForm.emergency_contact_phone}
-                  onChange={v => setContactForm(f => ({ ...f, emergency_contact_phone: v }))}
-                  defaultCountryIso="IN"
-                  autoComplete="tel"
-                  name="emergency_contact_phone"
-                  size="sm"
-                  showStatusHints={false}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Relationship</label>
-                <input value={contactForm.emergency_contact_relation} onChange={e => setContactForm(f => ({ ...f, emergency_contact_relation: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" placeholder="e.g. Spouse, Parent" />
-              </div>
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button type="submit" disabled={updateProfile.isPending}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                {updateProfile.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                Save
+              <button
+                type="button"
+                onClick={openContactEdit}
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mt-2"
+              >
+                <Pencil className="w-3 h-3" /> Edit contact details
               </button>
-              <button type="button" onClick={() => setEditContact(false)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">
-                <X className="w-3.5 h-3.5" /> Cancel
-              </button>
-            </div>
-          </form>
-        )}
-      </Section>
-
-      {/* ── Change password ── */}
-      <Section title="Change Password" icon={KeyRound}>
-        <form onSubmit={handleChangePassword} className="space-y-3 max-w-sm">
-          {[
-            { id: 'cur', label: 'Current password', field: 'current' as const, show: showPw.current, toggle: () => setShowPw(p => ({ ...p, current: !p.current })) },
-            { id: 'nxt', label: 'New password', field: 'next' as const, show: showPw.next, toggle: () => setShowPw(p => ({ ...p, next: !p.next })) },
-          ].map(({ id, label, field, show, toggle }) => (
-            <div key={id}>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-              <div className="relative">
-                <input type={show ? 'text' : 'password'} autoComplete={field === 'current' ? 'current-password' : 'new-password'}
-                  value={pwForm[field]} onChange={e => setPwForm(p => ({ ...p, [field]: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm pr-9 outline-none focus:ring-2 focus:ring-primary/40"
-                  placeholder={field === 'next' ? 'Min 8 characters' : ''} />
-                <button type="button" onClick={toggle} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </>
+          ) : (
+            <form onSubmit={saveContact} className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-0.5">Personal email</label>
+                  <input type="email" value={contactForm.personal_email} onChange={e => setContactForm(f => ({ ...f, personal_email: e.target.value }))}
+                    className="w-full border rounded-md px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40" placeholder="you@example.com" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-0.5">Personal phone</label>
+                  <PhoneInput
+                    value={contactForm.personal_phone}
+                    onChange={v => setContactForm(f => ({ ...f, personal_phone: v }))}
+                    defaultCountryIso="IN"
+                    autoComplete="tel"
+                    name="personal_phone"
+                    size="sm"
+                    showStatusHints={false}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-0.5">Emergency contact name</label>
+                  <input value={contactForm.emergency_contact_name} onChange={e => setContactForm(f => ({ ...f, emergency_contact_name: e.target.value }))}
+                    className="w-full border rounded-md px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-0.5">Emergency phone</label>
+                  <PhoneInput
+                    value={contactForm.emergency_contact_phone}
+                    onChange={v => setContactForm(f => ({ ...f, emergency_contact_phone: v }))}
+                    defaultCountryIso="IN"
+                    autoComplete="tel"
+                    name="emergency_contact_phone"
+                    size="sm"
+                    showStatusHints={false}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-0.5">Relationship</label>
+                  <input value={contactForm.emergency_contact_relation} onChange={e => setContactForm(f => ({ ...f, emergency_contact_relation: e.target.value }))}
+                    className="w-full border rounded-md px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40" placeholder="e.g. Spouse, Parent" />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-0.5">
+                <button type="submit" disabled={updateProfile.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50">
+                  {updateProfile.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  Save
+                </button>
+                <button type="button" onClick={() => setEditContact(false)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-md hover:bg-gray-50">
+                  <X className="w-3.5 h-3.5" /> Cancel
                 </button>
               </div>
-            </div>
-          ))}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Confirm new password</label>
-            <input type="password" autoComplete="new-password" value={pwForm.confirm}
-              onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))}
-              className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
-          </div>
-          <button type="submit" disabled={pwSaving || !pwForm.current || !pwForm.next || !pwForm.confirm}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
-            {pwSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
-            Change password
-          </button>
-        </form>
-      </Section>
+            </form>
+          )}
+        </Section>
 
-      {/* ── Account / logout ── */}
-      <Section title="Account" icon={Mail}>
-        <p className="text-sm text-gray-500 mb-3">
-          Your HR portal login: <span className="font-mono text-gray-800">{employee?.email ?? employee?.employee_code ?? '—'}</span>
-        </p>
-        <div className="flex gap-2">
+        {/* ── Change password ── */}
+        <Section title="Change Password" icon={KeyRound}>
+          <form onSubmit={handleChangePassword} className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {[
+                { id: 'cur', label: 'Current password', field: 'current' as const, show: showPw.current, toggle: () => setShowPw(p => ({ ...p, current: !p.current })) },
+                { id: 'nxt', label: 'New password', field: 'next' as const, show: showPw.next, toggle: () => setShowPw(p => ({ ...p, next: !p.next })) },
+              ].map(({ id, label, field, show, toggle }) => (
+                <div key={id}>
+                  <label className="block text-xs font-medium text-gray-600 mb-0.5">{label}</label>
+                  <div className="relative">
+                    <input type={show ? 'text' : 'password'} autoComplete={field === 'current' ? 'current-password' : 'new-password'}
+                      value={pwForm[field]} onChange={e => setPwForm(p => ({ ...p, [field]: e.target.value }))}
+                      className="w-full border rounded-md px-2.5 py-1.5 text-sm pr-8 outline-none focus:ring-2 focus:ring-primary/40"
+                      placeholder={field === 'next' ? 'Min 8 characters' : ''} />
+                    <button type="button" onClick={toggle} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-0.5">Confirm new password</label>
+                <input type="password" autoComplete="new-password" value={pwForm.confirm}
+                  onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))}
+                  className="w-full border rounded-md px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
+              </div>
+            </div>
+            <button type="submit" disabled={pwSaving || !pwForm.current || !pwForm.next || !pwForm.confirm}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50">
+              {pwSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+              Change password
+            </button>
+          </form>
+        </Section>
+
+        {/* ── Account / logout ── */}
+        <Section title="Account" icon={Mail}>
+          <p className="text-sm text-gray-500 mb-2">
+            Your HR portal login: <span className="font-mono text-gray-800">{employee?.email ?? employee?.employee_code ?? '—'}</span>
+          </p>
           <button
             type="button"
             onClick={() => { useHrAuthStore.getState().logout(); navigate(storePath('/hr/login'), { replace: true }) }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded-md hover:bg-red-50"
           >
             Sign out
           </button>
-        </div>
-      </Section>
+        </Section>
+      </div>
     </div>
   )
 }

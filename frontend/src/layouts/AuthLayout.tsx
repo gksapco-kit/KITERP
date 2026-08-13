@@ -1,6 +1,20 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
+import { useDocumentSeo, adminPageTitle } from '@/lib/documentSeo'
 
 export default function AuthLayout() {
+  const { pathname } = useLocation()
+  const authPath = pathname.replace(/\/+$/, '') || '/'
+  const pageLabel =
+    authPath === '/login' ? 'Login'
+      : authPath === '/forgot-password' ? 'Forgot Password'
+        : authPath === '/register' ? 'Register'
+          : 'Sign In'
+
+  useDocumentSeo({
+    title: adminPageTitle(pageLabel),
+    description: 'Sign in to the KIT ERP admin console.',
+    noindex: true,
+  })
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">

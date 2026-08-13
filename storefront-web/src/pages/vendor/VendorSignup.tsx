@@ -14,6 +14,7 @@ import axios from 'axios'
 import { buildVendorWelcomeUrl, vendorAppUrl } from '@/lib/appUrls'
 import { extractAuthApiDetail } from '@/lib/otpAuth'
 import { VENDOR_SIGNUP_PATH, VENDOR_VERIFY_EMAIL_PATH } from '@/lib/vendorSignupPaths'
+import { useDocumentSeo } from '@/lib/documentSeo'
 
 // Same-origin `/api/v1` in dev (Vite proxies to backend); set `VITE_API_URL` if the API is elsewhere.
 const API_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '')
@@ -189,6 +190,14 @@ type OtpChannel = 'phone' | 'email'
 
 export default function VendorSignup() {
   const navigate = useNavigate()
+  useDocumentSeo({
+    title: 'Create Your Business — KITERP',
+    description:
+      'Create a KITERP business account to launch your online store, bookings, website, and operations dashboard in one platform.',
+    keywords: 'KITERP signup, create business, online store, vendor registration',
+    canonicalPath: VENDOR_SIGNUP_PATH,
+    ogImage: '/favicon-192.png',
+  })
   const initialDraft = useMemo(() => loadSignupDraft(), [])
   const restoredToastRef = useRef(false)
   const otpAutoSentRef = useRef(false)

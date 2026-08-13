@@ -4,13 +4,20 @@ import { Button } from '@/components/ui/button'
 import { Store, Loader2, ShieldCheck, MailCheck, ArrowRight, CheckCircle2 } from 'lucide-react'
 import axios from 'axios'
 import { buildVendorWelcomeUrl, vendorAppUrl } from '@/lib/appUrls'
-import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
+import { VENDOR_SIGNUP_PATH, VENDOR_VERIFY_EMAIL_PATH } from '@/lib/vendorSignupPaths'
+import { useDocumentSeo } from '@/lib/documentSeo'
 
 const API_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '')
 
 export default function VerifyEmail() {
   const location = useLocation()
   const navigate = useNavigate()
+  useDocumentSeo({
+    title: 'Verify Email — KITERP',
+    description: 'Verify your email to finish creating your KITERP business account.',
+    canonicalPath: VENDOR_VERIFY_EMAIL_PATH,
+    noindex: true,
+  })
   const state = location.state as {
     email?: string
     access_token?: string
