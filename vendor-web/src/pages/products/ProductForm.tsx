@@ -3554,56 +3554,61 @@ export default function ProductForm() {
     }
   }, onFormInvalid)
 
+  const catalogProductId = product?.id || id
+
   const handleUpload = useCallback(async (file: File) => {
-    if (!id) return
+    if (!catalogProductId) return
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
     const isVideo = file.type.startsWith('video/')
     const is3D = ext === 'glb' || ext === 'gltf'
     const label = isVideo ? 'Video' : is3D ? '3D model' : 'Image'
     try {
-      await vendorApi.uploadProductImage(id, file)
-      qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })
+      await vendorApi.uploadProductImage(catalogProductId, file)
+      qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
       qc.invalidateQueries({ queryKey: ['vendor', 'products'] })
       toast.success(`${label} uploaded`)
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err?.message || 'Upload failed'
       toast.error(`${label} upload failed: ${msg}`)
     }
-  }, [id, qc])
+  }, [catalogProductId, qc])
 
   const handleDelete = useCallback(async (imageId: string) => {
-    if (!id) return
+    if (!catalogProductId) return
     try {
-      await vendorApi.deleteProductImage(id, imageId)
-      qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })
+      await vendorApi.deleteProductImage(catalogProductId, imageId)
+      qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
       toast.success('Image deleted')
-    } catch { toast.error('Failed to delete image') }
-  }, [id, qc])
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || err?.message || 'Delete failed'
+      toast.error(`Failed to delete image: ${msg}`)
+    }
+  }, [catalogProductId, qc])
 
   const handleSetPrimary = useCallback(async (imageId: string) => {
-    if (!id) return
+    if (!catalogProductId) return
     try {
-      await vendorApi.setPrimaryProductImage(id, imageId)
-      qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })
+      await vendorApi.setPrimaryProductImage(catalogProductId, imageId)
+      qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
       toast.success('Primary image updated')
     } catch { toast.error('Failed to set primary image') }
-  }, [id, qc])
+  }, [catalogProductId, qc])
 
   const handleReorderImages = useCallback(async (imageIds: string[]) => {
-    if (!id) return
+    if (!catalogProductId) return
     try {
-      await vendorApi.reorderProductImages(id, imageIds)
-      qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })
+      await vendorApi.reorderProductImages(catalogProductId, imageIds)
+      qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
     } catch { toast.error('Failed to reorder media') }
-  }, [id, qc])
+  }, [catalogProductId, qc])
 
   const handleEditImage = useCallback(async (imageId: string, file: File, wasPrimary: boolean) => {
-    if (!id) return
-    const uploaded = await vendorApi.uploadProductImage(id, file)
-    await vendorApi.deleteProductImage(id, imageId)
-    if (wasPrimary) await vendorApi.setPrimaryProductImage(id, uploaded.id)
-    qc.invalidateQueries({ queryKey: ['vendor', 'product', id] })
-  }, [id, qc])
+    if (!catalogProductId) return
+    const uploaded = await vendorApi.uploadProductImage(catalogProductId, file)
+    await vendorApi.deleteProductImage(catalogProductId, imageId)
+    if (wasPrimary) await vendorApi.setPrimaryProductImage(catalogProductId, uploaded.id)
+    qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
+  }, [catalogProductId, qc])
 
   const updateOptionRow = (index: number, field: keyof OptionRow, value: string) => {
     const oldRow = optionRows[index]

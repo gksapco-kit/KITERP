@@ -4,14 +4,20 @@ File upload endpoints for product and service images.
 Uses FileService (S3 when configured, else backend/uploads/).
 """
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Body
+from contextvars import ContextVar
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status, Body
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
 from app.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import (
+    get_current_active_user,
+    get_current_vendor_id,
+    preferred_vendor_id_from_request,
+    resolve_dashboard_vendor,
+)
 from app.models.user import User
 from app.models.vendor_product import Product, ProductImage, ProductVariant
 from app.models.vendor_service import Service
@@ -30,15 +36,57 @@ from app.services.media_upload import (
     ALLOWED_IMAGE_TYPES,
 )
 
-router = APIRouter()
+_upload_preferred_vendor_id: ContextVar[UUID | None] = ContextVar(
+    "upload_preferred_vendor_id",
+    default=None,
+)
+
+
+async def _bind_upload_vendor_context(request: Request) -> None:
+    """Read X-Vendor-Id on the request (middleware ContextVar is not reliable here)."""
+    _upload_preferred_vendor_id.set(preferred_vendor_id_from_request(request))
+
+
+router = APIRouter(dependencies=[Depends(_bind_upload_vendor_context)])
 
 
 async def _get_vendor_id(user: User, db: AsyncSession) -> UUID:
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(user.id)
-    if not vendor:
-        raise HTTPException(status_code=404, detail="Vendor not found")
+    """Same tenant resolution as product create/get (X-Vendor-Id + platform staff)."""
+    vendor = await resolve_dashboard_vendor(
+        db,
+        user,
+        preferred_vendor_id=_upload_preferred_vendor_id.get(),
+    )
     return vendor.id
+
+
+async def _get_managed_product(
+    user: User,
+    db: AsyncSession,
+    product_id: UUID,
+    vendor_id: UUID | None = None,
+) -> Product:
+    """Load a product the current dashboard vendor (or platform staff) may edit."""
+    resolved_vendor_id = vendor_id or await _get_vendor_id(user, db)
+    repo = ProductRepository(db)
+    product = await repo.get_by_vendor_and_id(resolved_vendor_id, product_id)
+    if product:
+        return product
+
+    from app.utils.platform_staff import has_platform_staff_access
+    from app.utils.platform_vendor_access import ensure_vendor_visible_to_platform_staff
+
+    product = await repo.get_by_id(product_id)
+    if not product or product.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if not has_platform_staff_access(user):
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    vendor = await VendorService(db).get_by_id(product.vendor_id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Product not found")
+    await ensure_vendor_visible_to_platform_staff(user, vendor, db)
+    return product
 
 
 async def _save_file(file: UploadFile, subfolder: str) -> str:
@@ -602,15 +650,11 @@ async def upload_product_image(
     product_id: UUID,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_active_user),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload an image for a product."""
-    vendor_id = await _get_vendor_id(current_user, db)
-    repo = ProductRepository(db)
-    product = await repo.get_by_vendor_and_id(vendor_id, product_id)
-
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+    product = await _get_managed_product(current_user, db, product_id, vendor_id)
 
     media = detect_media_type(file)
     url = await _save_file(file, "products")
@@ -644,37 +688,45 @@ async def delete_product_image(
     product_id: UUID,
     image_id: UUID,
     current_user: User = Depends(get_current_active_user),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a product image."""
-    vendor_id = await _get_vendor_id(current_user, db)
-    repo = ProductRepository(db)
-    product = await repo.get_by_vendor_and_id(vendor_id, product_id)
+    product = await _get_managed_product(current_user, db, product_id, vendor_id)
 
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    target = None
-    for img in (product.images or []):
-        if img.id == image_id:
-            target = img
-            break
-
+    target = next(
+        (img for img in (product.images or []) if str(img.id) == str(image_id)),
+        None,
+    )
+    if not target:
+        result = await db.execute(
+            select(ProductImage).where(
+                ProductImage.id == image_id,
+                ProductImage.product_id == product.id,
+            )
+        )
+        target = result.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    await delete_stored_file(target.url)
+    try:
+        await delete_stored_file(target.url)
+    except Exception:
+        pass
 
-    was_primary = target.is_primary
+    was_primary = bool(target.is_primary)
     await db.delete(target)
     await db.commit()
 
-    # If deleted image was primary, make the first remaining image primary
     if was_primary:
-        product = await repo.get_by_vendor_and_id(vendor_id, product_id)
-        if product.images:
-            product.images[0].is_primary = True
-            await db.commit()
+        try:
+            product = await _get_managed_product(current_user, db, product_id, vendor_id)
+            remaining = sorted(product.images or [], key=lambda img: img.position or 0)
+            if remaining:
+                remaining[0].is_primary = True
+                await db.commit()
+        except Exception:
+            pass
 
     return JSONResponse(content={"detail": "Image deleted"})
 
@@ -684,19 +736,15 @@ async def set_primary_product_image(
     product_id: UUID,
     image_id: UUID,
     current_user: User = Depends(get_current_active_user),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Set an image as the primary product image."""
-    vendor_id = await _get_vendor_id(current_user, db)
-    repo = ProductRepository(db)
-    product = await repo.get_by_vendor_and_id(vendor_id, product_id)
-
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+    product = await _get_managed_product(current_user, db, product_id, vendor_id)
 
     found = False
     for img in (product.images or []):
-        if img.id == image_id:
+        if str(img.id) == str(image_id):
             img.is_primary = True
             found = True
         else:
@@ -714,15 +762,11 @@ async def reorder_product_images(
     product_id: UUID,
     body: dict,
     current_user: User = Depends(get_current_active_user),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Reorder product images by id list (display order)."""
-    vendor_id = await _get_vendor_id(current_user, db)
-    repo = ProductRepository(db)
-    product = await repo.get_by_vendor_and_id(vendor_id, product_id)
-
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+    product = await _get_managed_product(current_user, db, product_id, vendor_id)
 
     image_ids = body.get("image_ids") or []
     if not image_ids:
