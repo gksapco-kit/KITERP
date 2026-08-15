@@ -891,45 +891,8 @@ async def get_live_resource_public(
     items: List[Dict[str, Any]] = []
 
     if resource == "products":
-        from app.models.vendor_product import Product, ProductImage
-        from app.services.product_media import resolve_product_thumbnail_url
-        from app.services.product_pricing import live_product_price_fields
-        q = (
-            select(Product)
-            .options(selectinload(Product.images), selectinload(Product.variants))
-            .where(Product.vendor_id == vendor.id, Product.is_visible.is_(True))
-            .order_by(Product.is_featured.desc(), Product.created_at.desc())
-            .limit(limit)
-        )
-        rows = (await db.execute(q)).scalars().all()
-        for p in rows:
-            img = resolve_product_thumbnail_url(p)
-            price_fields = live_product_price_fields(p)
-            items.append(_norm_item(
-                id=str(p.id),
-                title=p.name or "",
-                subtitle=p.brand,
-                description=p.short_description or p.description,
-                image_url=img,
-                price=price_fields["price"],
-                price_formatted=price_fields["price_formatted"],
-                url=f"/products/{p.slug}" if p.slug else None,
-                meta={
-                    "sku": p.sku,
-                    "slug": p.slug,
-                    "category": p.category,
-                    "stock_status": p.stock_status,
-                    "quantity": p.quantity,
-                    "is_featured": p.is_featured,
-                    "is_on_sale": p.is_on_sale,
-                    "discount_percentage": float(p.discount_percentage) if p.discount_percentage is not None else None,
-                    "compare_at_price": price_fields["compare_at_price"],
-                    "currency": p.currency,
-                    "offer_label": p.offer_label,
-                    "price_from_variants": price_fields["price_from_variants"],
-                    "view_count": int(p.view_count or 0),
-                },
-            ))
+        from app.services.product_live_feed import build_product_live_items
+        items = await build_product_live_items(db, vendor.id, limit, _norm_item)
 
     elif resource == "services":
         from app.models.vendor_service import Service

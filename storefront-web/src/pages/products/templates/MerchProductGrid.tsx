@@ -30,7 +30,7 @@ export default function MerchProductGrid({ title, subtitle, products, storePath 
               <div className="aspect-square bg-gray-50 relative overflow-hidden">
                 {primaryImg ? (
                   <img src={imgUrl(primaryImg.url)} alt={p.name}
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    className="absolute inset-0 w-full h-full object-contain object-center p-2" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ShoppingBag className="w-10 h-10 text-gray-200" />

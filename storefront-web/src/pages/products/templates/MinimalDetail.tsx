@@ -16,7 +16,7 @@ import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
 import { ProductPurchaseActions } from '@/components/products/ProductPurchaseActions'
 import { ProductMediaWishlistOverlay } from '@/components/products/ProductMediaWishlistOverlay'
-import { isCombinationAvailable, variantFlatOptionTitle } from '@/lib/variantOptions'
+import { isCombinationAvailable, isOptionValueOutOfStock, variantFlatOptionTitle } from '@/lib/variantOptions'
 import type { ProductDetailTemplateProps } from './types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 import { formatUomDisplay } from '@/lib/uomDisplay'
@@ -228,17 +228,29 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
                 <div className="flex flex-wrap justify-center gap-2">
                   {sizeRow.values.map((value) => {
                     const isSelected = selections[sizeRow.label] === value
-                    const unavailable =
+                    const missingCombo =
                       !!selectedColorName &&
                       !isCombinationAvailable(activeVariants, { ...selections, [sizeRow.label]: value }, selectedColorName)
+                    const outOfStock = isOptionValueOutOfStock(
+                      product,
+                      activeVariants,
+                      selections,
+                      sizeRow.label,
+                      value,
+                      selectedColorName,
+                    )
+                    const unavailable = missingCombo || outOfStock
                     return (
                       <button
                         key={value}
                         type="button"
                         onClick={() => onSelectSize(sizeRow.label, value)}
+                        title={outOfStock ? `${value} — Out of Stock` : value}
                         className={`min-w-[2.75rem] px-4 py-2 rounded-full border-2 text-sm font-semibold uppercase transition-all ${
                           isSelected
-                            ? 'border-black bg-black text-white'
+                            ? outOfStock
+                              ? 'border-red-500 bg-red-50 text-red-700'
+                              : 'border-black bg-black text-white'
                             : unavailable
                               ? 'border-gray-200 bg-gray-50 text-gray-400 opacity-60'
                               : 'border-gray-200 text-gray-700 hover:border-gray-400'
@@ -366,7 +378,7 @@ export default function MinimalDetail(props: ProductDetailTemplateProps) {
       )}
 
       {/* Stock — product-level status is only meaningful when variants exist */}
-      {hasVariants && isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
+      {hasVariants && (isDisplayFieldEnabled(sf, 'stock_status') || displayStock === 'out_of_stock') && displayStock && (
         <div className="text-center mb-6">
           <span className={`text-sm font-medium ${
             displayStock === 'in_stock' ? 'text-green-600' : displayStock === 'low_stock' ? 'text-amber-600' : 'text-red-600'

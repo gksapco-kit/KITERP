@@ -18,6 +18,7 @@ import {
   resolveCardRadiusPresentation,
 } from '@/lib/catalogCardLayout'
 import { CatalogAddOrQtyControl } from '@/components/catalog/CatalogAddOrQtyControl'
+import { LiveCatalogProductCard, canRenderLiveCatalogProductCard } from '@/components/catalog/LiveCatalogProductCard'
 import { catalogTileImageWrapperClass, imageShapeFromProps } from '@/lib/sectionItemLayout'
 import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 import type { LiveItem } from '@/blocks/registry'
@@ -204,6 +205,16 @@ export default function CategoryExpandedProducts({
           style={{ gap: itemGap }}
         >
           {items.map(item => {
+            if (!isServiceCategory && canRenderLiveCatalogProductCard(item)) {
+              return (
+                <LiveCatalogProductCard
+                  key={item.id}
+                  item={item}
+                  linkTo={resolveLiveCatalogStorePath(item, storePath) ?? undefined}
+                  onNavigateClick={e => handleProductCardClick(e, item)}
+                />
+              )
+            }
             const cartQty = cartQtyByProduct.get(String(item.id)) ?? 0
             const isAdding = addToCart.isPending && addToCart.variables && (addToCart.variables as any).product_id === item.id
             const outOfStock = item.meta?.stock_status === 'out_of_stock'

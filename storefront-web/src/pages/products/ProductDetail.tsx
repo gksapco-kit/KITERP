@@ -128,22 +128,32 @@ export default function ProductDetail() {
     }
   }, [variantValidation.valid, variantValidation.variant?.id])
 
-  const selectedVariant: ProductVariant | null = useMemo(() => {
+  const matchedVariant: ProductVariant | null = useMemo(() => {
     if (!hasVariants) return null
     if (variantValidation.valid && variantValidation.variant) {
-      return activeVariants.find((v) => v.id === variantValidation.variant!.id) || activeVariants[0]
+      return activeVariants.find((v) => v.id === variantValidation.variant!.id) ?? null
     }
-    if (selectedVariantId) return activeVariants.find(v => v.id === selectedVariantId) || activeVariants[0]
-    return activeVariants[0]
-  }, [hasVariants, variantValidation, selectedVariantId, activeVariants])
+    if (!hasStructuredOptions && selectedVariantId) {
+      return activeVariants.find((v) => v.id === selectedVariantId) ?? null
+    }
+    return null
+  }, [hasVariants, hasStructuredOptions, variantValidation, selectedVariantId, activeVariants])
+
+  const selectedVariant: ProductVariant | null = useMemo(() => {
+    if (!hasVariants) return null
+    if (matchedVariant) return matchedVariant
+    if (selectedVariantId) return activeVariants.find((v) => v.id === selectedVariantId) ?? null
+    return activeVariants[0] ?? null
+  }, [hasVariants, matchedVariant, selectedVariantId, activeVariants])
 
   const pricingVariant = useMemo(() => {
-    if (!hasVariants || !product) return selectedVariant
+    if (!hasVariants || !product) return matchedVariant
     return (
+      matchedVariant ??
       resolveVariantForCardPricing(activeVariants, optionRows, selections, selectedColorName) ??
-      selectedVariant
+      null
     )
-  }, [hasVariants, product, activeVariants, optionRows, selections, selectedColorName, selectedVariant])
+  }, [hasVariants, product, matchedVariant, activeVariants, optionRows, selections, selectedColorName])
 
   const displayPriceType = pricingVariant?.price_type ?? product?.price_type
   const rawDisplayPrice = pricingVariant?.price ?? product?.price
@@ -153,24 +163,26 @@ export default function ProductDetail() {
     ? (pricingVariant?.compare_at_price ?? product?.compare_at_price)
     : undefined
   const displayCurrency = pricingVariant?.currency ?? product?.currency ?? 'INR'
+  // Stock follows the exact selected variant only — never a sibling that still has qty.
   const displayStock = product
-    ? getEffectiveStockStatus(product, pricingVariant ?? undefined)
+    ? hasVariants && !matchedVariant
+      ? 'out_of_stock'
+      : getEffectiveStockStatus(product, matchedVariant ?? undefined)
     : undefined
   const displayOfferLabel = pricingVariant?.offer_label ?? product?.offer_label
   const displayOnSale = pricingVariant?.is_on_sale ?? product?.is_on_sale
 
-  const stockVariant = useMemo(
-    () => pricingVariant ?? selectedVariant ?? null,
-    [pricingVariant, selectedVariant],
-  )
+  const stockVariant = matchedVariant
 
   const onHandQty = useMemo(() => {
     if (!product) return null
+    if (hasVariants && !stockVariant) return 0
     return getOnHandQuantity(product, stockVariant ?? undefined)
-  }, [product, stockVariant])
+  }, [product, hasVariants, stockVariant])
 
   const maxAddQty = useMemo(() => {
     if (!product) return null
+    if (hasVariants && !stockVariant) return 0
     return getMaxAddQuantity({
       vendorSlug,
       isAuthenticated,
@@ -178,7 +190,7 @@ export default function ProductDetail() {
       product,
       variant: stockVariant ?? undefined,
     })
-  }, [product, stockVariant, vendorSlug, isAuthenticated])
+  }, [product, hasVariants, stockVariant, vendorSlug, isAuthenticated])
 
   const minAddQty = useMemo(() => {
     if (!product) return 1
@@ -186,25 +198,29 @@ export default function ProductDetail() {
   }, [product, stockVariant])
 
   useEffect(() => {
-    if (maxAddQty === null || maxAddQty < 1) return
+    if (maxAddQty === null) return
+    if (maxAddQty < minAddQty) {
+      setQty(minAddQty)
+      return
+    }
     setQty((current) => (current > maxAddQty ? maxAddQty : current))
-  }, [maxAddQty, pricingVariant?.id, selectedVariant?.id])
+  }, [maxAddQty, minAddQty, stockVariant?.id])
 
   useEffect(() => {
     setQty((current) => (current < minAddQty ? minAddQty : current))
-  }, [minAddQty, pricingVariant?.id, selectedVariant?.id])
+  }, [minAddQty, stockVariant?.id])
 
   useEffect(() => {
     if (!product) return
     trackView({
       id: product.id,
       title: product.name,
-      url: `${storePath('/products')}/${product.slug}`,
+      url: `/products/${product.slug}`,
       image_url: resolveProductThumbnailUrl({ images: product.images, variants: activeVariants }),
       price: displayPrice,
       currency: displayCurrency,
     }, vendorSlug)
-  }, [product?.id, displayPrice, displayCurrency, storePath, product?.images, product?.name, product?.slug, vendorSlug])
+  }, [product?.id, displayPrice, displayCurrency, product?.images, product?.name, product?.slug, vendorSlug, activeVariants])
 
   // Unique product view (once per browser session; 24h server-side dedupe)
   useEffect(() => {

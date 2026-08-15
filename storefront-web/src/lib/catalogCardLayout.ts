@@ -126,7 +126,9 @@ export interface CatalogImageShell {
 }
 
 export function catalogImageObjectFitClass(fit?: string | null): string {
-  return fit === 'contain' ? 'object-contain' : 'object-cover'
+  return fit === 'contain'
+    ? 'object-contain object-center p-2'
+    : 'object-cover object-center'
 }
 
 export function parseCatalogImageAspect(raw: unknown): CatalogImageAspect {
@@ -135,7 +137,8 @@ export function parseCatalogImageAspect(raw: unknown): CatalogImageAspect {
 }
 
 export function parseCatalogImageObjectFit(raw: unknown): CatalogImageObjectFit {
-  return raw === 'contain' ? 'contain' : 'cover'
+  if (raw === 'cover') return 'cover'
+  return 'contain'
 }
 
 export function parseCardBorderRadius(raw: unknown): number | null {
@@ -168,7 +171,7 @@ export function buildCatalogImageShell(options: {
 }): CatalogImageShell {
   const objectFit = catalogImageObjectFitClass(options.imageObjectFit)
   const hover =
-    options.hoverScale !== false
+    options.hoverScale !== false && options.imageObjectFit !== 'contain'
       ? 'group-hover:scale-105 transition-transform duration-300'
       : ''
   const bg = options.bgClass ?? 'bg-gray-50'

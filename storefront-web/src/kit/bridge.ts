@@ -59,6 +59,8 @@ export function bridgeProduct(p: StoreProduct): Product {
     allow_backorders: (p as { allow_backorders?: boolean }).allow_backorders,
     quantity: (p as { quantity?: number }).quantity,
     stock_status: (p as { stock_status?: string }).stock_status,
+    max_quantity_per_order: (p as { max_quantity_per_order?: number | null }).max_quantity_per_order,
+    min_quantity_per_order: (p as { min_quantity_per_order?: number | null }).min_quantity_per_order,
     showFromPrice,
     variants: extendedVariants.map((v) => ({
       id: v.id,
@@ -74,6 +76,10 @@ export function bridgeProduct(p: StoreProduct): Product {
       track_inventory: (v as { track_inventory?: boolean }).track_inventory,
       allow_backorders: (v as { allow_backorders?: boolean }).allow_backorders,
       stock_status: (v as { stock_status?: string }).stock_status,
+      max_quantity_per_order: (v as { max_quantity_per_order?: number | null }).max_quantity_per_order,
+      min_quantity_per_order: (v as { min_quantity_per_order?: number | null }).min_quantity_per_order,
+      uom: (v as { uom?: string }).uom,
+      uom_quantity: (v as { uom_quantity?: number | null }).uom_quantity,
     })),
   }
 }

@@ -57,6 +57,22 @@ function write(items: RecentlyViewedItem[], vendorSlug?: string | null): void {
   }
 }
 
+/** Relative catalog path from a stored URL (handles old full /store/... and ?branch= smash). */
+export function catalogPathFromStoredUrl(url?: string | null): string | null {
+  if (!url) return null
+  const raw = url.trim()
+  if (!raw) return null
+  const withoutOrigin = raw.replace(/^https?:\/\/[^/]+/i, '')
+  const smashed = withoutOrigin.match(/\/(products|services)(?:\?[^/]*)?\/([^/?#]+)/i)
+  if (smashed?.[1] && smashed[2]) {
+    return `/${smashed[1].toLowerCase()}/${decodeURIComponent(smashed[2])}`
+  }
+  const pathOnly = withoutOrigin.split('?')[0].split('#')[0]
+  const stripped = pathOnly.replace(/^\/store\/[^/]+/i, '') || pathOnly
+  if (/^\/(products|services)\/[^/]+$/i.test(stripped)) return stripped
+  return null
+}
+
 /** Push a product onto the recently-viewed list (deduped by id). */
 export function trackView(
   item: {
@@ -75,7 +91,7 @@ export function trackView(
   const next: RecentlyViewedItem = {
     id,
     title: item.title,
-    url: item.url ?? null,
+    url: catalogPathFromStoredUrl(item.url) ?? item.url ?? null,
     image_url: item.image_url ?? null,
     price: item.price ?? null,
     currency: item.currency ?? null,
@@ -96,7 +112,7 @@ export function getRecent(limit = 6, vendorSlug?: string | null): LiveItem[] {
       price: i.price ?? null,
       price_formatted: i.price != null ? `${i.currency || ''} ${i.price.toLocaleString()}`.trim() : null,
       rating: null,
-      url: i.url ?? null,
+      url: catalogPathFromStoredUrl(i.url) ?? i.url ?? null,
       meta: { viewed_at: i.viewed_at, currency: i.currency },
     }))
 }

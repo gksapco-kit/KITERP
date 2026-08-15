@@ -28,6 +28,13 @@ function pickImageFromList(items: ProductImageLike[]): ProductImageLike | undefi
   )
 }
 
+/** Image for the selected variant (pack shot), if that variant has its own media. */
+export function resolveVariantThumbnailUrl(variant?: VariantLike | null): string | null {
+  if (!variant) return null
+  const media = variant.media ?? variant.images ?? []
+  return pickImageFromList(media)?.url ?? null
+}
+
 /** Primary thumbnail: product images first, then variant media (matches vendor panel). */
 export function resolveProductThumbnailUrl(input: {
   images?: ProductImageLike[]

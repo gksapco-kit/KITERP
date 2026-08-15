@@ -54,14 +54,21 @@ export function getCartQtyForVariant(
 
 function resolveStockContext(product: StockEntity, variant?: StockEntity) {
   const allowBackorders = variant?.allow_backorders ?? product.allow_backorders ?? false
-  const quantity = variant?.quantity ?? product.quantity ?? 0
+  // A selected variant must not inherit sibling/product on-hand (e.g. 1000 ML = 10
+  // must not make 200 ML look in stock).
+  const variantQtyExplicit = variant != null && variant.quantity != null
+  const quantity = variantQtyExplicit
+    ? Number(variant.quantity)
+    : variant != null
+      ? 0
+      : Number(product.quantity ?? 0)
   const stockStatus = variant?.stock_status ?? product.stock_status ?? 'in_stock'
   const maxPerOrder = variant?.max_quantity_per_order ?? product.max_quantity_per_order ?? null
   const minPerOrder = variant?.min_quantity_per_order ?? product.min_quantity_per_order ?? null
   const lowStockThreshold =
     variant?.low_stock_threshold ?? product.low_stock_threshold ?? null
   const explicitTrack = variant?.track_inventory ?? product.track_inventory
-  const hasOnHandQty = variant?.quantity != null || product.quantity != null
+  const hasOnHandQty = variantQtyExplicit || (variant == null && product.quantity != null)
   // Enforce on-hand quantity unless backorders are allowed; respect explicit track_inventory=false only when no qty is set.
   const track =
     !allowBackorders &&

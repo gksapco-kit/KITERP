@@ -3,9 +3,11 @@ import { cn, imgUrl } from '@/lib/utils'
 import type { ProductVariant } from '@/types'
 import {
   isCombinationAvailable,
+  isOptionValueOutOfStock,
   resolveColorNameForVariant,
   type ProductCardOptionRow,
 } from '@/lib/variantOptions'
+import type { StockEntity } from '@/lib/stockValidation'
 
 export type ProductOptionPickerProps = {
   rows: ProductCardOptionRow[]
@@ -13,6 +15,7 @@ export type ProductOptionPickerProps = {
   selectedColorName?: string
   selectedVariantId?: string
   variants: ProductVariant[]
+  product?: StockEntity
   onSelectSize: (dimension: string, value: string) => void
   onSelectColor: (name: string) => void
   errorMessage?: string
@@ -137,6 +140,7 @@ export default function ProductOptionPicker({
   selectedColorName,
   selectedVariantId,
   variants,
+  product,
   onSelectSize,
   onSelectColor,
   errorMessage,
@@ -160,13 +164,24 @@ export default function ProductOptionPicker({
             {row.type === 'size'
               ? row.values.map((value) => {
                   const selected = selections[row.label] === value
-                  const unavailable =
+                  const missingCombo =
                     !!selectedColorName &&
                     !isCombinationAvailable(
                       variants,
                       { ...selections, [row.label]: value },
                       selectedColorName,
                     )
+                  const outOfStock = product
+                    ? isOptionValueOutOfStock(
+                        product,
+                        variants,
+                        selections,
+                        row.label,
+                        value,
+                        selectedColorName,
+                      )
+                    : false
+                  const unavailable = missingCombo || outOfStock
                   return (
                     <SizeChip
                       key={value}

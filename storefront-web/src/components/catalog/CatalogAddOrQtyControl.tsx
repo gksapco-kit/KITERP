@@ -13,6 +13,9 @@ type Props = {
   disabled?: boolean
   pending?: boolean
   outOfStock?: boolean
+  /** When set, + stops at this qty and onAtMax is called instead of increasing. */
+  maxQty?: number | null
+  onAtMax?: () => void
   labelOverride?: string
   primaryColor?: string
   addButtonStyle?: CatalogAddButtonStyle | string | null
@@ -34,6 +37,8 @@ export function CatalogAddOrQtyControl({
   disabled,
   pending,
   outOfStock,
+  maxQty,
+  onAtMax,
   labelOverride,
   primaryColor,
   addButtonStyle,
@@ -61,17 +66,21 @@ export function CatalogAddOrQtyControl({
     isMinimalCard ? 'h-6 w-6' : 'h-7 w-7',
     'hover:bg-black/10',
   )
+  const atMaxQty = maxQty != null && cartQty >= maxQty
 
   if (outOfStock && cartQty <= 0) {
     return (
-      <button
-        type="button"
-        disabled
-        className={cn(addBtn.className, controlHeightClass, 'box-border items-center', className)}
-        style={addBtn.style}
+      <div
+        role="status"
+        className={cn(
+          'inline-flex w-full items-center justify-center font-semibold bg-red-50 text-red-600',
+          controlHeightClass,
+          isMinimalCard ? 'rounded-lg text-[11px]' : isCompactCard ? 'rounded-xl text-xs' : 'rounded-xl text-sm',
+          className,
+        )}
       >
-        {addBtn.showLabel ? 'Out of Stock' : <ShoppingCart className={iconClass} />}
-      </button>
+        Out of Stock
+      </div>
     )
   }
 
@@ -120,10 +129,18 @@ export function CatalogAddOrQtyControl({
           </span>
           <button
             type="button"
-            className={sideBtnClass}
-            disabled={disabled || outOfStock}
+            className={cn(sideBtnClass, atMaxQty && 'opacity-40')}
+            aria-disabled={atMaxQty}
             aria-label="Increase quantity"
-            onClick={() => { void onQtyChange(cartQty + 1) }}
+            title={atMaxQty ? 'Maximum quantity reached' : 'Increase quantity'}
+            onClick={() => {
+              if (disabled) return
+              if (atMaxQty) {
+                onAtMax?.()
+                return
+              }
+              void onQtyChange(cartQty + 1)
+            }}
           >
             <Plus className={iconClass} strokeWidth={2.5} />
           </button>

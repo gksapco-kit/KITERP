@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
-import { getRecent } from '@/lib/recentlyViewed'
+import { getRecent, catalogPathFromStoredUrl } from '@/lib/recentlyViewed'
 import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { useVendor } from '@/contexts/VendorContext'
@@ -63,11 +63,14 @@ export default function RecentlyViewedBlock({ style, props, blockId }: Props) {
         className={`grid list-none p-0 ${CATALOG_GRID_COL_CLASS[columns] || CATALOG_GRID_COL_CLASS[6]}`}
         style={{ gap: cardLayout.itemGap }}
       >
-        {items.map(item => (
+        {items.map(item => {
+          const catalogPath = catalogPathFromStoredUrl(item.url)
+          const href = catalogPath ? storePath(catalogPath) : storePath('/products')
+          return (
           <li key={item.id || item.title} className="group">
-            <Link to={item.url ? storePath(item.url) : storePath('/products')} className="block">
+            <Link to={href} className="block">
               <div
-                className={`relative w-full overflow-hidden bg-gray-100 mb-2 border border-gray-200/60 group-hover:border-gray-300 transition-colors ${cardLayout.cardRadius}`}
+                className={`relative w-full overflow-hidden bg-gray-50 mb-2 border border-gray-200/60 group-hover:border-gray-300 transition-colors ${cardLayout.cardRadius}`}
                 style={{ paddingBottom: `${cardLayout.imageHeightPct}%` }}
               >
                 {item.image_url ? (
@@ -75,7 +78,7 @@ export default function RecentlyViewedBlock({ style, props, blockId }: Props) {
                     src={item.image_url}
                     alt={item.title}
                     loading="lazy"
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="absolute inset-0 w-full h-full object-contain object-center p-2"
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400">No image</div>
@@ -96,7 +99,8 @@ export default function RecentlyViewedBlock({ style, props, blockId }: Props) {
               </div>
             </Link>
           </li>
-        ))}
+          )
+        })}
       </ul>
     </section>
   )

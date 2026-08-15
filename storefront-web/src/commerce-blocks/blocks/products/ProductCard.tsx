@@ -71,7 +71,7 @@ export function ProductCard({
             <img
               src={product.image}
               alt={product.name}
-              className={cn(imageShell.imageClass, "transition-transform group-hover:scale-105")}
+              className={imageShell.imageClass}
             />
           )}
           {showTags && (
@@ -86,13 +86,6 @@ export function ProductCard({
                   {t}
                 </Badge>
               ))}
-            </div>
-          )}
-          {!product.inStock && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm">
-              <span className="text-xs font-medium uppercase tracking-wide text-foreground">
-                Sold out
-              </span>
             </div>
           )}
         </div>
@@ -123,12 +116,15 @@ export function ProductCard({
             )}
           </div>
         )}
-        {showCta && (
+        {!product.inStock ? (
+          <span className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+            Out of Stock
+          </span>
+        ) : showCta ? (
           <Button
             size="sm"
             variant="outline"
             className={cn("w-full", isMinimal ? "mt-2 h-7 text-[11px]" : "mt-3")}
-            disabled={!product.inStock}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -138,7 +134,7 @@ export function ProductCard({
             <ShoppingBag className={isMinimal ? "h-3 w-3" : "h-3.5 w-3.5"} />
             {isMinimal ? "Add" : cta}
           </Button>
-        )}
+        ) : null}
       </div>
     </div>
   );

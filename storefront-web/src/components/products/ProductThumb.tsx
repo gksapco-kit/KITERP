@@ -99,7 +99,10 @@ export function ProductThumb({
         <img
           src={resolved}
           alt={alt}
-          className={cn('h-full w-full object-cover', imgClassName)}
+          className={cn(
+            'absolute inset-0 h-full w-full object-contain object-center p-1',
+            imgClassName,
+          )}
           loading="lazy"
           onError={() => setFailed(true)}
         />

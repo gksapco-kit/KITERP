@@ -6,8 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useProducts, useServices, useStoreCategories } from '@/hooks/useStore'
 import { useAddToCart, useCart, useCartProductQtyMap, useSetCatalogCartQty } from '@/hooks/useStore'
 import { formatCurrency, imgUrl, cn } from '@/lib/utils'
-import type { Product, Service, ProductVariant, Cart } from '@/types'
-import type { GuestCartItem } from '@/stores/guestCartStore'
+import type { Product, Service, ProductVariant } from '@/types'
 import {
   Search, ShoppingBag, ShoppingCart, Loader2, ChevronLeft, ChevronRight,
   Grid3X3, LayoutList, SlidersHorizontal, X, Package, Wrench, ArrowRight,
@@ -23,15 +22,14 @@ import { processRows, type SortDir } from '@/lib/tableList'
 import { themeUi } from '@/lib/themeColors'
 import { ProductCard } from '@/kit/products/ProductCard'
 import { ProductGridSkeleton } from '@/kit/states/StateScreens'
-import { bridgeProduct } from '@/kit/bridge'
 import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
-import { variantColorCss, variantDisplayLabel } from '@/lib/variantOptions'
-import { assertCanAddToCart, canPurchaseProduct } from '@/lib/stockValidation'
+import { canPurchaseProduct } from '@/lib/stockValidation'
+import { catalogToKitProduct } from '@/lib/catalogToKitProduct'
+import { addCatalogProductToCart } from '@/lib/catalogAddToCart'
 import { CatalogAddOrQtyControl } from '@/components/catalog/CatalogAddOrQtyControl'
 import { shouldShowServiceBookCta, serviceBookingListCtaLabel } from '@/lib/serviceStorefrontCta'
 import { resolveServiceDuration } from '@/lib/servicePricing'
 import { ServiceCard } from '@/kit/services/ServiceBlocks'
-import { toast } from 'sonner'
 import { vendorDashboardUrl } from '@/lib/vendorDashboardUrl'
 
 type FilterType = 'products' | 'services' | 'both'
@@ -162,61 +160,6 @@ function productHasStock(product: Product): boolean {
   return canPurchaseProduct(product)
 }
 
-function resolveListCartVariant(
-  variants: ProductVariant[],
-  kitVariant?: { id: string },
-): ProductVariant | undefined {
-  if (!kitVariant || kitVariant.id.endsWith('-default')) {
-    return variants.length === 1 ? variants[0] : undefined
-  }
-  return variants.find((v) => v.id === kitVariant.id)
-}
-
-async function addProductToCart(input: {
-  vendorSlug: string
-  isAuthenticated: boolean
-  product: Product
-  variants: ProductVariant[]
-  kitVariant?: { id: string }
-  name: string
-  slug: string
-  price: number
-  image?: string
-  addToCart: { mutateAsync: (item: GuestCartItem) => Promise<Cart> }
-}) {
-  const srcVariant = resolveListCartVariant(input.variants, input.kitVariant)
-  const stockCheck = assertCanAddToCart({
-    vendorSlug: input.vendorSlug,
-    isAuthenticated: input.isAuthenticated,
-    productId: input.product.id,
-    productName: input.name,
-    product: input.product,
-    variant: srcVariant,
-    variantLabel: srcVariant ? variantDisplayLabel(srcVariant) || srcVariant.name : undefined,
-    requestQty: 1,
-  })
-  if (!stockCheck.ok) {
-    toast.error(stockCheck.message)
-    return false
-  }
-  try {
-    await input.addToCart.mutateAsync({
-      product_id: input.product.id,
-      variant_id: srcVariant?.id,
-      variant_label: srcVariant ? variantDisplayLabel(srcVariant) || srcVariant.name : undefined,
-      slug: input.slug,
-      name: input.name,
-      qty: 1,
-      price: input.price,
-      image_url: input.image,
-    })
-    toast.success('Added to cart')
-    return true
-  } catch {
-    toast.error('Could not add to cart')
-    return false
-  }
-}
 
 export default function ProductList({ defaultFilterType = 'products' }: CatalogListProps) {
   const { storePath } = useBranch()
@@ -914,36 +857,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                 }
 
                 // default product card — uses kit ProductCard
-                const kitProduct = bridgeProduct({
-                  id: item.id,
-                  slug: item.slug,
-                  title: item.name,
-                  description: item.description || item.short_description || '',
-                  categoryIds: [],
-                  images: (item.images || []).map((img: any) => ({
-                    url: img.url || imgUrl(img.url),
-                    alt: img.alt_text || '',
-                  })),
-                  variants: variants.length > 0
-                    ? variants.map((v: ProductVariant) => ({
-                        id: v.id,
-                        name: v.name,
-                        options: v.attributes || {},
-                        color: variantColorCss(v),
-                        media: v.media,
-                        price: { amount: Math.round((v.price ?? 0) * 100), currency: v.currency || 'INR' },
-                        compareAtPrice: v.compare_at_price ? { amount: Math.round(v.compare_at_price * 100), currency: v.currency || 'INR' } : undefined,
-                        inStock: variantHasStock(v, item as Product),
-                        quantity: v.quantity,
-                        track_inventory: v.track_inventory,
-                        allow_backorders: v.allow_backorders,
-                        stock_status: v.stock_status,
-                      }))
-                    : [{ id: `${item.id}-default`, name: 'Default', options: {}, price: { amount: Math.round((item.price ?? 0) * 100), currency: item.currency || 'INR' }, inStock: hasStock }],
-                  rating: (item.avg_rating ?? 0) > 0 ? { value: item.avg_rating, count: item.review_count ?? 0 } : undefined,
-                  tags: item.tags || [],
-                } as any)
-                kitProduct.viewCount = item.view_count ?? 0
+                const kitProduct = catalogToKitProduct(item as Product)
 
                 return (
                   <ProductCard
@@ -954,7 +868,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                     showTags
                     addToCartPending={addToCart.isPending}
                     onAddToCart={async (p, variant) => {
-                      await addProductToCart({
+                      await addCatalogProductToCart({
                         vendorSlug,
                         isAuthenticated,
                         product: item as Product,
@@ -994,7 +908,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
 
                 const handleListAddToCart = async () => {
                   if (!isProduct || !hasStock) return
-                  await addProductToCart({
+                  await addCatalogProductToCart({
                     vendorSlug,
                     isAuthenticated,
                     product: item as Product,

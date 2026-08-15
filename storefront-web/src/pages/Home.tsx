@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { useProducts, useServices } from '@/hooks/useStore'
+import { useProducts, useServices, useAddToCart } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useBranch } from '@/contexts/BranchContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
@@ -31,6 +31,10 @@ import {
   editorialKitFromTemplate,
   radiusClass,
 } from '@/home-sections'
+import { ProductCard } from '@/kit/products/ProductCard'
+import { catalogToKitProduct } from '@/lib/catalogToKitProduct'
+import { addCatalogProductToCart } from '@/lib/catalogAddToCart'
+import type { Product } from '@/types'
 
 // â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface HomeSection { id: string; visible: boolean; props: SectionProps }
@@ -87,6 +91,9 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
   const c = theme.colors
   const layout = str(props.layout, theme.product_layout || 'grid-4')
   const gridClass = layout === 'grid-3' ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3' : layout === 'grid-2' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+  const addToCart = useAddToCart()
+  const { vendorSlug } = useVendor()
+  const { isAuthenticated } = useAuthStore()
 
   if (editorialKitFromTemplate(templateId) === 'atelier') {
     const viewAll = str(props.view_all_link as string, '') ? storePath(str(props.view_all_link as string, '/products')) : storePath('/products')
@@ -146,45 +153,33 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
         </div>
       ) : (
         <div className={`grid gap-4 sm:gap-6 ${gridClass}`}>
-          {products.items.map((p: any) => (
-            <Link key={p.id} to={storePath(`/products/${p.slug}`)}
-              className="group bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-200 overflow-hidden shadow-sm">
-              <div className="aspect-square bg-gray-50 overflow-hidden relative">
-                {p.images?.[0] ? (
-                  <img src={imgUrl(p.images[0].url)} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-12 h-12 text-gray-200" /></div>
-                )}
-                {p.compare_at_price != null && p.compare_at_price > p.price && (
-                  <span className="absolute top-2 left-2 text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c.accent }}>
-                    -{Math.round((1 - p.price / p.compare_at_price) * 100)}%
-                  </span>
-                )}
-              </div>
-              <div className="p-4 sm:p-5">
-                <h3 className="text-base font-semibold text-gray-900 line-clamp-2">{p.name}</h3>
-                {(p.avg_rating ?? 0) > 0 && (
-                  <div className="mt-1"><StarRating rating={p.avg_rating!} size="sm" showValue reviewCount={p.review_count} /></div>
-                )}
-                <div className="mt-2 flex items-baseline gap-2 flex-wrap">
-                  {(() => {
-                    const variants = (p.variants || []).filter((v: any) => v.is_active !== false)
-                    const effectivePrice = p.price > 0 ? p.price : variants.length > 0 ? Math.min(...variants.map((v: any) => v.price)) : 0
-                    const showFrom = p.price === 0 && variants.length > 0
-                    return (
-                      <>
-                        {showFrom && <span className="text-xs text-gray-500">From</span>}
-                        <span className="text-lg font-bold text-gray-900">{formatCurrency(effectivePrice)}</span>
-                        {p.compare_at_price != null && p.compare_at_price > effectivePrice && (
-                          <span className="text-sm text-gray-400 line-through">{formatCurrency(p.compare_at_price)}</span>
-                        )}
-                      </>
-                    )
-                  })()}
-                </div>
-              </div>
-            </Link>
-          ))}
+          {products.items.map((p: Product) => {
+            const variants = (p.variants || []).filter((v) => v.is_active !== false)
+            return (
+              <ProductCard
+                key={p.id}
+                product={catalogToKitProduct(p)}
+                linkTo={storePath(`/products/${p.slug}`)}
+                showRating
+                showTags
+                addToCartPending={addToCart.isPending}
+                onAddToCart={async (kitProduct, variant) => {
+                  await addCatalogProductToCart({
+                    vendorSlug,
+                    isAuthenticated,
+                    product: p,
+                    variants,
+                    kitVariant: variant,
+                    name: kitProduct.name,
+                    slug: p.slug,
+                    price: variant?.price ?? kitProduct.price,
+                    image: kitProduct.image,
+                    addToCart,
+                  })
+                }}
+              />
+            )
+          })}
         </div>
       )}
     </section>

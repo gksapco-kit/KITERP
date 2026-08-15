@@ -39,7 +39,7 @@ export function ProductCard({
           <img
             src={product.image}
             alt={product.name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="absolute inset-0 h-full w-full object-contain object-center p-2"
           />
         )}
         {showTags && (
@@ -54,13 +54,6 @@ export function ProductCard({
                 {t}
               </Badge>
             ))}
-          </div>
-        )}
-        {!product.inStock && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm">
-            <span className="text-xs font-medium uppercase tracking-wide text-foreground">
-              Sold out
-            </span>
           </div>
         )}
       </div>
@@ -86,15 +79,16 @@ export function ProductCard({
             )}
           </div>
         )}
-        <Button
-          size="sm"
-          variant="outline"
-          className="mt-3 w-full"
-          disabled={!product.inStock}
-        >
-          <ShoppingBag className="h-3.5 w-3.5" />
-          {cta}
-        </Button>
+        {!product.inStock ? (
+          <span className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-red-50 py-2 text-sm font-semibold text-red-600">
+            Out of Stock
+          </span>
+        ) : (
+          <Button size="sm" variant="outline" className="mt-3 w-full">
+            <ShoppingBag className="h-3.5 w-3.5" />
+            {cta}
+          </Button>
+        )}
       </div>
     </div>
   );

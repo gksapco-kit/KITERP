@@ -21,7 +21,7 @@ import MediaViewer from '@/components/MediaViewer'
 import ColorSwatchPicker from '@/components/products/ColorSwatchPicker'
 import { ProductPurchaseActions } from '@/components/products/ProductPurchaseActions'
 import { ProductMediaWishlistOverlay } from '@/components/products/ProductMediaWishlistOverlay'
-import { isCombinationAvailable, variantFlatOptionDescription, variantFlatOptionTitle } from '@/lib/variantOptions'
+import { isCombinationAvailable, isOptionValueOutOfStock, variantFlatOptionDescription, variantFlatOptionTitle } from '@/lib/variantOptions'
 import { getEffectiveStockStatus } from '@/lib/stockValidation'
 import type { ProductDetailTemplateProps } from './types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
@@ -337,7 +337,7 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
             )}
 
             {/* Stock — product-level status is only meaningful when variants exist */}
-            {hasVariants && isDisplayFieldEnabled(sf, 'stock_status') && displayStock && (
+            {hasVariants && (isDisplayFieldEnabled(sf, 'stock_status') || displayStock === 'out_of_stock') && displayStock && (
               <div className="mt-3 flex items-center gap-2">
                 <span className={`inline-flex items-center gap-1 text-sm font-medium px-2.5 py-0.5 rounded-full ${
                   displayStock === 'in_stock' ? 'text-green-700 bg-green-50' :
@@ -369,17 +369,29 @@ export default function ClassicDetail(props: ProductDetailTemplateProps) {
                       <div className="flex flex-wrap gap-2">
                         {sizeRow.values.map((value) => {
                           const isSelected = selections[sizeRow.label] === value
-                          const unavailable =
+                          const missingCombo =
                             !!selectedColorName &&
                             !isCombinationAvailable(activeVariants, { ...selections, [sizeRow.label]: value }, selectedColorName)
+                          const outOfStock = isOptionValueOutOfStock(
+                            product,
+                            activeVariants,
+                            selections,
+                            sizeRow.label,
+                            value,
+                            selectedColorName,
+                          )
+                          const unavailable = missingCombo || outOfStock
                           return (
                             <button
                               key={value}
                               type="button"
                               onClick={() => onSelectSize(sizeRow.label, value)}
+                              title={outOfStock ? `${value} — Out of Stock` : value}
                               className={`min-w-[2.75rem] px-3 py-2 rounded-lg border-2 text-sm font-semibold uppercase transition-all ${
                                 isSelected
-                                  ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+                                  ? outOfStock
+                                    ? 'border-red-500 bg-red-50 text-red-700 ring-1 ring-red-200'
+                                    : 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-200'
                                   : unavailable
                                     ? 'border-gray-200 bg-gray-50 text-gray-400 opacity-60'
                                     : 'border-gray-200 hover:border-gray-400 bg-white text-gray-800'

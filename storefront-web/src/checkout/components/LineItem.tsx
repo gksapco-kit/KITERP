@@ -30,6 +30,8 @@ export function LineItem({ item, editable, onUpdateQuantity, onRemove, compact }
           src={item.imageUrl}
           alt={item.name}
           size={compact ? "sm" : "md"}
+          className="absolute inset-0"
+          imgClassName="object-contain object-center p-1.5"
         />
       </div>
 

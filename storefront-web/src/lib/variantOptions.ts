@@ -1,5 +1,6 @@
 import type { ProductVariant } from '@/types'
 import { formatUomDisplay } from '@/lib/uomDisplay'
+import { getEffectiveStockStatus, type StockEntity } from '@/lib/stockValidation'
 
 const GENERIC_VARIANT_NAMES = /^(variant(\s*\d+)?|default|plan(\s*\d+)?)$/i
 
@@ -537,8 +538,17 @@ export function resolveVariantForCardPricing(
   }
 
   if (Object.keys(selections).length > 0) {
-    return findVariantBySelections(normalized, selections)
+    const matched = findVariantBySelections(normalized, selections)
+    if (matched) return matched
   }
+
+  const sizeRowsComplete = rows
+    .filter((r): r is Extract<ProductCardOptionRow, { type: 'size' }> => r.type === 'size')
+    .every((r) => Boolean(selections[r.label]))
+  const colorComplete = !rows.some((r) => r.type === 'color') || Boolean(colorName)
+  // Do not silently price/stock a sibling variant (e.g. in-stock 1000 ML) when
+  // the shopper already picked a complete combination like 200 ML + Crate.
+  if (sizeRowsComplete && colorComplete) return undefined
 
   return normalized.find((v) => v.is_active !== false) ?? normalized[0]
 }
@@ -686,6 +696,35 @@ export function findVariantForDimensionValue(
     const key = Object.keys(attrs).find((k) => k.toLowerCase() === dimLower)
     return key != null && attrs[key] === value
   })
+}
+
+/** Exact variant for the current option picks, or undefined if none match. */
+export function resolveExactVariantForSelections(
+  variants: ProductVariant[],
+  selections: Record<string, string>,
+  colorName?: string,
+): ProductVariant | undefined {
+  const result = validateVariantCombination(variants, selections, colorName)
+  return result.valid ? result.variant : undefined
+}
+
+/**
+ * Whether picking this option value (keeping other selections) is out of stock.
+ * Used to style 200 ML / 500 ML chips when those variants have qty 0.
+ */
+export function isOptionValueOutOfStock(
+  product: StockEntity,
+  variants: ProductVariant[],
+  selections: Record<string, string>,
+  dimension: string,
+  value: string,
+  colorName?: string,
+): boolean {
+  const next = { ...selections, [dimension]: value }
+  const exact = resolveExactVariantForSelections(variants, next, colorName)
+  const variant = exact ?? findVariantForDimensionValue(variants, dimension, value)
+  if (!variant) return true
+  return getEffectiveStockStatus(product, variant) === 'out_of_stock'
 }
 
 export function variantDisplayLabel(variant: ProductVariant): string {

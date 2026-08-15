@@ -114,6 +114,15 @@ export default function CartPage() {
   }
 
   const empty = !cartItems.length
+  const hasOversoldLine = cartItems.some((item) => {
+    const cap = maxCartLineQty({
+      vendorSlug,
+      isAuthenticated,
+      product: productMap[item.productId],
+      line: item,
+    })
+    return item.quantity > cap
+  })
 
   if (isLoading && isAuthenticated) {
     return (
@@ -226,10 +235,16 @@ export default function CartPage() {
                 <button
                   type="button"
                   onClick={handleProceedToCheckout}
-                  className="ck-btn-primary mt-3 flex w-full items-center justify-center gap-2"
+                  disabled={hasOversoldLine}
+                  className="ck-btn-primary mt-3 flex w-full items-center justify-center gap-2 disabled:opacity-50"
                 >
                   Proceed to checkout <ChevronRight size={16} />
                 </button>
+                {hasOversoldLine && (
+                  <p className="mt-2 text-center text-xs text-destructive">
+                    Reduce quantities to available stock before checkout.
+                  </p>
+                )}
                 {requireSignIn && !isLoggedIn && (
                   <p className="mt-2 text-center text-xs text-muted-foreground">
                     <Link to={storePath('/login')} state={{ from: storePath('/checkout') }} className="font-medium text-primary hover:underline">

@@ -53,6 +53,8 @@ export function validateCartLineQtyChange(input: {
   newQty: number
 }): StockValidationResult {
   if (!input.product || input.newQty <= 0) return { ok: true }
+  // Always allow lowering qty (including from an oversold line down to the cap).
+  if (input.newQty <= input.line.quantity) return { ok: true }
   const variant = resolveCartLineVariant(input.product, input.line)
   return assertCanSetCartLineQty({
     vendorSlug: input.vendorSlug,

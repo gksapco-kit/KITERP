@@ -5179,7 +5179,7 @@ function CatalogGridLayoutControls({
   ) || 12))
   const cardStyle = String(p.card_style ?? 'default')
   const imageAspect = String(p.image_aspect ?? 'auto')
-  const imageObjectFit = String(p.image_object_fit ?? 'cover')
+  const imageObjectFit = String(p.image_object_fit ?? 'contain')
   const cardBorderRadius = p.card_border_radius
   const radiusAuto = cardBorderRadius == null || cardBorderRadius === ''
   const showStock = p.show_stock !== false

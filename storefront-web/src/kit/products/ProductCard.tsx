@@ -6,7 +6,7 @@ import { ProductWishlistButton } from "@/components/products/ProductWishlistButt
 import { ProductThumb } from "@/components/products/ProductThumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { collectProductGalleryImages } from "@/lib/productImageUtils";
+import { collectProductGalleryImages, resolveVariantThumbnailUrl } from "@/lib/productImageUtils";
 import type { ProductVariant as ApiVariant } from "@/types";
 import ProductOptionPicker from "@/components/products/ProductOptionPicker";
 import {
@@ -20,7 +20,12 @@ import {
   readCatalogCardLayout,
 } from "@/lib/catalogCardLayout";
 import { CatalogAddOrQtyControl } from "@/components/catalog/CatalogAddOrQtyControl";
+import { CatalogVariantChips } from "@/components/catalog/CatalogVariantChips";
 import { useCart, useCartVariantQty, useSetCatalogCartQty } from "@/hooks/useStore";
+import { useVendor } from "@/contexts/VendorContext";
+import { useAuthStore } from "@/stores/authStore";
+import { toast } from "sonner";
+import { assertCanAddToCart, getEffectiveStockStatus, getMaxLineQuantity } from "@/lib/stockValidation";
 import type { Product } from "../types";
 import { formatPrice } from "../mock";
 
@@ -51,6 +56,10 @@ function toApiVariant(v: KitVariant): ApiVariant {
     track_inventory: v.track_inventory,
     allow_backorders: v.allow_backorders,
     stock_status: v.stock_status,
+    max_quantity_per_order: v.max_quantity_per_order,
+    min_quantity_per_order: v.min_quantity_per_order,
+    uom: v.uom,
+    uom_quantity: v.uom_quantity,
   };
 }
 
@@ -88,6 +97,11 @@ export function ProductCard({
     [apiVariants, galleryImages],
   );
   const showVariantRow = optionRows.length > 0;
+  const realVariants = useMemo(
+    () => allVariants.filter((v) => !String(v.id).endsWith("-default")),
+    [allVariants],
+  );
+  const showFlatVariants = !showVariantRow && realVariants.length > 1;
 
   const firstAvailable = allVariants.find((v) => v.available !== false) ?? allVariants[0];
   const firstApi = firstAvailable ? toApiVariant(firstAvailable) : undefined;
@@ -100,6 +114,7 @@ export function ProductCard({
     const defaults = resolveCardDefaultSelections(apiVariants, optionRows, firstApi);
     return defaults.colorName;
   });
+  const [flatVariantId, setFlatVariantId] = useState<string | undefined>(realVariants[0]?.id);
 
   useEffect(() => {
     const nextFirst = allVariants.find((v) => v.available !== false) ?? allVariants[0];
@@ -109,6 +124,7 @@ export function ProductCard({
     const defaults = resolveCardDefaultSelections(apiVariants, rows, api);
     setSelections(defaults.selections);
     setSelectedColorName(defaults.colorName);
+    setFlatVariantId(realVariants[0]?.id);
   }, [product.id]);
 
   const validation = useMemo(
@@ -117,10 +133,13 @@ export function ProductCard({
   );
 
   const selectedVariant = useMemo(() => {
+    if (showFlatVariants) {
+      return realVariants.find((v) => v.id === flatVariantId) ?? firstAvailable;
+    }
     if (optionRows.length === 0) return firstAvailable;
     if (!validation.valid || !validation.variant) return undefined;
     return allVariants.find((v) => v.id === validation.variant!.id);
-  }, [allVariants, validation, optionRows.length, firstAvailable]);
+  }, [allVariants, realVariants, validation, optionRows.length, firstAvailable, showFlatVariants, flatVariantId]);
 
   useCart();
   const cartQty = useCartVariantQty(
@@ -128,17 +147,20 @@ export function ProductCard({
     selectedVariant?.id ?? (optionRows.length === 0 ? firstAvailable?.id : undefined),
   );
   const { setQty: setCatalogQty } = useSetCatalogCartQty();
+  const { vendorSlug } = useVendor();
+  const { isAuthenticated } = useAuthStore();
 
   const pricingVariant = useMemo(() => {
+    if (showFlatVariants) return selectedVariant ?? firstAvailable;
     const match = resolveVariantForCardPricing(
       apiVariants,
       optionRows,
       selections,
       selectedColorName,
     );
-    if (!match) return firstAvailable;
-    return allVariants.find((v) => v.id === match.id) ?? firstAvailable;
-  }, [apiVariants, optionRows, selections, selectedColorName, allVariants, firstAvailable]);
+    if (!match) return selectedVariant ?? undefined;
+    return allVariants.find((v) => v.id === match.id) ?? selectedVariant;
+  }, [apiVariants, optionRows, selections, selectedColorName, allVariants, firstAvailable, showFlatVariants, selectedVariant]);
 
   const displayPrice = pricingVariant?.price ?? product.price;
   const displayCompare = pricingVariant?.compareAtPrice ?? product.compareAtPrice;
@@ -151,27 +173,58 @@ export function ProductCard({
     variantPrices.length > 1 &&
     minPrice !== maxPrice &&
     !pricingVariant &&
-    optionRows.length === 0;
+    optionRows.length === 0 &&
+    !showFlatVariants;
   const showPriceRow = hasDisplayPrice || (showFrom && minPrice != null && minPrice > 0);
-  const canAdd =
-    !addToCartPending &&
-    (optionRows.length === 0
-      ? firstAvailable?.available !== false && product.inStock
-      : validation.valid && selectedVariant?.available !== false && product.inStock);
-
-  const displayImage = useMemo(
-    () =>
-      resolveCardDisplayImage(optionRows, galleryImages, selectedColorName, product.image) ??
-      product.image,
-    [optionRows, galleryImages, selectedColorName, product.image],
-  );
 
   const resolveAddVariant = () => {
+    if (showFlatVariants) return selectedVariant;
     const resolved =
       validation.valid && validation.variant
         ? allVariants.find((v) => v.id === validation.variant!.id)
         : undefined;
-    return resolved ?? selectedVariant ?? firstAvailable;
+    if (optionRows.length === 0) return resolved ?? selectedVariant ?? firstAvailable;
+    return resolved ?? selectedVariant;
+  };
+
+  const stockVariant = resolveAddVariant();
+  const outOfStock =
+    (showVariantRow && !validation.valid) ||
+    getEffectiveStockStatus(product, stockVariant) === "out_of_stock";
+  const maxLineQty = getMaxLineQuantity({
+    vendorSlug,
+    isAuthenticated,
+    productId: product.id,
+    product,
+    variant: stockVariant,
+    currentLineQty: cartQty,
+  });
+
+  const canAdd =
+    !addToCartPending &&
+    !outOfStock &&
+    (showFlatVariants
+      ? selectedVariant != null
+      : optionRows.length === 0
+        ? firstAvailable != null
+        : validation.valid && selectedVariant != null);
+
+  const warnAtMaxQty = () => {
+    const check = assertCanAddToCart({
+      vendorSlug,
+      isAuthenticated,
+      productId: product.id,
+      productName: product.name,
+      product,
+      variant: stockVariant,
+      variantLabel: stockVariant?.label,
+      requestQty: 1,
+    });
+    toast.error(
+      check.ok
+        ? "Maximum quantity reached — you cannot add more of this item."
+        : check.message,
+    );
   };
 
   const handleAddClick = () => {
@@ -183,6 +236,22 @@ export function ProductCard({
   const handleQtyChange = async (qty: number) => {
     const variant = resolveAddVariant();
     if (!variant) return;
+    if (qty > cartQty) {
+      const check = assertCanAddToCart({
+        vendorSlug,
+        isAuthenticated,
+        productId: product.id,
+        productName: product.name,
+        product,
+        variant,
+        variantLabel: variant.label,
+        requestQty: qty - cartQty,
+      });
+      if (!check.ok) {
+        toast.error(check.message);
+        return;
+      }
+    }
     await setCatalogQty({
       productId: product.id,
       variantId: variant.id,
@@ -198,13 +267,17 @@ export function ProductCard({
     });
   };
 
-  const addLabel = !product.inStock
+  const displayImage = useMemo(() => {
+    const fromVariant = resolveVariantThumbnailUrl(selectedVariant ?? pricingVariant);
+    const fromColor = resolveCardDisplayImage(optionRows, galleryImages, selectedColorName, product.image);
+    return fromVariant ?? fromColor ?? product.image;
+  }, [optionRows, galleryImages, selectedColorName, product.image, selectedVariant, pricingVariant]);
+
+  const addLabel = outOfStock
     ? "Out of stock"
     : optionRows.length > 0 && !validation.valid
       ? "Select options"
-      : (selectedVariant ?? firstAvailable)?.available === false
-        ? "Out of stock"
-        : undefined;
+      : undefined;
 
   return (
     <Card className={cn("overflow-hidden group flex flex-col", horizontal && "flex-row")}>
@@ -216,7 +289,7 @@ export function ProductCard({
               alt={product.name}
               size="md"
               className="absolute inset-0"
-              imgClassName="transition-transform group-hover:scale-105"
+              imgClassName="object-contain object-center p-2"
             />
           </div>
         </Link>
@@ -269,10 +342,19 @@ export function ProductCard({
             selectedColorName={selectedColorName}
             selectedVariantId={validation.variant?.id ?? selectedVariant?.id}
             variants={apiVariants}
+            product={product}
             onSelectSize={(dimension, value) => setSelections((prev) => ({ ...prev, [dimension]: value }))}
             onSelectColor={setSelectedColorName}
             errorMessage={validation.valid ? undefined : validation.message}
             stopPropagation
+          />
+        )}
+        {showFlatVariants && (
+          <CatalogVariantChips
+            variants={apiVariants.filter((v) => !String(v.id).endsWith("-default"))}
+            selectedId={selectedVariant?.id}
+            onSelect={setFlatVariantId}
+            productStock={product}
           />
         )}
         {showPriceRow ? (
@@ -288,15 +370,25 @@ export function ProductCard({
         ) : (
           <div className="min-h-[1.25rem]" aria-hidden />
         )}
+        <span
+          className={cn(
+            "text-xs font-semibold px-2 py-0.5 rounded-full inline-block w-fit",
+            outOfStock ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600",
+          )}
+        >
+          {outOfStock ? "Out of Stock" : "In Stock"}
+        </span>
         <div className={cn("mt-auto flex items-center gap-2 pt-2", !cardLayout.showAddButton && "hidden")}>
           {cardLayout.showAddButton && (
             <CatalogAddOrQtyControl
               cartQty={cartQty}
               onAdd={handleAddClick}
               onQtyChange={handleQtyChange}
+              maxQty={maxLineQty}
+              onAtMax={warnAtMaxQty}
               disabled={!canAdd && cartQty === 0}
               pending={addToCartPending}
-              outOfStock={!product.inStock || (selectedVariant ?? firstAvailable)?.available === false}
+              outOfStock={outOfStock}
               labelOverride={addLabel}
               addButtonStyle={cardLayout.addButtonStyle}
               isMinimalCard={cardLayout.isMinimalCard}

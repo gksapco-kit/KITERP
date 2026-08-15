@@ -1,7 +1,7 @@
-import { type CSSProperties, type ReactNode, type MouseEvent } from 'react'
+import { type CSSProperties, type ReactNode, type MouseEvent, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ShoppingBag, Star, Heart, FolderTree, Eye } from 'lucide-react'
-import { useAddToCart, useCart, useCartProductQtyMap, useSetCatalogCartQty } from '@/hooks/useStore'
+import { useAddToCart, useCart, useCartProductQtyMap, useSetCatalogCartQty, useProducts } from '@/hooks/useStore'
 import { useStorePath } from '@/hooks/useStorePath'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import CategoryCardsWellness from '@/components/builder/blocks/CategoryCardsWellness'
@@ -13,6 +13,7 @@ import {
 } from '@/lib/wellnessCategoryStyle'
 import { sanitizeWellnessCategoryTitle } from '@/lib/wellnessTemplateCopy'
 import { normalizeLiveProducts, resolveLiveCatalogStorePath, resolveLiveProductUrl } from '@/lib/liveProductUtils'
+import { catalogProductToLiveItem } from '@/lib/catalogToLiveItem'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { CategoryCardTitle } from '@/components/builder/CategoryCardTitle'
 import { BuilderCanvasProductImage } from '@/components/builder/BuilderCanvasProductImage'
@@ -33,10 +34,10 @@ import {
   catalogGridResponsiveColClass,
   clampCatalogColumns,
   readCatalogCardLayout,
-  buildCatalogImageShell,
-  resolveCardRadiusPresentation,
 } from '@/lib/catalogCardLayout'
 import { CatalogAddOrQtyControl } from '@/components/catalog/CatalogAddOrQtyControl'
+import { CatalogLiveProductTile } from '@/components/catalog/CatalogLiveProductTile'
+import { LiveCatalogProductCard, canRenderLiveCatalogProductCard } from '@/components/catalog/LiveCatalogProductCard'
 import {
   catalogTileImageWrapperClass,
   imageShapeFromProps,
@@ -262,6 +263,14 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   useCart()
   const cartQtyByProduct = useCartProductQtyMap()
   const { setQty: setCatalogQty } = useSetCatalogCartQty()
+  const hydrateFromCatalog = !isEditorCanvas && blockType !== 'category_cards'
+  const catalogLimit = Math.min(200, Math.max(24, Number(props.show_count ?? props.max ?? 12) || 12, liveItems.length))
+  const { data: catalogData } = useProducts(hydrateFromCatalog ? { page: 1, size: catalogLimit } : null)
+  const catalogById = useMemo(() => {
+    const map = new Map<string, Parameters<typeof catalogProductToLiveItem>[0]>()
+    for (const product of catalogData?.items || []) map.set(String(product.id), product)
+    return map
+  }, [catalogData])
 
   const isLiveCatalogProduct = (item: LiveItem) => {
     const id = String(item.id ?? '')
@@ -319,7 +328,12 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   const showBadges = props.show_badges !== false
   const textColor = style.text_color || '#111827'
 
-  const normalized = normalizeLiveProducts(liveItems)
+  const normalized = normalizeLiveProducts(
+    liveItems.map((item) => {
+      const catalog = item.id ? catalogById.get(String(item.id)) : undefined
+      return catalog ? catalogProductToLiveItem(catalog) : item
+    }),
+  )
   const wellnessSite = isWellnessRetailContext(props, siteStyle, pageBlocks)
   const catalogProducts = wellnessSite
     ? resolveWellnessSiteProducts(normalized, Number(props.show_count) || 12)
@@ -1229,41 +1243,16 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   const productImageShape = imageShapeFromProps(props)
   const productTileWrap = catalogTileImageWrapperClass(productImageShape)
   const isCircleProductTile = productImageShape === 'circle'
-  const {
-    imageHeightPct,
-    imageWidthPct,
-    cardPadding,
-    cardRadius,
-    cardBorderRadius,
-    imageAspect,
-    imageObjectFit,
-    isMinimalCard,
-    isCompactCard,
-    titleClass,
-    priceClass,
-    showStock,
-    showAddButton,
-    addButtonStyle,
-  } = {
-    imageHeightPct: cardLayout.imageHeightPct,
-    imageWidthPct: cardLayout.imageWidthPct,
-    cardPadding: cardLayout.cardPadding,
-    cardRadius: cardLayout.cardRadius,
-    cardBorderRadius: cardLayout.cardBorderRadius,
-    imageAspect: cardLayout.imageAspect,
-    imageObjectFit: cardLayout.imageObjectFit,
-    isMinimalCard: cardLayout.isMinimalCard,
-    isCompactCard: cardLayout.isCompactCard,
-    titleClass: cardLayout.isMinimalCard
-      ? 'font-medium text-gray-900 text-xs line-clamp-1 mb-1'
-      : cardLayout.isCompactCard
-        ? 'font-semibold text-gray-900 text-sm line-clamp-2 mb-1'
-        : 'font-semibold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 mb-2',
-    priceClass: cardLayout.isMinimalCard ? 'text-sm font-bold' : cardLayout.isCompactCard ? 'text-base font-bold' : 'text-lg font-bold',
-    showStock: cardLayout.showStock,
-    showAddButton: cardLayout.showAddButton,
-    addButtonStyle: cardLayout.addButtonStyle,
-  }
+  const titleClass = cardLayout.isMinimalCard
+    ? 'font-medium text-gray-900 text-xs line-clamp-1 mb-1'
+    : cardLayout.isCompactCard
+      ? 'font-semibold text-gray-900 text-sm line-clamp-2 mb-1'
+      : 'font-semibold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 mb-2'
+  const priceClass = cardLayout.isMinimalCard
+    ? 'text-sm font-bold'
+    : cardLayout.isCompactCard
+      ? 'text-base font-bold'
+      : 'text-lg font-bold'
 
   return (
     <section className={builderSectionContainerClass()}>
@@ -1293,103 +1282,30 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           style={{ gap: itemGap }}
         >
           {items.map(item => {
-            const cartQty = cartQtyByProduct.get(String(item.id)) ?? 0
-            const isAdding = addToCart.isPending && addToCart.variables && (addToCart.variables as any).product_id === item.id
-            const outOfStock = item.meta?.stock_status === 'out_of_stock'
-            const views = productViewCount(item)
-            const imageShell = buildCatalogImageShell({
-              imageHeightPct,
-              imageWidthPct,
-              imageAspect,
-              imageObjectFit,
-              productTileWrap,
-              isCircle: isCircleProductTile,
-            })
-            const cardRadiusPresentation = resolveCardRadiusPresentation(cardBorderRadius, cardRadius)
+            if (blockType !== 'related_products' && canRenderLiveCatalogProductCard(item)) {
+              return (
+                <LiveCatalogProductCard
+                  key={item.id}
+                  item={item}
+                  linkTo={resolveLiveCatalogStorePath(item, storePath) ?? undefined}
+                  onNavigateClick={e => handleProductCardClick(e, item)}
+                />
+              )
+            }
             return (
-              <div
+              <CatalogLiveProductTile
                 key={item.id}
-                className={cn(
-                  'builder-tile-card group bg-white border border-gray-100 overflow-hidden transition-all duration-200 flex flex-col',
-                  cardRadiusPresentation.className,
-                  isMinimalCard ? '' : 'hover:shadow-lg hover:-translate-y-1',
-                )}
-                style={cardRadiusPresentation.style}
-              >
-                <Link
-                  to={resolveLiveCatalogStorePath(item, storePath) ?? '#'}
-                  className="block"
-                  data-builder-catalog-nav="product"
-                  onClick={e => handleProductCardClick(e, item)}
-                >
-                  <div
-                    className={imageShell.wrapperClassName}
-                    style={imageShell.wrapperStyle}
-                  >
-                    {item.image_url ? (
-                      <BuilderCanvasProductImage
-                        blockId={blockId}
-                        src={item.image_url}
-                        alt={item.title}
-                        className={imageShell.imageClassName}
-                        isCatalogPhoto={!String(item.id || '').startsWith('ph-')}
-                        allowNavigation={!String(item.id || '').startsWith('ph-')}
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                        <ShoppingBag className={isMinimalCard ? 'w-8 h-8' : 'w-12 h-12'} />
-                      </div>
-                    )}
-                    <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 items-start pointer-events-none">
-                      {views != null && <ProductViewBadge count={views} />}
-                      {showBadges && !!item.meta?.is_on_sale && (
-                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">SALE</span>
-                      )}
-                    </div>
-                    {showBadges && !!item.meta?.is_featured && (
-                      <span className="absolute top-2 right-2 bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><Star className="w-3 h-3" />Featured</span>
-                    )}
-                  </div>
-                  <div style={{ padding: cardPadding, paddingBottom: Math.max(4, cardPadding - 4) }}>
-                    {item.subtitle && !isMinimalCard && <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide">{item.subtitle}</p>}
-                    <h3 className={titleClass}>{item.title}</h3>
-                    {item.price_formatted && (
-                      <div className="flex items-center gap-2">
-                        <span className={priceClass} style={{ color: style.primary_color }}>{item.price_formatted}</span>
-                        {!isMinimalCard && item.meta?.compare_at_price != null && String(item.meta.compare_at_price) !== '' && (
-                          <span className="text-sm text-gray-400 line-through">
-                            {String(item.meta.currency ?? '')} {Number(item.meta.compare_at_price).toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {showStock && (
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full mt-2 inline-block ${outOfStock ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>
-                        {outOfStock ? 'Out of Stock' : 'In Stock'}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-
-                {showAddButton && (
-                <div
-                  style={{ padding: cardPadding, paddingTop: 0 }}
-                  className="mt-auto"
-                >
-                  <CatalogAddOrQtyControl
-                    cartQty={cartQty}
-                    onAdd={() => addLiveItemToCart(item)}
-                    onQtyChange={qty => handleCatalogQtyChange(item, qty)}
-                    outOfStock={outOfStock}
-                    pending={!!isAdding}
-                    primaryColor={style.primary_color}
-                    addButtonStyle={addButtonStyle}
-                    isMinimalCard={isMinimalCard}
-                    isCompactCard={isCompactCard}
-                  />
-                </div>
-                )}
-              </div>
+                item={item}
+                linkTo={resolveLiveCatalogStorePath(item, storePath) ?? undefined}
+                onNavigateClick={e => handleProductCardClick(e, item)}
+                cardLayout={cardLayout}
+                productTileWrap={productTileWrap}
+                isCircleProductTile={isCircleProductTile}
+                titleClass={titleClass}
+                priceClass={priceClass}
+                primaryColor={style.primary_color}
+                blockId={blockId}
+              />
             )
           })}
         </div>
