@@ -13,6 +13,7 @@ type Props = {
   item: LiveItem
   linkTo?: string
   onNavigateClick?: (e: MouseEvent) => void
+  imageObjectFit?: 'cover' | 'contain'
 }
 
 export function canRenderLiveCatalogProductCard(item: LiveItem): boolean {
@@ -20,7 +21,7 @@ export function canRenderLiveCatalogProductCard(item: LiveItem): boolean {
 }
 
 /** Homepage / builder product tile — same card as the Products catalog page. */
-export function LiveCatalogProductCard({ item, linkTo, onNavigateClick }: Props) {
+export function LiveCatalogProductCard({ item, linkTo, onNavigateClick, imageObjectFit = 'cover' }: Props) {
   const product = liveItemToCatalogProduct(item)
   const addToCart = useAddToCart()
   const { vendorSlug } = useVendor()
@@ -36,6 +37,7 @@ export function LiveCatalogProductCard({ item, linkTo, onNavigateClick }: Props)
       product={kitProduct}
       linkTo={linkTo}
       onNavigateClick={onNavigateClick}
+      imageObjectFit={imageObjectFit}
       showRating
       showTags
       addToCartPending={addToCart.isPending}

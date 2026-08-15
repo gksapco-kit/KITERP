@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils'
 import type { ProductVariant } from '@/types'
 import { variantFlatOptionTitle } from '@/lib/variantOptions'
 import { getEffectiveStockStatus, type StockEntity } from '@/lib/stockValidation'
+import { useResolvedStorefrontTheme } from '@/contexts/ThemeContext'
+import { textOnSolid } from '@/lib/themeColors'
 
 type ProductUom = { uom?: string | null; uom_quantity?: number | null }
 
@@ -26,6 +28,8 @@ export function CatalogVariantChips({
   primaryColor,
   className,
 }: Props) {
+  const theme = useResolvedStorefrontTheme()
+  const accent = primaryColor || theme.colors.primary
   if (variants.length < 2) return null
 
   const stopNav = (e: MouseEvent) => {
@@ -46,8 +50,8 @@ export function CatalogVariantChips({
           ? getEffectiveStockStatus(productStock, variant) === 'out_of_stock'
           : false
         const selectedStyle: CSSProperties | undefined =
-          selected && primaryColor && !outOfStock
-            ? { borderColor: primaryColor, backgroundColor: primaryColor, color: '#fff' }
+          selected && accent && !outOfStock
+            ? { borderColor: accent, backgroundColor: accent, color: textOnSolid(accent) }
             : undefined
         return (
           <button

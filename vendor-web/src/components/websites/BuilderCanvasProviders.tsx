@@ -5,6 +5,7 @@ import { LiveDataFetchProvider, type LiveDataFetcher } from '@storefront/context
 import { BuilderCanvasContextProvider } from '@storefront/contexts/BuilderCanvasContext'
 import { BranchPreviewProvider } from '@storefront/contexts/BranchContext'
 import { BuilderSiteStaticProvider } from '@storefront/contexts/BuilderSiteContext'
+import { BuilderCanvasThemeScope } from '@storefront/contexts/ThemeContext'
 import type { PublicSite } from '@storefront/blocks/registry'
 import { applyBranchToVendor } from '@storefront/lib/branchStorefrontIdentity'
 import type { ActiveCanvasImageTarget } from '@storefront/lib/canvasImageTarget'
@@ -305,7 +306,9 @@ export function BuilderCanvasProviders({
       <VendorContext.Provider value={vendorValue}>
         <LiveDataFetchProvider fetcher={liveFetcher}>
           <BuilderCanvasContextProvider value={builderCanvasValue}>
-            {children}
+            <BuilderCanvasThemeScope>
+              {children}
+            </BuilderCanvasThemeScope>
           </BuilderCanvasContextProvider>
         </LiveDataFetchProvider>
       </VendorContext.Provider>

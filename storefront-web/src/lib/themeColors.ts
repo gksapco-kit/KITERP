@@ -164,13 +164,14 @@ function pickStyleHex(style: Record<string, unknown> | undefined, key: string): 
   return typeof v === 'string' && /^#[0-9A-Fa-f]{3,6}$/i.test(v) ? v : null
 }
 
-/** Push builder palette onto :root for catalog pages (cards vs page background). */
+/** Push builder palette onto a root (storefront `:root`, or the builder canvas wrapper). */
 export function applyBuilderPaletteCssVars(
   colors: { primary: string; secondary: string; accent: string; background: string },
   siteStyle: Record<string, unknown> | undefined,
   template: string,
+  target: HTMLElement = document.documentElement,
 ): void {
-  const root = document.documentElement
+  const root = target
   const surface = pickStyleHex(siteStyle, 'surface_color') || '#ffffff'
   const builderText = pickStyleHex(siteStyle, 'text_color') || colors.secondary
   const bgRgb = hexToRgb(colors.background)

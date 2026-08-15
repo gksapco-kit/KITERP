@@ -21,9 +21,9 @@ export type NavBlockNavProps = {
 }
 
 export type ResolveNavBlockLinksOptions = {
-  /** Vendor-web /preview/draft — never invent default commerce links. */
+  /** Vendor-web /preview/draft — never invent a full default commerce nav. */
   previewShell?: boolean
-  /** Website builder canvas — only show links from real site pages, not catalog defaults. */
+  /** Website builder canvas — never invent a full default commerce nav. */
   isEditorCanvas?: boolean
   /** Vendor catalog offering: products | services | both */
   offeringType?: string | null
@@ -164,7 +164,10 @@ export function resolveNavBlockLinks(
 ): NavLinkItem[] {
   const previewShell = options?.previewShell === true
   const isEditorCanvas = options?.isEditorCanvas === true
-  const skipCatalogInjection = previewShell || isEditorCanvas
+  // Builder/preview must not invent a full default nav (Home/Products/Services/…),
+  // but they should still add missing Products/Services from offering type so the
+  // canvas matches the live storefront when the site has no Services page yet.
+  const skipDefaultCommerceNav = previewShell || isEditorCanvas
   const blogEnabled = options?.blogEnabled !== false
 
   // If the builder site owns its pages, tie rentals *nav-link* visibility to whether a
@@ -214,25 +217,25 @@ export function resolveNavBlockLinks(
   }
 
   const autoCatalogNav = navLinksSource !== 'manual'
-  let enriched = autoCatalogNav && !skipCatalogInjection
+  let enriched = autoCatalogNav
     ? enrichNavLinksWithCatalogCapabilities(deduped, storePath, capabilities, site)
     : deduped
 
-  if (!previewShell && !isEditorCanvas) {
+  if (!skipDefaultCommerceNav) {
     enriched = enrichNavLinksWithRentalsLink(enriched, storePath, rentalsEnabled)
   }
   // Blog Manager "Show on website" must match live nav in the builder canvas too,
   // so admins can see which screens will publish.
   enriched = enrichNavLinksWithBlogLink(enriched, storePath, blogEnabled)
 
-  if (enriched.length === 0 && !previewShell && !isEditorCanvas) {
+  if (enriched.length === 0 && !skipDefaultCommerceNav) {
     enriched = defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled, rentalsEnabled)
   }
 
   // Single-page templates (e.g. Verde) only expose Home in site pages — after hiding
   // Home on the homepage that would render an empty nav bar.
   const hasNonHomeLinks = excludeHomeNavLinks(enriched, storePath).length > 0
-  const sourceLinks = previewShell || isEditorCanvas
+  const sourceLinks = skipDefaultCommerceNav
     ? (enriched.length > 0 ? enriched : [{ label: 'Home', href: storePath('/') }])
     : (hasNonHomeLinks
       ? enriched
@@ -241,7 +244,7 @@ export function resolveNavBlockLinks(
   let links = applyHomeNavVisibility(sourceLinks, pathname, storePath)
   if (links.length === 0) {
     links = applyHomeNavVisibility(
-      previewShell || isEditorCanvas
+      skipDefaultCommerceNav
         ? [{ label: 'Home', href: storePath('/') }]
         : defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled, rentalsEnabled),
       pathname,

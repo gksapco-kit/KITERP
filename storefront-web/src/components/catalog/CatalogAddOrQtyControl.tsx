@@ -5,6 +5,7 @@ import {
   resolveCatalogAddButtonPresentation,
   type CatalogAddButtonStyle,
 } from '@/lib/catalogAddButtonStyle'
+import { useResolvedStorefrontTheme } from '@/contexts/ThemeContext'
 
 type Props = {
   cartQty: number
@@ -27,7 +28,7 @@ type Props = {
 
 /**
  * Single Add-to-Cart control:
- * - empty cart → green "Add to Cart"
+ * - empty cart → brand-colored "Add to Cart"
  * - in cart → same button with − / qty / + inside
  */
 export function CatalogAddOrQtyControl({
@@ -47,9 +48,11 @@ export function CatalogAddOrQtyControl({
   fullWidth = true,
   className,
 }: Props) {
+  const theme = useResolvedStorefrontTheme()
+  const brandPrimary = primaryColor || theme.colors.primary
   const addBtn = resolveCatalogAddButtonPresentation({
     style: addButtonStyle,
-    primaryColor,
+    primaryColor: brandPrimary,
     isAdded: cartQty > 0,
     isMinimalCard,
     isCompactCard,

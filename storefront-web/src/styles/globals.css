@@ -628,6 +628,24 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   overflow-wrap: anywhere;
 }
 
+/* Website builder — gray section highlight on the block itself (not a measured
+   overlay). Inset border so overflow-x-clip / canvas zoom cannot hide it. */
+[data-page-canvas] .builder-block[data-builder-selected="true"]::after,
+[data-page-canvas] .builder-block:hover:not([data-builder-selected="true"])::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  box-sizing: border-box;
+}
+[data-page-canvas] .builder-block[data-builder-selected="true"]::after {
+  border: 2px solid #9ca3af;
+}
+[data-page-canvas] .builder-block:hover:not([data-builder-selected="true"])::after {
+  border: 2px solid #d1d5db;
+}
+
 .builder-block--has-shadow {
   overflow: visible;
   isolation: isolate;

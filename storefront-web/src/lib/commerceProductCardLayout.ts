@@ -25,8 +25,8 @@ export function productCardImageShell(
 ) {
   const contain = objectFit === 'contain'
   const fitClass = contain
-    ? 'object-contain object-center p-2'
-    : 'object-cover transition-transform duration-300 group-hover:scale-105'
+    ? 'object-contain object-center p-1'
+    : 'object-cover object-center transition-transform duration-300 group-hover:scale-105'
   if (imageHeightPct != null && imageHeightPct > 0 && imageHeightPct < 95) {
     return {
       wrapperClass: cn('relative w-full overflow-hidden bg-muted', className),

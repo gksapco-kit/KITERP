@@ -212,6 +212,7 @@ export default function CategoryExpandedProducts({
                   item={item}
                   linkTo={resolveLiveCatalogStorePath(item, storePath) ?? undefined}
                   onNavigateClick={e => handleProductCardClick(e, item)}
+                  imageObjectFit={imageObjectFit}
                 />
               )
             }

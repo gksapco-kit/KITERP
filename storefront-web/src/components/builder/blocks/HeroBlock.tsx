@@ -164,11 +164,16 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
     props.banner_carousel as boolean | undefined,
   )
   const bannerAspect = useBannerAspectRatio(heroBackgroundUrls, 0)
-  // Prefer covering the frame; authors can still choose Fit/Fill in section image controls.
-  const bgImageFit = readSectionImageFit('bg_image_url', props)
+  // Show the full banner by default so pack-shot text at the edges is not cropped.
+  // Authors can still pick Cover / Fill in section image controls.
+  const heroFitProps = {
+    ...props,
+    bg_image_fit: props.bg_image_fit ?? props.image_fit ?? 'contain',
+  }
+  const bgImageFit = readSectionImageFit('bg_image_url', heroFitProps)
   const bgImageFitClass =
     bgImageFit === 'fill' ? 'object-fill' : bgImageFit === 'cover' ? 'object-cover' : 'object-contain'
-  const bgImageObjectStyle = sectionImageObjectStyle('bg_image_url', props)
+  const bgImageObjectStyle = sectionImageObjectStyle('bg_image_url', heroFitProps)
   const bgImageDecorStyle = sectionImageDecorStyle('bg_image_url', props)
   const bgImageOverlayCss = sectionImageOverlayCss(readSectionImageOverlay('bg_image_url', props))
   const bgImageFocal = readSectionImageFocal('bg_image_url', props)
@@ -594,9 +599,9 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
         BUILDER_SECTION_INSET_X,
         'relative flex w-full flex-col justify-center overflow-hidden bg-muted/30',
         // Mobile: height follows copy so subtitle/CTA aren't clipped by a short aspect frame.
-        'min-h-[min(52vh,420px)]',
-        // Desktop: banner aspect + max height (spacer below drives the frame).
-        'md:max-h-[min(70vh,640px)] md:transition-[max-height] md:duration-500 md:ease-in-out',
+        'min-h-[min(48vh,380px)]',
+        // Desktop: banner aspect + generous max height so tops of products stay in view.
+        'md:max-h-[min(82vh,820px)] md:transition-[max-height] md:duration-500 md:ease-in-out',
       )
     : cn(BUILDER_SECTION_INSET_X, 'relative py-24')
 
@@ -641,7 +646,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
         <div
           className={cn(
             'pointer-events-none w-full max-md:hidden shrink-0',
-            !bannerAspect && 'aspect-[3/1]',
+            !bannerAspect && 'aspect-[16/9]',
           )}
           style={bannerAspect ? { aspectRatio: String(bannerAspect) } : undefined}
           aria-hidden

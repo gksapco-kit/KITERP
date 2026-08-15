@@ -36,7 +36,7 @@ export function ProductDetail({
       <div className="space-y-3">
         <div className="aspect-square overflow-hidden rounded-lg bg-muted">
           {gallery[0] && (
-            <img src={gallery[0]} alt={p.name} className="h-full w-full object-cover" />
+            <img src={gallery[0]} alt={p.name} className="h-full w-full object-contain object-center p-3" />
           )}
         </div>
         <div className="grid grid-cols-4 gap-2">

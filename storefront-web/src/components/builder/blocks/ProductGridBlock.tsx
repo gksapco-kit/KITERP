@@ -1041,7 +1041,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                       blockId={blockId}
                       src={mediaUrl(featuredOne.image_url)}
                       alt={featuredOne.title}
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="absolute inset-0 w-full h-full object-cover object-center"
                       isCatalogPhoto={!String(featuredOne.id || '').startsWith('ph-')}
                       allowNavigation
                     />
@@ -1150,7 +1150,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                             blockId={blockId}
                             src={mediaUrl(item.image_url)}
                             alt={item.title}
-                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                             isCatalogPhoto={!isPh}
                             allowNavigation={!isPh}
                           />
@@ -1194,7 +1194,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                           blockId={blockId}
                           src={mediaUrl(item.image_url)}
                           alt={item.title}
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                           isCatalogPhoto={!isPh}
                           allowNavigation={!isPh}
                         />
@@ -1303,6 +1303,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                   item={item}
                   linkTo={resolveLiveCatalogStorePath(item, storePath) ?? undefined}
                   onNavigateClick={e => handleProductCardClick(e, item)}
+                  imageObjectFit={cardLayout.imageObjectFit}
                 />
               )
             }

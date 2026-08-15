@@ -23,7 +23,7 @@ export function ProductDetail({ product, layout = "split", onAddToCart }: Produc
     <div className={cn("grid gap-8", layout === "split" ? "lg:grid-cols-2" : "")}>
       <div className="space-y-3">
         <div className="aspect-square rounded-lg overflow-hidden border bg-muted">
-          <img src={active} alt={product.name} className="w-full h-full object-cover" />
+          <img src={active} alt={product.name} className="w-full h-full object-contain object-center p-4" />
         </div>
         <div className="grid grid-cols-4 gap-2">
           {images.map((src) => (
@@ -32,7 +32,7 @@ export function ProductDetail({ product, layout = "split", onAddToCart }: Produc
               onClick={() => setActive(src)}
               className={cn("aspect-square rounded-md overflow-hidden border", active === src && "ring-2 ring-primary")}
             >
-              <img src={src} alt="" className="w-full h-full object-cover" />
+              <img src={src} alt="" className="w-full h-full object-contain object-center p-1" />
             </button>
           ))}
         </div>

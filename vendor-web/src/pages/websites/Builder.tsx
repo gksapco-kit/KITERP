@@ -5290,6 +5290,9 @@ function CatalogGridLayoutControls({
             </PanelChip>
           ))}
         </PanelChipWrap>
+        <p className="text-[10px] leading-snug text-muted-foreground">
+          Contain shows the full photo. Cover fills the tile and may crop the top or sides.
+        </p>
       </div>
       )}
 
@@ -19278,7 +19281,7 @@ export default function WebsiteBuilder() {
                         blockId={block.id}
                         containerRef={builderPageRootRef}
                         scrollRootRef={canvasMainRef}
-                        layoutScale={1}
+                        layoutScale={effectiveCanvasScale}
                         revision={canvasBlocksRevision}
                         selected={selectedBlockId === block.id}
                         label={catalogBlockLabel(block)}

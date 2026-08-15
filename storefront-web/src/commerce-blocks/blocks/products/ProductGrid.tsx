@@ -85,7 +85,7 @@ export function ProductList({
               style={cardPadding ? { padding: Math.max(0, cardPadding - 8) } : undefined}
             >
               {p.image && (
-                <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                <img src={p.image} alt={p.name} className="h-full w-full object-cover object-center" />
               )}
             </div>
             <div className="min-w-0 flex-1">

@@ -572,9 +572,9 @@ export function BuilderSectionOverlay({
             ? saving
               ? 'ring-[3px] ring-inset ring-amber-400'
               : imageSelected
-                ? 'ring-2 ring-inset ring-primary/70'
-                : 'ring-[3px] ring-inset ring-primary shadow-[inset_0_0_0_1px_rgba(39,72,50,0.35)]'
-            : interactive && 'hover:ring-2 hover:ring-inset hover:ring-primary/50',
+                ? 'shadow-[inset_0_0_0_2px_rgba(156,163,175,0.7)]'
+                : 'shadow-[inset_0_0_0_2px_#9ca3af]'
+            : interactive && 'hover:shadow-[inset_0_0_0_2px_#d1d5db]',
         dropBefore && 'border-t-4 border-primary',
         dropAfter && 'border-b-4 border-primary',
         dragging && 'opacity-50',

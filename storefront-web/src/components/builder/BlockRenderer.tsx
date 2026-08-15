@@ -299,6 +299,7 @@ export function SingleBlock({
   const customFetch = useLiveDataFetch()
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas ?? false
+  const isSelectedOnCanvas = isEditorCanvas && builderCanvas?.activeBlockId === block.id
   const liveItems = useLiveData(block, site, (block.props.show_count as number | undefined) || 12)
   const p = block.props as Record<string, unknown>
 
@@ -543,6 +544,7 @@ export function SingleBlock({
     <div
       data-sf-bid={sfBid}
       data-block-id={block.id}
+      data-builder-selected={isSelectedOnCanvas ? 'true' : undefined}
       role={enableBlockLink ? 'link' : undefined}
       tabIndex={enableBlockLink ? 0 : undefined}
       aria-label={enableBlockLink ? `Open ${resolvedBlockLink}` : undefined}

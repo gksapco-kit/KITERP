@@ -67,7 +67,7 @@ export function ProductList({
           <li key={p.id} className="flex items-center gap-4 py-4">
             <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
               {p.image && (
-                <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                <img src={p.image} alt={p.name} className="h-full w-full object-cover object-center" />
               )}
             </div>
             <div className="min-w-0 flex-1">

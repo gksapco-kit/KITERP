@@ -811,7 +811,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                       <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
                         {imageUrl ? (
                           <img src={imgUrl(imageUrl)} alt={item.name}
-                            className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300" />
+                            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             {isProduct ? <ShoppingBag className="w-10 h-10 text-gray-300" /> : <Wrench className="w-10 h-10 text-gray-300" />}
@@ -970,7 +970,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                       className="w-full h-40 sm:w-44 sm:h-44 bg-gray-50 rounded-lg overflow-hidden shrink-0 relative block"
                     >
                       {imageUrl ? (
-                        <img src={imgUrl(imageUrl)} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={imgUrl(imageUrl)} alt={item.name} className="w-full h-full object-cover object-center" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           {isProduct ? <ShoppingBag className="w-10 h-10 text-gray-200" /> : <Wrench className="w-10 h-10 text-gray-200" />}

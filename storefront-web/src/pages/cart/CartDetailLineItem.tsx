@@ -132,7 +132,7 @@ export function CartDetailLineItem({
           src={displayImage}
           alt={productName}
           className="absolute inset-0"
-          imgClassName="object-contain object-center p-1.5"
+          imgClassName="object-cover object-center"
         />
       </div>
 

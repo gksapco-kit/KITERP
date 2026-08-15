@@ -39,6 +39,8 @@ export interface ProductCardProps {
   showTags?: boolean;
   /** Override card link target (e.g. branch-aware cart detail view). */
   linkTo?: string;
+  /** How the product photo fills the square frame. Default contain so pack-shot text is not cropped. */
+  imageObjectFit?: "cover" | "contain";
   onNavigateClick?: (e: MouseEvent) => void;
   onAddToCart?: (p: Product, variant?: KitVariant) => void | Promise<void>;
   onToggleWishlist?: (p: Product) => void;
@@ -70,6 +72,7 @@ export function ProductCard({
   showRating = true,
   showTags = true,
   linkTo,
+  imageObjectFit = "cover",
   onNavigateClick,
   onAddToCart,
   onToggleWishlist,
@@ -287,17 +290,21 @@ export function ProductCard({
     <Card className={cn("overflow-hidden group flex flex-col", horizontal && "flex-row")}>
       <div className={cn("relative", horizontal ? "w-44 shrink-0" : "")}>
         <Link to={productHref} className="block" onClick={onNavigateClick}>
-          <div className={cn("relative w-full overflow-hidden bg-muted", horizontal ? "h-full min-h-[7rem]" : "aspect-square")}>
+          <div className={cn("relative w-full overflow-hidden bg-neutral-100", horizontal ? "h-full min-h-[7rem]" : "aspect-square")}>
             <ProductThumb
               src={displayImage}
               alt={product.name}
               size="md"
               className="absolute inset-0"
-              imgClassName="object-cover object-center p-0"
+              imgClassName={
+                imageObjectFit === "contain"
+                  ? "object-contain object-center p-1"
+                  : "object-cover object-center p-0 transition-transform duration-300 group-hover:scale-105"
+              }
             />
           </div>
         </Link>
-        <div className="absolute top-1.5 left-1.5 z-10 flex flex-col gap-1 items-start pointer-events-none">
+        <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 items-start pointer-events-none">
           {showViewCount && typeof product.viewCount === "number" && product.viewCount > 0 && (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-black/55 backdrop-blur-sm text-white text-[11px] font-semibold px-2 py-0.5 shadow-sm"
@@ -317,7 +324,7 @@ export function ProductCard({
           </Badge>
         )}
         {showWishlist && (
-          <div className="absolute top-1.5 right-1.5 z-20">
+          <div className="absolute top-2 right-2 z-20">
             <ProductWishlistButton
               productId={product.id}
               productName={product.name}
@@ -332,7 +339,7 @@ export function ProductCard({
         )}
       </div>
       <CardContent className={cn("flex flex-1 flex-col gap-1 p-2.5", horizontal && "p-3")}>
-        <Link to={productHref} className="text-sm font-medium leading-snug line-clamp-2 no-underline hover:no-underline" onClick={onNavigateClick}>
+        <Link to={productHref} className="text-sm font-semibold leading-snug line-clamp-2 no-underline hover:no-underline" onClick={onNavigateClick}>
           {product.name}
         </Link>
         {showRating && (product.rating ?? 0) > 0 && (

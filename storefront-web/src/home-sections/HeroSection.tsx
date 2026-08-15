@@ -260,14 +260,14 @@ export function HeroSection({
   }
 
   if (bgStyle === 'image') {
-    // Follow each banner's natural aspect ratio; fall back to 3:1 until measured.
+    // Follow each banner's natural aspect ratio; fall back to 16:9 until measured.
     const frameClass = bannerAspect
-      ? 'w-full max-h-[min(70vh,640px)]'
+      ? 'w-full max-h-[min(82vh,820px)]'
       : theme.hero_height === 'compact'
-        ? 'aspect-[3/1] max-h-[min(42vh,360px)]'
+        ? 'aspect-[16/9] max-h-[min(48vh,420px)]'
         : theme.hero_height === 'tall'
-          ? 'aspect-[3/1] max-h-[min(70vh,640px)]'
-          : 'aspect-[3/1] max-h-[min(56vh,520px)]'
+          ? 'aspect-[16/9] max-h-[min(82vh,820px)]'
+          : 'aspect-[16/9] max-h-[min(64vh,640px)]'
     const bgUrl = heroBackgroundUrls[0] ?? ''
     const primaryBtnBg = c.primary
     const primaryBtnFg = textOnSolid(primaryBtnBg)
@@ -281,13 +281,13 @@ export function HeroSection({
             {useCarousel ? (
               <HeroBannerCarousel
                 urls={heroBackgroundUrls}
-                imageClassName="h-full w-full object-cover object-center"
+                imageClassName="h-full w-full object-contain object-center"
                 overlay={
                   <div className="h-full w-full" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
                 }
               />
             ) : (
-              <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+              <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-contain object-center" />
             )}
             {!useCarousel && (
               <div className="pointer-events-none absolute inset-0" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
@@ -362,13 +362,13 @@ export function HeroSection({
           {useCarousel ? (
             <HeroBannerCarousel
               urls={heroBackgroundUrls}
-              imageClassName="h-full w-full object-cover object-center"
+              imageClassName="h-full w-full object-contain object-center"
               overlay={
                 <div className="h-full w-full" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />
               }
             />
           ) : (
-            <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+            <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-contain object-center" />
           )}
           {!useCarousel && (
             <div className="pointer-events-none absolute inset-0" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />

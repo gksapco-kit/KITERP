@@ -1,6 +1,8 @@
 import { AlertCircle } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
 import type { ProductVariant } from '@/types'
+import { useResolvedStorefrontTheme } from '@/contexts/ThemeContext'
+import { textOnSolid } from '@/lib/themeColors'
 import {
   isCombinationAvailable,
   isOptionValueOutOfStock,
@@ -43,6 +45,7 @@ function SizeChip({
   stopPropagation,
   onClick,
   compact,
+  primaryColor,
 }: {
   value: string
   selected: boolean
@@ -51,6 +54,7 @@ function SizeChip({
   stopPropagation?: boolean
   onClick: () => void
   compact?: boolean
+  primaryColor?: string
 }) {
   const compactChip = compact || value.trim().length <= 3
   return (
@@ -79,6 +83,11 @@ function SizeChip({
             ? 'border-border bg-muted/40 text-muted-foreground opacity-50'
             : 'border-border bg-background text-foreground hover:border-primary/40',
       )}
+      style={
+        selected && primaryColor
+          ? { backgroundColor: primaryColor, borderColor: primaryColor, color: textOnSolid(primaryColor) }
+          : undefined
+      }
     >
       {value}
     </button>
@@ -157,6 +166,8 @@ export default function ProductOptionPicker({
   stopPropagation,
   compact = false,
 }: ProductOptionPickerProps) {
+  const theme = useResolvedStorefrontTheme()
+  const primaryColor = theme.colors.primary
   if (!rows.length) return null
 
   const visibleRows = compact
@@ -173,8 +184,8 @@ export default function ProductOptionPicker({
         >
           <span
             className={cn(
-              'font-semibold uppercase tracking-wide text-muted-foreground',
-              compact ? 'text-[9px] leading-none' : 'w-12 shrink-0 truncate text-[10px]',
+              'font-semibold uppercase tracking-wide text-gray-500',
+              compact ? 'text-[10px] leading-none' : 'w-12 shrink-0 truncate text-[10px]',
             )}
             title={row.label}
           >
@@ -211,6 +222,7 @@ export default function ProductOptionPicker({
                       disabled={disabled}
                       stopPropagation={stopPropagation}
                       compact={compact}
+                      primaryColor={primaryColor}
                       onClick={() => onSelectSize(row.label, value)}
                     />
                   )

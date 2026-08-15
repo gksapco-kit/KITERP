@@ -154,6 +154,7 @@ function GlimpseCanvasPreview({
           siteId={siteId}
           vendorSlug={vendorSlug}
           siteName={data.publicSite.name}
+          builderPublicSite={data.publicSite}
         >
           <BuilderCanvasPageRenderer
             publicSite={data.publicSite}

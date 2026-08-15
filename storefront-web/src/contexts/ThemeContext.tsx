@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useVendor } from './VendorContext'
 import { useBranch } from './BranchContext'
@@ -11,6 +11,7 @@ import {
 } from '@/lib/themeColors'
 import { normalizeStorefrontThemeConfig } from '@/lib/storefrontThemeConfig'
 import { resolveAssignedStorefrontTemplateId } from '@/lib/storefrontTemplateAssignment'
+import type { StoreLocation } from '@/api/store'
 
 export interface ThemeConfig {
   template: string
@@ -63,46 +64,90 @@ const GOOGLE_FONTS = ['Inter', 'Poppins', 'DM Sans', 'Space Grotesk', 'Playfair 
 /** KITERP kit green — used in Employee HR portal instead of per-store business front blue */
 export const KIT_BRAND_PRIMARY = '#64C3A0'
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation()
-  const isHrPortal = /\/hr(\/|$)/.test(pathname)
+/** Same merge the live storefront uses: vendor theme_config + website style_config. */
+export function resolveStorefrontTheme(input: {
+  themeConfig?: unknown
+  vendorSettings?: unknown
+  branches?: StoreLocation[]
+  branchCode?: string | null
+  siteStyle?: Record<string, unknown>
+}): ThemeConfig {
+  const raw = normalizeStorefrontThemeConfig(
+    input.themeConfig && typeof input.themeConfig === 'object'
+      ? (input.themeConfig as Record<string, unknown>)
+      : {},
+  )
+  const assignedTemplateId = resolveAssignedStorefrontTemplateId(
+    input.vendorSettings as Record<string, unknown> | undefined,
+    input.branches ?? [],
+    input.branchCode ?? null,
+  )
+  const assignedTemplate =
+    assignedTemplateId === 'dark' || assignedTemplateId === 'light'
+      ? assignedTemplateId
+      : assignedTemplateId === 'atelier' || assignedTemplateId === 'verde' || assignedTemplateId === 'solace'
+        ? assignedTemplateId
+        : null
+  const base = {
+    ...DEFAULT_THEME,
+    ...raw,
+    colors: {
+      ...DEFAULT_THEME.colors,
+      ...(raw.colors as Record<string, string> | undefined),
+    },
+    sections: { ...DEFAULT_THEME.sections, ...(raw.sections as Record<string, boolean> | undefined) },
+  }
+  const withVendor = {
+    ...base,
+    template: assignedTemplate ?? ((raw.template as string) === 'dark' ? 'dark' : 'light'),
+    font: (raw as { font?: string }).font ?? DEFAULT_THEME.font,
+    font_body:
+      (raw as { font_body?: string }).font_body ??
+      (raw as { font?: string }).font ??
+      DEFAULT_THEME.font_body,
+  }
+  return mergeSiteStyleIntoTheme(withVendor, input.siteStyle)
+}
+
+/** Brand colors/fonts for catalog UI — works in the live storefront and the builder canvas. */
+export function useResolvedStorefrontTheme(): ThemeConfig {
   const { vendor } = useVendor()
   const { branchCode, branches } = useBranch()
   const { builderSite } = useBuilderSite()
-  const themeConfig = vendor?.theme_config
   const siteStyle = builderSite?.style_config as Record<string, unknown> | undefined
+  return useMemo(
+    () =>
+      resolveStorefrontTheme({
+        themeConfig: vendor?.theme_config,
+        vendorSettings: vendor?.settings,
+        branches,
+        branchCode,
+        siteStyle,
+      }),
+    [vendor?.theme_config, vendor?.settings, branches, branchCode, siteStyle],
+  )
+}
 
-  const theme: ThemeConfig = useMemo(() => {
-    const raw = normalizeStorefrontThemeConfig(
-      themeConfig && typeof themeConfig === 'object' ? (themeConfig as Record<string, unknown>) : {},
-    )
-    const assignedTemplateId = resolveAssignedStorefrontTemplateId(vendor?.settings, branches, branchCode)
-    const assignedTemplate =
-      assignedTemplateId === 'dark' || assignedTemplateId === 'light'
-        ? assignedTemplateId
-        : assignedTemplateId === 'atelier' || assignedTemplateId === 'verde' || assignedTemplateId === 'solace'
-          ? assignedTemplateId
-          : null
-    const base = {
-      ...DEFAULT_THEME,
-      ...raw,
-      colors: {
-        ...DEFAULT_THEME.colors,
-        ...(raw.colors as Record<string, string> | undefined),
-      },
-      sections: { ...DEFAULT_THEME.sections, ...(raw.sections as Record<string, boolean> | undefined) },
+function loadThemeFonts(font: string, fontBody: string) {
+  const fontsToLoad = [...new Set([font, fontBody].filter(f => f && f !== 'Inter' && GOOGLE_FONTS.includes(f)))]
+  for (const f of fontsToLoad) {
+    const id = `gfont-${f.replace(/\s+/g, '-')}`
+    if (!document.getElementById(id)) {
+      const link = document.createElement('link')
+      link.id = id
+      link.rel = 'stylesheet'
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(f)}:wght@400;500;600;700&display=swap`
+      document.head.appendChild(link)
     }
-    const withVendor = {
-      ...base,
-      template: assignedTemplate ?? ((raw.template as string) === 'dark' ? 'dark' : 'light'),
-      font: (raw as { font?: string }).font ?? DEFAULT_THEME.font,
-      font_body:
-        (raw as { font_body?: string }).font_body ??
-        (raw as { font?: string }).font ??
-        DEFAULT_THEME.font_body,
-    }
-    return mergeSiteStyleIntoTheme(withVendor, siteStyle)
-  }, [themeConfig, vendor?.settings, branches, branchCode, siteStyle])
+  }
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
+  const isHrPortal = /\/hr(\/|$)/.test(pathname)
+  const { builderSite } = useBuilderSite()
+  const siteStyle = builderSite?.style_config as Record<string, unknown> | undefined
+  const theme = useResolvedStorefrontTheme()
 
   useEffect(() => {
     applyBuilderPaletteCssVars(theme.colors, siteStyle, theme.template)
@@ -127,18 +172,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.body.style.backgroundColor = theme.colors.background
     document.body.style.color = textOnBg
     document.body.style.fontFamily = `"${theme.font_body || theme.font}", Inter, system-ui, sans-serif`
-
-    const fontsToLoad = [...new Set([theme.font, theme.font_body].filter(f => f && f !== 'Inter' && GOOGLE_FONTS.includes(f)))]
-    for (const f of fontsToLoad) {
-      const id = `gfont-${f.replace(/\s+/g, '-')}`
-      if (!document.getElementById(id)) {
-        const link = document.createElement('link')
-        link.id = id
-        link.rel = 'stylesheet'
-        link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(f)}:wght@400;500;600;700&display=swap`
-        document.head.appendChild(link)
-      }
-    }
+    loadThemeFonts(theme.font, theme.font_body)
 
     return () => {
       document.body.style.backgroundColor = ''
@@ -166,4 +200,49 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
   return useContext(ThemeContext)
+}
+
+/**
+ * Applies the live storefront palette on a wrapper (not document.root) so the
+ * website builder canvas matches customer-facing colors without restyling vendor-web chrome.
+ */
+export function BuilderCanvasThemeScope({ children }: { children: ReactNode }) {
+  const theme = useResolvedStorefrontTheme()
+  const { builderSite } = useBuilderSite()
+  const siteStyle = builderSite?.style_config as Record<string, unknown> | undefined
+  const scopeRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const el = scopeRef.current
+    if (!el) return
+    applyBuilderPaletteCssVars(theme.colors, siteStyle, theme.template, el)
+    const primaryHsl = hexToHslChannels(theme.colors.primary)
+    if (primaryHsl) {
+      const fg = primaryForegroundHslForHex(theme.colors.primary)
+      el.style.setProperty('--primary', primaryHsl)
+      el.style.setProperty('--primary-foreground', fg)
+      el.style.setProperty('--ring', primaryHsl)
+    }
+    el.style.setProperty('--font-store', theme.font)
+    el.style.setProperty('--font-body', theme.font_body || theme.font)
+    el.style.fontFamily = `"${theme.font_body || theme.font}", Inter, system-ui, sans-serif`
+    loadThemeFonts(theme.font, theme.font_body)
+  }, [
+    theme.template,
+    theme.colors.primary,
+    theme.colors.secondary,
+    theme.colors.accent,
+    theme.colors.background,
+    theme.font,
+    theme.font_body,
+    siteStyle,
+  ])
+
+  return (
+    <ThemeContext.Provider value={theme}>
+      <div ref={scopeRef} data-storefront-theme-scope="" style={{ height: '100%' }}>
+        {children}
+      </div>
+    </ThemeContext.Provider>
+  )
 }

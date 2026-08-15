@@ -226,7 +226,7 @@ export function buildCatalogImageShell(options: {
     }
   }
 
-  // Default catalog tiles: square frame so pack shots fill edge-to-edge.
+  // Default catalog tiles: square frame; cover fills the card with no letterbox.
   if (options.imageHeightPct >= 95) {
     return {
       wrapperClassName: cn('relative w-full overflow-hidden aspect-square', bg, options.productTileWrap),

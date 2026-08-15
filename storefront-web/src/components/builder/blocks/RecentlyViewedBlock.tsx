@@ -90,7 +90,7 @@ export default function RecentlyViewedBlock({ style, props, blockId }: Props) {
                     src={item.image_url}
                     alt={item.title}
                     className="absolute inset-0"
-                    imgClassName="object-cover object-center p-0 transition-transform duration-300 group-hover:scale-105"
+                    imgClassName="object-cover object-center transition-transform duration-300 group-hover:scale-105"
                   />
                 </div>
                 <div style={{ padding: Math.max(8, cardLayout.cardPadding - 2) }}>

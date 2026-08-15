@@ -141,7 +141,7 @@ const ElectronicsHome = ({ filterMockElectronicsOnly = true }: { filterMockElect
           {products.map((p) => (
             <article key={p.id} className="border flex flex-col" style={{ borderColor: 'hsl(var(--sf-border))', background: 'hsl(var(--sf-bg))' }}>
               <div className="aspect-square relative" style={{ background: 'hsl(var(--sf-muted) / 0.4)' }}>
-                <img src={p.images[0].url} alt={p.images[0].alt} className="absolute inset-0 w-full h-full object-contain p-6" loading="lazy" />
+                <img src={p.images[0].url} alt={p.images[0].alt} className="absolute inset-0 w-full h-full object-cover object-center" loading="lazy" />
                 {p.badges?.[0] ? (
                   <span className="absolute top-3 left-3 text-xs uppercase tracking-[0.18em] px-2 py-1" style={{ background: 'hsl(var(--sf-accent))', color: 'hsl(var(--sf-primary-foreground))' }}>{p.badges[0]}</span>
                 ) : null}
