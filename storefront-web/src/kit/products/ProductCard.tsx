@@ -453,7 +453,7 @@ export function ProductCard({
               pending={addToCartPending}
               outOfStock={outOfStock}
               labelOverride={addLabel}
-              addButtonStyle={cardLayout.addButtonStyle}
+              addButtonStyle="filled"
               isMinimalCard={cardLayout.isMinimalCard}
               isCompactCard
             />

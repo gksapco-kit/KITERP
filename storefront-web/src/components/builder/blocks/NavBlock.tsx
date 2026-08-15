@@ -96,11 +96,11 @@ export default function NavBlock({
   }, [openBuilderForPage, sitePageSlugs, storePath])
 
   const navigateStorePath = useCallback((rawPath: string) => {
-    if (isEditorCanvas) return
     if (builderCanvas?.onNavigate) {
       builderCanvas.onNavigate(rawPath)
       return
     }
+    if (isEditorCanvas) return
     if (previewShell && openBuilderPageFromPath(rawPath)) return
     const href = storePath(rawPath)
     if (previewShell) {
@@ -248,9 +248,10 @@ export default function NavBlock({
     const className = navLinkClass(link.href, shell.isCompact, mobile)
     const style = mobile ? navLinkStyle(link.href) : navLinkStyle(link.href)
     const ariaCurrent = isNavLinkActive(link.href, currentNavKey, storePath) ? 'page' as const : undefined
-    const builderNavClick = builderCanvas?.onNavigate && !isEditorCanvas
+    const builderNavClick = builderCanvas?.onNavigate
       ? (e: React.MouseEvent) => {
           e.preventDefault()
+          e.stopPropagation()
           if (mobile) closeMobileMenu()
           builderCanvas.onNavigate!(link.href)
         }
@@ -268,6 +269,24 @@ export default function NavBlock({
             if (mobile) closeMobileMenu()
             previewNavClick(e, link.href)
           }}
+          className={className}
+          style={style}
+          aria-current={ariaCurrent}
+        >
+          {link.label}
+        </a>
+      )
+    }
+
+    if (builderCanvas?.onNavigate) {
+      return (
+        <a
+          key={link.href}
+          href={link.href}
+          title={link.label}
+          data-builder-nav-link="true"
+          data-nav-href={link.href}
+          onClick={builderNavClick}
           className={className}
           style={style}
           aria-current={ariaCurrent}
@@ -380,6 +399,15 @@ export default function NavBlock({
       className={brandLinkClass}
       style={{ gap: brandGap }}
       aria-label={showHomeFallback ? 'Home' : brand}
+      data-builder-nav-link={builderCanvas?.onNavigate ? 'true' : undefined}
+      data-nav-href={builderCanvas?.onNavigate ? homePath : undefined}
+      onClick={(e) => {
+        if (!builderCanvas?.onNavigate) return
+        if ((e.target as HTMLElement).closest('[data-text-key], [contenteditable="true"]')) return
+        e.preventDefault()
+        e.stopPropagation()
+        builderCanvas.onNavigate(homePath)
+      }}
     >
       {logoImageNode}
       {showBrandText && brandTextNode}

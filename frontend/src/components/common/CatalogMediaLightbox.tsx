@@ -254,7 +254,7 @@ export function CatalogMediaLightbox({
   return (
     <>
       <div
-        className="fixed inset-0 z-[60] flex flex-col bg-black/85"
+        className="fixed inset-0 z-[60] flex flex-col bg-black/55"
         role="dialog"
         aria-modal="true"
         aria-label="Media preview"
@@ -319,7 +319,7 @@ export function CatalogMediaLightbox({
           </div>
         </div>
 
-        <div className="relative flex min-h-0 flex-1 items-center justify-center px-12 py-2">
+        <div className="relative flex min-h-0 flex-1 items-center justify-center px-3 py-2 sm:px-14">
           {hasMultiple && (
             <Button type="button" size="icon" variant="ghost" className="absolute left-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full text-white hover:bg-white/15 hover:text-white" onClick={onPrev} aria-label="Previous">
               <ChevronLeft className="h-6 w-6" />
@@ -327,7 +327,7 @@ export function CatalogMediaLightbox({
           )}
 
           <div
-            className="relative h-full max-h-[calc(100vh-8rem)] w-full max-w-5xl overflow-hidden"
+            className="relative flex h-full max-h-[calc(100vh-8.5rem)] w-full max-w-6xl items-center justify-center overflow-hidden rounded-2xl bg-white p-3 shadow-2xl sm:p-5"
             onPointerDown={canPan ? onPanPointerDown : undefined}
             onPointerMove={canPan ? onPanPointerMove : undefined}
             onPointerUp={canPan ? endPan : undefined}
@@ -335,27 +335,28 @@ export function CatalogMediaLightbox({
             style={{ cursor: canPan ? (dragging ? 'grabbing' : 'grab') : canZoom ? 'zoom-in' : 'default' }}
           >
             {mt === 'video' ? (
-              <div className="flex h-full w-full items-center justify-center">
-                <video key={src} src={src} className="max-h-full max-w-full rounded-lg shadow-2xl" controls autoPlay playsInline />
+              <div className="flex h-full w-full items-center justify-center bg-white">
+                <video key={src} src={src} className="max-h-full max-w-full rounded-lg" controls autoPlay playsInline />
               </div>
             ) : mt === 'model3d' ? (
-              <div className="flex h-full w-full items-center justify-center">
-                <div className="flex flex-col items-center gap-3 rounded-xl bg-white/10 px-8 py-10 text-white">
-                  <Box className="h-16 w-16 text-cyan-300" />
+              <div className="flex h-full w-full items-center justify-center bg-white">
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-slate-50 px-8 py-10 text-slate-700">
+                  <Box className="h-16 w-16 text-cyan-600" />
                   <p className="text-sm font-medium">3D model preview</p>
-                  <p className="max-w-xs text-center text-xs text-white/70">
+                  <p className="max-w-xs text-center text-xs text-slate-500">
                     Download the file or replace it from the media upload area.
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="flex h-full w-full items-center justify-center select-none touch-none">
+              <div className="flex h-full w-full items-center justify-center bg-white select-none touch-none">
                 <img
                   key={`${src}-${transform.rotation}-${transform.flipH}-${transform.flipV}`}
                   src={src}
                   alt={item.alt_text || 'Media preview'}
-                  className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+                  className="max-h-full max-w-full object-contain object-center"
                   style={{
+                    backgroundColor: '#ffffff',
                     transform: buildImagePreviewTransform(transform, pan, zoom),
                     transition: dragging ? 'none' : 'transform 150ms ease-out',
                   }}

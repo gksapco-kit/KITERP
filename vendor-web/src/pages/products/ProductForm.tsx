@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useCategoryTree, useCreateCategory, useProductMerchandising, useSyncProductMerchandising, useBundles, usePriceRules, useCreatePriceRule, useUpdatePriceRule, useDeletePriceRule, useStores, useDivisions, vendorKeys } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { mediaUrl, cn } from '@/lib/utils'
+import { CatalogMediaDisplayGallery } from '@/components/common/CatalogMediaLightbox'
 import type { Product, ProductPriceRule, PriceRuleType } from '@/types'
 import {
   ProductImageUpload,
@@ -1167,32 +1168,16 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
       {showTab('basic') && images.length > 0 && (
         <Card>
           <CardContent className="p-4">
-            <div className="flex gap-3 overflow-x-auto">
-              {images.map((img: any) => {
-                const mt = img.media_type || 'image'
-                return (
-                  <div key={img.id} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-gray-50 sm:h-24 sm:w-24">
-                    {mt === 'video' ? (
-                      <video src={mediaUrl(img.url)} className="w-full h-full object-cover" muted playsInline onMouseOver={e => (e.target as HTMLVideoElement).play()} onMouseOut={e => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0 }} />
-                    ) : mt === 'model3d' ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
-                        <Box className="w-8 h-8" />
-                        <span className="text-xs mt-0.5 font-medium">3D Model</span>
-                      </div>
-                    ) : (
-                      <img src={mediaUrl(img.url)} alt={img.alt_text || product.name} className="w-full h-full object-cover" />
-                    )}
-                    {mt === 'video' && <span className="absolute bottom-0.5 right-0.5 bg-primary text-white text-[8px] font-bold px-1 rounded">VID</span>}
-                    {mt === 'model3d' && <span className="absolute bottom-0.5 right-0.5 bg-cyan-600 text-white text-[8px] font-bold px-1 rounded">3D</span>}
-                    {img.is_primary && (
-                      <span className="absolute top-0.5 left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-yellow-900 shadow-sm" aria-label="Primary image">
-                        <Star className="h-2.5 w-2.5 fill-current" />
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+            <CatalogMediaDisplayGallery
+              altFallback={product.name}
+              items={images.map((img: any) => ({
+                id: String(img.id),
+                url: img.url,
+                media_type: img.media_type || 'image',
+                alt_text: img.alt_text || product.name,
+                is_primary: Boolean(img.is_primary),
+              }))}
+            />
           </CardContent>
         </Card>
       )}

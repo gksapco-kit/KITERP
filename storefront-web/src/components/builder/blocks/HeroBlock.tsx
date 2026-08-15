@@ -655,7 +655,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
       ) : null}
       {heroUsesImageBg && heroBackgroundUrls.length > 0 && !bgImageHidden ? (
         <div
-          className="absolute inset-0 z-0 overflow-hidden"
+          className="absolute inset-0 z-20 overflow-hidden pointer-events-none"
           style={bgImageDecorStyle}
           data-builder-section-image={isEditorCanvas ? 'bg_image_url' : undefined}
           onClick={isEditorCanvas && blockId

@@ -13,6 +13,7 @@ import {
   Loader2,
   RotateCcw,
   RotateCw,
+  Star,
   X,
   ZoomIn,
   ZoomOut,
@@ -255,10 +256,13 @@ export function CatalogMediaLightbox({
   return (
     <>
       <div data-kiterp-modal
-        className="fixed inset-0 z-[100] flex flex-col bg-black/85"
+        className="fixed inset-0 z-[100] flex flex-col bg-black/55"
         role="dialog"
         aria-modal="true"
         aria-label="Media preview"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose()
+        }}
       >
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-2 text-white">
           <span className="text-sm font-medium tabular-nums">
@@ -320,7 +324,7 @@ export function CatalogMediaLightbox({
           </div>
         </div>
 
-        <div className="relative flex min-h-0 flex-1 items-center justify-center px-12 py-2">
+        <div className="relative flex min-h-0 flex-1 items-center justify-center px-3 py-2 sm:px-14">
           {hasMultiple && (
             <Button type="button" size="icon" variant="ghost" className="absolute left-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full text-white hover:bg-white/15 hover:text-white" onClick={onPrev} aria-label="Previous">
               <ChevronLeft className="h-6 w-6" />
@@ -328,35 +332,37 @@ export function CatalogMediaLightbox({
           )}
 
           <div
-            className="relative h-full max-h-[calc(100vh-8rem)] w-full max-w-5xl overflow-hidden"
+            className="relative flex h-full max-h-[calc(100vh-8.5rem)] w-full max-w-6xl items-center justify-center overflow-hidden rounded-2xl bg-white p-3 shadow-2xl sm:p-5"
             onPointerDown={canPan ? onPanPointerDown : undefined}
             onPointerMove={canPan ? onPanPointerMove : undefined}
             onPointerUp={canPan ? endPan : undefined}
             onPointerCancel={canPan ? endPan : undefined}
+            onClick={(e) => e.stopPropagation()}
             style={{ cursor: canPan ? (dragging ? 'grabbing' : 'grab') : canZoom ? 'zoom-in' : 'default' }}
           >
             {mt === 'video' ? (
-              <div className="flex h-full w-full items-center justify-center">
-                <video key={src} src={src} className="max-h-full max-w-full rounded-lg shadow-2xl" controls autoPlay playsInline />
+              <div className="flex h-full w-full items-center justify-center bg-white">
+                <video key={src} src={src} className="max-h-full max-w-full rounded-lg" controls autoPlay playsInline />
               </div>
             ) : mt === 'model3d' ? (
-              <div className="flex h-full w-full items-center justify-center">
-                <div className="flex flex-col items-center gap-3 rounded-xl bg-white/10 px-8 py-10 text-white">
-                  <Box className="h-16 w-16 text-cyan-300" />
+              <div className="flex h-full w-full items-center justify-center bg-white">
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-slate-50 px-8 py-10 text-slate-700">
+                  <Box className="h-16 w-16 text-cyan-600" />
                   <p className="text-sm font-medium">3D model preview</p>
-                  <p className="max-w-xs text-center text-xs text-white/70">
+                  <p className="max-w-xs text-center text-xs text-slate-500">
                     Download the file or replace it from the media upload area.
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="flex h-full w-full items-center justify-center select-none touch-none">
+              <div className="flex h-full w-full items-center justify-center bg-white select-none touch-none">
                 <img
                   key={`${src}-${transform.rotation}-${transform.flipH}-${transform.flipV}`}
                   src={src}
                   alt={item.alt_text || 'Media preview'}
-                  className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+                  className="max-h-full max-w-full object-contain object-center"
                   style={{
+                    backgroundColor: '#ffffff',
                     transform: buildImagePreviewTransform(transform, pan, zoom),
                     transition: dragging ? 'none' : 'transform 150ms ease-out',
                   }}
@@ -510,12 +516,126 @@ export function ImageLightboxSession({
   )
 }
 
+export type CatalogDisplayMediaItem = LightboxMediaItem & { is_primary?: boolean }
+
+/** Large, sharp product/service preview on detail pages — click to open full size. */
+export function CatalogMediaDisplayGallery({
+  items,
+  altFallback = 'Image',
+}: {
+  items: CatalogDisplayMediaItem[]
+  altFallback?: string
+}) {
+  if (!items.length) return null
+
+  const featuredIdx = Math.max(0, items.findIndex(item => item.is_primary))
+  const featured = items[featuredIdx] ?? items[0]
+  const featuredType = featured.media_type || 'image'
+  const featuredSrc = resolveMediaUrl(featured.url)
+  const featuredAlt = featured.alt_text || altFallback
+
+  return (
+    <CatalogMediaLightboxHost items={items}>
+      {({ open }) => (
+        <div className="space-y-3">
+          {featuredType === 'video' ? (
+            <div className="relative flex w-full items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <video
+                src={featuredSrc}
+                className="max-h-[28rem] w-full object-contain"
+                muted
+                playsInline
+                controls
+              />
+              {featured.is_primary && (
+                <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-yellow-400 px-2 py-0.5 text-[11px] font-semibold text-yellow-900 shadow-sm">
+                  <Star className="h-3 w-3 fill-current" />
+                  Primary
+                </span>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => open(featuredIdx)}
+              title="View full image"
+              className="group relative flex w-full items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              {featuredType === 'model3d' ? (
+                <div className="flex min-h-[16rem] w-full flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 py-10 text-cyan-600">
+                  <Box className="h-14 w-14" />
+                  <span className="mt-2 text-sm font-medium">3D Model</span>
+                </div>
+              ) : (
+                <img
+                  src={featuredSrc}
+                  alt={featuredAlt}
+                  className="max-h-[28rem] w-full object-contain object-center"
+                />
+              )}
+              {featured.is_primary && featuredType !== 'model3d' && (
+                <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-yellow-400 px-2 py-0.5 text-[11px] font-semibold text-yellow-900 shadow-sm">
+                  <Star className="h-3 w-3 fill-current" />
+                  Primary
+                </span>
+              )}
+              {featuredType === 'image' && (
+                <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+                  <ZoomIn className="h-3.5 w-3.5" />
+                  View full size
+                </span>
+              )}
+            </button>
+          )}
+
+          {items.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-0.5">
+              {items.map((item, i) => {
+                const mt = item.media_type || 'image'
+                const src = resolveMediaUrl(item.url)
+                const selected = i === featuredIdx
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => open(i)}
+                    title={item.alt_text || `View image ${i + 1}`}
+                    className={cn(
+                      'relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-primary/40 sm:h-24 sm:w-24',
+                      selected ? 'border-primary ring-2 ring-primary/30' : 'border-gray-200 hover:border-primary/50',
+                    )}
+                  >
+                    {mt === 'video' ? (
+                      <video src={src} className="h-full w-full object-contain" muted playsInline />
+                    ) : mt === 'model3d' ? (
+                      <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600">
+                        <Box className="h-6 w-6" />
+                      </div>
+                    ) : (
+                      <img src={src} alt={item.alt_text || altFallback} className="h-full w-full object-contain object-center p-1" />
+                    )}
+                    {item.is_primary && (
+                      <span className="absolute left-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-yellow-900 shadow-sm">
+                        <Star className="h-2.5 w-2.5 fill-current" />
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </CatalogMediaLightboxHost>
+  )
+}
+
 export function ClickableImageButton({
   src,
   alt = 'Image',
   title = 'View and edit image',
   className,
-  imgClassName = 'h-full w-full object-cover',
+  imgClassName = 'h-full w-full object-contain object-center bg-white',
   onClick,
 }: {
   src: string

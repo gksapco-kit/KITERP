@@ -95,8 +95,8 @@ function colorPresentation(
       case 'filled':
       default:
         return {
-          className: 'text-white',
-          style: { backgroundColor: accent },
+          className: 'bg-primary text-white hover:bg-primary/90',
+          style: { backgroundColor: accent, color: '#ffffff' },
         }
     }
   }
@@ -121,7 +121,9 @@ function colorPresentation(
     case 'filled':
     default:
       return {
-        className: isAdded ? 'bg-emerald-500 text-white' : 'bg-primary text-primary-foreground',
+        className: isAdded
+          ? 'bg-emerald-500 text-white hover:bg-emerald-500/90'
+          : 'bg-primary text-white hover:bg-primary/90',
       }
   }
 }

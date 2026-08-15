@@ -13706,7 +13706,7 @@ export default function WebsiteBuilder() {
       return
     }
 
-    if ((e.target as HTMLElement).closest('a, button, input, textarea, select, label, [role="button"]')) return
+    if ((e.target as HTMLElement).closest('a, button, input, textarea, select, label, [role="button"], [data-builder-nav-link], [data-hero-carousel-nav]')) return
 
     const isNewSelection = selectedBlockId !== id
     setSelectedBlockId(id)
@@ -13726,24 +13726,33 @@ export default function WebsiteBuilder() {
       return
     }
 
-    const anchor = target.closest('a[href]') as HTMLAnchorElement | null
-    if (!anchor || !canvasPreviewInnerRef.current?.contains(anchor)) return
+    const navEl = target.closest('[data-builder-nav-link], a[href]') as HTMLElement | null
+    if (!navEl || !canvasPreviewInnerRef.current?.contains(navEl)) return
 
-    const href = anchor.getAttribute('href') || ''
-    const normalized = normalizeStorefrontCatalogHref(href.startsWith('/') ? href : `/${href}`)
+    const rawHref = (
+      navEl.getAttribute('data-nav-href')
+      || navEl.getAttribute('href')
+      || ''
+    ).trim()
+    if (!rawHref || rawHref === '#') return
+
+    const href = rawHref.startsWith('/') ? rawHref : `/${rawHref}`
+    const normalized = normalizeStorefrontCatalogHref(href)
     const pathOnly = normalized.split('?')[0].split('#')[0]
 
-    const blockRoot = anchor.closest('[data-block-id]') as HTMLElement | null
+    const blockRoot = navEl.closest('[data-block-id]') as HTMLElement | null
     const blockId = blockRoot?.getAttribute('data-block-id')
     const blockType = blockId ? findCanvasBlockType(localBlocks, localPages, blockId, activePageId) : null
     const isShellNavLink = blockType === 'nav' || blockType === 'footer'
+    const isHeaderNavLink = navEl.getAttribute('data-builder-nav-link') === 'true' || isShellNavLink
 
     if (
-      findBuilderPageForNavPath(pathOnly, localPages)
-      || anchor.dataset.builderCatalogNav === 'product'
-      || parseCatalogStorePath(pathOnly)?.slug
+      isHeaderNavLink
+      || findBuilderPageForNavPath(pathOnly, localPages)
+      || navEl.dataset.builderCatalogNav === 'product'
+      || parseStorefrontEmbedRoute(normalized)
+      || parseCatalogStorePath(pathOnly)
       || pathOnly.endsWith('/cart')
-      || (isShellNavLink && (parseStorefrontEmbedRoute(normalized) || parseCatalogStorePath(pathOnly)))
     ) {
       e.preventDefault()
       e.stopPropagation()
@@ -19397,7 +19406,7 @@ export default function WebsiteBuilder() {
                             onPointerDown={e => handleBlockReorderPointerDown(e, idx)}
                             onClick={e => e.stopPropagation()}
                             title="Drag to reorder section"
-                            className="absolute left-0 top-0 bottom-0 z-[76] w-5 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none bg-primary/5 hover:bg-primary/15 border-r border-primary/25 pointer-events-auto"
+                            className="absolute left-0 top-0 z-[76] h-8 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none rounded-br bg-primary/10 hover:bg-primary/20 border-r border-b border-primary/25 pointer-events-auto"
                           >
                             <GripVertical className="w-3.5 h-3.5 text-primary/70 pointer-events-none" />
                           </div>

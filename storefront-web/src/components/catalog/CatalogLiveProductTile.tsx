@@ -16,7 +16,6 @@ import { resolveVariantThumbnailUrl } from '@/lib/productImageUtils'
 import { cn, imgUrl } from '@/lib/utils'
 import { variantFlatOptionTitle } from '@/lib/variantOptions'
 import { useAddToCart, useCart, useCartVariantQty, useSetCatalogCartQty } from '@/hooks/useStore'
-import type { CatalogAddButtonStyle } from '@/lib/catalogAddButtonStyle'
 import { getEffectiveStockStatus, getMaxLineQuantity, type StockEntity } from '@/lib/stockValidation'
 import { useVendor } from '@/contexts/VendorContext'
 import { useAuthStore } from '@/stores/authStore'
@@ -93,7 +92,6 @@ export function CatalogLiveProductTile({
     showBadges,
     showStock,
     showAddButton,
-    addButtonStyle,
   } = cardLayout
 
   const variants = liveItemVariants(item)
@@ -316,7 +314,7 @@ export function CatalogLiveProductTile({
               )
             }
             primaryColor={primaryColor}
-            addButtonStyle={addButtonStyle as CatalogAddButtonStyle}
+            addButtonStyle="filled"
             isMinimalCard={isMinimalCard}
             isCompactCard={isCompactCard}
           />

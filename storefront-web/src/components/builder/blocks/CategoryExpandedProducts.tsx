@@ -311,7 +311,7 @@ export default function CategoryExpandedProducts({
                       outOfStock={outOfStock}
                       pending={!!isAdding}
                       primaryColor={style.primary_color}
-                      addButtonStyle={addButtonStyle}
+                      addButtonStyle="filled"
                       isMinimalCard={isMinimalCard}
                       isCompactCard={isCompactCard}
                     />

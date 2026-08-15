@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
 
@@ -87,6 +87,18 @@ export function HeroBannerCarousel({
 
   if (count === 0) return null
 
+  const activateSlide = (delta: number, e: SyntheticEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    go(delta)
+  }
+
+  const activateIndex = (next: number, e: SyntheticEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    goTo(next)
+  }
+
   const controlBtnClass =
     'pointer-events-auto absolute top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-md transition hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70'
 
@@ -105,7 +117,7 @@ export function HeroBannerCarousel({
 
   return (
     <div
-      className={cn('group absolute inset-0', className)}
+      className={cn('group pointer-events-none absolute inset-0', className)}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => {
         if (resumeTimer.current == null) setPaused(false)
@@ -134,33 +146,33 @@ export function HeroBannerCarousel({
 
       <button
         type="button"
+        data-hero-carousel-nav="prev"
         aria-label="Previous banner"
         onPointerDown={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
+          if (e.button !== 0) return
+          activateSlide(-1, e)
         }}
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          go(-1)
         }}
-        className={cn(controlBtnClass, 'left-3')}
+        className={cn(controlBtnClass, 'left-4 sm:left-6')}
       >
         <ChevronLeft className="h-6 w-6" />
       </button>
       <button
         type="button"
+        data-hero-carousel-nav="next"
         aria-label="Next banner"
         onPointerDown={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
+          if (e.button !== 0) return
+          activateSlide(1, e)
         }}
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          go(1)
         }}
-        className={cn(controlBtnClass, 'right-3')}
+        className={cn(controlBtnClass, 'right-4 sm:right-6')}
       >
         <ChevronRight className="h-6 w-6" />
       </button>
@@ -177,10 +189,13 @@ export function HeroBannerCarousel({
             role="tab"
             aria-label={`Show banner ${i + 1}`}
             aria-selected={i === index}
+            onPointerDown={(e) => {
+              if (e.button !== 0) return
+              activateIndex(i, e)
+            }}
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              goTo(i)
             }}
             className={cn(
               'h-2.5 rounded-full transition-all',
