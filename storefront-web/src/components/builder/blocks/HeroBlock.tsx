@@ -164,11 +164,11 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
     props.banner_carousel as boolean | undefined,
   )
   const bannerAspect = useBannerAspectRatio(heroBackgroundUrls, 0)
-  // Show the full banner by default so pack-shot text at the edges is not cropped.
-  // Authors can still pick Cover / Fill in section image controls.
+  // Fill the banner frame edge-to-edge. Authors can still pick Contain in
+  // section image controls if they want letterboxing.
   const heroFitProps = {
     ...props,
-    bg_image_fit: props.bg_image_fit ?? props.image_fit ?? 'contain',
+    bg_image_fit: props.bg_image_fit ?? props.image_fit ?? 'cover',
   }
   const bgImageFit = readSectionImageFit('bg_image_url', heroFitProps)
   const bgImageFitClass =
@@ -480,9 +480,11 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
             : isSplit
               ? 'relative z-10 flex flex-1 max-w-xl flex-col gap-5'
               : cn(
-                  'hero-panel-mobile-center relative z-10 mx-auto flex w-full max-w-3xl min-w-0 flex-col items-center gap-3 sm:gap-5 text-center px-1',
-                  // Full-bleed banners: vertical padding so copy doesn’t hug the frame edges.
-                  centeredImageTextPanel && 'py-8 sm:py-10 lg:py-12',
+                  'hero-panel-mobile-center relative z-10 mx-auto flex w-full max-w-3xl min-w-0 flex-col items-center gap-3 sm:gap-5 text-center',
+                  // Full-bleed banners: inset copy only — the photo spans the viewport.
+                  centeredImageTextPanel
+                    ? cn(BUILDER_SECTION_INSET_X, 'py-8 sm:py-10 lg:py-12')
+                    : 'px-1',
                   imageBgTextPassThrough && 'pointer-events-none [&>*]:pointer-events-auto',
                 ))
         }
@@ -596,7 +598,6 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
 
   const centeredImageHeroClass = isCenteredImageHero
     ? cn(
-        BUILDER_SECTION_INSET_X,
         'relative flex w-full flex-col justify-center overflow-hidden bg-muted/30',
         // Mobile: height follows copy so subtitle/CTA aren't clipped by a short aspect frame.
         'min-h-[min(48vh,380px)]',

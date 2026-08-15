@@ -353,6 +353,8 @@ import { IMAGE_SHAPE_OPTIONS, imageShapeRadiusClass, type ImageShape } from '@st
 import {
   CATALOG_IMAGE_ASPECT_OPTIONS,
   CATALOG_IMAGE_OBJECT_FIT_OPTIONS,
+  CATALOG_IMAGE_POSITION_OPTIONS,
+  CATALOG_IMAGE_POSITION_PAD,
 } from '@storefront/lib/catalogCardLayout'
 import {
   TILE_BACKDROP_OPTIONS,
@@ -5123,6 +5125,7 @@ function CatalogGridSliderField({
   step,
   suffix,
   onChange,
+  onPreview,
 }: {
   label: string
   value: number
@@ -5131,6 +5134,7 @@ function CatalogGridSliderField({
   step: number
   suffix?: string
   onChange: (n: number) => void
+  onPreview?: (n: number) => void
 }) {
   return (
     <PanelSliderRow
@@ -5140,6 +5144,7 @@ function CatalogGridSliderField({
       max={max}
       step={step}
       unit={suffix}
+      onPreview={onPreview}
       onCommit={onChange}
     />
   )
@@ -5159,7 +5164,7 @@ function CatalogGridLayoutControls({
   const patch = (next: Record<string, unknown>) => {
     const merged = { ...next }
     if (blockType === 'category_cards' && p.layout === 'wellness') {
-      const layoutKeys = ['image_height_pct', 'image_width_pct', 'image_aspect', 'image_object_fit', 'card_padding', 'item_gap', 'card_style', 'columns', 'compact']
+      const layoutKeys = ['image_height_pct', 'image_width_pct', 'image_aspect', 'image_object_fit', 'image_object_position', 'image_zoom', 'card_padding', 'item_gap', 'card_style', 'columns', 'compact']
       if (Object.keys(next).some(k => layoutKeys.includes(k))) {
         merged.layout = 'grid'
       }
@@ -5181,7 +5186,9 @@ function CatalogGridLayoutControls({
   ) || 12))
   const cardStyle = String(p.card_style ?? 'default')
   const imageAspect = String(p.image_aspect ?? 'auto')
-  const imageObjectFit = String(p.image_object_fit ?? 'cover')
+  const imageObjectFit = String(p.image_object_fit ?? 'contain')
+  const imageObjectPosition = String(p.image_object_position ?? 'center')
+  const imageZoom = Math.min(200, Math.max(50, Number(p.image_zoom ?? 100) || 100))
   const cardBorderRadius = p.card_border_radius
   const radiusAuto = cardBorderRadius == null || cardBorderRadius === ''
   const showStock = p.show_stock !== false
@@ -5239,6 +5246,7 @@ function CatalogGridLayoutControls({
         max={100}
         step={2}
         suffix="%"
+        onPreview={n => onPreview({ image_height_pct: n })}
         onChange={n => patch({ image_height_pct: n })}
       />
       )}
@@ -5273,6 +5281,7 @@ function CatalogGridLayoutControls({
         max={100}
         step={2}
         suffix="%"
+        onPreview={n => onPreview({ image_width_pct: n })}
         onChange={n => patch({ image_width_pct: n })}
       />
 
@@ -5291,9 +5300,54 @@ function CatalogGridLayoutControls({
           ))}
         </PanelChipWrap>
         <p className="text-[10px] leading-snug text-muted-foreground">
-          Contain shows the full photo. Cover fills the tile and may crop the top or sides.
+          {CATALOG_IMAGE_OBJECT_FIT_OPTIONS.find(opt => opt.value === imageObjectFit)?.hint
+            ?? 'Contain shows the full photo. Cover fills the tile and may crop the top or sides.'}
         </p>
       </div>
+      )}
+
+      {imageAspect !== 'full' && imageObjectFit !== 'fill' && (
+      <div className="space-y-1">
+        <PanelFieldLabel>Crop position</PanelFieldLabel>
+        <div className="grid w-[88px] grid-cols-3 gap-0.5" role="group" aria-label="Crop position">
+          {CATALOG_IMAGE_POSITION_PAD.flat().map(pos => {
+            const label = CATALOG_IMAGE_POSITION_OPTIONS.find(opt => opt.value === pos)?.label ?? pos
+            return (
+              <button
+                key={pos}
+                type="button"
+                title={label}
+                aria-label={label}
+                className={cn(
+                  'h-6 w-6 rounded-sm border text-[0] transition-colors',
+                  imageObjectPosition === pos
+                    ? 'border-primary bg-primary'
+                    : 'border-border bg-background hover:border-primary/50',
+                )}
+                onClick={() => patch({ image_object_position: pos })}
+              >
+                <span className="sr-only">{label}</span>
+              </button>
+            )
+          })}
+        </div>
+        <p className="text-[10px] leading-snug text-muted-foreground">
+          Choose which part of the photo stays visible when the tile crops it.
+        </p>
+      </div>
+      )}
+
+      {imageAspect !== 'full' && imageObjectFit !== 'none' && (
+      <CatalogGridSliderField
+        label="Image zoom"
+        value={imageZoom}
+        min={50}
+        max={200}
+        step={5}
+        suffix="%"
+        onPreview={n => onPreview({ image_zoom: n })}
+        onChange={n => patch({ image_zoom: n })}
+      />
       )}
 
       <div className="space-y-1">
@@ -5320,6 +5374,7 @@ function CatalogGridLayoutControls({
             max={32}
             step={1}
             suffix="px"
+            onPreview={n => onPreview({ card_border_radius: n })}
             onChange={n => patch({ card_border_radius: n })}
           />
         )}
@@ -5332,6 +5387,7 @@ function CatalogGridLayoutControls({
         max={32}
         step={2}
         suffix="px"
+        onPreview={n => onPreview({ card_padding: n })}
         onChange={n => patch({ card_padding: n })}
       />
 
@@ -5342,6 +5398,7 @@ function CatalogGridLayoutControls({
         max={80}
         step={4}
         suffix="px"
+        onPreview={n => onPreview({ item_gap: n })}
         onChange={n => patch({ item_gap: n })}
       />
 

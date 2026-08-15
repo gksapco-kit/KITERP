@@ -50,7 +50,7 @@ export default function RecentlyViewedBlock({ style, props, blockId }: Props) {
   if (!items.length && !isEditorCanvas) return null
 
   return (
-    <section className={builderSectionContainerWithMax('max-w-6xl')} aria-label={title ?? undefined}>
+    <section className={builderSectionContainerWithMax('max-w-6xl', 'bg-white')} style={{ backgroundColor: '#ffffff' }} aria-label={title ?? undefined}>
       {showTitle && (
         <BuilderTextField
           fieldKey="title"
@@ -82,7 +82,7 @@ export default function RecentlyViewedBlock({ style, props, blockId }: Props) {
               >
                 <div
                   className={cn(
-                    'relative w-full overflow-hidden bg-muted aspect-square',
+                    'relative w-full overflow-hidden bg-white aspect-square',
                     cardLayout.cardRadius,
                   )}
                 >
@@ -90,7 +90,7 @@ export default function RecentlyViewedBlock({ style, props, blockId }: Props) {
                     src={item.image_url}
                     alt={item.title}
                     className="absolute inset-0"
-                    imgClassName="object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                    imgClassName="object-contain object-center bg-white p-1"
                   />
                 </div>
                 <div style={{ padding: Math.max(8, cardLayout.cardPadding - 2) }}>

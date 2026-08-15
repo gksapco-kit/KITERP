@@ -46,6 +46,14 @@ import {
   splitTrailingShellBlocks,
 } from '@/lib/blockRendererUtils'
 
+/** Product grids default to a white section so the page tint does not show behind cards. */
+const WHITE_CATALOG_SECTION_BLOCKS = new Set([
+  'product_grid',
+  'related_products',
+  'recently_viewed',
+  'menu_grid',
+])
+
 /** Retry once on Vite stale-chunk / Windows @fs failures before surfacing to the route error boundary. */
 function lazyBlock<T extends ComponentType<unknown>>(
   importer: () => Promise<{ default: T }>,
@@ -283,7 +291,7 @@ function blockLayoutKey(props: Record<string, unknown> | undefined): string {
     props.bg_style, props.bg_color, props.columns, props.image_position, props.card_style,
     props.show_stats, props.media_type,
     props.gradient_preset, props.nav_bg, props.footer_bg, props.overlay, props.compact,
-    props.block_shadow, props.item_gap, props.image_height_pct, props.image_width_pct, props.image_aspect, props.image_object_fit, props.card_padding,
+    props.block_shadow, props.item_gap, props.image_height_pct, props.image_width_pct, props.image_aspect, props.image_object_fit, props.image_object_position, props.image_zoom, props.card_padding,
     props.show_stock, props.show_add_button, props.add_button_style, props.show_quantity_controls, props.show_badges, props.show_count, props.show_book_link,
   ].map(v => String(v ?? '')).join(':')
 }
@@ -495,7 +503,16 @@ export function SingleBlock({
   if (textTransformCss) wrapperStyle.textTransform = textTransformCss
   if (paddingTop > 0) wrapperStyle.paddingTop = `${paddingTop}px`
   if (paddingBottom > 0) wrapperStyle.paddingBottom = `${paddingBottom}px`
-  if (sectionStyles.backgroundColor) wrapperStyle.backgroundColor = sectionStyles.backgroundColor
+  if (sectionStyles.backgroundColor) {
+    wrapperStyle.backgroundColor = sectionStyles.backgroundColor
+  } else if (
+    WHITE_CATALOG_SECTION_BLOCKS.has(block.block_type)
+    && p.bg_style !== 'dark'
+    && p.bg_style !== 'image'
+    && p.bg_style !== 'gradient'
+  ) {
+    wrapperStyle.backgroundColor = '#ffffff'
+  }
   if (sectionStyles.color) wrapperStyle.color = sectionStyles.color
   if (hasShape) wrapperStyle.position = 'relative'
   if (sectionMinHeight > 0) wrapperStyle.minHeight = `${sectionMinHeight}px`

@@ -281,13 +281,13 @@ export function HeroSection({
             {useCarousel ? (
               <HeroBannerCarousel
                 urls={heroBackgroundUrls}
-                imageClassName="h-full w-full object-contain object-center"
+                imageClassName="h-full w-full object-cover object-center"
                 overlay={
                   <div className="h-full w-full" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
                 }
               />
             ) : (
-              <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-contain object-center" />
+              <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
             )}
             {!useCarousel && (
               <div className="pointer-events-none absolute inset-0" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
@@ -362,13 +362,13 @@ export function HeroSection({
           {useCarousel ? (
             <HeroBannerCarousel
               urls={heroBackgroundUrls}
-              imageClassName="h-full w-full object-contain object-center"
+              imageClassName="h-full w-full object-cover object-center"
               overlay={
                 <div className="h-full w-full" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />
               }
             />
           ) : (
-            <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-contain object-center" />
+            <img src={imgUrl(bgUrl)} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
           )}
           {!useCarousel && (
             <div className="pointer-events-none absolute inset-0" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />

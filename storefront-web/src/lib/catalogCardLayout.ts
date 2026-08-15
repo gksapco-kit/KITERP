@@ -88,20 +88,53 @@ export function catalogGridColClassForBreakpoint(
   return 'grid-cols-4'
 }
 
-export type CatalogImageAspect = 'auto' | 'square' | 'tall' | 'wide' | 'full'
-export type CatalogImageObjectFit = 'cover' | 'contain'
+export type CatalogImageAspect = 'auto' | 'square' | 'tall' | 'portrait' | 'wide' | 'landscape' | 'full'
+export type CatalogImageObjectFit = 'cover' | 'contain' | 'fill' | 'scale-down' | 'none'
+export type CatalogImageObjectPosition =
+  | 'center'
+  | 'top'
+  | 'bottom'
+  | 'left'
+  | 'right'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right'
 
 export const CATALOG_IMAGE_ASPECT_OPTIONS: { value: CatalogImageAspect; label: string }[] = [
   { value: 'auto', label: 'Custom height' },
   { value: 'full', label: 'Full image' },
-  { value: 'square', label: 'Square' },
+  { value: 'square', label: 'Square 1:1' },
   { value: 'tall', label: 'Tall 3:4' },
+  { value: 'portrait', label: 'Portrait 2:3' },
   { value: 'wide', label: 'Wide 4:3' },
+  { value: 'landscape', label: 'Cinema 16:9' },
 ]
 
-export const CATALOG_IMAGE_OBJECT_FIT_OPTIONS: { value: CatalogImageObjectFit; label: string }[] = [
-  { value: 'cover', label: 'Cover' },
-  { value: 'contain', label: 'Contain' },
+export const CATALOG_IMAGE_OBJECT_FIT_OPTIONS: { value: CatalogImageObjectFit; label: string; hint: string }[] = [
+  { value: 'cover', label: 'Cover', hint: 'Fills the tile. Use crop position and zoom to choose which part shows.' },
+  { value: 'contain', label: 'Contain', hint: 'Shows the full photo. Empty space may appear around it.' },
+  { value: 'fill', label: 'Stretch', hint: 'Stretches to fill the tile. The photo may look distorted.' },
+  { value: 'scale-down', label: 'Scale down', hint: 'Like Contain, but never enlarges a small photo.' },
+  { value: 'none', label: 'Original', hint: 'Keeps the photo at its natural size inside the tile.' },
+]
+
+export const CATALOG_IMAGE_POSITION_OPTIONS: { value: CatalogImageObjectPosition; label: string }[] = [
+  { value: 'top-left', label: 'Top left' },
+  { value: 'top', label: 'Top' },
+  { value: 'top-right', label: 'Top right' },
+  { value: 'left', label: 'Left' },
+  { value: 'center', label: 'Center' },
+  { value: 'right', label: 'Right' },
+  { value: 'bottom-left', label: 'Bottom left' },
+  { value: 'bottom', label: 'Bottom' },
+  { value: 'bottom-right', label: 'Bottom right' },
+]
+
+export const CATALOG_IMAGE_POSITION_PAD: CatalogImageObjectPosition[][] = [
+  ['top-left', 'top', 'top-right'],
+  ['left', 'center', 'right'],
+  ['bottom-left', 'bottom', 'bottom-right'],
 ]
 
 export const CATALOG_IMAGE_ASPECT_CLASS: Record<CatalogImageAspect, string | null> = {
@@ -109,7 +142,9 @@ export const CATALOG_IMAGE_ASPECT_CLASS: Record<CatalogImageAspect, string | nul
   full: null,
   square: 'aspect-square',
   tall: 'aspect-[3/4]',
+  portrait: 'aspect-[2/3]',
   wide: 'aspect-[4/3]',
+  landscape: 'aspect-[16/9]',
 }
 
 export interface CatalogCardLayout {
@@ -126,6 +161,9 @@ export interface CatalogCardLayout {
   cardBorderRadius: number | null
   imageAspect: CatalogImageAspect
   imageObjectFit: CatalogImageObjectFit
+  imageObjectPosition: CatalogImageObjectPosition
+  /** Tile photo zoom (50–200). Independent of section `image_scale`. */
+  imageZoom: number
   showBadges: boolean
   showStock: boolean
   showAddButton: boolean
@@ -137,14 +175,73 @@ export interface CatalogImageShell {
   wrapperClassName: string
   wrapperStyle?: CSSProperties
   imageClassName: string
+  imageStyle?: CSSProperties
   /** When true, the image is in-flow (natural height) — not absolutely positioned. */
   intrinsic?: boolean
 }
 
-export function catalogImageObjectFitClass(fit?: string | null): string {
-  return fit === 'contain'
-    ? 'object-contain object-center p-1'
-    : 'object-cover object-center'
+export function catalogImageObjectPositionClass(position?: string | null): string {
+  switch (position) {
+    case 'top':
+      return 'object-top'
+    case 'bottom':
+      return 'object-bottom'
+    case 'left':
+      return 'object-left'
+    case 'right':
+      return 'object-right'
+    case 'top-left':
+      return 'object-left-top'
+    case 'top-right':
+      return 'object-right-top'
+    case 'bottom-left':
+      return 'object-left-bottom'
+    case 'bottom-right':
+      return 'object-right-bottom'
+    default:
+      return 'object-center'
+  }
+}
+
+export function catalogImageTransformOrigin(position?: string | null): string {
+  switch (position) {
+    case 'top':
+      return '50% 0%'
+    case 'bottom':
+      return '50% 100%'
+    case 'left':
+      return '0% 50%'
+    case 'right':
+      return '100% 50%'
+    case 'top-left':
+      return '0% 0%'
+    case 'top-right':
+      return '100% 0%'
+    case 'bottom-left':
+      return '0% 100%'
+    case 'bottom-right':
+      return '100% 100%'
+    default:
+      return '50% 50%'
+  }
+}
+
+export function catalogImageObjectFitClass(
+  fit?: string | null,
+  position?: string | null,
+): string {
+  const pos = catalogImageObjectPositionClass(position)
+  const pad = fit === 'fill' || fit === 'none' ? '' : 'p-1'
+  // Catalog tiles never crop pack-shot text. Cover is treated as contain.
+  const fitClass =
+    fit === 'fill'
+      ? 'object-fill'
+      : fit === 'scale-down'
+        ? 'object-scale-down'
+        : fit === 'none'
+          ? 'object-none'
+          : 'object-contain'
+  return cn(fitClass, pos, pad)
 }
 
 export function parseCatalogImageAspect(raw: unknown): CatalogImageAspect {
@@ -153,8 +250,19 @@ export function parseCatalogImageAspect(raw: unknown): CatalogImageAspect {
 }
 
 export function parseCatalogImageObjectFit(raw: unknown): CatalogImageObjectFit {
-  if (raw === 'contain') return 'contain'
-  return 'cover'
+  if (raw === 'cover' || raw === 'fill' || raw === 'scale-down' || raw === 'none') return raw
+  return 'contain'
+}
+
+export function parseCatalogImageObjectPosition(raw: unknown): CatalogImageObjectPosition {
+  const value = String(raw ?? 'center')
+  return CATALOG_IMAGE_POSITION_OPTIONS.some(opt => opt.value === value)
+    ? (value as CatalogImageObjectPosition)
+    : 'center'
+}
+
+export function parseCatalogImageZoom(raw: unknown): number {
+  return clampNumber(raw, 100, 50, 200)
 }
 
 export function parseCardBorderRadius(raw: unknown): number | null {
@@ -180,17 +288,26 @@ export function buildCatalogImageShell(options: {
   imageWidthPct?: number
   imageAspect: CatalogImageAspect
   imageObjectFit: CatalogImageObjectFit
+  imageObjectPosition?: CatalogImageObjectPosition
+  imageZoom?: number
   productTileWrap: string
   isCircle: boolean
   hoverScale?: boolean
   bgClass?: string
 }): CatalogImageShell {
-  const objectFit = catalogImageObjectFitClass(options.imageObjectFit)
-  const hover =
-    options.hoverScale !== false && options.imageObjectFit !== 'contain'
-      ? 'group-hover:scale-105 transition-transform duration-300'
-      : ''
-  const bg = options.bgClass ?? 'bg-gray-50'
+  const objectFit = catalogImageObjectFitClass(options.imageObjectFit, options.imageObjectPosition)
+  const zoom = parseCatalogImageZoom(options.imageZoom)
+  const hover = zoom !== 100 ? 'transition-transform duration-300' : ''
+  const imageStyle: CSSProperties | undefined = {
+    backgroundColor: '#ffffff',
+    ...(zoom !== 100
+      ? {
+          transform: `scale(${zoom / 100})`,
+          transformOrigin: catalogImageTransformOrigin(options.imageObjectPosition),
+        }
+      : {}),
+  }
+  const bg = options.bgClass ?? 'bg-white'
   const widthStyle = catalogImageWidthStyle(options.imageWidthPct ?? 100)
 
   if (options.isCircle) {
@@ -203,6 +320,7 @@ export function buildCatalogImageShell(options: {
       ),
       wrapperStyle: widthStyle,
       imageClassName: cn('absolute inset-0 w-full h-full', objectFit, hover),
+      imageStyle,
     }
   }
 
@@ -212,6 +330,7 @@ export function buildCatalogImageShell(options: {
       wrapperClassName: cn('relative w-full overflow-hidden', bg, options.productTileWrap),
       wrapperStyle: widthStyle,
       imageClassName: cn('relative block h-auto w-full', hover),
+      imageStyle,
       intrinsic: true,
     }
   }
@@ -223,6 +342,7 @@ export function buildCatalogImageShell(options: {
       wrapperClassName: cn('relative w-full overflow-hidden', bg, options.productTileWrap, aspectClass),
       wrapperStyle: widthStyle,
       imageClassName,
+      imageStyle,
     }
   }
 
@@ -232,6 +352,7 @@ export function buildCatalogImageShell(options: {
       wrapperClassName: cn('relative w-full overflow-hidden aspect-square', bg, options.productTileWrap),
       wrapperStyle: widthStyle,
       imageClassName,
+      imageStyle,
     }
   }
 
@@ -239,6 +360,7 @@ export function buildCatalogImageShell(options: {
     wrapperClassName: cn('relative w-full overflow-hidden', bg, options.productTileWrap),
     wrapperStyle: { ...widthStyle, paddingBottom: `${options.imageHeightPct}%` },
     imageClassName,
+    imageStyle,
   }
 }
 
@@ -288,6 +410,8 @@ export function readCatalogCardLayout(
     cardBorderRadius: parseCardBorderRadius(props.card_border_radius),
     imageAspect: parseCatalogImageAspect(props.image_aspect),
     imageObjectFit: parseCatalogImageObjectFit(props.image_object_fit),
+    imageObjectPosition: parseCatalogImageObjectPosition(props.image_object_position),
+    imageZoom: parseCatalogImageZoom(props.image_zoom),
     showBadges: props.show_badges !== false,
     showStock: props.show_stock !== false && !isMinimalCard,
     showAddButton: props.show_add_button !== false,

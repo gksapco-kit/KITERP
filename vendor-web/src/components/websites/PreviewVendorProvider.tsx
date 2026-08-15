@@ -4,13 +4,7 @@ import { VendorContext, type VendorContextType, type VendorData } from '@storefr
 import { buildDraftPreviewPageUrl, buildDraftPreviewStorePath } from '@/lib/draftPreviewNavigation'
 import { parseCatalogStorePath } from '@/lib/catalogStorePaths'
 
-import {
-  createAllEnabledProductDisplayFields,
-  createAllEnabledServiceDisplayFields,
-} from '@/lib/storefrontDisplayFields'
-
-const DEFAULT_PRODUCT_DISPLAY = createAllEnabledProductDisplayFields()
-const DEFAULT_SERVICE_DISPLAY = createAllEnabledServiceDisplayFields()
+import { resolveBuilderCanvasDisplayFields } from '@/lib/storefrontDisplayFields'
 
 export function PreviewVendorProvider({
   slug,
@@ -21,6 +15,7 @@ export function PreviewVendorProvider({
   offeringType,
   socialLinks,
   settings,
+  siteId,
   children,
 }: {
   slug: string
@@ -32,6 +27,7 @@ export function PreviewVendorProvider({
   offeringType?: 'products' | 'services' | 'both'
   socialLinks?: Record<string, string>
   settings?: Record<string, unknown>
+  siteId?: string | null
   children: ReactNode
 }) {
   const [searchParams] = useSearchParams()
@@ -91,14 +87,14 @@ export function PreviewVendorProvider({
         }
         return href
       },
-      displayFields: {
-        product: DEFAULT_PRODUCT_DISPLAY,
-        service: DEFAULT_SERVICE_DISPLAY,
-      },
+      displayFields: resolveBuilderCanvasDisplayFields({
+        settings,
+        siteId,
+      }),
       previewShell: true,
       openBuilderForPage,
     }
-  }, [slug, siteName, previewToken, currentPageSlug, sitePageSlugs, openBuilderForPage, offeringType, socialLinks, settings])
+  }, [slug, siteName, previewToken, currentPageSlug, sitePageSlugs, openBuilderForPage, offeringType, socialLinks, settings, siteId])
 
   return <VendorContext.Provider value={value}>{children}</VendorContext.Provider>
 }

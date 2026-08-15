@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react'
+import type { CSSProperties, MouseEvent } from 'react'
 import { toast } from 'sonner'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 
@@ -8,6 +8,7 @@ export function BuilderCanvasProductImage({
   src,
   alt,
   className,
+  style,
   isCatalogPhoto = true,
   /** When true, clicks pass through to parent links (product detail navigation). */
   allowNavigation = false,
@@ -16,6 +17,7 @@ export function BuilderCanvasProductImage({
   src: string
   alt: string
   className?: string
+  style?: CSSProperties
   /** True when the URL comes from live product/catalog data (not section props). */
   isCatalogPhoto?: boolean
   allowNavigation?: boolean
@@ -24,7 +26,7 @@ export function BuilderCanvasProductImage({
   const isEditor = canvas?.isEditorCanvas && blockId
 
   if (!isEditor || allowNavigation) {
-    return <img src={src} alt={alt} className={className} loading="lazy" />
+    return <img src={src} alt={alt} className={className} style={style} loading="lazy" />
   }
 
   const onActivate = (e: MouseEvent) => {
@@ -45,7 +47,7 @@ export function BuilderCanvasProductImage({
       onClick={onActivate}
       title={isCatalogPhoto ? 'Catalog photo — edit in Products' : 'Click to change photo'}
     >
-      <img src={src} alt={alt} className={className} loading="lazy" />
+      <img src={src} alt={alt} className={className} style={style} loading="lazy" />
       {isCatalogPhoto && (
         <span className="pointer-events-none absolute bottom-1 left-1 right-1 rounded bg-black/55 px-1 py-0.5 text-[9px] font-medium text-white opacity-0 group-hover/photo:opacity-100 transition-opacity text-center">
           Catalog photo

@@ -90,6 +90,13 @@ function categorySectionBackground(style: StyleConfig, props: Record<string, unk
   return p.bg_color_override || style.bg_color || '#F9F9F5'
 }
 
+/** Product / related grids stay white so pack-shot text is not washed out by the page tint. */
+function catalogProductSectionBackground(props: Record<string, unknown>): string {
+  const p = props as BlockColorProps
+  if (props.bg_style === 'dark') return p.bg_color_override || '#111827'
+  return p.bg_color_override || '#ffffff'
+}
+
 function resolveCategorySectionText(
   style: StyleConfig,
   props: BlockColorProps,
@@ -1269,7 +1276,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       : 'text-base font-bold'
 
   return (
-    <section className={builderSectionContainerClass()}>
+    <SectionWithBg bg={catalogProductSectionBackground(props)}>
       {(title || blockId) && (
         <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-2xl font-bold text-gray-900 mb-5 text-center" />
       )}
@@ -1304,6 +1311,8 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                   linkTo={resolveLiveCatalogStorePath(item, storePath) ?? undefined}
                   onNavigateClick={e => handleProductCardClick(e, item)}
                   imageObjectFit={cardLayout.imageObjectFit}
+                  cardLayout={cardLayout}
+                  imageShape={productImageShape}
                 />
               )
             }
@@ -1325,6 +1334,6 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           })}
         </div>
       )}
-    </section>
+    </SectionWithBg>
   )
 }

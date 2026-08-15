@@ -155,6 +155,7 @@ export function DraftPreviewRenderer({
       offeringType={offeringType}
       socialLinks={vendor?.social_links}
       settings={vendor?.settings}
+      siteId={site.id}
     >
       <LiveDataFetchProvider fetcher={liveFetcher}>
         <BuilderCanvasContextProvider value={draftPreviewCanvas}>

@@ -1,5 +1,7 @@
 import type { MouseEvent } from 'react'
 import { ProductCard } from '@/kit/products/ProductCard'
+import type { CatalogCardLayout, CatalogImageObjectFit } from '@/lib/catalogCardLayout'
+import type { ImageShape } from '@/lib/sectionItemLayout'
 import type { LiveItem } from '@/blocks/registry'
 import { useAddToCart } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
@@ -13,7 +15,9 @@ type Props = {
   item: LiveItem
   linkTo?: string
   onNavigateClick?: (e: MouseEvent) => void
-  imageObjectFit?: 'cover' | 'contain'
+  imageObjectFit?: CatalogImageObjectFit
+  cardLayout?: CatalogCardLayout
+  imageShape?: ImageShape
 }
 
 export function canRenderLiveCatalogProductCard(item: LiveItem): boolean {
@@ -21,7 +25,7 @@ export function canRenderLiveCatalogProductCard(item: LiveItem): boolean {
 }
 
 /** Homepage / builder product tile — same card as the Products catalog page. */
-export function LiveCatalogProductCard({ item, linkTo, onNavigateClick, imageObjectFit = 'cover' }: Props) {
+export function LiveCatalogProductCard({ item, linkTo, onNavigateClick, imageObjectFit = 'contain', cardLayout, imageShape }: Props) {
   const product = liveItemToCatalogProduct(item)
   const addToCart = useAddToCart()
   const { vendorSlug } = useVendor()
@@ -37,7 +41,9 @@ export function LiveCatalogProductCard({ item, linkTo, onNavigateClick, imageObj
       product={kitProduct}
       linkTo={linkTo}
       onNavigateClick={onNavigateClick}
-      imageObjectFit={imageObjectFit}
+      imageObjectFit={cardLayout?.imageObjectFit ?? imageObjectFit}
+      cardLayout={cardLayout}
+      imageShape={imageShape}
       showRating
       showTags
       addToCartPending={addToCart.isPending}

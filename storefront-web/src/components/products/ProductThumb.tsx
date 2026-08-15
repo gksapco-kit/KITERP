@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { imgUrl, cn } from '@/lib/utils'
 
 /** Bundled default when a product has no photo. */
@@ -14,6 +14,7 @@ type Props = {
   size?: 'sm' | 'md' | 'lg'
   /** Extra classes for the img when an image is shown. */
   imgClassName?: string
+  imgStyle?: CSSProperties
 }
 
 /** Shopping-cart mark matching the storefront empty-image placeholder. */
@@ -78,6 +79,7 @@ export function ProductThumb({
   alt,
   className,
   imgClassName,
+  imgStyle,
 }: Props) {
   const resolved = src ? imgUrl(src) : ''
   const [failed, setFailed] = useState(false)
@@ -91,7 +93,7 @@ export function ProductThumb({
   return (
     <div
       className={cn(
-        'relative flex h-full w-full items-center justify-center overflow-hidden rounded-[inherit]',
+        'relative flex h-full w-full items-center justify-center overflow-hidden rounded-[inherit] bg-white',
         className,
       )}
     >
@@ -100,9 +102,12 @@ export function ProductThumb({
           src={resolved}
           alt={alt}
           className={cn(
-            'absolute inset-0 h-full w-full object-cover object-center',
-            imgClassName,
+            imgClassName
+              ? imgClassName
+              : 'absolute inset-0 h-full w-full object-contain object-center bg-white',
+            'bg-white',
           )}
+          style={{ backgroundColor: '#ffffff', ...imgStyle }}
           loading="lazy"
           onError={() => setFailed(true)}
         />

@@ -83,6 +83,8 @@ export function CatalogLiveProductTile({
     imageWidthPct,
     imageAspect,
     imageObjectFit,
+    imageObjectPosition,
+    imageZoom,
     cardPadding,
     cardRadius,
     cardBorderRadius,
@@ -148,6 +150,8 @@ export function CatalogLiveProductTile({
     imageWidthPct,
     imageAspect,
     imageObjectFit,
+    imageObjectPosition,
+    imageZoom,
     productTileWrap,
     isCircle: isCircleProductTile,
   })
@@ -204,13 +208,14 @@ export function CatalogLiveProductTile({
         data-builder-catalog-nav="product"
         onClick={onNavigateClick}
       >
-        <div className={imageShell.wrapperClassName} style={imageShell.wrapperStyle}>
+        <div className={cn(imageShell.wrapperClassName, 'bg-white')} style={imageShell.wrapperStyle}>
           {imageUrl ? (
             <BuilderCanvasProductImage
               blockId={blockId}
               src={imageUrl}
               alt={selected ? `${item.title} — ${variantFlatOptionTitle(selected, productUom)}` : item.title}
               className={imageShell.imageClassName}
+              style={imageShell.imageStyle}
               isCatalogPhoto={!String(item.id || '').startsWith('ph-')}
               allowNavigation={!String(item.id || '').startsWith('ph-')}
             />

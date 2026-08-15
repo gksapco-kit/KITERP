@@ -13,13 +13,7 @@ import type { LiveResource } from '@storefront/blocks/registry'
 import { websiteApi } from '@/api/websites'
 import { enrichLiveServiceImages } from '@/lib/enrichLiveServiceImages'
 
-import {
-  createAllEnabledProductDisplayFields,
-  createAllEnabledServiceDisplayFields,
-} from '@/lib/storefrontDisplayFields'
-
-const DEFAULT_PRODUCT_DISPLAY = createAllEnabledProductDisplayFields()
-const DEFAULT_SERVICE_DISPLAY = createAllEnabledServiceDisplayFields()
+import { resolveBuilderCanvasDisplayFields } from '@/lib/storefrontDisplayFields'
 
 export type BuilderBusinessProfile = {
   id: string
@@ -223,12 +217,13 @@ export function BuilderCanvasProviders({
       isLoading: false,
       error: null,
       storePath: (p: string) => (p.startsWith('/') ? p : `/${p}`),
-      displayFields: {
-        product: DEFAULT_PRODUCT_DISPLAY,
-        service: DEFAULT_SERVICE_DISPLAY,
-      },
+      displayFields: resolveBuilderCanvasDisplayFields({
+        settings: vendor.settings,
+        siteId,
+        storeSettings: previewStore?.settings ?? null,
+      }),
     }
-  }, [businessProfile, previewBranch, vendorSlug, siteName])
+  }, [businessProfile, previewBranch, previewStore?.settings, vendorSlug, siteName, siteId])
 
   const liveFetcher = useMemo<LiveDataFetcher>(() => {
     return async (sid: string, resource: LiveResource, limit: number) => {

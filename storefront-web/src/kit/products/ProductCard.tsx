@@ -17,8 +17,13 @@ import {
   validateVariantCombination,
 } from "@/lib/variantOptions";
 import {
+  buildCatalogImageShell,
   readCatalogCardLayout,
+  resolveCardRadiusPresentation,
+  type CatalogCardLayout,
+  type CatalogImageObjectFit,
 } from "@/lib/catalogCardLayout";
+import { catalogTileImageWrapperClass, type ImageShape } from "@/lib/sectionItemLayout";
 import { CatalogAddOrQtyControl } from "@/components/catalog/CatalogAddOrQtyControl";
 import { CatalogVariantChips } from "@/components/catalog/CatalogVariantChips";
 import { useCart, useCartVariantQty, useSetCatalogCartQty } from "@/hooks/useStore";
@@ -40,7 +45,11 @@ export interface ProductCardProps {
   /** Override card link target (e.g. branch-aware cart detail view). */
   linkTo?: string;
   /** How the product photo fills the square frame. Default contain so pack-shot text is not cropped. */
-  imageObjectFit?: "cover" | "contain";
+  imageObjectFit?: CatalogImageObjectFit;
+  /** Website-builder / section card layout — applied immediately on the selected grid. */
+  cardLayout?: CatalogCardLayout;
+  /** Tile image shape from the section Layout tab (Arch, Circle, …). */
+  imageShape?: ImageShape;
   onNavigateClick?: (e: MouseEvent) => void;
   onAddToCart?: (p: Product, variant?: KitVariant) => void | Promise<void>;
   onToggleWishlist?: (p: Product) => void;
@@ -72,13 +81,37 @@ export function ProductCard({
   showRating = true,
   showTags = true,
   linkTo,
-  imageObjectFit = "cover",
+  imageObjectFit = "contain",
+  cardLayout: cardLayoutProp,
+  imageShape,
   onNavigateClick,
   onAddToCart,
   onToggleWishlist,
   addToCartPending = false,
 }: ProductCardProps) {
-  const cardLayout = readCatalogCardLayout({});
+  const cardLayout = cardLayoutProp ?? readCatalogCardLayout({});
+  const imageFit = cardLayoutProp?.imageObjectFit ?? imageObjectFit;
+  const productTileWrap = imageShape ? catalogTileImageWrapperClass(imageShape) : "";
+  const isCircleTile = imageShape === "circle";
+  const imageShell = buildCatalogImageShell({
+    imageHeightPct: cardLayout.imageHeightPct,
+    imageWidthPct: cardLayout.imageWidthPct,
+    imageAspect: cardLayoutProp?.imageAspect ?? (isCircleTile ? "square" : "auto"),
+    imageObjectFit: imageFit,
+    imageObjectPosition: cardLayout.imageObjectPosition,
+    imageZoom: cardLayout.imageZoom,
+    productTileWrap,
+    isCircle: isCircleTile,
+    bgClass: "bg-white",
+  });
+  const cardRadiusPresentation = cardLayoutProp
+    ? resolveCardRadiusPresentation(cardLayout.cardBorderRadius, cardLayout.cardRadius)
+    : null;
+  const cardRadiusStyle = cardLayoutProp
+    ? (cardRadiusPresentation?.style ?? {
+        borderRadius: cardLayout.isMinimalCard ? 8 : cardLayout.isCompactCard ? 12 : 16,
+      })
+    : undefined;
   const { displayFields } = useVendor();
   const showViewCount = isDisplayFieldEnabled(displayFields.product, "view_count");
   const showWishlist = isDisplayFieldEnabled(displayFields.product, "wishlist");
@@ -287,20 +320,30 @@ export function ProductCard({
       : undefined;
 
   return (
-    <Card className={cn("overflow-hidden group flex flex-col", horizontal && "flex-row")}>
+    <Card
+      className={cn(
+        "overflow-hidden group flex flex-col",
+        horizontal && "flex-row",
+        cardRadiusPresentation?.className,
+      )}
+      style={cardRadiusStyle}
+    >
       <div className={cn("relative", horizontal ? "w-44 shrink-0" : "")}>
         <Link to={productHref} className="block" onClick={onNavigateClick}>
-          <div className={cn("relative w-full overflow-hidden bg-neutral-100", horizontal ? "h-full min-h-[7rem]" : "aspect-square")}>
+          <div
+            className={cn(
+              imageShell.wrapperClassName,
+              horizontal && "h-full min-h-[7rem]",
+            )}
+            style={imageShell.wrapperStyle}
+          >
             <ProductThumb
               src={displayImage}
               alt={product.name}
               size="md"
-              className="absolute inset-0"
-              imgClassName={
-                imageObjectFit === "contain"
-                  ? "object-contain object-center p-1"
-                  : "object-cover object-center p-0 transition-transform duration-300 group-hover:scale-105"
-              }
+              className={imageShell.intrinsic ? "relative block h-auto w-full bg-white" : "absolute inset-0 bg-white"}
+              imgClassName={imageShell.imageClassName}
+              imgStyle={imageShell.imageStyle}
             />
           </div>
         </Link>
@@ -338,7 +381,10 @@ export function ProductCard({
           </div>
         )}
       </div>
-      <CardContent className={cn("flex flex-1 flex-col gap-1 p-2.5", horizontal && "p-3")}>
+      <CardContent
+        className={cn("flex flex-1 flex-col gap-1", horizontal ? "p-3" : cardLayoutProp ? "p-0" : "p-2.5")}
+        style={cardLayoutProp ? { padding: cardLayout.cardPadding } : undefined}
+      >
         <Link to={productHref} className="text-sm font-semibold leading-snug line-clamp-2 no-underline hover:no-underline" onClick={onNavigateClick}>
           {product.name}
         </Link>

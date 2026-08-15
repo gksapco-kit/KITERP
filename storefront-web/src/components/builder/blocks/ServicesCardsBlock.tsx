@@ -87,6 +87,8 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
       imageWidthPct: cardLayout.imageWidthPct,
       imageAspect: cardLayout.imageAspect,
       imageObjectFit: cardLayout.imageObjectFit,
+      imageObjectPosition: cardLayout.imageObjectPosition,
+      imageZoom: cardLayout.imageZoom,
       productTileWrap: '',
       isCircle: isCircleTile,
       hoverScale: false,
@@ -132,6 +134,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
               alt=""
               empty={!imageUrl}
               className={shell.imageClassName}
+              style={shell.imageStyle}
             />
           </div>
         )
@@ -151,7 +154,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
       const shell = gridImageShell()
       return (
         <div className={cn(shell.wrapperClassName, 'shrink-0')} style={shell.wrapperStyle}>
-          <img src={imgUrl(imageUrl)} alt="" className={shell.imageClassName} loading="lazy" />
+          <img src={imgUrl(imageUrl)} alt="" className={shell.imageClassName} style={shell.imageStyle} loading="lazy" />
         </div>
       )
     }
@@ -259,7 +262,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
                     const shell = gridImageShell()
                     return (
                       <div className={cn(shell.wrapperClassName, 'shrink-0')} style={shell.wrapperStyle}>
-                        <img src={imgUrl(imageUrl)} alt="" className={shell.imageClassName} loading="lazy" />
+                        <img src={imgUrl(imageUrl)} alt="" className={shell.imageClassName} style={shell.imageStyle} loading="lazy" />
                       </div>
                     )
                   }

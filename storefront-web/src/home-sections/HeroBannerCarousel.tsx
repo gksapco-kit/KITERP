@@ -20,7 +20,7 @@ type Props = {
 export function HeroBannerCarousel({
   urls,
   className,
-  imageClassName = 'h-full w-full object-contain object-center',
+  imageClassName = 'h-full w-full object-cover object-center',
   imageStyle,
   intervalMs = DEFAULT_INTERVAL_MS,
   onIndexChange,

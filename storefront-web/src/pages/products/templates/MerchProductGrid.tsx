@@ -27,10 +27,10 @@ export default function MerchProductGrid({ title, subtitle, products, storePath 
           return (
             <Link key={p.id} to={storePath(`/products/${p.slug}`)}
               className="group bg-white rounded-xl border hover:shadow-md transition-all overflow-hidden max-h-[90vh] overflow-y-auto">
-              <div className="aspect-square bg-gray-50 relative overflow-hidden">
+              <div className="aspect-square bg-white relative overflow-hidden">
                 {primaryImg ? (
                   <img src={imgUrl(primaryImg.url)} alt={p.name}
-                    className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                    className="absolute inset-0 w-full h-full object-contain object-center bg-white p-1" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ShoppingBag className="w-10 h-10 text-gray-200" />

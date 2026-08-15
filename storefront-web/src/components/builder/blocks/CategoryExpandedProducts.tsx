@@ -141,6 +141,8 @@ export default function CategoryExpandedProducts({
     cardBorderRadius,
     imageAspect,
     imageObjectFit,
+    imageObjectPosition,
+    imageZoom,
     isMinimalCard,
     isCompactCard,
     showStock,
@@ -154,6 +156,8 @@ export default function CategoryExpandedProducts({
     cardBorderRadius: cardLayout.cardBorderRadius,
     imageAspect: cardLayout.imageAspect,
     imageObjectFit: cardLayout.imageObjectFit,
+    imageObjectPosition: cardLayout.imageObjectPosition,
+    imageZoom: cardLayout.imageZoom,
     isMinimalCard: cardLayout.isMinimalCard,
     isCompactCard: cardLayout.isCompactCard,
     showStock: cardLayout.showStock,
@@ -213,6 +217,7 @@ export default function CategoryExpandedProducts({
                   linkTo={resolveLiveCatalogStorePath(item, storePath) ?? undefined}
                   onNavigateClick={e => handleProductCardClick(e, item)}
                   imageObjectFit={imageObjectFit}
+                  cardLayout={cardLayout}
                 />
               )
             }
@@ -224,6 +229,8 @@ export default function CategoryExpandedProducts({
               imageWidthPct,
               imageAspect,
               imageObjectFit,
+              imageObjectPosition,
+              imageZoom,
               productTileWrap,
               isCircle: isCircleProductTile,
             })
@@ -244,13 +251,14 @@ export default function CategoryExpandedProducts({
                   data-builder-catalog-nav="product"
                   onClick={e => handleProductCardClick(e, item)}
                 >
-                  <div className={imageShell.wrapperClassName} style={imageShell.wrapperStyle}>
+                  <div className={cn(imageShell.wrapperClassName, 'bg-white')} style={imageShell.wrapperStyle}>
                     {item.image_url ? (
                       <BuilderCanvasProductImage
                         blockId={blockId}
                         src={item.image_url}
                         alt={item.title}
                         className={imageShell.imageClassName}
+                        style={imageShell.imageStyle}
                         isCatalogPhoto={!String(item.id || '').startsWith('ph-')}
                         allowNavigation={!String(item.id || '').startsWith('ph-')}
                       />

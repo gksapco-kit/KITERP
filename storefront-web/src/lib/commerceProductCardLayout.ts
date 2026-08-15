@@ -21,21 +21,21 @@ export function productCardImageShell(
   imageHeightPct: number | undefined,
   aspectClassName: string,
   className?: string,
-  objectFit: 'cover' | 'contain' = 'cover',
+  objectFit: 'cover' | 'contain' = 'contain',
 ) {
-  const contain = objectFit === 'contain'
+  const contain = objectFit !== 'cover'
   const fitClass = contain
-    ? 'object-contain object-center p-1'
+    ? 'object-contain object-center bg-white p-1'
     : 'object-cover object-center transition-transform duration-300 group-hover:scale-105'
   if (imageHeightPct != null && imageHeightPct > 0 && imageHeightPct < 95) {
     return {
-      wrapperClass: cn('relative w-full overflow-hidden bg-muted', className),
+      wrapperClass: cn('relative w-full overflow-hidden bg-white', className),
       wrapperStyle: { paddingBottom: `${imageHeightPct}%` } as const,
       imageClass: cn('absolute inset-0 h-full w-full', fitClass),
     }
   }
   return {
-    wrapperClass: cn('relative overflow-hidden bg-muted', aspectClassName, className),
+    wrapperClass: cn('relative overflow-hidden bg-white', aspectClassName, className),
     wrapperStyle: undefined,
     imageClass: cn('absolute inset-0 h-full w-full', fitClass),
   }

@@ -135,6 +135,29 @@ export function resolveTemplateDisplayFieldsFromSettings(
   }
 }
 
+/** Builder / draft preview — honor Business Front Display, not “all fields on”. */
+export function resolveBuilderCanvasDisplayFields(input: {
+  settings?: Record<string, unknown> | null
+  siteId?: string | null
+  storeSettings?: Record<string, unknown> | null
+}): TemplateDisplayFields {
+  const settings = input.settings ?? null
+  const byTemplate = readDisplayFieldsByTemplate(settings)
+  const siteKey = input.siteId?.trim() || null
+  const storeTemplate = typeof input.storeSettings?.front_template_id === 'string'
+    ? input.storeSettings.front_template_id.trim() || null
+    : null
+  const singleTemplate = typeof settings?.single_front_template_id === 'string'
+    ? settings.single_front_template_id.trim() || null
+    : null
+  const templateId =
+    (siteKey && byTemplate[siteKey] ? siteKey : null)
+    || storeTemplate
+    || singleTemplate
+    || siteKey
+  return resolveTemplateDisplayFieldsFromSettings(settings, templateId)
+}
+
 export function ensureTemplateDisplayFieldsEntry(
   settings: Record<string, unknown> | null | undefined,
   templateId: string,
