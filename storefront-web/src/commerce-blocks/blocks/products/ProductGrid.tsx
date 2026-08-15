@@ -105,7 +105,7 @@ export function ProductList({
             {showPrice && (
               <div className="text-right">
                 <div className="font-semibold">${p.price}</div>
-                {showRating && p.rating && (
+                {showRating && (p.rating ?? 0) > 0 && (
                   <div className="text-xs text-muted-foreground">★ {p.rating}</div>
                 )}
               </div>

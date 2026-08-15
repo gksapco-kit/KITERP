@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
+import { catalogSearchPlaceholder, resolveStorefrontOfferingType } from '@/lib/catalogNavCapabilities'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
@@ -14,11 +16,17 @@ export default function SearchBarBlock({ style, props, blockId }: Props) {
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
   const { storePath } = useVendor()
+  const vendor = useEffectiveVendor()
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const offering = resolveStorefrontOfferingType({
+    offeringType: vendor?.offering_type,
+    settings: vendor?.settings,
+    sellingMode: String(style.selling_mode || ''),
+  })
 
   const placeholder = resolveBlockTextField(props, 'placeholder', {
-    fallback: () => (isEditorCanvas ? null : 'Search products & services...'),
+    fallback: () => (isEditorCanvas ? null : catalogSearchPlaceholder(offering)),
   })
   const showPlaceholder = !isBlockFieldHidden(props, 'placeholder') && (placeholder || isEditorCanvas)
 

@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { blogApi, type BlogPostCreate, type BlogPostUpdate } from '@/api/blog'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
+import { useVendorStore } from '@/stores/vendorStore'
+import { vendorKeys } from '@/hooks/useVendor'
 
 const KEYS = {
   all: ['blog'] as const,
@@ -94,6 +96,16 @@ export function useUpdateBlogSettings() {
     mutationFn: (data: { blog_enabled: boolean }) => blogApi.updateSettings(data),
     onSuccess: (result) => {
       qc.setQueryData(KEYS.settings, result)
+      qc.invalidateQueries({ queryKey: vendorKeys.me() })
+      const current = useVendorStore.getState().vendor
+      if (current) {
+        const settings = { ...(current.settings || {}) } as Record<string, unknown>
+        const features = { ...((settings.features as Record<string, unknown> | undefined) || {}) }
+        features.blog = result.blog_enabled
+        settings.features = features
+        settings.blog_enabled = result.blog_enabled
+        useVendorStore.getState().setVendor({ ...current, settings })
+      }
       toast.success(result.blog_enabled ? 'Blog enabled on your website' : 'Blog hidden from your website')
     },
     onError: () => toast.error('Failed to update blog settings'),

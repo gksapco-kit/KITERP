@@ -7,6 +7,7 @@ import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { useVendor } from '@/contexts/VendorContext'
 import {
   CATALOG_GRID_COL_CLASS,
+  catalogGridColClassForBreakpoint,
   readCatalogCardLayout,
 } from '@/lib/catalogCardLayout'
 import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
@@ -188,6 +189,7 @@ export default function BlogGridBlock({ style, props, liveItems, blockId, blockT
   const { storePath } = useVendor()
   const builderCanvas = useBuilderCanvas()
   const isEditor = builderCanvas?.isEditorCanvas && !!blockId
+  const previewBp = isEditor ? (builderCanvas?.previewBreakpoint ?? 'desktop') : 'desktop'
   const title = resolveBlockTextField(props, 'title')
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditor)
   const layout = blockType === 'blog_list' ? 'list' : String(props.layout ?? 'grid')
@@ -237,7 +239,11 @@ export default function BlogGridBlock({ style, props, liveItems, blockId, blockT
       <div
         className={cn(
           'grid items-stretch',
-          isList ? 'grid-cols-1' : (CATALOG_GRID_COL_CLASS[columns] || CATALOG_GRID_COL_CLASS[3]),
+          isList ? 'grid-cols-1' : (
+            isEditor
+              ? catalogGridColClassForBreakpoint(columns, previewBp)
+              : (CATALOG_GRID_COL_CLASS[columns] || CATALOG_GRID_COL_CLASS[3])
+          ),
         )}
         style={{ gap: `${itemGap}px` }}
       >

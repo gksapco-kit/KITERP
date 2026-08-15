@@ -31,6 +31,7 @@ export type CatalogNavCapabilities = {
 
 export function isVendorBlogEnabled(settings?: Record<string, unknown> | null): boolean {
   if (!settings) return true
+  if (typeof settings.blog_enabled === 'boolean') return settings.blog_enabled
   const features = settings.features as Record<string, unknown> | undefined
   if (features && typeof features.blog === 'boolean') return features.blog
   return true
@@ -47,16 +48,51 @@ export function isVendorRentalsEnabled(settings?: Record<string, unknown> | null
 export type ResolveCatalogNavCapabilitiesInput = {
   offeringType?: string | null
   sellingMode?: string | null
+  settings?: Record<string, unknown> | null
   site?: PublicSite | null
   /** When set, hide catalog nav if the branch/store has no live items. */
   productCount?: number | null
   serviceCount?: number | null
 }
 
+function parseCatalogOffering(raw?: string | null): CatalogOffering | null {
+  const value = (raw || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+  if (value === 'products' || value === 'product' || value === 'products_only') return 'products'
+  if (value === 'services' || value === 'service' || value === 'services_only') return 'services'
+  if (value === 'both' || value === 'all' || value === 'products_and_services' || value === 'products_services') {
+    return 'both'
+  }
+  return null
+}
+
 export function normalizeCatalogOffering(raw?: string | null): CatalogOffering {
-  const value = (raw || '').trim().toLowerCase()
-  if (value === 'products' || value === 'services' || value === 'both') return value
-  return 'both'
+  return parseCatalogOffering(raw) ?? 'both'
+}
+
+/** First valid offering among vendor column, store settings, and site selling mode. */
+export function pickCatalogOffering(...raws: Array<string | null | undefined>): CatalogOffering | null {
+  for (const raw of raws) {
+    const parsed = parseCatalogOffering(raw)
+    if (parsed) return parsed
+  }
+  return null
+}
+
+export function resolveStorefrontOfferingType(input: {
+  offeringType?: string | null
+  settings?: Record<string, unknown> | null
+  sellingMode?: string | null
+}): CatalogOffering {
+  const settingsOffering = typeof input.settings?.offering_type === 'string'
+    ? input.settings.offering_type
+    : null
+  return pickCatalogOffering(input.offeringType, settingsOffering, input.sellingMode) ?? 'both'
+}
+
+export function catalogSearchPlaceholder(offering: CatalogOffering): string {
+  if (offering === 'services') return 'Search services…'
+  if (offering === 'products') return 'Search products…'
+  return 'Search products and services…'
 }
 
 function stripStorePath(href: string): string {
@@ -120,11 +156,15 @@ export function inferCatalogSignalsFromSite(site?: PublicSite | null): CatalogNa
 
 export function resolveCatalogNavCapabilities(input: ResolveCatalogNavCapabilitiesInput): CatalogNavCapabilities {
   const style = (input.site?.style_config || {}) as Record<string, unknown>
-  const offering = normalizeCatalogOffering(
-    input.offeringType ?? (style.selling_mode as string | undefined) ?? null,
-  )
+  const offering = resolveStorefrontOfferingType({
+    offeringType: input.offeringType,
+    settings: input.settings,
+    sellingMode: input.sellingMode ?? (style.selling_mode as string | undefined) ?? null,
+  })
   const inferred = inferCatalogSignalsFromSite(input.site)
 
+  // Offering type is the source of truth. Site pages may still suggest a catalog
+  // when offering is "both", but Products Only / Services Only always wins.
   let showProducts = offering === 'products' || offering === 'both' || inferred.showProducts
   let showServices = offering === 'services' || offering === 'both' || inferred.showServices
 
@@ -135,6 +175,23 @@ export function resolveCatalogNavCapabilities(input: ResolveCatalogNavCapabiliti
   if (input.serviceCount === 0) showServices = false
 
   return { showProducts, showServices }
+}
+
+/** Drop Products/Services links that the current offering type does not allow. */
+export function filterNavLinksByCatalogCapabilities(
+  links: NavLinkItem[],
+  storePath: (p: string) => string,
+  capabilities: CatalogNavCapabilities,
+): NavLinkItem[] {
+  return links.filter((link) => {
+    if (!capabilities.showProducts && navLinksIncludeCatalogPath([link], storePath, 'products')) {
+      return false
+    }
+    if (!capabilities.showServices && navLinksIncludeCatalogPath([link], storePath, 'services')) {
+      return false
+    }
+    return true
+  })
 }
 
 export function navLinksIncludeCatalogPath(
@@ -195,7 +252,7 @@ export function enrichNavLinksWithCatalogCapabilities(
   capabilities: CatalogNavCapabilities,
   site?: PublicSite | null,
 ): NavLinkItem[] {
-  const out = [...links]
+  const out = filterNavLinksByCatalogCapabilities(links, storePath, capabilities)
   const insertAfterHome = (item: NavLinkItem) => {
     const homeIdx = out.findIndex(l => pathRelativeToStore(l.href, storePath) === '/')
     if (homeIdx >= 0) out.splice(homeIdx + 1, 0, item)

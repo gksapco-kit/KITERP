@@ -12,6 +12,8 @@ export const PRODUCT_DISPLAY_FIELD_DEFS = [
   { key: 'offer_label', label: 'Offer / Sale Label' },
   { key: 'new_arrival_badge', label: 'New Arrival Badge' },
   { key: 'best_seller_badge', label: 'Best Seller Badge' },
+  { key: 'wishlist', label: 'Wishlist (heart icon)' },
+  { key: 'view_count', label: 'View count (eye icon)' },
   { key: 'variants', label: 'Variants / Options' },
   { key: 'sku', label: 'SKU' },
   { key: 'barcode', label: 'Barcode' },

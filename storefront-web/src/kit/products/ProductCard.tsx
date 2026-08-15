@@ -23,6 +23,7 @@ import { CatalogAddOrQtyControl } from "@/components/catalog/CatalogAddOrQtyCont
 import { CatalogVariantChips } from "@/components/catalog/CatalogVariantChips";
 import { useCart, useCartVariantQty, useSetCatalogCartQty } from "@/hooks/useStore";
 import { useVendor } from "@/contexts/VendorContext";
+import { isDisplayFieldEnabled } from "@/lib/storefrontDisplayFields";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
 import { assertCanAddToCart, getEffectiveStockStatus, getMaxLineQuantity } from "@/lib/stockValidation";
@@ -75,6 +76,9 @@ export function ProductCard({
   addToCartPending = false,
 }: ProductCardProps) {
   const cardLayout = readCatalogCardLayout({});
+  const { displayFields } = useVendor();
+  const showViewCount = isDisplayFieldEnabled(displayFields.product, "view_count");
+  const showWishlist = isDisplayFieldEnabled(displayFields.product, "wishlist");
   const productHref = linkTo ?? `/products/${product.slug}`;
   const horizontal = layout === "horizontal";
   const allVariants = product.variants ?? [];
@@ -189,7 +193,7 @@ export function ProductCard({
 
   const stockVariant = resolveAddVariant();
   const outOfStock =
-    (showVariantRow && !validation.valid) ||
+    stockVariant != null &&
     getEffectiveStockStatus(product, stockVariant) === "out_of_stock";
   const maxLineQty = getMaxLineQuantity({
     vendorSlug,
@@ -283,18 +287,18 @@ export function ProductCard({
     <Card className={cn("overflow-hidden group flex flex-col", horizontal && "flex-row")}>
       <div className={cn("relative", horizontal ? "w-44 shrink-0" : "")}>
         <Link to={productHref} className="block" onClick={onNavigateClick}>
-          <div className={cn("relative w-full overflow-hidden bg-muted", horizontal ? "h-full min-h-[7rem]" : "aspect-[4/3]")}>
+          <div className={cn("relative w-full overflow-hidden bg-muted", horizontal ? "h-full min-h-[7rem]" : "aspect-square")}>
             <ProductThumb
               src={displayImage}
               alt={product.name}
               size="md"
               className="absolute inset-0"
-              imgClassName="object-contain object-center p-2"
+              imgClassName="object-cover object-center p-0"
             />
           </div>
         </Link>
-        <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 items-start pointer-events-none">
-          {typeof product.viewCount === "number" && product.viewCount >= 0 && (
+        <div className="absolute top-1.5 left-1.5 z-10 flex flex-col gap-1 items-start pointer-events-none">
+          {showViewCount && typeof product.viewCount === "number" && product.viewCount > 0 && (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-black/55 backdrop-blur-sm text-white text-[11px] font-semibold px-2 py-0.5 shadow-sm"
               title={`${product.viewCount.toLocaleString()} views`}
@@ -312,24 +316,26 @@ export function ProductCard({
             -{Math.round(((displayCompare! - displayPrice) / displayCompare!) * 100)}%
           </Badge>
         )}
-        <div className="absolute top-3 right-3 z-20">
-          <ProductWishlistButton
-            productId={product.id}
-            productName={product.name}
-            slug={product.slug}
-            price={displayPrice}
-            imageUrl={displayImage}
-            variantId={selectedVariant?.id}
-            overlay
-            className="h-9 w-9 rounded-lg"
-          />
-        </div>
+        {showWishlist && (
+          <div className="absolute top-1.5 right-1.5 z-20">
+            <ProductWishlistButton
+              productId={product.id}
+              productName={product.name}
+              slug={product.slug}
+              price={displayPrice}
+              imageUrl={displayImage}
+              variantId={selectedVariant?.id}
+              overlay
+              className="h-7 w-7 rounded-md"
+            />
+          </div>
+        )}
       </div>
-      <CardContent className={cn("flex flex-1 flex-col gap-2 p-4", horizontal && "p-4")}>
-        <Link to={productHref} className="font-medium line-clamp-2 no-underline hover:no-underline" onClick={onNavigateClick}>
+      <CardContent className={cn("flex flex-1 flex-col gap-1 p-2.5", horizontal && "p-3")}>
+        <Link to={productHref} className="text-sm font-medium leading-snug line-clamp-2 no-underline hover:no-underline" onClick={onNavigateClick}>
           {product.name}
         </Link>
-        {showRating && product.rating && (
+        {showRating && (product.rating ?? 0) > 0 && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Star className="h-3 w-3 fill-current text-yellow-500" />
             {product.rating.toFixed(1)} <span>({product.reviewCount})</span>
@@ -347,6 +353,7 @@ export function ProductCard({
             onSelectColor={setSelectedColorName}
             errorMessage={validation.valid ? undefined : validation.message}
             stopPropagation
+            compact
           />
         )}
         {showFlatVariants && (
@@ -355,30 +362,33 @@ export function ProductCard({
             selectedId={selectedVariant?.id}
             onSelect={setFlatVariantId}
             productStock={product}
+            className="mt-0.5"
           />
         )}
-        {showPriceRow ? (
-          <div className="flex flex-wrap items-baseline gap-2">
-            {showFrom && <span className="text-xs font-normal text-muted-foreground">From</span>}
-            <span className="font-semibold">{formatPrice(showFrom ? minPrice : displayPrice, product.currency)}</span>
-            {hasDisplayPrice && (displayCompare ?? 0) > displayPrice && (
-              <span className="text-xs text-muted-foreground line-through">
-                {formatPrice(displayCompare!, product.currency)}
-              </span>
-            )}
-          </div>
-        ) : (
-          <div className="min-h-[1.25rem]" aria-hidden />
-        )}
-        <span
-          className={cn(
-            "text-xs font-semibold px-2 py-0.5 rounded-full inline-block w-fit",
-            outOfStock ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600",
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+          {showPriceRow ? (
+            <div className="flex flex-wrap items-baseline gap-1.5">
+              {showFrom && <span className="text-xs font-normal text-muted-foreground">From</span>}
+              <span className="text-sm font-semibold">{formatPrice(showFrom ? minPrice : displayPrice, product.currency)}</span>
+              {hasDisplayPrice && (displayCompare ?? 0) > displayPrice && (
+                <span className="text-xs text-muted-foreground line-through">
+                  {formatPrice(displayCompare!, product.currency)}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span />
           )}
-        >
-          {outOfStock ? "Out of Stock" : "In Stock"}
-        </span>
-        <div className={cn("mt-auto flex items-center gap-2 pt-2", !cardLayout.showAddButton && "hidden")}>
+          <span
+            className={cn(
+              "text-[10px] font-semibold px-1.5 py-px rounded-full inline-block w-fit",
+              outOfStock ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600",
+            )}
+          >
+            {outOfStock ? "Out of Stock" : "In Stock"}
+          </span>
+        </div>
+        <div className={cn("mt-auto flex items-center gap-2 pt-1", !cardLayout.showAddButton && "hidden")}>
           {cardLayout.showAddButton && (
             <CatalogAddOrQtyControl
               cartQty={cartQty}
@@ -392,7 +402,7 @@ export function ProductCard({
               labelOverride={addLabel}
               addButtonStyle={cardLayout.addButtonStyle}
               isMinimalCard={cardLayout.isMinimalCard}
-              isCompactCard={cardLayout.isCompactCard}
+              isCompactCard
             />
           )}
         </div>
@@ -416,7 +426,7 @@ export function ProductGrid({ products, columns = 4, onAddToCart, onToggleWishli
     5: "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
   };
   return (
-    <div className={cn("grid grid-cols-1 gap-4", colMap[columns])}>
+    <div className={cn("grid grid-cols-1 gap-2.5", colMap[columns])}>
       {products.map((p) => (
         <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onToggleWishlist={onToggleWishlist} />
       ))}

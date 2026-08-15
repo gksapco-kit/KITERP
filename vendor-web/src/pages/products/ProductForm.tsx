@@ -516,7 +516,7 @@ const variantFormUi = {
     '[&_input[type=datetime-local]::-webkit-calendar-picker-indicator]:![width:0.9rem] [&_input[type=datetime-local]::-webkit-calendar-picker-indicator]:![height:0.9rem]',
   ].join(' '),
   bodyLayout:
-    'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_10.5rem] xl:grid-cols-[minmax(0,1fr)_12.5rem] gap-2.5 lg:gap-3 lg:items-start',
+    'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_13.5rem] xl:grid-cols-[minmax(0,1fr)_16rem] gap-2.5 lg:gap-3 lg:items-start',
   fieldsColumn: 'min-w-0 space-y-2',
   mediaColumn:
     'min-w-0 rounded-md border border-border/50 bg-muted/10 p-1 sm:p-1.5 lg:sticky lg:top-16',

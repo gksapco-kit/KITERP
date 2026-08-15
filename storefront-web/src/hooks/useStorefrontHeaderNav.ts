@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { useBranch } from '@/contexts/BranchContext'
 import { useVendor } from '@/contexts/VendorContext'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
 import { publicSitesApi } from '@/api/publicSites'
 import {
@@ -25,6 +26,7 @@ export function useStorefrontHeaderNav(): {
   const { pathname } = useLocation()
   const { storePath } = useBranch()
   const { vendor } = useVendor()
+  const effectiveVendor = useEffectiveVendor()
   const { builderSite } = useBuilderSite()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
 
@@ -41,14 +43,16 @@ export function useStorefrontHeaderNav(): {
   })
 
   const site = builderSite ?? templateSite ?? null
+  const offeringVendor = effectiveVendor ?? vendor
 
   const links = useMemo(
     () => resolveStorefrontHeaderNavLinks(site, storePath, pathname, {
-      offeringType: vendor?.offering_type,
-      blogEnabled: isVendorBlogEnabled(vendor?.settings),
-      rentalsEnabled: isVendorRentalsEnabled(vendor?.settings),
+      offeringType: offeringVendor?.offering_type,
+      settings: offeringVendor?.settings,
+      blogEnabled: isVendorBlogEnabled(offeringVendor?.settings),
+      rentalsEnabled: isVendorRentalsEnabled(offeringVendor?.settings),
     }),
-    [site, storePath, pathname, vendor?.offering_type, vendor?.settings],
+    [site, storePath, pathname, offeringVendor?.offering_type, offeringVendor?.settings],
   )
 
   const cta = useMemo(

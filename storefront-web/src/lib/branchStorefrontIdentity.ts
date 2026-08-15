@@ -1,6 +1,7 @@
 import type { StoreLocation } from '@/api/store'
 import type { VendorData } from '@/contexts/VendorContext'
 import { resolveBrandingMode, type BrandingMode } from '@/lib/brandingMode'
+import { pickCatalogOffering } from '@/lib/catalogNavCapabilities'
 import {
   resolveSocialLinksIconStyle,
   resolveSocialLinksMode,
@@ -164,7 +165,25 @@ export function resolveBranchAddressOverlay(
 
 /** Apply the active business unit onto vendor catalog data, respecting branding mode. */
 export function applyBranchToVendor(vendor: VendorData, branch: StoreLocation | null): VendorData {
-  if (!branch) return vendor
+  const branchOffering = branch
+    ? settingStr(branch.settings as Record<string, unknown> | undefined, 'offering_type')
+    : ''
+  const offering =
+    pickCatalogOffering(
+      branchOffering,
+      vendor.offering_type,
+      settingStr(vendor.settings, 'offering_type'),
+    ) ?? vendor.offering_type ?? 'both'
+
+  if (!branch) {
+    if (offering === vendor.offering_type) return vendor
+    return {
+      ...vendor,
+      offering_type: offering,
+      settings: { ...(vendor.settings ?? {}), offering_type: offering },
+    }
+  }
+
   const branding = resolveStorefrontBranding(vendor, branch)
   const contact = resolveBranchContactOverlay(vendor, branch)
   const address = resolveBranchAddressOverlay(vendor, branch)
@@ -172,6 +191,7 @@ export function applyBranchToVendor(vendor: VendorData, branch: StoreLocation | 
   const socialIconStyle = resolveStorefrontSocialIconStyle(vendor, branch)
   return {
     ...vendor,
+    offering_type: offering,
     business_name: branding.business_name,
     display_name: branding.display_name,
     description: branch.description?.trim() || vendor.description,
@@ -186,6 +206,7 @@ export function applyBranchToVendor(vendor: VendorData, branch: StoreLocation | 
     postal_code: address.postal_code,
     settings: {
       ...contact.settings,
+      offering_type: offering,
       social_links_icon_style: socialIconStyle,
     },
     theme_config: {

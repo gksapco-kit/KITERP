@@ -668,18 +668,64 @@ export function getValuesForDimension(variants: ProductVariant[], dimension: str
   return [...values]
 }
 
+function attrKey(attrs: Record<string, string>, dim: string): string | undefined {
+  const dimLower = dim.toLowerCase()
+  return Object.keys(attrs).find((k) => k.toLowerCase() === dimLower)
+}
+
+function attrValueEquals(left: string, right: string): boolean {
+  return left.trim().toLowerCase() === right.trim().toLowerCase()
+}
+
+function selectionConflicts(
+  attrs: Record<string, string>,
+  entries: [string, string][],
+): boolean {
+  return entries.some(([dim, val]) => {
+    const key = attrKey(attrs, dim)
+    return key != null && !attrValueEquals(attrs[key], val)
+  })
+}
+
+/**
+ * Match a variant to the shopper's option picks.
+ * Exact match first. If Crate is the same on every SKU but omitted on some rows,
+ * still match 1000 ML / 500 ML by the dimensions that actually vary.
+ */
 export function findVariantBySelections(
   variants: ProductVariant[],
   selections: Record<string, string>,
 ): ProductVariant | undefined {
   const normalized = normalizeVariantsForOptions(variants)
-  const entries = Object.entries(selections).filter(([, value]) => value)
+  const entries = Object.entries(selections).filter(([, value]) => value) as [string, string][]
   if (entries.length === 0) return undefined
-  return normalized.find((variant) => {
+
+  const exact = normalized.find((variant) => {
     const attrs = getVariantAttributes(variant)
     return entries.every(([dim, val]) => {
-      const key = Object.keys(attrs).find((k) => k.toLowerCase() === dim.toLowerCase())
-      return key != null && attrs[key] === val
+      const key = attrKey(attrs, dim)
+      return key != null && attrValueEquals(attrs[key], val)
+    })
+  })
+  if (exact) return exact
+
+  const valuesByDim = new Map<string, Set<string>>()
+  for (const variant of normalized) {
+    for (const [key, val] of Object.entries(getVariantAttributes(variant))) {
+      const lk = key.toLowerCase()
+      if (!valuesByDim.has(lk)) valuesByDim.set(lk, new Set())
+      valuesByDim.get(lk)!.add(val.trim().toLowerCase())
+    }
+  }
+  const required = entries.filter(([dim]) => (valuesByDim.get(dim.toLowerCase())?.size ?? 0) > 1)
+  const mustMatch = required.length > 0 ? required : entries
+
+  return normalized.find((variant) => {
+    const attrs = getVariantAttributes(variant)
+    if (selectionConflicts(attrs, entries)) return false
+    return mustMatch.every(([dim, val]) => {
+      const key = attrKey(attrs, dim)
+      return key != null && attrValueEquals(attrs[key], val)
     })
   })
 }
@@ -723,7 +769,7 @@ export function isOptionValueOutOfStock(
   const next = { ...selections, [dimension]: value }
   const exact = resolveExactVariantForSelections(variants, next, colorName)
   const variant = exact ?? findVariantForDimensionValue(variants, dimension, value)
-  if (!variant) return true
+  if (!variant) return false
   return getEffectiveStockStatus(product, variant) === 'out_of_stock'
 }
 

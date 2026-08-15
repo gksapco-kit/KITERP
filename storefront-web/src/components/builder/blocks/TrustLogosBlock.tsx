@@ -39,6 +39,7 @@ const hasLogoImage = (logo?: LogoProp | null): boolean =>
 export default function TrustLogosBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = Boolean(builderCanvas?.isEditorCanvas && blockId)
+  const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : undefined
   const title = resolveBlockTextField(props, 'title')
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
 
@@ -166,7 +167,7 @@ export default function TrustLogosBlock({ style, props, liveItems, blockId }: Pr
   let content: JSX.Element = strip
   if (layout === 'grid') {
     content = (
-      <div className={cn('grid items-center justify-items-center', gapClass, sectionGridColumnClass(columns))}>
+      <div className={cn('grid items-center justify-items-center', gapClass, sectionGridColumnClass(columns, previewBp))}>
         {renderables.map(renderLogo)}
       </div>
     )
@@ -176,12 +177,11 @@ export default function TrustLogosBlock({ style, props, liveItems, blockId }: Pr
         {strip}
       </div>
     )
-  } else if (layout === 'marquee' && !isEditorCanvas) {
-    // Seamless auto-scroll: duplicate the row so the -50% keyframe loops without a jump.
+  } else if (layout === 'marquee') {
     content = (
       <div className="overflow-hidden">
-        <div className={cn('sf-marquee-track items-center', gapClass)}>
-          {renderables.map(r => renderLogo({ ...r, key: `m-${r.key}`, editIndex: undefined }))}
+        <div className={cn('sf-marquee-track items-center', gapClass, isEditorCanvas && 'sf-marquee-paused')}>
+          {renderables.map(r => renderLogo({ ...r, key: `m-${r.key}`, editIndex: isEditorCanvas ? r.editIndex : undefined }))}
           {renderables.map(r => renderLogo({ ...r, key: `d-${r.key}`, editIndex: undefined }))}
         </div>
       </div>

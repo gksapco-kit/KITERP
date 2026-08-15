@@ -2608,6 +2608,10 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   animation-play-state: paused;
 }
 
+.sf-marquee-paused {
+  animation-play-state: paused;
+}
+
 /* Website builder — format painter mode */
 .builder-format-paint-active {
   cursor: copy;

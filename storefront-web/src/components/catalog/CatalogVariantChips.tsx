@@ -35,7 +35,7 @@ export function CatalogVariantChips({
 
   return (
     <div
-      className={cn('flex flex-wrap gap-1.5', className)}
+      className={cn('flex flex-wrap gap-1', className)}
       onClick={stopNav}
       onPointerDown={stopNav}
     >
@@ -60,7 +60,7 @@ export function CatalogVariantChips({
               onSelect(variant.id)
             }}
             className={cn(
-              'inline-flex min-h-7 max-w-full items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold leading-tight transition-colors',
+              'inline-flex min-h-6 max-w-full items-center rounded-md border px-1.5 py-0 text-[10px] font-semibold leading-tight transition-colors',
               selected
                 ? outOfStock
                   ? 'border-red-500 bg-red-50 text-red-700'

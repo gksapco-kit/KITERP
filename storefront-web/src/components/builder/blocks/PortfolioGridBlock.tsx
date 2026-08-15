@@ -177,6 +177,7 @@ function toProjectEntries(
 export default function PortfolioGridBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : undefined
   const title = resolveBlockTextField(props, 'title', {
     fallback: () => (isEditorCanvas ? null : 'Our Work'),
   })
@@ -363,14 +364,14 @@ export default function PortfolioGridBlock({ style, props, liveItems, blockId }:
             <div className="relative aspect-[16/10] lg:aspect-auto lg:h-full min-h-[280px] overflow-hidden rounded-xl">
               <ProjectCard entry={filteredEntries[0]} style={style} dark={dark} hoverReveal blockId={blockId} blockProps={props} aspect="h-full" />
             </div>
-            <div className={cn('grid gap-4', sectionGridColumnClass(2))}>
+            <div className={cn('grid gap-4', sectionGridColumnClass(2, previewBp))}>
               {filteredEntries.slice(1, 5).map((entry, i) => (
                 <ProjectCard key={i} entry={entry} style={style} dark={dark} hoverReveal={hoverReveal} blockId={blockId} blockProps={props} />
               ))}
             </div>
           </div>
           {filteredEntries.length > 5 && (
-            <div className={cn('grid', sectionGridColumnClass(3))} style={{ gap: itemGap }}>
+            <div className={cn('grid', sectionGridColumnClass(3, previewBp))} style={{ gap: itemGap }}>
               {filteredEntries.slice(5).map((entry, i) => (
                 <ProjectCard key={i} entry={entry} style={style} dark={dark} hoverReveal={hoverReveal} blockId={blockId} blockProps={props} />
               ))}
@@ -405,7 +406,7 @@ export default function PortfolioGridBlock({ style, props, liveItems, blockId }:
       <section className={builderSectionContainerClass()}>
         {sectionTitle}
         {filterTabs}
-        <div className={cn('grid', sectionGridColumnClass(columns))} style={{ gap: itemGap }}>
+        <div className={cn('grid', sectionGridColumnClass(columns, previewBp))} style={{ gap: itemGap }}>
           {filteredEntries.map((entry, i) => (
             <ProjectCard
               key={i}

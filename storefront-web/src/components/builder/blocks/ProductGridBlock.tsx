@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ShoppingBag, Star, Heart, FolderTree, Eye } from 'lucide-react'
 import { useAddToCart, useCart, useCartProductQtyMap, useSetCatalogCartQty, useProducts } from '@/hooks/useStore'
 import { useStorePath } from '@/hooks/useStorePath'
+import { useVendor } from '@/contexts/VendorContext'
+import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import CategoryCardsWellness from '@/components/builder/blocks/CategoryCardsWellness'
 import {
@@ -29,7 +31,6 @@ import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { vendorDashboardUrl } from '@/lib/vendorDashboardUrl'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import {
-  CATALOG_GRID_COL_CLASS,
   catalogGridColClassForBreakpoint,
   catalogGridResponsiveColClass,
   clampCatalogColumns,
@@ -113,7 +114,7 @@ function productViewCount(item: LiveItem): number | null {
   const raw = item.meta?.view_count
   if (raw == null || raw === '') return null
   const n = Number(raw)
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
 }
 
 function ProductViewBadge({ count }: { count: number }) {
@@ -254,16 +255,19 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   const catalogCols = (n: number) => (
     isEditorCanvas
       ? catalogGridColClassForBreakpoint(n, previewBp)
-      : (CATALOG_GRID_COL_CLASS[n] || CATALOG_GRID_COL_CLASS[4])
+      : catalogGridResponsiveColClass(n)
   )
   const siteStyle = { ...(site.style_config || {}), ...style } as Record<string, unknown>
   const storePath = useStorePath()
+  const { displayFields } = useVendor()
+  const showViewCount = isDisplayFieldEnabled(displayFields.product, 'view_count')
+  const showWishlist = isDisplayFieldEnabled(displayFields.product, 'wishlist')
   const navigate = useNavigate()
   const addToCart = useAddToCart()
   useCart()
   const cartQtyByProduct = useCartProductQtyMap()
   const { setQty: setCatalogQty } = useSetCatalogCartQty()
-  const hydrateFromCatalog = !isEditorCanvas && blockType !== 'category_cards'
+  const hydrateFromCatalog = blockType !== 'category_cards'
   const catalogLimit = Math.min(200, Math.max(24, Number(props.show_count ?? props.max ?? 12) || 12, liveItems.length))
   const { data: catalogData } = useProducts(hydrateFromCatalog ? { page: 1, size: catalogLimit } : null)
   const catalogById = useMemo(() => {
@@ -324,7 +328,15 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   })
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   const columns = clampCatalogColumns(props.columns, 4, blockType)
-  const itemGap = Math.max(0, Number(props.item_gap ?? 24) || 24)
+  const configuredGap = Number(props.item_gap)
+  const itemGap = Math.max(
+    0,
+    !Number.isFinite(configuredGap) || props.item_gap == null || props.item_gap === ''
+      ? 12
+      : configuredGap === 24
+        ? 12
+        : configuredGap,
+  )
   const showBadges = props.show_badges !== false
   const textColor = style.text_color || '#111827'
 
@@ -1023,7 +1035,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               style={{ borderColor: `${textColor}18`, backgroundColor: style.bg_color }}
             >
               <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
-                <div className="aspect-[4/5] relative overflow-hidden bg-gray-100">
+                <div className="aspect-square relative overflow-hidden bg-gray-100">
                   {featuredOne.image_url ? (
                     <BuilderCanvasProductImage
                       blockId={blockId}
@@ -1079,6 +1091,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                         className="h-12 min-w-[10rem] rounded-none px-6 text-xs font-bold uppercase tracking-[0.2em]"
                       />
                     )}
+                    {showWishlist && (
                     <button
                       type="button"
                       style={{ border: `1px solid ${textColor}99`, color: textColor }}
@@ -1087,6 +1100,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                     >
                       <Heart className="h-4 w-4" />
                     </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1128,7 +1142,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                           editorialProductWrap,
                           editorialProductShape === 'circle'
                             ? 'aspect-square max-w-[min(100%,280px)] mx-auto w-full'
-                            : 'aspect-[4/5] w-full',
+                            : 'aspect-square w-full',
                         )}
                       >
                         {item.image_url ? (
@@ -1144,7 +1158,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                           <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-300" /></div>
                         )}
                         <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 items-start pointer-events-none">
-                          {views != null && <ProductViewBadge count={views} />}
+                          {showViewCount && views != null && <ProductViewBadge count={views} />}
                           {showBadges && !!item.meta?.is_featured && (
                             <span style={{ backgroundColor: style.primary_color, color: '#fff' }} className="text-xs uppercase tracking-[0.2em] px-2 py-1">Featured</span>
                           )}
@@ -1172,7 +1186,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                         editorialProductWrap,
                         editorialProductShape === 'circle'
                           ? 'aspect-square max-w-[min(100%,280px)] mx-auto w-full'
-                          : 'aspect-[4/5] w-full',
+                          : 'aspect-square w-full',
                       )}
                     >
                       {item.image_url ? (
@@ -1188,7 +1202,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
                         <div className="absolute inset-0 flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-300" /></div>
                       )}
                       <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 items-start pointer-events-none">
-                        {views != null && <ProductViewBadge count={views} />}
+                        {showViewCount && views != null && <ProductViewBadge count={views} />}
                         {showBadges && !!item.meta?.is_featured && (
                           <span style={{ backgroundColor: style.primary_color, color: '#fff' }} className="text-xs uppercase tracking-[0.2em] px-2 py-1">Featured</span>
                         )}
@@ -1244,20 +1258,20 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
   const productTileWrap = catalogTileImageWrapperClass(productImageShape)
   const isCircleProductTile = productImageShape === 'circle'
   const titleClass = cardLayout.isMinimalCard
-    ? 'font-medium text-gray-900 text-xs line-clamp-1 mb-1'
+    ? 'font-medium text-gray-900 text-xs line-clamp-1 mb-0.5'
     : cardLayout.isCompactCard
-      ? 'font-semibold text-gray-900 text-sm line-clamp-2 mb-1'
-      : 'font-semibold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 mb-2'
+      ? 'font-semibold text-gray-900 text-sm line-clamp-2 mb-0.5'
+      : 'font-semibold text-gray-900 group-hover:text-primary transition-colors text-sm line-clamp-2 mb-0.5'
   const priceClass = cardLayout.isMinimalCard
     ? 'text-sm font-bold'
     : cardLayout.isCompactCard
       ? 'text-base font-bold'
-      : 'text-lg font-bold'
+      : 'text-base font-bold'
 
   return (
     <section className={builderSectionContainerClass()}>
       {(title || blockId) && (
-        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-3xl font-bold text-gray-900 mb-10 text-center" />
+        <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title} as="h2" className="text-2xl font-bold text-gray-900 mb-5 text-center" />
       )}
       {items.length === 0 ? (
         <div className="text-center py-12 px-6 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/80">
@@ -1282,7 +1296,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
           style={{ gap: itemGap }}
         >
           {items.map(item => {
-            if (blockType !== 'related_products' && canRenderLiveCatalogProductCard(item)) {
+            if (canRenderLiveCatalogProductCard(item)) {
               return (
                 <LiveCatalogProductCard
                   key={item.id}

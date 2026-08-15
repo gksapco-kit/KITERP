@@ -258,6 +258,7 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
   const builderCanvas = useBuilderCanvas()
   const { previewShell } = useVendor()
   const isEditor = builderCanvas?.isEditorCanvas && !!blockId
+  const previewBp = isEditor ? (builderCanvas?.previewBreakpoint ?? 'desktop') : undefined
   const showDraftPreviewFallback = isEditor || previewShell === true
   const blockProps = props
   const title = resolveBlockTextField(props, 'title', {
@@ -342,7 +343,7 @@ export default function TestimonialsBlock({ style, props, liveItems, blockId }: 
     )
   }
 
-  const colClass = sectionGridColumnClass(columns)
+  const colClass = sectionGridColumnClass(columns, previewBp)
   const dark = surface.isDark
   const masonryColumnClass = columns >= 3
     ? 'columns-1 sm:columns-2 lg:columns-3'

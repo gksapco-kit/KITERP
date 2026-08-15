@@ -22,7 +22,6 @@ import {
 import { HeroBannerCarousel } from './HeroBannerCarousel'
 import { heroUsesBannerCarousel, resolveHeroBackgroundUrls } from './heroBanners'
 import { useBannerAspectRatio } from './useBannerAspectRatio'
-import { useState } from 'react'
 
 export function HeroSection({
   props,
@@ -61,11 +60,7 @@ export function HeroSection({
     heroBackgroundUrls.length,
     props.banner_carousel as boolean | undefined,
   )
-  const [bannerSlideIndex, setBannerSlideIndex] = useState(0)
-  const bannerAspect = useBannerAspectRatio(
-    heroBackgroundUrls,
-    useCarousel ? bannerSlideIndex : 0,
-  )
+  const bannerAspect = useBannerAspectRatio(heroBackgroundUrls, 0)
   const bannerFrameStyle = bannerAspect
     ? { aspectRatio: String(bannerAspect) }
     : undefined
@@ -287,7 +282,6 @@ export function HeroSection({
               <HeroBannerCarousel
                 urls={heroBackgroundUrls}
                 imageClassName="h-full w-full object-cover object-center"
-                onIndexChange={setBannerSlideIndex}
                 overlay={
                   <div className="h-full w-full" style={{ background: heroPhotoOverlay(c.primary, c.secondary) }} />
                 }
@@ -369,7 +363,6 @@ export function HeroSection({
             <HeroBannerCarousel
               urls={heroBackgroundUrls}
               imageClassName="h-full w-full object-cover object-center"
-              onIndexChange={setBannerSlideIndex}
               overlay={
                 <div className="h-full w-full" style={{ background: heroBannerDimOverlay(c.primary, c.secondary) }} />
               }

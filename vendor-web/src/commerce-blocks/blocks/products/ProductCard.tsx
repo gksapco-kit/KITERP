@@ -30,7 +30,7 @@ export function ProductCard({
 }: ProductCardProps) {
   const product =
     mockProducts.find((p) => p.id === productId) ?? mockProducts[0];
-  const onSale = product.compareAtPrice && product.compareAtPrice > product.price;
+  const onSale = Number(product.compareAtPrice) > Number(product.price);
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground transition-shadow hover:shadow-md">
@@ -39,7 +39,7 @@ export function ProductCard({
           <img
             src={product.image}
             alt={product.name}
-            className="absolute inset-0 h-full w-full object-contain object-center p-2"
+            className="absolute inset-0 h-full w-full object-cover object-center"
           />
         )}
         {showTags && (
@@ -60,7 +60,7 @@ export function ProductCard({
       <div className="flex flex-1 flex-col p-3">
         <div className="text-xs text-muted-foreground">{product.category}</div>
         <h3 className="line-clamp-1 text-sm font-medium">{product.name}</h3>
-        {showRating && product.rating && (
+        {showRating && (product.rating ?? 0) > 0 && (
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <Star className="h-3 w-3 fill-warning text-warning" />
             {product.rating}

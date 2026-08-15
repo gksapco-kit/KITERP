@@ -295,30 +295,36 @@ export function useBuilderSectionBox(
     const findEl = () =>
       root.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`) as HTMLElement | null
 
-    let el = findEl()
-    if (!el) {
-      setBox(null)
-      return
-    }
+    let el: HTMLElement | null = null
+    let ro: ResizeObserver | null = null
 
     const update = () => {
       const currentRoot = containerRef.current
-      el = currentRoot ? findEl() : null
-      if (!currentRoot || !el) {
+      const nextEl = currentRoot ? findEl() : null
+      if (!currentRoot || !nextEl) {
+        ro?.disconnect()
+        el = null
         setBox(null)
         return
+      }
+      if (nextEl !== el) {
+        ro?.disconnect()
+        el = nextEl
+        ro = new ResizeObserver(update)
+        ro.observe(el)
+        ro.observe(currentRoot)
       }
       const next = measureBlockInRoot(el, currentRoot, layoutScale)
       setBox(prev => (prev && sameSectionBox(prev, next) ? prev : next))
     }
 
     update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    ro.observe(root)
+    const mo = new MutationObserver(update)
+    mo.observe(root, { childList: true, subtree: true })
     window.addEventListener('resize', update)
     return () => {
-      ro.disconnect()
+      mo.disconnect()
+      ro?.disconnect()
       window.removeEventListener('resize', update)
     }
   }, [blockId, containerRef, revision, layoutScale])
@@ -510,6 +516,7 @@ export function BuilderSectionOverlay({
   dropAfter,
   dragging,
   interactive,
+  label,
   className,
   onContextMenu,
   onDragOver,
@@ -532,6 +539,8 @@ export function BuilderSectionOverlay({
   dropAfter?: boolean
   dragging?: boolean
   interactive?: boolean
+  /** Shown on the canvas when this section is selected. */
+  label?: string
   className?: string
   onContextMenu: (e: React.MouseEvent) => void
   onDragOver: (e: React.DragEvent) => void
@@ -558,14 +567,14 @@ export function BuilderSectionOverlay({
         'absolute group pointer-events-none overflow-visible',
         interactive && 'pointer-events-auto cursor-pointer',
         isHidden
-          ? 'ring-1 ring-inset ring-amber-400/70'
+          ? 'ring-2 ring-inset ring-amber-400/80'
           : selected
             ? saving
-              ? 'ring-2 ring-inset ring-amber-400'
+              ? 'ring-[3px] ring-inset ring-amber-400'
               : imageSelected
-                ? 'ring-1 ring-inset ring-primary/30'
-                : 'ring-2 ring-inset ring-ring'
-            : interactive && 'hover:ring-2 hover:ring-inset hover:ring-ring/60',
+                ? 'ring-2 ring-inset ring-primary/70'
+                : 'ring-[3px] ring-inset ring-primary shadow-[inset_0_0_0_1px_rgba(39,72,50,0.35)]'
+            : interactive && 'hover:ring-2 hover:ring-inset hover:ring-primary/50',
         dropBefore && 'border-t-4 border-primary',
         dropAfter && 'border-b-4 border-primary',
         dragging && 'opacity-50',
@@ -582,6 +591,14 @@ export function BuilderSectionOverlay({
       onDragOver={interactive ? onDragOver : undefined}
       onDrop={interactive ? onDrop : undefined}
     >
+      {selected && label ? (
+        <div
+          className="pointer-events-none absolute left-0 top-0 z-[80] max-w-[min(100%,280px)] truncate rounded-br-md bg-primary px-2 py-0.5 text-[11px] font-semibold leading-tight text-white shadow-sm"
+          title={label}
+        >
+          {label}
+        </div>
+      ) : null}
       {children}
     </div>
   )

@@ -1357,7 +1357,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
         <FormSaveBar loading={profileSaving || onSave.isPending} top />
         {/* Logo & banner — shown when: (a) vendor branding (single mode or all-BU view), or (b) per-unit branding editor */}
         {(showVendorBranding || unitBrandingEditable) ? (
-        <div className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-2">
+        <div className="rounded-lg border border-border/70 bg-background/80 px-3 py-3">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-medium text-foreground">
               {unitBrandingEditable ? `${activeStore?.name ?? 'Unit'} branding` : 'Store branding'}
@@ -1368,11 +1368,11 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
                 : 'PNG/JPG · banner 3:1 · default for all units'}
             </span>
           </div>
-          <div className="flex items-stretch gap-2">
-            <div className="relative shrink-0">
+          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start">
+            <div className="relative shrink-0 self-start">
               {logoUploading ? (
-                <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50">
-                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                <div className="flex h-24 w-24 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white">
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                 </div>
               ) : displayLogoUrl ? (
                 <SingleImagePreview
@@ -1381,16 +1381,16 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
                   resolveUrl={(u) => u}
                   editable
                   onSave={uploadLogoFile}
-                  className="h-14 w-14 rounded-lg border border-dashed border-gray-300 bg-gray-50"
-                  imgClassName="h-full w-full rounded-lg object-cover"
+                  className="h-24 w-24 overflow-hidden rounded-xl border border-gray-200 bg-white"
+                  imgClassName="h-full w-full object-contain object-center p-1"
                 >
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); openLogoPicker() }}
                     title="Replace logo"
-                    className="absolute bottom-0.5 right-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white shadow hover:bg-black/80"
+                    className="absolute bottom-1 right-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white shadow hover:bg-black/80"
                   >
-                    <Camera className="h-3 w-3" />
+                    <Camera className="h-3.5 w-3.5" />
                   </button>
                 </SingleImagePreview>
               ) : (
@@ -1398,9 +1398,9 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
                   type="button"
                   onClick={() => openLogoPicker()}
                   title="Upload logo"
-                  className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400"
+                  className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white transition-colors hover:border-blue-400"
                 >
-                  <Building2 className="h-5 w-5 text-gray-400" />
+                  <Building2 className="h-8 w-8 text-gray-400" />
                 </button>
               )}
               {hasLogoOverride && (
@@ -1408,51 +1408,51 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
                   type="button"
                   aria-label="Remove logo"
                   onClick={removeLogo}
-                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-xs text-destructive-foreground shadow-sm hover:bg-destructive/90"
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-destructive text-xs text-destructive-foreground shadow-sm hover:bg-destructive/90"
                 >
-                  <X className="h-2.5 w-2.5" />
+                  <X className="h-3 w-3" />
                 </button>
               )}
-              <span className="mt-0.5 block text-center text-xs text-muted-foreground">Logo</span>
+              <span className="mt-1 block text-center text-xs text-muted-foreground">Logo</span>
             </div>
 
             {/* Banners grid: compact list — delete shifts others up; any banner can be set primary */}
             <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 {orderedBanners.length === 0 ? (
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => openBannerPicker()}
                       title="Upload primary banner (1200×400)"
-                      className="group relative flex h-16 w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-blue-400"
+                      className="group relative flex aspect-[3/1] w-full min-h-[5.5rem] items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white transition-colors hover:border-blue-400"
                     >
                       {bannerUploading ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                        <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                       ) : (
-                        <span className="flex flex-col items-center gap-0.5 text-gray-400">
-                          <ImageIcon className="h-4 w-4" />
-                          <span className="text-[10px]">Primary</span>
+                        <span className="flex flex-col items-center gap-1 text-gray-400">
+                          <ImageIcon className="h-5 w-5" />
+                          <span className="text-xs">Primary banner</span>
                         </span>
                       )}
                     </button>
-                    <span className="mt-0.5 block text-center text-[10px] text-muted-foreground">Banner 1</span>
+                    <span className="mt-1 block text-center text-xs text-muted-foreground">Banner 1</span>
                   </div>
                 ) : (
                   orderedBanners.map((url, i) => (
                     <div key={url} className="relative">
                       {i === 0 ? (
-                        <div className="group relative flex h-16 w-full overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50">
+                        <div className="group relative flex aspect-[3/1] w-full min-h-[5.5rem] overflow-hidden rounded-xl border border-gray-200 bg-white">
                           {bannerUploading ? (
                             <div className="flex h-full w-full items-center justify-center">
-                              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                              <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                             </div>
                           ) : (
                             <ClickableImageButton
                               src={imgUrl(url)}
                               alt="Banner 1"
                               className="h-full w-full"
-                              imgClassName="h-full w-full object-cover"
+                              imgClassName="h-full w-full object-contain object-center p-1"
                               onClick={() => setBannerLightboxIndex(i)}
                             />
                           )}
@@ -1460,30 +1460,30 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
                             type="button"
                             onClick={() => openBannerPicker()}
                             title="Replace primary banner"
-                            className="absolute bottom-1 right-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white shadow hover:bg-black/80"
+                            className="absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white shadow hover:bg-black/80"
                           >
-                            <Camera className="h-3 w-3" />
+                            <Camera className="h-3.5 w-3.5" />
                           </button>
-                          <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-primary px-1 py-0.5 text-[9px] font-semibold leading-none text-white shadow-sm">
+                          <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm">
                             Primary
                           </span>
                         </div>
                       ) : (
-                        <div className="group relative flex h-16 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                        <div className="group relative flex aspect-[3/1] w-full min-h-[5.5rem] overflow-hidden rounded-xl border border-gray-200 bg-white">
                           <ClickableImageButton
                             src={imgUrl(url)}
                             alt={`Banner ${i + 1}`}
                             className="h-full w-full"
-                            imgClassName="h-full w-full object-cover"
+                            imgClassName="h-full w-full object-contain object-center p-1"
                             onClick={() => setBannerLightboxIndex(i)}
                           />
                           <button
                             type="button"
                             onClick={() => void setPrimaryBanner(i)}
                             title="Move to Banner 1 (primary)"
-                            className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded bg-white/95 px-1 py-0.5 text-[9px] font-semibold leading-none text-primary shadow-sm transition-colors hover:bg-primary hover:text-white"
+                            className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-white/95 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary shadow-sm transition-colors hover:bg-primary hover:text-white"
                           >
-                            <Star className="h-2.5 w-2.5" />
+                            <Star className="h-3 w-3" />
                             Primary
                           </button>
                         </div>
@@ -1492,11 +1492,11 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
                         type="button"
                         aria-label={`Remove banner ${i + 1}`}
                         onClick={() => void removeBannerAt(i)}
-                        className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-background bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
+                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
                       >
-                        <X className="h-2.5 w-2.5" />
+                        <X className="h-3 w-3" />
                       </button>
-                      <span className="mt-0.5 block text-center text-[10px] text-muted-foreground">Banner {i + 1}</span>
+                      <span className="mt-1 block text-center text-xs text-muted-foreground">Banner {i + 1}</span>
                     </div>
                   ))
                 )}
@@ -1506,18 +1506,18 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
                     type="button"
                     onClick={() => (orderedBanners.length === 0 ? openBannerPicker() : openExtraBannerPicker())}
                     title="Add another banner"
-                    className="flex h-16 w-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-primary hover:bg-primary/5"
+                    className="flex aspect-[3/1] w-full min-h-[5.5rem] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white transition-colors hover:border-primary hover:bg-primary/5"
                   >
                     {extraBannerUploading ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                      <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                     ) : (
-                      <span className="flex flex-col items-center gap-0.5 text-gray-400">
-                        <span className="text-lg leading-none">+</span>
-                        <span className="text-[10px]">Add banner</span>
+                      <span className="flex flex-col items-center gap-1 text-gray-400">
+                        <span className="text-xl leading-none">+</span>
+                        <span className="text-xs">Add banner</span>
                       </span>
                     )}
                   </button>
-                  <span className="mt-0.5 block text-center text-[10px] text-muted-foreground opacity-0">·</span>
+                  <span className="mt-1 block text-center text-xs text-muted-foreground opacity-0">·</span>
                 </div>
               </div>
               <ImageLightboxSession

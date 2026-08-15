@@ -152,7 +152,7 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
           <p className="text-gray-500">No products available yet</p>
         </div>
       ) : (
-        <div className={`grid gap-4 sm:gap-6 ${gridClass}`}>
+        <div className={`grid gap-2.5 sm:gap-3 ${gridClass}`}>
           {products.items.map((p: Product) => {
             const variants = (p.variants || []).filter((v) => v.is_active !== false)
             return (

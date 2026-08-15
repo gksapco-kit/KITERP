@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
 
 const DEFAULT_INTERVAL_MS = 5000
+const MANUAL_PAUSE_MS = 8000
 
 type Props = {
   urls: string[]
@@ -25,22 +26,50 @@ export function HeroBannerCarousel({
   onIndexChange,
   overlay,
 }: Props) {
-  const slides = urls.map((u) => imgUrl(u)).filter(Boolean)
+  const slides = useMemo(() => urls.map((u) => imgUrl(u)).filter(Boolean), [urls])
+  const slideKey = slides.join('|')
   const count = slides.length
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
+  const resumeTimer = useRef<number | null>(null)
+
+  const clearResumeTimer = () => {
+    if (resumeTimer.current != null) {
+      window.clearTimeout(resumeTimer.current)
+      resumeTimer.current = null
+    }
+  }
+
+  const pauseForInteraction = useCallback(() => {
+    setPaused(true)
+    clearResumeTimer()
+    resumeTimer.current = window.setTimeout(() => {
+      setPaused(false)
+      resumeTimer.current = null
+    }, MANUAL_PAUSE_MS)
+  }, [])
+
+  const goTo = useCallback(
+    (next: number) => {
+      if (count <= 1) return
+      pauseForInteraction()
+      setIndex(((next % count) + count) % count)
+    },
+    [count, pauseForInteraction],
+  )
 
   const go = useCallback(
     (delta: number) => {
       if (count <= 1) return
+      pauseForInteraction()
       setIndex((prev) => ((prev + delta) % count + count) % count)
     },
-    [count],
+    [count, pauseForInteraction],
   )
 
   useEffect(() => {
-    setIndex(0)
-  }, [slides.join('|')])
+    setIndex((prev) => (prev < count ? prev : 0))
+  }, [slideKey, count])
 
   useEffect(() => {
     onIndexChange?.(index)
@@ -54,7 +83,12 @@ export function HeroBannerCarousel({
     return () => window.clearInterval(id)
   }, [count, paused, intervalMs])
 
+  useEffect(() => () => clearResumeTimer(), [])
+
   if (count === 0) return null
+
+  const controlBtnClass =
+    'pointer-events-auto absolute top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-md transition hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70'
 
   if (count === 1) {
     return (
@@ -73,9 +107,9 @@ export function HeroBannerCarousel({
     <div
       className={cn('group absolute inset-0', className)}
       onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocusCapture={() => setPaused(true)}
-      onBlurCapture={() => setPaused(false)}
+      onMouseLeave={() => {
+        if (resumeTimer.current == null) setPaused(false)
+      }}
     >
       {slides.map((src, i) => (
         <img
@@ -101,38 +135,56 @@ export function HeroBannerCarousel({
       <button
         type="button"
         aria-label="Previous banner"
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
           go(-1)
         }}
-        className="pointer-events-auto absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/25 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/50 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/60 group-hover:opacity-100 sm:opacity-100"
+        className={cn(controlBtnClass, 'left-3')}
       >
-        <ChevronLeft className="h-5 w-5" />
+        <ChevronLeft className="h-6 w-6" />
       </button>
       <button
         type="button"
         aria-label="Next banner"
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
           go(1)
         }}
-        className="pointer-events-auto absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/35 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/50 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/60 sm:opacity-100 sm:bg-black/25"
+        className={cn(controlBtnClass, 'right-3')}
       >
-        <ChevronRight className="h-5 w-5" />
+        <ChevronRight className="h-6 w-6" />
       </button>
 
       <div
-        className="pointer-events-none absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 gap-1.5"
-        aria-hidden
+        className="pointer-events-auto absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 gap-1.5"
+        role="tablist"
+        aria-label="Banner slides"
       >
         {slides.map((src, i) => (
-          <span
+          <button
             key={`${src}-dot-${i}`}
+            type="button"
+            role="tab"
+            aria-label={`Show banner ${i + 1}`}
+            aria-selected={i === index}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              goTo(i)
+            }}
             className={cn(
-              'h-1.5 w-1.5 rounded-full transition-all',
-              i === index ? 'scale-125 bg-white' : 'bg-white/45',
+              'h-2.5 rounded-full transition-all',
+              i === index ? 'w-5 bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80',
             )}
           />
         ))}

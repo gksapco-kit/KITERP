@@ -50,7 +50,7 @@ export function ProductCard({
   const storePath = useStorePath();
   const product =
     mockProducts.find((p) => p.id === productId) ?? mockProducts[0];
-  const onSale = product.compareAtPrice && product.compareAtPrice > product.price;
+  const onSale = Number(product.compareAtPrice) > Number(product.price);
   const pad = productCardPadding(cardStyle, cardPadding);
   const isMinimal = cardStyle === "minimal";
   const isCompact = cardStyle === "compact";
@@ -97,7 +97,7 @@ export function ProductCard({
         <Link to={detailHref} className="no-underline hover:no-underline">
           <h3 className={productCardBodyClass(cardStyle)}>{product.name}</h3>
         </Link>
-        {showRating && product.rating && !isMinimal && (
+        {showRating && (product.rating ?? 0) > 0 && !isMinimal && (
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <Star className="h-3 w-3 fill-warning text-warning" />
             {product.rating}

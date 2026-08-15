@@ -15,6 +15,7 @@ import {
 import { builderSectionContainerClass, builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import {
   catalogGridColClassForBreakpoint,
+  catalogGridResponsiveColClass,
   clampCatalogColumns,
   readCatalogCardLayout,
   buildCatalogImageShell,
@@ -52,7 +53,9 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
   const layout = String(props.layout ?? 'grid')
   const isList = layout === 'list'
   const columns = isList ? 1 : clampCatalogColumns(props.columns, 3, 'services_cards')
-  const gridColClass = catalogGridColClassForBreakpoint(columns, previewBp)
+  const gridColClass = isEditorCanvas
+    ? catalogGridColClassForBreakpoint(columns, previewBp)
+    : catalogGridResponsiveColClass(columns)
   const cardLayout = readCatalogCardLayout(props, 'services_cards', { defaultColumns: 3 })
   const imageShape = imageShapeFromProps(props)
 

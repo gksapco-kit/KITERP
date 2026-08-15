@@ -171,12 +171,13 @@ export default function NavBlock({
       {
         previewShell: previewShell === true,
         isEditorCanvas,
-        offeringType: vendor?.offering_type,
-        blogEnabled: isVendorBlogEnabled(vendor?.settings),
-        rentalsEnabled: isVendorRentalsEnabled(vendor?.settings),
+        offeringType: effectiveVendor?.offering_type ?? vendor?.offering_type,
+        blogEnabled: isVendorBlogEnabled(effectiveVendor?.settings ?? vendor?.settings),
+        rentalsEnabled: isVendorRentalsEnabled(effectiveVendor?.settings ?? vendor?.settings),
+        settings: effectiveVendor?.settings ?? vendor?.settings,
       },
     )
-  }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath, location.pathname, previewShell, isEditorCanvas, vendor?.offering_type, vendor?.settings])
+  }, [showNavLinks, navLinksSource, rawLinks, liveItems, site, storePath, location.pathname, previewShell, isEditorCanvas, vendor?.offering_type, vendor?.settings, effectiveVendor?.offering_type, effectiveVendor?.settings])
 
   const currentNavKey = useMemo(
     () => resolveCurrentNavActiveKey(

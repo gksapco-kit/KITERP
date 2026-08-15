@@ -214,7 +214,7 @@ export function BuilderCanvasProviders({
           settings: {},
         } satisfies VendorData
 
-    const vendor = previewBranch ? applyBranchToVendor(baseVendor, previewBranch) : baseVendor
+    const vendor = applyBranchToVendor(baseVendor, previewBranch)
 
     return {
       vendor,

@@ -163,11 +163,9 @@ export default function ProductDetail() {
     ? (pricingVariant?.compare_at_price ?? product?.compare_at_price)
     : undefined
   const displayCurrency = pricingVariant?.currency ?? product?.currency ?? 'INR'
-  // Stock follows the exact selected variant only — never a sibling that still has qty.
+  // Stock follows the matched variant. An unmatched combo is not the same as out of stock.
   const displayStock = product
-    ? hasVariants && !matchedVariant
-      ? 'out_of_stock'
-      : getEffectiveStockStatus(product, matchedVariant ?? undefined)
+    ? getEffectiveStockStatus(product, matchedVariant ?? undefined)
     : undefined
   const displayOfferLabel = pricingVariant?.offer_label ?? product?.offer_label
   const displayOnSale = pricingVariant?.is_on_sale ?? product?.is_on_sale
@@ -176,13 +174,13 @@ export default function ProductDetail() {
 
   const onHandQty = useMemo(() => {
     if (!product) return null
-    if (hasVariants && !stockVariant) return 0
+    if (hasVariants && !stockVariant) return null
     return getOnHandQuantity(product, stockVariant ?? undefined)
   }, [product, hasVariants, stockVariant])
 
   const maxAddQty = useMemo(() => {
     if (!product) return null
-    if (hasVariants && !stockVariant) return 0
+    if (hasVariants && !stockVariant) return null
     return getMaxAddQuantity({
       vendorSlug,
       isAuthenticated,

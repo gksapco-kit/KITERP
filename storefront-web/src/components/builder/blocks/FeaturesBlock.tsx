@@ -99,7 +99,9 @@ interface Props {
 
 export default function FeaturesBlock({ site, style, props, blockType, blockId }: Props) {
   const canvas = useBuilderCanvas()
-  const stackBelowLg = Boolean(canvas?.isEditorCanvas && blockId && previewBelowLg(canvas.previewBreakpoint))
+  const isEditorCanvas = Boolean(canvas?.isEditorCanvas && blockId)
+  const previewBp = isEditorCanvas ? (canvas?.previewBreakpoint ?? 'desktop') : undefined
+  const stackBelowLg = Boolean(isEditorCanvas && previewBelowLg(canvas.previewBreakpoint))
   const isAlternating = blockType === 'features_alternating'
   const useTemplateReplacement = isAlternating && isTemplateMealFeaturesBlock(props)
   const replacement = useTemplateReplacement ? productFocusedFeatureContent(site.name) : null
@@ -340,7 +342,7 @@ export default function FeaturesBlock({ site, style, props, blockType, blockId }
   return (
     <BuilderSectionSurface surface={surface}>
       {sectionTitle('text-3xl font-bold mb-10 text-center')}
-      <div className={cn('grid', sectionGridColumnClass(columns))} style={{ gap: itemGap }}>
+      <div className={cn('grid', sectionGridColumnClass(columns, previewBp))} style={{ gap: itemGap }}>
         {visibleArrayEntries(features, props, 'features').map(({ item: feature, index: i }) => (
           <div
             key={i}

@@ -14,6 +14,7 @@ from app.models.user import User
 from app.models.vendor_user import VendorUser
 from app.repositories.vendor_repo import VendorRepository
 from app.services.user_cleanup import delete_user_if_orphan, purge_user_dependents
+from app.services.vendor_cleanup import delete_vendor_row
 
 
 class UserAccountService:
@@ -27,8 +28,7 @@ class UserAccountService:
             return
 
         try:
-            await self.db.delete(vendor)
-            await self.db.flush()
+            await delete_vendor_row(self.db, vendor_id)
         except IntegrityError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

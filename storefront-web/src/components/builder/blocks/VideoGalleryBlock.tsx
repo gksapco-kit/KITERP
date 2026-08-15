@@ -117,6 +117,7 @@ function ClickToPlayPoster({
 export default function VideoGalleryBlock({ style, props, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : undefined
   const [lightbox, setLightbox] = useState<string | null>(null)
 
   useEffect(() => {
@@ -437,7 +438,7 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
           ))}
         </div>
       ) : (
-        <div className={cn('grid max-w-5xl mx-auto', sectionGridColumnClass(columns))} style={{ gap: itemGap }}>
+        <div className={cn('grid max-w-5xl mx-auto', sectionGridColumnClass(columns, previewBp))} style={{ gap: itemGap }}>
           {videos.map((v, i) => (
             <VideoTile
               key={i}

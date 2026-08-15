@@ -20,7 +20,7 @@ export function validateCheckoutFields(params: {
     customer,
     shippingAddress,
     isGuest,
-    requirePhone,
+    requirePhone = true,
     usingSavedAddress,
     requireShippingAddress = true,
   } = params

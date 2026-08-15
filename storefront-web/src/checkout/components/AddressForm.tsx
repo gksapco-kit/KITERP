@@ -64,7 +64,7 @@ export function AddressForm({ initial, onSubmit, onChange, hideSubmit, formId, f
     if (!v.region.trim()) e.region = "Required";
     if (!v.postalCode.trim()) e.postalCode = "Required";
     if (!v.country.trim()) e.country = "Required";
-    if (requirePhone && !v.phone?.trim()) e.phone = "Required";
+    if (requirePhone && !v.phone?.trim()) e.phone = "Phone is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -172,7 +172,7 @@ export function AddressForm({ initial, onSubmit, onChange, hideSubmit, formId, f
             ))}
           </select>
         </Field>
-        <Field label={`Phone${requirePhone ? "" : " (optional)"}`} error={displayErrors.phone} fieldKey="phone">
+        <Field label={requirePhone ? "Phone" : "Phone (optional)"} error={displayErrors.phone} fieldKey="phone">
           <PhoneInput
             value={v.phone}
             onChange={(phone) => update("phone", phone)}
@@ -181,6 +181,7 @@ export function AddressForm({ initial, onSubmit, onChange, hideSubmit, formId, f
             name="phone"
             showStatusHints={false}
             showErrorMessage={false}
+            error={displayErrors.phone}
             className={displayErrors.phone ? "ck-phone-error" : undefined}
           />
         </Field>

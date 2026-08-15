@@ -5,6 +5,7 @@ import {
   enrichNavLinksWithBlogLink,
   enrichNavLinksWithCatalogCapabilities,
   enrichNavLinksWithRentalsLink,
+  filterNavLinksByCatalogCapabilities,
   pathRelativeToStore,
   resolveCatalogNavCapabilities,
 } from '@/lib/catalogNavCapabilities'
@@ -26,6 +27,7 @@ export type ResolveNavBlockLinksOptions = {
   isEditorCanvas?: boolean
   /** Vendor catalog offering: products | services | both */
   offeringType?: string | null
+  settings?: Record<string, unknown> | null
   productCount?: number | null
   serviceCount?: number | null
   /** When false, hide blog nav links and /blog routes from storefront nav. */
@@ -183,6 +185,7 @@ export function resolveNavBlockLinks(
   const rawLinks = props.nav_links || []
   const capabilities = resolveCatalogNavCapabilities({
     offeringType: options?.offeringType,
+    settings: options?.settings,
     site,
     productCount: options?.productCount,
     serviceCount: options?.serviceCount,
@@ -217,8 +220,10 @@ export function resolveNavBlockLinks(
 
   if (!previewShell && !isEditorCanvas) {
     enriched = enrichNavLinksWithRentalsLink(enriched, storePath, rentalsEnabled)
-    enriched = enrichNavLinksWithBlogLink(enriched, storePath, blogEnabled)
   }
+  // Blog Manager "Show on website" must match live nav in the builder canvas too,
+  // so admins can see which screens will publish.
+  enriched = enrichNavLinksWithBlogLink(enriched, storePath, blogEnabled)
 
   if (enriched.length === 0 && !previewShell && !isEditorCanvas) {
     enriched = defaultCommerceNavLinksForCapabilities(storePath, capabilities, blogEnabled, rentalsEnabled)
@@ -243,17 +248,18 @@ export function resolveNavBlockLinks(
       storePath,
     )
   }
-  return links
+  return filterNavLinksByCatalogCapabilities(links, storePath, capabilities)
 }
 
 export function resolveStorefrontHeaderNavLinks(
   site: PublicSite | null | undefined,
   storePath: (p: string) => string,
   pathname: string,
-  options?: Pick<ResolveNavBlockLinksOptions, 'offeringType' | 'productCount' | 'serviceCount' | 'blogEnabled' | 'rentalsEnabled'>,
+  options?: Pick<ResolveNavBlockLinksOptions, 'offeringType' | 'settings' | 'productCount' | 'serviceCount' | 'blogEnabled' | 'rentalsEnabled'>,
 ): NavLinkItem[] {
   const capabilities = resolveCatalogNavCapabilities({
     offeringType: options?.offeringType,
+    settings: options?.settings,
     site,
     productCount: options?.productCount,
     serviceCount: options?.serviceCount,

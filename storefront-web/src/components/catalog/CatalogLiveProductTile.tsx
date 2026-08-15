@@ -21,6 +21,8 @@ import { getEffectiveStockStatus, getMaxLineQuantity, type StockEntity } from '@
 import { useVendor } from '@/contexts/VendorContext'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
+import { ProductWishlistButton } from '@/components/products/ProductWishlistButton'
+import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 
 function liveItemVariants(item: LiveItem): ProductVariant[] {
   const raw = (item.meta as Record<string, unknown> | undefined)?.variants
@@ -124,7 +126,9 @@ export function CatalogLiveProductTile({
   const cartQty = useCartVariantQty(String(item.id), selected?.id)
   const addToCart = useAddToCart()
   const { setQty: setCatalogQty } = useSetCatalogCartQty()
-  const { vendorSlug } = useVendor()
+  const { vendorSlug, displayFields } = useVendor()
+  const showViewCount = isDisplayFieldEnabled(displayFields.product, 'view_count')
+  const showWishlist = isDisplayFieldEnabled(displayFields.product, 'wishlist')
   const { isAuthenticated } = useAuthStore()
   const maxLineQty = getMaxLineQuantity({
     vendorSlug,
@@ -152,7 +156,7 @@ export function CatalogLiveProductTile({
     const raw = item.meta?.view_count
     if (raw == null || raw === '') return null
     const n = Number(raw)
-    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
   })()
 
   const cartPayload = {
@@ -216,7 +220,7 @@ export function CatalogLiveProductTile({
             </div>
           )}
           <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 items-start pointer-events-none">
-            {views != null && (
+            {showViewCount && views != null && views > 0 && (
               <span
                 className="inline-flex items-center gap-1 rounded-full bg-black/55 backdrop-blur-sm text-white text-[11px] font-semibold px-2 py-0.5 shadow-sm"
                 title={`${views.toLocaleString()} views`}
@@ -229,15 +233,32 @@ export function CatalogLiveProductTile({
               <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">SALE</span>
             )}
           </div>
-          {showBadges && !!item.meta?.is_featured && (
-            <span className="absolute top-2 right-2 bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-              <Star className="w-3 h-3" />Featured
-            </span>
-          )}
+          <div
+            className="absolute top-2 right-2 z-20 flex flex-col items-end gap-1"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+          >
+            {showWishlist && item.id && !String(item.id).startsWith('ph-') && (
+              <ProductWishlistButton
+                productId={String(item.id)}
+                productName={item.title ?? 'Product'}
+                slug={String((item.meta as Record<string, unknown> | undefined)?.slug || '')}
+                price={price}
+                imageUrl={imageUrl ?? undefined}
+                variantId={selected?.id}
+                overlay
+                className="h-7 w-7 rounded-md"
+              />
+            )}
+            {showBadges && !!item.meta?.is_featured && (
+              <span className="bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Star className="w-3 h-3" />Featured
+              </span>
+            )}
+          </div>
         </div>
         <div style={{ padding: cardPadding, paddingBottom: Math.max(4, cardPadding - 4) }}>
           {item.subtitle && !isMinimalCard && (
-            <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide">{item.subtitle}</p>
+            <p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-wide">{item.subtitle}</p>
           )}
           <h3 className={titleClass}>{item.title}</h3>
           <CatalogVariantChips
@@ -247,7 +268,7 @@ export function CatalogLiveProductTile({
             product={productUom}
             productStock={productStock}
             primaryColor={primaryColor}
-            className="mb-2 mt-1"
+            className="mb-1 mt-0.5"
           />
           {priceFormatted && (
             <div className="flex items-center gap-2">
@@ -263,7 +284,7 @@ export function CatalogLiveProductTile({
           )}
           {(showStock || outOfStock) && (
             <span
-              className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-2 inline-block ${
+              className={`text-[10px] font-semibold px-1.5 py-px rounded-full mt-1 inline-block ${
                 outOfStock ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
               }`}
             >
@@ -274,7 +295,7 @@ export function CatalogLiveProductTile({
       </Link>
 
       {showAddButton && (
-        <div style={{ padding: cardPadding, paddingTop: 0 }} className="mt-auto">
+        <div style={{ padding: cardPadding, paddingTop: 4 }} className="mt-auto">
           <CatalogAddOrQtyControl
             cartQty={cartQty}
             onAdd={addLiveItemToCart}

@@ -30,6 +30,7 @@ interface Props { site: PublicSite; style: StyleConfig; props: Record<string, un
 export default function GalleryMasonryBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : undefined
   const [lightbox, setLightbox] = useState<string | null>(null)
   const title = resolveBlockTextField(props, 'title')
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
@@ -133,7 +134,7 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
           ))}
         </div>
       ) : (
-        <div className={cn('grid max-w-5xl mx-auto', sectionGridColumnClass(columns))} style={{ gap: itemGap }}>
+        <div className={cn('grid max-w-5xl mx-auto', sectionGridColumnClass(columns, previewBp))} style={{ gap: itemGap }}>
           {images.map((img, i) => (
             <Img
               key={i}

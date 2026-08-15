@@ -22,6 +22,8 @@ export type ProductOptionPickerProps = {
   disabled?: boolean
   className?: string
   stopPropagation?: boolean
+  /** Tighter layout for catalog grids. */
+  compact?: boolean
 }
 
 function lightSwatchBorder(color: string): boolean {
@@ -40,6 +42,7 @@ function SizeChip({
   disabled,
   stopPropagation,
   onClick,
+  compact,
 }: {
   value: string
   selected: boolean
@@ -47,8 +50,9 @@ function SizeChip({
   disabled?: boolean
   stopPropagation?: boolean
   onClick: () => void
+  compact?: boolean
 }) {
-  const compact = value.trim().length <= 3
+  const compactChip = compact || value.trim().length <= 3
   return (
     <button
       type="button"
@@ -63,8 +67,12 @@ function SizeChip({
         onClick()
       }}
       className={cn(
-        'inline-flex h-8 items-center justify-center rounded border text-[11px] font-semibold uppercase leading-none whitespace-nowrap transition-all disabled:opacity-50',
-        compact ? 'w-8 shrink-0 p-0' : 'min-w-8 shrink-0 px-2.5',
+        'inline-flex items-center justify-center rounded border font-semibold uppercase leading-none whitespace-nowrap transition-all disabled:opacity-50',
+        compact
+          ? 'h-6 min-w-6 px-1.5 text-[10px]'
+          : compactChip
+            ? 'h-8 w-8 shrink-0 p-0 text-[11px]'
+            : 'h-8 min-w-8 shrink-0 px-2.5 text-[11px]',
         selected
           ? 'border-primary bg-primary text-primary-foreground shadow-sm'
           : unavailable
@@ -147,20 +155,32 @@ export default function ProductOptionPicker({
   disabled,
   className,
   stopPropagation,
+  compact = false,
 }: ProductOptionPickerProps) {
   if (!rows.length) return null
 
+  const visibleRows = compact
+    ? rows.filter((row) => row.type !== 'size' || row.values.length > 1)
+    : rows
+  if (!visibleRows.length) return null
+
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
-      {rows.map((row) => (
+    <div className={cn(compact ? 'flex flex-col gap-1' : 'flex flex-col gap-3', className)}>
+      {visibleRows.map((row) => (
         <div
           key={row.type === 'size' ? `size-${row.label}` : 'color'}
-          className="flex items-center gap-2"
+          className={cn(compact ? 'flex flex-col gap-0.5' : 'flex items-center gap-2')}
         >
-          <span className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground truncate" title={row.label}>
+          <span
+            className={cn(
+              'font-semibold uppercase tracking-wide text-muted-foreground',
+              compact ? 'text-[9px] leading-none' : 'w-12 shrink-0 truncate text-[10px]',
+            )}
+            title={row.label}
+          >
             {row.label}
           </span>
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <div className={cn('flex min-w-0 flex-1 flex-wrap items-center', compact ? 'gap-1' : 'gap-1.5')}>
             {row.type === 'size'
               ? row.values.map((value) => {
                   const selected = selections[row.label] === value
@@ -190,6 +210,7 @@ export default function ProductOptionPicker({
                       unavailable={unavailable && !selected}
                       disabled={disabled}
                       stopPropagation={stopPropagation}
+                      compact={compact}
                       onClick={() => onSelectSize(row.label, value)}
                     />
                   )
@@ -218,7 +239,7 @@ export default function ProductOptionPicker({
           </div>
         </div>
       ))}
-      {errorMessage ? (
+      {errorMessage && !compact ? (
         <p className="flex items-start gap-1 text-[11px] leading-snug text-destructive">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>{errorMessage}</span>

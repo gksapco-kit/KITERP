@@ -20,7 +20,10 @@ import {
   readSectionImageFit,
   readSectionImageFocal,
   readSectionImageLayer,
+  readSectionImageOverlay,
+  sectionImageDecorStyle,
   sectionImageObjectStyle,
+  sectionImageOverlayCss,
 } from '@/lib/sectionImageStyle'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { previewBelowMd } from '@/lib/previewBreakpoint'
@@ -160,16 +163,14 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
     heroBackgroundUrls.length,
     props.banner_carousel as boolean | undefined,
   )
-  const [bannerSlideIndex, setBannerSlideIndex] = useState(0)
-  const bannerAspect = useBannerAspectRatio(
-    heroBackgroundUrls,
-    useBannerCarousel ? bannerSlideIndex : 0,
-  )
+  const bannerAspect = useBannerAspectRatio(heroBackgroundUrls, 0)
   // Prefer covering the frame; authors can still choose Fit/Fill in section image controls.
   const bgImageFit = readSectionImageFit('bg_image_url', props)
   const bgImageFitClass =
     bgImageFit === 'fill' ? 'object-fill' : bgImageFit === 'cover' ? 'object-cover' : 'object-contain'
   const bgImageObjectStyle = sectionImageObjectStyle('bg_image_url', props)
+  const bgImageDecorStyle = sectionImageDecorStyle('bg_image_url', props)
+  const bgImageOverlayCss = sectionImageOverlayCss(readSectionImageOverlay('bg_image_url', props))
   const bgImageFocal = readSectionImageFocal('bg_image_url', props)
   const bgImagePosition = `${bgImageFocal.x}% ${bgImageFocal.y}%`
 
@@ -457,7 +458,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
   const renderTextPanel = (opts?: { centered?: boolean; className?: string; style?: CSSProperties }) => {
     const centered = opts?.centered ?? false
     const imageBgTextPassThrough =
-      heroUsesImageBg && !splitSideBySide && !isSplit && !isEditorCanvas
+      heroUsesImageBg && !splitSideBySide && !isSplit
     const centeredImageTextPanel =
       heroUsesImageBg && !splitSideBySide && !isSplit
     return (
@@ -623,12 +624,14 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
           ? { color: heroText, borderBottom: `1px solid ${style.text_color}18` }
           : {
               background: heroBg,
-              backgroundImage: isEditorCanvas && heroUsesImageBg ? undefined : heroBgImage,
-              backgroundSize: isEditorCanvas && heroUsesImageBg
-                ? undefined
-                : (bgImageFit === 'contain' ? 'contain' : bgImageFit === 'fill' ? '100% 100%' : 'cover'),
-              backgroundPosition: isEditorCanvas && heroUsesImageBg ? undefined : bgImagePosition,
-              backgroundRepeat: isEditorCanvas && heroUsesImageBg ? undefined : 'no-repeat',
+              ...(heroUsesImageBg && heroBackgroundUrls.length > 0 && !bgImageHidden
+                ? {}
+                : {
+                    backgroundImage: heroBgImage,
+                    backgroundSize: bgImageFit === 'contain' ? 'contain' : bgImageFit === 'fill' ? '100% 100%' : 'cover',
+                    backgroundPosition: bgImagePosition,
+                    backgroundRepeat: 'no-repeat',
+                  }),
               color: heroText,
             }
       }
@@ -645,13 +648,22 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
         />
       ) : null}
       {heroUsesImageBg && heroBackgroundUrls.length > 0 && !bgImageHidden ? (
-        <div className="absolute inset-0 z-0">
+        <div
+          className="absolute inset-0 z-0 overflow-hidden"
+          style={bgImageDecorStyle}
+          data-builder-section-image={isEditorCanvas ? 'bg_image_url' : undefined}
+          onClick={isEditorCanvas && blockId
+            ? (e) => {
+                if ((e.target as HTMLElement).closest('button, a')) return
+                canvas?.onSectionImageActivate?.(blockId, 'bg_image_url')
+              }
+            : undefined}
+        >
           {useBannerCarousel ? (
             <HeroBannerCarousel
               urls={heroBackgroundUrls}
               imageClassName={cn('h-full w-full object-center', bgImageFitClass)}
               imageStyle={bgImageObjectStyle}
-              onIndexChange={setBannerSlideIndex}
               overlay={
                 bgStyle === 'gradient' ? (
                   <div
@@ -663,14 +675,6 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
                 ) : undefined
               }
             />
-          ) : isEditorCanvas && blockId && heroImageRaw ? (
-            <BuilderSectionImage
-              blockId={blockId}
-              field="bg_image_url"
-              blockProps={props}
-              src={heroPrimaryUrl!}
-              className={cn('absolute inset-0 h-full w-full', bgImageFitClass)}
-            />
           ) : (
             <img
               src={heroPrimaryUrl}
@@ -681,6 +685,13 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
               decoding="async"
             />
           )}
+          {bgImageOverlayCss ? (
+            <div
+              className="pointer-events-none absolute inset-0 z-[1]"
+              style={{ background: bgImageOverlayCss }}
+              aria-hidden
+            />
+          ) : null}
         </div>
       ) : null}
       {!useBannerCarousel && heroUsesImageBg && bgStyle === 'gradient' && (
@@ -704,7 +715,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
           {renderSideImage()}
         </>
       ) : isCenteredImageHero ? (
-        <div className="relative z-10 flex w-full min-w-0 flex-1 items-center justify-center md:absolute md:inset-0">
+        <div className="pointer-events-none relative z-10 flex w-full min-w-0 flex-1 items-center justify-center md:absolute md:inset-0">
           {renderTextPanel()}
         </div>
       ) : (

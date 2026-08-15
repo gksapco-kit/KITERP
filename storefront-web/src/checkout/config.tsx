@@ -65,7 +65,7 @@ export const defaultConfig: CheckoutConfig = {
   showOrderNotes: true,
   showGiftMessage: false,
   allowGuest: true,
-  requirePhone: false,
+  requirePhone: true,
   showTaxBreakdown: true,
   showShippingMethods: true,
   showSavedAddresses: true,

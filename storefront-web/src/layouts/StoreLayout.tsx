@@ -38,15 +38,25 @@ import {
   resolveBusinessContactAddress,
 } from '@/lib/businessContact'
 import StoreRouteSeo from '@/components/seo/StoreRouteSeo'
+import { normalizeCatalogOffering } from '@/lib/catalogNavCapabilities'
+
+function catalogOfferingFlags(vendor: { offering_type?: string | null } | null | undefined) {
+  const offering = normalizeCatalogOffering(vendor?.offering_type)
+  return {
+    showProducts: offering === 'products' || offering === 'both',
+    showServices: offering === 'services' || offering === 'both',
+  }
+}
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
-function SearchForm({ onSearch, searchQuery, setSearchQuery, accentColor, dark = false }: {
+function SearchForm({ onSearch, searchQuery, setSearchQuery, accentColor, dark = false, placeholder = 'Search products…' }: {
   onSearch: (e: React.FormEvent) => void
   searchQuery: string
   setSearchQuery: (v: string) => void
   accentColor: string
   dark?: boolean
+  placeholder?: string
 }) {
   return (
     <form onSubmit={onSearch} className="flex w-full">
@@ -55,7 +65,7 @@ function SearchForm({ onSearch, searchQuery, setSearchQuery, accentColor, dark =
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search products & services..."
+          placeholder={placeholder}
           className={cn(
             'flex-1 px-4 py-2.5 text-sm focus:outline-none',
             dark ? 'bg-white/15 text-white placeholder-white/60 focus:bg-white/20' : 'bg-white text-gray-900 placeholder-gray-400'
@@ -262,6 +272,7 @@ function FooterContactLines({
 
 function FooterSimple({ vendor, storePath, theme }: { vendor: any; storePath: (p: string) => string; theme: ReturnType<typeof useTheme> }) {
   const surface = footerSurface(theme)
+  const { showProducts, showServices } = catalogOfferingFlags(vendor)
   return (
     <footer style={surface.style} className={cn('mt-auto', surface.rootClass)}>
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
@@ -274,8 +285,8 @@ function FooterSimple({ vendor, storePath, theme }: { vendor: any; storePath: (p
           <span className={cn('font-semibold', surface.titleClass)}>{vendor?.display_name}</span>
         </div>
         <div className={cn('flex items-center gap-4 text-xs', surface.mutedClass)}>
-          <Link to={storePath('/products')} className={surface.linkClass}>Products</Link>
-          <Link to={storePath('/services')} className={surface.linkClass}>Services</Link>
+          {showProducts && <Link to={storePath('/products')} className={surface.linkClass}>Products</Link>}
+          {showServices && <Link to={storePath('/services')} className={surface.linkClass}>Services</Link>}
           <Link to={storePath('/rentals')} className={surface.linkClass}>Rentals</Link>
           <Link to={storePath('/contact')} className={surface.linkClass}>Contact</Link>
           <Link to={storePath('/policies')} className={surface.linkClass}>Policies</Link>
@@ -289,6 +300,7 @@ function FooterSimple({ vendor, storePath, theme }: { vendor: any; storePath: (p
 
 function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: (p: string) => string; theme: ReturnType<typeof useTheme> }) {
   const surface = footerSurface(theme)
+  const { showProducts, showServices } = catalogOfferingFlags(vendor)
   return (
     <footer style={surface.style} className={cn('mt-auto', surface.rootClass)}>
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -315,8 +327,8 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
           <div>
             <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Shop</h4>
             <div className="space-y-2.5 text-sm">
-              <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>
-              <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>
+              {showProducts && <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>}
+              {showServices && <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>}
               <Link to={storePath('/rentals')} className={cn('block', surface.linkClass)}>Rentals</Link>
               <Link to={storePath('/contact')} className={cn('block', surface.linkClass)}>Contact Us</Link>
               <Link to={storePath('/policies')} className={cn('block', surface.linkClass)}>Store Policies</Link>
@@ -340,6 +352,7 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
 
 function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: string) => string; theme: ReturnType<typeof useTheme> }) {
   const surface = footerSurface(theme)
+  const { showProducts, showServices } = catalogOfferingFlags(vendor)
   return (
     <footer style={surface.style} className={cn('mt-auto', surface.rootClass)}>
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -352,8 +365,8 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
             <h4 className={cn('font-semibold text-sm mb-4', surface.titleClass)}>Get to Know Us</h4>
             <div className="space-y-2.5 text-sm">
               <Link to={storePath('/')} className={cn('block', surface.linkClass)}>About {vendor?.display_name}</Link>
-              <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>
-              <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>
+              {showProducts && <Link to={storePath('/products')} className={cn('block', surface.linkClass)}>All Products</Link>}
+              {showServices && <Link to={storePath('/services')} className={cn('block', surface.linkClass)}>All Services</Link>}
               <Link to={storePath('/rentals')} className={cn('block', surface.linkClass)}>Rentals</Link>
               <Link to={storePath('/contact')} className={cn('block', surface.linkClass)}>Contact Us</Link>
               <Link to={storePath('/policies')} className={cn('block', surface.linkClass)}>Store Policies</Link>

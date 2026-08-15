@@ -29,14 +29,30 @@ export const CATALOG_GRID_COL_CLASS: Record<number, string> = {
   2: 'grid-cols-1 sm:grid-cols-2',
   3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
   4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
-  5: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
-  6: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
-  7: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7',
-  8: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8',
-  9: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9',
-  10: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10',
-  11: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-11',
-  12: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12',
+  5: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5',
+  6: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6',
+  7: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7',
+  8: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8',
+  9: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9',
+  10: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10',
+  11: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11',
+  12: 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12',
+}
+
+/** Fixed column count — Tailwind media queries follow the browser, not the canvas. */
+export const CATALOG_GRID_EXACT_COL_CLASS: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+  5: 'grid-cols-5',
+  6: 'grid-cols-6',
+  7: 'grid-cols-7',
+  8: 'grid-cols-8',
+  9: 'grid-cols-9',
+  10: 'grid-cols-10',
+  11: 'grid-cols-11',
+  12: 'grid-cols-12',
 }
 
 export function catalogGridResponsiveColClass(columns: number): string {
@@ -55,7 +71,7 @@ export function catalogGridColClassForBreakpoint(
   breakpoint: 'desktop' | 'tablet' | 'mobile' = 'desktop',
 ): string {
   const n = Math.min(Math.max(Math.round(columns) || 1, 1), MAX_CATALOG_GRID_COLUMNS)
-  if (breakpoint === 'desktop') return CATALOG_GRID_COL_CLASS[n] || CATALOG_GRID_COL_CLASS[4]
+  if (breakpoint === 'desktop') return CATALOG_GRID_EXACT_COL_CLASS[n] || CATALOG_GRID_EXACT_COL_CLASS[4]
 
   // Match the base / sm–md band of CATALOG_GRID_COL_CLASS (no lg/xl).
   if (breakpoint === 'mobile') {
@@ -127,7 +143,7 @@ export interface CatalogImageShell {
 
 export function catalogImageObjectFitClass(fit?: string | null): string {
   return fit === 'contain'
-    ? 'object-contain object-center p-2'
+    ? 'object-contain object-center p-1'
     : 'object-cover object-center'
 }
 
@@ -137,8 +153,8 @@ export function parseCatalogImageAspect(raw: unknown): CatalogImageAspect {
 }
 
 export function parseCatalogImageObjectFit(raw: unknown): CatalogImageObjectFit {
-  if (raw === 'cover') return 'cover'
-  return 'contain'
+  if (raw === 'contain') return 'contain'
+  return 'cover'
 }
 
 export function parseCardBorderRadius(raw: unknown): number | null {
@@ -210,6 +226,15 @@ export function buildCatalogImageShell(options: {
     }
   }
 
+  // Default catalog tiles: square frame so pack shots fill edge-to-edge.
+  if (options.imageHeightPct >= 95) {
+    return {
+      wrapperClassName: cn('relative w-full overflow-hidden aspect-square', bg, options.productTileWrap),
+      wrapperStyle: widthStyle,
+      imageClassName,
+    }
+  }
+
   return {
     wrapperClassName: cn('relative w-full overflow-hidden', bg, options.productTileWrap),
     wrapperStyle: { ...widthStyle, paddingBottom: `${options.imageHeightPct}%` },
@@ -242,7 +267,7 @@ export function readCatalogCardLayout(
 
   return {
     columns: clampCatalogColumns(props.columns, defaultColumns, blockType),
-    itemGap: clampNumber(props.item_gap, 24, 0, 80),
+    itemGap: clampNumber(props.item_gap, 12, 0, 80),
     imageHeightPct: clampNumber(
       props.image_height_pct,
       isMinimalCard ? 72 : isCompactCard ? 88 : 100,
@@ -252,7 +277,7 @@ export function readCatalogCardLayout(
     imageWidthPct: clampNumber(props.image_width_pct, 100, 40, 100),
     cardPadding: clampNumber(
       props.card_padding,
-      isMinimalCard ? 8 : isCompactCard ? 10 : 16,
+      isMinimalCard ? 6 : isCompactCard ? 8 : 10,
       4,
       32,
     ),

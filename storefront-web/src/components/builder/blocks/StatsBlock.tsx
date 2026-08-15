@@ -26,6 +26,7 @@ interface Props {
 export default function StatsBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : undefined
 
   const title = resolveBlockTextField(props, 'title')
   const surface = resolveSectionSurface(props, style)
@@ -77,7 +78,7 @@ export default function StatsBlock({ style, props, liveItems, blockId }: Props) 
     )
   }
 
-  const colClass = sectionGridColumnClass(columns)
+  const colClass = sectionGridColumnClass(columns, previewBp)
 
   return (
     <BuilderSectionSurface surface={surface}>

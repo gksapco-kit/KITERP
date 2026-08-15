@@ -53,7 +53,10 @@ function hydrateProducts(liveItems: LiveItem[]) {
       name: item.title || `Product ${idx + 1}`,
       description: item.description || item.subtitle || '',
       price: moneyToMajor(item.price ?? meta.price),
-      compareAtPrice: moneyToMajor(meta.compare_at_price),
+      compareAtPrice: (() => {
+        const compare = moneyToMajor(meta.compare_at_price)
+        return compare > 0 ? compare : undefined
+      })(),
       currency: (meta.currency as string) || 'INR',
       image: item.image_url || swatch(item.title || String(idx)),
       tags: Array.isArray(meta.tags)

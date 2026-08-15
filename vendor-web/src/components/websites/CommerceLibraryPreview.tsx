@@ -37,7 +37,10 @@ function hydrateLive(blockType: string, liveItems: LiveItem[] = []) {
       name: item.title || `Product ${idx + 1}`,
       description: item.description || item.subtitle || '',
       price: moneyToMajor(item.price ?? item.meta?.price),
-      compareAtPrice: moneyToMajor(item.meta?.compare_at_price),
+      compareAtPrice: (() => {
+        const compare = moneyToMajor(item.meta?.compare_at_price)
+        return compare > 0 ? compare : undefined
+      })(),
       currency: (item.meta?.currency as string) || 'INR',
       image: item.image_url || swatch(item.title || String(idx)),
       tags: Array.isArray(item.meta?.tags) ? (item.meta.tags as string[]) : [item.subtitle || item.meta?.category_name as string].filter(Boolean),

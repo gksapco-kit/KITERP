@@ -55,6 +55,53 @@ import { showBarcodeNotFound } from '@/components/scanner/BarcodeNotFoundToast'
 
 const resolveUrl = mediaUrl
 
+type CatalogThumbMedia = { url?: string; media_type?: string; is_primary?: boolean } | null | undefined
+
+function isCatalogImage(img: CatalogThumbMedia): img is { url: string; media_type?: string; is_primary?: boolean } {
+  if (!img?.url) return false
+  return !img.media_type || img.media_type === 'image'
+}
+
+function firstImageUrl(items?: CatalogThumbMedia[]): string {
+  const list = items || []
+  const primary = list.find((img) => img?.is_primary && isCatalogImage(img))
+  const any = primary || list.find(isCatalogImage)
+  return any ? resolveUrl(any.url) : ''
+}
+
+function productListThumbUrl(product: Product): string {
+  const fromProduct = firstImageUrl(product.images)
+  if (fromProduct) return fromProduct
+  for (const v of product.variants || []) {
+    const fromVariant = firstImageUrl((v as { images?: CatalogThumbMedia[] }).images || v.media)
+    if (fromVariant) return fromVariant
+  }
+  return ''
+}
+
+function CatalogListThumb({ src, alt, size = 'md' }: { src: string; alt: string; size?: 'md' | 'sm' }) {
+  const box = size === 'sm' ? 'h-12 w-14' : 'h-16 w-[4.75rem]'
+  const icon = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'
+  if (!src) {
+    return (
+      <div className={`${box} flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200/80 bg-gray-50`}>
+        <ImageIcon className={`${icon} text-gray-300`} />
+      </div>
+    )
+  }
+  return (
+    <div className={`${box} shrink-0 overflow-hidden rounded-lg border border-gray-200/80 bg-white`}>
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        className="h-full w-full object-contain object-center p-0.5"
+      />
+    </div>
+  )
+}
+
 function shareProduct(product: { name: string; price: number; category?: string; slug?: string }, action: 'copy' | 'whatsapp' | 'email' | 'native') {
   const text = `Check out ${product.name} - ${formatCurrency(product.price)}${product.category ? ` in ${product.category}` : ''}`
   if (action === 'copy') { navigator.clipboard.writeText(text); toast.success('Product info copied!') }
@@ -386,8 +433,7 @@ export default function Products() {
       price: number; priceHigh: number; quantity: number; stock_status: string; low_stock_threshold: number; currency: string; is_active: boolean
     }[] = []
     for (const product of displayProducts) {
-      const primaryImg = product.images?.find((img: any) => img.is_primary) || product.images?.[0]
-      const productThumb = primaryImg ? resolveUrl(primaryImg.url) : ''
+      const productThumb = productListThumbUrl(product)
       const variants = product.variants || []
       if (variants.length === 0) {
         rows.push({
@@ -402,8 +448,7 @@ export default function Products() {
         })
       } else {
         for (const v of variants) {
-          const vImg = (v.media || []).find((img) => img?.url)
-          const vThumb = vImg ? resolveUrl(vImg.url) : productThumb
+          const vThumb = firstImageUrl(v.media) || productThumb
           const price = v.price ?? 0
           const qty = v.quantity ?? 0
           rows.push({
@@ -688,11 +733,7 @@ export default function Products() {
               ) : displayProducts.map((product) => {
                 const variants = product.variants || []
                 const hasVariants = variants.length > 0
-                const primaryImg = product.images?.find((img: any) => img.is_primary) || product.images?.[0]
-                const variantImg = !primaryImg
-                  ? variants.flatMap((v: any) => v.images || v.media || []).find((img: any) => img?.url)
-                  : null
-                const thumbUrl = primaryImg ? resolveUrl(primaryImg.url) : variantImg ? resolveUrl(variantImg.url) : ''
+                const thumbUrl = productListThumbUrl(product)
 
                 return (
                 <tr
@@ -702,13 +743,7 @@ export default function Products() {
                 >
                   <td className="px-5 py-3 max-w-[280px]">
                     <div className="flex items-center gap-3 min-w-0">
-                      {thumbUrl ? (
-                        <img src={thumbUrl} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100 border border-gray-200/80 shrink-0" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200/80 flex items-center justify-center shrink-0">
-                          <ImageIcon className="w-4 h-4 text-gray-300" />
-                        </div>
-                      )}
+                      <CatalogListThumb src={thumbUrl} alt={product.name} />
                       <div className="min-w-0 flex-1">
                         <InlineEditCell
                           value={product.name}
@@ -1042,13 +1077,7 @@ export default function Products() {
                   >
                     <td className="px-5 py-2.5 max-w-[240px] overflow-hidden">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        {row.thumbUrl ? (
-                          <img src={row.thumbUrl} alt="" className="w-8 h-8 rounded-md object-cover bg-gray-100 border border-gray-200/80 shrink-0" />
-                        ) : (
-                          <div className="w-8 h-8 rounded-md bg-gray-100 border border-gray-200/80 flex items-center justify-center shrink-0">
-                            <ImageIcon className="w-3.5 h-3.5 text-gray-300" />
-                          </div>
-                        )}
+                        <CatalogListThumb src={row.thumbUrl} alt={row.productName} size="sm" />
                         <div className="min-w-0 flex-1">
                           <InlineEditCell
                             value={row.productName}

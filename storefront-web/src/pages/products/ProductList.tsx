@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useState, useMemo, useEffect } from 'react'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,6 +15,8 @@ import {
 import type { StoreCategory } from '@/types'
 import { useBranch } from '@/contexts/BranchContext'
 import { useVendor } from '@/contexts/VendorContext'
+import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
+import { catalogSearchPlaceholder, resolveStorefrontOfferingType } from '@/lib/catalogNavCapabilities'
 import { useAuthStore } from '@/stores/authStore'
 import { useTheme } from '@/contexts/ThemeContext'
 import StarRating from '@/components/StarRating'
@@ -164,7 +166,14 @@ function productHasStock(product: Product): boolean {
 export default function ProductList({ defaultFilterType = 'products' }: CatalogListProps) {
   const { storePath } = useBranch()
   const navigate = useNavigate()
-  const { vendorSlug, displayFields } = useVendor()
+  const { vendorSlug, displayFields, vendor } = useVendor()
+  const effectiveVendor = useEffectiveVendor()
+  const offering = resolveStorefrontOfferingType({
+    offeringType: effectiveVendor?.offering_type ?? vendor?.offering_type,
+    settings: effectiveVendor?.settings ?? vendor?.settings,
+  })
+  const allowProducts = offering !== 'services'
+  const allowServices = offering !== 'products'
   const { isAuthenticated } = useAuthStore()
   const theme = useTheme()
   const addToCart = useAddToCart()
@@ -193,6 +202,11 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
   const [minPrice, setMinPrice] = useState<string>('')
   const [maxPrice, setMaxPrice] = useState<string>('')
   const [inStockOnly, setInStockOnly] = useState(false)
+
+  useEffect(() => {
+    if (!allowProducts && filterType !== 'services') setFilterType('services')
+    else if (!allowServices && filterType !== 'products') setFilterType('products')
+  }, [allowProducts, allowServices, filterType])
 
   const pageTitle = defaultFilterType === 'services' ? 'Services' : 'Products'
   const pageDescription =
@@ -330,6 +344,13 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
           ? 'Services only'
           : 'Products & Services'
 
+  if (!allowServices && defaultFilterType === 'services') {
+    return <Navigate to={storePath('/products')} replace />
+  }
+  if (!allowProducts && defaultFilterType === 'products') {
+    return <Navigate to={storePath('/services')} replace />
+  }
+
   return (
     <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-3">
       {/* Breadcrumb */}
@@ -365,7 +386,8 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
               <SlidersHorizontal className="w-4 h-4" /> Filters
             </h3>
             <div className="space-y-4">
-              {/* Type Filter */}
+              {/* Type Filter — only when the vendor sells both products and services */}
+              {allowProducts && allowServices && (
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5 block">Type</label>
                 <div className="space-y-1.5">
@@ -406,6 +428,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                   </label>
                 </div>
               </div>
+              )}
 
               {categories.length > 0 && (
                 <div>
@@ -479,11 +502,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                     <Input
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
-                      placeholder={
-                        defaultFilterType === 'services'
-                          ? 'Search services and products…'
-                          : 'Search products and services…'
-                      }
+                      placeholder={catalogSearchPlaceholder(offering)}
                       className="h-8 pl-9 pr-9 text-sm border-gray-200 bg-gray-50/80 focus:bg-white"
                       aria-label="Search catalogue"
                     />
@@ -698,7 +717,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
               )}
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-2.5">
               {combinedItems.map((item: any) => {
                 const isProduct = item.type === 'product'
                 const detailPath = isProduct ? `/products/${item.slug}` : `/services/${item.slug}`

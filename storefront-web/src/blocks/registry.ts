@@ -95,7 +95,7 @@ export const BLOCK_CATALOG: BlockDef[] = [
   { type: 'checkout_form', label: 'Checkout Form', desc: 'Address, shipping, payment fields', category: 'erp', defaultProps: { allow_cod: true, show_tip: false } },
   { type: 'search_bar', label: 'Search Bar', desc: 'Autosuggest product/service search', category: 'ecommerce', defaultProps: { placeholder: 'Search products & services...', show_filters: true } },
   { type: 'product_filters', label: 'Product Filters', desc: 'Faceted filter sidebar', category: 'ecommerce', defaultProps: { show_price: true, show_category: true, show_brand: true }, liveResource: 'categories' },
-  { type: 'related_products', label: 'Related Products', desc: 'Cross-sell / upsell grid', category: 'ecommerce', defaultProps: { title: 'You May Also Like', count: 4, padding_top: 64, padding_bottom: 64 }, liveResource: 'products' },
+  { type: 'related_products', label: 'Related Products', desc: 'Cross-sell / upsell grid', category: 'ecommerce', defaultProps: { title: 'You May Also Like', count: 4, padding_top: 32, padding_bottom: 32, item_gap: 12, card_padding: 10 }, liveResource: 'products' },
   { type: 'recently_viewed', label: 'Recently Viewed', desc: 'Client-side recently viewed items', category: 'ecommerce', defaultProps: { title: 'Recently Viewed', max: 6 } },
   { type: 'coupon_banner', label: 'Coupon Banner', desc: 'Promotional coupon code display', category: 'erp', defaultProps: { title: 'Use code SAVE10 for 10% off!', show_copy_button: true } },
   { type: 'payment_methods_strip', label: 'Payment Methods', desc: 'Payment provider logo strip', category: 'erp', defaultProps: { title: 'Secure Payments', methods: ['visa', 'mastercard', 'upi', 'gpay', 'cod'] } },

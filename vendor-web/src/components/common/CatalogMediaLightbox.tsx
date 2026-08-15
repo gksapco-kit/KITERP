@@ -585,6 +585,7 @@ export function SingleImagePreview({
           src={resolveUrl(url)}
           alt={alt}
           title={editable && onSave ? editTitle : viewOnlyTitle}
+          className="h-full w-full"
           imgClassName={imgClassName}
           onClick={() => setOpen(true)}
         />

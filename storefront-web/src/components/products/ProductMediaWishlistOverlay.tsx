@@ -1,4 +1,6 @@
 import { ProductWishlistButton } from '@/components/products/ProductWishlistButton'
+import { useVendor } from '@/contexts/VendorContext'
+import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
 import type { Product, ProductVariant } from '@/types'
 
 type MediaItem = { url: string }
@@ -19,6 +21,9 @@ export function ProductMediaWishlistOverlay({
   displayMedia,
   selectedImage,
 }: Props) {
+  const { displayFields } = useVendor()
+  if (!isDisplayFieldEnabled(displayFields.product, 'wishlist')) return null
+
   const imageUrl = displayMedia[selectedImage]?.url || product.images?.[0]?.url
 
   return (

@@ -19,6 +19,7 @@ from app.schemas.bank_account import BankAccountCreate
 from app.repositories.vendor_repo import VendorRepository
 from app.services.file_service import FileService
 from app.services.user_cleanup import delete_user_if_orphan
+from app.services.vendor_cleanup import delete_vendor_row
 from app.core.events import event_emitter
 
 
@@ -411,8 +412,7 @@ class VendorService:
         business_name = vendor.business_name
 
         try:
-            await self.db.delete(vendor)
-            await self.db.flush()
+            await delete_vendor_row(self.db, vendor_id)
         except IntegrityError as exc:
             await self.db.rollback()
             raise HTTPException(

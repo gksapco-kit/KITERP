@@ -468,6 +468,7 @@ export function useStoreBridgeCheckout() {
         shippingAddress: resolvedAddress,
         isGuest,
         usingSavedAddress,
+        requirePhone: true,
         requireShippingAddress: requiresShipping,
       })
 

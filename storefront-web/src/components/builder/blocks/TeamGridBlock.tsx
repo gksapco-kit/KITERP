@@ -133,6 +133,7 @@ function MemberAvatar({
 export default function TeamGridBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = Boolean(builderCanvas?.isEditorCanvas && blockId)
+  const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : undefined
   const title = resolveBlockTextField(props, 'title', {
     fallback: () => (isEditorCanvas ? null : 'Our team'),
   })
@@ -208,7 +209,7 @@ export default function TeamGridBlock({ style, props, liveItems, blockId }: Prop
         </div>
       )}
       <div
-        className={cn('mx-auto grid w-full items-start', sectionGridColumnClass(columns))}
+        className={cn('mx-auto grid w-full items-start', sectionGridColumnClass(columns, previewBp))}
         style={{ gap: `${itemGap}px`, maxWidth: columns >= 5 ? '100%' : '1000px' }}
       >
         {visibleEntries.map(({ item: member, memberIndex, rawMember }) => {

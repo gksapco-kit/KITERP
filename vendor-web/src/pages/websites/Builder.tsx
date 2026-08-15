@@ -340,6 +340,7 @@ import { extractApiError, isBuilderPreviewInfraFailure } from '@/lib/errorMessag
 import { normalizeStorefrontCatalogHref, parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
 import { DraftCatalogPreview } from '@/components/websites/DraftCatalogPreview'
 import { findBuilderPageForNavPath } from '@storefront/lib/previewNavRouting'
+import { isVendorBlogEnabled } from '@storefront/lib/catalogNavCapabilities'
 import { recallDraftPreviewToken } from '@/lib/draftPreviewNavigation'
 import {
   isLiveTeamDataSource,
@@ -3720,7 +3721,7 @@ function BlockOverlayCanvas({
     return map
   }, [mobilePreview, overlays])
 
-  if (!overlays.length && !isEditing) return null
+  if (!isEditing) return null
 
   const minH = overlays.some(o => !overlayUsesPercent(o))
     ? Math.max(...overlays.filter(o => !overlayUsesPercent(o)).map(o => o.y + o.h + 240))
@@ -3931,9 +3932,7 @@ function BuilderSectionChromeToolbar({
       >
         <GripVertical className="w-3.5 h-3.5" />
       </button>
-      <button
-        type="button"
-        onClick={handleMinimizeClick}
+      <button type="button" onClick={handleMinimizeClick}
         className={cn(iconBtn, 'hover:text-amber-300 shrink-0')}
         title={
           effectiveMinimized
@@ -3943,6 +3942,9 @@ function BuilderSectionChromeToolbar({
       >
         <X className="w-3.5 h-3.5" />
       </button>
+      <span className="max-w-[140px] truncate px-1 text-[11px] font-semibold text-white/95" title={catalogBlockLabel(block)}>
+        {catalogBlockLabel(block)}
+      </span>
       <button type="button" onClick={e => { e.stopPropagation(); onMoveBlock('top') }} className={iconBtn} title="Move section to top of page">
         <ChevronsUp className="w-4 h-4" />
       </button>
@@ -5170,16 +5172,16 @@ function CatalogGridLayoutControls({
   const colMin = config.columnMin
   const colMax = CATALOG_GRID_COLUMN_MAX
   const columns = Math.min(colMax, Math.max(colMin, Number(p.columns ?? config.defaultColumns) || colMin))
-  const gap = Math.min(80, Math.max(0, Number(p.item_gap ?? 24) || 0))
+  const gap = Math.min(80, Math.max(0, Number(p.item_gap ?? 12) || 0))
   const imageHeightPct = Math.min(100, Math.max(40, Number(p.image_height_pct ?? 100) || 100))
   const imageWidthPct = Math.min(100, Math.max(40, Number(p.image_width_pct ?? 100) || 100))
-  const cardPadding = Math.min(32, Math.max(4, Number(p.card_padding ?? 16) || 16))
+  const cardPadding = Math.min(32, Math.max(4, Number(p.card_padding ?? 10) || 10))
   const showCount = Math.min(CATALOG_GRID_COUNT_MAX, Math.max(1, Number(
     config.itemCountKeys.map(k => p[k]).find(v => v != null && v !== '') ?? 12,
   ) || 12))
   const cardStyle = String(p.card_style ?? 'default')
   const imageAspect = String(p.image_aspect ?? 'auto')
-  const imageObjectFit = String(p.image_object_fit ?? 'contain')
+  const imageObjectFit = String(p.image_object_fit ?? 'cover')
   const cardBorderRadius = p.card_border_radius
   const radiusAuto = cardBorderRadius == null || cardBorderRadius === ''
   const showStock = p.show_stock !== false
@@ -7502,13 +7504,25 @@ function PropsEditor({
   const activeResourcesCount = resourceLiveItems.filter(item => item.meta?.is_active !== false).length
   const isResourceFromDefaultTemplate = resourceLiveItems.length > 0 && resourceLiveItems.every(item => item.meta?.is_default_template === true)
 
+  const websiteBlogEnabled = isVendorBlogEnabled(vendor?.settings)
   const blogManagerBanner = isBlogBlock ? (
-    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900 leading-snug space-y-2">
+    <div className={cn(
+      'rounded-xl border px-3 py-2.5 text-xs leading-snug space-y-2',
+      websiteBlogEnabled
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+        : 'border-amber-200 bg-amber-50 text-amber-950',
+    )}>
+      {!websiteBlogEnabled && (
+        <p>
+          <span className="font-semibold">Blog is hidden on the live website.</span>{' '}
+          The Blog menu will not show until you turn on <span className="font-semibold">Show on website</span> in Blog Manager.
+        </p>
+      )}
       <p>
         <span className="font-semibold">Synced with Blog Manager.</span>{' '}
         Posts you create and publish there appear here automatically.
       </p>
-      <p className="text-emerald-800">
+      <p className={websiteBlogEnabled ? 'text-emerald-800' : 'text-amber-800'}>
         {blogLiveItems.length === 0
           ? 'No posts yet — add your first post in Blog Manager.'
           : `${publishedBlogCount} published${draftBlogCount ? ` · ${draftBlogCount} draft${draftBlogCount === 1 ? '' : 's'} visible in builder preview` : ''}`}
@@ -12369,6 +12383,7 @@ export default function WebsiteBuilder() {
   const { data: site, isLoading } = useSite(siteId || null)
   useMyVendor()
   const { vendor: myVendor } = useVendorStore()
+  const websiteBlogEnabled = isVendorBlogEnabled(myVendor?.settings)
   const { data: builderStoresData } = useStores({ limit: 200 })
   const builderStores = builderStoresData?.stores ?? []
   const isExternalSite = useMemo(() => {
@@ -13779,8 +13794,16 @@ export default function WebsiteBuilder() {
 
   const availableReadyPages = useMemo(() => {
     const existingSlugs = new Set(localPages.map(p => p.slug))
-    return ALL_READY_PAGES.filter(rp => !existingSlugs.has(rp.slug))
-  }, [localPages, ALL_READY_PAGES])
+    return ALL_READY_PAGES.filter(rp => !existingSlugs.has(rp.slug)).map(rp => {
+      if (rp.slug === 'blog' && !websiteBlogEnabled) {
+        return {
+          ...rp,
+          description: 'Hidden on the live website until you enable Show on website in Blog Manager',
+        }
+      }
+      return rp
+    })
+  }, [localPages, ALL_READY_PAGES, websiteBlogEnabled])
 
   const filteredCatalogBlocks = useMemo(() => {
     let list = BLOCK_CATALOG
@@ -18637,6 +18660,11 @@ export default function WebsiteBuilder() {
                                   {page.is_homepage && (
                                     <span className="text-[8px] bg-primary/15 text-primary rounded px-1 font-bold shrink-0">HOME</span>
                                   )}
+                                  {!websiteBlogEnabled && (page.page_type === 'blog' || String(page.slug || '').toLowerCase() === 'blog') && (
+                                    <span className="text-[8px] bg-amber-100 text-amber-800 rounded px-1 font-bold shrink-0" title="Hidden on the live website until you enable Blog in Blog Manager">
+                                      HIDDEN
+                                    </span>
+                                  )}
                                 </div>
                                 <span className="text-[10px] text-gray-400 font-mono leading-none">/{page.slug}</span>
                               </div>
@@ -18780,6 +18808,11 @@ export default function WebsiteBuilder() {
                         <div className="text-[11px] font-semibold text-gray-700 truncate" title={activePage.title}>
                           Current page: {activePage.title}
                         </div>
+                        {!websiteBlogEnabled && (activePage.page_type === 'blog' || String(activePage.slug || '').toLowerCase() === 'blog') && (
+                          <p className="text-[10px] leading-snug text-amber-700">
+                            Blog is off in Blog Manager, so this screen will not appear in the website menu until you turn on Show on website.
+                          </p>
+                        )}
                         {countPersistedPages(localPages) <= 1 ? (
                           <p className="text-[10px] leading-snug text-gray-500">Your site needs at least one page.</p>
                         ) : !isPersistedPageId(activePage.id) ? (
@@ -19248,6 +19281,7 @@ export default function WebsiteBuilder() {
                         layoutScale={1}
                         revision={canvasBlocksRevision}
                         selected={selectedBlockId === block.id}
+                        label={catalogBlockLabel(block)}
                         imageSelected={
                           selectedBlockId === block.id
                           && Boolean(canvasImageStyleField(canvasImageTarget, block.id))
@@ -19310,8 +19344,8 @@ export default function WebsiteBuilder() {
                         )}
 
                         <div className={cn(
-                          'absolute bottom-1 left-1 z-[74] flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold bg-primary/80 text-white transition-opacity pointer-events-none',
-                          selectedBlockId === block.id ? 'opacity-0' : 'opacity-0 group-hover:opacity-70',
+                          'absolute left-0 top-0 z-[74] max-w-[min(100%,240px)] truncate px-1.5 py-0.5 rounded-br text-[10px] font-bold bg-primary text-white transition-opacity pointer-events-none',
+                          selectedBlockId === block.id ? 'opacity-0' : 'opacity-0 group-hover:opacity-80',
                         )}>
                           {catalogBlockLabel(block)}
                         </div>

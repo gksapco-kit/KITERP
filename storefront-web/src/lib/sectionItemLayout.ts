@@ -2,17 +2,46 @@ import { cn } from '@/lib/utils'
 
 /** Shared grid layout helpers — keep edit-panel sliders in sync with canvas blocks. */
 
-export function sectionGridColumnClass(columns: number): string {
-  const cols = Math.min(Math.max(Number(columns) || 3, 1), 6)
-  const map: Record<number, string> = {
-    1: 'grid-cols-1',
-    2: 'grid-cols-1 sm:grid-cols-2',
-    3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
-    4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
-    5: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5',
-    6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
+const SECTION_GRID_RESPONSIVE: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-1 sm:grid-cols-2',
+  3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+  4: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
+  5: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5',
+  6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
+}
+
+const SECTION_GRID_EXACT: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+  5: 'grid-cols-5',
+  6: 'grid-cols-6',
+}
+
+function clampSectionGridColumns(columns: number): number {
+  return Math.min(Math.max(Number(columns) || 3, 1), 6)
+}
+
+/**
+ * Live storefront: responsive classes (viewport).
+ * Builder canvas: pass the device preview breakpoint so columns follow the
+ * 1440/768/390 canvas, not the admin browser window.
+ */
+export function sectionGridColumnClass(
+  columns: number,
+  breakpoint?: 'desktop' | 'tablet' | 'mobile' | null,
+): string {
+  const cols = clampSectionGridColumns(columns)
+  if (breakpoint === 'desktop') return SECTION_GRID_EXACT[cols] || SECTION_GRID_EXACT[3]
+  if (breakpoint === 'mobile') return cols <= 3 ? 'grid-cols-1' : 'grid-cols-2'
+  if (breakpoint === 'tablet') {
+    if (cols <= 1) return 'grid-cols-1'
+    if (cols <= 3) return 'grid-cols-2'
+    return 'grid-cols-3'
   }
-  return map[cols] || map[3]
+  return SECTION_GRID_RESPONSIVE[cols] || SECTION_GRID_RESPONSIVE[3]
 }
 
 export function sectionItemGap(props: Record<string, unknown>, fallback = 24): number {

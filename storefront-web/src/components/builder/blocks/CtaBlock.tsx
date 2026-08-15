@@ -4,10 +4,9 @@ import { imgUrl, cn } from '@/lib/utils'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
 import { resolveSectionSurface } from '@/lib/navBlockLayout'
-import { readSectionImageFocal } from '@/lib/sectionImageStyle'
+import { sectionImageObjectStyle } from '@/lib/sectionImageStyle'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderCtaButton } from '@/components/builder/BuilderCtaButton'
-import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
@@ -42,17 +41,9 @@ export default function CtaBlock({ site, style, props, blockId }: Props) {
   const bgImageRaw = bgImageHidden ? undefined : (props.bg_image_url as string | undefined)
   const usesImageBg = !!bgImageRaw
   const bgImageUrl = bgImageRaw ? imgUrl(bgImageRaw) : undefined
-  const focal = readSectionImageFocal('bg_image_url', props)
 
   const shellStyle: CSSProperties = usesImageBg
-    ? isEditorCanvas
-      ? { color: '#fff' }
-      : {
-          backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.55), rgba(0,0,0,0.45)), url(${bgImageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: `${focal.x}% ${focal.y}%`,
-          color: '#fff',
-        }
+    ? { color: '#fff' }
     : {
         background: surface.background,
         color: surface.color,
@@ -174,15 +165,27 @@ export default function CtaBlock({ site, style, props, blockId }: Props) {
         )}
         style={shellStyle}
       >
-        {isEditorCanvas && usesImageBg && bgImageUrl ? (
-          <div className="absolute inset-0 z-0">
-            <BuilderSectionImage
-              blockId={blockId}
-              field="bg_image_url"
-              blockProps={props}
+        {usesImageBg && bgImageUrl ? (
+          <div className="absolute inset-0 z-0 overflow-hidden">
+            <img
               src={bgImageUrl}
-              className="absolute inset-0 h-full w-full"
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              style={sectionImageObjectStyle('bg_image_url', props)}
+              loading="eager"
+              decoding="async"
             />
+            {isEditorCanvas && blockId ? (
+              <button
+                type="button"
+                aria-label="Select background photo"
+                className="absolute inset-0 z-[1] cursor-pointer bg-transparent"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  builderCanvas?.onSectionImageActivate?.(blockId, 'bg_image_url')
+                }}
+              />
+            ) : null}
           </div>
         ) : null}
         {usesImageBg && props.overlay !== false ? (

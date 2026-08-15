@@ -460,8 +460,8 @@ export function SingleBlock({
     : ''
   const useResponsiveSpacingCss = responsiveSpacingCss.length > 0
   const sectionStyles = mergeBlockSectionStyles(p, resolvedOverrides)
-  const paddingTop = useResponsiveSpacingCss && !isEditorCanvas ? 0 : sectionSpacing.paddingTop
-  const paddingBottom = useResponsiveSpacingCss && !isEditorCanvas ? 0 : sectionSpacing.paddingBottom
+  const paddingTop = useResponsiveSpacingCss ? 0 : sectionSpacing.paddingTop
+  const paddingBottom = useResponsiveSpacingCss ? 0 : sectionSpacing.paddingBottom
   const blockShadow = resolveBlockBoxShadow(p)
   const hasBlockShadow = blockShadowIsActive(p)
   const overlays = (Array.isArray(p.overlays) ? p.overlays : []) as BlockOverlayItem[]
@@ -477,9 +477,16 @@ export function SingleBlock({
   // padding) while still reflowing layout (unlike transform: scale, which would
   // leave gaps/overlap). `zoom` is the only CSS that grows the section's footprint.
   const sectionScale = (() => {
-    if (useResponsiveSpacingCss && !isEditorCanvas) return undefined
     const s = sectionSpacing.sectionScale
-    return s !== 1 ? s : undefined
+    if (s !== 1) return s
+    // Live CSS targets `.builder-block-zoom-wrap` at tablet/mobile — keep the
+    // wrap in the DOM even when desktop scale is 1, or published zoom never applies.
+    if (useResponsiveSpacingCss) {
+      const tabletScale = resolveBlockSectionSpacing(block, 'tablet').sectionScale
+      const mobileScale = resolveBlockSectionSpacing(block, 'mobile').sectionScale
+      if (tabletScale !== 1 || mobileScale !== 1) return 1
+    }
+    return undefined
   })()
 
   const wrapperStyle: CSSProperties = {}
@@ -514,7 +521,9 @@ export function SingleBlock({
   const blockSuspenseFallback = SUSPENSE_NULL_FALLBACK_BLOCKS.has(block.block_type)
     ? null
     : <BlockSkeleton />
-  const overlayLayers = overlays.length > 0 && !isEditorCanvas
+  const overlayLayers = overlays.length > 0 && (
+    !isEditorCanvas || builderCanvas?.activeBlockId !== block.id
+  )
     ? <BlockOverlayLayers overlays={overlays} />
     : null
   const blockBody = (

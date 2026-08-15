@@ -90,8 +90,8 @@ const catalogMediaCompact = {
   headerPickerHint: 'text-[10px] font-semibold tracking-wide text-primary',
   thumbStrip: 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5',
   thumbStripStacked: 'flex w-full flex-wrap items-center gap-1',
-  thumb: 'relative group aspect-square size-[4.25rem] shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm',
-  thumbStacked: 'relative group aspect-square size-[3.25rem] shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm',
+  thumb: 'relative group aspect-[4/3] h-[4.25rem] w-[6.5rem] shrink-0 overflow-hidden rounded-md border border-gray-200 bg-muted/40 shadow-sm',
+  thumbStacked: 'relative group aspect-[4/3] w-full min-h-[8.5rem] overflow-hidden rounded-md border border-gray-200 bg-muted/40 shadow-sm',
   sectionLabel: 'flex items-center gap-1 text-[10px] font-medium text-gray-600',
   sectionLabelIcon: 'h-2.5 w-2.5',
   primaryBadge:
@@ -199,7 +199,16 @@ function MediaPreview({ item, compact }: { item: ProductImage; compact?: boolean
     )
   }
 
-  return <img src={url} alt={item.alt_text || ''} className="h-full w-full object-cover" />
+  return (
+    <img
+      src={url}
+      alt={item.alt_text || ''}
+      className={cn(
+        'h-full w-full object-contain object-center',
+        compact ? 'p-1' : 'p-0.5',
+      )}
+    />
+  )
 }
 
 function CatalogMediaThumb({

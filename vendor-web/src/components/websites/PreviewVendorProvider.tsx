@@ -20,6 +20,7 @@ export function PreviewVendorProvider({
   openBuilderForPage,
   offeringType,
   socialLinks,
+  settings,
   children,
 }: {
   slug: string
@@ -30,6 +31,7 @@ export function PreviewVendorProvider({
   openBuilderForPage?: (pageSlug: string | null) => void
   offeringType?: 'products' | 'services' | 'both'
   socialLinks?: Record<string, string>
+  settings?: Record<string, unknown>
   children: ReactNode
 }) {
   const [searchParams] = useSearchParams()
@@ -46,7 +48,7 @@ export function PreviewVendorProvider({
       theme_config: {},
       primary_email: '',
       primary_phone: '',
-      settings: {},
+      settings: settings ?? {},
     }
     return {
       vendor,
@@ -96,7 +98,7 @@ export function PreviewVendorProvider({
       previewShell: true,
       openBuilderForPage,
     }
-  }, [slug, siteName, previewToken, currentPageSlug, sitePageSlugs, openBuilderForPage, offeringType, socialLinks])
+  }, [slug, siteName, previewToken, currentPageSlug, sitePageSlugs, openBuilderForPage, offeringType, socialLinks, settings])
 
   return <VendorContext.Provider value={value}>{children}</VendorContext.Provider>
 }

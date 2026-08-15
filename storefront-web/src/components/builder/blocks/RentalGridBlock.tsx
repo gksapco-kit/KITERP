@@ -7,6 +7,7 @@ import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
 import {
   catalogGridColClassForBreakpoint,
+  catalogGridResponsiveColClass,
   clampCatalogColumns,
   readCatalogCardLayout,
 } from '@/lib/catalogCardLayout'
@@ -68,7 +69,9 @@ export default function RentalGridBlock({ style, props, liveItems, blockId }: Pr
 
   const rawColumns = props.columns as number | undefined
   const columns = clampCatalogColumns(rawColumns, 3, 'rental_grid')
-  const gridColClass = catalogGridColClassForBreakpoint(columns, previewBp)
+  const gridColClass = isEditorCanvas
+    ? catalogGridColClassForBreakpoint(columns, previewBp)
+    : catalogGridResponsiveColClass(columns)
   const cardLayout = readCatalogCardLayout(props, 'rental_grid', { defaultColumns: 3 })
 
   const useLive = liveItems.length > 0

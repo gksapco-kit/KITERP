@@ -100,7 +100,7 @@ export function ProductThumb({
           src={resolved}
           alt={alt}
           className={cn(
-            'absolute inset-0 h-full w-full object-contain object-center p-1',
+            'absolute inset-0 h-full w-full object-cover object-center',
             imgClassName,
           )}
           loading="lazy"

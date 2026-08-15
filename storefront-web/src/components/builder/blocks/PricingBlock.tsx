@@ -33,6 +33,7 @@ function resolvePlanHighlighted(
 export default function PricingBlock({ style, props, liveItems, blockId }: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
+  const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : undefined
 
   const title = resolveBlockTextField(props, 'title', {
     fallback: () => (isEditorCanvas ? null : 'Pricing'),
@@ -113,7 +114,7 @@ export default function PricingBlock({ style, props, liveItems, blockId }: Props
         className={cn(
           isHorizontal
             ? 'mx-auto flex max-w-5xl snap-x snap-mandatory gap-6 overflow-x-auto pb-2'
-            : cn('mx-auto grid max-w-4xl grid-cols-1', sectionGridColumnClass(columns)),
+            : cn('mx-auto grid max-w-4xl grid-cols-1', sectionGridColumnClass(columns, previewBp)),
         )}
         style={{ gap: itemGap }}
       >
