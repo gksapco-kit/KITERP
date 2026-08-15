@@ -7,6 +7,7 @@ import { ProductThumb } from "@/components/products/ProductThumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { collectProductGalleryImages, resolveVariantThumbnailUrl } from "@/lib/productImageUtils";
+import { prefetchImageUrls, usePrefetchImages } from "@/hooks/usePrefetchImages";
 import type { ProductVariant as ApiVariant } from "@/types";
 import ProductOptionPicker from "@/components/products/ProductOptionPicker";
 import {
@@ -313,6 +314,12 @@ export function ProductCard({
     return fromVariant ?? fromColor ?? product.image;
   }, [optionRows, galleryImages, selectedColorName, product.image, selectedVariant, pricingVariant]);
 
+  usePrefetchImages([
+    product.image,
+    ...galleryImages.map((img) => img.url),
+    ...allVariants.map((v) => resolveVariantThumbnailUrl(v)),
+  ]);
+
   const addLabel = outOfStock
     ? "Out of stock"
     : optionRows.length > 0 && !validation.valid
@@ -341,6 +348,7 @@ export function ProductCard({
               src={displayImage}
               alt={product.name}
               size="md"
+              priority
               className={imageShell.intrinsic ? "relative block h-auto w-full bg-white" : "absolute inset-0 bg-white"}
               imgClassName={imageShell.imageClassName}
               imgStyle={imageShell.imageStyle}
@@ -414,6 +422,10 @@ export function ProductCard({
             variants={apiVariants.filter((v) => !String(v.id).endsWith("-default"))}
             selectedId={selectedVariant?.id}
             onSelect={setFlatVariantId}
+            onPreview={(id) => {
+              const variant = allVariants.find((v) => v.id === id)
+              prefetchImageUrls([resolveVariantThumbnailUrl(variant)])
+            }}
             productStock={product}
             className="mt-0.5"
           />

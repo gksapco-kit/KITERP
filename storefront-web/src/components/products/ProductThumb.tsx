@@ -15,6 +15,8 @@ type Props = {
   /** Extra classes for the img when an image is shown. */
   imgClassName?: string
   imgStyle?: CSSProperties
+  /** Load immediately (main card / selected variant photo). */
+  priority?: boolean
 }
 
 /** Shopping-cart mark matching the storefront empty-image placeholder. */
@@ -80,15 +82,41 @@ export function ProductThumb({
   className,
   imgClassName,
   imgStyle,
+  priority = false,
 }: Props) {
   const resolved = src ? imgUrl(src) : ''
   const [failed, setFailed] = useState(false)
+  const [shown, setShown] = useState(resolved)
 
   useEffect(() => {
     setFailed(false)
-  }, [resolved])
+    if (!resolved) {
+      setShown('')
+      return
+    }
+    if (resolved === shown) return
 
-  const showImage = Boolean(resolved) && !failed
+    let cancelled = false
+    const probe = new Image()
+    probe.decoding = 'async'
+    const apply = () => {
+      if (!cancelled) setShown(resolved)
+    }
+    probe.onload = apply
+    probe.onerror = () => {
+      if (!cancelled) {
+        setShown(resolved)
+        setFailed(true)
+      }
+    }
+    probe.src = resolved
+    if (probe.complete && probe.naturalWidth > 0) apply()
+    return () => {
+      cancelled = true
+    }
+  }, [resolved, shown])
+
+  const showImage = Boolean(shown) && !failed
 
   return (
     <div
@@ -99,7 +127,7 @@ export function ProductThumb({
     >
       {showImage ? (
         <img
-          src={resolved}
+          src={shown}
           alt={alt}
           className={cn(
             imgClassName
@@ -108,7 +136,9 @@ export function ProductThumb({
             'bg-white',
           )}
           style={{ backgroundColor: '#ffffff', ...imgStyle }}
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
+          decoding="async"
           onError={() => setFailed(true)}
         />
       ) : (

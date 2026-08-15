@@ -1,5 +1,7 @@
 import { AlertCircle } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
+import { prefetchImageUrls } from '@/hooks/usePrefetchImages'
+import { resolveVariantThumbnailUrl } from '@/lib/productImageUtils'
 import type { ProductVariant } from '@/types'
 import { useResolvedStorefrontTheme } from '@/contexts/ThemeContext'
 import { textOnSolid } from '@/lib/themeColors'
@@ -44,6 +46,7 @@ function SizeChip({
   disabled,
   stopPropagation,
   onClick,
+  onPreview,
   compact,
   primaryColor,
 }: {
@@ -53,6 +56,7 @@ function SizeChip({
   disabled?: boolean
   stopPropagation?: boolean
   onClick: () => void
+  onPreview?: () => void
   compact?: boolean
   primaryColor?: string
 }) {
@@ -63,6 +67,7 @@ function SizeChip({
       aria-pressed={selected}
       disabled={disabled}
       title={value}
+      onPointerEnter={() => onPreview?.()}
       onClick={(e) => {
         if (stopPropagation) {
           e.preventDefault()
@@ -224,6 +229,16 @@ export default function ProductOptionPicker({
                       compact={compact}
                       primaryColor={primaryColor}
                       onClick={() => onSelectSize(row.label, value)}
+                      onPreview={() => {
+                        prefetchImageUrls(
+                          variants
+                            .filter((v) => {
+                              const label = `${v.name || ''} ${JSON.stringify(v.attributes || {})}`.toLowerCase()
+                              return label.includes(value.toLowerCase())
+                            })
+                            .map((v) => resolveVariantThumbnailUrl(v)),
+                        )
+                      }}
                     />
                   )
                 })

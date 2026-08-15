@@ -23,7 +23,8 @@ import { ClassicDetail, ModernDetail, MinimalDetail, ProductQuoteModal } from '.
 import { trackView } from '@/lib/recentlyViewed'
 import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
 import { assertCanAddToCart, getMaxAddQuantity, getMinAddQuantity, getOnHandQuantity, getEffectiveStockStatus } from '@/lib/stockValidation'
-import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
+import { resolveProductThumbnailUrl, resolveVariantThumbnailUrl } from '@/lib/productImageUtils'
+import { usePrefetchImages } from '@/hooks/usePrefetchImages'
 import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
 import { useQueryClient } from '@tanstack/react-query'
 import { setPendingBuyNow } from '@/lib/pendingBuyNow'
@@ -289,6 +290,14 @@ export default function ProductDetail() {
     }
     return []
   }, [selectedVariant, product?.images, activeVariants])
+
+  usePrefetchImages([
+    ...(product?.images || []).map((img) => img.url),
+    ...activeVariants.flatMap((v) => [
+      resolveVariantThumbnailUrl(v),
+      ...((v.media || []).map((m) => m.url)),
+    ]),
+  ])
 
   if (isLoading) {
     return (

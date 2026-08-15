@@ -13,6 +13,7 @@ import {
 } from '@/lib/catalogCardLayout'
 import { formatLiveProductPrice } from '@/lib/liveProductUtils'
 import { resolveVariantThumbnailUrl } from '@/lib/productImageUtils'
+import { prefetchImageUrls, usePrefetchImages } from '@/hooks/usePrefetchImages'
 import { cn, imgUrl } from '@/lib/utils'
 import { variantFlatOptionTitle } from '@/lib/variantOptions'
 import { useAddToCart, useCart, useCartVariantQty, useSetCatalogCartQty } from '@/hooks/useStore'
@@ -106,6 +107,10 @@ export function CatalogLiveProductTile({
   }, [item.id, variantKey])
 
   const selected = variants.find((v) => v.id === variantId) ?? variants[0]
+  usePrefetchImages([
+    item.image_url,
+    ...variants.map((v) => resolveVariantThumbnailUrl(v)),
+  ])
   const productStock = productStockFromItem(item)
   const productUom = productUomFromItem(item)
   const rawImage = resolveVariantThumbnailUrl(selected) || item.image_url
@@ -268,6 +273,10 @@ export function CatalogLiveProductTile({
             variants={variants}
             selectedId={selected?.id}
             onSelect={setVariantId}
+            onPreview={(id) => {
+              const variant = variants.find((v) => v.id === id)
+              prefetchImageUrls([resolveVariantThumbnailUrl(variant)])
+            }}
             product={productUom}
             productStock={productStock}
             primaryColor={primaryColor}

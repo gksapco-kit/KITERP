@@ -12,6 +12,7 @@ type Props = {
   variants: ProductVariant[]
   selectedId?: string
   onSelect: (variantId: string) => void
+  onPreview?: (variantId: string) => void
   product?: ProductUom
   productStock?: StockEntity
   primaryColor?: string
@@ -23,6 +24,7 @@ export function CatalogVariantChips({
   variants,
   selectedId,
   onSelect,
+  onPreview,
   product,
   productStock,
   primaryColor,
@@ -59,6 +61,7 @@ export function CatalogVariantChips({
             type="button"
             aria-pressed={selected}
             title={outOfStock ? `${title} — Out of Stock` : title}
+            onPointerEnter={() => onPreview?.(variant.id)}
             onClick={(e) => {
               stopNav(e)
               onSelect(variant.id)

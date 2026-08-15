@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ZoomIn } from 'lucide-react'
 import { cn, imgUrl } from '@/lib/utils'
 
@@ -37,6 +37,30 @@ export function ImageHoverZoom({
   const [hovered, setHovered] = useState(false)
   const [origin, setOrigin] = useState({ x: 50, y: 50 })
   const intrinsic = sizing === 'intrinsic'
+  const resolved = imgUrl(src)
+  const [shown, setShown] = useState(resolved)
+
+  useEffect(() => {
+    if (!resolved || resolved === shown) return
+    let cancelled = false
+    const probe = new Image()
+    probe.decoding = 'async'
+    const apply = () => {
+      if (!cancelled) setShown(resolved)
+    }
+    probe.onload = apply
+    probe.onerror = () => {
+      if (!cancelled) {
+        setShown(resolved)
+        onError?.()
+      }
+    }
+    probe.src = resolved
+    if (probe.complete && probe.naturalWidth > 0) apply()
+    return () => {
+      cancelled = true
+    }
+  }, [resolved, shown, onError])
 
   const handleMove = (e: React.MouseEvent) => {
     const el = ref.current
@@ -77,9 +101,12 @@ export function ImageHoverZoom({
       }
     >
       <img
-        src={imgUrl(src)}
+        src={shown}
         alt={alt}
         draggable={false}
+        loading="eager"
+        fetchPriority="high"
+        decoding="async"
         onError={onError}
         className={cn(
           'pointer-events-none transition-transform duration-150 ease-out',
