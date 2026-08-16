@@ -337,7 +337,7 @@ import {
 } from '@/lib/storefrontPreviewUrl'
 import { mediaUrl } from '@/lib/utils'
 import { extractApiError, isBuilderPreviewInfraFailure } from '@/lib/errorMessages'
-import { normalizeStorefrontCatalogHref, parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
+import { isStorefrontEmbedNavPath, normalizeStorefrontCatalogHref, parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
 import { DraftCatalogPreview } from '@/components/websites/DraftCatalogPreview'
 import { findBuilderPageForNavPath } from '@storefront/lib/previewNavRouting'
 import { isVendorBlogEnabled } from '@storefront/lib/catalogNavCapabilities'
@@ -554,6 +554,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'portfolio_grid', label: 'Portfolio Grid', icon: Camera, desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true } },
   { type: 'gallery_masonry', label: 'Gallery Masonry', icon: ImageIcon, desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery', layout: 'masonry', columns: 3, images: [] } },
   { type: 'video_gallery', label: 'Video multiple', icon: Video, desc: 'YouTube / Vimeo / Instagram video grid with layouts', category: 'media', defaultProps: { title: 'Video gallery', layout: 'grid', columns: 3, videos: [{ video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }] } },
+  { type: 'product_grid', label: 'Latest Products', icon: ShoppingBag, desc: 'Latest products from your catalog — same live grid as Shop our latest', category: 'ecommerce', defaultProps: { title: 'Shop our latest', columns: 4, show_badges: true, padding_top: 64, padding_bottom: 64, image_object_fit: 'contain', add_button_style: 'filled', data_source: { type: 'products', auto: true } } },
   { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3, show_count: 12, image_height_pct: 56 } },
   { type: 'newsletter', label: 'Newsletter', icon: Mail, desc: 'Email capture / subscribe form', category: 'conversion', defaultProps: { title: 'Stay in the Loop', subtitle: 'Get the latest news and updates delivered to your inbox.', cta_label: 'Subscribe' } },
   { type: 'video_embed', label: 'Video single', icon: Video, desc: 'YouTube / Vimeo / Instagram video player', category: 'media', defaultProps: { title: 'Watch our story', video_url: '', aspect_ratio: '16:9' } },
@@ -4241,6 +4242,17 @@ function pagesNavKey(pages: WebsitePage[]): string {
 }
 
 const GLOBAL_STRUCTURE_BLOCK_TYPES = new Set(['announcement_bar', 'nav', 'footer'])
+const STRUCTURE_ONLY_BLOCK_TYPES = new Set(['nav', 'announcement_bar', 'footer', 'cookie_consent'])
+
+function builderPageHasContentBlocks(blocks: WebsiteBlock[] | undefined): boolean {
+  return (blocks || []).some(b => !STRUCTURE_ONLY_BLOCK_TYPES.has(b.block_type))
+}
+
+function builderPageStorePath(page: Pick<WebsitePage, 'slug' | 'is_homepage'>): string {
+  if (page.is_homepage) return '/'
+  const slug = String(page.slug || '').replace(/^\/+/, '').replace(/\/+$/, '')
+  return slug ? `/${slug}` : '/'
+}
 
 function blocksByPageFingerprint(blocksByPage: Record<string, WebsiteBlock[]>): string {
   return JSON.stringify(
@@ -13550,7 +13562,7 @@ export default function WebsiteBuilder() {
   const showCatalogInCanvas = useCallback(async (url: string) => {
     if (!siteId || !site) return
     const raw = (url || '/').trim()
-    const normalized = raw.startsWith('/') ? raw : `/${raw}`
+    const normalized = normalizeStorefrontCatalogHref(raw.startsWith('/') ? raw : `/${raw}`)
     const embedRoute = parseStorefrontEmbedRoute(normalized)
     if (!embedRoute) return
 
@@ -13583,6 +13595,27 @@ export default function WebsiteBuilder() {
     const pathOnly = normalized.split('?')[0].split('#')[0]
 
     const target = findBuilderPageForNavPath(pathOnly, localPages)
+    const targetHasContent = Boolean(target && builderPageHasContentBlocks(localBlocks[target.id]))
+    const embedRoute = parseStorefrontEmbedRoute(normalized)
+      || parseCatalogStorePath(pathOnly)
+      || (isStorefrontEmbedNavPath(pathOnly) ? pathOnly.replace(/^\/+/, '') : null)
+
+    if (targetHasContent && target) {
+      exitCanvasCatalog()
+      setActivePageId(target.id)
+      setSelectedBlockId(null)
+      return
+    }
+
+    if (embedRoute) {
+      if (target) {
+        setActivePageId(target.id)
+        setSelectedBlockId(null)
+      }
+      void showCatalogInCanvas(normalized)
+      return
+    }
+
     if (target) {
       exitCanvasCatalog()
       setActivePageId(target.id)
@@ -13590,14 +13623,20 @@ export default function WebsiteBuilder() {
       return
     }
 
-    if (parseStorefrontEmbedRoute(normalized) || parseCatalogStorePath(pathOnly)) {
-      void showCatalogInCanvas(normalized)
-      return
-    }
-
     const cleanUrl = pathOnly.replace(/\/+$/, '') || '/'
     toast.info(`No builder page found for "${cleanUrl}". Add it from the Pages panel or update the nav link.`)
-  }, [localPages, showCatalogInCanvas, exitCanvasCatalog])
+  }, [localPages, localBlocks, showCatalogInCanvas, exitCanvasCatalog])
+
+  const openBuilderPageTab = useCallback((page: WebsitePage) => {
+    setActivePageId(page.id)
+    setSelectedBlockId(null)
+    const path = builderPageStorePath(page)
+    if (!builderPageHasContentBlocks(localBlocks[page.id]) && (parseStorefrontEmbedRoute(path) || parseCatalogStorePath(path))) {
+      void showCatalogInCanvas(path)
+      return
+    }
+    exitCanvasCatalog()
+  }, [localBlocks, showCatalogInCanvas, exitCanvasCatalog])
 
   // Keep the embedded catalog view in sync with navigation that happens *inside* the
   // iframe (clicking a product card, the cart icon, "continue shopping", etc.). The
@@ -13619,11 +13658,29 @@ export default function WebsiteBuilder() {
     return () => window.removeEventListener('message', onMessage)
   }, [canvasCatalogRoute, exitCanvasCatalog])
 
-  // Switching to a different builder page (Pages panel, nav, etc.) leaves the catalog view.
+  // Empty Products / Blog / Rentals / Contact tabs open the live store page in-canvas.
+  // Pages with real sections stay in the block editor.
   useEffect(() => {
+    if (!activePageId) return
+    const page = localPagesRef.current.find(p => p.id === activePageId)
+    if (!page) {
+      setCanvasCatalogRoute(null)
+      setCanvasCatalogLoading(false)
+      return
+    }
+    if (builderPageHasContentBlocks(localBlocksRef.current[page.id])) {
+      setCanvasCatalogRoute(null)
+      setCanvasCatalogLoading(false)
+      return
+    }
+    const path = builderPageStorePath(page)
+    if (parseStorefrontEmbedRoute(path) || parseCatalogStorePath(path)) {
+      void showCatalogInCanvas(path)
+      return
+    }
     setCanvasCatalogRoute(null)
     setCanvasCatalogLoading(false)
-  }, [activePageId])
+  }, [activePageId, showCatalogInCanvas])
 
   const handleCanvasTextFieldActivate = useCallback((
     blockId: string,
@@ -13752,6 +13809,7 @@ export default function WebsiteBuilder() {
       || navEl.dataset.builderCatalogNav === 'product'
       || parseStorefrontEmbedRoute(normalized)
       || parseCatalogStorePath(pathOnly)
+      || isStorefrontEmbedNavPath(pathOnly)
       || pathOnly.endsWith('/cart')
     ) {
       e.preventDefault()
@@ -18712,8 +18770,7 @@ export default function WebsiteBuilder() {
                             <button
                               type="button"
                               onClick={() => {
-                                setActivePageId(page.id)
-                                setSelectedBlockId(null)
+                                openBuilderPageTab(page)
                                 if (!isExpanded) {
                                   setExpandedSectionPages(prev => new Set([...prev, page.id]))
                                 }
@@ -19198,7 +19255,7 @@ export default function WebsiteBuilder() {
                 </button>
                 <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium text-gray-500">
                   <Eye className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
-                  <span className="truncate">Store page preview — this page isn’t edited here, use the live data above.</span>
+                  <span className="truncate">Live store page — same products, blog, rentals, and contact as the storefront.</span>
                 </span>
               </div>
               {canvasCatalogRoute && canvasCatalogToken ? (
@@ -19248,44 +19305,6 @@ export default function WebsiteBuilder() {
                     </div>
                   </div>
                 </div>
-              ) : activeBlocks.length === 0 ? (
-                <div
-                  ref={canvasPreviewInnerRef}
-                  data-page-canvas="true"
-                  data-preview-bp={device}
-                  onClickCapture={handleCanvasNavClickCapture}
-                  style={canvasScaleStyle}
-                  className="shadow-lg rounded-none min-h-[600px] overflow-visible"
-                >
-                  <div
-                    className="flex items-center justify-center py-20 border-2 border-dashed border-primary/30 m-8 rounded-2xl"
-                    onDragOver={e => e.preventDefault()}
-                    onDrop={handleDropOnCanvas}
-                  >
-                    <div className="text-center max-w-md">
-                      <Layout className="w-12 h-12 mx-auto mb-3 text-primary/40" />
-                      <p className="text-sm text-gray-500 font-medium">This page has no sections yet</p>
-                      <p className="text-xs text-gray-400 mt-1">Pick a section from the catalog or drag one here</p>
-                      <div className="flex flex-col items-center gap-2 mt-5">
-                        <button
-                          type="button"
-                          onClick={openSectionsPanel}
-                          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shadow-lg"
-                        >
-                          Browse all sections
-                        </button>
-                        <button
-                          type="button"
-                          onClick={openSectionsPanel}
-                          className="flex items-center gap-2 px-4 py-2.5 border border-primary/40 text-primary text-xs font-semibold rounded-lg hover:bg-accent transition-colors"
-                        >
-                          <Layout className="w-4 h-4" />
-                          Add Section
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               ) : (
                 <BuilderCanvasProviders
                   siteId={siteId!}
@@ -19331,7 +19350,54 @@ export default function WebsiteBuilder() {
                       onClickCapture={handleCanvasBlockSelectCapture}
                       onContextMenuCapture={handleCanvasBlockContextMenuCapture}
                     >
-                      {builderPublicSite && (
+                      {builderPublicSite && activeBlocks.length === 0 ? (
+                        <>
+                          <BuilderCanvasPageRenderer
+                            publicSite={builderPublicSite}
+                            blocks={activeBlocks}
+                            pageId={activePageId}
+                            isHomepage={Boolean(activePage?.is_homepage)}
+                            revision={canvasBlocksRevision}
+                            shellLayout="shell-only"
+                          />
+                          <div
+                            className="flex items-center justify-center py-16 border-2 border-dashed border-primary/30 m-8 rounded-2xl"
+                            onDragOver={e => e.preventDefault()}
+                            onDrop={handleDropOnCanvas}
+                          >
+                            <div className="text-center max-w-md">
+                              <Layout className="w-12 h-12 mx-auto mb-3 text-primary/40" />
+                              <p className="text-sm text-gray-500 font-medium">This page has no sections yet</p>
+                              <p className="text-xs text-gray-400 mt-1">Pick a section from the catalog or drag one here</p>
+                              <div className="flex flex-col items-center gap-2 mt-5">
+                                <button
+                                  type="button"
+                                  onClick={openSectionsPanel}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shadow-lg"
+                                >
+                                  Browse all sections
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={openSectionsPanel}
+                                  className="flex items-center gap-2 px-4 py-2.5 border border-primary/40 text-primary text-xs font-semibold rounded-lg hover:bg-accent transition-colors"
+                                >
+                                  <Layout className="w-4 h-4" />
+                                  Add Section
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <BuilderCanvasPageRenderer
+                            publicSite={builderPublicSite}
+                            blocks={activeBlocks}
+                            pageId={activePageId}
+                            isHomepage={Boolean(activePage?.is_homepage)}
+                            revision={canvasBlocksRevision}
+                            shellLayout="content-only"
+                          />
+                        </>
+                      ) : builderPublicSite ? (
                         <BuilderCanvasPageRenderer
                           publicSite={builderPublicSite}
                           blocks={activeBlocks}
@@ -19339,7 +19405,7 @@ export default function WebsiteBuilder() {
                           isHomepage={Boolean(activePage?.is_homepage)}
                           revision={canvasBlocksRevision}
                         />
-                      )}
+                      ) : null}
 
                       {activeBlocks.map((block, idx) => (
                       <BuilderSectionOverlay
@@ -19618,7 +19684,7 @@ export default function WebsiteBuilder() {
                       <button
                         key={page.id}
                         type="button"
-                        onClick={() => { setActivePageId(page.id); setSelectedBlockId(null) }}
+                        onClick={() => openBuilderPageTab(page)}
                         title={page.is_homepage ? `${page.title} (home page)` : page.title}
                         className={cn(
                           'inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold leading-none transition-colors',
@@ -19673,8 +19739,7 @@ export default function WebsiteBuilder() {
                               key={page.id}
                               type="button"
                               onClick={() => {
-                                setActivePageId(page.id)
-                                setSelectedBlockId(null)
+                                openBuilderPageTab(page)
                                 setPageWindowStart(idx)
                                 setPageMenuOpen(false)
                               }}

@@ -1,4 +1,4 @@
-import { Star, ShoppingBag } from "lucide-react";
+import { Star, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/commerce-blocks/lib/format";
 import { mockProducts } from "@/commerce-blocks/mock/products";
@@ -84,8 +84,11 @@ export function ProductCard({
             Out of Stock
           </span>
         ) : (
-          <Button size="sm" variant="outline" className="mt-3 w-full">
-            <ShoppingBag className="h-3.5 w-3.5" />
+          <Button
+            size="sm"
+            className="mt-3 h-10 w-full rounded-xl bg-primary text-white hover:bg-primary/90"
+          >
+            <ShoppingCart className="h-4 w-4" />
             {cta}
           </Button>
         )}

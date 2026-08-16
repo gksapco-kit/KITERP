@@ -14,6 +14,7 @@ export const PRODUCT_DISPLAY_FIELD_DEFS = [
   { key: 'best_seller_badge', label: 'Best Seller Badge' },
   { key: 'wishlist', label: 'Wishlist (heart icon)' },
   { key: 'view_count', label: 'View count (eye icon)' },
+  { key: 'share', label: 'Share (WhatsApp / Email / Message)' },
   { key: 'variants', label: 'Variants / Options' },
   { key: 'sku', label: 'SKU' },
   { key: 'barcode', label: 'Barcode' },
@@ -56,6 +57,7 @@ export const SERVICE_DISPLAY_FIELD_DEFS = [
   { key: 'rescheduling_policy', label: 'Rescheduling Policy' },
   { key: 'offer_label', label: 'Offer / Sale Label' },
   { key: 'service_mode', label: 'Service Mode' },
+  { key: 'share', label: 'Share (WhatsApp / Email / Message)' },
 ] as const
 
 export type DisplayFieldMap = Record<string, boolean>

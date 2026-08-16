@@ -146,6 +146,7 @@ export function ProductCard({
 
   const firstAvailable = allVariants.find((v) => v.available !== false) ?? allVariants[0];
   const firstApi = firstAvailable ? toApiVariant(firstAvailable) : undefined;
+  const defaultFlatId = realVariants.find((v) => v.available !== false)?.id ?? realVariants[0]?.id;
 
   const [selections, setSelections] = useState<Record<string, string>>(() => {
     const defaults = resolveCardDefaultSelections(apiVariants, optionRows, firstApi);
@@ -155,7 +156,7 @@ export function ProductCard({
     const defaults = resolveCardDefaultSelections(apiVariants, optionRows, firstApi);
     return defaults.colorName;
   });
-  const [flatVariantId, setFlatVariantId] = useState<string | undefined>(realVariants[0]?.id);
+  const [flatVariantId, setFlatVariantId] = useState<string | undefined>(defaultFlatId);
 
   useEffect(() => {
     const nextFirst = allVariants.find((v) => v.available !== false) ?? allVariants[0];
@@ -165,7 +166,7 @@ export function ProductCard({
     const defaults = resolveCardDefaultSelections(apiVariants, rows, api);
     setSelections(defaults.selections);
     setSelectedColorName(defaults.colorName);
-    setFlatVariantId(realVariants[0]?.id);
+    setFlatVariantId(realVariants.find((v) => v.available !== false)?.id ?? realVariants[0]?.id);
   }, [product.id]);
 
   const validation = useMemo(
@@ -178,8 +179,10 @@ export function ProductCard({
       return realVariants.find((v) => v.id === flatVariantId) ?? firstAvailable;
     }
     if (optionRows.length === 0) return firstAvailable;
-    if (!validation.valid || !validation.variant) return undefined;
-    return allVariants.find((v) => v.id === validation.variant!.id);
+    if (validation.valid && validation.variant) {
+      return allVariants.find((v) => v.id === validation.variant!.id) ?? firstAvailable;
+    }
+    return firstAvailable;
   }, [allVariants, realVariants, validation, optionRows.length, firstAvailable, showFlatVariants, flatVariantId]);
 
   useCart();
@@ -219,13 +222,12 @@ export function ProductCard({
   const showPriceRow = hasDisplayPrice || (showFrom && minPrice != null && minPrice > 0);
 
   const resolveAddVariant = () => {
-    if (showFlatVariants) return selectedVariant;
+    if (showFlatVariants) return selectedVariant ?? firstAvailable;
     const resolved =
       validation.valid && validation.variant
         ? allVariants.find((v) => v.id === validation.variant!.id)
         : undefined;
-    if (optionRows.length === 0) return resolved ?? selectedVariant ?? firstAvailable;
-    return resolved ?? selectedVariant;
+    return resolved ?? selectedVariant ?? firstAvailable;
   };
 
   const stockVariant = resolveAddVariant();
@@ -248,7 +250,7 @@ export function ProductCard({
       ? selectedVariant != null
       : optionRows.length === 0
         ? firstAvailable != null
-        : validation.valid && selectedVariant != null);
+        : selectedVariant != null);
 
   const warnAtMaxQty = () => {
     const check = assertCanAddToCart({
@@ -322,7 +324,7 @@ export function ProductCard({
 
   const addLabel = outOfStock
     ? "Out of stock"
-    : optionRows.length > 0 && !validation.valid
+    : optionRows.length > 0 && !validation.valid && !selectedVariant
       ? "Select options"
       : undefined;
 

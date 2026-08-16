@@ -1,4 +1,4 @@
-import { ShoppingBag, Wrench, User, ShoppingCart, Home } from 'lucide-react'
+import { ShoppingBag, Wrench, User, ShoppingCart, Home, Newspaper, Mail, Package } from 'lucide-react'
 import { parseCatalogRouteParam, buildStorefrontCatalogEmbedUrl } from '@/lib/catalogStorePaths'
 import { buildDraftPreviewPageUrl } from '@/lib/draftPreviewNavigation'
 import { getDraftBrowserPreviewAbsolutePath, getVendorPreviewOrigin } from '@/lib/storefrontPreviewUrl'
@@ -11,6 +11,9 @@ function catalogPreviewLabel(catalogRoute: string): { title: string; Icon: typeo
   if (base === 'login' || base === 'register') return { title: 'Sign in', Icon: User }
   if (base.startsWith('account')) return { title: 'Account', Icon: User }
   if (base === 'products') return { title: 'Products', Icon: ShoppingBag }
+  if (base === 'blog' || base.startsWith('blog/')) return { title: 'Blog', Icon: Newspaper }
+  if (base === 'contact') return { title: 'Contact', Icon: Mail }
+  if (base === 'rentals' || base.startsWith('rentals/')) return { title: 'Rentals', Icon: Package }
   const parsed = parseCatalogRouteParam(catalogRoute)
   if (!parsed) return { title: catalogRoute, Icon: ShoppingBag }
   if (parsed.kind === 'services') {

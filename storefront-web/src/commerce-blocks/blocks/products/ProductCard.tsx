@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
-import { Star, ShoppingBag } from "lucide-react";
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/commerce-blocks/lib/format";
 import { mockProducts } from "@/commerce-blocks/mock/products";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { CatalogAddOrQtyControl } from "@/components/catalog/CatalogAddOrQtyControl";
 import { useStorePath } from "@/hooks/useStorePath";
+import { useAddToCart, useCart, useCartVariantQty, useSetCatalogCartQty } from "@/hooks/useStore";
+import { toast } from "sonner";
 import {
   productCardBodyClass,
   productCardImageShell,
@@ -57,6 +59,40 @@ export function ProductCard({
   const imageShell = productCardImageShell(imageHeightPct, aspectClass[aspect]);
   const slug = productSlug || product.slug || product.id;
   const detailHref = storePath(`/products/${slug}`);
+  const addToCart = useAddToCart();
+  useCart();
+  const cartQty = useCartVariantQty(product.id);
+  const { setQty: setCatalogQty } = useSetCatalogCartQty();
+
+  const handleAdd = () => {
+    if (!product.inStock) return;
+    addToCart.mutate(
+      {
+        product_id: product.id,
+        slug,
+        name: product.name,
+        qty: 1,
+        price: product.price,
+        image_url: product.image,
+      },
+      { onSuccess: () => toast.success("Added to cart") },
+    );
+  };
+
+  const handleQtyChange = async (qty: number) => {
+    await setCatalogQty({
+      productId: product.id,
+      qty,
+      addItem: {
+        product_id: product.id,
+        slug,
+        name: product.name,
+        qty: 1,
+        price: product.price,
+        image_url: product.image,
+      },
+    });
+  };
 
   return (
     <div
@@ -116,24 +152,23 @@ export function ProductCard({
             )}
           </div>
         )}
-        {!product.inStock ? (
-          <span className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
-            Out of Stock
-          </span>
-        ) : showCta ? (
-          <Button
-            size="sm"
-            variant="outline"
-            className={cn("w-full", isMinimal ? "mt-2 h-7 text-[11px]" : "mt-3")}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onAddToCart?.(e);
-            }}
-          >
-            <ShoppingBag className={isMinimal ? "h-3 w-3" : "h-3.5 w-3.5"} />
-            {isMinimal ? "Add" : cta}
-          </Button>
+        {(showCta || !product.inStock) ? (
+          <div className={isMinimal ? "mt-2" : "mt-3"}>
+            <CatalogAddOrQtyControl
+              cartQty={cartQty}
+              onAdd={() => {
+                handleAdd();
+                onAddToCart?.({} as React.MouseEvent);
+              }}
+              onQtyChange={handleQtyChange}
+              outOfStock={!product.inStock}
+              pending={addToCart.isPending}
+              addButtonStyle="filled"
+              isMinimalCard={isMinimal}
+              isCompactCard={isCompact}
+              labelOverride={isMinimal ? "Add" : cta}
+            />
+          </div>
         ) : null}
       </div>
     </div>

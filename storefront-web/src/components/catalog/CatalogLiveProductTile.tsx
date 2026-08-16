@@ -97,12 +97,14 @@ export function CatalogLiveProductTile({
 
   const variants = liveItemVariants(item)
   const variantKey = variants.map((v) => v.id).join(',')
-  const [variantId, setVariantId] = useState(variants[0]?.id)
+  const defaultVariantId = variants.find((v) => !variantOutOfStock(item, v))?.id ?? variants[0]?.id
+  const [variantId, setVariantId] = useState(defaultVariantId)
   useEffect(() => {
     const list = liveItemVariants(item)
+    const nextDefault = list.find((v) => !variantOutOfStock(item, v))?.id ?? list[0]?.id
     setVariantId((current) => {
       if (current && list.some((v) => v.id === current)) return current
-      return list[0]?.id
+      return nextDefault
     })
   }, [item.id, variantKey])
 

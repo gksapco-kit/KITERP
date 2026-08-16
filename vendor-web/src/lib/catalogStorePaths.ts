@@ -23,22 +23,50 @@ export function parseCatalogStorePath(rawPath: string): ParsedCatalogPath | null
   return slug ? { kind, slug } : { kind }
 }
 
+const STOREFRONT_EMBED_ROOTS = new Set([
+  'blog',
+  'products',
+  'services',
+  'categories',
+  'contact',
+  'rentals',
+  'rental',
+  'cart',
+  'checkout',
+  'login',
+  'register',
+  'account',
+])
+
+/** Live storefront routes that are not website-builder pages (Blog, Products, …). */
+export function isStorefrontEmbedNavPath(rawPath: string): boolean {
+  const normalized = normalizeStorefrontCatalogHref(rawPath)
+  const pathname = (normalized.split('?')[0].split('#')[0] || '/').replace(/\/+$/, '') || '/'
+  const first = pathname.replace(/^\/+/, '').split('/')[0]?.toLowerCase() || ''
+  return STOREFRONT_EMBED_ROOTS.has(first)
+}
+
 /**
- * Map storefront paths (cart, login, product list, …) to embed segments under /store/:slug/.
+ * Map storefront paths (cart, login, product list, blog, …) to embed segments under /store/:slug/.
  * Returns null for website builder page slugs like /about.
  */
 export function parseStorefrontEmbedRoute(rawPath: string): string | null {
-  const clean = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
-  const qIdx = clean.indexOf('?')
-  const pathname = (qIdx >= 0 ? clean.slice(0, qIdx) : clean).replace(/\/+$/, '') || '/'
-  const queryString = qIdx >= 0 ? clean.slice(qIdx + 1) : ''
+  const normalized = normalizeStorefrontCatalogHref(rawPath)
+  const qIdx = normalized.indexOf('?')
+  const pathname = (qIdx >= 0 ? normalized.slice(0, qIdx) : normalized).replace(/\/+$/, '') || '/'
+  const lower = pathname.toLowerCase()
+  const queryString = qIdx >= 0 ? normalized.slice(qIdx + 1) : ''
   const qs = queryString ? `?${queryString}` : ''
 
-  if (pathname === '/cart') return `cart${qs}`
-  if (pathname === '/checkout') return `checkout${qs}`
-  if (pathname === '/login') return `login${qs}`
-  if (pathname === '/register') return `register${qs}`
-  if (pathname.startsWith('/account')) return `${pathname.slice(1)}${qs}`
+  if (lower === '/cart') return `cart${qs}`
+  if (lower === '/checkout') return `checkout${qs}`
+  if (lower === '/login') return `login${qs}`
+  if (lower === '/register') return `register${qs}`
+  if (lower === '/contact') return `contact${qs}`
+  if (lower === '/blog' || lower.startsWith('/blog/')) return `${pathname.slice(1)}${qs}`
+  if (lower === '/rentals' || lower.startsWith('/rentals/')) return `${pathname.slice(1)}${qs}`
+  if (lower === '/rental' || lower.startsWith('/rental/')) return `rentals${qs}`
+  if (lower.startsWith('/account')) return `${pathname.slice(1)}${qs}`
 
   const orderMatch = pathname.match(/^\/order\/([^/]+)\/(confirmation|status)$/)
   if (orderMatch) return `order/${orderMatch[1]}/${orderMatch[2]}${qs}`

@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import StarRating from '@/components/StarRating'
 import ReviewSection from '@/components/ReviewSection'
 import MediaViewer from '@/components/MediaViewer'
+import { CatalogShareButton } from '@/components/catalog/CatalogShareButton'
 import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
 import type { ServicePlan, ServiceAvailability } from '@/types'
 import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
@@ -811,6 +812,11 @@ export default function ServiceDetail() {
   const hasWhatsIncluded = sf.whats_included && service.whats_included && service.whats_included.length > 0
   const hasWhatsNotIncluded = sf.whats_not_included && service.whats_not_included && service.whats_not_included.length > 0
   const unitPrice = selectedPlan?.price ?? service.price
+  const showShare = isDisplayFieldEnabled(sf, 'share')
+  const sharePriceLabel =
+    typeof unitPrice === 'number' && unitPrice > 0 && !isPriceNotApplicable(service.price_type)
+      ? formatCurrency(unitPrice, currency)
+      : undefined
   // Show subscribe CTA whenever the service is a subscription with a price.
   // Do not hide behind display-field toggles — customers need a working pay path.
   const showSubscriptionPanel =
@@ -904,6 +910,16 @@ export default function ServiceDetail() {
                     onSelect={setSelectedImage}
                     productName={service.name}
                     layout="fit"
+                    topRightOverlay={
+                      showShare ? (
+                        <CatalogShareButton
+                          title={service.name}
+                          priceLabel={sharePriceLabel}
+                          overlay
+                          className="h-10 w-10 rounded-lg"
+                        />
+                      ) : undefined
+                    }
                     badges={
                       <div className="absolute top-3 left-3 flex flex-col gap-1.5">
                         {isSubscription && (
@@ -956,7 +972,16 @@ export default function ServiceDetail() {
               </div>
 
               {/* Title */}
-              <h1 className="text-base sm:text-lg font-semibold text-gray-900 leading-snug break-words">{service.name}</h1>
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-base sm:text-lg font-semibold text-gray-900 leading-snug break-words">{service.name}</h1>
+                {showShare && displayMedia.length === 0 && (
+                  <CatalogShareButton
+                    title={service.name}
+                    priceLabel={sharePriceLabel}
+                    className="h-9 w-9 rounded-lg"
+                  />
+                )}
+              </div>
 
               {/* Rating */}
               {isDisplayFieldEnabled(sf, 'reviews') && (service.avg_rating ?? 0) > 0 && (

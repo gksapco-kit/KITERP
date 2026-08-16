@@ -111,7 +111,7 @@ export function ProductList({
               </div>
             )}
             {showCta && (
-              <Button size="sm" variant="outline">
+              <Button size="sm" className="h-10 rounded-xl bg-primary text-white hover:bg-primary/90">
                 {cta}
               </Button>
             )}

@@ -211,6 +211,7 @@ export default function StorefrontDisplayPage() {
           <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
             Choose fields per website template. Customers see only the fields you enable here.
             Product wishlist (heart) and view count (eye) apply to catalog cards and related products.
+            Share (WhatsApp, Email, Message) appears on product and service detail pages.
           </p>
         </div>
         <div className="shrink-0">

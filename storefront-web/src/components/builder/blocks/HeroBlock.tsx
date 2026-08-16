@@ -655,7 +655,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
       ) : null}
       {heroUsesImageBg && heroBackgroundUrls.length > 0 && !bgImageHidden ? (
         <div
-          className="absolute inset-0 z-20 overflow-hidden pointer-events-none"
+          className="absolute inset-0 z-0 overflow-hidden pointer-events-none"
           style={bgImageDecorStyle}
           data-builder-section-image={isEditorCanvas ? 'bg_image_url' : undefined}
           onClick={isEditorCanvas && blockId
@@ -721,7 +721,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
           {renderSideImage()}
         </>
       ) : isCenteredImageHero ? (
-        <div className="pointer-events-none relative z-10 flex w-full min-w-0 flex-1 items-center justify-center md:absolute md:inset-0">
+        <div className="pointer-events-none relative z-20 flex w-full min-w-0 flex-1 items-center justify-center md:absolute md:inset-0">
           {renderTextPanel()}
         </div>
       ) : (

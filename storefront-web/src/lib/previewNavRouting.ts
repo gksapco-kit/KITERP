@@ -42,10 +42,33 @@ export function builderPageSlugFromNavPath(pathname: string): string | null {
 export function isCatalogShellNavPath(pathname: string): boolean {
   const clean = normalizeNavPathname(pathname)
   if (clean === '/cart' || clean === '/checkout' || clean === '/login' || clean === '/register') return true
+  if (clean === '/contact' || clean === '/blog' || clean.startsWith('/blog/')) return true
+  if (clean === '/rentals' || clean.startsWith('/rentals/')) return true
   if (clean.startsWith('/account')) return true
   if (/^\/order\/[^/]+\/(confirmation|status)$/.test(clean)) return true
   if (clean === '/products' || clean === '/services' || clean === '/categories') return true
   return /^\/(products|services|categories)\/[^/]+/.test(clean)
+}
+
+const NAV_SLUG_ALIASES: Record<string, string[]> = {
+  about: ['about-us', 'aboutus'],
+  'about-us': ['about', 'aboutus'],
+  aboutus: ['about', 'about-us'],
+  contact: ['contact-us', 'contactus'],
+  'contact-us': ['contact', 'contactus'],
+  contactus: ['contact', 'contact-us'],
+  blog: ['blogs', 'news', 'articles'],
+  blogs: ['blog'],
+  news: ['blog'],
+  articles: ['blog'],
+  rental: ['rentals'],
+  rentals: ['rental'],
+}
+
+function navSlugCandidates(slug: string): string[] {
+  const key = slug.replace(/^\/+/, '').replace(/\/+$/, '').toLowerCase()
+  if (!key) return ['']
+  return [key, ...(NAV_SLUG_ALIASES[key] || [])]
 }
 
 export function findBuilderPageForNavPath(
@@ -54,12 +77,13 @@ export function findBuilderPageForNavPath(
 ): BuilderPageNavRef | null {
   const clean = normalizeNavPathname(rawPath)
   const slug = clean === '/' ? '' : clean.replace(/^\/+/, '').toLowerCase()
+  if (slug === '' || slug === 'home') {
+    return pages.find(p => p.is_homepage) ?? pages[0] ?? null
+  }
+  const candidates = new Set(navSlugCandidates(slug))
   return pages.find(p => {
     const pageSlug = p.slug.replace(/^\/+/, '').replace(/\/+$/, '').toLowerCase()
-    return (
-      (p.is_homepage && (clean === '/' || slug === '' || slug === 'home')) ||
-      pageSlug === slug
-    )
+    return candidates.has(pageSlug)
   }) ?? null
 }
 

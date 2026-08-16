@@ -109,7 +109,7 @@ function HrPortalLayout() {
   )
 }
 
-/** Catalog shell routes allowed in draft preview — no home, blog, or builder catch-all. */
+/** Catalog / system routes allowed in the builder canvas embed (no home or catch-all). */
 const draftCatalogShellChildren = [
   { path: 'login', element: <Login /> },
   { path: 'register', element: <Register /> },
@@ -139,6 +139,9 @@ const draftCatalogShellChildren = [
   { path: 'rentals/:slug', element: <RentalDetailPage /> },
   { path: 'rental', element: <RedirectToRentalsCatalog /> },
   { path: 'rental/*', element: <RedirectToRentalsCatalog /> },
+  { path: 'blog', element: <BlogList /> },
+  { path: 'blog/:slug', element: <BlogPost /> },
+  { path: 'contact', element: <ContactPage /> },
   { path: '*', element: <DraftCatalogEmbedBlocked /> },
 ]
 

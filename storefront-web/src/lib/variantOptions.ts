@@ -585,49 +585,57 @@ export function resolveColorNameForVariant(
   return undefined
 }
 
+function selectionsForPreferredVariant(
+  variants: ProductVariant[],
+  rows: ProductCardOptionRow[],
+  variant?: ProductVariant,
+): { selections: Record<string, string>; colorName?: string } | null {
+  if (!variant) return null
+  const colorRow = rows.find((r) => r.type === 'color')
+  const base = stripSpuriousSizeSelections(
+    normalizeVariantsForOptions(variants),
+    { ...selectionsFromVariant(variant) },
+  )
+  const colorFromVariant = resolveColorNameForVariant(variant, rows, variants)
+
+  const candidates: Array<{ selections: Record<string, string>; colorName?: string }> = []
+  const withRowDefaults = { ...base }
+  applySizeDefaultsIfStructured(variants, rows, withRowDefaults)
+  candidates.push({ selections: withRowDefaults, colorName: colorFromVariant })
+  candidates.push({ selections: base, colorName: colorFromVariant })
+
+  if (colorRow?.type === 'color') {
+    for (const swatch of colorRow.swatches) {
+      candidates.push({ selections: withRowDefaults, colorName: swatch.value })
+      candidates.push({ selections: base, colorName: swatch.value })
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (validateVariantCombination(variants, candidate.selections, candidate.colorName).valid) {
+      return candidate
+    }
+  }
+  return null
+}
+
 export function resolveCardDefaultSelections(
   variants: ProductVariant[],
   rows: ProductCardOptionRow[],
   preferredVariant?: ProductVariant,
 ): { selections: Record<string, string>; colorName?: string } {
-  const selections = stripSpuriousSizeSelections(
-    normalizeVariantsForOptions(variants),
-    { ...selectionsFromVariant(preferredVariant) },
-  )
-  applySizeDefaultsIfStructured(variants, rows, selections)
+  const ordered = [
+    preferredVariant,
+    ...variants.filter((v) => v.id !== preferredVariant?.id && v.is_active !== false),
+    ...variants.filter((v) => v.id !== preferredVariant?.id && v.is_active === false),
+  ].filter((v): v is ProductVariant => Boolean(v))
 
-  const colorRow = rows.find((r) => r.type === 'color')
-  let colorName = resolveColorNameForVariant(preferredVariant, rows, variants)
-
-  if (!colorName && colorRow?.type === 'color') {
-    for (const swatch of colorRow.swatches) {
-      const tryValidation = validateVariantCombination(variants, selections, swatch.value)
-      if (tryValidation.valid) {
-        colorName = swatch.value
-        break
-      }
-    }
-    if (!colorName) colorName = colorRow.swatches[0]?.value
+  for (const variant of ordered) {
+    const hit = selectionsForPreferredVariant(variants, rows, variant)
+    if (hit) return hit
   }
 
-  let validation = validateVariantCombination(variants, selections, colorName)
-  if (validation.valid) return { selections, colorName }
-
-  const first = variants.find((v) => v.is_active !== false) ?? variants[0]
-  if (first) {
-    const retrySelections = stripSpuriousSizeSelections(
-      normalizeVariantsForOptions(variants),
-      { ...selectionsFromVariant(first) },
-    )
-    applySizeDefaultsIfStructured(variants, rows, retrySelections)
-    const retryColor = resolveColorNameForVariant(first, rows, variants) ?? colorRow?.swatches[0]?.value
-    validation = validateVariantCombination(variants, retrySelections, retryColor)
-    if (validation.valid) {
-      return { selections: retrySelections, colorName: retryColor }
-    }
-  }
-
-  return { selections, colorName }
+  return { selections: {}, colorName: undefined }
 }
 
 export function findVariantForCardSelection(
