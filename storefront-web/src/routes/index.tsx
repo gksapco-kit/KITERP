@@ -52,6 +52,7 @@ import BlogPost from '@/pages/blog/BlogPost'
 import Policies from '@/pages/Policies'
 import ContactPage from '@/pages/Contact'
 import LandingContact from '@/pages/LandingContact'
+import LandingLead from '@/pages/LandingLead'
 import OrderConfirmationPage from '@/checkout/pages/OrderConfirmationPage'
 import OrderStatusPage from '@/checkout/pages/OrderStatusPage'
 import UpiPaymentProofPage from '@/checkout/pages/UpiPaymentProofPage'
@@ -154,6 +155,10 @@ export const router = createBrowserRouter([
   {
     path: '/contact',
     element: <LandingContact />,
+  },
+  {
+    path: '/lead',
+    element: <LandingLead />,
   },
   {
     path: '/partners',

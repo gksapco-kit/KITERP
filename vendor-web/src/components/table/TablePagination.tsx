@@ -77,6 +77,7 @@ export function TablePagination({
             options={sizeOptions.map((n) => ({ value: String(n), label: String(n) }))}
             aria-label={rowsPerPageLabel}
             menuPlacement="top"
+            menuMinWidth={96}
             wrapperClassName="w-auto"
             className="h-7 w-[4.25rem] text-xs"
           />

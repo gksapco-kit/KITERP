@@ -287,8 +287,9 @@ export function ThemeSelect({
   const autoMenuMinWidth = useMemo(() => {
     if (menuMinWidth != null) return menuMinWidth
     const longest = options.reduce((max, o) => Math.max(max, (o.label || '').length, (o.hint || '').length), 0)
-    // Short numeric options (e.g. page size) stay compact; form fields keep room for labels.
-    return longest <= 4 ? 0 : 280
+    // Short numeric options (e.g. page size) stay compact but wide enough for
+    // the label + checkmark on one line. Form fields keep room for labels.
+    return longest <= 4 ? 88 : 280
   }, [menuMinWidth, options])
 
   // While typing, flatten + rank so "P" puts Pack/Pair/Pouch at the top (not buried in groups).
@@ -350,7 +351,7 @@ export function ThemeSelect({
         )}
       >
         <div className="min-w-0 flex-1">
-          <span className={themeSelectUi.itemLabel}>{opt.label}</span>
+          <span className={cn(themeSelectUi.itemLabel, (opt.label || '').length <= 4 && 'whitespace-nowrap break-normal')}>{opt.label}</span>
           {opt.hint ? <span className={themeSelectUi.itemHint}>{opt.hint}</span> : null}
         </div>
         {isSelected ? <Check className={themeSelectUi.check} aria-hidden /> : null}

@@ -65,7 +65,7 @@ export default function PlatformCrmLeads() {
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">Platform CRM</p>
           <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Platform Contact Us submissions land here as leads, plus any prospects you add manually.
+            Landing Add new lead and Contact Us submissions land here, plus any prospects you add manually.
           </p>
         </div>
         <Button size="sm" onClick={() => setShowForm((v) => !v)}>

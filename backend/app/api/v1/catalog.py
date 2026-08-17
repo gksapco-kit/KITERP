@@ -16,6 +16,7 @@ from app.schemas.vendor import VendorResponse
 from app.schemas.vendor_product import ProductResponse, ProductListResponse
 from app.schemas.vendor_service import ServiceResponse, ServiceListResponse
 from app.schemas.storefront_contact_query import StorefrontContactQueryCreate
+from app.schemas.storefront_lead import PlatformLeadCreate, PlatformLeadLookup
 from app.models.storefront_contact_query import StorefrontContactQuery
 from app.models.platform_career_application import PlatformCareerApplication
 from app.services.vendor_service import VendorService
@@ -677,6 +678,161 @@ async def submit_platform_contact_query(
         "ok": True,
         "id": str(row.id),
         "message": "Thanks — we received your message and will get back to you soon.",
+    }
+
+
+def _same_lead_name(a: Optional[str], b: Optional[str]) -> bool:
+    return (a or "").strip().lower() == (b or "").strip().lower()
+
+
+def _lead_phone_digits(value: Optional[str]) -> str:
+    digits = re.sub(r"\D", "", value or "")
+    return digits[-10:] if len(digits) > 10 else digits
+
+
+def _lead_full_name(*parts: Optional[str]) -> str:
+    return " ".join(p.strip().lower() for p in parts if (p or "").strip())
+
+
+_LEAD_DUPLICATE_MESSAGE = (
+    "We may already have your details. Submit again if this is a new enquiry."
+)
+
+
+async def _platform_lead_is_duplicate(
+    db: AsyncSession,
+    vendor_id,
+    *,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+    email: Optional[str] = None,
+    phone: Optional[str] = None,
+) -> bool:
+    """True when any existing platform lead matches email, phone, or first+last name."""
+    from app.repositories.crm.repos import LeadRepo
+
+    first = (first_name or "").strip()
+    last = (last_name or "").strip()
+    email_key = (email or "").strip()
+    if email_key and ("@" not in email_key or "." not in email_key.split("@")[-1]):
+        email_key = ""
+    phone_key = _lead_phone_digits(phone)
+    entered_full = _lead_full_name(first, last)
+
+    queries: list[str] = []
+    if email_key:
+        queries.append(email_key)
+    if len(phone_key) >= 8:
+        queries.append(phone_key)
+    if len(first) >= 2:
+        queries.append(first)
+    if len(last) >= 2:
+        queries.append(last)
+    if entered_full:
+        queries.append(entered_full)
+    if not queries:
+        return False
+
+    candidates = await LeadRepo(db).find_identity_candidates(vendor_id, queries, size=80)
+    for lead in candidates:
+        if email_key and lead.email and email_key.lower() == (lead.email or "").strip().lower():
+            return True
+        if len(phone_key) >= 8 and _lead_phone_digits(lead.phone) == phone_key:
+            return True
+        lead_full = _lead_full_name(lead.first_name, lead.last_name)
+        if entered_full and lead_full and entered_full == lead_full:
+            return True
+        if (
+            len(first) >= 2
+            and len(last) >= 2
+            and _same_lead_name(first, lead.first_name)
+            and _same_lead_name(last, lead.last_name)
+        ):
+            return True
+        if entered_full and _same_lead_name(entered_full, lead.first_name):
+            return True
+    return False
+
+
+@router.post("/platform-leads/check")
+async def check_platform_lead(
+    body: PlatformLeadLookup,
+    db: AsyncSession = Depends(get_db),
+):
+    """Live duplicate check for the landing Add lead form. Returns no CRM records."""
+    from app.services.platform_crm_tenant import get_platform_crm_vendor_id
+
+    vid = await get_platform_crm_vendor_id(db)
+    matched = await _platform_lead_is_duplicate(
+        db,
+        vid,
+        first_name=body.first_name,
+        last_name=body.last_name,
+        email=body.email,
+        phone=body.phone,
+    )
+    return {
+        "duplicate": matched,
+        "message": _LEAD_DUPLICATE_MESSAGE if matched else None,
+    }
+
+
+@router.post("/platform-leads", status_code=status.HTTP_201_CREATED)
+async def submit_platform_lead(
+    request: Request,
+    body: PlatformLeadCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Landing-page New lead form → Super Admin CRM Leads."""
+    from app.schemas.crm.schemas import LeadCreate
+    from app.services.crm.services import LeadService
+    from app.services.platform_crm_tenant import get_platform_crm_vendor_id
+
+    vid = await get_platform_crm_vendor_id(db)
+    email = str(body.email) if body.email else None
+    phone = body.phone
+
+    if not body.force and await _platform_lead_is_duplicate(
+        db,
+        vid,
+        first_name=body.first_name,
+        last_name=body.last_name,
+        email=email,
+        phone=phone,
+    ):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "ok": False,
+                "duplicate": True,
+                "message": _LEAD_DUPLICATE_MESSAGE,
+            },
+        )
+
+    obj = await LeadService(db).create(
+        vid,
+        LeadCreate(
+            first_name=body.first_name or None,
+            last_name=body.last_name or None,
+            title=body.title,
+            company=body.company,
+            email=email,
+            phone=phone,
+            source=body.source or "website",
+            status="new",
+            notes=body.notes,
+            intake_payload={
+                "channel": "landing_add_lead",
+                "source": body.source or "website",
+            },
+        ),
+        request=request,
+    )
+    return {
+        "ok": True,
+        "id": str(obj.id),
+        "number": obj.number,
+        "message": "Thanks — we received your details and will get back to you soon.",
     }
 
 

@@ -156,5 +156,7 @@ export function buildFooterContactLinks(
     links.push({ label: address, href: '#', external: false })
   }
 
+  links.push({ label: 'Talk to us', href: '#talk-to-us', external: false })
+
   return links
 }

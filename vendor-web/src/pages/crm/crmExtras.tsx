@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
 import { crmApi } from '@/api/crm'
-import { formatDateTime, cn } from '@/lib/utils'
+import { formatDateTime, cn, mediaUrl } from '@/lib/utils'
 import { Field } from './_shared'
 import { MediaUploadPickerModal, galleryImageToFile } from '@/components/common/MediaUploadPickerModal'
 
@@ -593,7 +593,7 @@ export function useCrmExtras(customFieldsJson?: Record<string, unknown> | null) 
         {documents.map(d => (
           <li key={d.id} className="flex items-center gap-2 rounded-lg border px-2 py-1.5">
             <FileText className="w-3 h-3 text-gray-400 shrink-0" />
-            <a href={d.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 truncate text-xs text-blue-600 hover:underline">
+            <a href={mediaUrl(d.url)} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 truncate text-xs text-blue-600 hover:underline">
               {d.filename}
             </a>
             <button type="button" aria-label="Remove document" onClick={() => removeDoc(d.id)}
@@ -834,7 +834,7 @@ export function CrmExtrasView({ cf }: { cf?: Record<string, unknown> | null }) {
           <ul className="space-y-1">
             {documents.map((d, i) => (
               <li key={i}>
-                <a href={d.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-blue-600 hover:bg-gray-50">
+                <a href={mediaUrl(d.url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-blue-600 hover:bg-gray-50">
                   <FileText className="w-4 h-4 text-gray-400 shrink-0" />
                   <span className="flex-1 min-w-0 truncate">{d.filename}</span>
                   <Download className="w-4 h-4 text-gray-400 shrink-0" />

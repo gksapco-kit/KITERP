@@ -9,12 +9,12 @@ import { useAuthStore } from '@/stores/authStore'
 import type { Deal, Stage } from '@/api/crm'
 import { crmApi } from '@/api/crm'
 import type { EmployeeProfile } from '@/types'
-import { Plus, Loader2, GitBranch, TrendingUp, Paperclip, Trash2, FileText, User } from 'lucide-react'
+import { Plus, Loader2, GitBranch, TrendingUp, Paperclip, Trash2, FileText } from 'lucide-react'
 import { CrmModal, Field } from './_shared'
-import { modalWidthMd } from '@/lib/modalUi'
-import { CURRENCIES, currencySymbol, amountInWords, CrmDateTimeField } from './crmExtras'
+import { modalWidthSm } from '@/lib/modalUi'
+import { CURRENCIES, currencySymbol, amountInWords, toDatetimeLocalValue } from './crmExtras'
 import { DealDetail } from './DealDetail'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, mediaUrl } from '@/lib/utils'
 
 type CustomRow = { id: number; key: string; value: string }
 
@@ -89,7 +89,8 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
     <CrmModal
       title="Add deal"
       onClose={onClose}
-      maxW={modalWidthMd}
+      maxW={modalWidthSm}
+      bodyClassName="!overflow-hidden [scrollbar-gutter:auto]"
       footer={
         <>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -102,115 +103,129 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
         </>
       }
     >
-      <form id={formId} onSubmit={submit} className="space-y-3 pb-4">
-        <Field label="Title" required>
-          <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
+      <form id={formId} onSubmit={submit} className="grid grid-cols-2 gap-x-2 gap-y-2 sm:grid-cols-3">
+        <Field label="Title" required className="col-span-2 sm:col-span-3">
+          <Input className="h-8" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
         </Field>
-        <div>
-          <div className="flex gap-3 items-start">
-            <div className="flex-1">
-              <Field label="Amount">
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">{currencySymbol(form.currency)}</span>
-                  <Input type="number" min="0" className="pl-7" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
-                </div>
-              </Field>
-            </div>
-            <div className="w-36 shrink-0">
-              <Field label="Currency">
-                <Select
-                  className="w-36 shrink-0"
-                  value={form.currency}
-                  onChange={v => setForm(p => ({ ...p, currency: v }))}
-                  options={CURRENCIES.map(c => ({ value: c.code, label: `${c.symbol} ${c.code}` }))}
-                />
-              </Field>
-            </div>
+        <Field label="Amount">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{currencySymbol(form.currency)}</span>
+            <Input type="number" min="0" className="h-8 pl-6" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
           </div>
-          {form.amount && Number(form.amount) > 0 && (
-            <p className="mt-1 text-xs text-gray-500">
-              {formatCurrency(Number(form.amount), form.currency)} — {amountInWords(Number(form.amount))} {form.currency}
-            </p>
-          )}
-        </div>
+        </Field>
+        <Field label="Currency">
+          <Select
+            className="h-8"
+            value={form.currency}
+            onChange={v => setForm(p => ({ ...p, currency: v }))}
+            options={CURRENCIES.map(c => ({ value: c.code, label: `${c.symbol} ${c.code}` }))}
+          />
+        </Field>
         <Field label="Stage">
           <Select
+            className="h-8"
             value={form.stage_id}
             onChange={v => setForm(p => ({ ...p, stage_id: v }))}
             options={(pipeline?.stages ?? []).map(s => ({ value: s.id, label: s.name }))}
           />
         </Field>
-        <Field label="Expected close">
-          <CrmDateTimeField
-            value={form.expected_close_date}
-            onChange={v => setForm(p => ({ ...p, expected_close_date: v }))}
-            scheduleAccent
+        <Field label="Close date" className="col-span-2 sm:col-span-1">
+          <Input
+            type="date"
+            className="h-8"
+            value={form.expected_close_date.slice(0, 10)}
+            onChange={e => setForm(p => ({ ...p, expected_close_date: e.target.value ? `${e.target.value}T09:00` : '' }))}
+          />
+          <div className="mt-0.5 flex flex-wrap gap-1">
+            {[
+              { label: 'Today', days: 0 },
+              { label: 'Tomorrow', days: 1 },
+              { label: '+1 week', days: 7 },
+            ].map(p => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => {
+                  const d = new Date()
+                  d.setDate(d.getDate() + p.days)
+                  d.setHours(9, 0, 0, 0)
+                  setForm(f => ({ ...f, expected_close_date: toDatetimeLocalValue(d) }))
+                }}
+                className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label="Source">
+          <Input className="h-8" value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))} placeholder="website, referral…" />
+        </Field>
+        <Field label="Owner">
+          <Select
+            className="h-8"
+            value={form.owner}
+            onChange={v => setForm(p => ({ ...p, owner: v }))}
+            options={[
+              { value: meName, label: `${meName} (me)` },
+              ...employees.filter(e => empName(e) !== meName).map(e => ({
+                value: empName(e),
+                label: empName(e),
+              })),
+            ]}
           />
         </Field>
-        <Field label="Source"><Input value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))} /></Field>
-        <Field label="Deal owner">
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <Select
-              className="pl-9"
-              value={form.owner}
-              onChange={v => setForm(p => ({ ...p, owner: v }))}
-              options={[
-                { value: meName, label: `${meName} (me)` },
-                ...employees.filter(e => empName(e) !== meName).map(e => ({
-                  value: empName(e),
-                  label: empName(e),
-                })),
-              ]}
-            />
-          </div>
+        <Field label="Description" className="col-span-2 sm:col-span-3">
+          <Input
+            className="h-8"
+            value={form.description}
+            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+            placeholder="Notes about this opportunity…"
+          />
         </Field>
-        <Field label="Description">
-          <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-        </Field>
+        {form.amount && Number(form.amount) > 0 && (
+          <p className="col-span-2 text-[11px] text-muted-foreground sm:col-span-3">
+            {formatCurrency(Number(form.amount), form.currency)} — {amountInWords(Number(form.amount))} {form.currency}
+          </p>
+        )}
 
-        {/* Attachments */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" /> Attachments</p>
-            {uploading && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
-          </div>
-          {docs.length > 0 && (
-            <ul className="space-y-1.5">
-              {docs.map((d, i) => (
-                <li key={i} className="flex items-center gap-2 rounded-lg border px-3 py-2">
-                  <FileText className="w-4 h-4 text-gray-400 shrink-0" />
-                  <a href={d.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 truncate text-sm text-blue-600 hover:underline">{d.filename}</a>
-                  <button type="button" onClick={() => setDocs(prev => prev.filter((_, n) => n !== i))} className="text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="col-span-2 flex flex-wrap items-center gap-2 sm:col-span-3">
           <input ref={fileRef} type="file" multiple className="hidden"
             accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" onChange={e => onDocs(e.target.files)} />
-          <Button type="button" variant="outline" size="sm" className="w-full" disabled={uploading} onClick={() => fileRef.current?.click()}>
-            <Paperclip className="w-4 h-4 mr-2" /> Attach document(s)
+          <Button type="button" variant="outline" size="sm" className="h-7" disabled={uploading} onClick={() => fileRef.current?.click()}>
+            {uploading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Paperclip className="w-3.5 h-3.5 mr-1" />}
+            Attach
           </Button>
+          <button
+            type="button"
+            className="text-[11px] font-medium text-primary hover:underline"
+            onClick={() => { setCustom(prev => [...prev, { id: seq, key: '', value: '' }]); setSeq(s => s + 1) }}
+          >
+            + Extra field
+          </button>
         </div>
-
-        {/* Add more details (custom fields) */}
+        {docs.length > 0 && (
+          <ul className="col-span-2 space-y-1 sm:col-span-3">
+            {docs.map((d, i) => (
+              <li key={i} className="flex items-center gap-2 rounded-md border px-2 py-1">
+                <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <a href={mediaUrl(d.url)} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-xs text-blue-600 hover:underline">{d.filename}</a>
+                <button type="button" onClick={() => setDocs(prev => prev.filter((_, n) => n !== i))} className="text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+              </li>
+            ))}
+          </ul>
+        )}
         {custom.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-gray-500">More details</p>
+          <div className="col-span-2 space-y-1.5 sm:col-span-3">
             {custom.map(r => (
-              <div key={r.id} className="flex gap-2">
-                <Input value={r.key} onChange={e => setCustom(prev => prev.map(x => x.id === r.id ? { ...x, key: e.target.value } : x))} placeholder="Field name" className="flex-1" />
-                <Input value={r.value} onChange={e => setCustom(prev => prev.map(x => x.id === r.id ? { ...x, value: e.target.value } : x))} placeholder="Value" className="flex-1" />
-                <Button type="button" variant="cancel" size="icon" aria-label="Remove" onClick={() => setCustom(prev => prev.filter(x => x.id !== r.id))}><Trash2 className="w-4 h-4" /></Button>
+              <div key={r.id} className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
+                <Input className="h-8" value={r.key} onChange={e => setCustom(prev => prev.map(x => x.id === r.id ? { ...x, key: e.target.value } : x))} placeholder="Field name" />
+                <Input className="h-8" value={r.value} onChange={e => setCustom(prev => prev.map(x => x.id === r.id ? { ...x, value: e.target.value } : x))} placeholder="Value" />
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Remove" onClick={() => setCustom(prev => prev.filter(x => x.id !== r.id))}><Trash2 className="w-3.5 h-3.5" /></Button>
               </div>
             ))}
           </div>
         )}
-        <Button type="button" variant="outline" size="sm" className="w-full"
-          onClick={() => { setCustom(prev => [...prev, { id: seq, key: '', value: '' }]); setSeq(s => s + 1) }}>
-          <Plus className="w-4 h-4 mr-2" /> Add field
-        </Button>
       </form>
     </CrmModal>
   )

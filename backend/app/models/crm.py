@@ -142,7 +142,7 @@ class CrmLead(Base):
 
     source = Column(String(80))  # website/referral/ad/event/manual/import/api/chatbot
     source_campaign = Column(String(255))
-    status = Column(String(40), default="new")  # new/working/contacted/qualified/unqualified/converted
+    status = Column(String(40), default="new")  # new/working/contacted/qualified/unqualified/requested_for_demo/demo_scheduled/demo_completed/not_responding/contact_later/converted
     score = Column(Integer, default=0)
     rating = Column(String(20))  # hot/warm/cold
 

@@ -199,6 +199,34 @@ class LeadRepo(_VendorScopedRepo):
             where=and_(*where) if where else None,
         )
 
+    async def find_identity_candidates(
+        self,
+        vendor_id: UUID,
+        queries: Sequence[str],
+        *,
+        size: int = 40,
+    ) -> list[CrmLead]:
+        """Candidates for public/vendor duplicate matching (email, phone, name)."""
+        terms = [q.strip() for q in queries if q and str(q).strip()]
+        if not terms:
+            return []
+        filters = []
+        for term in terms:
+            like = f"%{term}%"
+            filters.append(or_(
+                CrmLead.first_name.ilike(like),
+                CrmLead.last_name.ilike(like),
+                CrmLead.email.ilike(like),
+                CrmLead.phone.ilike(like),
+            ))
+        rows = await self.db.execute(
+            select(CrmLead)
+            .where(CrmLead.vendor_id == vendor_id, or_(*filters))
+            .order_by(desc(CrmLead.created_at))
+            .limit(size)
+        )
+        return list(rows.scalars().all())
+
 
 # ── Pipelines & Stages & Deals ───────────────────────────────────────────────
 
