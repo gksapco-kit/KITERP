@@ -52,12 +52,20 @@ function isDraftPreviewCatalogPath(pathname: string): boolean {
   return Boolean(catalog.slug) || pathname === '/products' || pathname === '/services' || pathname === '/categories'
 }
 
-/** Strip /store/:vendorSlug prefix when a link targets the live storefront path. */
+/** Strip /store/:vendorSlug or /:vendorSlug prefix when a link targets the live storefront path. */
 function stripLiveStorePrefix(pathname: string): string {
-  const m = pathname.match(/^\/store\/[^/]+(\/.*|$)/)
-  if (!m) return pathname
-  const rest = m[1]
-  return rest && rest !== '/' ? rest.replace(/\/+$/, '') || '/' : '/'
+  const store = pathname.match(/^\/store\/[^/]+(\/.*|$)/)
+  if (store) {
+    const rest = store[1]
+    return rest && rest !== '/' ? rest.replace(/\/+$/, '') || '/' : '/'
+  }
+  const vendorPrefixed = pathname.match(
+    /^\/[^/]+(\/(?:products|services|categories|blog|cart|checkout|login|register|account|contact|rentals|rental|order|preview|draft-catalog)(?:\/.*)?)?$/,
+  )
+  if (vendorPrefixed?.[1]) {
+    return vendorPrefixed[1].replace(/\/+$/, '') || '/'
+  }
+  return pathname
 }
 
 /** In-preview navigation: stay on vendor-web /preview/draft with token + page or catalog route. */

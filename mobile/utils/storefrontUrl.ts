@@ -32,12 +32,12 @@ export function getStorefrontBaseUrl(): string {
   return 'https://kiterp.com'
 }
 
-/** Full customer store URL for the locked vendor, e.g. …/store/testotp */
+/** Full customer store URL for the locked vendor, e.g. …/testotp */
 export function getBrandedStorefrontUrl(path = ''): string {
   const slug = getVendorSlug()
   if (!slug) return getStorefrontBaseUrl()
 
-  const base = `${getStorefrontBaseUrl()}/store/${encodeURIComponent(slug)}`
+  const base = `${getStorefrontBaseUrl()}/${encodeURIComponent(slug)}`
   if (!path || path === '/') return base
 
   const suffix = path.startsWith('/') ? path : `/${path}`

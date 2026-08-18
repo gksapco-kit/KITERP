@@ -54,7 +54,7 @@ function clearHrAuthAndRedirect() {
   safeLocalRemove('employee_access_token')
   safeLocalRemove('employee-hr-auth-storage')
   const slug = vendorSlugFromLocation() || _vendorSlug
-  window.location.href = slug ? `/store/${slug}/hr/login` : '/'
+  window.location.href = slug ? `/${encodeURIComponent(slug)}/hr/login` : '/'
 }
 
 hrApiClient.interceptors.response.use(

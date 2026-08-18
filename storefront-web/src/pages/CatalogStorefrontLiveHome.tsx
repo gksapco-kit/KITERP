@@ -45,7 +45,7 @@ export default function CatalogStorefrontLiveHome({ catalogTemplateId }: Props) 
   const { builderSite } = useBuilderSite()
   const Template = LIVE_TEMPLATES[catalogTemplateId]
 
-  const basePath = `/store/${vendorSlug}`
+  const basePath = `/${vendorSlug}`
   const rawKey = catalogTemplateId.replace(/^storefront_/, '')
 
   const config = useMemo(

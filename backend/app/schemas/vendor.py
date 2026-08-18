@@ -6,6 +6,8 @@ from uuid import UUID
 from enum import Enum
 import re
 
+from app.utils.storefront_paths import is_reserved_vendor_slug
+
 
 class BusinessType(str, Enum):
     INDIVIDUAL = "individual"
@@ -86,6 +88,8 @@ class VendorCreate(BaseModel):
             raise ValueError("Slug must contain only lowercase letters, numbers, and hyphens")
         if v.startswith("-") or v.endswith("-"):
             raise ValueError("Slug cannot start or end with a hyphen")
+        if is_reserved_vendor_slug(v):
+            raise ValueError("This URL is reserved by the platform. Choose a different slug.")
         return v.lower()
 
     @field_validator("primary_email")

@@ -126,7 +126,7 @@ export function BuilderCtaButton({
   const target = (href || '').trim()
   // External / protocol links (http, mailto, tel, protocol-relative) and in-page
   // anchors must NOT be run through `storePath` or a router <Link>, otherwise the
-  // store path prefix corrupts them (e.g. `mailto:x` -> `/store/slug/mailto:x`).
+  // store path prefix corrupts them (e.g. `mailto:x` -> `/slug/mailto:x`).
   const isProtocol = /^(https?:|mailto:|tel:)/i.test(target) || target.startsWith('//')
   const isAnchor = target.startsWith('#')
   // Query-only targets (e.g. `?branch=code`) attach to the store home.

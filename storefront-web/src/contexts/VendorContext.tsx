@@ -10,6 +10,7 @@ import {
   rememberDraftCatalogPreviewTokenFromPath,
 } from '@/lib/draftCatalogEmbed'
 import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
+import { storefrontPath } from '@/lib/storefrontPaths'
 import { resolveAssignedStorefrontTemplateId } from '@/lib/storefrontTemplateAssignment'
 import { resolveTemplateDisplayFieldsFromSettings } from '@/lib/storefrontDisplayFields'
 
@@ -169,7 +170,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     if (isDraftCatalogEmbed && draftCatalogToken) {
       return buildDraftCatalogEmbedStorePath(slug, draftCatalogToken, clean.replace(/^\//, ''))
     }
-    let href = `/store/${slug}${clean}`
+    let href = storefrontPath(slug, clean)
     if (draftEmbed && draftPreviewToken) {
       const routeQs = clean.includes('?') ? clean.slice(clean.indexOf('?') + 1) : ''
       const routePath = clean.split('?')[0].replace(/^\//, '')

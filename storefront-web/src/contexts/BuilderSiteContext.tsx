@@ -137,7 +137,7 @@ export function BuilderSiteStaticProvider({
 }
 
 /**
- * Overrides the parent BuilderSiteProvider for `/store/:slug/preview/:token/...`:
+ * Overrides the parent BuilderSiteProvider for `/:slug/preview/:token/...`:
  * loads frozen snapshot JSON instead of the published subdomain payload.
  */
 export function BuilderSitePreviewProvider({ children }: { children: ReactNode }) {

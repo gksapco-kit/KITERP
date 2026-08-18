@@ -282,7 +282,7 @@ function clearAuthAndRedirect() {
   }
   // Preserve where the shopper was so login can send them back (not home).
   const fromQs = `from=${encodeURIComponent(returnTo)}`
-  window.location.href = `/store/${slug}/login?${fromQs}`
+  window.location.href = `/${encodeURIComponent(slug)}/login?${fromQs}`
 }
 
 apiClient.interceptors.response.use(

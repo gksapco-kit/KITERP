@@ -21,6 +21,7 @@ from app.services.file_service import FileService
 from app.services.user_cleanup import delete_user_if_orphan
 from app.services.vendor_cleanup import delete_vendor_row
 from app.core.events import event_emitter
+from app.utils.storefront_paths import is_reserved_vendor_slug
 
 
 def mark_vendor_approved_active(vendor: Vendor) -> None:
@@ -158,14 +159,10 @@ class VendorService:
     async def check_slug_availability(self, slug: str) -> SlugCheckResponse:
         """Check if a slug is available and provide suggestions if not."""
         normalized_slug = slugify(slug, lowercase=True)
-        exists = await self.repo.slug_exists(normalized_slug)
-        
-        if not exists:
-            return SlugCheckResponse(available=True)
-        
-        # Generate suggestions
-        suggestions = await self._generate_slug_suggestions(normalized_slug)
-        return SlugCheckResponse(available=False, suggestions=suggestions)
+        if is_reserved_vendor_slug(normalized_slug) or await self.repo.slug_exists(normalized_slug):
+            suggestions = await self._generate_slug_suggestions(normalized_slug)
+            return SlugCheckResponse(available=False, suggestions=suggestions)
+        return SlugCheckResponse(available=True)
     
     async def _generate_slug_suggestions(self, base_slug: str) -> List[str]:
         """Generate alternative slug suggestions."""
@@ -174,7 +171,7 @@ class VendorService:
         
         for suffix in suffixes:
             suggestion = f"{base_slug}-{suffix}"
-            if not await self.repo.slug_exists(suggestion):
+            if not is_reserved_vendor_slug(suggestion) and not await self.repo.slug_exists(suggestion):
                 suggestions.append(suggestion)
             if len(suggestions) >= 3:
                 break
@@ -183,7 +180,7 @@ class VendorService:
         counter = 1
         while len(suggestions) < 3:
             suggestion = f"{base_slug}{counter}"
-            if not await self.repo.slug_exists(suggestion):
+            if not is_reserved_vendor_slug(suggestion) and not await self.repo.slug_exists(suggestion):
                 suggestions.append(suggestion)
             counter += 1
         

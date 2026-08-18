@@ -314,7 +314,7 @@ async def get_store_vendor_id(
     """
     Resolve vendor ID from multiple sources (SaaS model):
     1. Tenant middleware (subdomain / custom domain)
-    2. X-Vendor-Slug header — matches URL /store/{slug}/…; wins over stale X-Vendor-Id from localStorage
+    2. X-Vendor-Slug header — matches URL /{slug}/…; wins over stale X-Vendor-Id from localStorage
     3. X-Vendor-Id header (mobile apps and callers that only have UUID)
     """
     # 1. From tenant middleware (subdomain resolution)

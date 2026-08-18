@@ -276,7 +276,7 @@ async def get_vendor_id_from_tenant(
     Get vendor ID from tenant context, X-Vendor-Slug, or X-Vendor-Id.
 
     Slug must win over Id: path-based live tabs send both headers, and a stale
-    X-Vendor-Id from another tab's localStorage must not override /store/{slug}.
+    X-Vendor-Id from another tab's localStorage must not override /{slug}.
     (Same order as get_store_vendor_id in app.api.deps.)
     """
     # 1. Tenant middleware (subdomain / custom domain)
@@ -378,7 +378,7 @@ async def list_storefront_vendors(
     """
     Public directory of vendors opted into Community / Our Partners
     (``show_in_community``) that can be opened on the path-based business front
-    (``/store/{slug}``). Used by the marketing landing page and Our Partners page.
+    (``/{slug}``). Used by the marketing landing page and Our Partners page.
     """
     repo = VendorRepository(db)
     items, total = await repo.list_storefront_directory(search=q, skip=0, limit=limit)
@@ -427,7 +427,7 @@ async def get_platform_sitemap(db: AsyncSession = Depends(get_db)):
             if not slug:
                 continue
             urls.append(_sitemap_url(f"{base}/partners/{slug}", "weekly", "0.7", today))
-            urls.append(_sitemap_url(f"{base}/store/{slug}", "daily", "0.8", today))
+            urls.append(_sitemap_url(f"{base}/{slug}", "daily", "0.8", today))
         skip += page_size
         if skip >= total or not items:
             break

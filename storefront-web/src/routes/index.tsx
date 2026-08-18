@@ -19,6 +19,7 @@ import Careers from '@/pages/Careers'
 import VendorSignup from '@/pages/vendor/VendorSignup'
 import VerifyEmail from '@/pages/vendor/VerifyEmail'
 import { VENDOR_SIGNUP_PATH, VENDOR_VERIFY_EMAIL_PATH } from '@/lib/vendorSignupPaths'
+import { isReservedVendorSlug, stripLegacyStorePrefix } from '@/lib/storefrontPaths'
 
 import Home from '@/pages/Home'
 import BuilderPage from '@/pages/BuilderPage'
@@ -84,10 +85,33 @@ import DevEmployeeHrLinks from '@/pages/DevEmployeeHrLinks'
 
 function LegacyEmployeeToHrRedirect() {
   const { vendorSlug } = useParams<{ vendorSlug: string }>()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const idx = pathname.indexOf('/employee')
   const tail = idx >= 0 ? pathname.slice(idx + '/employee'.length) : ''
-  return <Navigate to={`/store/${vendorSlug}/hr${tail || ''}`} replace />
+  return <Navigate to={`/${vendorSlug}/hr${tail || ''}${search}`} replace />
+}
+
+/** Old bookmarks / QR codes: /store/{slug}/… → /{slug}/… */
+function LegacyStorePrefixRedirect() {
+  const { pathname, search, hash } = useLocation()
+  const next = stripLegacyStorePrefix(pathname, search, hash)
+  return <Navigate to={next || '/'} replace />
+}
+
+function VendorDraftCatalogShell() {
+  const { vendorSlug } = useParams<{ vendorSlug: string }>()
+  if (isReservedVendorSlug(vendorSlug)) {
+    return <Navigate to="/" replace />
+  }
+  return <DraftCatalogEmbedShell />
+}
+
+function VendorStoreLayout() {
+  const { vendorSlug } = useParams<{ vendorSlug: string }>()
+  if (isReservedVendorSlug(vendorSlug)) {
+    return <Navigate to="/" replace />
+  }
+  return <StoreLayout />
 }
 
 /** Singular `/rental` CMS slugs used to hit the builder catch-all without the live catalog. */
@@ -198,18 +222,27 @@ export const router = createBrowserRouter([
       { path: 'order/:orderId/payment', element: <UpiPaymentProofPage /> },
     ],
   },
-  // Vendor-specific business front: /store/:vendorSlug/...
+  // Legacy public URLs: /store/:vendorSlug/... → /:vendorSlug/...
   {
-    path: '/store/:vendorSlug/draft-catalog/:previewToken',
-    element: <DraftCatalogEmbedShell />,
+    path: '/store/:vendorSlug',
+    element: <LegacyStorePrefixRedirect />,
+  },
+  {
+    path: '/store/:vendorSlug/*',
+    element: <LegacyStorePrefixRedirect />,
+  },
+  // Vendor-specific business front: /:vendorSlug/...
+  {
+    path: '/:vendorSlug/draft-catalog/:previewToken',
+    element: <VendorDraftCatalogShell />,
     children: [
       { index: true, element: <Navigate to="products" replace /> },
       ...draftCatalogShellChildren,
     ],
   },
   {
-    path: '/store/:vendorSlug',
-    element: <StoreLayout />,
+    path: '/:vendorSlug',
+    element: <VendorStoreLayout />,
     children: [
       // Home: uses builder if published, otherwise legacy Home
       { index: true, element: <HomeOrBuilder /> },

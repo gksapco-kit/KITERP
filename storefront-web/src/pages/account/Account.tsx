@@ -4,6 +4,7 @@ import { useCustomerLogout } from '@/hooks/useStore'
 import { Package, User, MapPin, ChevronRight, Heart, Settings, ShoppingBag, CalendarDays, Bell, Repeat, MessageSquareQuote, PackageOpen, Truck, LogOut } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import { isVendorRentalsEnabled } from '@/lib/catalogNavCapabilities'
+import { storefrontPath } from '@/lib/storefrontPaths'
 
 export default function Account() {
   const { customer } = useAuthStore()
@@ -22,11 +23,12 @@ export default function Account() {
   // can never produce `/account/rentals` (which the app catch-all sends to home).
   const absStorePath = (path: string) => {
     const href = storePath(path)
-    if (href.startsWith('/store/')) return href
     const slug = vendorSlug || vendor?.slug
     if (!slug) return href
+    const expected = storefrontPath(slug, path)
+    if (href === expected || href.startsWith(`${expected}?`) || href.startsWith('/store/')) return href
     const clean = path.startsWith('/') ? path : `/${path}`
-    return `/store/${slug}${clean}`
+    return storefrontPath(slug, clean)
   }
 
   const menuItems = [

@@ -17377,7 +17377,7 @@ export default function WebsiteBuilder() {
     }
   }, [siteId, site, queryClient])
 
-  // Store test URL — business front /store/:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
+  // Store test URL — business front /:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
   // not wb_sites.subdomain. In dev, always use the logged-in vendor's catalog slug so links don't 404.
   const siteTestUrl = useMemo(() => {
     if (!site) return null
@@ -17407,7 +17407,7 @@ export default function WebsiteBuilder() {
       }
 
       if (shouldUseLocalStorefrontUrls()) {
-        return `${getStorefrontAppOrigin()}/store/${encodeURIComponent(vendorCatalogSlug)}`
+        return `${getStorefrontAppOrigin()}/${encodeURIComponent(vendorCatalogSlug)}`
       }
     }
     if (!shouldUseLocalStorefrontUrls() && site.subdomain?.trim()) {
@@ -17450,7 +17450,7 @@ export default function WebsiteBuilder() {
             const v = await vendorApi.getMyVendor().catch(() => null)
             const catalogSlug = v?.slug?.trim() || slug
             const url = shouldUseLocalStorefrontUrls()
-              ? `${getStorefrontAppOrigin()}/store/${encodeURIComponent(catalogSlug)}`
+              ? `${getStorefrontAppOrigin()}/${encodeURIComponent(catalogSlug)}`
               : `https://${slug}.kiterp.com`
             await navigator.clipboard.writeText(url).catch(() => {})
             toast.success(`Test link ready — ${url}`)
@@ -17470,7 +17470,7 @@ export default function WebsiteBuilder() {
     clearPendingPreviewTabError(siteId)
     const previewTab = prepareDraftPreviewTab(siteId)
     try {
-      // /store/:vendorSlug must match Vendor.slug (catalog), never wb_sites.subdomain alone.
+      // /:vendorSlug must match Vendor.slug (catalog), never wb_sites.subdomain alone.
       let vendorSlug = myVendor?.slug?.trim() ?? ''
       if (!vendorSlug) {
         try {

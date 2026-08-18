@@ -148,7 +148,7 @@ async def main():
         print()
         print("  Login at:")
         print(f"    Vendor Admin:  http://localhost:3001")
-        print(f"    Business Front:    http://localhost:3002/store/{VENDOR_SLUG}")
+        print(f"    Business Front:    http://localhost:3002/{VENDOR_SLUG}")
         print(f"    Super Admin:   http://localhost:3000")
         print()
 

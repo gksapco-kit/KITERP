@@ -148,12 +148,12 @@ export async function ensureTableQrToken(
 
 export function storefrontTableOrderUrl(slug: string, qrToken: string): string {
   const base = process.env.STOREFRONT_URL || 'http://127.0.0.1:3002';
-  return `${base}/store/${encodeURIComponent(slug)}/table/${encodeURIComponent(qrToken)}`;
+  return `${base}/${encodeURIComponent(slug)}/table/${encodeURIComponent(qrToken)}`;
 }
 
 export function storefrontReserveUrl(slug: string): string {
   const base = process.env.STOREFRONT_URL || 'http://127.0.0.1:3002';
-  return `${base}/store/${encodeURIComponent(slug)}/reserve`;
+  return `${base}/${encodeURIComponent(slug)}/reserve`;
 }
 
 export function dateOffset(days: number): string {

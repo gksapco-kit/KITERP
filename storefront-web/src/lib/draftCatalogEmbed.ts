@@ -1,11 +1,13 @@
 /**
- * Draft catalog preview — path-based embed under /store/:slug/draft-catalog/:token/...
+ * Draft catalog preview — path-based embed under /:slug/draft-catalog/:token/...
+ * (legacy /store/:slug/draft-catalog/:token/... still parses).
  * Catalog shell only (products, cart, checkout, …). Never loads live template home or builder pages.
  */
 
 import { rememberDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
+import { isReservedVendorSlug, storefrontPath } from '@/lib/storefrontPaths'
 
-const DRAFT_CATALOG_PATH_RE = /^\/store\/([^/]+)\/draft-catalog\/([^/]+)(?:\/(.*))?$/
+const DRAFT_CATALOG_PATH_RE = /^(?:\/store)?\/([^/]+)\/draft-catalog\/([^/]+)(?:\/(.*))?$/
 
 export function parseDraftCatalogEmbedPath(pathname: string): {
   vendorSlug: string
@@ -16,7 +18,7 @@ export function parseDraftCatalogEmbedPath(pathname: string): {
   if (!m) return null
   const vendorSlug = m[1]?.trim()
   const previewToken = m[2]?.trim()
-  if (!vendorSlug || !previewToken) return null
+  if (!vendorSlug || !previewToken || isReservedVendorSlug(vendorSlug)) return null
   const routeSegment = (m[3] || '').replace(/\/+$/, '')
   return { vendorSlug, previewToken, routeSegment }
 }
@@ -37,7 +39,7 @@ export function buildDraftCatalogEmbedStorePath(
   const qIdx = path.indexOf('?')
   const routePath = qIdx >= 0 ? path.slice(0, qIdx) : path
   const routeQs = qIdx >= 0 ? path.slice(qIdx + 1) : ''
-  const base = `/store/${encodeURIComponent(slug)}/draft-catalog/${encodeURIComponent(token)}/${routePath}`
+  const base = `${storefrontPath(slug, `/draft-catalog/${encodeURIComponent(token)}/${routePath}`)}`
   if (!routeQs) return base
   const params = new URLSearchParams(routeQs)
   const qs = params.toString()

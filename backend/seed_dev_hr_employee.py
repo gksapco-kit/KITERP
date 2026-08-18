@@ -3,7 +3,7 @@
 Create a single Employee HR / ESS test account on an existing vendor (by slug).
 
 Use after ``python setup_vendor.py`` (or any approved/active vendor). Then sign in at:
-  http://localhost:3002/store/<slug>/hr/login
+  http://localhost:3002/<slug>/hr/login
 
 Usage (from backend/):
     python seed_dev_hr_employee.py
@@ -142,7 +142,7 @@ async def main():
 
     print()
     print("  Business Front HR login (default dev stack):")
-    print(f"    URL:      http://localhost:3002/store/{vendor.slug}/hr/login")
+    print(f"    URL:      http://localhost:3002/{vendor.slug}/hr/login")
     print(f"    Email:    {args.email}")
     print(f"    Password: {args.password}")
     print()

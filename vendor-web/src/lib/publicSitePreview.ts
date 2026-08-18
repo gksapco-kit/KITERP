@@ -28,7 +28,7 @@ export type PublicPreviewPage = {
 export type PublicPreviewSite = {
   id: string
   name?: string
-  /** Catalog slug for /store/:slug (Vendor.slug), not necessarily wb_sites.subdomain. */
+  /** Catalog slug for /:slug (Vendor.slug), not necessarily wb_sites.subdomain. */
   vendor_slug?: string | null
   subdomain?: string | null
   custom_domain?: string | null
@@ -42,7 +42,7 @@ export type PublicPreviewSite = {
   pages?: PublicPreviewPage[]
 }
 
-/** Resolve the slug used by the storefront catalog (/store/:slug). */
+/** Resolve the slug used by the storefront catalog (/:slug). */
 export function resolvePreviewVendorSlug(site: PublicPreviewSite | null | undefined): string {
   const catalogSlug = site?.vendor_slug?.trim()
   if (catalogSlug) return catalogSlug

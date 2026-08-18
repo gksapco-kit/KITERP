@@ -2,6 +2,7 @@ import { useLocation, useParams } from 'react-router-dom'
 import { useVendor } from '@/contexts/VendorContext'
 import { useStorePath } from '@/hooks/useStorePath'
 import { buildDraftCatalogEmbedStorePath, parseDraftCatalogEmbedPath } from '@/lib/draftCatalogEmbed'
+import { storefrontPath } from '@/lib/storefrontPaths'
 
 const CART_DETAIL_PATH = '/cart'
 
@@ -25,13 +26,14 @@ export function useProductCartDetailPath(): string {
 
   const built = storePath(CART_DETAIL_PATH)
   const builtPath = built.split('?')[0]
-  if (builtPath.includes('/cart') && builtPath.includes('/store/')) {
+  const expectedCart = slug ? storefrontPath(slug, CART_DETAIL_PATH) : ''
+  if (builtPath.includes('/cart') && (builtPath === expectedCart || builtPath.includes('/store/'))) {
     return built
   }
 
   if (slug) {
     const branchQs = built.includes('?') ? built.slice(built.indexOf('?')) : ''
-    return `/store/${encodeURIComponent(slug)}${CART_DETAIL_PATH}${branchQs}`
+    return `${storefrontPath(slug, CART_DETAIL_PATH)}${branchQs}`
   }
 
   return built

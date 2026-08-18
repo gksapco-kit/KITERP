@@ -214,7 +214,7 @@ function MosaicCellView({
         : fallback?.bg
     return (
       <Link
-        to={`/store/${vendor.slug}`}
+        to={`/${vendor.slug}`}
         className={`${classes} kiterp-mosaic-shape--avatar kiterp-mosaic-store${hasPhoto ? ' kiterp-mosaic-store--has-photo' : ' flex items-center justify-center'}${isBrand ? ' kiterp-mosaic-shape--brand' : ''}`}
         style={{
           background: tileBg,

@@ -42,17 +42,14 @@ function parseCatalogStorePath(rawPath: string): { kind: string; slug?: string }
 }
 
 import { draftCatalogPathToEmbedRoute } from '@/lib/draftCatalogEmbed'
+import { relativePathUnderVendor } from '@/lib/storefrontPaths'
 
-/** Map a storefront path under /store/:slug to a ?route= embed segment. */
+/** Map a storefront path under /:slug (or legacy /store/:slug) to a ?route= embed segment. */
 export function storefrontPathToDraftEmbedRoute(pathname: string, vendorSlug: string): string | null {
   const fromDraftCatalog = draftCatalogPathToEmbedRoute(pathname.split('?')[0], vendorSlug)
   if (fromDraftCatalog) return fromDraftCatalog
 
-  const prefix = `/store/${vendorSlug}`
-  let rest = pathname
-  if (rest.startsWith(prefix)) {
-    rest = rest.slice(prefix.length).replace(/\/+$/, '') || '/'
-  }
+  let rest = relativePathUnderVendor(pathname, vendorSlug) || pathname
   rest = rest.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/'
 
   if (rest.startsWith('/draft-catalog/')) {

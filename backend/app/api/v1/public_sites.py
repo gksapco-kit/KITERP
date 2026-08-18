@@ -326,7 +326,7 @@ async def _resolve_site_by_subdomain(
             # Catalog/legacy template ids (storefront_grocery, light, …) still drive
             # the frontend renderer when the site has no saved blocks, but must not
             # hide a published site — otherwise GA / cookie consent / SEO never load
-            # on /store/:slug?branch=….
+            # on /:slug?branch=….
             shared = _shared_default_site()
             if shared is not None:
                 return shared

@@ -282,7 +282,7 @@ export default function PartnerDetail() {
                       </a>
                     )}
                     <Link
-                      to={`/store/${vendor.slug}`}
+                      to={`/${vendor.slug}`}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-[#64C3A0] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#52b38f]"
                     >
                       Open storefront
@@ -310,7 +310,7 @@ export default function PartnerDetail() {
                     return (
                       <div key={p.id} className="min-w-0 group/card">
                         <Link
-                          to={`/store/${vendor.slug}/products/${p.slug}`}
+                          to={`/${vendor.slug}/products/${p.slug}`}
                           className="block relative rounded-2xl overflow-hidden bg-[#1a3d2e] aspect-[4/3] ring-1 ring-[#1e3d34]/10 transition group-hover/card:ring-[#64C3A0]/35"
                         >
                           <ProductOfferThumb name={p.name} src={img} />
@@ -331,7 +331,7 @@ export default function PartnerDetail() {
                           </a>
                         ) : (
                           <Link
-                            to={`/store/${vendor.slug}/products/${p.slug}`}
+                            to={`/${vendor.slug}/products/${p.slug}`}
                             className="mt-2.5 flex items-center justify-center w-full rounded-xl bg-[#1e3d34] py-2.5 text-sm font-semibold text-white hover:bg-[#2a5246]"
                           >
                             View product

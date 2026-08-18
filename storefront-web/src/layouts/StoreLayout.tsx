@@ -38,6 +38,7 @@ import {
   resolveBusinessContactAddress,
 } from '@/lib/businessContact'
 import StoreRouteSeo from '@/components/seo/StoreRouteSeo'
+import { isVendorSubpath, storefrontPath } from '@/lib/storefrontPaths'
 import { normalizeCatalogOffering } from '@/lib/catalogNavCapabilities'
 
 function catalogOfferingFlags(vendor: { offering_type?: string | null } | null | undefined) {
@@ -524,16 +525,14 @@ function StoreContent() {
 
   const isHrAuthPage =
     !!vendorSlug &&
-    (pathname === `/store/${vendorSlug}/hr/login` ||
-      pathname === `/store/${vendorSlug}/hr/change-password`)
+    (isVendorSubpath(pathname, vendorSlug, '/hr/login') ||
+      isVendorSubpath(pathname, vendorSlug, '/hr/change-password'))
 
-  // Employee HR / ESS lives under /store/:slug/hr — resolve vendor via X-Vendor-Slug on the API.
+  // Employee HR / ESS lives under /:slug/hr — resolve vendor via X-Vendor-Slug on the API.
   // Do not block on public catalog so /hr/login still opens when the business front vendor is missing or pending.
   const isEmployeeHrArea =
     !!vendorSlug &&
-    (isHrAuthPage ||
-      pathname === `/store/${vendorSlug}/hr` ||
-      pathname.startsWith(`/store/${vendorSlug}/hr/`))
+    (isHrAuthPage || isVendorSubpath(pathname, vendorSlug, '/hr'))
 
   if (legacyDraftCatalogRedirect) {
     return <Navigate to={legacyDraftCatalogRedirect} replace />
@@ -591,8 +590,7 @@ function StoreContent() {
   }
 
   const isBuilderPreview =
-    !!vendorSlug &&
-    (pathname === `/store/${vendorSlug}/preview` || pathname.startsWith(`/store/${vendorSlug}/preview/`))
+    !!vendorSlug && isVendorSubpath(pathname, vendorSlug, '/preview')
 
   const hideStoreChrome = shouldHideStoreLayoutChrome({
     pathname,
@@ -697,7 +695,7 @@ function StoreContent() {
   if (hideStoreChrome) {
     const previewToken = searchParams.get('preview_token')?.trim() || recallDraftEmbedPreviewToken()
     const draftEmbedHomePath = vendorSlug && previewToken
-      ? `/store/${encodeURIComponent(vendorSlug)}?preview_token=${encodeURIComponent(previewToken)}`
+      ? `${storefrontPath(vendorSlug)}?preview_token=${encodeURIComponent(previewToken)}`
       : storePath('/')
 
     const layoutOwnsShell = Boolean(

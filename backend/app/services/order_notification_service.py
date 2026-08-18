@@ -290,7 +290,7 @@ def _storefront_order_status_url(vendor: Vendor, order_id: UUID) -> str:
     settings = get_settings()
     slug = vendor.slug or vendor.subdomain
     if settings.DEBUG:
-        return f"http://127.0.0.1:3002/store/{slug}/order/{order_id}/status"
+        return f"http://127.0.0.1:3002/{slug}/order/{order_id}/status"
     return f"https://{slug}.{settings.BASE_DOMAIN}/order/{order_id}/status"
 
 

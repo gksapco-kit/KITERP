@@ -29,7 +29,7 @@ function rewriteLoopbackOrigin(origin: string): string {
 
 /**
  * Path-based storefront on port 3002 in local dev; production uses
- * `VITE_STOREFRONT_URL` + `/store/{slug}` (aligned with vendor-web `storefrontPreviewUrl.ts`).
+ * `VITE_STOREFRONT_URL` + `/{slug}` (aligned with vendor-web `storefrontPreviewUrl.ts`).
  */
 export function shouldUseLocalStorefrontUrls(): boolean {
   return import.meta.env.DEV || isLoopbackAdminHost()
@@ -41,25 +41,25 @@ const storefrontPublicBaseDomain = (import.meta.env.VITE_BASE_DOMAIN || 'kiterp.
 
 /**
  * Public customer store URL for this vendor (no trailing slash).
- * - `VITE_STOREFRONT_URL`: `{env}/store/{slug}`
- * - local: `{protocol}//{host}:3002/store/{slug}`
- * - prod without env: same host as admin (`/store/{slug}`) — path-based gateway
+ * - `VITE_STOREFRONT_URL`: `{env}/{slug}`
+ * - local: `{protocol}//{host}:3002/{slug}`
+ * - prod without env: same host as admin (`/{slug}`) — path-based gateway
  * - last resort: `https://{slug}.{VITE_BASE_DOMAIN}` (wildcard DNS only)
  */
 export function getCustomerStorefrontBaseUrl(vendorSlug: string): string {
   const slug = vendorSlug.trim()
   const fromEnv = (import.meta.env.VITE_STOREFRONT_URL as string | undefined)?.trim()
   if (fromEnv) {
-    return `${fromEnv.replace(/\/$/, '')}/store/${encodeURIComponent(slug)}`
+    return `${fromEnv.replace(/\/$/, '')}/${encodeURIComponent(slug)}`
   }
   if (typeof window !== 'undefined' && shouldUseLocalStorefrontUrls()) {
     const host = canonicalizeLoopbackHostname(window.location.hostname)
-    return `${window.location.protocol}//${host}:3002/store/${encodeURIComponent(slug)}`
+    return `${window.location.protocol}//${host}:3002/${encodeURIComponent(slug)}`
   }
   // Prod gateway serves admin at /admin and storefront at / on the same host.
   // Prefer path-based URLs over slug subdomains (those often have no DNS → NXDOMAIN).
   if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin.replace(/\/$/, '')}/store/${encodeURIComponent(slug)}`
+    return `${window.location.origin.replace(/\/$/, '')}/${encodeURIComponent(slug)}`
   }
   return `https://${encodeURIComponent(slug)}.${storefrontPublicBaseDomain}`
 }
@@ -73,7 +73,7 @@ export function vendorDashboardLoginUrl(vendorSlug: string): string {
 
 /**
  * Admin template preview URL.
- * Prefer storefront `/store/:slug/preview/:token` (stable, no vendor pending-nav sync).
+ * Prefer storefront `/:slug/preview/:token` (stable, no vendor pending-nav sync).
  * Fall back to vendor-web draft shell on 127.0.0.1.
  */
 export function buildAdminDraftPreviewUrl(

@@ -47,7 +47,7 @@ export function isStorefrontEmbedNavPath(rawPath: string): boolean {
 }
 
 /**
- * Map storefront paths (cart, login, product list, blog, …) to embed segments under /store/:slug/.
+ * Map storefront paths (cart, login, product list, blog, …) to embed segments under /:slug/.
  * Returns null for website builder page slugs like /about.
  */
 export function parseStorefrontEmbedRoute(rawPath: string): string | null {
@@ -84,19 +84,26 @@ export function parseStorefrontEmbedRoute(rawPath: string): string | null {
   return null
 }
 
-/** Strip /store/:slug and draft-catalog embed prefixes so catalog parsers see /products/foo. */
+/** Strip /store/:slug, /:slug, and draft-catalog embed prefixes so catalog parsers see /products/foo. */
 export function normalizeStorefrontCatalogHref(rawPath: string): string {
   const clean = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
   const qIdx = clean.indexOf('?')
   const queryString = qIdx >= 0 ? clean.slice(qIdx) : ''
   let pathname = (qIdx >= 0 ? clean.slice(0, qIdx) : clean).replace(/\/+$/, '') || '/'
 
-  const draftEmbed = pathname.match(/^\/store\/[^/]+\/draft-catalog\/[^/]+(\/.*)?$/i)
+  const draftEmbed = pathname.match(/^(?:\/store)?\/[^/]+\/draft-catalog\/[^/]+(\/.*)?$/i)
   if (draftEmbed) {
     pathname = draftEmbed[1]?.replace(/\/+$/, '') || '/'
   } else {
     const store = pathname.match(/^\/store\/[^/]+(\/.*)?$/i)
-    if (store) pathname = store[1]?.replace(/\/+$/, '') || '/'
+    if (store) {
+      pathname = store[1]?.replace(/\/+$/, '') || '/'
+    } else {
+      const vendorPrefixed = pathname.match(
+        /^\/[^/]+(\/(?:products|services|categories|blog|cart|checkout|login|register|account|contact|rentals|rental|order)(?:\/.*)?)?$/i,
+      )
+      if (vendorPrefixed?.[1]) pathname = vendorPrefixed[1].replace(/\/+$/, '') || '/'
+    }
   }
 
   if (pathname === '/') return queryString || '/'
@@ -157,7 +164,7 @@ export function buildStorefrontCatalogEmbedUrl(
   const qIdx = path.indexOf('?')
   const routePath = qIdx >= 0 ? path.slice(0, qIdx) : path
   const routeQs = qIdx >= 0 ? path.slice(qIdx + 1) : ''
-  const base = `${getStorefrontAppOrigin()}/store/${encodeURIComponent(slug)}/draft-catalog/${encodeURIComponent(token)}/${routePath}`
+  const base = `${getStorefrontAppOrigin()}/${encodeURIComponent(slug)}/draft-catalog/${encodeURIComponent(token)}/${routePath}`
   if (!routeQs) return base
   const params = new URLSearchParams(routeQs)
   const qs = params.toString()

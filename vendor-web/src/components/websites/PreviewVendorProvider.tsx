@@ -55,9 +55,14 @@ export function PreviewVendorProvider({
         const clean = p.startsWith('/') ? p : `/${p}`
         const pathnameOnly = clean.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/'
         const storePrefix = `/store/${slug}`
+        const slugPrefix = `/${slug}`
         let normalized = clean
         if (pathnameOnly.startsWith(storePrefix)) {
           const rest = pathnameOnly.slice(storePrefix.length).replace(/\/+$/, '') || '/'
+          const qs = clean.includes('?') ? clean.slice(clean.indexOf('?')) : ''
+          normalized = `${rest}${qs}`
+        } else if (pathnameOnly === slugPrefix || pathnameOnly.startsWith(`${slugPrefix}/`)) {
+          const rest = pathnameOnly.slice(slugPrefix.length).replace(/\/+$/, '') || '/'
           const qs = clean.includes('?') ? clean.slice(clean.indexOf('?')) : ''
           normalized = `${rest}${qs}`
         }

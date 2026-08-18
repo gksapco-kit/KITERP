@@ -49,17 +49,17 @@ export function getStorefrontAppOrigin(): string {
 
 /**
  * Public customer store URL for this vendor (no trailing slash).
- * - VITE_STOREFRONT_URL: `{env}/store/{slug}`
- * - local dev/preview on localhost: `{protocol}//{host}:3002/store/{slug}`
+ * - VITE_STOREFRONT_URL: `{env}/{slug}`
+ * - local dev/preview on localhost: `{protocol}//{host}:3002/{slug}`
  * - prod without env: `https://{slug}.kiterp.com`
  */
 export function getCustomerStorefrontBaseUrl(vendorSlug: string): string {
   const slug = vendorSlug.trim()
   const fromEnv = (import.meta.env.VITE_STOREFRONT_URL as string | undefined)?.trim()
-  if (fromEnv) return `${fromEnv.replace(/\/$/, '')}/store/${encodeURIComponent(slug)}`
+  if (fromEnv) return `${fromEnv.replace(/\/$/, '')}/${encodeURIComponent(slug)}`
   if (shouldUseLocalStorefrontUrls()) {
     const host = normalizeLoopbackHostname(window.location.hostname)
-    return `${window.location.protocol}//${host}:3002/store/${encodeURIComponent(slug)}`
+    return `${window.location.protocol}//${host}:3002/${encodeURIComponent(slug)}`
   }
   return `https://${slug}.kiterp.com`
 }
@@ -153,7 +153,7 @@ export function buildBuilderDraftPreviewUrl(
     slug && slug.length > 0 && slug.toLowerCase() !== 'home'
       ? `/${slug.replace(/^\/+/, '')}`
       : ''
-  return `${origin}/store/${encodeURIComponent(vendorSlug)}/preview/${encodeURIComponent(previewToken)}${suffix}`
+  return `${origin}/${encodeURIComponent(vendorSlug)}/preview/${encodeURIComponent(previewToken)}${suffix}`
 }
 
 /**

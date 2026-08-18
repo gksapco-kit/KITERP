@@ -4,6 +4,7 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { applyDocumentSeo, vendorPageTitle, PLATFORM_SEO, PAGE_JSON_LD_ID } from '@/lib/documentSeo'
 import { compactJsonLd, localBusinessJsonLd } from '@/lib/catalogSeo'
+import { relativePathUnderVendor } from '@/lib/storefrontPaths'
 
 function isShellRelativePath(relative: string): boolean {
   if (relative === '/' || relative === '') return true
@@ -49,8 +50,7 @@ export default function StoreRouteSeo() {
   const { vendor } = useVendor()
   const { builderSite } = useBuilderSite()
   const vendorName = vendor?.display_name || vendor?.business_name || vendorSlug
-  const base = `/store/${vendorSlug}`
-  const relative = pathname.startsWith(base) ? pathname.slice(base.length) || '/' : pathname
+  const relative = relativePathUnderVendor(pathname, vendorSlug) || pathname
   const homepageHasBuilderBlocks = Boolean(
     (builderSite?.pages?.find((page) => page.is_homepage) || builderSite?.pages?.[0])?.blocks?.length,
   )

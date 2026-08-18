@@ -71,7 +71,7 @@ function isHttpHref(href: string): boolean {
 /**
  * Resolve a footer/nav href for storefront routing.
  * http(s) links default to new-tab external navigation (including same-site HR URLs)
- * so they are never prefixed with `/store/{slug}/`. Unchecking "Open in new tab"
+ * so they are never prefixed with `/{slug}/`. Unchecking "Open in new tab"
  * keeps same-origin URLs as in-app paths.
  */
 function resolveFooterHref(

@@ -574,7 +574,7 @@ export function EmployeeCredentialsTab({
   const vendorSlug = useVendorStore(s => s.vendor?.slug ?? '')
 
   const hrPortalUrl = vendorSlug
-    ? `${getStorefrontAppOrigin()}/store/${encodeURIComponent(vendorSlug)}/hr/login`
+    ? `${getStorefrontAppOrigin()}/${encodeURIComponent(vendorSlug)}/hr/login`
     : `${getStorefrontAppOrigin()}/hr/login`
 
   async function handlePortalSubmit(e: React.FormEvent) {

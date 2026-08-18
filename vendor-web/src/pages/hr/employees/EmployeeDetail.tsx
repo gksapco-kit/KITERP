@@ -2136,7 +2136,7 @@ export default function EmployeeDetailPage() {
               const codeAuto = String(emp.employee_code ?? '').trim()
               const loginAliases = [...new Set([codeCustom, codeAuto].filter(Boolean))]
               const hrPortalUrl = vendorSlug
-                ? `${getStorefrontAppOrigin()}/store/${encodeURIComponent(vendorSlug)}/hr/login`
+                ? `${getStorefrontAppOrigin()}/${encodeURIComponent(vendorSlug)}/hr/login`
                 : `${getStorefrontAppOrigin()}/hr/login`
               return (
                 <ShareDropdown

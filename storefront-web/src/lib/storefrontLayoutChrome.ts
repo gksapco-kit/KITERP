@@ -7,6 +7,7 @@ import {
   isWebsiteBuilderBlockTemplateId,
   resolveLiveCatalogTemplateId,
 } from '@/lib/storefrontTemplateAssignment'
+import { relativePathUnderVendor } from '@/lib/storefrontPaths'
 
 const SHELL_ROUTE_PREFIXES = [
   'login',
@@ -148,9 +149,9 @@ export function resolveBuilderPageSlug(
   pathname: string,
   vendorSlug: string,
 ): string | null {
-  const base = `/store/${vendorSlug}`
-  if (!pathname.startsWith(base)) return null
-  const rel = pathname.slice(base.length).replace(/^\/+/, '')
+  const relative = relativePathUnderVendor(pathname, vendorSlug)
+  if (relative == null) return null
+  const rel = relative.replace(/^\/+/, '')
   if (!rel || isShellRelativePath(rel)) return null
   return rel.replace(/^\/+|\/+$/g, '')
 }
@@ -232,8 +233,7 @@ export function shouldHideStoreLayoutChrome(input: StoreChromeHideInput): boolea
   // Catalog/shell routes (/products, /services, …) must use the same builder nav
   // as builder pages — not the legacy UnifiedNav header.
   if (siteHasNavShell(site) && input.vendorSlug) {
-    const base = `/store/${input.vendorSlug}`
-    if (input.pathname === base || input.pathname.startsWith(`${base}/`)) {
+    if (relativePathUnderVendor(input.pathname, input.vendorSlug) != null) {
       return true
     }
   }

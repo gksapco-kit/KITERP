@@ -27,7 +27,7 @@ def _vendor_dashboard_url(slug: str) -> str:
 def _storefront_url(slug: str) -> str:
     settings = get_settings()
     if settings.DEBUG:
-        return f"http://127.0.0.1:3002/store/{slug}"
+        return f"http://127.0.0.1:3002/{slug}"
     return f"https://{slug}.{settings.BASE_DOMAIN}"
 
 

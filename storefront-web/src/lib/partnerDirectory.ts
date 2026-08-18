@@ -95,7 +95,7 @@ export function partnerWebsiteHref(v: PartnerVendor): string | null {
 export function partnerSiteHref(v: PartnerVendor): { href: string; external: boolean } {
   const website = partnerWebsiteHref(v)
   if (website) return { href: website, external: true }
-  return { href: `/store/${v.slug}`, external: false }
+  return { href: `/${v.slug}`, external: false }
 }
 
 export function partnerMapsHref(v: PartnerVendor): string | null {

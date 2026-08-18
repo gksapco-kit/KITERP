@@ -13,7 +13,7 @@ export type HrEssLinkRow = {
 export function buildHrEssLoginUrl(vendorSlug: string, branchCode?: string | null): string {
   const slug = vendorSlug.trim()
   const origin = getStorefrontAppOrigin()
-  const base = `${origin}/store/${encodeURIComponent(slug)}/hr/login`
+  const base = `${origin}/${encodeURIComponent(slug)}/hr/login`
   const branch = (branchCode ?? '').trim()
   return branch ? `${base}?branch=${encodeURIComponent(branch)}` : base
 }

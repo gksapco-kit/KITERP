@@ -9,7 +9,7 @@ A full-stack multi-vendor SaaS platform with vendor admin, customer business fro
 | **Backend API** | `http://localhost:8000` | FastAPI backend serving all vendors |
 | **Super Admin** | `http://localhost:3000` | Platform admin — manage/approve vendors |
 | **Vendor Admin** | `http://localhost:3001` | Vendor dashboard — products, orders, customers |
-| **Customer Business Front** | `http://localhost:3002/store/:slug` | Customer shopping per vendor |
+| **Customer Business Front** | `http://localhost:3002/:slug` | Customer shopping per vendor |
 | **Mobile App** | Expo (Android/iOS/Web) | Vendor admin + customer shopping |
 
 ### Multi-Tenant Resolution

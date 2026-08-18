@@ -72,10 +72,10 @@ export default function Landing() {
   const handleGo = (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = slug.trim().toLowerCase()
-    if (trimmed) navigate(`/store/${trimmed}`)
+    if (trimmed) navigate(`/${trimmed}`)
   }
 
-  const visitStore = (storeSlug: string) => navigate(`/store/${storeSlug}`)
+  const visitStore = (storeSlug: string) => navigate(`/${storeSlug}`)
 
   return (
     <div className="kiterp-landing font-kiterp-body min-h-screen bg-white">

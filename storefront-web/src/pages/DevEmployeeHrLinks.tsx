@@ -13,7 +13,7 @@ const DEV_SLUG =
 
 export default function DevEmployeeHrLinks() {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
-  const base = `${origin}/store/${DEV_SLUG}`
+  const base = `${origin}/${DEV_SLUG}`
 
   const rows = useMemo(
     () => [

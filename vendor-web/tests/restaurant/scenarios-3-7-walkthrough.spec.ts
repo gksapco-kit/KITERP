@@ -192,7 +192,7 @@ test.describe('Scenario 7 — Edge cases', () => {
 
   test('invalid QR and empty send', async ({ page }) => {
     const slug = 'nonexistent-vendor-slug-xyz';
-    await page.goto(`http://127.0.0.1:3002/store/${slug}/table/bad-token-xyz`, { timeout: 15000 });
+    await page.goto(`http://127.0.0.1:3002/${slug}/table/bad-token-xyz`, { timeout: 15000 });
     await expect(page.getByText(/not found|invalid/i).first()).toBeVisible({ timeout: 20000 });
     r.record('7.4', 'Invalid QR shows error', true, await r.snap(page, '01-invalid-qr'));
 

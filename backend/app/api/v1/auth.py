@@ -38,6 +38,7 @@ from app.core.security import (
 from app.schemas.vendor import VendorResponse
 from app.utils.platform_staff import has_platform_staff_access
 from app.utils.platform_vendor_access import ensure_vendor_visible_to_platform_staff
+from app.utils.storefront_paths import is_reserved_vendor_slug
 from app.services.vendor_platform_audit_service import (
     ACTION_VENDOR_HANDOFF_REDEEMED,
     log_vendor_platform_audit,
@@ -1309,7 +1310,7 @@ def _mask_phone(phone: str) -> str:
 
 def _generate_slug(business_name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", business_name.lower()).strip("-")
-    return slug[:80] or "store"
+    return slug[:80] or "business"
 
 
 def _vendor_signup_phone_key(phone: str) -> str:
@@ -1611,7 +1612,7 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
     from app.repositories.vendor_repo import VendorRepository
     vendor_repo = VendorRepository(db)
     counter = 0
-    while await vendor_repo.slug_exists(slug):
+    while await vendor_repo.slug_exists(slug) or is_reserved_vendor_slug(slug):
         counter += 1
         slug = f"{slug_base}-{counter}"
 
