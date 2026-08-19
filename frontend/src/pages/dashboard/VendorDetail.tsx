@@ -45,6 +45,7 @@ import {
   BadgeCheck,
   AlertCircle,
   KeyRound,
+  ShieldOff,
 } from 'lucide-react'
 import { adminApi, type AdminVendorUpdatePayload } from '@/api/admin.api'
 import { vendorAppBaseUrl, getCustomerStorefrontBaseUrl } from '@/lib/appUrls'
