@@ -191,13 +191,14 @@ async def list_leads(
     q: Optional[str] = None, status_: Optional[str] = Query(None, alias="status"),
     source: Optional[str] = None, assigned_to: Optional[UUID] = None,
     rating: Optional[str] = None,
+    deleted: bool = Query(False),
     current_user: User = Depends(get_current_platform_staff),
     db: AsyncSession = Depends(get_db),
 ):
     vid = await _vid(db)
     items, total = await LeadService(db).list(
         vid, page=page, size=size, q=q, status=status_,
-        source=source, assigned_to=assigned_to, rating=rating,
+        source=source, assigned_to=assigned_to, rating=rating, deleted=deleted,
     )
     items = [LeadResponse.model_validate(l).model_dump() for l in items]
     return _paginated(items, total, page, size)
@@ -244,6 +245,17 @@ async def delete_lead(
         await _vid(db), lead_id, actor_id=current_user.id, request=request,
     )
     return None
+
+
+@router.post("/leads/{lead_id}/restore", response_model=LeadResponse)
+async def restore_lead(
+    lead_id: UUID, request: Request,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    return await LeadService(db).restore(
+        await _vid(db), lead_id, actor_id=current_user.id, request=request,
+    )
 
 
 @router.post("/leads/{lead_id}/assign")
@@ -566,7 +578,7 @@ async def convert_contact_query_to_lead(
         last_name=last,
         email=row.email,
         phone=row.phone,
-        source="platform_contact",
+        source="talk_to_us",
         status="new",
         notes=row.message,
         custom_fields={

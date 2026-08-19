@@ -1170,14 +1170,148 @@ async def get_vendor_owner(
     if not user:
         raise HTTPException(status_code=404, detail="Owner user account not found")
 
+    from app.utils.validators import is_phone_signup_placeholder_email
+
+    login_email = (user.email or owner.email or vendor.primary_email or "").strip() or None
+    if login_email and is_phone_signup_placeholder_email(login_email):
+        login_email = None
+    login_phone = (user.phone or owner.phone or vendor.primary_phone or "").strip() or None
+    if login_phone and len("".join(ch for ch in login_phone if ch.isdigit())) < 7:
+        login_phone = None
+
     return {
         "user_id": str(user.id),
-        "email": user.email,
+        "email": login_email or user.email,
         "full_name": user.full_name,
-        "phone": user.phone,
+        "phone": login_phone,
         "is_active": user.is_active,
         "is_email_verified": user.is_email_verified,
         "created_at": user.created_at.isoformat() if user.created_at else None,
+    }
+
+
+class VendorOwnerResetPasswordRequest(BaseModel):
+    password: str = Field(..., min_length=6, max_length=128)
+
+
+@router.post("/vendors/{vendor_id}/owner/reset-password")
+async def reset_vendor_owner_password(
+    vendor_id: UUID,
+    body: VendorOwnerResetPasswordRequest,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Super Admin sets the vendor owner's login password. No OTP required."""
+    from app.models.vendor import VendorOwner
+
+    repo = VendorRepository(db)
+    vendor = await repo.get_by_id(vendor_id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    result = await db.execute(
+        select(VendorOwner).where(
+            VendorOwner.vendor_id == vendor_id,
+            VendorOwner.is_primary == True,
+        )
+    )
+    owner = result.scalar_one_or_none()
+    if not owner:
+        result = await db.execute(
+            select(VendorOwner).where(VendorOwner.vendor_id == vendor_id).limit(1)
+        )
+        owner = result.scalar_one_or_none()
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner not found")
+
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(owner.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Owner user account not found")
+
+    from app.models.vendor_user import VendorUser
+    from app.services.sms_service import normalize_e164
+    from app.utils.validators import is_phone_signup_placeholder_email
+
+    def _real_email(value: Optional[str]) -> Optional[str]:
+        email = (value or "").strip().lower() or None
+        if not email or is_phone_signup_placeholder_email(email):
+            return None
+        return email
+
+    def _real_phone(value: Optional[str]) -> Optional[str]:
+        raw = (value or "").strip() or None
+        if not raw:
+            return None
+        digits = "".join(ch for ch in raw if ch.isdigit())
+        if len(digits) < 7:
+            return None
+        return normalize_e164(raw) or raw
+
+    def _phones_match(left: Optional[str], right: Optional[str]) -> bool:
+        a = "".join(ch for ch in (left or "") if ch.isdigit())
+        b = "".join(ch for ch in (right or "") if ch.isdigit())
+        if not a or not b:
+            return False
+        if a == b:
+            return True
+        shorter, longer = (a, b) if len(a) <= len(b) else (b, a)
+        return len(shorter) >= 10 and longer.endswith(shorter)
+
+    emails: list[str] = []
+    phones: list[str] = []
+    for source in (user.email, owner.email, vendor.primary_email):
+        email = _real_email(source)
+        if email and email not in emails:
+            emails.append(email)
+    for source in (user.phone, owner.phone, vendor.primary_phone):
+        phone = _real_phone(source)
+        if phone and not any(_phones_match(phone, existing) for existing in phones):
+            phones.append(phone)
+
+    # Same User row must accept both identifiers after this reset.
+    if not _real_email(user.email) and emails:
+        user.email = emails[0]
+    if not _real_phone(user.phone) and phones:
+        user.phone = phones[0][:20]
+
+    hashed = get_password_hash(body.password)
+    user.password_hash = hashed
+
+    linked_ids: set[UUID] = {user.id}
+    owner_ids = await db.execute(select(VendorOwner.user_id).where(VendorOwner.vendor_id == vendor_id))
+    linked_ids.update(owner_ids.scalars().all())
+    member_ids = await db.execute(
+        select(VendorUser.user_id).where(
+            VendorUser.vendor_id == vendor_id,
+            VendorUser.is_active.is_(True),
+        )
+    )
+    linked_ids.update(member_ids.scalars().all())
+
+    extras = await db.execute(select(User).where(User.id.in_(linked_ids)))
+    for other in extras.scalars().all():
+        if other.id == user.id:
+            continue
+        email_match = bool(emails) and _real_email(other.email) in emails
+        phone_match = bool(phones) and any(_phones_match(_real_phone(other.phone), p) for p in phones)
+        if email_match or phone_match:
+            other.password_hash = hashed
+
+    await db.commit()
+
+    login_email = _real_email(user.email) or (emails[0] if emails else None)
+    login_phone = _real_phone(user.phone) or (phones[0] if phones else None)
+    identifiers = [part for part in (login_email, login_phone) if part]
+    ident_label = " or ".join(identifiers) if identifiers else "email or phone"
+    return {
+        "ok": True,
+        "user_id": str(user.id),
+        "email": login_email,
+        "phone": login_phone,
+        "message": (
+            f"Password updated. They can sign in with {ident_label} — no OTP required."
+        ),
     }
 
 

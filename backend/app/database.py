@@ -737,12 +737,15 @@ async def ensure_crm_tables() -> None:
             converted_account_id UUID REFERENCES crm_account(id) ON DELETE SET NULL,
             converted_deal_id UUID REFERENCES crm_deal(id) ON DELETE SET NULL,
             created_at TIMESTAMPTZ DEFAULT now(),
-            updated_at TIMESTAMPTZ DEFAULT now()
+            updated_at TIMESTAMPTZ DEFAULT now(),
+            deleted_at TIMESTAMPTZ
         );""",
         "CREATE INDEX IF NOT EXISTS ix_crm_lead_vendor ON crm_lead(vendor_id);",
         "CREATE INDEX IF NOT EXISTS ix_crm_lead_vendor_status ON crm_lead(vendor_id, status);",
         "CREATE INDEX IF NOT EXISTS ix_crm_lead_assigned ON crm_lead(assigned_to);",
         "CREATE INDEX IF NOT EXISTS ix_crm_lead_email ON crm_lead(vendor_id, email);",
+        "ALTER TABLE crm_lead ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ",
+        "CREATE INDEX IF NOT EXISTS ix_crm_lead_vendor_deleted ON crm_lead(vendor_id, deleted_at);",
         # Activities
         """CREATE TABLE IF NOT EXISTS crm_activity (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

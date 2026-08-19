@@ -2272,9 +2272,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
-  max-height: 100dvh;
-  overflow: hidden;
+  min-height: 100dvh;
+  overflow-x: hidden;
   color: var(--kiterp-ink);
   background:
     radial-gradient(ellipse 90% 70% at 12% 18%, rgba(100, 195, 160, 0.22) 0%, transparent 55%),
@@ -2297,10 +2296,9 @@
   position: relative;
   z-index: 1;
   flex: 1;
-  min-height: 0;
   display: flex;
-  align-items: stretch;
-  padding: 0.75rem 1rem 1rem;
+  align-items: center;
+  padding: 0.75rem 1rem 2rem;
 }
 
 .kiterp-contact-shell {
@@ -2433,14 +2431,14 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: clamp(1rem, 2vw, 1.35rem);
-  border-radius: 1.35rem;
+  padding: clamp(1.1rem, 2.2vw, 1.55rem);
+  border-radius: 1.5rem;
   background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.92) 0%, rgba(238, 249, 244, 0.88) 100%);
+    linear-gradient(165deg, rgba(255, 255, 255, 0.96) 0%, rgba(238, 249, 244, 0.9) 100%);
   border: 1px solid color-mix(in srgb, var(--kiterp-primary) 26%, #e4ece9);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.85) inset,
-    0 18px 40px rgba(30, 61, 52, 0.06);
+    0 22px 48px rgba(30, 61, 52, 0.08);
   backdrop-filter: blur(8px);
 }
 
@@ -2460,10 +2458,22 @@
 .kiterp-contact-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.65rem 0.75rem;
-  flex: 1;
-  min-height: 0;
+  gap: 0.7rem 0.8rem;
   align-content: start;
+}
+
+.kiterp-contact-legend {
+  grid-column: 1 / -1;
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--kiterp-primary-deeper);
+}
+
+.kiterp-contact-legend:first-child {
+  margin-top: 0;
 }
 
 .kiterp-contact-field {
@@ -2524,10 +2534,81 @@
 }
 
 .kiterp-contact-field textarea {
-  min-height: 4.5rem;
-  max-height: 7.5rem;
-  resize: none;
-  flex: 1;
+  min-height: 5.25rem;
+  resize: vertical;
+}
+
+.kiterp-contact-field .phone-input-shell {
+  min-height: 2.55rem;
+  border-radius: 0.75rem;
+  border-color: color-mix(in srgb, var(--kiterp-primary) 18%, #d7e2de);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.kiterp-contact-field .phone-input-shell:focus-within {
+  border-color: var(--kiterp-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--kiterp-primary) 18%, transparent);
+}
+
+.kiterp-contact-field .phone-input-number {
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  background: transparent;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.kiterp-contact-source-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.kiterp-contact-source-pills button {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--kiterp-primary) 22%, #d7e2de);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--kiterp-ink);
+  border-radius: 9999px;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.kiterp-contact-source-pills button:hover {
+  border-color: var(--kiterp-primary);
+  background: var(--kiterp-mint-bg);
+}
+
+.kiterp-contact-source-pills button.is-active {
+  background: var(--kiterp-primary);
+  border-color: var(--kiterp-primary);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(100, 195, 160, 0.28);
+}
+
+.kiterp-contact-crm-note {
+  margin: 0.85rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--kiterp-ink) 55%, transparent);
+}
+
+.kiterp-contact-success {
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 22rem;
+  gap: 0.35rem;
+}
+
+.kiterp-contact-success-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--kiterp-primary-deeper);
+  margin-bottom: 0.5rem;
 }
 
 .kiterp-contact-field input:focus,
@@ -2565,10 +2646,11 @@
 
 @media (max-width: 860px) {
   .kiterp-contact-page {
-    height: auto;
-    max-height: none;
-    overflow: auto;
     min-height: 100dvh;
+  }
+
+  .kiterp-contact-main {
+    align-items: flex-start;
   }
 
   .kiterp-contact-shell {

@@ -159,12 +159,14 @@ class CrmLead(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     __table_args__ = (
         Index("ix_crm_lead_vendor_status", "vendor_id", "status"),
         Index("ix_crm_lead_assigned", "assigned_to"),
         Index("ix_crm_lead_email", "vendor_id", "email"),
         Index("ix_crm_lead_number", "vendor_id", "number", unique=True),
+        Index("ix_crm_lead_vendor_deleted", "vendor_id", "deleted_at"),
     )
 
 

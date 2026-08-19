@@ -1,40 +1,28 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Building2, Loader2, Plus, UserRound } from 'lucide-react'
+import { ArrowLeft, Building2, CheckCircle2, Loader2, Plus, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiClient } from '@/api/client'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
+import {
+  EMPTY_ENQUIRY_FORM,
+  LEAD_SOURCE_OPTIONS,
+  LandingEnquiryFields,
+  type EnquiryFormValues,
+} from '@/components/landing/LandingEnquiryForm'
 import { useDocumentSeo } from '@/lib/documentSeo'
 import { compactJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
-import { PhoneInput } from '@/components/ui/PhoneInput'
 import '@/styles/kiterp-landing.css'
-
-const SOURCE_OPTIONS = [
-  { value: 'website', label: 'Website' },
-  { value: 'ads', label: 'Ads' },
-  { value: 'referral', label: 'Referral' },
-  { value: 'other', label: 'Other' },
-] as const
-
-const EMPTY_FORM = {
-  first_name: '',
-  last_name: '',
-  title: '',
-  company: '',
-  email: '',
-  phone: '',
-  source: 'website',
-  notes: '',
-}
 
 const DUPLICATE_MESSAGE = 'We may already have your details. Submit again if this is a new enquiry.'
 
 export default function LandingLead() {
-  const [form, setForm] = useState(EMPTY_FORM)
+  const [form, setForm] = useState<EnquiryFormValues>(EMPTY_ENQUIRY_FORM)
   const [sending, setSending] = useState(false)
   const [duplicate, setDuplicate] = useState(false)
+  const [sent, setSent] = useState(false)
 
   useDocumentSeo({
     title: 'Add a new lead — KITERP',
@@ -112,8 +100,9 @@ export default function LandingLead() {
         force,
       })
       toast.success(res.data.message || 'Thanks — we received your details.')
-      setForm(EMPTY_FORM)
+      setForm(EMPTY_ENQUIRY_FORM)
       setDuplicate(false)
+      setSent(true)
     } catch (err: unknown) {
       const data = (err as { response?: { status?: number; data?: { duplicate?: boolean; message?: string; detail?: unknown } } })
         ?.response
@@ -153,7 +142,7 @@ export default function LandingLead() {
               Add a new <span className="kiterp-highlight">lead.</span>
             </h1>
             <p className="kiterp-contact-lead">
-              Tell us about you or your business. The team will follow up on pricing, demos, and getting started.
+              Tell us about you or your business. Every field here maps onto the CRM leads list so the team can follow up on pricing, demos, and getting started.
             </p>
 
             <div className="kiterp-contact-channels">
@@ -172,112 +161,58 @@ export default function LandingLead() {
                 </span>
                 <span>
                   <span className="kiterp-contact-channel-label">What happens next</span>
-                  <span className="kiterp-contact-channel-value">We typically reply within one business day</span>
+                  <span className="kiterp-contact-channel-value">Your details appear on the leads page within a business day</span>
                 </span>
               </div>
             </div>
           </section>
 
-          <form onSubmit={onSubmit} className="kiterp-contact-form" noValidate>
-            <h2 className="kiterp-contact-form-title">Your details</h2>
-            <p className="kiterp-contact-form-hint">A name plus email or phone is enough to get started.</p>
-
-            <div className="kiterp-contact-fields">
-              <label className="kiterp-contact-field">
-                <span>First name</span>
-                <input
-                  value={form.first_name}
-                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}
-                  placeholder="First name"
-                  autoComplete="given-name"
-                />
-              </label>
-              <label className="kiterp-contact-field">
-                <span>Last name</span>
-                <input
-                  value={form.last_name}
-                  onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-                  placeholder="Last name"
-                  autoComplete="family-name"
-                />
-              </label>
-              <label className="kiterp-contact-field">
-                <span>Title</span>
-                <input
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="Founder, Manager…"
-                  autoComplete="organization-title"
-                />
-              </label>
-              <label className="kiterp-contact-field">
-                <span>Company</span>
-                <input
-                  value={form.company}
-                  onChange={(e) => setForm({ ...form, company: e.target.value })}
-                  placeholder="Company name"
-                  autoComplete="organization"
-                />
-              </label>
-              <label className="kiterp-contact-field">
-                <span>Email</span>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="you@company.com"
-                  autoComplete="email"
-                />
-              </label>
-              <label className="kiterp-contact-field">
-                <span>Phone</span>
-                <PhoneInput
-                  value={form.phone}
-                  onChange={(phone) => setForm({ ...form, phone })}
-                  defaultCountryIso="IN"
-                  autoComplete="tel"
-                  name="phone"
-                  showStatusHints={false}
-                />
-              </label>
-              <label className="kiterp-contact-field">
-                <span>Source</span>
-                <select
-                  value={form.source}
-                  onChange={(e) => setForm({ ...form, source: e.target.value })}
-                >
-                  {SOURCE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="kiterp-contact-field kiterp-contact-field--full kiterp-contact-field--message">
-                <span>Notes</span>
-                <textarea
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="What are you looking for?"
-                />
-              </label>
-              {duplicate ? (
-                <p className="kiterp-contact-field kiterp-contact-field--full kiterp-lead-duplicate">
-                  {DUPLICATE_MESSAGE}
-                </p>
-              ) : null}
+          {sent ? (
+            <div className="kiterp-contact-form kiterp-contact-success">
+              <CheckCircle2 className="kiterp-contact-success-icon" />
+              <h2 className="kiterp-contact-form-title">Lead received</h2>
+              <p className="kiterp-contact-form-hint">
+                Thanks — we saved your details on the KIT ERP leads list. The team will follow up shortly.
+              </p>
+              <button type="button" className="kiterp-btn-primary kiterp-contact-submit" onClick={() => setSent(false)}>
+                Add another lead
+              </button>
             </div>
+          ) : (
+            <form onSubmit={onSubmit} className="kiterp-contact-form" noValidate>
+              <h2 className="kiterp-contact-form-title">Your details</h2>
+              <p className="kiterp-contact-form-hint">Name, company, source, and a way to reach you fill the leads columns.</p>
 
-            <button
-              type={duplicate ? 'button' : 'submit'}
-              disabled={sending}
-              className="kiterp-btn-primary kiterp-contact-submit"
-              onClick={duplicate ? () => void persist(true) : undefined}
-            >
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              {sending ? 'Adding…' : duplicate ? 'Add anyway' : 'Add lead'}
-            </button>
-          </form>
+              <LandingEnquiryFields
+                form={form}
+                onChange={setForm}
+                sourceOptions={LEAD_SOURCE_OPTIONS}
+                notesLabel="Notes"
+                notesPlaceholder="What are you looking for?"
+                footer={
+                  duplicate ? (
+                    <p className="kiterp-contact-field kiterp-contact-field--full kiterp-lead-duplicate">
+                      {DUPLICATE_MESSAGE}
+                    </p>
+                  ) : null
+                }
+              />
+
+              <p className="kiterp-contact-crm-note">
+                These details show on the CRM leads page: name, company, source, and your message.
+              </p>
+
+              <button
+                type={duplicate ? 'button' : 'submit'}
+                disabled={sending}
+                className="kiterp-btn-primary kiterp-contact-submit"
+                onClick={duplicate ? () => void persist(true) : undefined}
+              >
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                {sending ? 'Adding…' : duplicate ? 'Add anyway' : 'Add lead'}
+              </button>
+            </form>
+          )}
         </div>
       </main>
       <LandingChatbot />

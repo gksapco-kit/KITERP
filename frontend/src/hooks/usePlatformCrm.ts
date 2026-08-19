@@ -51,6 +51,22 @@ export const useConvertPlatformLead = () => {
   })
 }
 
+export const useDeletePlatformLead = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => platformCrmApi.deleteLead(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['platform-crm', 'leads'] }),
+  })
+}
+
+export const useRestorePlatformLead = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => platformCrmApi.restoreLead(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['platform-crm', 'leads'] }),
+  })
+}
+
 export const usePlatformPipelines = () =>
   useQuery({
     queryKey: KEY('pipelines'),

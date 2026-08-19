@@ -6,13 +6,14 @@ import { Input } from '@/components/ui/input'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { useLeads, useSaveLead, useConvertLead } from '@/hooks/useCrm'
+import { useLeads, useSaveLead, useConvertLead, useDeleteLead, useRestoreLead } from '@/hooks/useCrm'
 import { crmApi, type Lead } from '@/api/crm'
-import { Plus, Loader2, Target, Sparkles, ArrowRight, Check, GitBranch, XCircle, AlertTriangle, UserRound } from 'lucide-react'
+import { Plus, Loader2, Target, Sparkles, ArrowRight, Check, GitBranch, XCircle, AlertTriangle, UserRound, Trash2, RotateCcw } from 'lucide-react'
 import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
 import { useAssigneeOptions } from './crmFormShared'
-import { modalWidthMd, modalWidthXl } from '@/lib/modalUi'
+import { modalWidthMd, modalWidthSm, modalWidthXl } from '@/lib/modalUi'
 import { formatDateTime } from '@/lib/utils'
+import { extractApiError } from '@/lib/errorMessages'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -58,6 +59,20 @@ const ROADMAP_STEPS = [
 ] as const
 
 const OTHER_STATUSES = ['contact_later', 'not_responding', 'unqualified'] as const
+
+function sourceLabel(source?: string | null) {
+  const key = (source || '').trim().toLowerCase().replace(/\s+/g, '_')
+  const labels: Record<string, string> = {
+    talk_to_us: 'Talk to us',
+    platform_contact: 'Talk to us',
+    website: 'Website',
+    ads: 'Ads',
+    referral: 'Referral',
+    other: 'Other',
+    manual: 'Manual',
+  }
+  return labels[key] || source || '—'
+}
 
 function statusLabel(status: string) {
   return STATUS_LABELS[status] || status
@@ -651,12 +666,24 @@ export default function LeadsPage() {
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [status, setStatus] = useState<string>('')
+  const [showDeleted, setShowDeleted] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [roadmapLead, setRoadmapLead] = useState<Lead | null>(null)
   const [convertLead, setConvertLead] = useState<Lead | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Lead | null>(null)
   const { options: assigneeOptions, isLoading: assigneesLoading } = useAssigneeOptions()
+  const removeLead = useDeleteLead()
+  const restoreLead = useRestoreLead()
 
-  const { data, isLoading } = useLeads({ page, size: pageSize, q: search || undefined, status: status || undefined })
+  const { data, isLoading } = useLeads({
+    page,
+    size: pageSize,
+    q: search || undefined,
+    status: showDeleted ? undefined : (status || undefined),
+    deleted: showDeleted,
+  })
+  const { data: trashPage } = useLeads({ deleted: true, page: 1, size: 1 })
+  const trashCount = trashPage?.total ?? 0
 
   const score = async (id: string) => {
     await crmApi.scoreLead(id)
@@ -665,88 +692,157 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">CRM</p>
-          <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{showDeleted ? 'Deleted leads' : 'Leads'}</h1>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-2" /> New lead
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showDeleted ? 'default' : 'outline'}
+            onClick={() => { setShowDeleted((v) => !v); setPage(1); setStatus('') }}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            {showDeleted ? 'Back to leads' : 'Deleted leads'}
+            {!showDeleted && trashCount > 0 ? (
+              <span className="ml-2 rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-800">{trashCount}</span>
+            ) : null}
+          </Button>
+          {!showDeleted ? (
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus className="w-4 h-4 mr-2" /> New lead
+            </Button>
+          ) : null}
+        </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        {['', ...STATUSES].map(s => (
-          <button key={s || 'all'}
-            onClick={() => { setStatus(s); setPage(1) }}
-            className={`text-xs px-3 py-1.5 rounded-full border ${status === s ? 'bg-primary text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-            {s ? statusLabel(s) : 'all'}
-          </button>
-        ))}
-      </div>
+      {showDeleted ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          These leads were moved to trash. Restore a record to put it back on the active list.
+        </div>
+      ) : (
+        <div className="flex gap-2 flex-wrap">
+          {['', ...STATUSES].map(s => (
+            <button key={s || 'all'}
+              onClick={() => { setStatus(s); setPage(1) }}
+              className={`text-xs px-3 py-1.5 rounded-full border ${status === s ? 'bg-primary text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              {s ? statusLabel(s) : 'all'}
+            </button>
+          ))}
+        </div>
+      )}
 
       <SearchBar value={searchInput} onChange={setSearchInput}
         onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }}
         placeholder="Search by name, company, email…" />
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Lead</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Company</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Source</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Name</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Email</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Phone</TableColumnLabel></th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Assigned to</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell"><TableColumnLabel>Score</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden xl:table-cell"><TableColumnLabel>Created</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Title</TableColumnLabel></th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Company</TableColumnLabel></th>
                 <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {isLoading ? <LoadingRow cols={8} /> : !data?.items?.length ? (
-                <EmptyRow cols={8} message="No leads yet" action={
+              {isLoading ? <LoadingRow cols={9} /> : !data?.items?.length ? (
+                <EmptyRow cols={9} message={showDeleted ? 'No deleted leads' : 'No leads yet'} action={
+                  showDeleted ? undefined : (
                   <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>
                     <Target className="w-4 h-4 mr-1" /> Capture your first lead
                   </Button>
+                  )
                 } />
               ) : data.items.map(l => (
-                <tr key={l.id} className="hover:bg-gray-50">
+                <tr key={l.id} className={showDeleted ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-gray-50'}>
                   <td className="px-6 py-4">
                     <p className="text-sm font-medium">
-                      {l.number && <span className="font-mono text-xs text-gray-400 mr-1.5">{l.number}</span>}
-                      {[l.first_name, l.last_name].filter(Boolean).join(' ') || '—'}
+                      {l.number || '—'}
                     </p>
-                    <p className="text-xs text-gray-500">{l.email || l.phone || '—'}</p>
+                    {l.source ? (
+                      <p className="mt-0.5 flex items-center gap-1.5">
+                        <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">Source</span>
+                        <Badge variant="soft">{sourceLabel(l.source)}</Badge>
+                      </p>
+                    ) : null}
+                    <p className="mt-0.5 whitespace-nowrap text-xs text-gray-500">{formatDateTime(l.created_at)}</p>
+                    {showDeleted && l.deleted_at ? (
+                      <p className="mt-0.5 whitespace-nowrap text-[11px] text-amber-800">Deleted {formatDateTime(l.deleted_at)}</p>
+                    ) : null}
+                    {l.notes ? (
+                      <p className="mt-0.5 max-w-[16rem] truncate text-[11px] text-gray-400" title={l.notes}>
+                        {l.notes}
+                      </p>
+                    ) : null}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{l.company || '—'}</td>
-                  <td className="px-6 py-4 text-xs hidden lg:table-cell">
-                    {l.source ? <Badge variant="soft">{l.source}</Badge> : '—'}
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    {[l.first_name, l.last_name].filter(Boolean).join(' ') || '—'}
                   </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{l.email || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 hidden lg:table-cell">{l.phone || '—'}</td>
                   <td className="px-6 py-4">
-                    <LeadStatusSelect
-                      lead={l}
-                      onConvert={() => setConvertLead(l)}
-                    />
+                    {showDeleted ? (
+                      <span className="text-xs font-medium capitalize text-gray-600">{statusLabel(l.status || 'new')}</span>
+                    ) : (
+                      <LeadStatusSelect
+                        lead={l}
+                        onConvert={() => setConvertLead(l)}
+                      />
+                    )}
                   </td>
                   <td className="px-6 py-4 hidden lg:table-cell">
-                    <LeadAssigneeSelect
-                      lead={l}
-                      options={assigneeOptions}
-                      loading={assigneesLoading}
-                    />
+                    {showDeleted ? (
+                      <span className="text-sm text-gray-500">
+                        {assigneeOptions.find((o) => o.value === (l.assigned_to || ''))?.label || '—'}
+                      </span>
+                    ) : (
+                      <LeadAssigneeSelect
+                        lead={l}
+                        options={assigneeOptions}
+                        loading={assigneesLoading}
+                      />
+                    )}
                   </td>
-                  <td className="px-6 py-4 text-sm font-mono hidden xl:table-cell">{l.score ?? '—'}</td>
-                  <td className="px-6 py-4 text-xs text-gray-500 hidden xl:table-cell">{formatDateTime(l.created_at)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{l.title || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{l.company || '—'}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => score(l.id)} title="AI score">
-                        <Sparkles className="w-4 h-4 text-primary/80" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setRoadmapLead(l)} title="Status roadmap">
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
+                      {showDeleted ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={restoreLead.isPending}
+                          onClick={() => {
+                            restoreLead.mutate(l.id, {
+                              onSuccess: () => toast.success('Lead restored'),
+                              onError: () => toast.error('Could not restore lead'),
+                            })
+                          }}
+                        >
+                          {restoreLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RotateCcw className="w-4 h-4 mr-1" />}
+                          Restore
+                        </Button>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => score(l.id)} title="AI score">
+                            <Sparkles className="w-4 h-4 text-primary/80" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setRoadmapLead(l)} title="Status roadmap">
+                            <ArrowRight className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setPendingDelete(l)} title="Move to trash">
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -778,6 +874,48 @@ export default function LeadsPage() {
         />
       )}
       {convertLead && <ConvertModal lead={convertLead} onClose={() => setConvertLead(null)} />}
+      {pendingDelete && (
+        <CrmModal
+          title="Move lead to trash"
+          onClose={() => setPendingDelete(null)}
+          maxW={modalWidthSm}
+          footer={
+            <>
+              <Button type="button" variant="outline" onClick={() => setPendingDelete(null)}>Cancel</Button>
+              <Button
+                type="button"
+                disabled={removeLead.isPending}
+                onClick={() => {
+                  removeLead.mutate(pendingDelete.id, {
+                    onSuccess: () => {
+                      toast.success('Lead moved to trash')
+                      setPendingDelete(null)
+                    },
+                    onError: (err) => {
+                      const status = (err as { response?: { status?: number } })?.response?.status
+                      if (status === 409) {
+                        toast.success('Lead is already in trash')
+                        setPendingDelete(null)
+                        qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+                        return
+                      }
+                      toast.error(extractApiError(err, 'Could not delete lead'))
+                    },
+                  })
+                }}
+              >
+                {removeLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                Move to trash
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-600">
+            <strong>{[pendingDelete.first_name, pendingDelete.last_name].filter(Boolean).join(' ') || pendingDelete.number}</strong>
+            {' '}will be hidden from the active list. You can restore it from Deleted leads.
+          </p>
+        </CrmModal>
+      )}
     </div>
   )
 }

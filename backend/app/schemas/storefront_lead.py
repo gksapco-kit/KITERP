@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
-_ALLOWED_SOURCES = {"website", "ads", "referral", "other"}
+_ALLOWED_SOURCES = {"website", "ads", "referral", "other", "talk_to_us"}
 
 
 class PlatformLeadCreate(BaseModel):

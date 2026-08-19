@@ -219,6 +219,7 @@ class LeadResponse(LeadBase):
     converted_deal_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
+    deleted_at: Optional[datetime] = None
 
 
 # ── Pipelines / Stages / Deals ───────────────────────────────────────────────

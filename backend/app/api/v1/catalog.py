@@ -623,7 +623,7 @@ async def submit_platform_contact_query(
 
     row = StorefrontContactQuery(
         vendor_id=None,
-        name=body.name,
+        name=body.name or "Contact",
         email=str(body.email) if body.email else None,
         phone=body.phone,
         message=body.message,
@@ -640,31 +640,39 @@ async def submit_platform_contact_query(
         from app.services.crm.services import LeadService
         from app.services.platform_crm_tenant import get_platform_crm_vendor_id
 
-        parts = (body.name or "").strip().split(None, 1)
-        first = parts[0] if parts else "Contact"
-        last = parts[1] if len(parts) > 1 else None
+        first, last = _contact_lead_name_parts(body)
         vid = await get_platform_crm_vendor_id(db)
-        await LeadService(db).create(
+        lead = await LeadService(db).create(
             vid,
             LeadCreate(
                 first_name=first,
                 last_name=last,
+                title=body.title,
+                company=body.company,
                 email=str(body.email) if body.email else None,
                 phone=body.phone,
-                source="platform_contact",
+                source=body.source or "talk_to_us",
                 status="new",
                 notes=body.message,
                 custom_fields={"contact_query_id": str(row.id)},
                 intake_payload={
+                    "channel": "talk_to_us",
                     "contact_query_id": str(row.id),
                     "name": body.name,
+                    "first_name": body.first_name,
+                    "last_name": body.last_name,
+                    "title": body.title,
+                    "company": body.company,
                     "email": str(body.email) if body.email else None,
                     "phone": body.phone,
+                    "source": body.source or "talk_to_us",
                     "message": body.message,
                 },
             ),
             request=request,
         )
+        row.converted_lead_id = lead.id
+        row.converted_at = datetime.now(timezone.utc)
     except Exception:
         # Inbox row is already persisted; CRM lead is secondary.
         import logging
@@ -679,6 +687,15 @@ async def submit_platform_contact_query(
         "id": str(row.id),
         "message": "Thanks — we received your message and will get back to you soon.",
     }
+
+
+def _contact_lead_name_parts(body: StorefrontContactQueryCreate) -> tuple[str, Optional[str]]:
+    first = (body.first_name or "").strip()
+    last = (body.last_name or "").strip()
+    if first or last:
+        return (first or "Contact", last or None)
+    parts = (body.name or "").strip().split(None, 1)
+    return (parts[0] if parts else "Contact"), (parts[1] if len(parts) > 1 else None)
 
 
 def _same_lead_name(a: Optional[str], b: Optional[str]) -> bool:

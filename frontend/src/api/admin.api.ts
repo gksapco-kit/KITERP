@@ -336,6 +336,16 @@ export const adminApi = {
     return response.data
   },
 
+  resetVendorOwnerPassword: async (
+    vendorId: string,
+    password: string,
+  ): Promise<{ ok: boolean; user_id: string; email?: string; phone?: string; message?: string }> => {
+    const response = await apiClient.post(`/admin/vendors/${vendorId}/owner/reset-password`, {
+      password,
+    })
+    return response.data
+  },
+
   getPlatformSettings: async (): Promise<Record<string, string>> => {
     const response = await apiClient.get('/admin/platform-settings')
     return response.data

@@ -104,6 +104,7 @@ export type Lead = {
   converted_deal_id?: string | null
   created_at: string
   updated_at: string
+  deleted_at?: string | null
 }
 
 export type Stage = {
@@ -616,6 +617,7 @@ export const crmApi = {
   updateLead: (id: string, data: Partial<Lead>) =>
     apiClient.put<Lead>(`${BASE}/leads/${id}`, data).then(r => r.data),
   deleteLead: (id: string) => apiClient.delete(`${BASE}/leads/${id}`),
+  restoreLead: (id: string) => apiClient.post<Lead>(`${BASE}/leads/${id}/restore`).then(r => r.data),
   assignLead: (id: string, user_id: string) =>
     apiClient.post(`${BASE}/leads/${id}/assign`, { user_id }).then(r => r.data),
   convertLead: (id: string, payload: Record<string, unknown>) =>

@@ -66,6 +66,22 @@ export function useVendorOwner(vendorId: string) {
   })
 }
 
+export function useResetVendorOwnerPassword() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ vendorId, password }: { vendorId: string; password: string }) =>
+      adminApi.resetVendorOwnerPassword(vendorId, password),
+    onSuccess: (data, variables) => {
+      toast.success(data.message || 'Owner password updated. They can sign in with email or phone.')
+      queryClient.invalidateQueries({ queryKey: [...adminKeys.vendor(variables.vendorId), 'owner'] })
+    },
+    onError: (err: unknown) => {
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      toast.error(typeof detail === 'string' ? detail : 'Could not update the owner password')
+    },
+  })
+}
+
 export function useUpdateAdminVendor() {
   const queryClient = useQueryClient()
 

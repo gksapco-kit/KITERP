@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Loader2, Plus } from 'lucide-react'
+import { Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff } from '@/lib/platformAccess'
 import {
   useConvertPlatformLead,
+  useDeletePlatformLead,
   usePlatformLeads,
+  useRestorePlatformLead,
   useSavePlatformLead,
 } from '@/hooks/usePlatformCrm'
 import { Button } from '@/components/ui/button'
@@ -16,16 +18,55 @@ import CrmSubnav from './CrmSubnav'
 
 const STATUSES = ['', 'new', 'contacted', 'qualified', 'unqualified', 'converted'] as const
 
+const EMPTY_FORM = {
+  first_name: '',
+  last_name: '',
+  title: '',
+  company: '',
+  email: '',
+  phone: '',
+  source: 'website',
+  notes: '',
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  talk_to_us: 'Talk to us',
+  platform_contact: 'Talk to us',
+  website: 'Website',
+  ads: 'Ads',
+  referral: 'Referral',
+  other: 'Other',
+  manual: 'Manual',
+}
+
+function sourceLabel(source?: string | null) {
+  const key = (source || '').trim().toLowerCase().replace(/\s+/g, '_')
+  return SOURCE_LABELS[key] || source || '—'
+}
+
+function leadName(lead: { first_name?: string | null; last_name?: string | null }) {
+  return [lead.first_name, lead.last_name].filter(Boolean).join(' ') || '—'
+}
+
 export default function PlatformCrmLeads() {
   const { user } = useAuthStore()
   const allowed = isPlatformStaff(user)
   const [status, setStatus] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', company: '', notes: '' })
+  const [showDeleted, setShowDeleted] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
 
-  const { data, isLoading } = usePlatformLeads({ status: status || undefined, size: 50 })
+  const { data, isLoading } = usePlatformLeads({
+    status: showDeleted ? undefined : (status || undefined),
+    size: 50,
+    deleted: showDeleted,
+  })
+  const { data: trashPage } = usePlatformLeads({ deleted: true, size: 1, page: 1 })
   const saveMut = useSavePlatformLead()
   const convertMut = useConvertPlatformLead()
+  const deleteMut = useDeletePlatformLead()
+  const restoreMut = useRestorePlatformLead()
+  const trashCount = trashPage?.total ?? 0
 
   if (!allowed) return <Navigate to="/dashboard" replace />
 
@@ -42,41 +83,84 @@ export default function PlatformCrmLeads() {
         data: {
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim() || undefined,
+          title: form.title.trim() || undefined,
+          company: form.company.trim() || undefined,
           email: form.email.trim() || undefined,
           phone: form.phone.trim() || undefined,
-          company: form.company.trim() || undefined,
           notes: form.notes.trim() || undefined,
-          source: 'manual',
+          source: form.source || 'manual',
           status: 'new',
         },
       })
       toast.success('Lead created')
-      setForm({ first_name: '', last_name: '', email: '', phone: '', company: '', notes: '' })
+      setForm(EMPTY_FORM)
       setShowForm(false)
     } catch {
       toast.error('Could not create lead')
     }
   }
 
+  const convert = async (id: string) => {
+    try {
+      await convertMut.mutateAsync({ id, payload: { create_deal: true } })
+      toast.success('Lead converted to contact + deal')
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: unknown; message?: string } } })
+        ?.response?.data
+      const msg =
+        (typeof detail?.detail === 'string' && detail.detail) ||
+        (typeof detail?.detail === 'object' &&
+          detail?.detail &&
+          'message' in detail.detail &&
+          String((detail.detail as { message?: string }).message)) ||
+        detail?.message ||
+        'Could not convert lead'
+      toast.error(msg)
+    }
+  }
+
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-6xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-0.5">Platform CRM</p>
-          <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{showDeleted ? 'Deleted leads' : 'Leads'}</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Landing Add new lead and Contact Us submissions land here, plus any prospects you add manually.
+            {showDeleted
+              ? 'Restore a lead to put it back on the active list.'
+              : 'Talk to us, Add new lead, and Contact Us submissions land here — name, title, company, phone, source, and message included.'}
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm((v) => !v)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add lead
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={showDeleted ? 'default' : 'outline'}
+            onClick={() => { setShowDeleted((v) => !v); setStatus(''); setShowForm(false) }}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            {showDeleted ? 'Back to leads' : 'Deleted leads'}
+            {!showDeleted && trashCount > 0 ? (
+              <span className="ml-2 rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-800">{trashCount}</span>
+            ) : null}
+          </Button>
+          {!showDeleted ? (
+            <Button size="sm" onClick={() => setShowForm((v) => !v)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add lead
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <CrmSubnav />
 
-      {showForm && (
+      {showDeleted ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          These leads were moved to trash. Restore a record to put it back on the active list.
+        </div>
+      ) : null}
+
+      {showForm && !showDeleted && (
         <form onSubmit={submit} className="rounded-xl border bg-white p-4 grid sm:grid-cols-2 gap-3">
           <Input
             placeholder="First name *"
@@ -88,6 +172,16 @@ export default function PlatformCrmLeads() {
             placeholder="Last name"
             value={form.last_name}
             onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
+          />
+          <Input
+            placeholder="Title"
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+          />
+          <Input
+            placeholder="Company"
+            value={form.company}
+            onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
           />
           <Input
             placeholder="Email"
@@ -103,15 +197,21 @@ export default function PlatformCrmLeads() {
             name="phone"
             compact
           />
-          <Input
-            className="sm:col-span-2"
-            placeholder="Company"
-            value={form.company}
-            onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
-          />
+          <select
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            value={form.source}
+            onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
+          >
+            <option value="website">Website</option>
+            <option value="talk_to_us">Talk to us</option>
+            <option value="ads">Ads</option>
+            <option value="referral">Referral</option>
+            <option value="other">Other</option>
+            <option value="manual">Manual</option>
+          </select>
           <textarea
             className="sm:col-span-2 min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-            placeholder="Notes"
+            placeholder="Notes / message"
             value={form.notes}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
           />
@@ -126,6 +226,7 @@ export default function PlatformCrmLeads() {
         </form>
       )}
 
+      {!showDeleted ? (
       <div className="flex flex-wrap gap-2">
         {STATUSES.map((s) => (
           <button
@@ -142,70 +243,120 @@ export default function PlatformCrmLeads() {
           </button>
         ))}
       </div>
+      ) : null}
 
       {isLoading ? (
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-gray-300" />
         </div>
       ) : items.length === 0 ? (
-        <p className="text-sm text-gray-500 border border-dashed rounded-lg p-8 text-center">No leads yet.</p>
+        <p className="text-sm text-gray-500 border border-dashed rounded-lg p-8 text-center">
+          {showDeleted ? 'No deleted leads.' : 'No leads yet.'}
+        </p>
       ) : (
-        <div className="space-y-3">
-          {items.map((lead) => (
-            <div key={lead.id} className="rounded-xl border bg-white p-4 space-y-2">
-              <div className="flex flex-wrap justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {[lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Lead'}
-                    {lead.company ? (
-                      <span className="font-normal text-gray-500"> · {lead.company}</span>
+        <div className="overflow-x-auto rounded-xl border bg-white">
+          <table className="w-full min-w-[56rem]">
+            <thead>
+              <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3">Lead</th>
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Phone</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Title</th>
+                <th className="px-4 py-3">Company</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {items.map((lead) => (
+                <tr key={lead.id} className="align-top hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <p className="text-sm font-medium text-gray-900">{lead.number || '—'}</p>
+                    {lead.source ? (
+                      <p className="mt-0.5 flex items-center gap-1.5">
+                        <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">Source</span>
+                        <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
+                          {sourceLabel(lead.source)}
+                        </span>
+                      </p>
                     ) : null}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {lead.number} · {lead.source || '—'} ·{' '}
-                    {lead.created_at ? new Date(lead.created_at).toLocaleString() : '—'}
-                  </p>
-                </div>
-                <span className="text-xs font-medium capitalize px-2 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 h-fit">
-                  {lead.status}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-3 text-sm text-gray-700">
-                {lead.email && <span>{lead.email}</span>}
-                {lead.phone && <span>{lead.phone}</span>}
-              </div>
-              {lead.notes && (
-                <p className="text-sm text-gray-800 whitespace-pre-wrap border-t pt-2">{lead.notes}</p>
-              )}
-              {lead.status !== 'converted' && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={convertMut.isPending}
-                  onClick={async () => {
-                    try {
-                      await convertMut.mutateAsync({ id: lead.id, payload: { create_deal: true } })
-                      toast.success('Lead converted to contact + deal')
-                    } catch (err: unknown) {
-                      const detail = (err as { response?: { data?: { detail?: unknown; message?: string } } })
-                        ?.response?.data
-                      const msg =
-                        (typeof detail?.detail === 'string' && detail.detail) ||
-                        (typeof detail?.detail === 'object' &&
-                          detail?.detail &&
-                          'message' in detail.detail &&
-                          String((detail.detail as { message?: string }).message)) ||
-                        detail?.message ||
-                        'Could not convert lead'
-                      toast.error(msg)
-                    }
-                  }}
-                >
-                  Convert
-                </Button>
-              )}
-            </div>
-          ))}
+                    <p className="mt-0.5 whitespace-nowrap text-xs text-gray-500">
+                      {lead.created_at ? new Date(lead.created_at).toLocaleString() : '—'}
+                    </p>
+                    {lead.notes ? (
+                      <p className="mt-0.5 max-w-[18rem] truncate text-[11px] text-gray-400" title={lead.notes}>
+                        {lead.notes}
+                      </p>
+                    ) : null}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{leadName(lead)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{lead.email || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{lead.phone || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs font-medium capitalize px-2 py-1 rounded-full bg-gray-50 text-gray-700 border border-gray-200">
+                      {lead.status || 'new'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{lead.title || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{lead.company || '—'}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-2">
+                      {showDeleted ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={restoreMut.isPending}
+                          onClick={async () => {
+                            try {
+                              await restoreMut.mutateAsync(lead.id)
+                              toast.success('Lead restored')
+                            } catch {
+                              toast.error('Could not restore lead')
+                            }
+                          }}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Restore
+                        </Button>
+                      ) : (
+                        <>
+                          {lead.status !== 'converted' ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={convertMut.isPending}
+                              onClick={() => void convert(lead.id)}
+                            >
+                              Convert
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-gray-400 self-center">Converted</span>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={deleteMut.isPending}
+                            onClick={async () => {
+                              if (!window.confirm('Move this lead to trash? You can restore it later.')) return
+                              try {
+                                await deleteMut.mutateAsync(lead.id)
+                                toast.success('Lead moved to trash')
+                              } catch {
+                                toast.error('Could not delete lead')
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

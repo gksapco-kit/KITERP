@@ -44,12 +44,13 @@ import {
   Headphones,
   BadgeCheck,
   AlertCircle,
-  ShieldOff,
+  KeyRound,
 } from 'lucide-react'
 import { adminApi, type AdminVendorUpdatePayload } from '@/api/admin.api'
 import { vendorAppBaseUrl, getCustomerStorefrontBaseUrl } from '@/lib/appUrls'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
+import { VendorOwnerPasswordModal } from '@/pages/dashboard/VendorOwnerPasswordModal'
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -266,6 +267,7 @@ export default function VendorDetail() {
   const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState<AdminVendorUpdatePayload>({})
   const [vendorHandoffPending, setVendorHandoffPending] = useState(false)
+  const [showOwnerPassword, setShowOwnerPassword] = useState(false)
   const editMode = canMutate && editing
 
   const approveDomain = useApproveDomainRequest(id!)
@@ -394,6 +396,16 @@ export default function VendorDetail() {
               {canMutate && (
                 <Button size="sm" variant="outline" onClick={handleEdit} className="gap-1">
                   <Pencil className="w-4 h-4" /> Edit
+                </Button>
+              )}
+              {canMutate && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowOwnerPassword(true)}
+                  className="gap-1"
+                >
+                  <KeyRound className="w-4 h-4" /> Change password
                 </Button>
               )}
               {canMutate && (vendor.status === 'pending' || vendor.status === 'under_review') && (
@@ -711,11 +723,37 @@ export default function VendorDetail() {
                       </span>
                     )}
                   </div>
+                  {canMutate ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="w-full gap-1.5 mt-1"
+                      onClick={() => setShowOwnerPassword(true)}
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      Change password
+                    </Button>
+                  ) : null}
                 </div>
               ) : (
-                <p className="text-xs text-gray-500">
-                  Owner details load separately — you can still open the vendor dashboard above.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500">
+                    Owner details load separately — you can still open the vendor dashboard above.
+                  </p>
+                  {canMutate ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="w-full gap-1.5"
+                      onClick={() => setShowOwnerPassword(true)}
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      Change password
+                    </Button>
+                  ) : null}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -879,6 +917,15 @@ export default function VendorDetail() {
           )}
         </div>
       </div>
+      {showOwnerPassword && id ? (
+        <VendorOwnerPasswordModal
+          vendorId={id}
+          ownerName={ownerData?.full_name || vendor.display_name || vendor.business_name || 'vendor owner'}
+          ownerEmail={ownerData?.email || vendor.primary_email}
+          ownerPhone={ownerData?.phone || vendor.primary_phone}
+          onClose={() => setShowOwnerPassword(false)}
+        />
+      ) : null}
     </div>
   )
 }

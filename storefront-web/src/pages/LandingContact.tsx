@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, Mail, MapPin, Phone, Send } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Loader2, Mail, MapPin, Phone, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiClient } from '@/api/client'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
+import {
+  EMPTY_ENQUIRY_FORM,
+  LandingEnquiryFields,
+  TALK_TO_US_SOURCE_OPTIONS,
+  composedEnquiryName,
+  type EnquiryFormValues,
+} from '@/components/landing/LandingEnquiryForm'
 import { useDocumentSeo } from '@/lib/documentSeo'
 import { compactJsonLd, contactPageJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
-import { PhoneInput } from '@/components/ui/PhoneInput'
 import '@/styles/kiterp-landing.css'
 
 type PlatformContact = {
@@ -21,11 +27,14 @@ type PlatformContact = {
   postal_code?: string | null
 }
 
+const EMPTY_TALK_FORM: EnquiryFormValues = { ...EMPTY_ENQUIRY_FORM, source: 'talk_to_us' }
+
 export default function LandingContact() {
   const [contact, setContact] = useState<PlatformContact | null>(null)
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' })
+  const [form, setForm] = useState<EnquiryFormValues>(EMPTY_TALK_FORM)
   const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
 
   useDocumentSeo({
     title: 'Contact KITERP — Support & Sales',
@@ -64,7 +73,8 @@ export default function LandingContact() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.name.trim() || !form.message.trim()) {
+    const name = composedEnquiryName(form)
+    if (name.length < 2 || !form.notes.trim()) {
       toast.error('Please enter your name and message')
       return
     }
@@ -72,16 +82,26 @@ export default function LandingContact() {
       toast.error('Provide an email or phone number so we can reply')
       return
     }
+    if (form.notes.trim().length < 5) {
+      toast.error('Please add a little more detail in your message')
+      return
+    }
     setSending(true)
     try {
       const res = await apiClient.post<{ message?: string }>('/catalog/platform-contact-queries', {
-        name: form.name.trim(),
+        name,
+        first_name: form.first_name.trim() || undefined,
+        last_name: form.last_name.trim() || undefined,
+        title: form.title.trim() || undefined,
+        company: form.company.trim() || undefined,
         email: form.email.trim() || undefined,
         phone: form.phone.trim() || undefined,
-        message: form.message.trim(),
+        source: form.source || 'talk_to_us',
+        message: form.notes.trim(),
       })
       toast.success(res.data.message || 'Message sent!')
-      setForm({ name: '', email: '', phone: '', message: '' })
+      setForm(EMPTY_TALK_FORM)
+      setSent(true)
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
       toast.error(typeof detail === 'string' ? detail : 'Failed to send message')
@@ -100,7 +120,6 @@ export default function LandingContact() {
 
       <main className="kiterp-contact-main">
         <div className="kiterp-contact-shell kiterp-reveal">
-          {/* Brand column */}
           <section className="kiterp-contact-brand">
             <Link to="/" className="kiterp-contact-back">
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -112,7 +131,7 @@ export default function LandingContact() {
               Let&apos;s <span className="kiterp-highlight">talk.</span>
             </h1>
             <p className="kiterp-contact-lead">
-              Questions about the platform, pricing, or getting started? Reach the team directly.
+              Questions about the platform, pricing, or getting started? Share your details — they land on the leads page so the team can follow up.
             </p>
 
             <div className="kiterp-contact-channels">
@@ -162,62 +181,42 @@ export default function LandingContact() {
             </div>
           </section>
 
-          {/* Message form */}
-          <form onSubmit={onSubmit} className="kiterp-contact-form" noValidate>
-            <h2 className="kiterp-contact-form-title">Send a message</h2>
-            <p className="kiterp-contact-form-hint">We typically reply within one business day.</p>
-
-            <div className="kiterp-contact-fields">
-              <label className="kiterp-contact-field kiterp-contact-field--full">
-                <span>Your name</span>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Full name"
-                  autoComplete="name"
-                  required
-                />
-              </label>
-
-              <label className="kiterp-contact-field">
-                <span>Email</span>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="you@company.com"
-                  autoComplete="email"
-                />
-              </label>
-
-              <label className="kiterp-contact-field">
-                <span>Phone</span>
-                <PhoneInput
-                  value={form.phone}
-                  onChange={(phone) => setForm({ ...form, phone })}
-                  defaultCountryIso="IN"
-                  autoComplete="tel"
-                  name="phone"
-                  showStatusHints={false}
-                />
-              </label>
-
-              <label className="kiterp-contact-field kiterp-contact-field--full kiterp-contact-field--message">
-                <span>Message</span>
-                <textarea
-                  value={form.message}
-                  onChange={(e) => setForm({ ...form, message: e.target.value })}
-                  placeholder="How can we help?"
-                  required
-                />
-              </label>
+          {sent ? (
+            <div id="talk-to-us" className="kiterp-contact-form kiterp-contact-success">
+              <CheckCircle2 className="kiterp-contact-success-icon" />
+              <h2 className="kiterp-contact-form-title">Message received</h2>
+              <p className="kiterp-contact-form-hint">
+                Thanks — this enquiry is now on the KIT ERP leads list. We typically reply within one business day.
+              </p>
+              <button type="button" className="kiterp-btn-primary kiterp-contact-submit" onClick={() => setSent(false)}>
+                Send another message
+              </button>
             </div>
+          ) : (
+            <form id="talk-to-us" onSubmit={onSubmit} className="kiterp-contact-form" noValidate>
+              <h2 className="kiterp-contact-form-title">Talk to us</h2>
+              <p className="kiterp-contact-form-hint">
+                A name, company, source, and email or phone fill the leads columns. We typically reply within one business day.
+              </p>
 
-            <button type="submit" disabled={sending} className="kiterp-btn-primary kiterp-contact-submit">
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {sending ? 'Sending…' : 'Send message'}
-            </button>
-          </form>
+              <LandingEnquiryFields
+                form={form}
+                onChange={setForm}
+                sourceOptions={TALK_TO_US_SOURCE_OPTIONS}
+                notesLabel="Message"
+                notesPlaceholder="How can we help?"
+              />
+
+              <p className="kiterp-contact-crm-note">
+                Submitting this form creates a lead with your name, company, source, and message.
+              </p>
+
+              <button type="submit" disabled={sending} className="kiterp-btn-primary kiterp-contact-submit">
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {sending ? 'Sending…' : 'Send message'}
+              </button>
+            </form>
+          )}
         </div>
       </main>
       <LandingChatbot />

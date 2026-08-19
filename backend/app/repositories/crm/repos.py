@@ -174,8 +174,13 @@ class LeadRepo(_VendorScopedRepo):
 
     async def search(self, vendor_id: UUID, *, page=1, size=20, q: Optional[str] = None,
                      status: Optional[str] = None, source: Optional[str] = None,
-                     assigned_to: Optional[UUID] = None, rating: Optional[str] = None):
+                     assigned_to: Optional[UUID] = None, rating: Optional[str] = None,
+                     deleted: bool = False):
         where = []
+        if deleted:
+            where.append(CrmLead.deleted_at.is_not(None))
+        else:
+            where.append(CrmLead.deleted_at.is_(None))
         if q:
             like = f"%{q}%"
             where.append(or_(
@@ -221,7 +226,11 @@ class LeadRepo(_VendorScopedRepo):
             ))
         rows = await self.db.execute(
             select(CrmLead)
-            .where(CrmLead.vendor_id == vendor_id, or_(*filters))
+            .where(
+                CrmLead.vendor_id == vendor_id,
+                CrmLead.deleted_at.is_(None),
+                or_(*filters),
+            )
             .order_by(desc(CrmLead.created_at))
             .limit(size)
         )

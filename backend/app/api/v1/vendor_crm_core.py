@@ -170,12 +170,13 @@ async def list_leads(
     q: Optional[str] = None, status_: Optional[str] = Query(None, alias="status"),
     source: Optional[str] = None, assigned_to: Optional[UUID] = None,
     rating: Optional[str] = None,
+    deleted: bool = Query(False),
     vu: VendorUser = Depends(require_permission("crm.view")),
     db: AsyncSession = Depends(get_db),
 ):
     items, total = await LeadService(db).list(
         vu.vendor_id, page=page, size=size, q=q, status=status_,
-        source=source, assigned_to=assigned_to, rating=rating,
+        source=source, assigned_to=assigned_to, rating=rating, deleted=deleted,
     )
     items = [LeadResponse.model_validate(l).model_dump() for l in items]
     return _paginated(items, total, page, size)
@@ -219,6 +220,17 @@ async def delete_lead(
     await LeadService(db).delete(vu.vendor_id, lead_id,
                                   actor_id=vu.user_id, request=request)
     return None
+
+
+@router.post("/leads/{lead_id}/restore", response_model=LeadResponse)
+async def restore_lead(
+    lead_id: UUID, request: Request,
+    vu: VendorUser = Depends(require_permission("crm.leads.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    return await LeadService(db).restore(
+        vu.vendor_id, lead_id, actor_id=vu.user_id, request=request,
+    )
 
 
 @router.post("/leads/{lead_id}/assign")

@@ -86,6 +86,28 @@ export const useConvertLead = () => {
   })
 }
 
+export const useDeleteLead = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => crmApi.deleteLead(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      qc.invalidateQueries({ queryKey: KEY('leads', 'new-count') })
+    },
+  })
+}
+
+export const useRestoreLead = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => crmApi.restoreLead(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      qc.invalidateQueries({ queryKey: KEY('leads', 'new-count') })
+    },
+  })
+}
+
 // Pipelines / Deals
 export const usePipelines = () =>
   useQuery({ queryKey: KEY('pipelines'), queryFn: () => crmApi.listPipelines() })

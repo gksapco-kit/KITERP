@@ -360,12 +360,12 @@ function StoreModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div data-kiterp-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4" onClick={onClose}>
       <div
-        className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-2xl"
+        className="bg-card text-card-foreground border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex shrink-0 items-center justify-between px-4 py-2.5 border-b border-border">
           <h2 className="text-base font-semibold">
             {parentBu
               ? (store ? `Edit branch — ${parentBu.name}` : `New branch — ${parentBu.name}`)
@@ -375,61 +375,61 @@ function StoreModal({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
 
-          {!parentBu && (
-            <div className="col-span-2">
+            {!parentBu && (
               <CompanyTypeDropdown
                 label="Business Type / Category"
                 value={form.company_type}
                 onChange={selectType}
                 placeholder="Select business type…"
               />
-            </div>
-          )}
+            )}
 
-          <div className="col-span-2">
-            <Label className="text-xs">
-              {parentBu ? 'Branch Name' : (form.company_type ? `${form.company_type} Name` : 'Location Name')} *
-            </Label>
-            <Input value={form.name} onChange={set('name')} placeholder="e.g. Mumbai Main Branch" required className="mt-0.5 h-9" />
-          </div>
-
-          <div>
-            <Label className="text-xs mb-0.5 block">
-              {parentBu ? BRANCH_CODE_LABEL : BUSINESS_UNIT_CODE_LABEL}
-            </Label>
-            <div
-              className="flex h-9 items-center rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground select-none cursor-not-allowed"
-              aria-readonly
-              title={
-                parentBu
-                  ? `Unique under ${branchCodePrefix(parentBu)} — assigned automatically`
-                  : 'Assigned automatically'
-              }
-            >
-              {form.code || '—'}
-              {!store && form.code ? (
-                <span className="ml-2 text-xs text-muted-foreground/60">(auto)</span>
-              ) : null}
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-xs mb-0.5 block">Phone</Label>
-            <PhoneInput
-              value={form.phone}
-              onChange={v => setForm(f => ({ ...f, phone: v }))}
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">Email</Label>
-            <Input type="email" value={form.email} onChange={set('email')} placeholder="store@example.com" className="mt-0.5 h-9" />
-          </div>
-
-          {parentBu ? null : (
             <div>
+              <Label className="text-xs">
+                {parentBu ? 'Branch Name' : (form.company_type ? `${form.company_type} Name` : 'Location Name')} *
+              </Label>
+              <Input value={form.name} onChange={set('name')} placeholder="e.g. Mumbai Main Branch" required className="mt-0.5 h-8" />
+            </div>
+
+            <div>
+              <Label className="text-xs mb-0.5 block">
+                {parentBu ? BRANCH_CODE_LABEL : BUSINESS_UNIT_CODE_LABEL}
+              </Label>
+              <div
+                className="flex h-8 items-center rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground select-none cursor-not-allowed"
+                aria-readonly
+                title={
+                  parentBu
+                    ? `Unique under ${branchCodePrefix(parentBu)} — assigned automatically`
+                    : 'Assigned automatically'
+                }
+              >
+                {form.code || '—'}
+                {!store && form.code ? (
+                  <span className="ml-2 text-xs text-muted-foreground/60">(auto)</span>
+                ) : null}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs mb-0.5 block">Phone</Label>
+              <PhoneInput
+                value={form.phone}
+                onChange={v => setForm(f => ({ ...f, phone: v }))}
+                compact
+                compactCountry
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs">Email</Label>
+              <Input type="email" value={form.email} onChange={set('email')} placeholder="store@example.com" className="mt-0.5 h-8" />
+            </div>
+
+            <div className={parentBu ? 'sm:col-span-2' : undefined}>
               <Label className="text-xs">Description</Label>
               <AiDescriptionTextarea
                 value={form.description}
@@ -437,252 +437,234 @@ function StoreModal({
                 placeholder="Brief description…"
                 rows={2}
                 maxLength={500}
-                className="mt-0.5 min-h-[4rem] text-sm"
+                className="mt-0.5 min-h-[2.75rem] text-sm"
                 context={{
                   field_kind: 'store_description',
                   name: form.name,
                   company_type: form.company_type,
                   category: form.company_type,
+                  extra_context: parentBu ? { parent_bu: parentBu.name } : undefined,
                 }}
               />
             </div>
-          )}
 
-          {parentBu ? (
-            <div className="col-span-2">
-              <Label className="text-xs">Description</Label>
-              <AiDescriptionTextarea
-                value={form.description}
-                onChange={(description) => setForm((f) => ({ ...f, description }))}
-                placeholder="Brief description…"
-                rows={2}
-                maxLength={500}
-                className="mt-0.5 min-h-[4rem] text-sm"
-                context={{
-                  field_kind: 'store_description',
-                  name: form.name,
-                  company_type: form.company_type,
-                  category: form.company_type,
-                  extra_context: { parent_bu: parentBu?.name },
-                }}
-              />
-            </div>
-          ) : null}
-
-          <div className="col-span-2 space-y-2.5 rounded-lg border border-border/70 bg-muted/20 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Tax registration
-            </p>
-            <div className="space-y-1">
-              <Label className="text-xs">Tax Country</Label>
-              <Select
-                value={form.tax_country_code}
-                onChange={(code) => {
-                  const cfg = getTaxCountry(code)
-                  setGstinError(null)
-                  setForm((f) => ({
-                    ...f,
-                    tax_country_code: code,
-                    gstin: '',
-                    default_tax_rate: String(defaultRateForCountry(cfg)),
-                    custom_tax_rates: [],
-                  }))
-                }}
-                options={countryOptions}
-                searchable
-                searchPlaceholder="Search countries…"
-                placeholder="Select tax country"
-              />
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.is_tax_registered}
-                onChange={(e) => setForm((f) => ({ ...f, is_tax_registered: e.target.checked }))}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600"
-              />
-              <span className="text-sm font-medium">{registrationLabel(taxCountry)}</span>
-            </label>
-            {form.is_tax_registered && regField ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">{regField.label}</Label>
-                  <Input
-                    value={form.gstin}
-                    onChange={(e) => {
-                      setGstinError(null)
-                      const next = regField.uppercase ? e.target.value.toUpperCase() : e.target.value
-                      setForm((f) => ({ ...f, gstin: next.slice(0, regField.max_length) }))
-                    }}
-                    placeholder={regField.placeholder}
-                    maxLength={regField.max_length}
-                    className={cn(
-                      'mt-0.5 h-9 font-mono tracking-wide',
-                      regField.uppercase && 'uppercase',
-                      gstinError && 'border-destructive',
-                    )}
-                  />
-                  {gstinError ? <p className="mt-0.5 text-[11px] text-destructive">{gstinError}</p> : null}
-                </div>
-                <div>
-                  <Label className="text-xs">Default {taxCountry.tax_label} Rate (%)</Label>
-                  <Select
-                    value={rateIsKnown ? form.default_tax_rate : '__custom__'}
-                    onChange={(v) => {
-                      if (v === '__custom__') {
-                        setForm((f) => ({
-                          ...f,
-                          default_tax_rate: rateIsKnown ? '' : f.default_tax_rate,
-                        }))
-                        return
-                      }
-                      setForm((f) => ({ ...f, default_tax_rate: v }))
-                    }}
-                    options={rateOptions}
-                    placeholder="Select rate"
-                    className="mt-0.5"
-                  />
-                  {!rateIsKnown ? (
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      max={100}
-                      value={form.default_tax_rate}
-                      onChange={(e) => setForm((f) => ({ ...f, default_tax_rate: e.target.value }))}
-                      placeholder={String(defaultRateForCountry(taxCountry))}
-                      className="mt-1.5 h-9"
-                    />
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-            {form.is_tax_registered ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label className="text-xs">Additional {taxCountry.tax_label} rates</Label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-7 gap-1 px-2 text-xs"
-                    onClick={() =>
-                      setForm((f) => ({
-                        ...f,
-                        custom_tax_rates: [...f.custom_tax_rates, { rate: '', label: '' }],
-                      }))
-                    }
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add
-                  </Button>
-                </div>
-                {form.custom_tax_rates.length === 0 ? (
-                  <p className="text-[11px] text-muted-foreground">
-                    Optional rates outside the standard list (rate + description).
-                  </p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {form.custom_tax_rates.map((row, index) => (
-                      <div key={index} className="flex flex-wrap items-center gap-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min={0}
-                          max={100}
-                          value={row.rate}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              custom_tax_rates: f.custom_tax_rates.map((r, i) =>
-                                i === index ? { ...r, rate: e.target.value } : r,
-                              ),
-                            }))
-                          }
-                          placeholder="e.g. 40"
-                          className="h-8 w-[6.5rem] font-mono"
-                        />
-                        <span className="text-xs text-muted-foreground">%</span>
-                        <Input
-                          value={row.label}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              custom_tax_rates: f.custom_tax_rates.map((r, i) =>
-                                i === index ? { ...r, label: e.target.value } : r,
-                              ),
-                            }))
-                          }
-                          placeholder="Description"
-                          className="h-8 min-w-[8rem] flex-1"
-                          maxLength={80}
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-destructive"
-                          onClick={() =>
-                            setForm((f) => ({
-                              ...f,
-                              custom_tax_rates: f.custom_tax_rates.filter((_, i) => i !== index),
-                            }))
-                          }
-                          aria-label={`Remove rate ${index + 1}`}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : null}
-            {entityFields.map((field) => (
-              <div key={field.key}>
-                <Label className="text-xs">{field.label}</Label>
-                <Input
-                  value={field.key === 'pan_number' ? form.pan_number : ''}
-                  onChange={(e) => {
-                    const next = field.uppercase ? e.target.value.toUpperCase() : e.target.value
-                    if (field.key === 'pan_number') {
-                      setForm((f) => ({ ...f, pan_number: next.slice(0, field.max_length) }))
-                    }
+            <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-border/70 bg-muted/20 p-2.5">
+              <p className="sm:col-span-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Tax registration
+              </p>
+              <div>
+                <Label className="text-xs">Tax Country</Label>
+                <Select
+                  value={form.tax_country_code}
+                  onChange={(code) => {
+                    const cfg = getTaxCountry(code)
+                    setGstinError(null)
+                    setForm((f) => ({
+                      ...f,
+                      tax_country_code: code,
+                      gstin: '',
+                      default_tax_rate: String(defaultRateForCountry(cfg)),
+                      custom_tax_rates: [],
+                    }))
                   }}
-                  placeholder={field.placeholder}
-                  maxLength={field.max_length}
-                  className={cn('mt-0.5 h-9 font-mono', field.uppercase && 'uppercase')}
+                  options={countryOptions}
+                  searchable
+                  searchPlaceholder="Search countries…"
+                  placeholder="Select tax country"
+                  className="mt-0.5 h-8"
                 />
               </div>
-            ))}
+              <label className="flex min-h-8 items-end gap-2 cursor-pointer pb-1">
+                <input
+                  type="checkbox"
+                  checked={form.is_tax_registered}
+                  onChange={(e) => setForm((f) => ({ ...f, is_tax_registered: e.target.checked }))}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                />
+                <span className="text-sm font-medium">{registrationLabel(taxCountry)}</span>
+              </label>
+              {form.is_tax_registered && regField ? (
+                <>
+                  <div>
+                    <Label className="text-xs">{regField.label}</Label>
+                    <Input
+                      value={form.gstin}
+                      onChange={(e) => {
+                        setGstinError(null)
+                        const next = regField.uppercase ? e.target.value.toUpperCase() : e.target.value
+                        setForm((f) => ({ ...f, gstin: next.slice(0, regField.max_length) }))
+                      }}
+                      placeholder={regField.placeholder}
+                      maxLength={regField.max_length}
+                      className={cn(
+                        'mt-0.5 h-8 font-mono tracking-wide',
+                        regField.uppercase && 'uppercase',
+                        gstinError && 'border-destructive',
+                      )}
+                    />
+                    {gstinError ? <p className="mt-0.5 text-[11px] text-destructive">{gstinError}</p> : null}
+                  </div>
+                  <div>
+                    <Label className="text-xs">Default {taxCountry.tax_label} Rate (%)</Label>
+                    <Select
+                      value={rateIsKnown ? form.default_tax_rate : '__custom__'}
+                      onChange={(v) => {
+                        if (v === '__custom__') {
+                          setForm((f) => ({
+                            ...f,
+                            default_tax_rate: rateIsKnown ? '' : f.default_tax_rate,
+                          }))
+                          return
+                        }
+                        setForm((f) => ({ ...f, default_tax_rate: v }))
+                      }}
+                      options={rateOptions}
+                      placeholder="Select rate"
+                      className="mt-0.5 h-8"
+                    />
+                    {!rateIsKnown ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        max={100}
+                        value={form.default_tax_rate}
+                        onChange={(e) => setForm((f) => ({ ...f, default_tax_rate: e.target.value }))}
+                        placeholder={String(defaultRateForCountry(taxCountry))}
+                        className="mt-1.5 h-8"
+                      />
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
+              {entityFields.map((field) => (
+                <div key={field.key}>
+                  <Label className="text-xs">{field.label}</Label>
+                  <Input
+                    value={field.key === 'pan_number' ? form.pan_number : ''}
+                    onChange={(e) => {
+                      const next = field.uppercase ? e.target.value.toUpperCase() : e.target.value
+                      if (field.key === 'pan_number') {
+                        setForm((f) => ({ ...f, pan_number: next.slice(0, field.max_length) }))
+                      }
+                    }}
+                    placeholder={field.placeholder}
+                    maxLength={field.max_length}
+                    className={cn('mt-0.5 h-8 font-mono', field.uppercase && 'uppercase')}
+                  />
+                </div>
+              ))}
+              {form.is_tax_registered ? (
+                <div className="sm:col-span-2 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs">Additional {taxCountry.tax_label} rates</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1 px-2 text-xs"
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          custom_tax_rates: [...f.custom_tax_rates, { rate: '', label: '' }],
+                        }))
+                      }
+                    >
+                      <Plus className="h-3 w-3" />
+                      Add
+                    </Button>
+                  </div>
+                  {form.custom_tax_rates.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Optional rates outside the standard list (rate + description).
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {form.custom_tax_rates.map((row, index) => (
+                        <div key={index} className="flex flex-wrap items-center gap-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            max={100}
+                            value={row.rate}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                custom_tax_rates: f.custom_tax_rates.map((r, i) =>
+                                  i === index ? { ...r, rate: e.target.value } : r,
+                                ),
+                              }))
+                            }
+                            placeholder="e.g. 40"
+                            className="h-8 w-[6.5rem] font-mono"
+                          />
+                          <span className="text-xs text-muted-foreground">%</span>
+                          <Input
+                            value={row.label}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                custom_tax_rates: f.custom_tax_rates.map((r, i) =>
+                                  i === index ? { ...r, label: e.target.value } : r,
+                                ),
+                              }))
+                            }
+                            placeholder="Description"
+                            className="h-8 min-w-[8rem] flex-1"
+                            maxLength={80}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-destructive"
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                custom_tax_rates: f.custom_tax_rates.filter((_, i) => i !== index),
+                              }))
+                            }
+                            aria-label={`Remove rate ${index + 1}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="sm:col-span-2">
+              <AddressCard compact>
+                <AddressFields
+                  compact
+                  idPrefix="store-addr"
+                  values={{
+                    street: form.street,
+                    city: form.city,
+                    state: form.state,
+                    postal: form.pincode,
+                    country: form.country,
+                  }}
+                  onChange={(patch) =>
+                    setForm((f) => ({
+                      ...f,
+                      street: patch.street ?? f.street,
+                      city: patch.city ?? f.city,
+                      state: patch.state ?? f.state,
+                      pincode: patch.postal ?? f.pincode,
+                      country: patch.country ?? f.country,
+                    }))
+                  }
+                />
+              </AddressCard>
+            </div>
           </div>
 
-          <div className="col-span-2">
-            <AddressCard>
-              <AddressFields
-                idPrefix="store-addr"
-                values={{
-                  street: form.street,
-                  city: form.city,
-                  state: form.state,
-                  postal: form.pincode,
-                  country: form.country,
-                }}
-                onChange={(patch) =>
-                  setForm((f) => ({
-                    ...f,
-                    street: patch.street ?? f.street,
-                    city: patch.city ?? f.city,
-                    state: patch.state ?? f.state,
-                    pincode: patch.postal ?? f.pincode,
-                    country: patch.country ?? f.country,
-                  }))
-                }
-              />
-            </AddressCard>
-          </div>
-
-          <div className="col-span-2 flex items-center justify-between gap-3 pt-1">
+          <div className="shrink-0 flex items-center justify-between gap-3 border-t border-border px-4 py-2.5">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"

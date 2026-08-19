@@ -321,6 +321,13 @@ class LeadService:
     async def list(self, vendor_id: UUID, **kwargs):
         return await self.repo.search(vendor_id, **kwargs)
 
+    def _reject_if_deleted(self, obj: CrmLead) -> None:
+        if getattr(obj, "deleted_at", None):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This lead is in the trash. Restore it first.",
+            )
+
     async def get(self, vendor_id: UUID, lead_id: UUID) -> CrmLead:
         obj = await self.repo.get(vendor_id, lead_id)
         if not obj:
@@ -440,6 +447,7 @@ class LeadService:
                      actor_id: Optional[UUID] = None,
                      request: Optional[Request] = None) -> CrmLead:
         obj = await self.get(vendor_id, lead_id)
+        self._reject_if_deleted(obj)
         before = _apply_updates(obj, data.model_dump(exclude_unset=True))
         await self.db.commit()
         await self.db.refresh(obj)
@@ -454,16 +462,36 @@ class LeadService:
                      actor_id: Optional[UUID] = None,
                      request: Optional[Request] = None) -> None:
         obj = await self.get(vendor_id, lead_id)
+        if obj.deleted_at:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Lead is already in the trash")
+        obj.deleted_at = datetime.now(timezone.utc)
         await self.audit.log(
             vendor_id=vendor_id, entity="crm_lead", entity_id=obj.id,
             action="delete", actor_id=actor_id, before=obj, request=request,
+            commit=False,
         )
-        await self.db.delete(obj)
         await self.db.commit()
+
+    async def restore(self, vendor_id: UUID, lead_id: UUID, *,
+                      actor_id: Optional[UUID] = None,
+                      request: Optional[Request] = None) -> CrmLead:
+        obj = await self.get(vendor_id, lead_id)
+        if not obj.deleted_at:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Lead is not in the trash")
+        obj.deleted_at = None
+        await self.audit.log(
+            vendor_id=vendor_id, entity="crm_lead", entity_id=obj.id,
+            action="restore", actor_id=actor_id, after=obj, request=request,
+            commit=False,
+        )
+        await self.db.commit()
+        await self.db.refresh(obj)
+        return obj
 
     async def assign(self, vendor_id: UUID, lead_id: UUID, user_id: UUID, *,
                      actor_id: Optional[UUID] = None) -> CrmLead:
         obj = await self.get(vendor_id, lead_id)
+        self._reject_if_deleted(obj)
         before = {"assigned_to": obj.assigned_to}
         obj.assigned_to = user_id
         await self.db.commit()
@@ -479,6 +507,7 @@ class LeadService:
                       actor_id: Optional[UUID] = None,
                       request: Optional[Request] = None) -> dict:
         lead = await self.get(vendor_id, lead_id)
+        self._reject_if_deleted(lead)
         if lead.converted_at:
             raise HTTPException(status_code=409, detail="Lead already converted")
 
@@ -1983,6 +2012,9 @@ class AiService:
         return await self.repo.latest_for(vendor_id, entity_type, entity_id, kind)
 
     async def score_lead(self, vendor_id: UUID, lead_id: UUID) -> dict:
+        leads = LeadService(self.db)
+        lead = await leads.get(vendor_id, lead_id)
+        leads._reject_if_deleted(lead)
         from app.tasks.crm.ai_jobs import score_lead_now
         return score_lead_now(lead_id)
 
