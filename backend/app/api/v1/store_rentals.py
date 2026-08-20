@@ -2,7 +2,7 @@ import datetime as _dt
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_active_customer, get_store_vendor_id
@@ -150,3 +150,25 @@ async def cancel_my_rental_booking(
         from fastapi import HTTPException
         raise HTTPException(400, "Only pending or approved bookings can be cancelled")
     return await RentalService(db).update_booking_status(vendor_id, booking_id, "cancelled")
+
+
+@router.get("/registration-form")
+async def get_storefront_registration_form(
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Public: published form enabled for storefront rental booking, if any."""
+    from app.services.rental_registration import RentalRegistrationService
+    form = await RentalRegistrationService(db).get_active_form(vendor_id, "storefront")
+    return {"enabled": bool(form), "form": form}
+
+
+@router.post("/registration-image")
+async def upload_storefront_registration_image(
+    file: UploadFile = File(...),
+    vendor_id: UUID = Depends(get_store_vendor_id),
+):
+    """Optional guest photo for the storefront registration form."""
+    from app.services.media_upload import save_image_file
+    url = await save_image_file(file, f"rental-registration/{vendor_id}")
+    return {"url": url}

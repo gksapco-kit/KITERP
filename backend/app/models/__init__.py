@@ -29,7 +29,10 @@ from app.models.restaurant import (
 from app.models.invoice import Invoice
 from app.models.coupon import Coupon, CouponUsage
 from app.models.lead import Lead, Quote
-from app.models.rental import RentalAsset, RentalAssetStore, RentalBooking
+from app.models.rental import (
+    RentalAsset, RentalAssetStore, RentalBooking,
+    RentalRegistrationForm, RentalRegistrationSubmission,
+)
 from app.models.order_dispute import OrderDispute
 from app.models.storefront_contact_query import StorefrontContactQuery
 from app.models.platform_career_application import PlatformCareerApplication

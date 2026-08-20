@@ -5,7 +5,7 @@ import {
   FileText, Stethoscope, ClipboardList, Wrench, Truck,
   FileCheck, BookOpen, Users, ChevronDown, ChevronUp,
   Palette, Building2, ToggleLeft, Check, Upload, X,
-  RotateCcw, ArrowLeft, Eye, ScrollText, ShoppingCart,
+  RotateCcw, ArrowLeft, Eye, ScrollText, ShoppingCart, FileSignature,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -78,6 +78,16 @@ const LINKED_TEMPLATE_TYPES = [
     bg: 'bg-amber-500/15 dark:bg-amber-500/20',
     category: 'Purchasing',
     href: '/purchase-orders/templates',
+  },
+  {
+    id: 'rental_registration_forms',
+    label: 'Rental Registration Forms',
+    desc: 'Modern Google Forms-style renter intake — KYC, licence, event details. Enable on storefront to show Register & Book.',
+    icon: FileSignature,
+    color: 'text-teal-600 dark:text-teal-300',
+    bg: 'bg-teal-500/15 dark:bg-teal-500/20',
+    category: 'Rental',
+    href: '/rental/registration-forms',
   },
 ] as const
 
@@ -1015,7 +1025,7 @@ export default function DocumentTemplatesPage() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Configure and preview printable templates for your business documents — including invoices, quotations,
-            purchase orders, prescriptions, SOPs, and more.
+            purchase orders, rental registration forms, prescriptions, SOPs, and more.
           </p>
         </div>
 

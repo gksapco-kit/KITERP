@@ -56,6 +56,7 @@ import RentalCalendarPage from '@/pages/rental/RentalCalendarPage'
 import RentalReturnsPage from '@/pages/rental/RentalReturnsPage'
 import RentalReportsPage from '@/pages/rental/RentalReportsPage'
 import RentalSettingsPage from '@/pages/rental/RentalSettingsPage'
+import RentalRegistrationFormsPage from '@/pages/rental/RentalRegistrationFormsPage'
 import InvoicesPage from '@/pages/invoices/index'
 import InvoiceDetail from '@/pages/invoices/InvoiceDetail'
 import InvoiceTemplatesPage from '@/pages/invoices/InvoiceTemplates'
@@ -463,6 +464,7 @@ export const router = createBrowserRouter([
       { path: 'rental/calendar', element: <RentalCalendarPage /> },
       { path: 'rental/returns', element: <RentalReturnsPage /> },
       { path: 'rental/reports', element: <RentalReportsPage /> },
+      { path: 'rental/registration-forms', element: <RentalRegistrationFormsPage /> },
       { path: 'rental/settings', element: <RentalSettingsPage /> },
       { path: 'invoices', element: <InvoicesPage /> },
       { path: 'invoices/templates', element: <InvoiceTemplatesPage /> },

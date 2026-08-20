@@ -206,7 +206,17 @@ export function useStorefrontRental(idOrSlug: string) {
     queryFn: () => (isUuid ? storeApi.getRentalAsset(idOrSlug) : storeApi.getCatalogRental(idOrSlug)),
     enabled: !!idOrSlug && !!vendorSlug,
     staleTime: 0,
-    refetchOnMount: 'always',
+    refetchOnMount: 'always' as const,
+  })
+}
+
+export function useRentalRegistrationForm() {
+  const { vendorSlug } = useVendor()
+  return useQuery({
+    queryKey: ['rental-registration-form', vendorSlug],
+    queryFn: () => storeApi.getRentalRegistrationForm(),
+    enabled: !!vendorSlug,
+    staleTime: 30_000,
   })
 }
 

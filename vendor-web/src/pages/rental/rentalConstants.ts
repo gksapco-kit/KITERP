@@ -586,6 +586,14 @@ export type RentalBooking = {
   return_notes?: string | null
   timeline?: Array<{ event: string; detail?: string; at?: string }>
   notes?: string
+  registration?: {
+    id: string
+    form_id: string
+    form_name?: string | null
+    answers?: Record<string, unknown>
+    fields?: Array<{ key: string; label: string; type: string }>
+    channel?: string
+  } | null
 }
 
 export function statusBadgeClass(status?: string): string {

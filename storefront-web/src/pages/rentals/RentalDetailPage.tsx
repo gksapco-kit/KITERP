@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Boxes, Calendar, CheckCircle2, CreditCard, Loader2, MapPin,
-  Package, Scale, Shield, Truck,
+  Package, Scale, Shield, Truck, X,
 } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { storeApi } from '@/api/store'
-import { useStorefrontRental } from '@/hooks/useStore'
+import { useStorefrontRental, useRentalRegistrationForm } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -32,6 +33,8 @@ import {
   normalizeAdditionalCharges,
   splitAdditionalCharges,
 } from '@/lib/rentalAdditionalCharges'
+import { missingRequiredAnswers, StorefrontRegistrationFields } from './StorefrontRegistrationFields'
+import { RegistrationFormLetterhead } from './RegistrationFormLetterhead'
 
 type RentalAsset = {
   id: string
@@ -291,9 +294,14 @@ export default function RentalDetailPage() {
   const { customer, isAuthenticated } = useAuthStore()
   const qc = useQueryClient()
   const { data, isLoading, isError, refetch } = useStorefrontRental(slug)
+  const { data: registration } = useRentalRegistrationForm()
   const asset = data as RentalAsset | undefined
+  const registrationForm = registration?.enabled ? registration.form : null
 
   const showBook = searchParams.get('book') === '1'
+  const [bookStep, setBookStep] = useState<'register' | 'details'>('details')
+  const [regModalOpen, setRegModalOpen] = useState(false)
+  const [regAnswers, setRegAnswers] = useState<Record<string, string | boolean>>({})
   const [activeMedia, setActiveMedia] = useState(0)
   const [bookQty, setBookQty] = useState('1')
   const [startDate, setStartDate] = useState('')
@@ -428,6 +436,47 @@ export default function RentalDetailPage() {
   const isDurationPlan = Boolean(parseDurationPlanMinutes(pricingPlan))
   const activeUrl = mediaItems[Math.min(activeMedia, Math.max(0, mediaItems.length - 1))]?.url
 
+  const seedRegAnswers = (current: Record<string, string | boolean> = {}) => {
+    const next = { ...current }
+    const fields = registrationForm?.fields || []
+    const keys = new Set(fields.map((f) => f.key))
+    if (keys.has('room_no') && !String(next.room_no ?? '').trim()) {
+      next.room_no = String(asset?.asset_code || asset?.name || '').trim()
+    }
+    if (keys.has('check_in_date') && startDate) next.check_in_date = startDate
+    if (keys.has('check_out_date') && endDate) next.check_out_date = endDate
+    return next
+  }
+
+  const filledRegAnswers = seedRegAnswers(regAnswers)
+  const missingRegFields = registrationForm
+    ? missingRequiredAnswers(registrationForm.fields || [], filledRegAnswers)
+    : []
+  const registrationComplete = !registrationForm || missingRegFields.length === 0
+
+  useEffect(() => {
+    if (!registrationForm) return
+    setRegAnswers((prev) => seedRegAnswers(prev))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registrationForm?.id, startDate, endDate, asset?.id])
+
+  useEffect(() => {
+    if (!showBook || !registrationForm || registrationComplete) return
+    setRegModalOpen(true)
+    setBookStep('register')
+    setSearchParams({}, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBook, registrationForm?.id])
+
+  useEffect(() => {
+    if (!regModalOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [regModalOpen])
+
   const openBookForm = () => {
     if (!asset) return
     setBookQty(String(Math.min(Number(asset.available_capacity || 1), Number(asset.capacity_max || 1)) || 1))
@@ -446,6 +495,26 @@ export default function RentalDetailPage() {
     setDeliveryAddress('')
     setSelectedExtras([])
     setConfirmedBooking(null)
+    setRegAnswers(seedRegAnswers({}))
+    if (registrationForm) {
+      setBookStep('register')
+      setRegModalOpen(true)
+      return
+    }
+    setBookStep('details')
+    setSearchParams({ book: '1' }, { replace: true })
+  }
+
+  const continueToBooking = () => {
+    const answers = seedRegAnswers(regAnswers)
+    setRegAnswers(answers)
+    const missing = missingRequiredAnswers(registrationForm?.fields || [], answers)
+    if (missing.length) {
+      toast.error(`Please fill: ${missing.map((f) => f.label).join(', ')}`)
+      return
+    }
+    setRegModalOpen(false)
+    setBookStep('details')
     setSearchParams({ book: '1' }, { replace: true })
   }
 
@@ -472,7 +541,7 @@ export default function RentalDetailPage() {
   }
 
   const book = useMutation({
-    mutationFn: () =>
+    mutationFn: (answers?: Record<string, string | boolean>) =>
       storeApi.createRentalBooking({
         asset_id: asset!.id,
         start_date: startDate,
@@ -485,6 +554,8 @@ export default function RentalDetailPage() {
         delivery_address: needsDelivery ? deliveryAddress : undefined,
         needs_delivery: needsDelivery,
         additional_charge_ids: selectedExtras,
+        registration_form_id: registrationForm?.id,
+        registration_answers: registrationForm ? (answers || regAnswers) : undefined,
       }),
     onSuccess: (res) => {
       toast.success('Rental request submitted')
@@ -543,6 +614,7 @@ export default function RentalDetailPage() {
   const confirmedBookingId = confirmedBooking ? String(confirmedBooking.id ?? '') : ''
 
   return (
+    <>
     <div className="relative min-h-[70vh] bg-gradient-to-b from-[#eef8f3] via-[#f5faf7] to-[#f8faf9]">
       <div
         aria-hidden
@@ -771,7 +843,7 @@ export default function RentalDetailPage() {
                     style={{ backgroundColor: primaryColor }}
                     onClick={openBookForm}
                   >
-                    Book this {headlineLabel}
+                    {registrationForm ? 'Register and booking' : `Book this ${headlineLabel}`}
                   </Button>
                 )}
               </div>
@@ -825,7 +897,7 @@ export default function RentalDetailPage() {
                   </Link>
                 </div>
               </div>
-            ) : showBook ? (
+            ) : showBook && bookStep === 'details' ? (
               <div className="space-y-3.5 rounded-2xl border border-white/80 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.08)] sm:p-5">
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-base font-semibold text-slate-900">Request booking</h2>
@@ -1042,6 +1114,15 @@ export default function RentalDetailPage() {
                     )}
 
                     <p className="text-xs text-slate-400">Booking as {customer?.full_name}</p>
+                    {registrationForm && (
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-slate-500 hover:text-slate-800"
+                        onClick={() => setRegModalOpen(true)}
+                      >
+                        ← Back to registration
+                      </button>
+                    )}
                     <Button
                       className="h-11 w-full rounded-xl font-semibold text-white"
                       style={{ backgroundColor: primaryColor }}
@@ -1053,9 +1134,21 @@ export default function RentalDetailPage() {
                         || book.isPending
                         || (startDate === endDate && endTime < startTime)
                       }
-                      onClick={() => book.mutate()}
+                      onClick={() => {
+                        const answers = registrationForm ? seedRegAnswers(regAnswers) : undefined
+                        if (registrationForm && answers) {
+                          setRegAnswers(answers)
+                          const missing = missingRequiredAnswers(registrationForm.fields || [], answers)
+                          if (missing.length) {
+                            toast.error(`Please fill: ${missing.map((f) => f.label).join(', ')}`)
+                            setRegModalOpen(true)
+                            return
+                          }
+                        }
+                        book.mutate(answers)
+                      }}
                     >
-                      {book.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm booking request'}
+                      {book.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : (registrationForm ? 'Confirm registration & booking' : 'Confirm booking request')}
                     </Button>
                   </>
                 )}
@@ -1065,5 +1158,77 @@ export default function RentalDetailPage() {
         </div>
       </div>
     </div>
+    {regModalOpen && registrationForm
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rental-registration-title"
+            onClick={() => setRegModalOpen(false)}
+          >
+            <div
+              className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
+                <div className="min-w-0">
+                  <p id="rental-registration-title" className="text-base font-semibold text-slate-900">
+                    Register and book
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Complete the registration form, then continue to booking.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Close registration form"
+                  onClick={() => setRegModalOpen(false)}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+                <RegistrationFormLetterhead
+                  theme={registrationForm.theme}
+                  fallbackTitle={registrationForm.name}
+                  fallbackSubtitle={registrationForm.description || 'Please complete all required details for check-in.'}
+                />
+                <div className="mt-4">
+                  <StorefrontRegistrationFields
+                    fields={registrationForm.fields || []}
+                    values={regAnswers}
+                    accent={registrationForm.theme?.accent}
+                    onUploadImage={async (file) => {
+                      const uploaded = await storeApi.uploadRentalRegistrationImage(file)
+                      return uploaded.url
+                    }}
+                    onChange={(key, value) => setRegAnswers((prev) => ({ ...prev, [key]: value }))}
+                  />
+                </div>
+              </div>
+              <div className="border-t border-slate-100 bg-white px-4 py-3 sm:px-5">
+                {registrationComplete ? (
+                  <Button
+                    className="h-11 w-full rounded-xl font-semibold text-white"
+                    style={{ backgroundColor: primaryColor }}
+                    onClick={continueToBooking}
+                  >
+                    Continue to booking
+                  </Button>
+                ) : (
+                  <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs text-slate-500">
+                    Fill all required fields to continue to booking
+                    {missingRegFields.length ? ` (${missingRegFields.length} remaining)` : ''}.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null}
+    </>
   )
 }

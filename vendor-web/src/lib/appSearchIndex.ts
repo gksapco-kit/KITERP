@@ -98,6 +98,7 @@ const KEYWORD_HINTS: Record<string, string[]> = {
   'Quotations':                           ['quote', 'estimate', 'quotation', 'proposal', 'price quote'],
   'Subscriptions':                        ['recurring', 'subscription', 'renewal', 'recurring billing'],
   'Rentals':                              ['rent', 'hire', 'lease', 'rental'],
+  'Registration Forms':                   ['rental form', 'registration form', 'google form', 'kyc', 'intake', 'register and book'],
   'Production Orders':                    ['manufacturing', 'factory', 'bom', 'production', 'work order'],
   'Work Centers & Routing':                ['work center', 'work centre', 'routing', 'operations', 'machines', 'production routing'],
   'Material Requirements (MRP)':           ['mrp', 'bom', 'material requirement', 'stock check', 'reservation', 'component availability'],

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Index, String, Text, DateTime, ForeignKey, Numeric, Date, Boolean, Time
+from sqlalchemy import Column, Index, Integer, String, Text, DateTime, ForeignKey, Numeric, Date, Boolean, Time
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 import uuid
@@ -274,3 +274,41 @@ class RentalReturn(Base):
     # JSON list of RentalAssetUnit IDs returned in this event (serialized assets only)
     unit_ids = Column(JSONB, default=list)
     returned_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class RentalRegistrationForm(Base):
+    """Google Forms-style intake template shown before a rental booking."""
+
+    __tablename__ = "rental_registration_form"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(160), nullable=False)
+    description = Column(Text)
+    template_key = Column(String(40), default="blank")
+    # draft | published
+    status = Column(String(20), default="draft", server_default="draft")
+    version = Column(Integer, default=1, server_default="1")
+    fields = Column(JSONB, default=list)
+    theme = Column(JSONB, default=dict)
+    use_on_storefront = Column(Boolean, default=False, server_default="false")
+    use_on_staff_booking = Column(Boolean, default=False, server_default="false")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class RentalRegistrationSubmission(Base):
+    """Filled registration answers, linked to a booking when one is created."""
+
+    __tablename__ = "rental_registration_submission"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    form_id = Column(UUID(as_uuid=True), ForeignKey("rental_registration_form.id", ondelete="CASCADE"), nullable=False, index=True)
+    form_version = Column(Integer, default=1)
+    booking_id = Column(UUID(as_uuid=True), ForeignKey("rental_booking.id", ondelete="SET NULL"), nullable=True, index=True)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id", ondelete="SET NULL"), nullable=True)
+    customer_name = Column(String(255))
+    channel = Column(String(20), default="storefront")  # storefront | staff
+    answers = Column(JSONB, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

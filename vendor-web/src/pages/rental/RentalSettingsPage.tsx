@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Info, Save, Loader2, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -88,6 +89,7 @@ function Toggle({
 }
 
 export default function RentalSettingsPage() {
+  const navigate = useNavigate()
   const { vendor } = useVendorStore()
   const updateVendor = useUpdateVendor()
   const vendorSettings = vendor?.settings as Record<string, unknown> | undefined
@@ -229,6 +231,19 @@ export default function RentalSettingsPage() {
             checked={form.storefront_show_rates}
             onChange={(v) => set('storefront_show_rates', v)}
           />
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-sm font-medium text-foreground">Storefront registration form</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              When a published registration form is enabled for the storefront, customers see <strong>Register & Book</strong> and must fill the form while booking. Otherwise they only see Booking.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/rental/registration-forms')}
+              className="mt-3 text-sm font-medium text-primary hover:underline"
+            >
+              Design registration forms →
+            </button>
+          </div>
         </section>
 
         {/* Feature toggles */}

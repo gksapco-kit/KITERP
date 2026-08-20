@@ -232,6 +232,22 @@ export default function RentalBookingSheet({ open, booking, onClose, onChanged, 
                 <div className="col-span-2"><dt className="text-xs text-muted-foreground">Total</dt><dd className="font-semibold">{formatCurrency(Number(booking.total_amount || 0))}</dd></div>
               </dl>
 
+              {booking.registration && (
+                <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="text-sm font-semibold">{booking.registration.form_name || 'Registration form'}</p>
+                  <dl className="space-y-1 text-sm">
+                    {(booking.registration.fields || []).map((field) => (
+                      <div key={field.key} className="flex justify-between gap-3">
+                        <dt className="text-muted-foreground">{field.label}</dt>
+                        <dd className="text-right font-medium">
+                          {String(booking.registration?.answers?.[field.key] ?? '—')}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
+
               {booking.returned_at && (
                 <div className="space-y-1 rounded-lg border border-emerald-200 bg-emerald-500/10 px-3 py-2 text-xs dark:border-emerald-800/60">
                   <p className="font-semibold text-emerald-800 dark:text-emerald-300">Return recorded</p>

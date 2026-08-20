@@ -10,6 +10,7 @@ from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rental import RentalAsset, RentalAssetStore, RentalAssetUnit, RentalBooking, RentalBookingUnit, RentalReturn
+from app.services.rental_registration import RentalRegistrationService
 
 ACTIVE_BOOKING_STATUSES = ("pending", "approved", "confirmed", "active")
 # Once approved (or later), display-window / booking date changes must keep covering these.
@@ -1817,7 +1818,15 @@ class RentalService:
         if asset_ids:
             ar = await self.db.execute(select(RentalAsset).where(RentalAsset.id.in_(asset_ids)))
             assets_map = {a.id: a for a in ar.scalars().all()}
-        return [self._booking_dict(b, assets_map.get(b.asset_id)) for b in bookings]
+        items = [self._booking_dict(b, assets_map.get(b.asset_id)) for b in bookings]
+        subs = await RentalRegistrationService(self.db).submissions_for_bookings(
+            vendor_id, [b.id for b in bookings]
+        )
+        for item in items:
+            sub = subs.get(UUID(item["id"]))
+            if sub:
+                item["registration"] = sub
+        return items
 
     async def get_booking(self, vendor_id: UUID, booking_id: UUID) -> dict:
         result = await self.db.execute(
@@ -1827,7 +1836,11 @@ class RentalService:
         if not booking:
             raise HTTPException(404, "Rental booking not found")
         asset = await self._get_asset(vendor_id, booking.asset_id)
-        return self._booking_dict(booking, asset)
+        payload = self._booking_dict(booking, asset)
+        subs = await RentalRegistrationService(self.db).submissions_for_bookings(vendor_id, [booking.id])
+        if booking.id in subs:
+            payload["registration"] = subs[booking.id]
+        return payload
 
     async def search_available_assets(
         self,
@@ -2033,9 +2046,20 @@ class RentalService:
         await adjust_outstanding(self.db, credit_row, Decimal(str(total)))
 
         self.db.add(booking)
+        await self.db.flush()
+        await RentalRegistrationService(self.db).capture_for_booking(
+            vendor_id,
+            booking,
+            data,
+            created_by_vendor=vendor_created,
+        )
         await self.db.commit()
         await self.db.refresh(booking)
-        return self._booking_dict(booking, asset)
+        payload = self._booking_dict(booking, asset)
+        subs = await RentalRegistrationService(self.db).submissions_for_bookings(vendor_id, [booking.id])
+        if booking.id in subs:
+            payload["registration"] = subs[booking.id]
+        return payload
 
     async def update_booking_status(self, vendor_id: UUID, booking_id: UUID, status: str) -> dict:
         result = await self.db.execute(

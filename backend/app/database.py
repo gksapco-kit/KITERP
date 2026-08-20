@@ -1991,6 +1991,41 @@ async def ensure_rental_schema() -> None:
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS duration_rates JSONB DEFAULT '[]'::jsonb",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS period_rates JSONB DEFAULT '[]'::jsonb",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS additional_charges JSONB DEFAULT '[]'::jsonb",
+        """
+        CREATE TABLE IF NOT EXISTS rental_registration_form (
+            id UUID PRIMARY KEY,
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            name VARCHAR(160) NOT NULL,
+            description TEXT,
+            template_key VARCHAR(40) DEFAULT 'blank',
+            status VARCHAR(20) DEFAULT 'draft',
+            version INTEGER DEFAULT 1,
+            fields JSONB DEFAULT '[]'::jsonb,
+            theme JSONB DEFAULT '{}'::jsonb,
+            use_on_storefront BOOLEAN DEFAULT false,
+            use_on_staff_booking BOOLEAN DEFAULT false,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_rental_registration_form_vendor ON rental_registration_form(vendor_id)",
+        """
+        CREATE TABLE IF NOT EXISTS rental_registration_submission (
+            id UUID PRIMARY KEY,
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            form_id UUID NOT NULL REFERENCES rental_registration_form(id) ON DELETE CASCADE,
+            form_version INTEGER DEFAULT 1,
+            booking_id UUID REFERENCES rental_booking(id) ON DELETE SET NULL,
+            customer_id UUID REFERENCES customer(id) ON DELETE SET NULL,
+            customer_name VARCHAR(255),
+            channel VARCHAR(20) DEFAULT 'storefront',
+            answers JSONB DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_rental_registration_submission_vendor ON rental_registration_submission(vendor_id)",
+        "CREATE INDEX IF NOT EXISTS ix_rental_registration_submission_form ON rental_registration_submission(form_id)",
+        "CREATE INDEX IF NOT EXISTS ix_rental_registration_submission_booking ON rental_registration_submission(booking_id)",
         # rent015: booking ↔ unit assignment tracking
         """
         CREATE TABLE IF NOT EXISTS rental_booking_unit (

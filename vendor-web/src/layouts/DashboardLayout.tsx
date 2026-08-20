@@ -719,7 +719,8 @@ const allSections: NavSection[] = [
       { to: '/rental/calendar', icon: CalendarDays, label: 'Availability Calendar', requiresPermission: 'rentals.view' },
       { to: '/rental/returns', icon: RotateCcw, label: 'Returns & Settlements', requiresPermission: 'rentals.view' },
       { to: '/rental/reports', icon: BarChart3, label: 'Reports', requiresPermission: 'reports.view', groupLabel: 'Insights', groupColor: 'violet' },
-      { to: '/rental/settings', icon: Settings2, label: 'Settings', requiresPermission: 'rentals.manage', groupLabel: 'Configuration', groupColor: 'slate' },
+      { to: '/rental/registration-forms', icon: FileSignature, label: 'Registration Forms', requiresPermission: 'rentals.manage', groupLabel: 'Configuration', groupColor: 'slate' },
+      { to: '/rental/settings', icon: Settings2, label: 'Settings', requiresPermission: 'rentals.manage' },
     ],
   },
   {
@@ -1276,6 +1277,7 @@ const pageTitles: Record<string, string> = {
   '/rental/calendar': 'Availability Calendar',
   '/rental/returns': 'Returns & Settlements',
   '/rental/reports': 'Reports',
+  '/rental/registration-forms': 'Registration Forms',
   '/rental/settings': 'Rental Settings',
   '/invoices': 'Invoices',
   '/memos': 'Credit & Debit Memos',

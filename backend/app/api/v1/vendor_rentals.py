@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
@@ -330,3 +330,105 @@ async def reassign_booking_unit(
       assigned_by – optional actor label
     """
     return await RentalService(db).reassign_unit(vendor_id, booking_id, from_unit_id, body)
+
+
+# ── Registration forms ──────────────────────────────────────────────────
+
+@router.get("/registration-forms")
+async def list_registration_forms(
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    from app.services.rental_registration import RentalRegistrationService
+    return await RentalRegistrationService(db).list_forms(vendor_id)
+
+
+@router.get("/registration-forms/active")
+async def get_active_registration_form(
+    channel: str = Query("staff"),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    from app.services.rental_registration import RentalRegistrationService
+    form = await RentalRegistrationService(db).get_active_form(vendor_id, channel)
+    return {"enabled": bool(form), "form": form}
+
+
+@router.get("/registration-forms/submissions")
+async def list_registration_submissions(
+    form_id: UUID | None = Query(None),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    from app.services.rental_registration import RentalRegistrationService
+    return await RentalRegistrationService(db).list_submissions(vendor_id, form_id)
+
+
+@router.post("/registration-forms/upload-image", dependencies=[Depends(require_permission("rentals.manage"))])
+async def upload_registration_form_image(
+    file: UploadFile = File(...),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    _user: User = Depends(get_current_active_user),
+):
+    from app.services.media_upload import save_image_file
+    url = await save_image_file(file, f"rental-registration/{vendor_id}")
+    return {"url": url}
+
+
+@router.post("/registration-forms/submissions", status_code=201, dependencies=[Depends(require_permission("rentals.manage"))])
+async def create_registration_submission(
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    from app.services.rental_registration import RentalRegistrationService
+    return await RentalRegistrationService(db).create_submission(vendor_id, body)
+
+
+@router.get("/registration-forms/{form_id}")
+async def get_registration_form(
+    form_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    from app.services.rental_registration import RentalRegistrationService
+    return await RentalRegistrationService(db).get_form(vendor_id, form_id)
+
+
+@router.post("/registration-forms", status_code=201, dependencies=[Depends(require_permission("rentals.manage"))])
+async def create_registration_form(
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    from app.services.rental_registration import RentalRegistrationService
+    return await RentalRegistrationService(db).create_form(vendor_id, body)
+
+
+@router.patch("/registration-forms/{form_id}", dependencies=[Depends(require_permission("rentals.manage"))])
+async def update_registration_form(
+    form_id: UUID,
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    from app.services.rental_registration import RentalRegistrationService
+    return await RentalRegistrationService(db).update_form(vendor_id, form_id, body)
+
+
+@router.delete("/registration-forms/{form_id}", status_code=204, dependencies=[Depends(require_permission("rentals.manage"))])
+async def delete_registration_form(
+    form_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    from app.services.rental_registration import RentalRegistrationService
+    await RentalRegistrationService(db).delete_form(vendor_id, form_id)

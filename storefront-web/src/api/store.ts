@@ -228,8 +228,50 @@ export const storeApi = {
     delivery_address?: string
     needs_delivery?: boolean
     additional_charge_ids?: string[]
+    registration_form_id?: string
+    registration_answers?: Record<string, string | boolean>
   }) => {
     const res = await apiClient.post('/store/rentals/bookings', data); return res.data
+  },
+  getRentalRegistrationForm: async () => {
+    const res = await apiClient.get('/store/rentals/registration-form'); return res.data as {
+      enabled: boolean
+      form: {
+        id: string
+        name: string
+        description?: string
+        version?: number
+        fields: Array<{
+          id: string
+          key: string
+          label: string
+          type: string
+          required?: boolean
+          placeholder?: string
+          help?: string
+          content?: string
+          options?: string[]
+        }>
+        theme?: {
+          accent?: string
+          layout?: string
+          cover_title?: string
+          cover_subtitle?: string
+          logo_url?: string
+          company_name?: string
+          company_phone?: string
+          company_address?: string
+        }
+      } | null
+    }
+  },
+  uploadRentalRegistrationImage: async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await apiClient.post('/store/rentals/registration-image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return res.data as { url: string }
   },
   listMyRentalBookings: async () => {
     const res = await apiClient.get('/store/rentals/my-bookings'); return res.data

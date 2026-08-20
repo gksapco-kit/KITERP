@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -18,6 +18,9 @@ import { formatCardDate, toDateInputValue, todayLocalYMD, addDaysYMD } from './r
 import type { RentalAsset, RentalBooking } from './rentalConstants'
 import { durationPlanId, formatDurationLabel, formatDurationSuffix, normalizeDurationRates } from './durationRates'
 import { applyAdditionalCharges } from './additionalCharges'
+import { RegistrationFormFields } from './RegistrationFormFields'
+import { RegistrationFormLetterhead } from './RegistrationFormLetterhead'
+import type { RegistrationField, RegistrationTheme } from './registrationFormTemplates'
 
 type Customer = { id: string; full_name?: string; phone?: string; email?: string }
 type SelectOpt = { value: string; label: string }
@@ -68,7 +71,17 @@ export default function RentalBookingCreateSheet({
   const [creditHint, setCreditHint] = useState<{ allowed: boolean; text: string } | null>(null)
   const [preferredUnitId, setPreferredUnitId] = useState<string | null>(null)
   const [preferredUnitLabel, setPreferredUnitLabel] = useState<string | null>(null)
+  const [regAnswers, setRegAnswers] = useState<Record<string, string | boolean>>({})
   const today = todayLocalYMD()
+
+  const { data: staffReg } = useQuery({
+    queryKey: ['rental-registration-form-staff'],
+    queryFn: () => rentalApi.getActiveRegistrationForm('staff'),
+    enabled: open,
+  })
+  const staffForm = staffReg?.enabled ? staffReg.form : null
+  const staffFields = (staffForm?.fields || []) as RegistrationField[]
+  const staffTheme = (staffForm?.theme || { accent: '#0f766e', layout: 'card' }) as RegistrationTheme
 
   const bookableAssetOptions = useMemo(() => {
     return assets
@@ -109,6 +122,7 @@ export default function RentalBookingCreateSheet({
     setPreferredUnitId(initialValues?.unit_id || null)
     setPreferredUnitLabel(initialValues?.unit_label || null)
     setCreditHint(null)
+    setRegAnswers({})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialValues])
 
@@ -209,6 +223,17 @@ export default function RentalBookingCreateSheet({
       toast.error('Quantity must be greater than zero')
       return
     }
+    if (staffFields.length) {
+      const missing = staffFields.filter((f) => {
+        if (f.type === 'heading' || !f.required) return false
+        const v = regAnswers[f.key]
+        return f.type === 'checkbox' || f.type === 'terms' ? v !== true : !String(v ?? '').trim()
+      })
+      if (missing.length) {
+        toast.error(`Please fill: ${missing.map((f) => f.label).join(', ')}`)
+        return
+      }
+    }
     createBooking.mutate({
       asset_id: form.asset_id,
       customer_id: form.customer_id || undefined,
@@ -228,6 +253,8 @@ export default function RentalBookingCreateSheet({
           : undefined,
       created_by_vendor: true,
       auto_approve: form.auto_approve,
+      registration_form_id: staffForm && typeof staffForm.id === 'string' ? staffForm.id : undefined,
+      registration_answers: staffForm ? regAnswers : undefined,
     })
   }
 
@@ -407,6 +434,24 @@ export default function RentalBookingCreateSheet({
               />
             </div>
           </div>
+
+          {staffFields.length > 0 && (
+            <div className="space-y-3 overflow-hidden rounded-lg border border-border">
+              <RegistrationFormLetterhead
+                theme={staffTheme}
+                fallbackTitle={String(staffForm?.name || 'Registration form')}
+              />
+              <div className="space-y-3 p-3">
+              <RegistrationFormFields
+                fields={staffFields}
+                values={regAnswers}
+                theme={staffTheme}
+                onUploadImage={async (file) => (await rentalApi.uploadRegistrationImage(file)).url}
+                onChange={(key, value) => setRegAnswers((prev) => ({ ...prev, [key]: value }))}
+              />
+              </div>
+            </div>
+          )}
 
           {selectedAsset?.delivery_enabled ? (
             <>

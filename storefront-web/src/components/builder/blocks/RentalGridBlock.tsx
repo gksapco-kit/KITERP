@@ -13,6 +13,7 @@ import {
 } from '@/lib/catalogCardLayout'
 import { cn, imgUrl } from '@/lib/utils'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
+import { useRentalRegistrationForm } from '@/hooks/useStore'
 import BlockEmptyPlaceholder from '@/components/builder/BlockEmptyPlaceholder'
 import { vendorDashboardUrl } from '@/lib/vendorDashboardUrl'
 
@@ -61,6 +62,8 @@ export default function RentalGridBlock({ style, props, liveItems, blockId }: Pr
   const { storePath } = useVendor()
   const navigate = useNavigate()
   const builderCanvas = useBuilderCanvas()
+  const { data: registration } = useRentalRegistrationForm()
+  const bookCta = registration?.enabled ? 'Register & book' : 'Book now'
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : 'desktop'
 
@@ -214,7 +217,7 @@ export default function RentalGridBlock({ style, props, liveItems, blockId }: Pr
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Calendar className="w-3 h-3 text-gray-400" />
-                    <span>Book now</span>
+                    <span>{bookCta}</span>
                   </span>
                 </div>
 

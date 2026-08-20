@@ -130,6 +130,36 @@ export const rentalApi = {
   listReturnHistory: (bookingId: string) =>
     apiClient.get(`/vendors/me/rentals/bookings/${bookingId}/returns`).then((r) => r.data as RentalReturn[]),
 
+  listRegistrationForms: () =>
+    apiClient.get('/vendors/me/rentals/registration-forms').then((r) => r.data),
+  getActiveRegistrationForm: (channel: 'staff' | 'storefront' = 'staff') =>
+    apiClient
+      .get('/vendors/me/rentals/registration-forms/active', { params: { channel } })
+      .then((r) => r.data as { enabled: boolean; form: Record<string, unknown> | null }),
+  getRegistrationForm: (id: string) =>
+    apiClient.get(`/vendors/me/rentals/registration-forms/${id}`).then((r) => r.data),
+  createRegistrationForm: (body: Record<string, unknown>) =>
+    apiClient.post('/vendors/me/rentals/registration-forms', body).then((r) => r.data),
+  updateRegistrationForm: (id: string, body: Record<string, unknown>) =>
+    apiClient.patch(`/vendors/me/rentals/registration-forms/${id}`, body).then((r) => r.data),
+  deleteRegistrationForm: (id: string) =>
+    apiClient.delete(`/vendors/me/rentals/registration-forms/${id}`),
+  listRegistrationSubmissions: (formId?: string) =>
+    apiClient
+      .get('/vendors/me/rentals/registration-forms/submissions', { params: formId ? { form_id: formId } : {} })
+      .then((r) => r.data),
+  createRegistrationSubmission: (body: Record<string, unknown>) =>
+    apiClient.post('/vendors/me/rentals/registration-forms/submissions', body).then((r) => r.data),
+  uploadRegistrationImage: (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return apiClient
+      .post('/vendors/me/rentals/registration-forms/upload-image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data as { url: string })
+  },
+
   // ── Product linking ───────────────────────────────────────────────────────
   listProductsForRental: (search?: string) =>
     apiClient
