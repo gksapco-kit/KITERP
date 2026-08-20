@@ -103,9 +103,9 @@ export function replyToLandingQuestion(raw: string, contact: ChatContact | null)
   ) {
     return (
       'Pricing is simple right now:\n' +
-      '• ₹0.00 / month for ALL apps\n' +
+      '• ₹999 / month for ALL apps\n' +
       'One login covers business, team, and website tools on KIT ERP.\n\n' +
-      'Use Get started to create your business account — no monthly fee listed on the landing page.'
+      'Use Get started to create your business account — ₹999 / month covers every module.'
     )
   }
 

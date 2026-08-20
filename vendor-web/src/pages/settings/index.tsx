@@ -8,6 +8,14 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, selectOptionsWithBlank, type SelectOption } from '@/components/ui/select'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   TAX_COUNTRIES,
   buildTaxRateSelectOptions,
   defaultRateForCountry,
@@ -15,7 +23,6 @@ import {
   isStandardTaxRate,
   mergeCustomTaxRate,
   parseCustomTaxRates,
-  registrationLabel,
 } from '@/lib/taxCountries'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useUpdateVendor, useUpdateStore, useStores, vendorKeys } from '@/hooks/useVendor'
@@ -2216,9 +2223,11 @@ function TaxSection({
   const savingRef = useRef(false)
 
   const [form, setForm] = useState(() => taxFormFromStoreOrVendor(activeStore, vendor))
-  const [rateMode, setRateMode] = useState<'preset' | 'custom'>('preset')
   const [fieldErrors, setFieldErrors] = useState<{ gstin?: string; pan_number?: string }>({})
   const [taxHydrated, setTaxHydrated] = useState(false)
+  const [addRateOpen, setAddRateOpen] = useState(false)
+  const [draftRate, setDraftRate] = useState('')
+  const [draftLabel, setDraftLabel] = useState('')
 
   const country = useMemo(() => getTaxCountry(form.tax_country_code), [form.tax_country_code])
   const regField = country.identifier_schema.registration[0]
@@ -2254,15 +2263,7 @@ function TaxSection({
       return
     }
     if (activeStore || vendor) {
-      const next = taxFormFromStoreOrVendor(activeStore, vendor)
-      const cfg = getTaxCountry(next.tax_country_code)
-      const customs = parseCustomTaxRates(next.custom_tax_rates)
-      const defaultNum = Number(next.default_tax_rate || 0)
-      const known =
-        cfg.standard_rates.some((r) => Math.abs(r.rate - defaultNum) < 0.0001) ||
-        customs.some((r) => Math.abs(r.rate - defaultNum) < 0.0001)
-      setForm(next)
-      setRateMode(known ? 'preset' : 'custom')
+      setForm(taxFormFromStoreOrVendor(activeStore, vendor))
       setTaxHydrated(true)
     } else {
       setTaxHydrated(false)
@@ -2278,36 +2279,48 @@ function TaxSection({
       gstin: '',
       custom_tax_rates: [],
     }))
-    setRateMode('preset')
     setFieldErrors({})
+  }
+
+  const openAddRateDialog = () => {
+    setDraftRate('')
+    setDraftLabel('')
+    setAddRateOpen(true)
   }
 
   const handleRateSelect = (value: string) => {
     if (value === CUSTOM_RATE_VALUE) {
-      setRateMode('custom')
+      openAddRateDialog()
       return
     }
-    setRateMode('preset')
     setForm((prev) => ({ ...prev, default_tax_rate: value }))
   }
 
-  const addCustomTaxRateRow = () => {
-    setForm((prev) => ({
-      ...prev,
-      custom_tax_rates: [...prev.custom_tax_rates, { rate: '', label: '' }],
-    }))
-  }
-
-  const updateCustomTaxRateRow = (
-    index: number,
-    patch: Partial<{ rate: string; label: string }>,
-  ) => {
-    setForm((prev) => ({
-      ...prev,
-      custom_tax_rates: prev.custom_tax_rates.map((row, i) =>
-        i === index ? { ...row, ...patch } : row,
-      ),
-    }))
+  const submitNewRate = () => {
+    const trimmed = draftRate.trim()
+    const n = Number(trimmed)
+    if (!trimmed || !Number.isFinite(n) || n < 0 || n > 100) {
+      toast.error('Enter a rate between 0 and 100')
+      return
+    }
+    if (isStandardTaxRate(country, n)) {
+      toast.error('That rate is already in the standard list — pick it from the dropdown')
+      return
+    }
+    const label = draftLabel.trim()
+    setForm((prev) => {
+      const withoutDup = prev.custom_tax_rates.filter(
+        (r) => Math.abs(Number(r.rate) - n) >= 0.0001,
+      )
+      return {
+        ...prev,
+        custom_tax_rates: [...withoutDup, { rate: String(n), label }],
+        default_tax_rate: String(n),
+      }
+    })
+    setDraftRate('')
+    setDraftLabel('')
+    setAddRateOpen(false)
   }
 
   const removeCustomTaxRateRow = (index: number) => {
@@ -2327,14 +2340,13 @@ function TaxSection({
           : {}),
       }
     })
-    setRateMode('preset')
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (unused) return
 
-    const gstinRaw = form.is_gst_registered ? form.gstin.trim() : ''
+    const gstinRaw = form.tax_enabled ? form.gstin.trim() : ''
     const gstin = regField?.uppercase ? gstinRaw.toUpperCase() : gstinRaw
     const panRaw = form.pan_number.trim()
     const pan = entityFields.some((f) => f.key === 'pan_number' && f.uppercase)
@@ -2343,7 +2355,7 @@ function TaxSection({
     const rateRaw = form.default_tax_rate.trim()
     const errors: { gstin?: string; pan_number?: string } = {}
 
-    if (form.is_gst_registered && regField?.regex && gstin) {
+    if (form.tax_enabled && regField?.regex && gstin) {
       try {
         if (!new RegExp(regField.regex).test(gstin)) {
           errors.gstin = `Enter a valid ${regField.label}`
@@ -2352,33 +2364,35 @@ function TaxSection({
         /* ignore bad regex */
       }
     }
-    if (form.is_gst_registered && regField?.required_when_registered && !gstin) {
-      errors.gstin = `${regField.label} is required when registered`
+    if (form.tax_enabled && regField?.required_when_registered && !gstin) {
+      errors.gstin = `${regField.label} is required when tax is enabled`
     }
-    for (const field of entityFields) {
-      const val = field.key === 'pan_number' ? pan : ''
-      if (val && field.regex) {
-        try {
-          if (!new RegExp(field.regex).test(val)) {
-            errors.pan_number = `Enter a valid ${field.label}`
+    if (form.tax_enabled) {
+      for (const field of entityFields) {
+        const val = field.key === 'pan_number' ? pan : ''
+        if (val && field.regex) {
+          try {
+            if (!new RegExp(field.regex).test(val)) {
+              errors.pan_number = `Enter a valid ${field.label}`
+            }
+          } catch {
+            /* ignore */
           }
-        } catch {
-          /* ignore */
         }
       }
-    }
 
-    for (const row of form.custom_tax_rates) {
-      const trimmed = row.rate.trim()
-      if (!trimmed && !row.label.trim()) continue
-      if (!trimmed) {
-        toast.error('Enter a rate % for each additional tax row (or clear the description)')
-        return
-      }
-      const n = Number(trimmed)
-      if (!Number.isFinite(n) || n < 0 || n > 100) {
-        toast.error('Additional tax rates must be between 0 and 100')
-        return
+      for (const row of form.custom_tax_rates) {
+        const trimmed = row.rate.trim()
+        if (!trimmed && !row.label.trim()) continue
+        if (!trimmed) {
+          toast.error('Enter a rate % for each additional tax row (or clear the description)')
+          return
+        }
+        const n = Number(trimmed)
+        if (!Number.isFinite(n) || n < 0 || n > 100) {
+          toast.error('Additional tax rates must be between 0 and 100')
+          return
+        }
       }
     }
 
@@ -2390,7 +2404,7 @@ function TaxSection({
     setFieldErrors({})
 
     const rateNum = rateRaw ? parseFloat(rateRaw) : null
-    if (rateNum != null && (Number.isNaN(rateNum) || rateNum < 0 || rateNum > 100)) {
+    if (form.tax_enabled && rateNum != null && (Number.isNaN(rateNum) || rateNum < 0 || rateNum > 100)) {
       toast.error('Default tax rate must be between 0 and 100')
       return
     }
@@ -2403,8 +2417,9 @@ function TaxSection({
     }
 
     const taxSettings = {
+      tax_enabled: form.tax_enabled,
       tax_country_code: form.tax_country_code,
-      is_tax_registered: form.is_gst_registered,
+      is_tax_registered: form.tax_enabled,
       tax_registration_id: gstin || null,
       gstin: gstin || null,
       default_tax_rate: rateNum,
@@ -2430,12 +2445,13 @@ function TaxSection({
     }
 
     onSave.mutate({
-      is_gst_registered: form.is_gst_registered,
+      is_gst_registered: form.tax_enabled,
       gstin: gstin || null,
       pan_number: pan || null,
       default_tax_rate: rateNum,
       settings: {
         ...(vendor?.settings ?? {}),
+        tax_enabled: form.tax_enabled,
         tax_country_code: form.tax_country_code,
         custom_tax_rates: customRates,
       },
@@ -2448,21 +2464,18 @@ function TaxSection({
   )
   useSettingsSectionDirty('tax', isDirty, taxHydrated && !unused)
 
-  const rateSelectValue =
-    rateMode === 'custom'
-      ? CUSTOM_RATE_VALUE
-      : isKnownSelectableRate(form.default_tax_rate)
-        ? form.default_tax_rate
-        : CUSTOM_RATE_VALUE
+  const rateSelectValue = isKnownSelectableRate(form.default_tax_rate)
+    ? form.default_tax_rate
+    : ''
 
   const saving = activeStore ? updateStore.isPending : onSave.isPending
 
   const taxScopeBadge = unused ? (
-    <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
+    <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
       Per store
     </span>
   ) : activeStore ? (
-    <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
+    <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
       This store
     </span>
   ) : null
@@ -2490,8 +2503,8 @@ function TaxSection({
       badge={taxScopeBadge}
     >
       {unused ? (
-        <div className="space-y-3">
-          <p className="flex items-start gap-2 rounded-lg border border-border/80 bg-background/80 px-3 py-2.5 text-xs leading-snug text-muted-foreground">
+        <div className="space-y-2.5">
+          <p className="flex items-start gap-2 rounded-md border border-border/70 bg-background/80 px-2.5 py-2 text-xs leading-snug text-muted-foreground">
             <Store className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
             <span>
               Tax is store-specific when you have more than one Business Unit / Store.
@@ -2507,67 +2520,90 @@ function TaxSection({
           </Button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <FormSaveBar loading={saving} top />
-
-          <fieldset className="space-y-5">
-            <div className="space-y-1.5">
-              <Label className="font-semibold text-foreground">Tax Country</Label>
-              <Select
-                value={form.tax_country_code}
-                onChange={handleCountryChange}
-                options={countryOptions}
-                searchable
-                searchPlaceholder="Search countries…"
-                placeholder="Select tax country"
-              />
-              <p className="text-xs text-muted-foreground">
-                Must match the legal entity&apos;s country of incorporation / registration.
-              </p>
-            </div>
-
-            <label className="flex cursor-pointer items-center gap-3">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="flex min-w-0 cursor-pointer items-center gap-2.5">
               <Checkbox
-                checked={form.is_gst_registered}
+                checked={form.tax_enabled}
                 onCheckedChange={(checked) =>
-                  setForm({ ...form, is_gst_registered: checked })
+                  setForm((prev) => ({ ...prev, tax_enabled: checked === true }))
                 }
-                aria-label={registrationLabel(country)}
+                aria-label="Enable tax"
               />
-              <span className="text-sm font-semibold text-foreground">
-                {registrationLabel(country)}
+              <span className="min-w-0">
+                <span className="text-sm font-semibold text-foreground">Enable TAX</span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                  {form.tax_enabled
+                    ? 'Collect tax using the settings below.'
+                    : 'Tax is off — prices are saved as entered.'}
+                </span>
               </span>
             </label>
+            <SaveButton loading={saving} compact />
+          </div>
 
-            {form.is_gst_registered && regField ? (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="font-semibold text-foreground">{regField.label}</Label>
-                  <Input
-                    value={form.gstin}
-                    onChange={(e) => {
-                      setFieldErrors((prev) => ({ ...prev, gstin: undefined }))
-                      const next = regField.uppercase
-                        ? e.target.value.toUpperCase()
-                        : e.target.value
-                      setForm({ ...form, gstin: next.slice(0, regField.max_length) })
-                    }}
-                    placeholder={regField.placeholder}
-                    maxLength={regField.max_length}
-                    className={cn(
-                      'font-mono tracking-wide',
-                      regField.uppercase && 'uppercase',
-                      fieldErrors.gstin && 'border-destructive focus-visible:ring-destructive',
-                    )}
-                  />
-                  {fieldErrors.gstin ? (
-                    <p className="text-xs text-destructive">{fieldErrors.gstin}</p>
-                  ) : regField.help ? (
-                    <p className="text-xs text-muted-foreground">{regField.help}</p>
-                  ) : null}
+          {form.tax_enabled ? (
+            <fieldset className="space-y-3 border-t border-border/50 pt-3">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-foreground">Tax Country</Label>
+                <Select
+                  value={form.tax_country_code}
+                  onChange={handleCountryChange}
+                  options={countryOptions}
+                  searchable
+                  searchPlaceholder="Search countries…"
+                  placeholder="Select tax country"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Must match the legal entity&apos;s country of incorporation / registration.
+                </p>
+              </div>
+
+              {regField ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-foreground">{regField.label}</Label>
+                    <Input
+                      value={form.gstin}
+                      onChange={(e) => {
+                        setFieldErrors((prev) => ({ ...prev, gstin: undefined }))
+                        const next = regField.uppercase
+                          ? e.target.value.toUpperCase()
+                          : e.target.value
+                        setForm({ ...form, gstin: next.slice(0, regField.max_length) })
+                      }}
+                      placeholder={regField.placeholder}
+                      maxLength={regField.max_length}
+                      className={cn(
+                        'h-9 font-mono tracking-wide',
+                        regField.uppercase && 'uppercase',
+                        fieldErrors.gstin && 'border-destructive focus-visible:ring-destructive',
+                      )}
+                    />
+                    {fieldErrors.gstin ? (
+                      <p className="text-[11px] text-destructive">{fieldErrors.gstin}</p>
+                    ) : regField.help ? (
+                      <p className="text-[11px] text-muted-foreground">{regField.help}</p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-foreground">
+                      Default {country.tax_label} Rate (%)
+                    </Label>
+                    <Select
+                      value={rateSelectValue}
+                      onChange={handleRateSelect}
+                      options={rateOptions}
+                      placeholder="Select rate"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Used when a product or service has no rate set. Use Add New Rates in the list to create one.
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="font-semibold text-foreground">
+              ) : (
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium text-foreground">
                     Default {country.tax_label} Rate (%)
                   </Label>
                   <Select
@@ -2576,129 +2612,122 @@ function TaxSection({
                     options={rateOptions}
                     placeholder="Select rate"
                   />
-                  {(rateMode === 'custom' || rateSelectValue === CUSTOM_RATE_VALUE) && (
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      max={100}
-                      value={form.default_tax_rate}
-                      onChange={(e) => setForm({ ...form, default_tax_rate: e.target.value })}
-                      placeholder={String(defaultRateForCountry(country))}
-                      className="mt-1.5"
-                    />
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Applied when a product or service has no rate assigned.
+                  <p className="text-[11px] text-muted-foreground">
+                    Used when a product or service has no rate set. Use Add New Rates in the list to create one.
                   </p>
                 </div>
-              </div>
-            ) : null}
+              )}
 
-            {form.is_gst_registered ? (
-              <div className="space-y-3 rounded-lg border border-border/70 bg-background/80 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">
-                      Additional {country.tax_label} rates
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Add rates outside the standard list with an optional description.
-                      They stay listed here after you save so you can edit them, and also
-                      appear in the default rate dropdown (e.g. 40% — Luxury jewellery).
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 gap-1"
-                    onClick={addCustomTaxRateRow}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add
-                  </Button>
+              {entityFields.map((field) => (
+                <div key={field.key} className="space-y-1">
+                  <Label className="text-sm font-medium text-foreground">{field.label}</Label>
+                  <Input
+                    value={field.key === 'pan_number' ? form.pan_number : ''}
+                    onChange={(e) => {
+                      setFieldErrors((prev) => ({ ...prev, pan_number: undefined }))
+                      const next = field.uppercase ? e.target.value.toUpperCase() : e.target.value
+                      if (field.key === 'pan_number') {
+                        setForm({ ...form, pan_number: next.slice(0, field.max_length) })
+                      }
+                    }}
+                    placeholder={field.placeholder}
+                    maxLength={field.max_length}
+                    className={cn('h-9 font-mono tracking-wide', field.uppercase && 'uppercase')}
+                  />
+                  {fieldErrors.pan_number ? (
+                    <p className="text-[11px] text-destructive">{fieldErrors.pan_number}</p>
+                  ) : field.help ? (
+                    <p className="text-[11px] text-muted-foreground">{field.help}</p>
+                  ) : null}
                 </div>
-                {form.custom_tax_rates.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    No additional rates yet. Use Add to create one (e.g. 40 + description).
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="hidden gap-2 text-[11px] font-medium text-muted-foreground sm:flex">
-                      <span className="w-[7.5rem] shrink-0">Rate (%)</span>
-                      <span className="min-w-0 flex-1">Description</span>
-                      <span className="w-9 shrink-0" aria-hidden />
+              ))}
+            </fieldset>
+          ) : null}
+
+          <Dialog open={addRateOpen} onOpenChange={setAddRateOpen}>
+            <DialogContent className="max-w-md sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add New {country.tax_label} Rate</DialogTitle>
+                <DialogDescription>
+                  Create a non-standard rate. It will appear in the default-rate dropdown after you add it.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-1">
+                <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium">Rate (%)</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        max={100}
+                        value={draftRate}
+                        onChange={(e) => setDraftRate(e.target.value)}
+                        placeholder="e.g. 40"
+                        className="h-9 pr-8 font-mono"
+                        autoFocus
+                      />
+                      <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        %
+                      </span>
                     </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium">Description</Label>
+                    <Input
+                      value={draftLabel}
+                      onChange={(e) => setDraftLabel(e.target.value)}
+                      placeholder="e.g. Luxury jewellery"
+                      className="h-9"
+                      maxLength={80}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          submitNewRate()
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                {form.custom_tax_rates.length > 0 ? (
+                  <div className="space-y-1.5 rounded-md border border-border/60 bg-muted/20 p-2.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">
+                      Saved additional rates
+                    </p>
                     {form.custom_tax_rates.map((row, index) => (
-                      <div key={index} className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-                        <div className="relative w-full shrink-0 sm:w-[7.5rem]">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min={0}
-                            max={100}
-                            value={row.rate}
-                            onChange={(e) => updateCustomTaxRateRow(index, { rate: e.target.value })}
-                            placeholder="e.g. 40"
-                            className="pr-8 font-mono"
-                            aria-label={`Additional ${country.tax_label} rate ${index + 1}`}
-                          />
-                          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                            %
-                          </span>
-                        </div>
-                        <Input
-                          value={row.label}
-                          onChange={(e) => updateCustomTaxRateRow(index, { label: e.target.value })}
-                          placeholder="Description (e.g. Luxury jewellery)"
-                          className="min-w-0 flex-1"
-                          aria-label={`Description for additional rate ${index + 1}`}
-                          maxLength={80}
-                        />
+                      <div key={index} className="flex items-center gap-2 text-sm">
+                        <span className="w-[4.5rem] shrink-0 font-mono tabular-nums">
+                          {row.rate}%
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                          {row.label || '—'}
+                        </span>
                         <Button
                           type="button"
                           size="sm"
                           variant="ghost"
-                          className="shrink-0 text-destructive hover:text-destructive"
+                          className="h-7 w-7 shrink-0 p-0 text-destructive hover:text-destructive"
                           onClick={() => removeCustomTaxRateRow(index)}
-                          aria-label={`Remove additional rate ${index + 1}`}
+                          aria-label={`Remove rate ${row.rate}%`}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            ) : null}
-
-            {entityFields.map((field) => (
-              <div key={field.key} className="space-y-1.5">
-                <Label className="font-semibold text-foreground">{field.label}</Label>
-                <Input
-                  value={field.key === 'pan_number' ? form.pan_number : ''}
-                  onChange={(e) => {
-                    setFieldErrors((prev) => ({ ...prev, pan_number: undefined }))
-                    const next = field.uppercase ? e.target.value.toUpperCase() : e.target.value
-                    if (field.key === 'pan_number') {
-                      setForm({ ...form, pan_number: next.slice(0, field.max_length) })
-                    }
-                  }}
-                  placeholder={field.placeholder}
-                  maxLength={field.max_length}
-                  className={cn('font-mono tracking-wide', field.uppercase && 'uppercase')}
-                />
-                {fieldErrors.pan_number ? (
-                  <p className="text-xs text-destructive">{fieldErrors.pan_number}</p>
-                ) : field.help ? (
-                  <p className="text-xs text-muted-foreground">{field.help}</p>
                 ) : null}
               </div>
-            ))}
-          </fieldset>
-
-          <FormSaveBar loading={saving} />
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button type="button" variant="outline" onClick={() => setAddRateOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={submitNewRate}>
+                  Add rate
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </form>
       )}
     </SectionWrapper>

@@ -1931,6 +1931,8 @@ async def ensure_rental_schema() -> None:
         "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS late_fee NUMERIC(12,2) DEFAULT 0",
         "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS deposit_refunded NUMERIC(12,2) DEFAULT 0",
         "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS return_notes TEXT",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS start_time TIME",
+        "ALTER TABLE rental_booking ADD COLUMN IF NOT EXISTS end_time TIME",
         # Performance indexes
         "CREATE INDEX IF NOT EXISTS ix_rental_booking_asset_dates ON rental_booking(asset_id, start_date, end_date)",
         "CREATE INDEX IF NOT EXISTS ix_rental_booking_vendor_status_date ON rental_booking(vendor_id, status, start_date)",
@@ -1983,6 +1985,28 @@ async def ensure_rental_schema() -> None:
         # rent010 / rent011
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS short_description VARCHAR(500)",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'INR'",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS delivery_info VARCHAR(500)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS delivery_enabled BOOLEAN DEFAULT false",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,2) DEFAULT 0",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS duration_rates JSONB DEFAULT '[]'::jsonb",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS period_rates JSONB DEFAULT '[]'::jsonb",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS additional_charges JSONB DEFAULT '[]'::jsonb",
+        # rent015: booking ↔ unit assignment tracking
+        """
+        CREATE TABLE IF NOT EXISTS rental_booking_unit (
+            id UUID PRIMARY KEY,
+            booking_id UUID NOT NULL REFERENCES rental_booking(id) ON DELETE CASCADE,
+            unit_id UUID NOT NULL REFERENCES rental_asset_unit(id) ON DELETE CASCADE,
+            vendor_id UUID NOT NULL REFERENCES vendor(id),
+            assigned_at TIMESTAMPTZ DEFAULT now(),
+            released_at TIMESTAMPTZ,
+            assigned_by VARCHAR(255),
+            notes TEXT
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_rental_booking_unit_booking_id ON rental_booking_unit(booking_id)",
+        "CREATE INDEX IF NOT EXISTS ix_rental_booking_unit_unit_id ON rental_booking_unit(unit_id)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_rental_booking_unit_active ON rental_booking_unit(booking_id, unit_id)",
     ]
     async with engine.begin() as conn:
         for s in stmts:

@@ -16,6 +16,8 @@ import { formatCurrency } from '@/lib/utils'
 import { rentalApi } from './api'
 import { formatCardDate, toDateInputValue, todayLocalYMD, addDaysYMD } from './rentalDates'
 import type { RentalAsset, RentalBooking } from './rentalConstants'
+import { durationPlanId, formatDurationLabel, formatDurationSuffix, normalizeDurationRates } from './durationRates'
+import { applyAdditionalCharges } from './additionalCharges'
 
 type Customer = { id: string; full_name?: string; phone?: string; email?: string }
 type SelectOpt = { value: string; label: string }
@@ -47,11 +49,25 @@ type Props = {
   customers: Customer[]
   salesAreaOptions: SelectOpt[]
   onCreated: (booking: RentalBooking) => void
+  /** Prefill when opening from the availability calendar (or elsewhere). */
+  initialValues?: {
+    asset_id?: string
+    start_date?: string
+    end_date?: string
+    quantity?: string | number
+    /** Serialized unit to prefer / assign after create */
+    unit_id?: string
+    unit_label?: string
+  } | null
 }
 
-export default function RentalBookingCreateSheet({ open, onClose, assets, customers, salesAreaOptions, onCreated }: Props) {
+export default function RentalBookingCreateSheet({
+  open, onClose, assets, customers, salesAreaOptions, onCreated, initialValues,
+}: Props) {
   const [form, setForm] = useState(emptyForm)
   const [creditHint, setCreditHint] = useState<{ allowed: boolean; text: string } | null>(null)
+  const [preferredUnitId, setPreferredUnitId] = useState<string | null>(null)
+  const [preferredUnitLabel, setPreferredUnitLabel] = useState<string | null>(null)
   const today = todayLocalYMD()
 
   const bookableAssetOptions = useMemo(() => {
@@ -63,24 +79,38 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
   useEffect(() => {
     if (!open) return
     const first = assets.find((a) => a.is_bookable !== false && !['maintenance', 'unavailable', 'retired'].includes(a.status || ''))
+    const prefAsset = initialValues?.asset_id
+      ? assets.find((a) => a.id === initialValues.asset_id)
+      : null
+    const asset = prefAsset || first
+    const slots = asset
+      ? normalizeDurationRates(asset.duration_rates, Number(asset.hourly_rate || 0), Number(asset.per_minute_rate || 0))
+      : []
     const defaultPlan = (() => {
-      if (!first) return 'daily'
-      if (Number(first.per_minute_rate) > 0) return 'per_minute'
-      if (Number(first.hourly_rate) > 0) return 'hourly'
-      if (Number(first.daily_rate) > 0) return 'daily'
-      if (Number(first.weekly_rate) > 0) return 'weekly'
-      if (Number(first.monthly_rate) > 0) return 'monthly'
-      if (Number(first.yearly_rate) > 0) return 'yearly'
+      if (!asset) return 'daily'
+      if (slots[0]) return durationPlanId(slots[0].minutes)
+      if (Number(asset.daily_rate) > 0) return 'daily'
+      if (Number(asset.weekly_rate) > 0) return 'weekly'
+      if (Number(asset.monthly_rate) > 0) return 'monthly'
+      if (Number(asset.yearly_rate) > 0) return 'yearly'
       return 'daily'
     })()
+    const start = initialValues?.start_date || todayLocalYMD()
+    const end = initialValues?.end_date || initialValues?.start_date || addDaysYMD(start, 7)
     setForm({
       ...emptyForm(),
-      asset_id: first?.id || '',
+      asset_id: asset?.id || '',
+      start_date: start,
+      end_date: end,
+      quantity: String(initialValues?.quantity ?? (initialValues?.unit_id ? 1 : 1)),
       pricing_plan: defaultPlan,
+      sales_area_id: asset?.sales_area_id || '',
     })
+    setPreferredUnitId(initialValues?.unit_id || null)
+    setPreferredUnitLabel(initialValues?.unit_label || null)
     setCreditHint(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, initialValues])
 
   const selectedAsset = useMemo(() => assets.find((a) => a.id === form.asset_id) || null, [assets, form.asset_id])
 
@@ -90,7 +120,9 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
       return
     }
     const qty = Number(form.quantity) || 1
-    const estimate = Math.max(1, (Number(selectedAsset?.daily_rate || 0) * qty) + Number(selectedAsset?.deposit_amount || 0))
+    const rental = Number(selectedAsset?.daily_rate || 0) * qty
+    const deposit = Number(selectedAsset?.deposit_amount || 0)
+    const estimate = Math.max(1, applyAdditionalCharges(rental, selectedAsset?.additional_charges, 'all', deposit) + deposit)
     let cancelled = false
     const t = window.setTimeout(() => {
       crmApi.checkCreditControl({
@@ -118,7 +150,26 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
   }, [open, form.customer_id, form.customer_name, form.asset_id, form.quantity, selectedAsset])
 
   const createBooking = useMutation({
-    mutationFn: (body: Record<string, unknown>) => rentalApi.createBooking(body),
+    mutationFn: async (body: Record<string, unknown>) => {
+      const notes = String(body.notes || '').trim()
+      if (preferredUnitLabel) {
+        const tag = `Preferred unit: ${preferredUnitLabel}`
+        body = {
+          ...body,
+          notes: notes.includes(tag) ? notes : [notes, tag].filter(Boolean).join('\n'),
+        }
+      }
+      const data = await rentalApi.createBooking(body)
+      // Only assign immediately when the booking is already live (units stay free until then).
+      if (preferredUnitId && data?.id && data.status === 'active') {
+        try {
+          await rentalApi.assignUnitsToBooking(data.id, { unit_ids: [preferredUnitId], assigned_by: 'calendar' })
+        } catch {
+          // Booking still created; assign from the booking sheet later.
+        }
+      }
+      return data
+    },
     onSuccess: (data) => {
       toast.success(
         data.status === 'approved'
@@ -170,8 +221,11 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
       end_date: end,
       pricing_plan: form.pricing_plan,
       notes: form.notes.trim() || undefined,
-      needs_delivery: form.needs_delivery,
-      delivery_address: form.needs_delivery ? form.delivery_address.trim() || undefined : undefined,
+      needs_delivery: Boolean(selectedAsset?.delivery_enabled && form.needs_delivery),
+      delivery_address:
+        selectedAsset?.delivery_enabled && form.needs_delivery
+          ? form.delivery_address.trim() || undefined
+          : undefined,
       created_by_vendor: true,
       auto_approve: form.auto_approve,
     })
@@ -197,8 +251,8 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
                   // Pick the best default plan for this asset
                   const bestPlan = (a: typeof asset) => {
                     if (!a) return 'daily'
-                    if (Number(a.per_minute_rate) > 0) return 'per_minute'
-                    if (Number(a.hourly_rate) > 0) return 'hourly'
+                    const slots = normalizeDurationRates(a.duration_rates, Number(a.hourly_rate || 0), Number(a.per_minute_rate || 0))
+                    if (slots[0]) return durationPlanId(slots[0].minutes)
                     if (Number(a.daily_rate) > 0) return 'daily'
                     if (Number(a.weekly_rate) > 0) return 'weekly'
                     if (Number(a.monthly_rate) > 0) return 'monthly'
@@ -211,10 +265,20 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
                     sales_area_id: asset?.sales_area_id || f.sales_area_id,
                     pricing_plan: bestPlan(asset),
                     quantity: f.quantity || '1',
+                    needs_delivery: asset?.delivery_enabled ? f.needs_delivery : false,
+                    delivery_address: asset?.delivery_enabled ? f.delivery_address : '',
                   }))
+                  setPreferredUnitId(null)
+                  setPreferredUnitLabel(null)
                 }}
                 options={[{ value: '__none__', label: 'Select rack / asset…' }, ...bookableAssetOptions]}
               />
+              {preferredUnitId && preferredUnitLabel && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Preferred unit: <strong className="text-foreground">{preferredUnitLabel}</strong>
+                  {' '}(will be assigned when possible)
+                </p>
+              )}
             </div>
             <div>
               <FieldLabel>Customer (outlet)</FieldLabel>
@@ -297,10 +361,14 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
                 value={form.pricing_plan}
                 onChange={(v) => setForm((f) => ({ ...f, pricing_plan: v }))}
                 options={[
-                  ...(Number(selectedAsset?.per_minute_rate) > 0
-                    ? [{ value: 'per_minute', label: `Per Minute · ₹${selectedAsset!.per_minute_rate}/min` }] : []),
-                  ...(Number(selectedAsset?.hourly_rate) > 0
-                    ? [{ value: 'hourly', label: `Hourly · ₹${selectedAsset!.hourly_rate}/hr` }] : []),
+                  ...normalizeDurationRates(
+                    selectedAsset?.duration_rates,
+                    Number(selectedAsset?.hourly_rate || 0),
+                    Number(selectedAsset?.per_minute_rate || 0),
+                  ).map((s) => ({
+                    value: durationPlanId(s.minutes),
+                    label: `${formatDurationLabel(s.minutes)} · ₹${s.rate}/${formatDurationSuffix(s.minutes)}`,
+                  })),
                   { value: 'daily', label: `Daily · ₹${selectedAsset?.daily_rate ?? 0}/day` },
                   ...(Number(selectedAsset?.weekly_rate) > 0
                     ? [{ value: 'weekly', label: `Weekly · ₹${selectedAsset!.weekly_rate}/wk` }] : []),
@@ -340,18 +408,22 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
             </div>
           </div>
 
-          <CheckboxFieldLabel
-            label="Needs delivery"
-            checked={form.needs_delivery}
-            onChange={(checked) => setForm((f) => ({ ...f, needs_delivery: checked }))}
-          />
-          {form.needs_delivery && (
-            <Input
-              value={form.delivery_address}
-              onChange={(e) => setForm((f) => ({ ...f, delivery_address: e.target.value }))}
-              placeholder="Delivery address"
-            />
-          )}
+          {selectedAsset?.delivery_enabled ? (
+            <>
+              <CheckboxFieldLabel
+                label="Needs delivery"
+                checked={form.needs_delivery}
+                onChange={(checked) => setForm((f) => ({ ...f, needs_delivery: checked }))}
+              />
+              {form.needs_delivery && (
+                <Input
+                  value={form.delivery_address}
+                  onChange={(e) => setForm((f) => ({ ...f, delivery_address: e.target.value }))}
+                  placeholder="Delivery address"
+                />
+              )}
+            </>
+          ) : null}
 
           <CheckboxFieldLabel
             label="Approve immediately"
@@ -366,6 +438,11 @@ export default function RentalBookingCreateSheet({ open, onClose, assets, custom
               {formatCurrency(Number(selectedAsset.daily_rate || 0))}/day
               {Number(selectedAsset.monthly_rate) > 0 && <> · {formatCurrency(Number(selectedAsset.monthly_rate))}/mo</>}
               {' · '}deposit {formatCurrency(Number(selectedAsset.deposit_amount || 0))}
+              {(selectedAsset.additional_charges || []).filter((c) => c.name && Number(c.value) > 0).map((c) => (
+                <span key={c.id || c.name}>
+                  {' · '}{c.name} {c.charge_type === 'percent' ? `${c.value}%` : formatCurrency(Number(c.value))}
+                </span>
+              ))}
               {(selectedAsset.display_start_date || selectedAsset.display_end_date) && (
                 <>
                   {' · '}available{' '}

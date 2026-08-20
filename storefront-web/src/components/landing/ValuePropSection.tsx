@@ -24,7 +24,7 @@ const PROPS = [
 
 export function ValuePropSection() {
   return (
-    <section className="pt-2 pb-16 sm:pt-4 sm:pb-24 bg-white scroll-mt-24">
+    <section className="pt-4 pb-16 sm:pt-6 sm:pb-24 kiterp-value-section scroll-mt-24">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <h2 className="font-kiterp-script text-3xl sm:text-4xl text-center leading-tight text-[#1e3d34] mb-8 sm:mb-10">
           Do More with Less Effort
@@ -34,21 +34,21 @@ export function ValuePropSection() {
 
         <LandingDemoVideo />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-6 mt-14 sm:mt-16">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-8 mt-12 sm:mt-14">
           {PROPS.map((item) => {
             const Icon = item.icon
             return (
-              <article key={item.title} className="kiterp-reveal">
-                <h3 className="flex items-center gap-2 text-base sm:text-lg font-bold text-[#1e3d34] leading-snug">
+              <article key={item.title} className="kiterp-reveal kiterp-value-item">
+                <h3 className="flex items-center gap-2.5 text-base sm:text-lg font-bold text-[#1e3d34] leading-snug">
                   <span
-                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                     style={{ backgroundColor: `${item.accent}18` }}
                   >
                     <Icon className="w-4 h-4" style={{ color: item.accent }} strokeWidth={2} />
                   </span>
                   <span>{item.title}</span>
                 </h3>
-                <p className="mt-2 text-sm text-gray-600 leading-relaxed">{item.body}</p>
+                <p className="mt-2.5 text-sm text-[#1e3d34]/65 leading-relaxed">{item.body}</p>
               </article>
             )
           })}

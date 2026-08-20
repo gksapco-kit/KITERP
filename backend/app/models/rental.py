@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Index, String, Text, DateTime, ForeignKey, Numeric, Date, Boolean
+from sqlalchemy import Column, Index, String, Text, DateTime, ForeignKey, Numeric, Date, Boolean, Time
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 import uuid
@@ -53,6 +53,8 @@ class RentalAsset(Base):
     deposit_amount = Column(Numeric(12, 2), default=0)
     extra_qty_charge = Column(Numeric(12, 2), default=0)
     extra_weight_charge = Column(Numeric(12, 2), default=0)
+    # Named extras: [{id, name, description, charge_type: amount|percent, value}]
+    additional_charges = Column(JSONB, default=list)
     # Per-unit pricing: rate charged per capacity_unit per rental period
     # e.g. ₹10 per packet/day. capacity_unit serves as the UOM.
     price_per_unit = Column(Numeric(12, 2), default=0)
@@ -63,6 +65,12 @@ class RentalAsset(Base):
     hourly_rate = Column(Numeric(12, 2), default=0)
     per_minute_rate = Column(Numeric(12, 2), default=0)
     yearly_rate = Column(Numeric(12, 2), default=0)
+    # Flexible minute/hour slots: [{minutes: 15, rate: 50}, {minutes: 120, rate: 200}]
+    duration_rates = Column(JSONB, default=list)
+    # Flexible day/week/month/year slots: [{days: 1, rate: 100}, {days: 14, rate: 800}]
+    period_rates = Column(JSONB, default=list)
+    # Tax % applied on rental rates (GST-style). Common values: 0, 5, 12, 18, 28.
+    tax_rate = Column(Numeric(5, 2), default=0)
 
     # Location / sales scope (route / area)
     sales_area_id = Column(UUID(as_uuid=True), ForeignKey("sales_area.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -82,6 +90,11 @@ class RentalAsset(Base):
     display_start_date = Column(Date)
     display_end_date = Column(Date)
     notes = Column(Text)
+    # Customer-facing booking / delivery message on the storefront detail panel.
+    # Empty = hide the line. Vendors write whatever they want (delivery, pickup, etc.).
+    delivery_info = Column(String(500))
+    # When True, storefront booking form shows the "Need delivery" checkbox.
+    delivery_enabled = Column(Boolean, default=False, server_default="false")
     is_active = Column(Boolean, default=True)
     # Explicit storefront toggle — mirrors Product.is_visible / Service.is_visible
     is_visible = Column(Boolean, default=True, server_default="true")
@@ -143,9 +156,12 @@ class RentalBooking(Base):
 
     quantity = Column(Numeric(12, 2), default=1)
     weight_requested = Column(Numeric(12, 2))
-    pricing_plan = Column(String(20), default="daily")  # daily, weekly, monthly
+    pricing_plan = Column(String(20), default="daily")  # daily, weekly, monthly, yearly, hourly, per_minute
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
+    # Optional check-in / check-out (or hourly window) times — HH:MM stored as Time
+    start_time = Column(Time, nullable=True)
+    end_time = Column(Time, nullable=True)
 
     # pending | approved | confirmed | active | completed | cancelled | rejected
     status = Column(String(20), default="pending")
@@ -207,6 +223,33 @@ class RentalAssetUnit(Base):
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class RentalBookingUnit(Base):
+    """Join table: one row per serialized unit assigned to a specific booking.
+
+    Created automatically when a booking moves to 'active' (auto-assign picks
+    the first available units) or when the vendor manually assigns units via
+    the booking sheet. The row is 'closed' (released_at set) on return.
+
+    A unit that is reassigned mid-rental gets its current join row released
+    and a new row opened for the replacement.
+    """
+
+    __tablename__ = "rental_booking_unit"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id = Column(UUID(as_uuid=True), ForeignKey("rental_booking.id", ondelete="CASCADE"), nullable=False, index=True)
+    unit_id = Column(UUID(as_uuid=True), ForeignKey("rental_asset_unit.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id"), nullable=False, index=True)
+    assigned_at = Column(DateTime(timezone=True), server_default=func.now())
+    released_at = Column(DateTime(timezone=True), nullable=True)
+    assigned_by = Column(String(255))
+    notes = Column(Text)
+
+    __table_args__ = (
+        Index("uq_rental_booking_unit_active", "booking_id", "unit_id", unique=True),
+    )
 
 
 class RentalReturn(Base):

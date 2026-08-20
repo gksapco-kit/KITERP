@@ -42,11 +42,15 @@ class RentalAssetCreate(BaseModel):
     yearly_rate: Optional[float] = 0
     hourly_rate: Optional[float] = 0
     per_minute_rate: Optional[float] = 0
+    duration_rates: Optional[List[Any]] = None
+    period_rates: Optional[List[Any]] = None
     deposit_amount: Optional[float] = 0
     extra_qty_charge: Optional[float] = 0
     extra_weight_charge: Optional[float] = 0
+    additional_charges: Optional[List[Any]] = None
     price_per_unit: Optional[float] = 0
     pricing_uom: Optional[str] = Field(None, max_length=40)
+    tax_rate: Optional[float] = Field(0, ge=0, le=100)
     sales_area_id: Optional[str] = None
     location: Optional[str] = Field(None, max_length=255)
     section: Optional[str] = Field(None, max_length=100)
@@ -57,6 +61,8 @@ class RentalAssetCreate(BaseModel):
     display_start_date: Optional[str] = None
     display_end_date: Optional[str] = None
     notes: Optional[str] = None
+    delivery_info: Optional[str] = Field(None, max_length=500)
+    delivery_enabled: Optional[bool] = False
     is_active: Optional[bool] = True
     is_visible: Optional[bool] = True
     store_scope: Optional[str] = Field("all", max_length=20)
@@ -90,11 +96,15 @@ class RentalAssetUpdate(BaseModel):
     yearly_rate: Optional[float] = None
     hourly_rate: Optional[float] = None
     per_minute_rate: Optional[float] = None
+    duration_rates: Optional[List[Any]] = None
+    period_rates: Optional[List[Any]] = None
     deposit_amount: Optional[float] = None
     extra_qty_charge: Optional[float] = None
     extra_weight_charge: Optional[float] = None
+    additional_charges: Optional[List[Any]] = None
     price_per_unit: Optional[float] = None
     pricing_uom: Optional[str] = Field(None, max_length=40)
+    tax_rate: Optional[float] = Field(None, ge=0, le=100)
     sales_area_id: Optional[str] = None
     location: Optional[str] = Field(None, max_length=255)
     section: Optional[str] = Field(None, max_length=100)
@@ -105,6 +115,8 @@ class RentalAssetUpdate(BaseModel):
     display_start_date: Optional[str] = None
     display_end_date: Optional[str] = None
     notes: Optional[str] = None
+    delivery_info: Optional[str] = Field(None, max_length=500)
+    delivery_enabled: Optional[bool] = None
     is_active: Optional[bool] = None
     is_visible: Optional[bool] = None
     store_scope: Optional[str] = Field(None, max_length=20)
@@ -151,11 +163,15 @@ class RentalAssetResponse(BaseModel):
     monthly_rate: float = 0
     yearly_rate: float = 0
     per_minute_rate: float = 0
+    duration_rates: List[Any] = Field(default_factory=list)
+    period_rates: List[Any] = Field(default_factory=list)
     deposit_amount: float = 0
     extra_qty_charge: float = 0
     extra_weight_charge: float = 0
+    additional_charges: List[Any] = Field(default_factory=list)
     price_per_unit: float = 0
     pricing_uom: Optional[str] = None
+    tax_rate: float = 0
 
     # Location
     sales_area_id: Optional[str] = None
@@ -171,6 +187,7 @@ class RentalAssetResponse(BaseModel):
     is_active: bool = True
     is_visible: bool = True
     store_scope: str = "all"
+    store_ids: list[str] = []
     display_start_date: Optional[str] = None
     display_end_date: Optional[str] = None
 
@@ -180,6 +197,8 @@ class RentalAssetResponse(BaseModel):
     unit_mode: str = "none"
 
     notes: Optional[str] = None
+    delivery_info: Optional[str] = None
+    delivery_enabled: bool = False
     created_at: Optional[str] = None
 
     # Annotated child/unit counts (vendor dashboard)

@@ -62,12 +62,12 @@ export function AppsGridSection() {
   return (
     <section id="apps" className="pt-2 pb-6 sm:pt-4 sm:pb-8 scroll-mt-20">
       <div className="kiterp-apps-shell max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-8 sm:mb-10">
-          <h2 className="font-kiterp-script text-4xl sm:text-5xl text-[#1e3d34]">
+        <div className="text-center mb-6 sm:mb-8">
+          <h2 className="font-kiterp-script text-4xl sm:text-5xl text-[#1e3d34] leading-tight">
             Everything your business needs, in one orbit
           </h2>
-          <p className="mt-2 text-sm text-gray-500 font-[Manrope,sans-serif]">
-            Hover a module to preview its apps.
+          <p className="mt-3 text-sm sm:text-[0.95rem] text-[#1e3d34]/55 font-medium tracking-wide">
+            Hover a module to preview its apps
           </p>
         </div>
 

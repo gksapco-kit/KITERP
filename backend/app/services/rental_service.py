@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from math import ceil
 import re
@@ -9,12 +9,218 @@ from fastapi import HTTPException
 from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.rental import RentalAsset, RentalAssetStore, RentalAssetUnit, RentalBooking, RentalReturn
+from app.models.rental import RentalAsset, RentalAssetStore, RentalAssetUnit, RentalBooking, RentalBookingUnit, RentalReturn
 
 ACTIVE_BOOKING_STATUSES = ("pending", "approved", "confirmed", "active")
 # Once approved (or later), display-window / booking date changes must keep covering these.
 LOCKED_BOOKING_STATUSES = ("approved", "confirmed", "active")
 BOOKABLE_ASSET_STATUSES = ("available", "partially_occupied", "reserved")
+
+
+def _normalize_duration_rates(raw, hourly=0, per_minute=0) -> list[dict]:
+    rows: list[dict] = []
+    if isinstance(raw, list):
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            try:
+                minutes = int(float(item.get("minutes") or 0))
+                rate = float(item.get("rate") or 0)
+            except (TypeError, ValueError):
+                continue
+            if minutes > 0 and rate > 0:
+                rows.append({"minutes": minutes, "rate": round(rate, 2)})
+    by_min: dict[int, dict] = {}
+    for row in rows:
+        by_min[row["minutes"]] = row
+    rows = sorted(by_min.values(), key=lambda r: r["minutes"])
+    if not rows:
+        if float(per_minute or 0) > 0:
+            rows.append({"minutes": 1, "rate": float(per_minute)})
+        if float(hourly or 0) > 0:
+            rows.append({"minutes": 60, "rate": float(hourly)})
+    return rows
+
+
+def _duration_legacy_rates(rows: list[dict]) -> tuple[float, float]:
+    hourly = next((r["rate"] for r in rows if r["minutes"] == 60), 0.0)
+    per_minute = next((r["rate"] for r in rows if r["minutes"] == 1), 0.0)
+    return float(hourly or 0), float(per_minute or 0)
+
+
+def _parse_duration_plan_minutes(plan: str) -> Optional[int]:
+    p = (plan or "").lower()
+    if p == "per_minute":
+        return 1
+    if p == "hourly":
+        return 60
+    if p.startswith("dur_"):
+        try:
+            minutes = int(p[4:])
+        except ValueError:
+            return None
+        return minutes if minutes > 0 else None
+    return None
+
+
+def _asset_duration_rates(asset: RentalAsset) -> list[dict]:
+    return _normalize_duration_rates(
+        getattr(asset, "duration_rates", None),
+        float(getattr(asset, "hourly_rate", 0) or 0),
+        float(getattr(asset, "per_minute_rate", 0) or 0),
+    )
+
+
+def _normalize_period_rates(raw, daily=0, weekly=0, monthly=0, yearly=0) -> list[dict]:
+    rows: list[dict] = []
+    if isinstance(raw, list):
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            try:
+                days = int(float(item.get("days") or 0))
+                rate = float(item.get("rate") or 0)
+            except (TypeError, ValueError):
+                continue
+            if days > 0 and rate > 0:
+                rows.append({"days": days, "rate": round(rate, 2)})
+    by_days: dict[int, dict] = {}
+    for row in rows:
+        by_days[row["days"]] = row
+    rows = sorted(by_days.values(), key=lambda r: r["days"])
+    if not rows:
+        if float(daily or 0) > 0:
+            rows.append({"days": 1, "rate": float(daily)})
+        if float(weekly or 0) > 0:
+            rows.append({"days": 7, "rate": float(weekly)})
+        if float(monthly or 0) > 0:
+            rows.append({"days": 30, "rate": float(monthly)})
+        if float(yearly or 0) > 0:
+            rows.append({"days": 365, "rate": float(yearly)})
+    return rows
+
+
+def _period_legacy_rates(rows: list[dict]) -> tuple[float, float, float, float]:
+    daily = next((r["rate"] for r in rows if r["days"] == 1), 0.0)
+    weekly = next((r["rate"] for r in rows if r["days"] == 7), 0.0)
+    monthly = next((r["rate"] for r in rows if r["days"] == 30), 0.0)
+    yearly = next((r["rate"] for r in rows if r["days"] == 365), 0.0)
+    return float(daily or 0), float(weekly or 0), float(monthly or 0), float(yearly or 0)
+
+
+def _parse_period_plan_days(plan: str) -> Optional[int]:
+    p = (plan or "").lower()
+    if p == "daily":
+        return 1
+    if p == "weekly":
+        return 7
+    if p == "monthly":
+        return 30
+    if p == "yearly":
+        return 365
+    if p.startswith("per_"):
+        try:
+            days = int(p[4:])
+        except ValueError:
+            return None
+        return days if days > 0 else None
+    return None
+
+
+def _asset_period_rates(asset: RentalAsset) -> list[dict]:
+    return _normalize_period_rates(
+        getattr(asset, "period_rates", None),
+        float(getattr(asset, "daily_rate", 0) or 0),
+        float(getattr(asset, "weekly_rate", 0) or 0),
+        float(getattr(asset, "monthly_rate", 0) or 0),
+        float(getattr(asset, "yearly_rate", 0) or 0),
+    )
+
+
+def _normalize_additional_charges(raw) -> list[dict]:
+    """Named extras: amount or percent of rental; shown independently or together."""
+    rows: list[dict] = []
+    if not isinstance(raw, list):
+        return rows
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        charge_type = str(item.get("charge_type") or "amount").strip().lower()
+        if charge_type not in ("amount", "percent"):
+            charge_type = "amount"
+        show_mode = str(item.get("show_mode") or "together").strip().lower()
+        if show_mode not in ("independent", "together"):
+            show_mode = "together"
+        percent_of = str(item.get("percent_of") or "rental").strip().lower()
+        if percent_of not in ("rental", "running", "grand", "deposit"):
+            percent_of = "rental"
+        try:
+            value = float(item.get("value") or 0)
+        except (TypeError, ValueError):
+            continue
+        if not (value > 0):
+            continue
+        if charge_type == "percent" and value > 100:
+            value = 100.0
+        row_id = str(item.get("id") or "").strip()
+        rows.append({
+            "id": row_id,
+            "name": name[:120],
+            "description": str(item.get("description") or "").strip()[:500],
+            "charge_type": charge_type,
+            "show_mode": show_mode,
+            "percent_of": percent_of,
+            "value": round(value, 2),
+        })
+    return rows
+
+
+def _asset_additional_charges(asset: RentalAsset) -> list[dict]:
+    return _normalize_additional_charges(getattr(asset, "additional_charges", None))
+
+
+def _selected_additional_charges(charges: list[dict], selected_ids=None) -> list[dict]:
+    """Together extras are always included. Independent extras need an explicit id list."""
+    if selected_ids is None:
+        return charges
+    wanted = {str(x).strip() for x in selected_ids if str(x).strip()}
+    out: list[dict] = []
+    for charge in charges:
+        mode = str(charge.get("show_mode") or "together")
+        if mode != "independent":
+            out.append(charge)
+            continue
+        cid = str(charge.get("id") or "").strip()
+        name = str(charge.get("name") or "").strip()
+        if cid in wanted or name in wanted:
+            out.append(charge)
+    return out
+
+
+def _apply_additional_charges(subtotal: float, charges: list[dict], selected_ids=None, deposit: float = 0.0) -> float:
+    extra = 0.0
+    dep = float(deposit or 0)
+    for charge in _selected_additional_charges(charges, selected_ids):
+        value = float(charge.get("value") or 0)
+        if value <= 0:
+            continue
+        if charge.get("charge_type") == "percent":
+            basis = str(charge.get("percent_of") or "rental")
+            if basis == "running":
+                base = float(subtotal) + extra
+            elif basis == "grand":
+                base = float(subtotal) + extra + dep
+            elif basis == "deposit":
+                base = dep
+            else:
+                base = float(subtotal)
+            extra += base * (value / 100.0)
+        else:
+            extra += value
+    return round(float(subtotal) + extra, 2)
 
 
 class RentalService:
@@ -77,6 +283,54 @@ class RentalService:
             slug = candidate
         return slug
 
+    async def _annotate_asset_counts(self, items: list[dict]) -> None:
+        """Add child_count / unit_count / available_child_count for list & catalog UIs."""
+        if not items:
+            return
+        asset_ids = [UUID(a["id"]) for a in items]
+        child_rows = await self.db.execute(
+            select(RentalAsset.parent_asset_id, func.count(RentalAsset.id).label("cnt"))
+            .where(RentalAsset.parent_asset_id.in_(asset_ids))
+            .group_by(RentalAsset.parent_asset_id)
+        )
+        child_counts: dict[str, int] = {str(r.parent_asset_id): int(r.cnt) for r in child_rows}
+
+        unit_rows = await self.db.execute(
+            select(RentalAssetUnit.asset_id, func.count(RentalAssetUnit.id).label("cnt"))
+            .where(RentalAssetUnit.asset_id.in_(asset_ids))
+            .group_by(RentalAssetUnit.asset_id)
+        )
+        unit_counts: dict[str, int] = {str(r.asset_id): int(r.cnt) for r in unit_rows}
+
+        hierarchy_ids = [
+            UUID(a["id"]) for a in items
+            if (a.get("unit_mode") or "none") == "hierarchy" and child_counts.get(a["id"], 0) > 0
+        ]
+        available_child_counts: dict[str, int] = {}
+        if hierarchy_ids:
+            kids_result = await self.db.execute(
+                select(RentalAsset).where(RentalAsset.parent_asset_id.in_(hierarchy_ids))
+            )
+            by_parent: dict[str, list[RentalAsset]] = {}
+            for child in kids_result.scalars().all():
+                if not child.parent_asset_id:
+                    continue
+                by_parent.setdefault(str(child.parent_asset_id), []).append(child)
+            hard_unavailable = {"maintenance", "unavailable", "retired"}
+            for pid, kids in by_parent.items():
+                available_child_counts[pid] = sum(
+                    1
+                    for c in kids
+                    if self._derive_asset_status(c) not in hard_unavailable
+                    and self._available_capacity(c) > 0
+                )
+
+        for a in items:
+            a["child_count"] = child_counts.get(a["id"], 0)
+            a["unit_count"] = unit_counts.get(a["id"], 0)
+            if (a.get("unit_mode") or "none") == "hierarchy":
+                a["available_child_count"] = available_child_counts.get(a["id"], 0)
+
     def _asset_dict(self, a: RentalAsset) -> dict:
         available = self._available_capacity(a)
         status = self._derive_asset_status(a)
@@ -108,11 +362,15 @@ class RentalService:
             "deposit_amount": float(a.deposit_amount or 0),
             "extra_qty_charge": float(a.extra_qty_charge or 0),
             "extra_weight_charge": float(a.extra_weight_charge or 0),
+            "additional_charges": _asset_additional_charges(a),
             "price_per_unit": float(a.price_per_unit or 0) if hasattr(a, "price_per_unit") else 0.0,
             "pricing_uom": a.pricing_uom if hasattr(a, "pricing_uom") else None,
             "hourly_rate": float(a.hourly_rate or 0) if hasattr(a, "hourly_rate") else 0.0,
             "per_minute_rate": float(a.per_minute_rate or 0) if hasattr(a, "per_minute_rate") else 0.0,
+            "duration_rates": _asset_duration_rates(a),
+            "period_rates": _asset_period_rates(a),
             "yearly_rate": float(a.yearly_rate or 0) if hasattr(a, "yearly_rate") else 0.0,
+            "tax_rate": float(getattr(a, "tax_rate", 0) or 0),
             "sales_area_id": str(a.sales_area_id) if a.sales_area_id else None,
             "location": a.location,
             "section": a.section,
@@ -126,7 +384,10 @@ class RentalService:
             "is_active": bool(a.is_active) if a.is_active is not None else True,
             "is_visible": bool(a.is_visible) if hasattr(a, "is_visible") and a.is_visible is not None else True,
             "store_scope": (a.store_scope if hasattr(a, "store_scope") else None) or "all",
+            "store_ids": [],
             "notes": a.notes,
+            "delivery_info": getattr(a, "delivery_info", None),
+            "delivery_enabled": bool(getattr(a, "delivery_enabled", False)),
             "parent_asset_id": str(a.parent_asset_id) if a.parent_asset_id else None,
             "is_bookable": bool(a.is_bookable) if a.is_bookable is not None else True,
             "unit_mode": a.unit_mode or "none",
@@ -257,6 +518,8 @@ class RentalService:
             "pricing_plan": b.pricing_plan or "daily",
             "start_date": b.start_date.isoformat() if b.start_date else None,
             "end_date": b.end_date.isoformat() if b.end_date else None,
+            "start_time": b.start_time.strftime("%H:%M") if getattr(b, "start_time", None) else None,
+            "end_time": b.end_time.strftime("%H:%M") if getattr(b, "end_time", None) else None,
             "status": b.status,
             "rental_amount": float(b.rental_amount or 0),
             "deposit_amount": float(b.deposit_amount or 0),
@@ -293,6 +556,7 @@ class RentalService:
             d["asset_location"] = asset.location
             d["capacity_unit"] = asset.capacity_unit
             d["capacity_max"] = float(asset.capacity_max or 0)
+            d["unit_mode"] = asset.unit_mode or "none"
         return d
 
     # ── helpers ──────────────────────────────────────────────────
@@ -306,14 +570,21 @@ class RentalService:
             raise HTTPException(404, "Rental asset not found")
         return asset
 
-    async def _asset_code_prefix(self, vendor_id: UUID) -> str:
-        """Generic master-ID prefix (default AST). Configurable via rental_settings.asset_code_prefix."""
-        prefix = "AST"
+    async def _get_rental_settings(self, vendor_id: UUID) -> dict:
+        """Read vendor.settings.rental_settings, returning {} on any error."""
         try:
             from app.models.vendor import Vendor
             result = await self.db.execute(select(Vendor.settings).where(Vendor.id == vendor_id))
             settings = result.scalar_one_or_none() or {}
-            rs = (settings or {}).get("rental_settings") or {}
+            return (settings or {}).get("rental_settings") or {}
+        except Exception:
+            return {}
+
+    async def _asset_code_prefix(self, vendor_id: UUID) -> str:
+        """Generic master-ID prefix (default AST). Configurable via rental_settings.asset_code_prefix."""
+        prefix = "AST"
+        try:
+            rs = await self._get_rental_settings(vendor_id)
             raw = str(rs.get("asset_code_prefix") or "AST").strip().upper().rstrip("-")
             if raw:
                 prefix = re.sub(r"[^A-Z0-9]", "", raw)[:6] or "AST"
@@ -329,12 +600,36 @@ class RentalService:
         n = int(result.scalar() or 0) + 1
         return f"{prefix}-{n:03d}"
 
-    async def _next_booking_number(self, vendor_id: UUID) -> str:
+    async def _next_booking_number(self, vendor_id: UUID, *, prefix: Optional[str] = None) -> str:
+        """Generate the next sequential booking number for the vendor.
+
+        Uses MAX over existing booking numbers (not COUNT) to stay correct after
+        deletions and to avoid the COUNT race condition under concurrent inserts.
+        The prefix is read from vendor rental_settings.booking_number_prefix (default RNT).
+        """
+        if prefix is None:
+            rs = await self._get_rental_settings(vendor_id)
+            raw_prefix = str(rs.get("booking_number_prefix") or "RNT").strip().upper()
+            prefix = re.sub(r"[^A-Z0-9]", "", raw_prefix)[:6] or "RNT"
+
+        like_pattern = f"{prefix}-%"
         result = await self.db.execute(
-            select(func.count()).select_from(RentalBooking).where(RentalBooking.vendor_id == vendor_id)
+            select(RentalBooking.booking_number)
+            .where(
+                RentalBooking.vendor_id == vendor_id,
+                RentalBooking.booking_number.like(like_pattern),
+            )
+            .order_by(RentalBooking.booking_number.desc())
+            .limit(1)
         )
-        n = int(result.scalar() or 0) + 1
-        return f"RB-{n:04d}"
+        last = result.scalar_one_or_none()
+        n = 1
+        if last:
+            try:
+                n = int(last.rsplit("-", 1)[-1]) + 1
+            except (ValueError, IndexError):
+                n = 1
+        return f"{prefix}-{n:04d}"
 
     def _append_timeline(self, booking: RentalBooking, event: str, detail: str = ""):
         timeline = list(booking.timeline or [])
@@ -345,12 +640,81 @@ class RentalService:
         })
         booking.timeline = timeline
 
-    def _calc_rental_amount(self, asset: RentalAsset, start: date, end: date, plan: str, quantity: float) -> float:
+    def _parse_optional_time(self, value) -> Optional[time]:
+        if value is None or value == "":
+            return None
+        if isinstance(value, time):
+            return value
+        if isinstance(value, str):
+            raw = value.strip()
+            for fmt in ("%H:%M:%S", "%H:%M"):
+                try:
+                    return datetime.strptime(raw[:8] if fmt == "%H:%M:%S" else raw[:5], fmt).time()
+                except ValueError:
+                    continue
+        return None
+
+    def _calc_rental_amount(
+        self,
+        asset: RentalAsset,
+        start: date,
+        end: date,
+        plan: str,
+        quantity: float,
+        start_time: Optional[time] = None,
+        end_time: Optional[time] = None,
+        additional_charge_ids=None,
+    ) -> float:
+        plan = (plan or "daily").lower()
         days = (end - start).days + 1
         if days < 1:
             days = 1
-        plan = (plan or "daily").lower()
-        if plan == "monthly" and float(asset.monthly_rate or 0) > 0:
+        deposit = float(getattr(asset, "deposit_amount", 0) or 0)
+
+        slot_minutes = _parse_duration_plan_minutes(plan)
+        if slot_minutes:
+            slot = next((r for r in _asset_duration_rates(asset) if r["minutes"] == slot_minutes), None)
+            if slot and float(slot["rate"] or 0) > 0:
+                if start_time is not None and end_time is not None:
+                    start_dt = datetime.combine(start, start_time)
+                    end_dt = datetime.combine(end, end_time)
+                    if end_dt < start_dt:
+                        end_dt += timedelta(days=1)
+                    elapsed = slot_minutes if end_dt == start_dt else max(
+                        1, int((end_dt - start_dt).total_seconds() // 60)
+                    )
+                    blocks = max(1, ceil(elapsed / slot_minutes))
+                    base = float(slot["rate"]) * blocks
+                else:
+                    base = float(slot["rate"]) * days
+                extra_qty = max(0.0, quantity - 1) * float(asset.extra_qty_charge or 0)
+                return _apply_additional_charges(
+                    round(base + extra_qty, 2),
+                    _asset_additional_charges(asset),
+                    additional_charge_ids,
+                    deposit,
+                )
+
+        slot_days = _parse_period_plan_days(plan)
+        period_slots = _asset_period_rates(asset)
+        if slot_days:
+            slot = next((r for r in period_slots if r["days"] == slot_days), None)
+            if slot and float(slot["rate"] or 0) > 0:
+                blocks = max(1, ceil(days / slot_days))
+                base = float(slot["rate"]) * blocks
+                extra_qty = max(0.0, quantity - 1) * float(asset.extra_qty_charge or 0)
+                return _apply_additional_charges(
+                    round(base + extra_qty, 2),
+                    _asset_additional_charges(asset),
+                    additional_charge_ids,
+                    deposit,
+                )
+
+        # Legacy fallback when no period_rates match
+        if plan == "yearly" and float(asset.yearly_rate or 0) > 0:
+            years = max(1, ceil(days / 365))
+            base = float(asset.yearly_rate) * years
+        elif plan == "monthly" and float(asset.monthly_rate or 0) > 0:
             months = max(1, ceil(days / 30))
             base = float(asset.monthly_rate) * months
         elif plan == "weekly" and float(asset.weekly_rate or 0) > 0:
@@ -358,10 +722,14 @@ class RentalService:
             base = float(asset.weekly_rate) * weeks
         else:
             base = float(asset.daily_rate or 0) * days
-            plan = "daily"
-        # Extra quantity beyond a "base unit" of 1 is optional surcharge for dairy racks
+
         extra_qty = max(0.0, quantity - 1) * float(asset.extra_qty_charge or 0)
-        return round(base + extra_qty, 2)
+        return _apply_additional_charges(
+            round(base + extra_qty, 2),
+            _asset_additional_charges(asset),
+            additional_charge_ids,
+            deposit,
+        )
 
     async def _reserved_qty_for_range(
         self, asset_id: UUID, start: date, end: date, exclude_booking_id: Optional[UUID] = None
@@ -376,6 +744,47 @@ class RentalService:
             q = q.where(RentalBooking.id != exclude_booking_id)
         result = await self.db.execute(q)
         return float(result.scalar() or 0)
+
+    async def _free_serialized_units_for_range(
+        self,
+        vendor_id: UUID,
+        asset_id: UUID,
+        start: date,
+        end: date,
+        exclude_booking_id: Optional[UUID] = None,
+    ) -> float:
+        """Return available unit slots for a serialized-unit asset over a date range.
+
+        For serialized assets the physical unit status is the ground truth:
+        - Units in 'rented' / 'maintenance' / 'retired' status are already out of the pool.
+        - Pending / approved / confirmed bookings have NOT yet physically claimed units
+          (that happens at 'active'), so we subtract their reserved quantities from the
+          physically-available count to avoid double-booking future slots.
+        - Active bookings are already reflected by the physical 'rented' status, so we
+          deliberately exclude them from the quantity subtraction.
+        """
+        avail_result = await self.db.execute(
+            select(func.count()).select_from(RentalAssetUnit).where(
+                RentalAssetUnit.asset_id == asset_id,
+                RentalAssetUnit.vendor_id == vendor_id,
+                RentalAssetUnit.status == "available",
+            )
+        )
+        physically_available = int(avail_result.scalar() or 0)
+
+        # Quantities locked by not-yet-active bookings (units still physically "available")
+        pre_active_q = select(func.coalesce(func.sum(RentalBooking.quantity), 0)).where(
+            RentalBooking.asset_id == asset_id,
+            RentalBooking.status.in_(("pending", "approved", "confirmed")),
+            RentalBooking.start_date <= end,
+            RentalBooking.end_date >= start,
+        )
+        if exclude_booking_id:
+            pre_active_q = pre_active_q.where(RentalBooking.id != exclude_booking_id)
+        pre_active_result = await self.db.execute(pre_active_q)
+        pre_active_reserved = float(pre_active_result.scalar() or 0)
+
+        return max(0.0, physically_available - pre_active_reserved)
 
     def _sync_occupancy_status(self, asset: RentalAsset):
         derived = self._derive_asset_status(asset)
@@ -495,31 +904,16 @@ class RentalService:
         if status:
             items = [a for a in items if a["status"] == status]
 
-        # Annotate each asset with child_count (hierarchy) and unit_count (serialized)
-        asset_ids = [UUID(a["id"]) for a in items]
-        if asset_ids:
-            child_rows = await self.db.execute(
-                select(RentalAsset.parent_asset_id, func.count(RentalAsset.id).label("cnt"))
-                .where(RentalAsset.parent_asset_id.in_(asset_ids))
-                .group_by(RentalAsset.parent_asset_id)
-            )
-            child_counts: dict[str, int] = {str(r.parent_asset_id): r.cnt for r in child_rows}
-
-            unit_rows = await self.db.execute(
-                select(RentalAssetUnit.asset_id, func.count(RentalAssetUnit.id).label("cnt"))
-                .where(RentalAssetUnit.asset_id.in_(asset_ids))
-                .group_by(RentalAssetUnit.asset_id)
-            )
-            unit_counts: dict[str, int] = {str(r.asset_id): r.cnt for r in unit_rows}
-
-            for a in items:
-                a["child_count"] = child_counts.get(a["id"], 0)
-                a["unit_count"] = unit_counts.get(a["id"], 0)
-
+        await self._annotate_asset_counts(items)
         return items
 
     async def get_asset(self, vendor_id: UUID, asset_id: UUID) -> dict:
-        return self._asset_dict(await self._get_asset(vendor_id, asset_id))
+        asset = await self._get_asset(vendor_id, asset_id)
+        d = self._asset_dict(asset)
+        await self._annotate_asset_counts([d])
+        from app.services.catalog_store_scope import get_rental_asset_store_ids
+        d["store_ids"] = await get_rental_asset_store_ids(self.db, asset.id)
+        return d
 
     # ── Public / catalog-facing methods ─────────────────────────────────────
 
@@ -587,6 +981,7 @@ class RentalService:
         )
         rows = (await self.db.execute(items_q)).scalars().all()
         items = [self._asset_dict(r) for r in rows]
+        await self._annotate_asset_counts(items)
         return items, total
 
     async def get_catalog_asset_by_slug(self, vendor_id: UUID, slug: str) -> Optional[dict]:
@@ -597,7 +992,9 @@ class RentalService:
         asset = result.scalar_one_or_none()
         if not asset:
             return None
-        return self._asset_dict(asset)
+        d = self._asset_dict(asset)
+        await self._annotate_asset_counts([d])
+        return d
 
     async def create_asset(self, vendor_id: UUID, data: dict) -> dict:
         code = data.get("asset_code") or await self._next_asset_code(vendor_id)
@@ -606,6 +1003,28 @@ class RentalService:
         if display_start and display_end and display_end < display_start:
             raise HTTPException(400, "Display end date must be on or after start date")
         slug = data.get("slug") or await self._unique_slug(vendor_id, data["name"], code)
+        duration_rows = _normalize_duration_rates(
+            data.get("duration_rates"),
+            data.get("hourly_rate", 0),
+            data.get("per_minute_rate", 0),
+        )
+        hourly_rate, per_minute_rate = _duration_legacy_rates(duration_rows)
+        if data.get("duration_rates") is None:
+            hourly_rate = data.get("hourly_rate", 0)
+            per_minute_rate = data.get("per_minute_rate", 0)
+        period_rows = _normalize_period_rates(
+            data.get("period_rates"),
+            data.get("daily_rate", 0),
+            data.get("weekly_rate", 0),
+            data.get("monthly_rate", 0),
+            data.get("yearly_rate", 0),
+        )
+        daily_rate, weekly_rate, monthly_rate, yearly_rate = _period_legacy_rates(period_rows)
+        if data.get("period_rates") is None:
+            daily_rate = data.get("daily_rate", 0)
+            weekly_rate = data.get("weekly_rate", 0)
+            monthly_rate = data.get("monthly_rate", 0)
+            yearly_rate = data.get("yearly_rate", 0)
         asset = RentalAsset(
             vendor_id=vendor_id,
             name=data["name"],
@@ -624,17 +1043,21 @@ class RentalService:
             max_weight=data.get("max_weight"),
             weight_unit=data.get("weight_unit") or "kg",
             currency=(data.get("currency") or "INR").upper()[:3],
-            daily_rate=data.get("daily_rate", 0),
-            weekly_rate=data.get("weekly_rate", 0),
-            monthly_rate=data.get("monthly_rate", 0),
+            daily_rate=daily_rate,
+            weekly_rate=weekly_rate,
+            monthly_rate=monthly_rate,
             deposit_amount=data.get("deposit_amount", 0),
             extra_qty_charge=data.get("extra_qty_charge", 0),
             extra_weight_charge=data.get("extra_weight_charge", 0),
+            additional_charges=_normalize_additional_charges(data.get("additional_charges")),
             price_per_unit=data.get("price_per_unit", 0),
             pricing_uom=data.get("pricing_uom") or None,
-            hourly_rate=data.get("hourly_rate", 0),
-            per_minute_rate=data.get("per_minute_rate", 0),
-            yearly_rate=data.get("yearly_rate", 0),
+            duration_rates=duration_rows,
+            period_rates=period_rows,
+            hourly_rate=hourly_rate,
+            per_minute_rate=per_minute_rate,
+            yearly_rate=yearly_rate,
+            tax_rate=data.get("tax_rate", 0),
             sales_area_id=UUID(data["sales_area_id"]) if data.get("sales_area_id") else None,
             location=data.get("location"),
             section=data.get("section"),
@@ -646,6 +1069,8 @@ class RentalService:
             display_start_date=display_start,
             display_end_date=display_end,
             notes=data.get("notes"),
+            delivery_info=(str(data["delivery_info"]).strip() or None) if data.get("delivery_info") is not None else None,
+            delivery_enabled=bool(data.get("delivery_enabled", False)),
             is_active=data.get("is_active", True),
             is_visible=data.get("is_visible", True),
             store_scope=data.get("store_scope") or "all",
@@ -658,28 +1083,59 @@ class RentalService:
         await self.db.commit()
         await self.db.refresh(asset)
 
-        # Sync store assignments when store_scope="selected"
+        # Sync store assignments (clears when scope is "all")
         store_scope = data.get("store_scope") or "all"
         store_ids = data.get("store_ids")
-        if store_scope == "selected" and store_ids is not None:
-            from app.services.catalog_store_scope import sync_rental_asset_stores
+        if store_scope == "selected" or store_ids is not None:
+            from app.services.catalog_store_scope import sync_rental_asset_stores, get_rental_asset_store_ids
             await sync_rental_asset_stores(self.db, vendor_id, asset.id, store_scope, store_ids)
             await self.db.commit()
 
-        return self._asset_dict(asset)
+        d = self._asset_dict(asset)
+        from app.services.catalog_store_scope import get_rental_asset_store_ids
+        d["store_ids"] = await get_rental_asset_store_ids(self.db, asset.id)
+        return d
 
     async def update_asset(self, vendor_id: UUID, asset_id: UUID, data: dict) -> dict:
         asset = await self._get_asset(vendor_id, asset_id)
+        if "duration_rates" in data:
+            duration_rows = _normalize_duration_rates(
+                data.get("duration_rates"),
+                data.get("hourly_rate", getattr(asset, "hourly_rate", 0)),
+                data.get("per_minute_rate", getattr(asset, "per_minute_rate", 0)),
+            )
+            data["duration_rates"] = duration_rows
+            data["hourly_rate"], data["per_minute_rate"] = _duration_legacy_rates(duration_rows)
+        if "period_rates" in data:
+            period_rows = _normalize_period_rates(
+                data.get("period_rates"),
+                data.get("daily_rate", getattr(asset, "daily_rate", 0)),
+                data.get("weekly_rate", getattr(asset, "weekly_rate", 0)),
+                data.get("monthly_rate", getattr(asset, "monthly_rate", 0)),
+                data.get("yearly_rate", getattr(asset, "yearly_rate", 0)),
+            )
+            data["period_rates"] = period_rows
+            (
+                data["daily_rate"],
+                data["weekly_rate"],
+                data["monthly_rate"],
+                data["yearly_rate"],
+            ) = _period_legacy_rates(period_rows)
+        if "additional_charges" in data:
+            data["additional_charges"] = _normalize_additional_charges(data.get("additional_charges"))
         fields = [
             "asset_code", "sku", "category", "asset_type", "short_description", "description",
             "capacity_max", "capacity_unit", "max_weight", "weight_unit",
             "currency",
             "daily_rate", "weekly_rate", "monthly_rate", "deposit_amount",
             "extra_qty_charge", "extra_weight_charge",
+            "additional_charges",
             "price_per_unit", "pricing_uom",
             "hourly_rate", "per_minute_rate", "yearly_rate",
+            "duration_rates", "period_rates",
+            "tax_rate",
             "location", "section", "row_label", "rack_number", "image_url",
-            "status", "notes", "is_active", "is_visible", "store_scope",
+            "status", "notes", "delivery_info", "delivery_enabled", "is_active", "is_visible", "store_scope",
             "is_bookable", "unit_mode",
         ]
         for f in fields:
@@ -687,6 +1143,8 @@ class RentalService:
                 val = data[f]
                 if f == "currency" and val is not None:
                     val = str(val).upper()[:3] or "INR"
+                if f == "delivery_info" and val is not None:
+                    val = str(val).strip() or None
                 setattr(asset, f, val)
         # Re-slug when name changes (or explicit slug provided)
         if "name" in data:
@@ -737,11 +1195,14 @@ class RentalService:
         if "store_scope" in data or "store_ids" in data:
             scope = data.get("store_scope") or getattr(asset, "store_scope", "all") or "all"
             store_ids = data.get("store_ids")
-            from app.services.catalog_store_scope import sync_rental_asset_stores
+            from app.services.catalog_store_scope import sync_rental_asset_stores, get_rental_asset_store_ids
             await sync_rental_asset_stores(self.db, vendor_id, asset.id, scope, store_ids)
             await self.db.commit()
 
-        return self._asset_dict(asset)
+        d = self._asset_dict(asset)
+        from app.services.catalog_store_scope import get_rental_asset_store_ids
+        d["store_ids"] = await get_rental_asset_store_ids(self.db, asset.id)
+        return d
 
     async def delete_asset(self, vendor_id: UUID, asset_id: UUID) -> None:
         """Delete a rental asset.
@@ -775,36 +1236,97 @@ class RentalService:
 
     # ── availability calendar ────────────────────────────────────
 
-    async def get_availability_calendar(
-        self, vendor_id: UUID, asset_id: UUID, from_date: date, to_date: date
-    ) -> list[dict]:
-        asset = await self._get_asset(vendor_id, asset_id)
-        result = await self.db.execute(
-            select(RentalBooking).where(
-                RentalBooking.asset_id == asset.id,
-                RentalBooking.status.in_((*ACTIVE_BOOKING_STATUSES, "completed")),
-                RentalBooking.start_date <= to_date,
-                RentalBooking.end_date >= from_date,
-            )
-        )
-        bookings = result.scalars().all()
-        # Pre-compute reserved qty per day in O(bookings × booking_length) instead of
-        # O(days × bookings) — dramatically faster for long date ranges.
+    def _booking_qty_by_day(
+        self, bookings, from_date: date, to_date: date
+    ) -> dict:
         day_qty: dict[date, float] = {}
         for b in bookings:
+            if not b.start_date or not b.end_date:
+                continue
             cur_b = b.start_date
             while cur_b <= b.end_date:
                 if from_date <= cur_b <= to_date:
                     day_qty[cur_b] = day_qty.get(cur_b, 0.0) + float(b.quantity or 0)
                 cur_b = cur_b + timedelta(days=1)
+        return day_qty
 
+    _DEFAULT_SLOT_TIME = time(10, 0)
+    _NEXT_AVAILABLE_HORIZON_DAYS = 90
+
+    def _next_available_slot(
+        self,
+        *,
+        on: date,
+        today: date,
+        capacity: float,
+        bookings: list,
+        display_start: Optional[date] = None,
+        display_end: Optional[date] = None,
+        blocked: bool = False,
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Earliest date/time this resource can be booked from `on` onward.
+
+        Time is omitted when the free day is today so the UI can use local clock time.
+        Future free days default to 10:00 (storefront pickup clock). Same-day hourly
+        bookings that end today surface that end time.
+        """
+        if blocked:
+            return None, None
+        effective_cap = capacity if capacity > 0 else 1.0
+
+        start_search = on
+        if display_start and display_start > start_search:
+            start_search = display_start
+        if start_search < today:
+            start_search = today
+        if display_end and start_search > display_end:
+            return None, None
+
+        horizon = start_search + timedelta(days=self._NEXT_AVAILABLE_HORIZON_DAYS)
+        qty_by_day = self._booking_qty_by_day(bookings, start_search, horizon)
+
+        cursor = start_search
+        while cursor <= horizon:
+            if display_end and cursor > display_end:
+                return None, None
+            reserved = float(qty_by_day.get(cursor, 0.0))
+            if reserved < effective_cap:
+                slot_time = None if cursor == today else self._DEFAULT_SLOT_TIME.strftime("%H:%M")
+                return cursor.isoformat(), slot_time
+
+            overlapping = [
+                b for b in bookings
+                if b.start_date and b.end_date and b.start_date <= cursor <= b.end_date
+            ]
+            if overlapping and all(
+                b.end_date == cursor and getattr(b, "end_time", None) for b in overlapping
+            ):
+                latest = max(b.end_time for b in overlapping)
+                return cursor.isoformat(), latest.strftime("%H:%M")
+            cursor = cursor + timedelta(days=1)
+
+        ends = [b.end_date for b in bookings if getattr(b, "end_date", None)]
+        if not ends:
+            return None, None
+        nxt = max(ends) + timedelta(days=1)
+        if display_end and nxt > display_end:
+            return None, None
+        return nxt.isoformat(), self._DEFAULT_SLOT_TIME.strftime("%H:%M")
+
+    def _calendar_days_from_qty(
+        self,
+        *,
+        from_date: date,
+        to_date: date,
+        day_qty: dict,
+        capacity: float,
+        is_maintenance: bool,
+    ) -> list[dict]:
         days = []
-        cap = float(asset.capacity_max or 0)
-        is_maintenance = asset.status == "maintenance"
         cur = from_date
         while cur <= to_date:
-            qty = day_qty.get(cur, 0.0)
-            avail = max(0.0, cap - qty)
+            qty = float(day_qty.get(cur, 0.0) or 0)
+            avail = max(0.0, capacity - qty)
             if is_maintenance:
                 day_status = "maintenance"
             elif qty <= 0:
@@ -821,6 +1343,438 @@ class RentalService:
             })
             cur = cur + timedelta(days=1)
         return days
+
+    def _aggregate_resource_days(self, resources: list[dict], from_date: date, to_date: date) -> list[dict]:
+        """Roll variant/unit rows up into a parent month view (X left)."""
+        by_date: dict[str, list[dict]] = {}
+        for res in resources:
+            for d in res.get("days") or []:
+                by_date.setdefault(d["date"], []).append(d)
+        out = []
+        cur = from_date
+        while cur <= to_date:
+            key = cur.isoformat()
+            cells = by_date.get(key, [])
+            reserved = sum(float(c.get("reserved_qty") or 0) for c in cells)
+            avail = sum(float(c.get("available_capacity") or 0) for c in cells)
+            statuses = {c.get("status") for c in cells}
+            if not cells:
+                status = "available"
+            elif statuses <= {"booked", "unavailable", "maintenance"}:
+                status = "booked"
+            elif "maintenance" in statuses and len(statuses) == 1:
+                status = "maintenance"
+            elif reserved <= 0 and "booked" not in statuses:
+                status = "available"
+            elif avail <= 0:
+                status = "booked"
+            else:
+                status = "partial"
+            out.append({
+                "date": key,
+                "status": status,
+                "reserved_qty": reserved,
+                "available_capacity": avail,
+            })
+            cur = cur + timedelta(days=1)
+        return out
+
+    async def _calendar_resources_for_children(
+        self,
+        children: list,
+        selected_id: UUID,
+        from_date: date,
+        to_date: date,
+    ) -> list[dict]:
+        if not children:
+            return []
+        ids = [c.id for c in children]
+        result = await self.db.execute(
+            select(RentalBooking).where(
+                RentalBooking.asset_id.in_(ids),
+                RentalBooking.status.in_((*ACTIVE_BOOKING_STATUSES, "completed")),
+                RentalBooking.start_date <= to_date,
+                RentalBooking.end_date >= from_date,
+            )
+        )
+        by_asset: dict = {}
+        for b in result.scalars().all():
+            by_asset.setdefault(b.asset_id, []).append(b)
+
+        resources = []
+        for child in children:
+            cap = float(child.capacity_max or 0)
+            days = self._calendar_days_from_qty(
+                from_date=from_date,
+                to_date=to_date,
+                day_qty=self._booking_qty_by_day(by_asset.get(child.id, []), from_date, to_date),
+                capacity=cap,
+                is_maintenance=child.status == "maintenance",
+            )
+            resources.append({
+                "id": str(child.id),
+                "kind": "child",
+                "label": child.name,
+                "code": child.asset_code,
+                "highlight": child.id == selected_id,
+                "selectable": True,
+                "days": days,
+            })
+        return resources
+
+    async def _calendar_resources_for_units(
+        self,
+        vendor_id: UUID,
+        asset: RentalAsset,
+        from_date: date,
+        to_date: date,
+    ) -> list[dict]:
+        units_result = await self.db.execute(
+            select(RentalAssetUnit).where(
+                RentalAssetUnit.asset_id == asset.id,
+                RentalAssetUnit.vendor_id == vendor_id,
+            ).order_by(RentalAssetUnit.serial_no)
+        )
+        units = list(units_result.scalars().all())
+        if not units:
+            return []
+
+        assign_result = await self.db.execute(
+            select(RentalBookingUnit, RentalBooking)
+            .join(RentalBooking, RentalBookingUnit.booking_id == RentalBooking.id)
+            .where(
+                RentalBooking.asset_id == asset.id,
+                RentalBookingUnit.released_at.is_(None),
+                RentalBooking.status.in_((*ACTIVE_BOOKING_STATUSES, "completed")),
+                RentalBooking.start_date <= to_date,
+                RentalBooking.end_date >= from_date,
+            )
+        )
+        ranges_by_unit: dict = {}
+        for bku, booking in assign_result.all():
+            ranges_by_unit.setdefault(bku.unit_id, []).append(booking)
+
+        resources = []
+        for unit in units:
+            blocked = (unit.condition in ("lost", "retired")) or (unit.status in ("retired", "maintenance"))
+            bookings = ranges_by_unit.get(unit.id, [])
+            days = []
+            cur = from_date
+            while cur <= to_date:
+                hit = next((b for b in bookings if b.start_date <= cur <= b.end_date), None)
+                if blocked:
+                    status = "maintenance" if unit.status == "maintenance" else "unavailable"
+                    reserved, avail, detail = 1.0, 0.0, (unit.status or unit.condition or "unavailable")
+                elif hit:
+                    status, reserved, avail = "booked", 1.0, 0.0
+                    who = (hit.customer_name or "").strip()
+                    detail = f"Booked{f' · {who}' if who else ''}"
+                else:
+                    status, reserved, avail, detail = "available", 0.0, 1.0, None
+                days.append({
+                    "date": cur.isoformat(),
+                    "status": status,
+                    "reserved_qty": reserved,
+                    "available_capacity": avail,
+                    "detail": detail,
+                })
+                cur = cur + timedelta(days=1)
+            resources.append({
+                "id": str(unit.id),
+                "kind": "unit",
+                "label": unit.label or unit.serial_no,
+                "code": unit.serial_no if unit.label else None,
+                "highlight": False,
+                "selectable": False,
+                "days": days,
+            })
+        return resources
+
+    async def get_availability_calendar(
+        self, vendor_id: UUID, asset_id: UUID, from_date: date, to_date: date
+    ) -> dict:
+        asset = await self._get_asset(vendor_id, asset_id)
+
+        result = await self.db.execute(
+            select(RentalBooking).where(
+                RentalBooking.asset_id == asset.id,
+                RentalBooking.status.in_((*ACTIVE_BOOKING_STATUSES, "completed")),
+                RentalBooking.start_date <= to_date,
+                RentalBooking.end_date >= from_date,
+            )
+        )
+        bookings = result.scalars().all()
+        days = self._calendar_days_from_qty(
+            from_date=from_date,
+            to_date=to_date,
+            day_qty=self._booking_qty_by_day(bookings, from_date, to_date),
+            capacity=float(asset.capacity_max or 0),
+            is_maintenance=asset.status == "maintenance",
+        )
+
+        resources: list[dict] = []
+        resource_kind = None
+
+        # Hierarchy: show every child variant (or siblings, if a child is selected).
+        children_result = await self.db.execute(
+            select(RentalAsset).where(
+                RentalAsset.vendor_id == vendor_id,
+                RentalAsset.parent_asset_id == (asset.parent_asset_id or asset.id),
+            ).order_by(RentalAsset.name)
+        )
+        children = list(children_result.scalars().all())
+        if children:
+            resources = await self._calendar_resources_for_children(
+                children, asset.id, from_date, to_date,
+            )
+            resource_kind = "child"
+            days = self._aggregate_resource_days(resources, from_date, to_date)
+        elif asset.unit_mode == "serialized":
+            resources = await self._calendar_resources_for_units(
+                vendor_id, asset, from_date, to_date,
+            )
+            if resources:
+                resource_kind = "unit"
+                days = self._aggregate_resource_days(resources, from_date, to_date)
+
+        return {
+            "days": days,
+            "resources": resources,
+            "resource_kind": resource_kind,
+        }
+
+    async def get_day_availability(self, vendor_id: UUID, on: date) -> dict:
+        """Flatten every bookable parent / child / unit into a list for one day."""
+        assets_result = await self.db.execute(
+            select(RentalAsset).where(RentalAsset.vendor_id == vendor_id).order_by(RentalAsset.name)
+        )
+        assets = list(assets_result.scalars().all())
+        children_by_parent: dict = {}
+        for a in assets:
+            if a.parent_asset_id:
+                children_by_parent.setdefault(a.parent_asset_id, []).append(a)
+
+        today = date.today()
+        horizon = on + timedelta(days=self._NEXT_AVAILABLE_HORIZON_DAYS)
+
+        bookings_result = await self.db.execute(
+            select(RentalBooking).where(
+                RentalBooking.vendor_id == vendor_id,
+                RentalBooking.status.in_((*ACTIVE_BOOKING_STATUSES, "completed")),
+                RentalBooking.start_date <= on,
+                RentalBooking.end_date >= on,
+            )
+        )
+        bookings = list(bookings_result.scalars().all())
+        qty_by_asset: dict = {}
+        for b in bookings:
+            qty_by_asset[b.asset_id] = qty_by_asset.get(b.asset_id, 0.0) + float(b.quantity or 0)
+
+        future_result = await self.db.execute(
+            select(RentalBooking).where(
+                RentalBooking.vendor_id == vendor_id,
+                RentalBooking.status.in_(ACTIVE_BOOKING_STATUSES),
+                RentalBooking.end_date >= on,
+                RentalBooking.start_date <= horizon,
+            )
+        )
+        future_by_asset: dict = {}
+        for b in future_result.scalars().all():
+            future_by_asset.setdefault(b.asset_id, []).append(b)
+
+        units_result = await self.db.execute(
+            select(RentalAssetUnit).where(RentalAssetUnit.vendor_id == vendor_id).order_by(RentalAssetUnit.serial_no)
+        )
+        units = list(units_result.scalars().all())
+        units_by_asset: dict = {}
+        for u in units:
+            units_by_asset.setdefault(u.asset_id, []).append(u)
+
+        assign_result = await self.db.execute(
+            select(RentalBookingUnit, RentalBooking)
+            .join(RentalBooking, RentalBookingUnit.booking_id == RentalBooking.id)
+            .where(
+                RentalBooking.vendor_id == vendor_id,
+                RentalBookingUnit.released_at.is_(None),
+                RentalBooking.status.in_((*ACTIVE_BOOKING_STATUSES, "completed")),
+                RentalBooking.start_date <= on,
+                RentalBooking.end_date >= on,
+            )
+        )
+        booked_unit_ids = {bku.unit_id for bku, _ in assign_result.all()}
+
+        future_assign_result = await self.db.execute(
+            select(RentalBookingUnit, RentalBooking)
+            .join(RentalBooking, RentalBookingUnit.booking_id == RentalBooking.id)
+            .where(
+                RentalBooking.vendor_id == vendor_id,
+                RentalBookingUnit.released_at.is_(None),
+                RentalBooking.status.in_(ACTIVE_BOOKING_STATUSES),
+                RentalBooking.end_date >= on,
+                RentalBooking.start_date <= horizon,
+            )
+        )
+        future_by_unit: dict = {}
+        for bku, b in future_assign_result.all():
+            future_by_unit.setdefault(bku.unit_id, []).append(b)
+
+        def day_row(
+            *,
+            asset_id,
+            parent_id,
+            kind: str,
+            label: str,
+            code,
+            capacity: float,
+            reserved: float,
+            is_maintenance: bool,
+            is_blocked: bool = False,
+            unit_id=None,
+            next_bookings: Optional[list] = None,
+            display_start: Optional[date] = None,
+            display_end: Optional[date] = None,
+        ) -> dict:
+            if is_blocked:
+                status = "unavailable"
+                avail = 0.0
+            elif is_maintenance:
+                status = "unavailable"
+                avail = 0.0
+            elif reserved <= 0:
+                status = "available"
+                avail = max(0.0, capacity)
+            elif capacity > 0 and reserved < capacity:
+                status = "partial"
+                avail = max(0.0, capacity - reserved)
+            else:
+                status = "booked"
+                avail = 0.0
+            if is_blocked or is_maintenance:
+                next_date, next_time = None, None
+            elif reserved >= max(capacity, 1.0) and not next_bookings:
+                # Occupied in inventory but no dated booking to project a free slot from.
+                next_date, next_time = None, None
+            else:
+                next_date, next_time = self._next_available_slot(
+                    on=on,
+                    today=today,
+                    capacity=capacity,
+                    bookings=list(next_bookings or []),
+                    display_start=display_start,
+                    display_end=display_end,
+                    blocked=False,
+                )
+            return {
+                "id": str(unit_id or asset_id),
+                "asset_id": str(asset_id),
+                "parent_asset_id": str(parent_id) if parent_id else None,
+                "unit_id": str(unit_id) if unit_id else None,
+                "kind": kind,
+                "label": label,
+                "code": code,
+                "status": status,
+                "reserved_qty": reserved,
+                "available_capacity": avail,
+                "next_available_date": next_date,
+                "next_available_time": next_time,
+            }
+
+        def in_display_window(asset: RentalAsset) -> bool:
+            if asset.display_start_date and on < asset.display_start_date:
+                return False
+            if asset.display_end_date and on > asset.display_end_date:
+                return False
+            return True
+
+        items: list[dict] = []
+        for parent in assets:
+            if parent.parent_asset_id:
+                continue
+            if parent.is_active is False:
+                continue
+            kids = children_by_parent.get(parent.id, [])
+            if kids:
+                for child in kids:
+                    if child.is_active is False:
+                        continue
+                    if not in_display_window(child) and not in_display_window(parent):
+                        continue
+                    items.append(day_row(
+                        asset_id=child.id,
+                        parent_id=parent.id,
+                        kind="child",
+                        label=f"{parent.name} · {child.name}",
+                        code=child.asset_code or parent.asset_code,
+                        capacity=float(child.capacity_max or 0),
+                        reserved=float(qty_by_asset.get(child.id, 0.0)),
+                        is_maintenance=child.status == "maintenance" or parent.status == "maintenance",
+                        next_bookings=future_by_asset.get(child.id, []),
+                        display_start=child.display_start_date or parent.display_start_date,
+                        display_end=child.display_end_date or parent.display_end_date,
+                    ))
+                continue
+
+            if not in_display_window(parent):
+                continue
+
+            if parent.unit_mode == "serialized":
+                parent_units = units_by_asset.get(parent.id, [])
+                if not parent_units:
+                    items.append(day_row(
+                        asset_id=parent.id,
+                        parent_id=None,
+                        kind="asset",
+                        label=parent.name,
+                        code=parent.asset_code,
+                        capacity=float(parent.capacity_max or 0),
+                        reserved=float(qty_by_asset.get(parent.id, 0.0)),
+                        is_maintenance=parent.status == "maintenance",
+                        next_bookings=future_by_asset.get(parent.id, []),
+                        display_start=parent.display_start_date,
+                        display_end=parent.display_end_date,
+                    ))
+                    continue
+                for unit in parent_units:
+                    blocked = (unit.condition in ("lost", "retired")) or (unit.status in ("retired", "maintenance"))
+                    reserved = 1.0 if (unit.id in booked_unit_ids or unit.status == "rented") else 0.0
+                    items.append(day_row(
+                        asset_id=parent.id,
+                        parent_id=None,
+                        kind="unit",
+                        label=f"{parent.name} · {unit.label or unit.serial_no}",
+                        code=unit.serial_no if unit.label else parent.asset_code,
+                        capacity=1.0,
+                        reserved=reserved,
+                        is_maintenance=unit.status == "maintenance" or parent.status == "maintenance",
+                        is_blocked=blocked and unit.status != "maintenance",
+                        unit_id=unit.id,
+                        next_bookings=future_by_unit.get(unit.id, []),
+                        display_start=parent.display_start_date,
+                        display_end=parent.display_end_date,
+                    ))
+                continue
+
+            if parent.is_bookable is False:
+                continue
+            items.append(day_row(
+                asset_id=parent.id,
+                parent_id=None,
+                kind="asset",
+                label=parent.name,
+                code=parent.asset_code,
+                capacity=float(parent.capacity_max or 0),
+                reserved=float(qty_by_asset.get(parent.id, 0.0)),
+                is_maintenance=parent.status == "maintenance",
+                next_bookings=future_by_asset.get(parent.id, []),
+                display_start=parent.display_start_date,
+                display_end=parent.display_end_date,
+            ))
+
+        counts = {"all": len(items), "available": 0, "partial": 0, "booked": 0, "unavailable": 0}
+        for it in items:
+            counts[it["status"]] = counts.get(it["status"], 0) + 1
+
+        return {"date": on.isoformat(), "items": items, "counts": counts}
 
     # ── bookings ─────────────────────────────────────────────────
 
@@ -902,8 +1856,15 @@ class RentalService:
             if weight is not None and a.get("max_weight") is not None and weight > float(a["max_weight"]):
                 continue
             if start_date and end_date:
-                reserved = await self._reserved_qty_for_range(UUID(a["id"]), start_date, end_date)
-                free = float(a["capacity_max"]) - reserved
+                asset_id = UUID(a["id"])
+                if a.get("unit_mode") == "serialized":
+                    free = await self._free_serialized_units_for_range(
+                        vendor_id, asset_id, start_date, end_date
+                    )
+                    reserved = float(a.get("unit_count", 0)) - free
+                else:
+                    reserved = await self._reserved_qty_for_range(asset_id, start_date, end_date)
+                    free = float(a["capacity_max"]) - reserved
                 if free < quantity:
                     continue
                 a = {**a, "available_capacity": free, "period_reserved_qty": reserved}
@@ -929,6 +1890,10 @@ class RentalService:
             raise HTTPException(400, "End date must be on or after start date")
         if start < date.today():
             raise HTTPException(400, "Start date cannot be in the past")
+        start_time = self._parse_optional_time(data.get("start_time"))
+        end_time = self._parse_optional_time(data.get("end_time"))
+        if start_time and end_time and start == end and end_time < start_time:
+            raise HTTPException(400, "End time must be on or after start time on the same day")
         window_err = self._booking_within_display_window(asset, start, end)
         if window_err:
             raise HTTPException(400, window_err)
@@ -948,13 +1913,28 @@ class RentalService:
             if asset.max_weight is not None and weight > float(asset.max_weight):
                 raise HTTPException(400, f"Requested weight exceeds maximum ({asset.max_weight} {asset.weight_unit})")
 
-        reserved = await self._reserved_qty_for_range(asset.id, start, end)
-        free = float(asset.capacity_max or 0) - reserved
+        if asset.unit_mode == "serialized":
+            free = await self._free_serialized_units_for_range(vendor_id, asset.id, start, end)
+        else:
+            reserved = await self._reserved_qty_for_range(asset.id, start, end)
+            free = float(asset.capacity_max or 0) - reserved
         if quantity > free:
             raise HTTPException(409, f"Only {free:g} {asset.capacity_unit} available for those dates")
 
         plan = data.get("pricing_plan") or "daily"
-        rental_amount = self._calc_rental_amount(asset, start, end, plan, quantity)
+        charge_ids = data.get("additional_charge_ids")
+        if charge_ids is not None and not isinstance(charge_ids, list):
+            charge_ids = None
+        rental_amount = self._calc_rental_amount(
+            asset,
+            start,
+            end,
+            plan,
+            quantity,
+            start_time=start_time,
+            end_time=end_time,
+            additional_charge_ids=charge_ids,
+        )
         if weight and float(asset.extra_weight_charge or 0) > 0:
             rental_amount += round(weight * float(asset.extra_weight_charge), 2)
         deposit = float(asset.deposit_amount or 0)
@@ -966,19 +1946,39 @@ class RentalService:
             else asset.sales_area_id
         )
 
-        # Credit gate: clear prior dues + respect credit / max-payment limits
+        # Read vendor rental settings to apply per-vendor behaviour toggles
+        rental_settings = await self._get_rental_settings(vendor_id)
+        credit_gate_enabled = rental_settings.get("credit_gate_enabled", True)
+        require_deposit = rental_settings.get("require_deposit", True)
+        auto_approve_storefront = rental_settings.get("auto_approve_storefront", False)
+
+        if require_deposit and deposit <= 0:
+            raise HTTPException(400, "A deposit is required for this rental. Please contact the vendor.")
+
         from app.services.crm.credit_gate import (
             adjust_outstanding,
             assert_credit_allows_booking,
         )
-        credit_row = await assert_credit_allows_booking(
-            self.db,
-            vendor_id,
-            amount=Decimal(str(total)),
-            customer_id=customer_id,
-            party_name=data.get("customer_name"),
-            party_phone=data.get("customer_phone"),
-        )
+        if credit_gate_enabled:
+            # Credit gate: block new bookings for parties with outstanding dues
+            credit_row = await assert_credit_allows_booking(
+                self.db,
+                vendor_id,
+                amount=Decimal(str(total)),
+                customer_id=customer_id,
+                party_name=data.get("customer_name"),
+                party_phone=data.get("customer_phone"),
+            )
+        else:
+            # Gate disabled — still need the credit row for outstanding tracking
+            from app.services.crm.credit_gate import find_credit_control
+            credit_row = await find_credit_control(
+                self.db,
+                vendor_id,
+                customer_id=customer_id,
+                party_name=data.get("customer_name"),
+                party_phone=data.get("customer_phone"),
+            )
 
         needs_delivery = bool(data.get("needs_delivery") or data.get("delivery_address"))
         initial_status = "pending"
@@ -986,6 +1986,9 @@ class RentalService:
             initial_status = "approved"
         elif vendor_created and data.get("status") in ("pending", "approved", "confirmed"):
             initial_status = data["status"]
+        elif not vendor_created and auto_approve_storefront:
+            # Vendor has opted in to auto-approving customer-placed bookings
+            initial_status = "approved"
 
         booking = RentalBooking(
             vendor_id=vendor_id,
@@ -1001,6 +2004,8 @@ class RentalService:
             pricing_plan=plan,
             start_date=start,
             end_date=end,
+            start_time=start_time,
+            end_time=end_time,
             rental_amount=Decimal(str(rental_amount)),
             deposit_amount=Decimal(str(deposit)),
             total_amount=Decimal(str(total)),
@@ -1019,6 +2024,10 @@ class RentalService:
                 self._append_timeline(booking, "Admin Approved", "Auto-approved when created by vendor")
         else:
             self._append_timeline(booking, "Booking Requested", "Customer submitted rental request")
+            if initial_status == "approved":
+                if booking.start_date and booking.end_date:
+                    self._ensure_display_window_covers_booking(asset, booking.start_date, booking.end_date)
+                self._append_timeline(booking, "Auto-Approved", "Storefront booking auto-approved per vendor settings")
 
         # Unpaid booking increases outstanding (cleared when payment recorded as paid)
         await adjust_outstanding(self.db, credit_row, Decimal(str(total)))
@@ -1068,6 +2077,9 @@ class RentalService:
             self._append_timeline(booking, "Rental Active", "Asset allocated and rental period started")
             asset.current_occupancy = Decimal(str(float(asset.current_occupancy or 0) + qty))
             self._sync_occupancy_status(asset)
+            # Auto-assign serialized units when the rental goes live
+            if asset.unit_mode == "serialized":
+                await self._auto_assign_units(vendor_id, booking, int(float(booking.quantity or 1)))
         elif status == "completed":
             self._append_timeline(booking, "Rental Completed", "Rental period finished")
             if prev == "active":
@@ -1109,8 +2121,13 @@ class RentalService:
             )
         # Check capacity for the extended window only
         ext_start = booking.end_date + timedelta(days=1)
-        reserved = await self._reserved_qty_for_range(asset.id, ext_start, new_end_date, booking.id)
-        free = float(asset.capacity_max or 0) - reserved
+        if asset.unit_mode == "serialized":
+            free = await self._free_serialized_units_for_range(
+                vendor_id, asset.id, ext_start, new_end_date, booking.id
+            )
+        else:
+            reserved = await self._reserved_qty_for_range(asset.id, ext_start, new_end_date, booking.id)
+            free = float(asset.capacity_max or 0) - reserved
         if float(booking.quantity or 0) > free:
             raise HTTPException(409, "Insufficient capacity for the extended period")
 
@@ -1359,6 +2376,37 @@ class RentalService:
                     unit.status = "retired"
                 else:
                     unit.status = "available"
+            # Close the join rows for these units
+            bku_result = await self.db.execute(
+                select(RentalBookingUnit).where(
+                    RentalBookingUnit.booking_id == booking.id,
+                    RentalBookingUnit.unit_id.in_([UUID(u) for u in unit_ids]),
+                    RentalBookingUnit.released_at.is_(None),
+                )
+            )
+            for bku in bku_result.scalars().all():
+                bku.released_at = datetime.now(timezone.utc)
+        else:
+            # No specific units listed — close ALL open assignment rows for this booking
+            # (happens when the whole booking is returned without specifying units)
+            all_bku_result = await self.db.execute(
+                select(RentalBookingUnit, RentalAssetUnit)
+                .join(RentalAssetUnit, RentalBookingUnit.unit_id == RentalAssetUnit.id)
+                .where(
+                    RentalBookingUnit.booking_id == booking.id,
+                    RentalBookingUnit.released_at.is_(None),
+                )
+            )
+            for bku, unit in all_bku_result.all():
+                bku.released_at = datetime.now(timezone.utc)
+                if condition == "damaged":
+                    unit.condition = "damaged"
+                    unit.status = "maintenance"
+                elif condition == "missing":
+                    unit.condition = "lost"
+                    unit.status = "retired"
+                else:
+                    unit.status = "available"
 
         # Adjust outstanding if there are extra charges (damage / late fee)
         extra_charges = damage_charge + late_fee
@@ -1392,6 +2440,246 @@ class RentalService:
             "created_at": u.created_at.isoformat() if u.created_at else None,
             "updated_at": u.updated_at.isoformat() if u.updated_at else None,
         }
+
+    def _booking_unit_dict(self, bku: RentalBookingUnit, unit: RentalAssetUnit) -> dict:
+        return {
+            "id": str(bku.id),
+            "booking_id": str(bku.booking_id),
+            "unit_id": str(bku.unit_id),
+            "serial_no": unit.serial_no,
+            "label": unit.label,
+            "condition": unit.condition or "good",
+            "status": unit.status or "rented",
+            "assigned_at": bku.assigned_at.isoformat() if bku.assigned_at else None,
+            "released_at": bku.released_at.isoformat() if bku.released_at else None,
+            "assigned_by": bku.assigned_by,
+            "notes": bku.notes,
+        }
+
+    # ── Unit assignment helpers ───────────────────────────────────────
+
+    async def _auto_assign_units(
+        self,
+        vendor_id: UUID,
+        booking: RentalBooking,
+        qty_needed: int,
+        assigned_by: str = "system",
+    ) -> list[RentalAssetUnit]:
+        """Pick `qty_needed` available units from the booking's asset, create join rows,
+        and mark each unit as 'rented'. Returns the list of assigned units."""
+        existing_result = await self.db.execute(
+            select(func.count()).select_from(RentalBookingUnit).where(
+                RentalBookingUnit.booking_id == booking.id,
+                RentalBookingUnit.released_at.is_(None),
+            )
+        )
+        already = existing_result.scalar_one() or 0
+        still_need = max(0, qty_needed - already)
+        if still_need == 0:
+            return []
+
+        avail_result = await self.db.execute(
+            select(RentalAssetUnit).where(
+                RentalAssetUnit.asset_id == booking.asset_id,
+                RentalAssetUnit.vendor_id == vendor_id,
+                RentalAssetUnit.status == "available",
+            ).limit(still_need)
+        )
+        units = avail_result.scalars().all()
+
+        for unit in units:
+            unit.status = "rented"
+            bku = RentalBookingUnit(
+                booking_id=booking.id,
+                unit_id=unit.id,
+                vendor_id=vendor_id,
+                assigned_by=assigned_by,
+            )
+            self.db.add(bku)
+
+        if units:
+            serials = ", ".join(u.serial_no for u in units)
+            self._append_timeline(
+                booking,
+                "Units Assigned",
+                f"Auto-assigned {len(units)} unit(s): {serials}",
+            )
+        return list(units)
+
+    async def get_booking_units(self, vendor_id: UUID, booking_id: UUID) -> list[dict]:
+        """Return all active (not released) unit assignments for a booking."""
+        result = await self.db.execute(
+            select(RentalBooking).where(
+                RentalBooking.id == booking_id,
+                RentalBooking.vendor_id == vendor_id,
+            )
+        )
+        if not result.scalar_one_or_none():
+            raise HTTPException(404, "Rental booking not found")
+
+        bku_result = await self.db.execute(
+            select(RentalBookingUnit, RentalAssetUnit)
+            .join(RentalAssetUnit, RentalBookingUnit.unit_id == RentalAssetUnit.id)
+            .where(
+                RentalBookingUnit.booking_id == booking_id,
+                RentalBookingUnit.released_at.is_(None),
+            )
+            .order_by(RentalAssetUnit.serial_no)
+        )
+        return [self._booking_unit_dict(bku, unit) for bku, unit in bku_result.all()]
+
+    async def assign_units_to_booking(
+        self, vendor_id: UUID, booking_id: UUID, data: dict
+    ) -> list[dict]:
+        """Assign specific or auto-picked units to a booking.
+
+        Body:
+          unit_ids   – optional list of specific unit UUIDs to assign
+          auto       – if True and unit_ids empty, auto-pick from available pool
+          assigned_by – label for the timeline event (defaults to 'vendor')
+        """
+        result = await self.db.execute(
+            select(RentalBooking, RentalAsset)
+            .join(RentalAsset, RentalBooking.asset_id == RentalAsset.id)
+            .where(RentalBooking.id == booking_id, RentalBooking.vendor_id == vendor_id)
+        )
+        row = result.first()
+        if not row:
+            raise HTTPException(404, "Rental booking not found")
+        booking, asset = row
+
+        if asset.unit_mode != "serialized":
+            raise HTTPException(400, "This asset does not use serialized unit tracking")
+
+        assigned_by = data.get("assigned_by") or "vendor"
+        unit_ids = data.get("unit_ids") or []
+
+        if unit_ids:
+            unit_result = await self.db.execute(
+                select(RentalAssetUnit).where(
+                    RentalAssetUnit.id.in_([UUID(u) for u in unit_ids]),
+                    RentalAssetUnit.asset_id == asset.id,
+                    RentalAssetUnit.vendor_id == vendor_id,
+                )
+            )
+            units = unit_result.scalars().all()
+            if len(units) != len(unit_ids):
+                raise HTTPException(400, "One or more unit IDs are invalid for this asset")
+
+            for unit in units:
+                if unit.status not in ("available",):
+                    raise HTTPException(
+                        400,
+                        f"Unit {unit.serial_no} is not available (status: {unit.status}). "
+                        "Use reassign to swap a rented unit.",
+                    )
+                unit.status = "rented"
+                bku = RentalBookingUnit(
+                    booking_id=booking.id,
+                    unit_id=unit.id,
+                    vendor_id=vendor_id,
+                    assigned_by=assigned_by,
+                )
+                self.db.add(bku)
+
+            serials = ", ".join(u.serial_no for u in units)
+            self._append_timeline(booking, "Units Assigned", f"Assigned: {serials}")
+        else:
+            qty = int(float(booking.quantity or 1))
+            await self._auto_assign_units(vendor_id, booking, qty, assigned_by)
+
+        await self.db.commit()
+        return await self.get_booking_units(vendor_id, booking_id)
+
+    async def reassign_unit(
+        self,
+        vendor_id: UUID,
+        booking_id: UUID,
+        from_unit_id: UUID,
+        data: dict,
+    ) -> list[dict]:
+        """Swap a currently-assigned unit for a replacement.
+
+        Body:
+          to_unit_id  – UUID of the replacement unit (must be 'available')
+          notes       – optional reason for the swap
+          assigned_by – optional label
+        """
+        result = await self.db.execute(
+            select(RentalBooking, RentalAsset)
+            .join(RentalAsset, RentalBooking.asset_id == RentalAsset.id)
+            .where(RentalBooking.id == booking_id, RentalBooking.vendor_id == vendor_id)
+        )
+        row = result.first()
+        if not row:
+            raise HTTPException(404, "Rental booking not found")
+        booking, asset = row
+
+        # Find the active assignment row for the outgoing unit
+        bku_result = await self.db.execute(
+            select(RentalBookingUnit, RentalAssetUnit)
+            .join(RentalAssetUnit, RentalBookingUnit.unit_id == RentalAssetUnit.id)
+            .where(
+                RentalBookingUnit.booking_id == booking_id,
+                RentalBookingUnit.unit_id == from_unit_id,
+                RentalBookingUnit.released_at.is_(None),
+            )
+        )
+        row2 = bku_result.first()
+        if not row2:
+            raise HTTPException(404, "Unit is not currently assigned to this booking")
+        old_bku, from_unit = row2
+
+        to_unit_id_str = data.get("to_unit_id")
+        if not to_unit_id_str:
+            raise HTTPException(400, "to_unit_id is required")
+        to_unit_id = UUID(str(to_unit_id_str))
+
+        to_unit_result = await self.db.execute(
+            select(RentalAssetUnit).where(
+                RentalAssetUnit.id == to_unit_id,
+                RentalAssetUnit.asset_id == asset.id,
+                RentalAssetUnit.vendor_id == vendor_id,
+            )
+        )
+        to_unit = to_unit_result.scalar_one_or_none()
+        if not to_unit:
+            raise HTTPException(404, "Replacement unit not found for this asset")
+        if to_unit.status != "available":
+            raise HTTPException(
+                400,
+                f"Replacement unit {to_unit.serial_no} is not available (status: {to_unit.status})",
+            )
+
+        notes = data.get("notes")
+        assigned_by = data.get("assigned_by") or "vendor"
+
+        # Release the old assignment
+        old_bku.released_at = datetime.now(timezone.utc)
+        old_bku.notes = (old_bku.notes or "") + (f" [reassigned: {notes}]" if notes else " [reassigned]")
+
+        # Mark old unit available, new unit rented
+        from_unit.status = "available"
+        to_unit.status = "rented"
+
+        # Open a new assignment row for the replacement
+        new_bku = RentalBookingUnit(
+            booking_id=booking_id,
+            unit_id=to_unit_id,
+            vendor_id=vendor_id,
+            assigned_by=assigned_by,
+            notes=notes,
+        )
+        self.db.add(new_bku)
+
+        self._append_timeline(
+            booking,
+            "Unit Reassigned",
+            f"{from_unit.serial_no} → {to_unit.serial_no}" + (f" · Reason: {notes}" if notes else ""),
+        )
+
+        await self.db.commit()
+        return await self.get_booking_units(vendor_id, booking_id)
 
     async def list_asset_children(self, vendor_id: UUID, parent_id: UUID) -> list[dict]:
         result = await self.db.execute(

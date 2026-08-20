@@ -29,6 +29,7 @@ export default function RentalHubPage() {
   const navigate = useNavigate()
   const [selectedBooking, setSelectedBooking] = useState<RentalBooking | null>(null)
   const [returnBooking, setReturnBooking] = useState<RentalBooking | null>(null)
+  const [calendarBookPrefill, setCalendarBookPrefill] = useState<Record<string, unknown> | null>(null)
 
   const tab = (params.get('tab') as Tab) || 'dashboard'
   const assetSheetParam = params.get('asset')
@@ -111,7 +112,10 @@ export default function RentalHubPage() {
   const openCreateAsset = () => patch({ tab: 'assets', asset: 'new' }, false)
   const closeAssetSheet = () => patch({ asset: null }, false)
 
-  const openCreateBooking = () => patch({ tab: 'bookings', booking: 'new' }, false)
+  const openCreateBooking = () => {
+    setCalendarBookPrefill(null)
+    patch({ tab: 'bookings', booking: 'new' }, false)
+  }
   const openBookingDetail = (b: RentalBooking) => {
     setSelectedBooking(b)
     patch({ tab: tab === 'dashboard' ? 'bookings' : tab, booking: b.id }, false)
@@ -207,6 +211,10 @@ export default function RentalHubPage() {
           assets={assets as RentalAsset[]}
           assetId={calAssetId}
           onAssetChange={(id) => patch({ calAsset: id || null })}
+          onBookRequest={(req) => {
+            setCalendarBookPrefill(req)
+            patch({ booking: 'new' }, false)
+          }}
         />
       )}
 
@@ -222,11 +230,16 @@ export default function RentalHubPage() {
 
       <RentalBookingCreateSheet
         open={bookingCreateOpen}
-        onClose={() => patch({ booking: null }, false)}
+        onClose={() => {
+          setCalendarBookPrefill(null)
+          patch({ booking: null }, false)
+        }}
         assets={assets as RentalAsset[]}
         customers={customers}
         salesAreaOptions={salesAreaOptions}
+        initialValues={calendarBookPrefill}
         onCreated={(b) => {
+          setCalendarBookPrefill(null)
           setSelectedBooking(b)
           patch({ tab: 'bookings', booking: b.id }, false)
         }}

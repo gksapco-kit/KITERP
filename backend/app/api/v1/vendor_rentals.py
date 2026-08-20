@@ -80,6 +80,17 @@ async def delete_rental_asset(
     await RentalService(db).delete_asset(vendor_id, asset_id)
 
 
+@router.get("/availability")
+async def day_availability(
+    on: date = Query(..., alias="date", description="List asset/unit availability for this day"),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Flat list of bookable assets / units for a single date (date-browse mode)."""
+    return await RentalService(db).get_day_availability(vendor_id, on)
+
+
 @router.get("/assets/{asset_id}/calendar")
 async def asset_availability_calendar(
     asset_id: UUID,
@@ -263,3 +274,59 @@ async def list_return_history(
     _user: User = Depends(get_current_active_user),
 ):
     return await RentalService(db).list_return_history(vendor_id, booking_id)
+
+
+# ── Unit assignment ─────────────────────────────────────────────────────
+
+@router.get("/bookings/{booking_id}/units")
+async def get_booking_units(
+    booking_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """List the serialized units currently assigned to this booking."""
+    return await RentalService(db).get_booking_units(vendor_id, booking_id)
+
+
+@router.post(
+    "/bookings/{booking_id}/assign-units",
+    status_code=201,
+    dependencies=[Depends(require_permission("rentals.manage"))],
+)
+async def assign_units_to_booking(
+    booking_id: UUID,
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Manually assign specific units (by unit_ids list) or auto-pick from the available pool.
+
+    Body:
+      unit_ids    – optional list of specific unit UUIDs
+      assigned_by – optional label shown in the timeline (defaults to 'vendor')
+    """
+    return await RentalService(db).assign_units_to_booking(vendor_id, booking_id, body)
+
+
+@router.post(
+    "/bookings/{booking_id}/units/{from_unit_id}/reassign",
+    dependencies=[Depends(require_permission("rentals.manage"))],
+)
+async def reassign_booking_unit(
+    booking_id: UUID,
+    from_unit_id: UUID,
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Swap a currently-assigned unit for a replacement.
+
+    Body:
+      to_unit_id  – UUID of the replacement unit (must be 'available')
+      notes       – optional reason / remarks
+      assigned_by – optional actor label
+    """
+    return await RentalService(db).reassign_unit(vendor_id, booking_id, from_unit_id, body)

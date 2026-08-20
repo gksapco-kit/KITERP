@@ -15,8 +15,9 @@ import { CatalogMediaUpload } from '@/components/common/ImageUpload'
 import { extractApiError } from '@/lib/errorMessages'
 import { formatDate } from '@/lib/utils'
 import { filterCategoryTree } from '@/lib/categoryHierarchy'
-import { useCategoryTree } from '@/hooks/useVendor'
+import { useCategoryTree, useStores } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
+import { BusinessUnitScopePicker, type StoreScope } from '@/components/common/BusinessUnitScopePicker'
 import { rentalApi } from './api'
 import { toDateInputValue, pickDisplayDates } from './rentalDates'
 import {
@@ -30,6 +31,9 @@ import {
 import RentalAssetUnitsPanel from './RentalAssetUnitsPanel'
 import RentalAssetPricingFields from './RentalAssetPricingFields'
 import { RentalSuggestionCombobox } from './RentalSuggestionCombobox'
+import { durationRowsFromAsset, durationRatesForSave, durationLegacyRates } from './durationRates'
+import { periodRowsFromAsset, periodRatesForSave, periodLegacyRates } from './periodRates'
+import { additionalChargeRowsFromAsset, additionalChargesForSave } from './additionalCharges'
 import type { VendorCategory } from '@/types'
 import { flattenCategoryTree } from '@/lib/categoryHierarchy'
 
@@ -89,6 +93,7 @@ function assetToForm(a: Partial<RentalAsset> & Record<string, unknown>): AssetFo
     deposit_amount: String(a.deposit_amount ?? 0),
     extra_qty_charge: String(a.extra_qty_charge ?? 0),
     extra_weight_charge: String(a.extra_weight_charge ?? 0),
+    additional_charges: additionalChargeRowsFromAsset(a),
     sales_area_id: String(a.sales_area_id || ''),
     location: String(a.location || ''),
     section: String(a.section || ''),
@@ -98,10 +103,13 @@ function assetToForm(a: Partial<RentalAsset> & Record<string, unknown>): AssetFo
     operational_status: operationalStatusFromAsset(a),
     is_visible: a.is_visible !== false,
     store_scope: String(a.store_scope || 'all'),
+    store_ids: Array.isArray(a.store_ids) ? a.store_ids.map(String) : [],
     availability_mode: hasRange ? 'date_range' : 'always',
     display_start_date: start,
     display_end_date: end,
     notes: String(a.notes || ''),
+    delivery_info: String(a.delivery_info || ''),
+    delivery_enabled: a.delivery_enabled === true,
     unit_mode: String(a.unit_mode || 'none'),
     parent_asset_id: String(a.parent_asset_id || ''),
     is_bookable: a.is_bookable !== false,
@@ -110,6 +118,9 @@ function assetToForm(a: Partial<RentalAsset> & Record<string, unknown>): AssetFo
     hourly_rate: String(a.hourly_rate ?? 0),
     per_minute_rate: String(a.per_minute_rate ?? 0),
     yearly_rate: String(a.yearly_rate ?? 0),
+    duration_rates: durationRowsFromAsset(a),
+    period_rates: periodRowsFromAsset(a),
+    tax_rate: String(Number(a.tax_rate ?? 0)),
   }
 }
 
@@ -165,6 +176,8 @@ export default function RentalAssetSheet({
   const featureExtendedRates = rentalSettings?.feature_extended_rates !== false
   const featurePerUnitPricing = rentalSettings?.feature_per_unit_pricing !== false
   const assetCodePrefix = String(rentalSettings?.asset_code_prefix || DEFAULT_ASSET_CODE_PREFIX)
+  const { data: storesData } = useStores()
+  const businessUnits = storesData?.stores ?? []
 
   // ── Category tree ─────────────────────────────────────────────────────────
   const { data: categoryTreeData } = useCategoryTree()
@@ -211,7 +224,8 @@ export default function RentalAssetSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, assetId])
 
-  const set = (key: keyof AssetFormState, value: string) => setForm((f) => ({ ...f, [key]: value }))
+  const set = (key: keyof AssetFormState, value: AssetFormState[keyof AssetFormState]) =>
+    setForm((f) => ({ ...f, [key]: value }))
   const toggleSection = (key: keyof typeof openSections) =>
     setOpenSections((s) => ({ ...s, [key]: !s[key] }))
 
@@ -417,12 +431,10 @@ export default function RentalAssetSheet({
       max_weight: cfg.showWeight && form.max_weight ? Number(form.max_weight) : null,
       weight_unit: form.weight_unit,
       currency: (form.currency || 'INR').toUpperCase(),
-      daily_rate: Number(form.daily_rate) || 0,
-      weekly_rate: Number(form.weekly_rate) || 0,
-      monthly_rate: Number(form.monthly_rate) || 0,
       deposit_amount: Number(form.deposit_amount) || 0,
-      extra_qty_charge: Number(form.extra_qty_charge) || 0,
+      extra_qty_charge: 0,
       extra_weight_charge: Number(form.extra_weight_charge) || 0,
+      additional_charges: additionalChargesForSave(form.additional_charges),
       sales_area_id: form.sales_area_id || null,
       location: form.location || undefined,
       section: form.section || undefined,
@@ -431,17 +443,34 @@ export default function RentalAssetSheet({
       status: form.operational_status || 'available',
       is_visible: form.is_visible,
       store_scope: form.store_scope || 'all',
+      store_ids: form.store_scope === 'selected' ? (form.store_ids || []) : [],
       display_start_date: useRange ? (start || null) : null,
       display_end_date: useRange ? (end || null) : null,
       notes: form.notes || undefined,
+      delivery_info: (form.delivery_info || '').trim() || null,
+      delivery_enabled: Boolean(form.delivery_enabled),
       unit_mode: form.unit_mode || 'none',
       parent_asset_id: form.parent_asset_id || null,
       is_bookable: form.is_bookable,
       price_per_unit: Number(form.price_per_unit) || 0,
       pricing_uom: (form.pricing_uom || '').trim() || null,
-      hourly_rate: Number(form.hourly_rate) || 0,
-      per_minute_rate: Number(form.per_minute_rate) || 0,
-      yearly_rate: Number(form.yearly_rate) || 0,
+      ...(() => {
+        const duration_rates = durationRatesForSave(form.duration_rates)
+        const legacy = durationLegacyRates(duration_rates)
+        const period_rates = periodRatesForSave(form.period_rates)
+        const periodLegacy = periodLegacyRates(period_rates)
+        return {
+          duration_rates,
+          hourly_rate: legacy.hourly_rate,
+          per_minute_rate: legacy.per_minute_rate,
+          period_rates,
+          daily_rate: periodLegacy.daily_rate || Number(form.daily_rate) || 0,
+          weekly_rate: periodLegacy.weekly_rate || Number(form.weekly_rate) || 0,
+          monthly_rate: periodLegacy.monthly_rate || Number(form.monthly_rate) || 0,
+          yearly_rate: periodLegacy.yearly_rate || Number(form.yearly_rate) || 0,
+        }
+      })(),
+      tax_rate: Number(form.tax_rate) || 0,
     }
   }
 
@@ -507,6 +536,11 @@ export default function RentalAssetSheet({
         setOpenSections((s) => ({ ...s, availability: true }))
         return
       }
+    }
+    if (form.store_scope === 'selected' && !(form.store_ids || []).length) {
+      toast.error('Select at least one business unit')
+      setOpenSections((s) => ({ ...s, location: true }))
+      return
     }
     try {
       const body = assetPayload()
@@ -778,6 +812,7 @@ export default function RentalAssetSheet({
             <RentalAssetPricingFields
               form={form}
               set={set}
+              assetName={form.name}
               compact
               syncKey={assetId || 'new'}
               featureCapacityTracking={featureCapacityTracking}
@@ -853,6 +888,35 @@ export default function RentalAssetSheet({
                   {displayDateLockError && <p className="pt-1 font-medium text-rose-700 dark:text-rose-400">{displayDateLockError}</p>}
                 </div>
               )}
+
+              <div className="space-y-3">
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={form.delivery_enabled}
+                    onChange={(e) => set('delivery_enabled', e.target.checked)}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-foreground">Offer delivery on storefront</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Shows a “Need delivery” checkbox when customers book this asset.
+                    </span>
+                  </span>
+                </label>
+                <div>
+                  <FieldLabel>Storefront delivery / booking note</FieldLabel>
+                  <Input
+                    value={form.delivery_info}
+                    onChange={(e) => set('delivery_info', e.target.value.slice(0, 500))}
+                    placeholder="e.g. Delivery can be requested when you book"
+                    maxLength={500}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Shown on the public rental page. Leave blank to hide.
+                  </p>
+                </div>
+              </div>
             </div>
           </CollapsibleSection>
 
@@ -863,83 +927,126 @@ export default function RentalAssetSheet({
             open={openSections.location}
             toggle={() => toggleSection('location')}
           >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <FieldLabel>Sales Area / Route</FieldLabel>
-                <Select
-                  value={form.sales_area_id || '__none__'}
-                  onChange={(v) => set('sales_area_id', v === '__none__' ? '' : v)}
-                  options={[{ value: '__none__', label: 'No sales area' }, ...salesAreaOptions]}
-                />
-              </div>
-              <div>
-                <FieldLabel>{categoryConfig.labels.location}</FieldLabel>
-                <Input
-                  value={form.location}
-                  onChange={(e) => set('location', e.target.value)}
-                  placeholder={categoryConfig.labels.locationPlaceholder}
-                />
-              </div>
-              {categoryConfig.showRackLocation && (
-                <>
-                  <div>
-                    <FieldLabel>Section</FieldLabel>
-                    <Input value={form.section} onChange={(e) => set('section', e.target.value)} placeholder="Cold Storage – A" />
-                  </div>
-                  <div>
-                    <FieldLabel>Row</FieldLabel>
-                    <Input value={form.row_label} onChange={(e) => set('row_label', e.target.value)} placeholder="Row 01" />
-                  </div>
-                  <div>
-                    <FieldLabel>Rack Number</FieldLabel>
-                    <Input value={form.rack_number} onChange={(e) => set('rack_number', e.target.value)} placeholder="A-001" />
-                  </div>
-                </>
-              )}
-              <div>
-                <FieldLabel>Status</FieldLabel>
-                <Select
-                  value={form.operational_status}
-                  onChange={(v) => setForm((f) => ({ ...f, operational_status: v }))}
-                  options={ASSET_STATUSES}
-                />
-              </div>
-
-              {/* ── Storefront visibility ── */}
-              <div className="sm:col-span-2">
-                <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
-                  <input
-                    id="is_visible"
-                    type="checkbox"
-                    checked={form.is_visible}
-                    onChange={(e) => setForm((f) => ({ ...f, is_visible: e.target.checked }))}
-                    className="h-4 w-4 rounded border-border"
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-end gap-x-2 gap-y-2">
+                <div className="min-w-[9rem] flex-1 basis-[10rem]">
+                  <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                    Sales Area / Route
+                  </FieldLabel>
+                  <Select
+                    value={form.sales_area_id || '__none__'}
+                    onChange={(v) => set('sales_area_id', v === '__none__' ? '' : v)}
+                    options={[{ value: '__none__', label: 'No sales area' }, ...salesAreaOptions]}
+                    className="h-9 py-0 text-sm"
+                    showSelectedHint={false}
                   />
-                  <label htmlFor="is_visible" className="cursor-pointer text-sm">
-                    Visible on storefront
-                  </label>
+                </div>
+                <div className="min-w-[8rem] flex-1 basis-[9rem]">
+                  <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                    {categoryConfig.labels.location}
+                  </FieldLabel>
+                  <Input
+                    value={form.location}
+                    onChange={(e) => set('location', e.target.value)}
+                    placeholder={categoryConfig.labels.locationPlaceholder}
+                    className="h-9 py-0 text-sm"
+                  />
+                </div>
+                <div className="min-w-[8rem] flex-1 basis-[9rem]">
+                  <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                    Status
+                  </FieldLabel>
+                  <Select
+                    value={form.operational_status}
+                    onChange={(v) => setForm((f) => ({ ...f, operational_status: v }))}
+                    options={ASSET_STATUSES}
+                    className="h-9 py-0 text-sm"
+                    showSelectedHint={false}
+                  />
                 </div>
               </div>
 
-              <div>
-                <FieldLabel>Store Scope</FieldLabel>
-                <Select
-                  value={form.store_scope}
-                  onChange={(v) => set('store_scope', v)}
-                  options={[
-                    { value: 'all', label: 'All business units' },
-                    { value: 'selected', label: 'Selected units only' },
-                  ]}
+              <div className="rounded-md border border-border/60 bg-background/70 p-2.5">
+                <BusinessUnitScopePicker
+                  stores={businessUnits}
+                  scope={(form.store_scope === 'selected' ? 'selected' : 'all') as StoreScope}
+                  selectedIds={form.store_ids || []}
+                  onScopeChange={(scope) => setForm((f) => ({
+                    ...f,
+                    store_scope: scope,
+                    store_ids: scope === 'all' ? [] : f.store_ids,
+                  }))}
+                  onSelectedChange={(ids) => set('store_ids', ids)}
+                  hideHeader
                 />
               </div>
 
-              <div className="sm:col-span-2">
-                <FieldLabel>Internal Notes</FieldLabel>
+              {categoryConfig.showRackLocation && (
+                <div className="rounded-md border border-border/60 bg-background/70 p-2.5">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Rack / shelf position
+                  </p>
+                  <div className="flex flex-wrap items-end gap-x-2 gap-y-2">
+                    <div className="min-w-[9rem] flex-[1.4] basis-[11rem]">
+                      <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                        Section
+                      </FieldLabel>
+                      <Input
+                        value={form.section}
+                        onChange={(e) => set('section', e.target.value)}
+                        placeholder="Cold Storage – A"
+                        className="h-9 py-0 text-sm"
+                      />
+                    </div>
+                    <div className="w-[6.5rem] shrink-0">
+                      <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                        Row
+                      </FieldLabel>
+                      <Input
+                        value={form.row_label}
+                        onChange={(e) => set('row_label', e.target.value)}
+                        placeholder="Row 01"
+                        className="h-9 py-0 text-sm"
+                      />
+                    </div>
+                    <div className="w-[7.5rem] shrink-0">
+                      <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                        Rack Number
+                      </FieldLabel>
+                      <Input
+                        value={form.rack_number}
+                        onChange={(e) => set('rack_number', e.target.value)}
+                        placeholder="A-001"
+                        className="h-9 py-0 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 rounded-md border border-border/60 bg-background/70 px-2.5 py-2">
+                <input
+                  id="is_visible"
+                  type="checkbox"
+                  checked={form.is_visible}
+                  onChange={(e) => setForm((f) => ({ ...f, is_visible: e.target.checked }))}
+                  className="h-4 w-4 rounded border-border"
+                />
+                <label htmlFor="is_visible" className="cursor-pointer text-sm">
+                  Visible on storefront
+                </label>
+              </div>
+
+              <div>
+                <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                  Internal Notes
+                </FieldLabel>
                 <Textarea
                   rows={2}
                   value={form.notes}
                   onChange={(e) => set('notes', e.target.value)}
                   placeholder="Notes visible only to your team…"
+                  className="min-h-[3.5rem] resize-y text-sm"
                 />
               </div>
             </div>

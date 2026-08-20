@@ -276,8 +276,9 @@ export function isAddressSectionDirty(
 }
 
 export type TaxSectionForm = {
+  /** Master switch: when off, tax is not configured / applied for this unit. */
+  tax_enabled: boolean
   tax_country_code: string
-  is_gst_registered: boolean
   gstin: string
   pan_number: string
   default_tax_rate: string
@@ -288,6 +289,12 @@ export type TaxSectionForm = {
 function storeSettingsStr(settings: Record<string, unknown> | null | undefined, key: string): string {
   const raw = settings?.[key]
   return typeof raw === 'string' ? raw : typeof raw === 'number' ? String(raw) : ''
+}
+
+/** Prefer explicit tax_enabled; missing key defaults on so legacy setups stay visible. */
+function resolveTaxEnabled(settings: Record<string, unknown> | null | undefined): boolean {
+  if (settings && 'tax_enabled' in settings) return settings.tax_enabled !== false
+  return true
 }
 
 function hydrateCustomTaxRateRows(
@@ -329,9 +336,8 @@ export function taxFormFromStoreOrVendor(
         ? savedRateRaw
         : String(defaultRateForCountry(cfg))
     return {
+      tax_enabled: resolveTaxEnabled(settings),
       tax_country_code: code,
-      is_gst_registered:
-        Boolean(settings.is_tax_registered) || Boolean(gstin) || Boolean(settings.is_gst_registered),
       gstin,
       pan_number: storeSettingsStr(settings, 'pan_number'),
       default_tax_rate,
@@ -346,17 +352,14 @@ export function taxFormFromStoreOrVendor(
     savedRateRaw != null && savedRateRaw !== 0
       ? String(savedRateRaw)
       : String(defaultRateForCountry(cfg))
+  const vendorSettings = (vendor?.settings ?? {}) as Record<string, unknown>
   return {
+    tax_enabled: resolveTaxEnabled(vendorSettings),
     tax_country_code: code,
-    is_gst_registered: vendor?.is_gst_registered ?? false,
     gstin: vendor?.gstin || '',
     pan_number: vendor?.pan_number || '',
     default_tax_rate,
-    custom_tax_rates: hydrateCustomTaxRateRows(
-      (vendor?.settings ?? {}) as Record<string, unknown>,
-      code,
-      default_tax_rate,
-    ),
+    custom_tax_rates: hydrateCustomTaxRateRows(vendorSettings, code, default_tax_rate),
   }
 }
 
@@ -372,8 +375,8 @@ export function isTaxSectionDirty(
   if (opts.unused) return false
   const saved = taxFormFromStoreOrVendor(opts.store, vendor)
   return (
+    form.tax_enabled !== saved.tax_enabled ||
     normStr(form.tax_country_code) !== normStr(saved.tax_country_code) ||
-    form.is_gst_registered !== saved.is_gst_registered ||
     normStr(form.gstin) !== normStr(saved.gstin) ||
     normStr(form.pan_number) !== normStr(saved.pan_number) ||
     normStr(form.default_tax_rate) !== normStr(saved.default_tax_rate) ||

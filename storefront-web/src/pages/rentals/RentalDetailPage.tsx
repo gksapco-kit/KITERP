@@ -16,6 +16,22 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { useDocumentSeo, vendorPageTitle } from '@/lib/documentSeo'
 import { breadcrumbJsonLd, compactJsonLd, rentalJsonLd } from '@/lib/catalogSeo'
+import {
+  durationRateForPlan,
+  formatDurationLabel,
+  formatDurationSuffix,
+  parseDurationPlanMinutes,
+  periodRateForPlan,
+  storefrontRateOptions,
+} from '@/lib/rentalDurationRates'
+import {
+  applyAdditionalCharges,
+  chargeLineAmounts,
+  chargesForEstimate,
+  formatAdditionalChargeValue,
+  normalizeAdditionalCharges,
+  splitAdditionalCharges,
+} from '@/lib/rentalAdditionalCharges'
 
 type RentalAsset = {
   id: string
@@ -35,13 +51,25 @@ type RentalAsset = {
   daily_rate?: number
   weekly_rate?: number
   monthly_rate?: number
+  yearly_rate?: number
+  hourly_rate?: number
+  per_minute_rate?: number
+  duration_rates?: { minutes: number; rate: number }[]
+  period_rates?: { days: number; rate: number }[]
   deposit_amount?: number
+  additional_charges?: { id?: string; name: string; description?: string; charge_type: 'amount' | 'percent'; show_mode?: 'independent' | 'together'; value: number }[]
   location?: string
   status?: string
   image_url?: string | null
   media?: { id?: string; url?: string; is_primary?: boolean }[]
   display_start_date?: string | null
   display_end_date?: string | null
+  delivery_info?: string | null
+  delivery_enabled?: boolean
+  unit_mode?: string
+  child_count?: number
+  available_child_count?: number
+  unit_count?: number
 }
 
 function formatDisplayDate(value?: string | null) {
@@ -57,7 +85,49 @@ function availabilityLabel(asset: RentalAsset) {
   if (start && end) return `${start} – ${end}`
   if (start) return `From ${start}`
   if (end) return `Until ${end}`
-  return 'Always available'
+  return null
+}
+
+/** Capacity chip numbers — prefer sub-asset counts when hierarchy is enabled. */
+function capacityDisplay(asset: RentalAsset) {
+  const unit = asset.capacity_unit || 'units'
+  if (asset.unit_mode === 'hierarchy' && (asset.child_count ?? 0) > 0) {
+    const max = Math.max(0, Math.floor(Number(asset.child_count ?? 0)))
+    const avail = Math.max(
+      0,
+      Math.floor(Number(asset.available_child_count ?? asset.child_count ?? 0)),
+    )
+    return { avail: Math.min(avail, max), max, unit }
+  }
+  if (asset.unit_mode === 'serialized' && (asset.unit_count ?? 0) > 0) {
+    const max = Math.max(0, Math.floor(Number(asset.unit_count ?? 0)))
+    const avail = Math.max(0, Math.floor(Number(asset.available_capacity ?? 0)))
+    return { avail: Math.min(avail, max || avail), max: max || avail, unit }
+  }
+  return {
+    avail: Math.max(0, Number(asset.available_capacity ?? 0)),
+    max: Math.max(0, Number(asset.capacity_max ?? 0)),
+    unit,
+  }
+}
+
+/** Capacity-based availability — if any unit is free, treat as available. */
+function stockAvailabilityLabel(asset: RentalAsset) {
+  const status = String(asset.status || '').toLowerCase()
+  if (status === 'maintenance' || status === 'unavailable' || status === 'retired') {
+    return status.replace(/_/g, ' ')
+  }
+  const { avail, max } = capacityDisplay(asset)
+  if (max > 0) {
+    if (avail <= 0) return 'Fully booked'
+    if (avail >= max) return 'Available'
+    return `${Math.floor(avail)} of ${Math.floor(max)} available`
+  }
+  return avail > 0 ? 'Available' : 'Fully booked'
+}
+
+function availabilityChipLabel(asset: RentalAsset) {
+  return availabilityLabel(asset) || stockAvailabilityLabel(asset)
 }
 
 function statusTone(status?: string) {
@@ -72,21 +142,144 @@ function statusDot(status?: string) {
   return 'bg-gray-400'
 }
 
-function estimateTotal(asset: RentalAsset, start: string, end: string, plan: string) {
-  if (!start || !end) return { rental: 0, deposit: Number(asset.deposit_amount || 0), total: Number(asset.deposit_amount || 0), days: 0 }
+/** Local calendar YYYY-MM-DD (avoid UTC shift from toISOString). */
+function localYmd(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function parseLocalYmd(value: string): Date | null {
+  if (!value || value.length < 10) return null
+  const d = new Date(`${value.slice(0, 10)}T00:00:00`)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/**
+ * Default rental window for a pricing plan, starting from `fromYmd` (or today).
+ * Inclusive date ranges match backend billing: daily = 1 day, weekly = 7 days, etc.
+ */
+function datesForPlan(
+  plan: string,
+  fromYmd?: string,
+  window?: { min?: string | null; max?: string | null },
+): { start: string; end: string } {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  let start = fromYmd ? parseLocalYmd(fromYmd) : new Date(today)
+  if (!start || start < today) start = new Date(today)
+
+  const minBound = window?.min ? parseLocalYmd(String(window.min).slice(0, 10)) : null
+  const maxBound = window?.max ? parseLocalYmd(String(window.max).slice(0, 10)) : null
+  if (minBound && start < minBound) start = new Date(minBound)
+
+  const end = new Date(start)
+  const p = (plan || 'daily').toLowerCase()
+  if (p === 'weekly') {
+    end.setDate(end.getDate() + 6)
+  } else if (p === 'monthly') {
+    end.setMonth(end.getMonth() + 1)
+    end.setDate(end.getDate() - 1)
+  } else if (p === 'yearly') {
+    end.setFullYear(end.getFullYear() + 1)
+    end.setDate(end.getDate() - 1)
+  }
+  // daily / hourly / per_minute → same calendar day
+
+  if (maxBound && end > maxBound) end.setTime(maxBound.getTime())
+  if (end < start) end.setTime(start.getTime())
+
+  return { start: localYmd(start), end: localYmd(end) }
+}
+
+/** Default from/to times for a plan (24h HH:MM). End matches start (check-in / check-out clock). */
+function timesForPlan(plan: string): { startTime: string; endTime: string } {
+  const p = (plan || 'daily').toLowerCase()
+  // Same clock time for start and end — period length comes from the dates (or user adjusts).
+  if (p === 'hourly' || p === 'per_minute' || p.startsWith('dur_')) {
+    return { startTime: '10:00', endTime: '10:00' }
+  }
+  return { startTime: '10:00', endTime: '10:00' }
+}
+
+function minutesBetween(
+  startDate: string,
+  endDate: string,
+  startTime: string,
+  endTime: string,
+): number {
+  const s = parseLocalYmd(startDate)
+  const e = parseLocalYmd(endDate)
+  if (!s || !e) return 0
+  const [sh, sm] = (startTime || '00:00').split(':').map(Number)
+  const [eh, em] = (endTime || '00:00').split(':').map(Number)
+  s.setHours(sh || 0, sm || 0, 0, 0)
+  e.setHours(eh || 0, em || 0, 0, 0)
+  let ms = e.getTime() - s.getTime()
+  if (ms <= 0) {
+    // Same (or inverted) clock time — estimate at least 1 hour
+    return 60
+  }
+  return Math.max(1, Math.round(ms / 60000))
+}
+
+function estimateTotal(
+  asset: RentalAsset,
+  start: string,
+  end: string,
+  plan: string,
+  startTime = '10:00',
+  endTime = '10:00',
+  selectedIndependentIds: string[] = [],
+) {
+  if (!start || !end) {
+    return {
+      rental: 0,
+      deposit: Number(asset.deposit_amount || 0),
+      extras: normalizeAdditionalCharges(asset.additional_charges),
+      total: Number(asset.deposit_amount || 0),
+      days: 0,
+      minutes: 0,
+    }
+  }
   const s = new Date(start)
   const e = new Date(end)
   const days = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1)
+  const minutes = minutesBetween(start, end, startTime, endTime)
   let rental = 0
-  if (plan === 'monthly' && Number(asset.monthly_rate) > 0) {
-    rental = Number(asset.monthly_rate) * Math.max(1, Math.ceil(days / 30))
-  } else if (plan === 'weekly' && Number(asset.weekly_rate) > 0) {
-    rental = Number(asset.weekly_rate) * Math.max(1, Math.ceil(days / 7))
+  const periodSlot = periodRateForPlan(asset.period_rates, plan, {
+    daily: Number(asset.daily_rate || 0),
+    weekly: Number(asset.weekly_rate || 0),
+    monthly: Number(asset.monthly_rate || 0),
+    yearly: Number(asset.yearly_rate || 0),
+  })
+  if (periodSlot) {
+    rental = periodSlot.rate * Math.max(1, Math.ceil(days / periodSlot.days))
   } else {
-    rental = Number(asset.daily_rate || 0) * days
+    const slot = durationRateForPlan(
+      asset.duration_rates,
+      plan,
+      Number(asset.hourly_rate || 0),
+      Number(asset.per_minute_rate || 0),
+    )
+    if (slot) {
+      rental = slot.rate * Math.max(1, Math.ceil(minutes / slot.minutes))
+    } else {
+      rental = Number(asset.daily_rate || 0) * days
+    }
   }
   const deposit = Number(asset.deposit_amount || 0)
-  return { rental, deposit, total: rental + deposit, days }
+  const extras = normalizeAdditionalCharges(asset.additional_charges)
+  return {
+    rental,
+    deposit,
+    extras,
+    total: applyAdditionalCharges(rental, extras, selectedIndependentIds, deposit) + deposit,
+    days,
+    minutes,
+  }
 }
 
 export default function RentalDetailPage() {
@@ -105,12 +298,25 @@ export default function RentalDetailPage() {
   const [bookQty, setBookQty] = useState('1')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [startTime, setStartTime] = useState('10:00')
+  const [endTime, setEndTime] = useState('10:00')
   const [pricingPlan, setPricingPlan] = useState('daily')
   const [notes, setNotes] = useState('')
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [needsDelivery, setNeedsDelivery] = useState(false)
+  const [selectedExtras, setSelectedExtras] = useState<string[]>([])
   const [confirmedBooking, setConfirmedBooking] = useState<Record<string, unknown> | null>(null)
   const [payMethod, setPayMethod] = useState('upi')
+
+  // Keep the selected plan in sync with rates configured on this asset
+  useEffect(() => {
+    if (!asset) return
+    const options = storefrontRateOptions(asset)
+    if (!options.length) return
+    if (!options.some((o) => o.plan === pricingPlan)) {
+      setPricingPlan(options[0].plan)
+    }
+  }, [asset, pricingPlan])
 
   const primaryColor = theme?.colors?.primary || '#64C3A0'
   const mediaItems = useMemo(() => {
@@ -164,23 +370,105 @@ export default function RentalDetailPage() {
     setActiveMedia(0)
   }, [asset?.id])
 
-  const avail = Number(asset?.available_capacity ?? 0)
-  const max = Number(asset?.capacity_max ?? 0)
-  const pct = max > 0 ? Math.min(100, Math.round(((max - avail) / max) * 100)) : 0
-  const price = asset ? estimateTotal(asset, startDate, endDate, pricingPlan) : null
+  // If the book form is open (e.g. deep link ?book=1) but dates are empty, fill from the selected plan
+  useEffect(() => {
+    if (!showBook || !asset) return
+    if (startDate && endDate) return
+    const range = datesForPlan(pricingPlan, startDate || undefined, {
+      min: asset.display_start_date,
+      max: asset.display_end_date,
+    })
+    if (!startDate) setStartDate(range.start)
+    if (!endDate) setEndDate(range.end)
+  }, [showBook, asset, pricingPlan, startDate, endDate])
+
+  const { avail, max } = asset
+    ? capacityDisplay(asset)
+    : { avail: 0, max: 0, unit: 'units' }
+  const price = asset ? estimateTotal(asset, startDate, endDate, pricingPlan, startTime, endTime, selectedExtras) : null
+  const additionalCharges = useMemo(
+    () => normalizeAdditionalCharges(asset?.additional_charges),
+    [asset],
+  )
+  const { independent: independentExtras, together: togetherExtras } = useMemo(
+    () => splitAdditionalCharges(additionalCharges),
+    [additionalCharges],
+  )
+  const extraLines = useMemo(() => {
+    const applied = chargesForEstimate(additionalCharges, selectedExtras)
+    return chargeLineAmounts(price?.rental || 0, applied, price?.deposit || 0)
+  }, [additionalCharges, selectedExtras, price?.rental, price?.deposit])
+  const togetherExtraTotal = extraLines
+    .filter((line) => line.charge.show_mode !== 'independent')
+    .reduce((sum, line) => sum + line.amount, 0)
+  const activeDuration = asset
+    ? durationRateForPlan(asset.duration_rates, pricingPlan, Number(asset.hourly_rate || 0), Number(asset.per_minute_rate || 0))
+    : null
+  const headlineRate = pricingPlan === 'yearly'
+    ? Number(asset?.yearly_rate || 0)
+    : pricingPlan === 'monthly'
+      ? Number(asset?.monthly_rate || 0)
+      : pricingPlan === 'weekly'
+        ? Number(asset?.weekly_rate || 0)
+        : activeDuration
+          ? activeDuration.rate
+          : Number(asset?.daily_rate || 0)
+  const headlineSuffix = pricingPlan === 'yearly'
+    ? 'yr'
+    : pricingPlan === 'monthly'
+      ? 'mo'
+      : pricingPlan === 'weekly'
+        ? 'week'
+        : activeDuration
+          ? formatDurationSuffix(activeDuration.minutes)
+          : 'day'
+  const headlineLabel = activeDuration
+    ? formatDurationLabel(activeDuration.minutes)
+    : pricingPlan.charAt(0).toUpperCase() + pricingPlan.slice(1).replace('_', ' ')
+  const isDurationPlan = Boolean(parseDurationPlanMinutes(pricingPlan))
   const activeUrl = mediaItems[Math.min(activeMedia, Math.max(0, mediaItems.length - 1))]?.url
 
   const openBookForm = () => {
     if (!asset) return
     setBookQty(String(Math.min(Number(asset.available_capacity || 1), Number(asset.capacity_max || 1)) || 1))
-    setPricingPlan(Number(asset.monthly_rate) > 0 ? 'monthly' : 'daily')
-    setStartDate('')
-    setEndDate('')
+    const plan = pricingPlan
+    const range = datesForPlan(plan, startDate || undefined, {
+      min: asset.display_start_date,
+      max: asset.display_end_date,
+    })
+    const times = timesForPlan(plan)
+    setStartDate(range.start)
+    setEndDate(range.end)
+    setStartTime(times.startTime)
+    setEndTime(times.endTime)
     setNotes('')
     setNeedsDelivery(false)
     setDeliveryAddress('')
+    setSelectedExtras([])
     setConfirmedBooking(null)
     setSearchParams({ book: '1' }, { replace: true })
+  }
+
+  const selectPlan = (plan: string) => {
+    setPricingPlan(plan)
+    const range = datesForPlan(plan, startDate || undefined, {
+      min: asset?.display_start_date,
+      max: asset?.display_end_date,
+    })
+    const times = timesForPlan(plan)
+    setStartDate(range.start)
+    setEndDate(range.end)
+    setStartTime(times.startTime)
+    setEndTime(times.endTime)
+  }
+
+  const onStartDateChange = (value: string) => {
+    setStartDate(value)
+    const range = datesForPlan(pricingPlan, value || undefined, {
+      min: asset?.display_start_date,
+      max: asset?.display_end_date,
+    })
+    setEndDate(range.end)
   }
 
   const book = useMutation({
@@ -189,11 +477,14 @@ export default function RentalDetailPage() {
         asset_id: asset!.id,
         start_date: startDate,
         end_date: endDate,
+        start_time: startTime || undefined,
+        end_time: endTime || undefined,
         quantity: Number(bookQty) || 1,
         pricing_plan: pricingPlan,
         notes: notes.trim() || undefined,
         delivery_address: needsDelivery ? deliveryAddress : undefined,
         needs_delivery: needsDelivery,
+        additional_charge_ids: selectedExtras,
       }),
     onSuccess: (res) => {
       toast.success('Rental request submitted')
@@ -250,9 +541,6 @@ export default function RentalDetailPage() {
   const blurb = (asset.short_description || '').trim()
   const description = (asset.description || '').trim()
   const confirmedBookingId = confirmedBooking ? String(confirmedBooking.id ?? '') : ''
-  const hasWeekly = Number(asset.weekly_rate) > 0
-  const hasMonthly = Number(asset.monthly_rate) > 0
-  const hasDaily = Number(asset.daily_rate) > 0
 
   return (
     <div className="relative min-h-[70vh] bg-gradient-to-b from-[#eef8f3] via-[#f5faf7] to-[#f8faf9]">
@@ -341,12 +629,7 @@ export default function RentalDetailPage() {
               <div className="mt-4 flex flex-wrap gap-2">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200/80">
                   <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                  {availabilityLabel(asset)}
-                </div>
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200/80">
-                  <Boxes className="h-3.5 w-3.5 text-slate-400" />
-                  <span className="tabular-nums">{avail}/{max}</span>
-                  <span className="lowercase text-slate-500">{asset.capacity_unit || 'units'}</span>
+                  {availabilityChipLabel(asset)}
                 </div>
                 {asset.location ? (
                   <div className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200/80">
@@ -361,23 +644,6 @@ export default function RentalDetailPage() {
                   </div>
                 ) : null}
               </div>
-
-              {max > 0 && (
-                <div className="mt-4">
-                  <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>Occupancy</span>
-                    <span className="tabular-nums font-medium text-slate-700">{pct}% used</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        pct >= 100 ? 'bg-rose-500' : pct > 60 ? 'bg-amber-400' : 'bg-primary'
-                      }`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              )}
 
               {(blurb || description) && (
                 <div className="mt-5 border-t border-slate-100 pt-4">
@@ -400,34 +666,85 @@ export default function RentalDetailPage() {
               <div className="p-4 sm:p-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Pricing</p>
 
-                {hasDaily && (
-                  <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-slate-900">
-                    {formatCurrency(Number(asset.daily_rate))}
-                    <span className="ml-1 text-base font-medium text-slate-400">/day</span>
-                  </p>
-                )}
+                <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-slate-900">
+                  {formatCurrency(headlineRate)}
+                  <span className="ml-1 text-base font-medium text-slate-400">
+                    /{headlineSuffix}
+                  </span>
+                </p>
 
-                {(hasWeekly || hasMonthly) && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {hasWeekly && (
-                      <span className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-medium tabular-nums text-slate-700 ring-1 ring-slate-200/70">
-                        {formatCurrency(Number(asset.weekly_rate))}
-                        <span className="text-slate-400">/week</span>
-                      </span>
-                    )}
-                    {hasMonthly && (
-                      <span className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-medium tabular-nums text-slate-700 ring-1 ring-slate-200/70">
-                        {formatCurrency(Number(asset.monthly_rate))}
-                        <span className="text-slate-400">/mo</span>
-                      </span>
-                    )}
-                  </div>
-                )}
+                <div className="mt-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Pricing plan">
+                  {storefrontRateOptions(asset).map(({ plan, rate, label, suffix }) => {
+                      const active = pricingPlan === plan
+                      return (
+                        <button
+                          key={plan}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => selectPlan(plan)}
+                          className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                            active
+                              ? 'border-primary bg-primary text-white shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-800 shadow-sm hover:border-primary/50 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`block text-[10px] font-semibold uppercase tracking-wide ${active ? 'text-white/80' : 'text-slate-500'}`}>
+                            {label}
+                          </span>
+                          <span className="mt-0.5 block text-sm font-semibold tabular-nums">
+                            {formatCurrency(rate)}
+                            <span className={`font-medium ${active ? 'text-white/75' : 'text-slate-400'}`}>/{suffix}</span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                </div>
 
                 <div className="mt-3 flex items-center gap-1.5 text-sm text-slate-500">
                   <Shield className="h-3.5 w-3.5 text-slate-400" />
                   Refundable deposit {formatCurrency(Number(asset.deposit_amount || 0))}
                 </div>
+                {togetherExtras.length > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Included</p>
+                    {togetherExtras.length === 1 ? (
+                      <div className="flex items-start justify-between gap-3 text-sm text-slate-600">
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-800">{togetherExtras[0].name}</p>
+                          {togetherExtras[0].description ? <p className="text-xs text-slate-500">{togetherExtras[0].description}</p> : null}
+                        </div>
+                        <span className="shrink-0 tabular-nums font-medium text-slate-800">
+                          {formatAdditionalChargeValue(togetherExtras[0])}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between gap-3 text-sm text-slate-600">
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-800">Additional charges</p>
+                          <p className="text-xs text-slate-500">{togetherExtras.map((c) => c.name).join(', ')}</p>
+                        </div>
+                        <span className="shrink-0 text-xs font-medium text-slate-500">Together</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {independentExtras.length > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Optional add-ons</p>
+                    {independentExtras.map((c) => (
+                      <div key={c.id || c.name} className="flex items-start justify-between gap-3 text-sm text-slate-600">
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-800">{c.name}</p>
+                          {c.description ? <p className="text-xs text-slate-500">{c.description}</p> : null}
+                        </div>
+                        <span className="shrink-0 tabular-nums font-medium text-slate-800">
+                          {formatAdditionalChargeValue(c)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="mt-4 space-y-2 rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600 ring-1 ring-slate-100">
                   <p className="flex items-start gap-2">
@@ -440,10 +757,12 @@ export default function RentalDetailPage() {
                       {(asset.capacity_unit || 'units').toLowerCase()} available
                     </span>
                   </p>
-                  <p className="flex items-start gap-2 text-xs text-slate-500">
-                    <Truck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    Delivery can be requested when you book
-                  </p>
+                  {(asset.delivery_info || '').trim() ? (
+                    <p className="flex items-start gap-2 text-xs text-slate-500">
+                      <Truck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      {(asset.delivery_info || '').trim()}
+                    </p>
+                  ) : null}
                 </div>
 
                 {!showBook && !confirmedBooking && (
@@ -452,7 +771,7 @@ export default function RentalDetailPage() {
                     style={{ backgroundColor: primaryColor }}
                     onClick={openBookForm}
                   >
-                    Book this rental
+                    Book this {headlineLabel}
                   </Button>
                 )}
               </div>
@@ -545,34 +864,70 @@ export default function RentalDetailPage() {
                         <select
                           className="h-10 w-full rounded-lg border bg-white px-2.5 text-sm"
                           value={pricingPlan}
-                          onChange={(e) => setPricingPlan(e.target.value)}
+                          onChange={(e) => selectPlan(e.target.value)}
                         >
-                          <option value="daily">Daily</option>
-                          {hasWeekly && <option value="weekly">Weekly</option>}
-                          {hasMonthly && <option value="monthly">Monthly</option>}
+                          {storefrontRateOptions(asset).map((opt) => (
+                            <option key={opt.plan} value={opt.plan}>
+                              {opt.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Start</label>
-                        <Input
-                          type="date"
-                          value={startDate}
-                          min={asset.display_start_date?.slice(0, 10) || undefined}
-                          max={asset.display_end_date?.slice(0, 10) || undefined}
-                          onChange={(e) => setStartDate(e.target.value)}
-                          className="h-10 rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-medium uppercase tracking-wide text-slate-400">End</label>
-                        <Input
-                          type="date"
-                          value={endDate}
-                          min={startDate || asset.display_start_date?.slice(0, 10) || undefined}
-                          max={asset.display_end_date?.slice(0, 10) || undefined}
-                          onChange={(e) => setEndDate(e.target.value)}
-                          className="h-10 rounded-lg"
-                        />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Rental period</p>
+                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50/60">
+                        <div className="grid grid-cols-[4.5rem_minmax(0,1.4fr)_minmax(5.5rem,0.9fr)] items-end gap-2 border-b border-slate-200/80 px-3 py-2.5">
+                          <span className="pb-2 text-xs font-semibold text-slate-700">Start</span>
+                          <div className="min-w-0 space-y-1">
+                            <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-400">Date</label>
+                            <Input
+                              type="date"
+                              value={startDate}
+                              min={asset.display_start_date?.slice(0, 10) || undefined}
+                              max={asset.display_end_date?.slice(0, 10) || undefined}
+                              onChange={(e) => onStartDateChange(e.target.value)}
+                              className="h-10 w-full min-w-0 rounded-lg bg-white"
+                            />
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-400">Time</label>
+                            <Input
+                              type="time"
+                              value={startTime}
+                              onChange={(e) => {
+                                const v = e.target.value
+                                setStartTime(v)
+                                setEndTime(v)
+                              }}
+                              className="h-10 w-full rounded-lg bg-white"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-[4.5rem_minmax(0,1.4fr)_minmax(5.5rem,0.9fr)] items-end gap-2 px-3 py-2.5">
+                          <span className="pb-2 text-xs font-semibold text-slate-700">End</span>
+                          <div className="min-w-0 space-y-1">
+                            <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-400">Date</label>
+                            <Input
+                              type="date"
+                              value={endDate}
+                              min={startDate || asset.display_start_date?.slice(0, 10) || undefined}
+                              max={asset.display_end_date?.slice(0, 10) || undefined}
+                              onChange={(e) => setEndDate(e.target.value)}
+                              className="h-10 w-full min-w-0 rounded-lg bg-white"
+                            />
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-400">Time</label>
+                            <Input
+                              type="time"
+                              value={endTime}
+                              onChange={(e) => setEndTime(e.target.value)}
+                              className="h-10 w-full rounded-lg bg-white"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -583,30 +938,98 @@ export default function RentalDetailPage() {
                       className="h-10 rounded-lg"
                     />
 
-                    <label className="flex items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={needsDelivery}
-                        onChange={(e) => setNeedsDelivery(e.target.checked)}
-                        className="rounded border-slate-300"
-                      />
-                      Need delivery
-                    </label>
-                    {needsDelivery && (
-                      <Input
-                        value={deliveryAddress}
-                        onChange={(e) => setDeliveryAddress(e.target.value)}
-                        placeholder="Delivery address"
-                        className="h-10 rounded-lg"
-                      />
-                    )}
+                    {asset.delivery_enabled ? (
+                      <>
+                        <label className="flex items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={needsDelivery}
+                            onChange={(e) => setNeedsDelivery(e.target.checked)}
+                            className="rounded border-slate-300"
+                          />
+                          Need delivery
+                        </label>
+                        {needsDelivery && (
+                          <Input
+                            value={deliveryAddress}
+                            onChange={(e) => setDeliveryAddress(e.target.value)}
+                            placeholder="Delivery address"
+                            className="h-10 rounded-lg"
+                          />
+                        )}
+                      </>
+                    ) : null}
+
+                    {independentExtras.length > 0 ? (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Add-ons</p>
+                        {independentExtras.map((c) => {
+                          const id = c.id || c.name
+                          const checked = selectedExtras.includes(id)
+                          return (
+                            <label
+                              key={id}
+                              className="flex items-start gap-2.5 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-700"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  setSelectedExtras((prev) =>
+                                    e.target.checked ? [...prev, id] : prev.filter((x) => x !== id),
+                                  )
+                                }}
+                                className="mt-0.5 rounded border-slate-300"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block font-medium text-slate-800">{c.name}</span>
+                                {c.description ? <span className="block text-xs text-slate-500">{c.description}</span> : null}
+                              </span>
+                              <span className="shrink-0 tabular-nums text-slate-700">
+                                {formatAdditionalChargeValue(c)}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    ) : null}
 
                     {price && startDate && endDate && (
                       <div className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-slate-500">Rental ({price.days} days)</span>
+                          <span className="text-slate-500">
+                            {isDurationPlan
+                              ? `Rental (${price.minutes} min)`
+                              : `Rental (${price.days} days)`}
+                          </span>
                           <span className="tabular-nums">{formatCurrency(price.rental)}</span>
                         </div>
+                        {togetherExtras.length === 1 ? (
+                          <div className="flex justify-between gap-3" title={togetherExtras[0].description || undefined}>
+                            <span className="text-slate-500">
+                              {togetherExtras[0].name}
+                              {togetherExtras[0].charge_type === 'percent' ? ` (${formatAdditionalChargeValue(togetherExtras[0])})` : ''}
+                            </span>
+                            <span className="tabular-nums">{formatCurrency(togetherExtraTotal)}</span>
+                          </div>
+                        ) : togetherExtras.length > 1 ? (
+                          <div className="flex justify-between gap-3" title={togetherExtras.map((c) => c.name).join(', ')}>
+                            <span className="text-slate-500">Additional charges</span>
+                            <span className="tabular-nums">{formatCurrency(togetherExtraTotal)}</span>
+                          </div>
+                        ) : null}
+                        {independentExtras.filter((c) => selectedExtras.includes(c.id) || selectedExtras.includes(c.name)).map((c) => {
+                          const line = extraLines.find((l) => l.charge.id === c.id || l.charge.name === c.name)
+                          return (
+                          <div key={c.id || c.name} className="flex justify-between gap-3" title={c.description || undefined}>
+                            <span className="text-slate-500">
+                              {c.name}
+                              {c.charge_type === 'percent' ? ` (${formatAdditionalChargeValue(c)})` : ''}
+                            </span>
+                            <span className="tabular-nums">{formatCurrency(line?.amount ?? 0)}</span>
+                          </div>
+                          )
+                        })}
                         <div className="flex justify-between">
                           <span className="text-slate-500">Deposit</span>
                           <span className="tabular-nums">{formatCurrency(price.deposit)}</span>
@@ -622,7 +1045,14 @@ export default function RentalDetailPage() {
                     <Button
                       className="h-11 w-full rounded-xl font-semibold text-white"
                       style={{ backgroundColor: primaryColor }}
-                      disabled={!startDate || !endDate || book.isPending}
+                      disabled={
+                        !startDate
+                        || !endDate
+                        || !startTime
+                        || !endTime
+                        || book.isPending
+                        || (startDate === endDate && endTime < startTime)
+                      }
                       onClick={() => book.mutate()}
                     >
                       {book.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm booking request'}

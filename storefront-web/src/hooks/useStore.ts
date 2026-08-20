@@ -182,6 +182,8 @@ export function useCatalogRentals(params?: Record<string, unknown> | null) {
     queryKey: [...storeKeys.rentals(params ?? undefined), vendorSlug],
     queryFn: () => storeApi.listCatalogRentals(params ?? undefined),
     enabled: !!vendorSlug && params !== null,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }
 
@@ -203,7 +205,8 @@ export function useStorefrontRental(idOrSlug: string) {
     queryKey: ['storefront-rental', idOrSlug, vendorSlug, isUuid ? 'id' : 'slug'],
     queryFn: () => (isUuid ? storeApi.getRentalAsset(idOrSlug) : storeApi.getCatalogRental(idOrSlug)),
     enabled: !!idOrSlug && !!vendorSlug,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }
 

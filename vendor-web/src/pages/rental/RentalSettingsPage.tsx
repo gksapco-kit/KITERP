@@ -31,6 +31,7 @@ const PRICING_PLAN_OPTIONS = [
   { value: 'daily', label: 'Daily' },
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
+  { value: 'yearly', label: 'Yearly' },
 ]
 
 function readRentalSettings(settings: Record<string, unknown> | undefined): RentalSettings {

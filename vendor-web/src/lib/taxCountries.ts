@@ -350,7 +350,7 @@ export function buildTaxRateSelectOptions(
         ? `${entry.rate}% — ${entry.label}`
         : `${entry.rate}% — Additional`,
     }))
-  return [...presets, ...extras, { value: customOptionValue, label: 'Custom rate…' }]
+  return [...presets, ...extras, { value: customOptionValue, label: 'Add New Rates' }]
 }
 
 /** Resolve vendor tax country from settings, else infer from vendor.country. */

@@ -6,8 +6,8 @@ import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 export function LandingHeader() {
   return (
     <>
-      <header className="kiterp-landing-header fixed top-0 inset-x-0 z-50 border-b border-[#1e3d34]/06 bg-white/95 backdrop-blur-xl supports-[backdrop-filter]:bg-white/85 shadow-[0_1px_0_rgba(30,61,52,0.04)]">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#64C3A0]/50 to-transparent" aria-hidden />
+      <header className="kiterp-landing-header fixed top-0 inset-x-0 z-50 border-b border-[#1e3d34]/06 bg-white/90 backdrop-blur-xl supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_rgba(30,61,52,0.04)]">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#64C3A0]/55 to-transparent" aria-hidden />
         <div className="kiterp-landing-header-inner mx-auto flex h-14 sm:h-[4.25rem] w-full items-center justify-between gap-2 sm:gap-4">
           <Link
             to="/"
@@ -21,16 +21,28 @@ export function LandingHeader() {
             </span>
           </Link>
 
+          <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-[#1e3d34]/70" aria-label="Primary">
+            <a href="#apps" className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+              Apps
+            </a>
+            <a href="#pricing" className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+              Pricing
+            </a>
+            <a href="#community" className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+              Community
+            </a>
+          </nav>
+
           <div className="flex shrink-0 items-center gap-1 sm:gap-2.5">
             <a
               href={`${vendorAppUrl}/login`}
-              className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1.5 sm:border sm:border-[#1e3d34]/10 sm:bg-white sm:px-4 sm:py-2 text-sm font-medium text-[#1e3d34]/75 hover:text-[#1e3d34] sm:hover:border-[#64C3A0]/35 sm:hover:bg-[#eef9f4] transition-all"
+              className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1.5 sm:border sm:border-[#1e3d34]/10 sm:bg-white sm:px-4 sm:py-2 text-sm font-medium text-[#1e3d34]/75 hover:text-[#1e3d34] sm:hover:border-[#64C3A0]/35 sm:hover:bg-[#eef9f4] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#64C3A0]/40"
             >
               Sign in
             </a>
             <a
               href={VENDOR_SIGNUP_PATH}
-              className="inline-flex items-center whitespace-nowrap rounded-full bg-[#64C3A0] px-3 sm:px-5 py-1.5 sm:py-2 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(100,195,160,0.35)] hover:bg-[#52b38f] hover:shadow-[0_8px_20px_rgba(100,195,160,0.45)] sm:hover:-translate-y-0.5 active:translate-y-0 transition-all"
+              className="inline-flex items-center whitespace-nowrap rounded-full bg-[#64C3A0] px-3 sm:px-5 py-1.5 sm:py-2 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(100,195,160,0.35)] hover:bg-[#52b38f] hover:shadow-[0_8px_20px_rgba(100,195,160,0.45)] sm:hover:-translate-y-0.5 active:translate-y-0 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#64C3A0]/45 focus-visible:ring-offset-2"
             >
               Sign up
             </a>

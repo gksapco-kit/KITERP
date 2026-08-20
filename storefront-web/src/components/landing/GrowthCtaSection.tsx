@@ -31,7 +31,7 @@ function SparkleBurst() {
 
 export function GrowthCtaSection() {
   return (
-    <section id="pricing" className="py-20 sm:py-28 bg-white text-center">
+    <section id="pricing" className="py-20 sm:py-28 kiterp-growth-cta text-center">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 kiterp-reveal">
         <SparkleBurst />
 
@@ -52,7 +52,9 @@ export function GrowthCtaSection() {
           <svg width="20" height="24" viewBox="0 0 20 24" className="text-[#64C3A0]" aria-hidden>
             <path d="M10 22 L10 4 M4 10 L10 4 L16 10" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <p className="text-xs sm:text-sm text-gray-500">Free to start · All modules included</p>
+          <p className="text-xs sm:text-sm text-[#1e3d34]/55 font-medium">
+            ₹999 / month · All modules included
+          </p>
         </div>
       </div>
     </section>

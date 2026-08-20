@@ -1,5 +1,5 @@
 import apiClient from '@/api/client'
-import type { RentalAsset, RentalAssetUnit, RentalBooking, RentalReturn, RentalMediaItem } from './rentalConstants'
+import type { RentalAsset, RentalAssetUnit, RentalBooking, RentalBookingUnit, RentalReturn, RentalMediaItem } from './rentalConstants'
 
 export const rentalApi = {
   dashboard: () => apiClient.get('/vendors/me/rentals/dashboard').then((r) => r.data),
@@ -67,7 +67,40 @@ export const rentalApi = {
   processReturn: (id: string, body: Record<string, unknown>) =>
     apiClient.post(`/vendors/me/rentals/bookings/${id}/return`, body).then((r) => r.data),
   calendar: (assetId: string, from: string, to: string) =>
-    apiClient.get(`/vendors/me/rentals/assets/${assetId}/calendar`, { params: { from, to } }).then((r) => r.data),
+    apiClient.get(`/vendors/me/rentals/assets/${assetId}/calendar`, { params: { from, to } }).then((r) => r.data as {
+      days: Array<{ date: string; status: string; reserved_qty: number; available_capacity: number; detail?: string | null }>
+      resources: Array<{
+        id: string
+        kind: 'child' | 'unit'
+        label: string
+        code?: string | null
+        highlight?: boolean
+        selectable?: boolean
+        days: Array<{ date: string; status: string; reserved_qty: number; available_capacity: number; detail?: string | null }>
+      }>
+      resource_kind?: 'child' | 'unit' | null
+    }),
+
+  /** Flat availability for every asset/unit on a single day (date-browse mode). */
+  dayAvailability: (date: string) =>
+    apiClient.get('/vendors/me/rentals/availability', { params: { date } }).then((r) => r.data as {
+      date: string
+      items: Array<{
+        id: string
+        asset_id: string
+        parent_asset_id?: string | null
+        unit_id?: string | null
+        kind: 'asset' | 'child' | 'unit'
+        label: string
+        code?: string | null
+        status: 'available' | 'partial' | 'booked' | 'unavailable'
+        reserved_qty: number
+        available_capacity: number
+        next_available_date?: string | null
+        next_available_time?: string | null
+      }>
+      counts: { all: number; available: number; partial: number; booked: number; unavailable: number }
+    }),
 
   // ── Sub-asset children (hierarchy mode) ────────────────────────────────
   listAssetChildren: (assetId: string) =>
@@ -84,6 +117,14 @@ export const rentalApi = {
     apiClient.delete(`/vendors/me/rentals/assets/${assetId}/units/${unitId}`).then((r) => r.data),
   bulkCreateAssetUnits: (assetId: string, body: Record<string, unknown>) =>
     apiClient.post(`/vendors/me/rentals/assets/${assetId}/units/bulk`, body).then((r) => r.data as RentalAssetUnit[]),
+
+  // ── Booking unit assignments ──────────────────────────────────────────────
+  getBookingUnits: (bookingId: string) =>
+    apiClient.get(`/vendors/me/rentals/bookings/${bookingId}/units`).then((r) => r.data as RentalBookingUnit[]),
+  assignUnitsToBooking: (bookingId: string, body: Record<string, unknown>) =>
+    apiClient.post(`/vendors/me/rentals/bookings/${bookingId}/assign-units`, body).then((r) => r.data as RentalBookingUnit[]),
+  reassignBookingUnit: (bookingId: string, fromUnitId: string, body: Record<string, unknown>) =>
+    apiClient.post(`/vendors/me/rentals/bookings/${bookingId}/units/${fromUnitId}/reassign`, body).then((r) => r.data as RentalBookingUnit[]),
 
   // ── Return history ────────────────────────────────────────────────────────
   listReturnHistory: (bookingId: string) =>

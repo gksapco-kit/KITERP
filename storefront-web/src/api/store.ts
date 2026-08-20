@@ -216,6 +216,8 @@ export const storeApi = {
     asset_id: string
     start_date: string
     end_date: string
+    start_time?: string
+    end_time?: string
     quantity?: number
     weight_requested?: number
     pricing_plan?: string
@@ -225,6 +227,7 @@ export const storeApi = {
     customer_phone?: string
     delivery_address?: string
     needs_delivery?: boolean
+    additional_charge_ids?: string[]
   }) => {
     const res = await apiClient.post('/store/rentals/bookings', data); return res.data
   },

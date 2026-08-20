@@ -123,7 +123,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
     labels: {
       namePlaceholder: 'Dairy Rack A-001',
       descriptionPlaceholder: 'Heavy-duty dairy storage rack suitable for milk packets…',
-      capacity: 'Max Capacity',
+      capacity: 'Max Quantity',
       unit: 'UOM',
       location: 'Warehouse Location',
       locationPlaceholder: 'Dairy Warehouse – Hyderabad',
@@ -208,7 +208,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
     labels: {
       namePlaceholder: 'Storage Unit S-12',
       descriptionPlaceholder: 'Secure storage unit for short or long term…',
-      capacity: 'Max Capacity',
+      capacity: 'Max Quantity',
       unit: 'UOM',
       location: 'Facility Location',
       locationPlaceholder: 'Storage Facility – Hyderabad',
@@ -258,7 +258,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
     labels: {
       namePlaceholder: 'Rental asset name',
       descriptionPlaceholder: 'Describe this rental asset…',
-      capacity: 'Max Capacity',
+      capacity: 'Max Quantity',
       unit: 'UOM',
       location: 'Location',
       locationPlaceholder: 'Location',
@@ -379,6 +379,22 @@ export type RentalAssetUnit = {
   updated_at?: string | null
 }
 
+export type RentalBookingUnit = {
+  id: string
+  booking_id: string
+  unit_id: string
+  serial_no: string
+  label?: string | null
+  /** good | damaged | lost | retired */
+  condition: string
+  /** rented | available | maintenance | retired */
+  status: string
+  assigned_at: string
+  released_at?: string | null
+  assigned_by?: string | null
+  notes?: string | null
+}
+
 export type RentalReturn = {
   id: string
   booking_id: string
@@ -463,6 +479,8 @@ export type RentalAsset = {
   unit_mode?: string
   /** Number of direct child assets (hierarchy mode) */
   child_count?: number
+  /** How many child assets currently have free capacity */
+  available_child_count?: number
   /** Number of serialized units (serialized mode) */
   unit_count?: number
   max_weight?: number | null
@@ -475,6 +493,16 @@ export type RentalAsset = {
   deposit_amount?: number
   extra_qty_charge?: number
   extra_weight_charge?: number
+  /** Named extras: [{ name, description, charge_type, show_mode, value }] */
+  additional_charges?: {
+    id?: string
+    name: string
+    description?: string
+    charge_type: 'amount' | 'percent'
+    show_mode?: 'independent' | 'together'
+    percent_of?: 'rental' | 'running' | 'grand' | 'deposit'
+    value: number
+  }[]
   /** Rate charged per capacity_unit per rental period (e.g. ₹10 per packet/day). */
   price_per_unit?: number
   /** Custom UOM label for per-unit pricing if different from capacity_unit. */
@@ -483,6 +511,12 @@ export type RentalAsset = {
   hourly_rate?: number
   per_minute_rate?: number
   yearly_rate?: number
+  /** Minute/hour slots: [{ minutes: 15, rate: 50 }, { minutes: 120, rate: 200 }] */
+  duration_rates?: { minutes: number; rate: number }[]
+  /** Day/week/month/year slots: [{ days: 1, rate: 100 }, { days: 14, rate: 800 }] */
+  period_rates?: { days: number; rate: number }[]
+  /** Tax % applied on rental rates (e.g. GST 18). */
+  tax_rate?: number
   sales_area_id?: string | null
   location?: string
   section?: string
@@ -496,7 +530,12 @@ export type RentalAsset = {
   is_active?: boolean
   is_visible?: boolean
   store_scope?: string
+  store_ids?: string[]
   notes?: string
+  /** Customer-facing delivery / booking note on storefront */
+  delivery_info?: string | null
+  /** When true, storefront shows "Need delivery" on booking */
+  delivery_enabled?: boolean
 }
 
 export type RentalBooking = {
@@ -508,6 +547,8 @@ export type RentalBooking = {
   asset_location?: string
   capacity_unit?: string
   capacity_max?: number
+  /** none | hierarchy | serialized — from the asset */
+  unit_mode?: string
   customer_id?: string | null
   sales_area_id?: string | null
   customer_name: string
@@ -628,6 +669,15 @@ export const emptyAssetForm = () => ({
   deposit_amount: '0',
   extra_qty_charge: '0',
   extra_weight_charge: '0',
+  additional_charges: [] as {
+    id: string
+    name: string
+    description: string
+    charge_type: 'amount' | 'percent'
+    show_mode: 'independent' | 'together'
+    percent_of: 'rental' | 'running' | 'grand' | 'deposit'
+    value: string
+  }[],
   sales_area_id: '',
   location: '',
   section: '',
@@ -642,15 +692,22 @@ export const emptyAssetForm = () => ({
   display_start_date: '',
   display_end_date: '',
   notes: '',
+  /** Customer-facing delivery / booking note on storefront (empty = hidden) */
+  delivery_info: '',
+  delivery_enabled: false as boolean,
   /** none | hierarchy | serialized */
   unit_mode: 'none' as string,
   parent_asset_id: '' as string,
   is_bookable: true as boolean,
   is_visible: true as boolean,
   store_scope: 'all' as string,
+  store_ids: [] as string[],
   price_per_unit: '0',
   pricing_uom: '',
   hourly_rate: '0',
   per_minute_rate: '0',
   yearly_rate: '0',
+  duration_rates: [] as { minutes: number; rate: string }[],
+  period_rates: [] as { days: number; rate: string }[],
+  tax_rate: '0',
 })

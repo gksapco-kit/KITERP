@@ -16,8 +16,9 @@ import { CatalogMediaUpload } from '@/components/common/ImageUpload'
 import { extractApiError } from '@/lib/errorMessages'
 import { formatCurrency, formatDate, cn, mediaUrl } from '@/lib/utils'
 import { filterCategoryTree, flattenCategoryTree } from '@/lib/categoryHierarchy'
-import { useCategoryTree, useSalesAreas } from '@/hooks/useVendor'
+import { useCategoryTree, useSalesAreas, useStores } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
+import { BusinessUnitScopePicker, type StoreScope } from '@/components/common/BusinessUnitScopePicker'
 import { rentalApi } from './api'
 import { toDateInputValue, pickDisplayDates } from './rentalDates'
 import {
@@ -25,9 +26,12 @@ import {
   ASSET_KIND_SUGGESTIONS, ASSET_TYPE_SUGGESTIONS, toReadableValue, emptyAssetForm, getCategoryConfig,
   catalogStatusFromAsset, operationalStatusFromAsset, resolveAssetStatusForSave,
   isPendingRentalMediaId, makePendingRentalMedia, revokeRentalMediaUrls,
-  DEFAULT_ASSET_CODE_PREFIX, previewAssetCode,
+  DEFAULT_ASSET_CODE_PREFIX, previewAssetCode, currencySymbol,
   type RentalAsset, type RentalBooking, type RentalMediaItem,
 } from './rentalConstants'
+import { durationRowsFromAsset, durationRatesForSave, durationLegacyRates, formatDurationLabel } from './durationRates'
+import { periodRowsFromAsset, periodRatesForSave, periodLegacyRates, formatPeriodLabel } from './periodRates'
+import { additionalChargeRowsFromAsset, additionalChargesForSave, formatAdditionalChargeValue } from './additionalCharges'
 import RentalAssetUnitsPanel from './RentalAssetUnitsPanel'
 import RentalAssetPricingFields from './RentalAssetPricingFields'
 import { RentalSuggestionCombobox } from './RentalSuggestionCombobox'
@@ -113,13 +117,14 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 
 /** Card wrapper matching service/product section cards — hidden when not the active tab. */
 function Section({
-  sectionKey, active, title, icon: Icon, children,
+  sectionKey, active, title, icon: Icon, children, dense,
 }: {
   sectionKey: string
   active: boolean
   title: string
   icon: React.ElementType
   children: React.ReactNode
+  dense?: boolean
 }) {
   const activeFormSection = useFormActiveSection()
   const scrollActive = !!sectionKey && activeFormSection === sectionKey
@@ -129,8 +134,8 @@ function Section({
       id={`form-section-${sectionKey}`}
       className={cn('overflow-hidden shadow-sm', formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(scrollActive))}
     >
-      <CardContent className={cn('p-4 bg-muted/20 dark:bg-black/20')}>
-        <div className="mb-3 flex items-center gap-1.5 border-b border-border/60 pb-2">
+      <CardContent className={cn('bg-muted/20 dark:bg-black/20', dense ? 'p-2 sm:p-2.5' : 'p-4')}>
+        <div className={cn('flex items-center gap-1.5 border-b border-border/60', dense ? 'mb-1.5 pb-1' : 'mb-3 pb-2')}>
           <Icon className="h-4 w-4 shrink-0 text-primary" strokeWidth={2} aria-hidden />
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         </div>
@@ -167,6 +172,7 @@ function assetToForm(a: Partial<RentalAsset> & Record<string, unknown>): AssetFo
     deposit_amount: String(a.deposit_amount ?? 0),
     extra_qty_charge: String(a.extra_qty_charge ?? 0),
     extra_weight_charge: String(a.extra_weight_charge ?? 0),
+    additional_charges: additionalChargeRowsFromAsset(a),
     sales_area_id: String(a.sales_area_id || ''),
     location: String(a.location || ''),
     section: String(a.section || ''),
@@ -176,10 +182,13 @@ function assetToForm(a: Partial<RentalAsset> & Record<string, unknown>): AssetFo
     operational_status: operationalStatusFromAsset(a),
     is_visible: a.is_visible !== false,
     store_scope: String(a.store_scope || 'all'),
+    store_ids: Array.isArray(a.store_ids) ? a.store_ids.map(String) : [],
     availability_mode: hasRange ? 'date_range' : 'always',
     display_start_date: start,
     display_end_date: end,
     notes: String(a.notes || ''),
+    delivery_info: String(a.delivery_info || ''),
+    delivery_enabled: a.delivery_enabled === true,
     unit_mode: String(a.unit_mode || 'none'),
     parent_asset_id: String(a.parent_asset_id || ''),
     is_bookable: a.is_bookable !== false,
@@ -188,6 +197,9 @@ function assetToForm(a: Partial<RentalAsset> & Record<string, unknown>): AssetFo
     hourly_rate: String(a.hourly_rate ?? 0),
     per_minute_rate: String(a.per_minute_rate ?? 0),
     yearly_rate: String(a.yearly_rate ?? 0),
+    duration_rates: durationRowsFromAsset(a),
+    period_rates: periodRowsFromAsset(a),
+    tax_rate: String(Number(a.tax_rate ?? 0)),
   }
 }
 
@@ -257,6 +269,8 @@ export default function RentalAssetFormPage() {
   }, [categoryTreeData])
 
   const { data: salesAreaData } = useSalesAreas({ is_active: true })
+  const { data: storesData } = useStores()
+  const businessUnits = storesData?.stores ?? []
   const salesAreaOptions = useMemo(
     () => (salesAreaData?.sales_areas ?? []).map((a) => {
       const name = String(a.name || '').trim()
@@ -282,14 +296,22 @@ export default function RentalAssetFormPage() {
         setForm(assetToForm(fresh as RentalAsset & Record<string, unknown>))
         setSavedUnitMode(fresh.unit_mode ?? 'none')
         setSavedMedia((fresh.media ?? []) as RentalMediaItem[])
-        if (fresh.parent_asset_id) setLinkType('asset')
-        else if (fresh.product_id) setLinkType('product')
+        if (fresh.parent_asset_id) {
+          setLinkType('asset')
+          setLinkEnabled(true)
+        } else if (fresh.product_id) {
+          setLinkType('product')
+          setLinkEnabled(true)
+        } else {
+          setLinkEnabled(false)
+        }
       })
       .catch((e) => toast.error(extractApiError(e, 'Load asset')))
       .finally(() => setLoading(false))
   }, [assetId])
 
-  const set = (key: keyof AssetFormState, value: string) => setForm((f) => ({ ...f, [key]: value }))
+  const set = (key: keyof AssetFormState, value: AssetFormState[keyof AssetFormState]) =>
+    setForm((f) => ({ ...f, [key]: value }))
 
   // ── Product search ──
   const [productSearch, setProductSearch] = useState('')
@@ -310,8 +332,9 @@ export default function RentalAssetFormPage() {
     return () => document.removeEventListener('mousedown', handler)
   }, [productPickerOpen])
 
-  // ── Link type toggle (Product vs Asset) ──
-  const [linkType, setLinkType] = useState<'product' | 'asset'>('product')
+  // ── Link type toggle (Product vs Asset) — shown only when linkEnabled ──
+  const [linkEnabled, setLinkEnabled] = useState(() => Boolean(initialParentId))
+  const [linkType, setLinkType] = useState<'product' | 'asset'>(initialParentId ? 'asset' : 'product')
   const [assetLinkSearch, setAssetLinkSearch] = useState('')
   const [assetLinkPickerOpen, setAssetLinkPickerOpen] = useState(false)
   const assetLinkPickerRef = useRef<HTMLDivElement>(null)
@@ -519,12 +542,10 @@ export default function RentalAssetFormPage() {
       max_weight: cfg.showWeight && form.max_weight ? Number(form.max_weight) : null,
       weight_unit: form.weight_unit,
       currency: (form.currency || 'INR').toUpperCase(),
-      daily_rate: Number(form.daily_rate) || 0,
-      weekly_rate: Number(form.weekly_rate) || 0,
-      monthly_rate: Number(form.monthly_rate) || 0,
       deposit_amount: Number(form.deposit_amount) || 0,
-      extra_qty_charge: Number(form.extra_qty_charge) || 0,
+      extra_qty_charge: 0,
       extra_weight_charge: Number(form.extra_weight_charge) || 0,
+      additional_charges: additionalChargesForSave(form.additional_charges),
       sales_area_id: form.sales_area_id || null,
       location: form.location || undefined,
       section: form.section || undefined,
@@ -533,17 +554,34 @@ export default function RentalAssetFormPage() {
       ...resolveAssetStatusForSave(form.status, form.operational_status),
       is_visible: form.is_visible,
       store_scope: form.store_scope || 'all',
+      store_ids: form.store_scope === 'selected' ? (form.store_ids || []) : [],
       display_start_date: useRange ? (start || null) : null,
       display_end_date: useRange ? (end || null) : null,
       notes: form.notes || undefined,
+      delivery_info: (form.delivery_info || '').trim() || null,
+      delivery_enabled: Boolean(form.delivery_enabled),
       unit_mode: form.unit_mode || 'none',
       parent_asset_id: form.parent_asset_id || null,
       is_bookable: form.is_bookable,
       price_per_unit: Number(form.price_per_unit) || 0,
       pricing_uom: (form.pricing_uom || '').trim() || null,
-      hourly_rate: Number(form.hourly_rate) || 0,
-      per_minute_rate: Number(form.per_minute_rate) || 0,
-      yearly_rate: Number(form.yearly_rate) || 0,
+      ...(() => {
+        const duration_rates = durationRatesForSave(form.duration_rates)
+        const legacy = durationLegacyRates(duration_rates)
+        const period_rates = periodRatesForSave(form.period_rates)
+        const periodLegacy = periodLegacyRates(period_rates)
+        return {
+          duration_rates,
+          hourly_rate: legacy.hourly_rate,
+          per_minute_rate: legacy.per_minute_rate,
+          period_rates,
+          daily_rate: periodLegacy.daily_rate || Number(form.daily_rate) || 0,
+          weekly_rate: periodLegacy.weekly_rate || Number(form.weekly_rate) || 0,
+          monthly_rate: periodLegacy.monthly_rate || Number(form.monthly_rate) || 0,
+          yearly_rate: periodLegacy.yearly_rate || Number(form.yearly_rate) || 0,
+        }
+      })(),
+      tax_rate: Number(form.tax_rate) || 0,
     }
   }
 
@@ -605,6 +643,11 @@ export default function RentalAssetFormPage() {
         return
       }
     }
+    if (form.store_scope === 'selected' && !(form.store_ids || []).length) {
+      toast.error('Select at least one business unit')
+      setActiveTab('location')
+      return
+    }
     try {
       const body = assetPayload()
       if (assetId) updateAsset.mutate({ id: assetId, body })
@@ -645,13 +688,15 @@ export default function RentalAssetFormPage() {
     const capacityAvail = detailAsset?.available_capacity !== undefined
       ? Number(detailAsset.available_capacity)
       : undefined
+    const periodChips = (form.period_rates || [])
+      .filter((r) => Number(r.rate) > 0)
+      .map((r) => ({ label: formatPeriodLabel(r.days), value: money(r.rate) }))
+    const durationChips = (form.duration_rates || [])
+      .filter((r) => Number(r.rate) > 0)
+      .map((r) => ({ label: formatDurationLabel(r.minutes), value: money(r.rate) }))
     const rateChips = [
-      Number(form.daily_rate) > 0 && { label: 'Day', value: money(form.daily_rate) },
-      Number(form.weekly_rate) > 0 && { label: 'Week', value: money(form.weekly_rate) },
-      Number(form.monthly_rate) > 0 && { label: 'Month', value: money(form.monthly_rate) },
-      Number(form.yearly_rate) > 0 && { label: 'Year', value: money(form.yearly_rate) },
-      Number(form.hourly_rate) > 0 && { label: 'Hour', value: money(form.hourly_rate) },
-      Number(form.per_minute_rate) > 0 && { label: 'Min', value: money(form.per_minute_rate) },
+      ...periodChips,
+      ...durationChips,
       Number(form.price_per_unit) > 0 && {
         label: form.pricing_uom || form.capacity_unit || 'Unit',
         value: money(form.price_per_unit),
@@ -847,11 +892,39 @@ export default function RentalAssetFormPage() {
                   )}
                   <div className={formDisplayCompact.fieldGrid}>
                     <DisplayField label="Currency" value={form.currency || 'INR'} />
-                    <DisplayField label="Capacity" value={`${form.capacity_max || '—'} ${form.capacity_unit || ''}`.trim()} />
+                    <DisplayField
+                      label={form.name.trim() ? `Max ${form.name.trim()}` : 'Max Quantity'}
+                      value={`${form.capacity_max || '—'} ${form.capacity_unit || ''}`.trim()}
+                    />
                     <DisplayField label="Max weight" value={form.max_weight ? `${form.max_weight} ${form.weight_unit || 'kg'}` : undefined} />
                     <DisplayField label="Deposit" value={Number(form.deposit_amount) > 0 ? money(form.deposit_amount) : undefined} />
-                    <DisplayField label="Extra qty charge" value={Number(form.extra_qty_charge) > 0 ? money(form.extra_qty_charge) : undefined} />
-                    <DisplayField label="Extra weight charge" value={Number(form.extra_weight_charge) > 0 ? money(form.extra_weight_charge) : undefined} />
+                    <DisplayField
+                      label="Tax %"
+                      value={
+                        Number(form.tax_rate) > 0 || form.tax_rate === '0'
+                          ? `${form.tax_rate || 0}%`
+                          : undefined
+                      }
+                    />
+                    {(form.additional_charges || []).filter((c) => c.name.trim() && Number(c.value) > 0).map((c) => (
+                      <DisplayField
+                        key={c.id || c.name}
+                        label={c.name.trim()}
+                        value={(
+                          <>
+                            {formatAdditionalChargeValue({ charge_type: c.charge_type, value: Number(c.value), percent_of: c.percent_of || 'rental' }, currencySymbol(form.currency))}
+                            <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+                              {c.charge_type === 'percent' ? 'Formula' : 'Fixed amount'}
+                              {' · '}
+                              {c.show_mode === 'independent' ? 'Independent (optional)' : 'Together (included)'}
+                            </span>
+                            {c.description.trim() ? (
+                              <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">{c.description.trim()}</span>
+                            ) : null}
+                          </>
+                        )}
+                      />
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -894,6 +967,10 @@ export default function RentalAssetFormPage() {
                       </>
                     )}
                     <DisplayField label="Visible on storefront" value={form.is_visible ? 'Yes' : 'No'} />
+                    <DisplayField label="Offer delivery" value={form.delivery_enabled ? 'Yes' : 'No'} />
+                    {form.delivery_info ? (
+                      <DisplayField label="Delivery / booking note" value={form.delivery_info} />
+                    ) : null}
                   </div>
                 </CardContent>
               </Card>
@@ -910,6 +987,16 @@ export default function RentalAssetFormPage() {
                     <DisplayField label="Sales area / route" value={routeLabel} />
                     <DisplayField label="Location" value={form.location || undefined} />
                     <DisplayField label="Store scope" value={form.store_scope === 'selected' ? 'Selected units only' : 'All business units'} />
+                    {form.store_scope === 'selected' ? (
+                      <DisplayField
+                        label="Business units"
+                        value={
+                          (form.store_ids || []).length
+                            ? (form.store_ids || []).map((id) => businessUnits.find((s) => s.id === id)?.name || id).join(', ')
+                            : '—'
+                        }
+                      />
+                    ) : null}
                     <DisplayField label="Section" value={form.section || undefined} />
                     <DisplayField label="Row" value={form.row_label || undefined} />
                     <DisplayField label="Rack number" value={form.rack_number || undefined} />
@@ -980,18 +1067,10 @@ export default function RentalAssetFormPage() {
                       ))}
                     </ul>
                   )}
-                  {form.unit_mode === 'serialized' && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Manage serialized units in{' '}
-                      <button
-                        type="button"
-                        className="font-medium text-primary hover:underline"
-                        onClick={() => navigate(`/rental/assets/${assetId}/edit`)}
-                      >
-                        Edit Asset
-                      </button>
-                      .
-                    </p>
+                  {form.unit_mode === 'serialized' && assetId && (
+                    <div className="mt-3">
+                      <RentalAssetUnitsPanel assetId={assetId} readOnly />
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -1148,114 +1227,132 @@ export default function RentalAssetFormPage() {
               </div>
 
               <div className={cn(!(featureCategories && rentalCategoryTree.length > 0) && 'lg:col-start-3')}>
-                <FieldLabel>
-                  <span className="flex items-center gap-1">
+                <label className="mb-1.5 flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={linkEnabled}
+                    onChange={(e) => {
+                      const on = e.target.checked
+                      setLinkEnabled(on)
+                      if (!on) {
+                        setForm((f) => ({ ...f, product_id: '', parent_asset_id: '' }))
+                        setProductPickerOpen(false)
+                        setAssetLinkPickerOpen(false)
+                        setProductSearch('')
+                        setAssetLinkSearch('')
+                      }
+                    }}
+                    className="h-4 w-4 shrink-0 rounded accent-primary"
+                  />
+                  <span className="flex items-center gap-1 text-sm font-medium text-foreground">
                     <Link2 className="h-3.5 w-3.5" />
                     Link To <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>
                   </span>
-                </FieldLabel>
-                <div className="flex items-stretch gap-1.5">
-                  <div className="flex shrink-0 overflow-hidden rounded-md border border-border text-xs font-medium">
-                    <button
-                      type="button"
-                      onClick={() => { setLinkType('product'); set('parent_asset_id', '') }}
-                      className={cn(
-                        'px-2.5 py-1.5 transition-colors',
-                        linkType === 'product'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-background text-muted-foreground hover:bg-muted',
-                      )}
-                    >
-                      Product
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setLinkType('asset'); set('product_id', '') }}
-                      className={cn(
-                        'border-l border-border px-2.5 py-1.5 transition-colors',
-                        linkType === 'asset'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-background text-muted-foreground hover:bg-muted',
-                      )}
-                    >
-                      Asset
-                    </button>
-                  </div>
+                </label>
+                {linkEnabled && (
+                  <div className="flex items-stretch gap-1.5">
+                    <div className="flex shrink-0 overflow-hidden rounded-md border border-border text-xs font-medium">
+                      <button
+                        type="button"
+                        onClick={() => { setLinkType('product'); set('parent_asset_id', '') }}
+                        className={cn(
+                          'px-2.5 py-1.5 transition-colors',
+                          linkType === 'product'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-background text-muted-foreground hover:bg-muted',
+                        )}
+                      >
+                        Product
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setLinkType('asset'); set('product_id', '') }}
+                        className={cn(
+                          'border-l border-border px-2.5 py-1.5 transition-colors',
+                          linkType === 'asset'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-background text-muted-foreground hover:bg-muted',
+                        )}
+                      >
+                        Asset
+                      </button>
+                    </div>
 
-                  <div className="min-w-0 flex-1">
-                    {linkType === 'product' && (
-                      form.product_id ? (
-                        <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 text-sm">
-                          <Link2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                          <span className="flex-1 truncate font-medium">
-                            {productOptions.find((p) => p.id === form.product_id)?.name || `Product (${form.product_id.slice(0, 8)}…)`}
-                          </span>
-                          <button type="button" onClick={() => set('product_id', '')} className="text-muted-foreground hover:text-destructive" title="Unlink product">
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div ref={productPickerRef} className="relative">
-                          <Input
-                            placeholder="Search products…"
-                            value={productSearch}
-                            onFocus={() => setProductPickerOpen(true)}
-                            onChange={(e) => { setProductSearch(e.target.value); setProductPickerOpen(true) }}
-                          />
-                          {productPickerOpen && (
-                            <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
-                              {productOptions.length === 0 ? (
-                                <p className="px-3 py-2 text-xs text-muted-foreground">No products found</p>
-                              ) : productOptions.map((p) => (
-                                <button key={p.id} type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { set('product_id', p.id); setProductPickerOpen(false); setProductSearch('') }}>
-                                  <span className="flex-1 truncate font-medium">{p.name}</span>
-                                  {p.sku && <span className="text-xs text-muted-foreground">{p.sku}</span>}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    )}
+                    <div className="min-w-0 flex-1">
+                      {linkType === 'product' && (
+                        form.product_id ? (
+                          <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 text-sm">
+                            <Link2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                            <span className="flex-1 truncate font-medium">
+                              {productOptions.find((p) => p.id === form.product_id)?.name || `Product (${form.product_id.slice(0, 8)}…)`}
+                            </span>
+                            <button type="button" onClick={() => set('product_id', '')} className="text-muted-foreground hover:text-destructive" title="Unlink product">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div ref={productPickerRef} className="relative">
+                            <Input
+                              placeholder="Search products…"
+                              value={productSearch}
+                              onFocus={() => setProductPickerOpen(true)}
+                              onChange={(e) => { setProductSearch(e.target.value); setProductPickerOpen(true) }}
+                            />
+                            {productPickerOpen && (
+                              <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
+                                {productOptions.length === 0 ? (
+                                  <p className="px-3 py-2 text-xs text-muted-foreground">No products found</p>
+                                ) : productOptions.map((p) => (
+                                  <button key={p.id} type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { set('product_id', p.id); setProductPickerOpen(false); setProductSearch('') }}>
+                                    <span className="flex-1 truncate font-medium">{p.name}</span>
+                                    {p.sku && <span className="text-xs text-muted-foreground">{p.sku}</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      )}
 
-                    {linkType === 'asset' && (
-                      form.parent_asset_id ? (
-                        <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 text-sm">
-                          <Link2 className="h-3.5 w-3.5 shrink-0 text-primary" />
-                          <span className="flex-1 truncate font-medium">
-                            {allAssets.find((a) => a.id === form.parent_asset_id)?.name || `Asset (${form.parent_asset_id.slice(0, 8)}…)`}
-                          </span>
-                          <button type="button" onClick={() => set('parent_asset_id', '')} className="text-muted-foreground hover:text-destructive" title="Unlink asset">
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div ref={assetLinkPickerRef} className="relative">
-                          <Input
-                            placeholder="Search assets…"
-                            value={assetLinkSearch}
-                            onFocus={() => setAssetLinkPickerOpen(true)}
-                            onChange={(e) => { setAssetLinkSearch(e.target.value); setAssetLinkPickerOpen(true) }}
-                          />
-                          {assetLinkPickerOpen && (
-                            <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
-                              {assetLinkOptions.length === 0 ? (
-                                <p className="px-3 py-2 text-xs text-muted-foreground">No assets found</p>
-                              ) : assetLinkOptions.map((a) => (
-                                <button key={a.id} type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
-                                  onClick={() => { set('parent_asset_id', a.id); setAssetLinkPickerOpen(false); setAssetLinkSearch('') }}
-                                >
-                                  <span className="flex-1 truncate font-medium">{a.name}</span>
-                                  {a.asset_code && <span className="text-xs text-muted-foreground">{a.asset_code}</span>}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    )}
+                      {linkType === 'asset' && (
+                        form.parent_asset_id ? (
+                          <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 text-sm">
+                            <Link2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            <span className="flex-1 truncate font-medium">
+                              {allAssets.find((a) => a.id === form.parent_asset_id)?.name || `Asset (${form.parent_asset_id.slice(0, 8)}…)`}
+                            </span>
+                            <button type="button" onClick={() => set('parent_asset_id', '')} className="text-muted-foreground hover:text-destructive" title="Unlink asset">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div ref={assetLinkPickerRef} className="relative">
+                            <Input
+                              placeholder="Search assets…"
+                              value={assetLinkSearch}
+                              onFocus={() => setAssetLinkPickerOpen(true)}
+                              onChange={(e) => { setAssetLinkSearch(e.target.value); setAssetLinkPickerOpen(true) }}
+                            />
+                            {assetLinkPickerOpen && (
+                              <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
+                                {assetLinkOptions.length === 0 ? (
+                                  <p className="px-3 py-2 text-xs text-muted-foreground">No assets found</p>
+                                ) : assetLinkOptions.map((a) => (
+                                  <button key={a.id} type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                                    onClick={() => { set('parent_asset_id', a.id); setAssetLinkPickerOpen(false); setAssetLinkSearch('') }}
+                                  >
+                                    <span className="flex-1 truncate font-medium">{a.name}</span>
+                                    {a.asset_code && <span className="text-xs text-muted-foreground">{a.asset_code}</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -1310,12 +1407,13 @@ export default function RentalAssetFormPage() {
         </Section>
 
         {/* ══════════════════════════════════════════════════════
-            PRICING — 4-column grid for rate fields
+            PRICING — 2-column grid
         ══════════════════════════════════════════════════════ */}
-        <Section sectionKey="pricing" active={activeTab === 'pricing'} title="Pricing" icon={IndianRupee}>
+        <Section sectionKey="pricing" active={activeTab === 'pricing'} title="Pricing" icon={IndianRupee} dense>
           <RentalAssetPricingFields
             form={form}
             set={set}
+            assetName={form.name}
             syncKey={assetId || 'new'}
             featureCapacityTracking={featureCapacityTracking}
             featureExtendedRates={featureExtendedRates}
@@ -1371,6 +1469,36 @@ export default function RentalAssetFormPage() {
                   {displayDateLockError && <p className="pt-1 font-medium text-rose-700 dark:text-rose-400">{displayDateLockError}</p>}
                 </div>
               )}
+
+              <div className="space-y-3">
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={form.delivery_enabled}
+                    onChange={(e) => set('delivery_enabled', e.target.checked)}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-foreground">Offer delivery on storefront</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Shows a “Need delivery” checkbox when customers book this asset.
+                    </span>
+                  </span>
+                </label>
+                <div>
+                  <FieldLabel>Storefront delivery / booking note</FieldLabel>
+                  <Input
+                    value={form.delivery_info}
+                    onChange={(e) => set('delivery_info', e.target.value.slice(0, 500))}
+                    placeholder="e.g. Delivery can be requested when you book"
+                    maxLength={500}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Shown on the public rental page under pricing. Leave blank to hide.
+                    {form.delivery_info ? ` · ${form.delivery_info.length}/500` : ''}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Info panel */}
@@ -1394,57 +1522,103 @@ export default function RentalAssetFormPage() {
         {/* ══════════════════════════════════════════════════════
             LOCATION — 3-column grid for location fields
         ══════════════════════════════════════════════════════ */}
-        <Section sectionKey="location" active={activeTab === 'location'} title="Location, Status & Notes" icon={MapPin}>
-          <div className="space-y-5">
-            {/* Primary location fields — 3-up */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div>
-                <FieldLabel>Sales Area / Route</FieldLabel>
+        <Section sectionKey="location" active={activeTab === 'location'} title="Location, Status & Notes" icon={MapPin} dense>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-end gap-x-2 gap-y-2">
+              <div className="min-w-[10rem] flex-1 basis-[11rem]">
+                <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                  Sales Area / Route
+                </FieldLabel>
                 <Select
                   value={form.sales_area_id || '__none__'}
                   onChange={(v) => set('sales_area_id', v === '__none__' ? '' : v)}
                   options={[{ value: '__none__', label: 'No sales area' }, ...salesAreaOptions]}
+                  className="h-9 py-0 text-sm"
+                  showSelectedHint={false}
                 />
               </div>
-              <div>
-                <FieldLabel>{categoryConfig.labels.location}</FieldLabel>
-                <Input value={form.location} onChange={(e) => set('location', e.target.value)} placeholder={categoryConfig.labels.locationPlaceholder} />
-              </div>
-              <div>
-                <FieldLabel>Store Scope</FieldLabel>
-                <Select
-                  value={form.store_scope}
-                  onChange={(v) => set('store_scope', v)}
-                  options={[{ value: 'all', label: 'All business units' }, { value: 'selected', label: 'Selected units only' }]}
+              <div className="min-w-[9rem] flex-1 basis-[10rem]">
+                <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                  {categoryConfig.labels.location}
+                </FieldLabel>
+                <Input
+                  value={form.location}
+                  onChange={(e) => set('location', e.target.value)}
+                  placeholder={categoryConfig.labels.locationPlaceholder}
+                  className="h-9 py-0 text-sm"
                 />
               </div>
             </div>
 
-            {/* Rack location — only when applicable */}
+            <div className="rounded-md border border-border/60 bg-background/70 p-2.5">
+              <BusinessUnitScopePicker
+                stores={businessUnits}
+                scope={(form.store_scope === 'selected' ? 'selected' : 'all') as StoreScope}
+                selectedIds={form.store_ids || []}
+                onScopeChange={(scope) => setForm((f) => ({
+                  ...f,
+                  store_scope: scope,
+                  store_ids: scope === 'all' ? [] : f.store_ids,
+                }))}
+                onSelectedChange={(ids) => set('store_ids', ids)}
+                hideHeader
+              />
+            </div>
+
             {categoryConfig.showRackLocation && (
-              <div className="border-t border-border/60 pt-4">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">Rack / shelf position</p>
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  <div className="sm:col-span-3 lg:col-span-2">
-                    <FieldLabel>Section</FieldLabel>
-                    <Input value={form.section} onChange={(e) => set('section', e.target.value)} placeholder="Cold Storage – A" />
+              <div className="rounded-md border border-border/60 bg-background/70 p-2.5">
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Rack / shelf position
+                </p>
+                <div className="flex flex-wrap items-end gap-x-2 gap-y-2">
+                  <div className="min-w-[10rem] flex-[1.4] basis-[12rem]">
+                    <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                      Section
+                    </FieldLabel>
+                    <Input
+                      value={form.section}
+                      onChange={(e) => set('section', e.target.value)}
+                      placeholder="Cold Storage – A"
+                      className="h-9 py-0 text-sm"
+                    />
                   </div>
-                  <div>
-                    <FieldLabel>Row</FieldLabel>
-                    <Input value={form.row_label} onChange={(e) => set('row_label', e.target.value)} placeholder="Row 01" />
+                  <div className="w-[7rem] shrink-0">
+                    <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                      Row
+                    </FieldLabel>
+                    <Input
+                      value={form.row_label}
+                      onChange={(e) => set('row_label', e.target.value)}
+                      placeholder="Row 01"
+                      className="h-9 py-0 text-sm"
+                    />
                   </div>
-                  <div>
-                    <FieldLabel>Rack Number</FieldLabel>
-                    <Input value={form.rack_number} onChange={(e) => set('rack_number', e.target.value)} placeholder="A-001" />
+                  <div className="w-[8rem] shrink-0">
+                    <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                      Rack Number
+                    </FieldLabel>
+                    <Input
+                      value={form.rack_number}
+                      onChange={(e) => set('rack_number', e.target.value)}
+                      placeholder="A-001"
+                      className="h-9 py-0 text-sm"
+                    />
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Notes */}
-            <div className="border-t border-border/60 pt-4">
-              <FieldLabel>Internal Notes</FieldLabel>
-              <Textarea rows={4} value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Notes visible only to your team…" />
+            <div>
+              <FieldLabel className="mb-1 block text-[11px] font-medium leading-none text-muted-foreground">
+                Internal Notes
+              </FieldLabel>
+              <Textarea
+                rows={3}
+                value={form.notes}
+                onChange={(e) => set('notes', e.target.value)}
+                placeholder="Notes visible only to your team…"
+                className="min-h-[4.5rem] resize-y text-sm"
+              />
             </div>
           </div>
         </Section>

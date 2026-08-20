@@ -78,7 +78,7 @@ export default function Landing() {
   const visitStore = (storeSlug: string) => navigate(`/${storeSlug}`)
 
   return (
-    <div className="kiterp-landing font-kiterp-body min-h-screen bg-white">
+    <div className="kiterp-landing font-kiterp-body min-h-screen kiterp-page-shell">
       <PlatformAnalyticsBeacon />
       <LandingHeader />
       <main>

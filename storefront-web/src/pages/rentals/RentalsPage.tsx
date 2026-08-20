@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Calendar, Loader2, Package, MapPin, Search, Scale, Boxes, Shield,
@@ -16,6 +16,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+
+import { applyAdditionalCharges, chargeLineAmounts, chargesForEstimate, formatAdditionalChargeValue, normalizeAdditionalCharges, splitAdditionalCharges } from '@/lib/rentalAdditionalCharges'
+import {
+  durationRateForPlan,
+  periodRateForPlan,
+  storefrontRateOptions,
+} from '@/lib/rentalDurationRates'
 
 const RENTAL_CATEGORIES = [
   { value: 'all', label: 'All categories' },
@@ -52,12 +59,23 @@ type RentalAsset = {
   daily_rate?: number
   weekly_rate?: number
   monthly_rate?: number
+  yearly_rate?: number
+  hourly_rate?: number
+  per_minute_rate?: number
+  duration_rates?: { minutes: number; rate: number }[]
+  period_rates?: { days: number; rate: number }[]
   deposit_amount?: number
+  additional_charges?: { id?: string; name: string; description?: string; charge_type: 'amount' | 'percent'; show_mode?: 'independent' | 'together'; value: number }[]
   location?: string
   status?: string
   image_url?: string | null
   display_start_date?: string | null
   display_end_date?: string | null
+  delivery_enabled?: boolean
+  unit_mode?: string
+  child_count?: number
+  available_child_count?: number
+  unit_count?: number
 }
 
 type Step = 'browse' | 'book' | 'confirm'
@@ -87,24 +105,108 @@ function availabilityLabel(asset: RentalAsset) {
   if (start && end) return `${start} – ${end}`
   if (start) return `From ${start}`
   if (end) return `Until ${end}`
-  return 'Always available'
+  return null
 }
 
-function estimateTotal(asset: RentalAsset, start: string, end: string, plan: string) {
-  if (!start || !end) return { rental: 0, deposit: Number(asset.deposit_amount || 0), total: Number(asset.deposit_amount || 0), days: 0 }
+/** Capacity chip numbers — prefer sub-asset counts when hierarchy is enabled. */
+function capacityDisplay(asset: RentalAsset) {
+  const unit = asset.capacity_unit || 'units'
+  if (asset.unit_mode === 'hierarchy' && (asset.child_count ?? 0) > 0) {
+    const max = Math.max(0, Math.floor(Number(asset.child_count ?? 0)))
+    const avail = Math.max(
+      0,
+      Math.floor(Number(asset.available_child_count ?? asset.child_count ?? 0)),
+    )
+    return { avail: Math.min(avail, max), max, unit }
+  }
+  if (asset.unit_mode === 'serialized' && (asset.unit_count ?? 0) > 0) {
+    const max = Math.max(0, Math.floor(Number(asset.unit_count ?? 0)))
+    const avail = Math.max(0, Math.floor(Number(asset.available_capacity ?? 0)))
+    return { avail: Math.min(avail, max || avail), max: max || avail, unit }
+  }
+  return {
+    avail: Math.max(0, Number(asset.available_capacity ?? 0)),
+    max: Math.max(0, Number(asset.capacity_max ?? 0)),
+    unit,
+  }
+}
+
+/** Capacity-based availability — if any unit is free, treat as available. */
+function stockAvailabilityLabel(asset: RentalAsset) {
+  const status = String(asset.status || '').toLowerCase()
+  if (status === 'maintenance' || status === 'unavailable' || status === 'retired') {
+    return status.replace(/_/g, ' ')
+  }
+  const { avail, max } = capacityDisplay(asset)
+  if (max > 0) {
+    if (avail <= 0) return 'Fully booked'
+    if (avail >= max) return 'Available'
+    return `${Math.floor(avail)} of ${Math.floor(max)} available`
+  }
+  return avail > 0 ? 'Available' : 'Fully booked'
+}
+
+function availabilityChipLabel(asset: RentalAsset) {
+  return availabilityLabel(asset) || stockAvailabilityLabel(asset)
+}
+
+function estimateTotal(asset: RentalAsset, start: string, end: string, plan: string, selectedIndependentIds: string[] = []) {
+  const extras = normalizeAdditionalCharges(asset.additional_charges)
+  if (!start || !end) {
+    return { rental: 0, deposit: Number(asset.deposit_amount || 0), extras, total: Number(asset.deposit_amount || 0), days: 0 }
+  }
   const s = new Date(start)
   const e = new Date(end)
   const days = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1)
   let rental = 0
-  if (plan === 'monthly' && Number(asset.monthly_rate) > 0) {
-    rental = Number(asset.monthly_rate) * Math.max(1, Math.ceil(days / 30))
-  } else if (plan === 'weekly' && Number(asset.weekly_rate) > 0) {
-    rental = Number(asset.weekly_rate) * Math.max(1, Math.ceil(days / 7))
+  const periodSlot = periodRateForPlan(asset.period_rates, plan, {
+    daily: Number(asset.daily_rate || 0),
+    weekly: Number(asset.weekly_rate || 0),
+    monthly: Number(asset.monthly_rate || 0),
+    yearly: Number(asset.yearly_rate || 0),
+  })
+  if (periodSlot) {
+    rental = periodSlot.rate * Math.max(1, Math.ceil(days / periodSlot.days))
   } else {
-    rental = Number(asset.daily_rate || 0) * days
+    const slot = durationRateForPlan(
+      asset.duration_rates,
+      plan,
+      Number(asset.hourly_rate || 0),
+      Number(asset.per_minute_rate || 0),
+    )
+    rental = slot ? slot.rate * days : Number(asset.daily_rate || 0) * days
   }
   const deposit = Number(asset.deposit_amount || 0)
-  return { rental, deposit, total: rental + deposit, days }
+  return { rental, deposit, extras, total: applyAdditionalCharges(rental, extras, selectedIndependentIds, deposit) + deposit, days }
+}
+
+function AssetCatalogPrice({ asset }: { asset: RentalAsset }) {
+  const rates = storefrontRateOptions(asset)
+  const primary = rates[0]
+  if (!primary) {
+    return <p className="text-sm text-gray-400">Rates on request</p>
+  }
+  const extra = rates.slice(1, 3)
+  return (
+    <div className="min-w-0 leading-tight">
+      <p className="text-sm font-bold tabular-nums text-gray-900">
+        {formatCurrency(primary.rate)}
+        <span className="text-[11px] font-medium text-gray-400">/{primary.suffix}</span>
+      </p>
+      {extra.length > 0 || Number(asset.deposit_amount || 0) > 0 ? (
+        <p className="truncate text-[10px] text-gray-400">
+          {extra.map((r) => `${formatCurrency(r.rate)}/${r.suffix}`).join(' · ')}
+          {extra.length > 0 && Number(asset.deposit_amount || 0) > 0 ? ' · ' : null}
+          {Number(asset.deposit_amount || 0) > 0 ? (
+            <span className="inline-flex items-center gap-0.5">
+              <Shield className="h-2.5 w-2.5" />
+              {formatCurrency(Number(asset.deposit_amount || 0))}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 export default function RentalsPage() {
@@ -137,8 +239,17 @@ export default function RentalsPage() {
   const [notes, setNotes] = useState('')
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [needsDelivery, setNeedsDelivery] = useState(false)
+  const [selectedExtras, setSelectedExtras] = useState<string[]>([])
   const [confirmedBooking, setConfirmedBooking] = useState<Record<string, unknown> | null>(null)
   const [payMethod, setPayMethod] = useState('upi')
+
+  useEffect(() => {
+    if (!selected) return
+    const options = storefrontRateOptions(selected)
+    if (options.length && !options.some((o) => o.plan === pricingPlan)) {
+      setPricingPlan(options[0].plan)
+    }
+  }, [selected, pricingPlan])
 
   const confirmedBookingId = confirmedBooking ? String(confirmedBooking.id ?? '') : ''
   const confirmedTotalLabel = formatCurrency(Number(confirmedBooking?.total_amount ?? 0))
@@ -161,7 +272,8 @@ export default function RentalsPage() {
     const dir = sortDir === 'asc' ? 1 : -1
     return [...items].sort((a, b) => {
       if (sortKey === 'daily_rate') {
-        return (Number(a.daily_rate || 0) - Number(b.daily_rate || 0)) * dir
+        const rateOf = (item: RentalAsset) => storefrontRateOptions(item)[0]?.rate || 0
+        return (rateOf(a) - rateOf(b)) * dir
       }
       if (sortKey === 'status') {
         return String(a.status || '').localeCompare(String(b.status || '')) * dir
@@ -202,8 +314,10 @@ export default function RentalsPage() {
         quantity: Number(bookQty) || 1,
         pricing_plan: pricingPlan,
         notes: notes.trim() || undefined,
-        delivery_address: needsDelivery ? deliveryAddress : undefined,
-        needs_delivery: needsDelivery,
+        delivery_address:
+          selected!.delivery_enabled && needsDelivery ? deliveryAddress : undefined,
+        needs_delivery: Boolean(selected!.delivery_enabled && needsDelivery),
+        additional_charge_ids: selectedExtras,
       }),
     onSuccess: (data) => {
       toast.success('Rental request submitted')
@@ -232,7 +346,18 @@ export default function RentalsPage() {
     onError: () => toast.error('Payment failed'),
   })
 
-  const price = selected ? estimateTotal(selected, startDate, endDate, pricingPlan) : null
+  const price = selected ? estimateTotal(selected, startDate, endDate, pricingPlan, selectedExtras) : null
+  const selectedSplit = selected ? splitAdditionalCharges(normalizeAdditionalCharges(selected.additional_charges)) : { independent: [], together: [] }
+  const extraLines = selected
+    ? chargeLineAmounts(
+        price?.rental || 0,
+        chargesForEstimate(normalizeAdditionalCharges(selected.additional_charges), selectedExtras),
+        price?.deposit || 0,
+      )
+    : []
+  const togetherExtraTotal = extraLines
+    .filter((line) => line.charge.show_mode !== 'independent')
+    .reduce((sum, line) => sum + line.amount, 0)
 
   return (
     <div className="relative min-h-[70vh]">
@@ -508,12 +633,7 @@ export default function RentalsPage() {
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
-                        {Number(a.daily_rate) > 0 && (
-                          <p className="text-sm font-bold tabular-nums text-gray-900">
-                            {formatCurrency(Number(a.daily_rate))}
-                            <span className="text-[11px] font-medium text-gray-400">/day</span>
-                          </p>
-                        )}
+                        <AssetCatalogPrice asset={a} />
                         <Button
                           size="sm"
                           variant="outline"
@@ -537,8 +657,7 @@ export default function RentalsPage() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {filtered.map((a) => {
-                  const avail = Number(a.available_capacity ?? 0)
-                  const max = Number(a.capacity_max ?? 0)
+                  const { avail, max, unit: capacityUnit } = capacityDisplay(a)
                   const pct = max > 0 ? Math.min(100, Math.round(((max - avail) / max) * 100)) : 0
                   const hasDateWindow = Boolean(a.display_start_date || a.display_end_date)
                   const categoryLabel = (a.category || '').replace(/_/g, ' ')
@@ -596,12 +715,16 @@ export default function RentalsPage() {
 
                         <div
                           className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs ${
-                            hasDateWindow ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-50 text-slate-600'
+                            hasDateWindow
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : avail > 0
+                                ? 'bg-emerald-50 text-emerald-800'
+                                : 'bg-rose-50 text-rose-800'
                           }`}
                         >
-                          <Calendar className={`h-3.5 w-3.5 shrink-0 ${hasDateWindow ? 'text-emerald-600' : 'text-slate-400'}`} />
+                          <Calendar className={`h-3.5 w-3.5 shrink-0 ${hasDateWindow || avail > 0 ? 'text-emerald-600' : 'text-rose-400'}`} />
                           <span className="truncate font-medium">
-                            {hasDateWindow ? availabilityLabel(a) : 'Always available'}
+                            {availabilityChipLabel(a)}
                           </span>
                         </div>
 
@@ -612,8 +735,8 @@ export default function RentalsPage() {
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
                           <span className="inline-flex items-center gap-1">
                             <Boxes className="h-3 w-3 text-primary/70" />
-                            <span className="tabular-nums text-gray-700">{avail}/{max}</span>
-                            <span className="lowercase">{a.capacity_unit}</span>
+                            <span className="tabular-nums text-gray-700">{Math.floor(avail)}/{Math.floor(max)}</span>
+                            <span className="lowercase">{capacityUnit}</span>
                           </span>
                           {a.location && (
                             <span className="inline-flex min-w-0 items-center gap-1">
@@ -642,23 +765,7 @@ export default function RentalsPage() {
                       </div>
 
                       <div className="mt-auto flex items-center justify-between gap-2 border-t border-gray-100 px-3.5 py-2.5">
-                        <div className="min-w-0 leading-tight">
-                          {Number(a.daily_rate) > 0 && (
-                            <p className="text-sm font-bold tabular-nums text-gray-900">
-                              {formatCurrency(Number(a.daily_rate))}
-                              <span className="text-[11px] font-medium text-gray-400">/day</span>
-                            </p>
-                          )}
-                          <p className="truncate text-[10px] text-gray-400">
-                            {Number(a.monthly_rate) > 0 && (
-                              <span className="tabular-nums">{formatCurrency(Number(a.monthly_rate))}/mo · </span>
-                            )}
-                            <span className="inline-flex items-center gap-0.5">
-                              <Shield className="h-2.5 w-2.5" />
-                              {formatCurrency(Number(a.deposit_amount || 0))}
-                            </span>
-                          </p>
-                        </div>
+                        <AssetCatalogPrice asset={a} />
                         <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                           <Button
                             size="sm"
@@ -758,7 +865,7 @@ export default function RentalsPage() {
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700/70">Available dates</p>
-                <p className="font-semibold">{availabilityLabel(selected)}</p>
+                <p className="font-semibold">{availabilityChipLabel(selected)}</p>
               </div>
             </div>
 
@@ -780,9 +887,11 @@ export default function RentalsPage() {
                       value={pricingPlan}
                       onChange={(e) => setPricingPlan(e.target.value)}
                     >
-                      <option value="daily">Daily</option>
-                      {Number(selected.weekly_rate) > 0 && <option value="weekly">Weekly</option>}
-                      {Number(selected.monthly_rate) > 0 && <option value="monthly">Monthly</option>}
+                      {storefrontRateOptions(selected).map((opt) => (
+                        <option key={opt.plan} value={opt.plan}>
+                          {opt.label} · {formatCurrency(opt.rate)}/{opt.suffix}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -809,21 +918,74 @@ export default function RentalsPage() {
 
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" />
 
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input type="checkbox" checked={needsDelivery} onChange={(e) => setNeedsDelivery(e.target.checked)} />
-                  Need delivery van
-                </label>
-                {needsDelivery && (
-                  <Input
-                    value={deliveryAddress}
-                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                    placeholder="Delivery address"
-                  />
-                )}
+                {selected.delivery_enabled ? (
+                  <>
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input type="checkbox" checked={needsDelivery} onChange={(e) => setNeedsDelivery(e.target.checked)} />
+                      Need delivery van
+                    </label>
+                    {needsDelivery && (
+                      <Input
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        placeholder="Delivery address"
+                      />
+                    )}
+                  </>
+                ) : null}
+
+                {selectedSplit.independent.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {selectedSplit.independent.map((c) => {
+                      const id = c.id || c.name
+                      return (
+                        <label key={id} className="flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={selectedExtras.includes(id)}
+                            onChange={(e) => {
+                              setSelectedExtras((prev) =>
+                                e.target.checked ? [...prev, id] : prev.filter((x) => x !== id),
+                              )
+                            }}
+                          />
+                          <span className="flex-1">{c.name}</span>
+                          <span className="tabular-nums">{formatAdditionalChargeValue(c)}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                ) : null}
 
                 {price && startDate && endDate && (
                   <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4 text-sm space-y-1.5">
                     <div className="flex justify-between"><span className="text-gray-500">Rental ({price.days} days)</span><span className="tabular-nums">{formatCurrency(price.rental)}</span></div>
+                    {selectedSplit.together.length === 1 ? (
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-500">
+                          {selectedSplit.together[0].name}
+                          {selectedSplit.together[0].charge_type === 'percent' ? ` (${formatAdditionalChargeValue(selectedSplit.together[0])})` : ''}
+                        </span>
+                        <span className="tabular-nums">{formatCurrency(togetherExtraTotal)}</span>
+                      </div>
+                    ) : selectedSplit.together.length > 1 ? (
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-500">Additional charges</span>
+                        <span className="tabular-nums">{formatCurrency(togetherExtraTotal)}</span>
+                      </div>
+                    ) : null}
+                    {selectedSplit.independent.filter((c) => selectedExtras.includes(c.id) || selectedExtras.includes(c.name)).map((c) => {
+                      const line = extraLines.find((l) => l.charge.id === c.id || l.charge.name === c.name)
+                      return (
+                      <div key={c.id || c.name} className="flex justify-between gap-3">
+                        <span className="text-gray-500">
+                          {c.name}
+                          {c.charge_type === 'percent' ? ` (${formatAdditionalChargeValue(c)})` : ''}
+                        </span>
+                        <span className="tabular-nums">{formatCurrency(line?.amount ?? 0)}</span>
+                      </div>
+                      )
+                    })}
                     <div className="flex justify-between"><span className="text-gray-500">Security deposit</span><span className="tabular-nums">{formatCurrency(price.deposit)}</span></div>
                     <div className="flex justify-between font-semibold text-base pt-2 border-t border-gray-200/80">
                       <span>Total</span>

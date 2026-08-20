@@ -204,7 +204,14 @@ type AddMode = 'none' | 'single' | 'bulk'
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 
-export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) {
+export default function RentalAssetUnitsPanel({
+  assetId,
+  readOnly = false,
+}: {
+  assetId: string
+  /** View-only: hide add / edit / delete / bulk selection */
+  readOnly?: boolean
+}) {
   const qc = useQueryClient()
   const [addMode, setAddMode] = useState<AddMode>('none')
   const [singleForm, setSingleForm] = useState<AddUnitForm>(emptySingle())
@@ -386,6 +393,7 @@ export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) 
           )}
         </div>
         {addMode === 'none' ? (
+          !readOnly ? (
           <div className="flex gap-1.5">
             <Button variant="outline" size="sm" className="h-8" onClick={() => setAddMode('single')}>
               <Plus className="mr-1 h-3.5 w-3.5" /> Add
@@ -394,6 +402,7 @@ export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) 
               <Layers className="mr-1 h-3.5 w-3.5" /> Bulk sequence
             </Button>
           </div>
+          ) : null
         ) : (
           <button
             type="button"
@@ -406,7 +415,7 @@ export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) 
       </div>
 
       {/* ── Single add form ─────────────────────────────────────── */}
-      {addMode === 'single' && (
+      {!readOnly && addMode === 'single' && (
         <div className="space-y-3 border-t border-border bg-muted/20 px-3 py-3 sm:px-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -444,7 +453,7 @@ export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) 
       )}
 
       {/* ── Bulk add form ────────────────────────────────────────── */}
-      {addMode === 'bulk' && (
+      {!readOnly && addMode === 'bulk' && (
         <div className="space-y-4 border-t border-border bg-muted/20 px-3 py-3 sm:px-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
@@ -587,7 +596,7 @@ export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) 
       )}
 
       {/* ── Bulk action bar ─────────────────────────────────────── */}
-      {selected.size > 0 && (
+      {!readOnly && selected.size > 0 && (
         <div className="border-t border-border px-3 py-2 sm:px-4">
           <BulkActionBar
             count={selected.size}
@@ -608,7 +617,11 @@ export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) 
         <div className="border-t border-border py-10 text-center">
           <Layers className="mx-auto mb-2 h-7 w-7 text-muted-foreground/35" />
           <p className="text-sm font-medium text-foreground">No units yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Add a single serial or generate a bulk sequence.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {readOnly
+              ? 'Add serialized units from Edit Asset.'
+              : 'Add a single serial or generate a bulk sequence.'}
+          </p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="border-t border-border py-8 text-center">
@@ -621,15 +634,17 @@ export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) 
         <div className="border-t border-border">
           {/* Sticky column header */}
           <div className="sticky top-0 z-[1] flex items-center gap-2 border-b border-border bg-muted/50 px-3 py-1.5 sm:px-4">
-            <div className={cn(COL.check, 'flex justify-center')}>
-              <input
-                type="checkbox"
-                checked={allFilteredSelected}
-                onChange={toggleAll}
-                className="h-3.5 w-3.5 rounded border-border"
-                title="Select all visible"
-              />
-            </div>
+            {!readOnly && (
+              <div className={cn(COL.check, 'flex justify-center')}>
+                <input
+                  type="checkbox"
+                  checked={allFilteredSelected}
+                  onChange={toggleAll}
+                  className="h-3.5 w-3.5 rounded border-border"
+                  title="Select all visible"
+                />
+              </div>
+            )}
             <span className="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Serial / Label
             </span>
@@ -639,7 +654,7 @@ export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) 
             <span className={cn(COL.status, 'text-right text-[10px] font-semibold uppercase tracking-wide text-muted-foreground')}>
               Status
             </span>
-            <span className={COL.actions} aria-hidden />
+            {!readOnly && <span className={COL.actions} aria-hidden />}
           </div>
 
           {/* Scrollable body — keeps the form usable with hundreds of units */}
@@ -649,18 +664,20 @@ export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) 
                 <div
                   className={cn(
                     'group flex items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/30 sm:px-4',
-                    selected.has(u.id) && 'bg-sky-500/5',
-                    editing?.unitId === u.id && 'bg-muted/20',
+                    !readOnly && selected.has(u.id) && 'bg-sky-500/5',
+                    !readOnly && editing?.unitId === u.id && 'bg-muted/20',
                   )}
                 >
-                  <div className={cn(COL.check, 'flex justify-center')}>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(u.id)}
-                      onChange={() => toggleOne(u.id)}
-                      className="h-3.5 w-3.5 rounded border-border"
-                    />
-                  </div>
+                  {!readOnly && (
+                    <div className={cn(COL.check, 'flex justify-center')}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(u.id)}
+                        onChange={() => toggleOne(u.id)}
+                        className="h-3.5 w-3.5 rounded border-border"
+                      />
+                    </div>
+                  )}
                   {conditionIcon(u.condition)}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium leading-tight">
@@ -675,33 +692,35 @@ export default function RentalAssetUnitsPanel({ assetId }: { assetId: string }) 
                   <div className={cn(COL.status, 'flex justify-end')}>
                     <span className={statusBadge(u.status)}>{u.status}</span>
                   </div>
-                  <div className={cn(COL.actions, 'flex justify-end gap-0.5 opacity-70 group-hover:opacity-100')}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => setEditing({
-                        unitId: u.id,
-                        form: { condition: u.condition, status: u.status, notes: u.notes ?? '' },
-                      })}
-                      title="Edit unit"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      disabled={deleteUnit.isPending}
-                      onClick={() => deleteUnit.mutate(u.id)}
-                      title="Delete unit"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  {!readOnly && (
+                    <div className={cn(COL.actions, 'flex justify-end gap-0.5 opacity-70 group-hover:opacity-100')}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => setEditing({
+                          unitId: u.id,
+                          form: { condition: u.condition, status: u.status, notes: u.notes ?? '' },
+                        })}
+                        title="Edit unit"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        disabled={deleteUnit.isPending}
+                        onClick={() => deleteUnit.mutate(u.id)}
+                        title="Delete unit"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
-                {editing?.unitId === u.id && (
+                {!readOnly && editing?.unitId === u.id && (
                   <div className="space-y-2 border-t border-border/60 bg-muted/15 px-3 py-3 sm:px-4 sm:pl-12">
                     <p className="text-xs font-semibold text-foreground">Edit · {u.serial_no}</p>
                     <div className="grid grid-cols-2 gap-2">

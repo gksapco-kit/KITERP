@@ -95,6 +95,14 @@ def service_available_at_store(store_id: UUID):
     )
 
 
+async def get_rental_asset_store_ids(db: AsyncSession, asset_id: UUID) -> list[str]:
+    from app.models.rental import RentalAssetStore
+    result = await db.execute(
+        select(RentalAssetStore.store_id).where(RentalAssetStore.asset_id == asset_id)
+    )
+    return [str(row[0]) for row in result.all()]
+
+
 def rental_asset_available_at_store(store_id: UUID):
     """SQLAlchemy filter: rental asset visible at the given business unit."""
     from app.models.rental import RentalAsset, RentalAssetStore

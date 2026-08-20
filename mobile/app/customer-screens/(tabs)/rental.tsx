@@ -43,12 +43,19 @@ export type RentalAsset = {
   daily_rate?: number
   weekly_rate?: number
   monthly_rate?: number
+  yearly_rate?: number
   deposit_amount?: number
+  additional_charges?: { name?: string; description?: string; charge_type?: string; value?: number }[]
   location?: string
   status?: string
   display_start_date?: string | null
   display_end_date?: string | null
   image_url?: string
+  delivery_enabled?: boolean
+  unit_mode?: string
+  child_count?: number
+  available_child_count?: number
+  unit_count?: number
 }
 
 function num(v: unknown): number {
@@ -58,6 +65,25 @@ function num(v: unknown): number {
 
 function prettyLabel(v?: string | null) {
   return (v || '').replace(/_/g, ' ').trim()
+}
+
+/** Prefer sub-asset counts when hierarchy is enabled. */
+function capacityDisplay(a: RentalAsset) {
+  const unit = a.capacity_unit || 'units'
+  if (a.unit_mode === 'hierarchy' && num(a.child_count) > 0) {
+    const max = Math.max(0, Math.floor(num(a.child_count)))
+    const avail = Math.max(0, Math.floor(num(a.available_child_count ?? a.child_count)))
+    return { avail: Math.min(avail, max), max, unit }
+  }
+  if (a.unit_mode === 'serialized' && num(a.unit_count) > 0) {
+    const max = Math.max(0, Math.floor(num(a.unit_count)))
+    const avail = Math.max(0, Math.floor(num(a.available_capacity)))
+    return { avail: Math.min(avail, max || avail), max: max || avail, unit }
+  }
+  const max = Math.max(0, num(a.capacity_max))
+  const avail =
+    a.available_capacity == null ? max : Math.max(0, num(a.available_capacity))
+  return { avail, max, unit }
 }
 
 function statusColor(status?: string) {
@@ -72,7 +98,13 @@ function availabilityLabel(a: RentalAsset) {
     const end = a.display_end_date ? String(a.display_end_date).slice(0, 10) : '…'
     return `${start} → ${end}`
   }
-  return 'Always available'
+  const { avail, max } = capacityDisplay(a)
+  if (max > 0) {
+    if (avail <= 0) return 'Fully booked'
+    if (avail >= max) return 'Available'
+    return `${Math.floor(avail)} of ${Math.floor(max)} available`
+  }
+  return avail > 0 ? 'Available' : 'Fully booked'
 }
 
 /** Local calendar YYYY-MM-DD (avoid UTC shift from toISOString). */
@@ -157,6 +189,31 @@ async function findNextFreeSlot(
   return null
 }
 
+function applyAdditionalCharges(subtotal: number, raw: unknown, deposit = 0): number {
+  if (!Array.isArray(raw)) return subtotal
+  let extra = 0
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const rec = item as Record<string, unknown>
+    const value = Number(rec.value)
+    if (!Number.isFinite(value) || value <= 0) continue
+    if (String(rec.charge_type || '') === 'percent') {
+      const basis = String(rec.percent_of || 'rental')
+      const base = basis === 'running'
+        ? subtotal + extra
+        : basis === 'grand'
+          ? subtotal + extra + deposit
+          : basis === 'deposit'
+            ? deposit
+            : subtotal
+      extra += base * (value / 100)
+    } else {
+      extra += value
+    }
+  }
+  return Math.round((subtotal + extra) * 100) / 100
+}
+
 function estimateTotal(
   asset: RentalAsset,
   start: string,
@@ -183,7 +240,9 @@ function estimateTotal(
   }
   const days = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1)
   let rental = 0
-  if (plan === 'monthly' && num(asset.monthly_rate) > 0) {
+  if (plan === 'yearly' && num(asset.yearly_rate) > 0) {
+    rental = num(asset.yearly_rate) * Math.max(1, Math.ceil(days / 365))
+  } else if (plan === 'monthly' && num(asset.monthly_rate) > 0) {
     rental = num(asset.monthly_rate) * Math.max(1, Math.ceil(days / 30))
   } else if (plan === 'weekly' && num(asset.weekly_rate) > 0) {
     rental = num(asset.weekly_rate) * Math.max(1, Math.ceil(days / 7))
@@ -191,10 +250,11 @@ function estimateTotal(
     rental = num(asset.daily_rate) * days
   }
   const deposit = num(asset.deposit_amount)
-  return { rental, deposit, total: rental + deposit, days }
+  const rentalTotal = applyAdditionalCharges(rental, asset.additional_charges, deposit)
+  return { rental: rentalTotal, deposit, total: rentalTotal + deposit, days }
 }
 
-type PricingPlan = 'daily' | 'weekly' | 'monthly'
+type PricingPlan = 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 type BookDraft = {
   asset: RentalAsset
@@ -357,7 +417,7 @@ export default function CustomerRentals() {
       Alert.alert('Invalid dates', 'End date must be on or after start date.')
       return
     }
-    if (draft.needsDelivery && !draft.deliveryAddress.trim()) {
+    if (draft.asset.delivery_enabled && draft.needsDelivery && !draft.deliveryAddress.trim()) {
       Alert.alert('Delivery address', 'Please enter a delivery address.')
       return
     }
@@ -406,8 +466,11 @@ export default function CustomerRentals() {
         quantity: qty,
         pricing_plan: draft.pricingPlan,
         notes: draft.notes.trim() || undefined,
-        needs_delivery: draft.needsDelivery,
-        delivery_address: draft.needsDelivery ? draft.deliveryAddress.trim() : undefined,
+        needs_delivery: Boolean(draft.asset.delivery_enabled && draft.needsDelivery),
+        delivery_address:
+          draft.asset.delivery_enabled && draft.needsDelivery
+            ? draft.deliveryAddress.trim() || undefined
+            : undefined,
       })
       setDraft(null)
       Alert.alert('Booking submitted', 'Your rental request was sent. Awaiting vendor approval.')
@@ -424,7 +487,12 @@ export default function CustomerRentals() {
   const priceEstimate = draft
     ? estimateTotal(draft.asset, draft.startDate, draft.endDate, draft.pricingPlan)
     : null
-  const planOptions: PricingPlan[] = ['daily', 'weekly', 'monthly']
+  const planOptions: PricingPlan[] = [
+    'daily',
+    ...(Number(draft?.asset.weekly_rate) > 0 ? (['weekly'] as PricingPlan[]) : []),
+    ...(Number(draft?.asset.monthly_rate) > 0 ? (['monthly'] as PricingPlan[]) : []),
+    ...(Number(draft?.asset.yearly_rate) > 0 ? (['yearly'] as PricingPlan[]) : []),
+  ]
   const { height: windowHeight } = useWindowDimensions()
 
   return (
@@ -484,11 +552,7 @@ export default function CustomerRentals() {
             </View>
           }
           renderItem={({ item }) => {
-            const avail =
-              item.available_capacity == null
-                ? num(item.capacity_max)
-                : num(item.available_capacity)
-            const max = num(item.capacity_max)
+            const { avail, max, unit: capacityUnit } = capacityDisplay(item)
             const pct = max > 0 ? Math.min(100, Math.round(((max - avail) / max) * 100)) : 0
             const tone = statusColor(item.status)
             const category = prettyLabel(item.category)
@@ -545,9 +609,9 @@ export default function CustomerRentals() {
                     <View style={styles.metaItem}>
                       <Ionicons name="cube-outline" size={13} color="#2563EB" />
                       <Text style={styles.metaValue}>
-                        {avail}/{max}
+                        {Math.floor(avail)}/{Math.floor(max)}
                       </Text>
-                      <Text style={styles.metaUnit}>{item.capacity_unit || 'units'}</Text>
+                      <Text style={styles.metaUnit}>{capacityUnit}</Text>
                     </View>
                     {item.max_weight != null && (
                       <View style={styles.metaItem}>
@@ -751,27 +815,31 @@ export default function CustomerRentals() {
                           textAlignVertical="top"
                         />
 
-                        <View style={styles.deliveryRow}>
-                          <Text style={styles.deliveryLabel}>Need delivery van</Text>
-                          <Switch
-                            value={draft.needsDelivery}
-                            onValueChange={(needsDelivery) => patchDraft({ needsDelivery })}
-                            trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-                            thumbColor={draft.needsDelivery ? '#2563EB' : '#f4f4f5'}
-                            ios_backgroundColor="#D1D5DB"
-                          />
-                        </View>
-
-                        {draft.needsDelivery ? (
+                        {draft.asset.delivery_enabled ? (
                           <>
-                            <Text style={styles.fieldLabel}>Delivery address</Text>
-                            <TextInput
-                              style={styles.fieldInput}
-                              value={draft.deliveryAddress}
-                              onChangeText={(deliveryAddress) => patchDraft({ deliveryAddress })}
-                              placeholder="Delivery address"
-                              placeholderTextColor="#9CA3AF"
-                            />
+                            <View style={styles.deliveryRow}>
+                              <Text style={styles.deliveryLabel}>Need delivery van</Text>
+                              <Switch
+                                value={draft.needsDelivery}
+                                onValueChange={(needsDelivery) => patchDraft({ needsDelivery })}
+                                trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
+                                thumbColor={draft.needsDelivery ? '#2563EB' : '#f4f4f5'}
+                                ios_backgroundColor="#D1D5DB"
+                              />
+                            </View>
+
+                            {draft.needsDelivery ? (
+                              <>
+                                <Text style={styles.fieldLabel}>Delivery address</Text>
+                                <TextInput
+                                  style={styles.fieldInput}
+                                  value={draft.deliveryAddress}
+                                  onChangeText={(deliveryAddress) => patchDraft({ deliveryAddress })}
+                                  placeholder="Delivery address"
+                                  placeholderTextColor="#9CA3AF"
+                                />
+                              </>
+                            ) : null}
                           </>
                         ) : null}
 

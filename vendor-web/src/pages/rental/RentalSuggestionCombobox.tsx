@@ -10,6 +10,7 @@ type Props = {
   suggestions: string[]
   placeholder?: string
   id?: string
+  className?: string
 }
 
 /** Free-text field with suggestion dropdown — pick a known value or type a custom one. */
@@ -19,6 +20,7 @@ export function RentalSuggestionCombobox({
   suggestions,
   placeholder = 'Type or select…',
   id,
+  className,
 }: Props) {
   const listId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -162,7 +164,7 @@ export function RentalSuggestionCombobox({
               setOpen(false)
             }
           }}
-          className="pr-9"
+          className={cn('pr-9', className)}
         />
         <button
           type="button"

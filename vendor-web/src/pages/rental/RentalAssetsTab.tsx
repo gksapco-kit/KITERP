@@ -15,6 +15,43 @@ type ViewMode = 'cards' | 'list' | 'table'
 
 const VIEW_STORAGE_KEY = 'kiterp:rental-assets:viewMode'
 
+/** Prefer sub-asset / unit counts when hierarchy or serialized tracking is on. */
+function assetCapacityDisplay(a: RentalAsset) {
+  const unit = a.capacity_unit
+  if (a.unit_mode === 'hierarchy' && (a.child_count ?? 0) > 0) {
+    const max = Math.max(0, Number(a.child_count ?? 0))
+    const avail = Math.max(0, Number(a.available_child_count ?? a.child_count ?? 0))
+    return {
+      max,
+      available: Math.min(avail, max),
+      used: Math.max(0, max - Math.min(avail, max)),
+      unit,
+    }
+  }
+  if (a.unit_mode === 'serialized' && (a.unit_count ?? 0) > 0) {
+    const max = Math.max(0, Number(a.unit_count ?? 0))
+    const avail = a.available_capacity !== undefined
+      ? Math.max(0, Number(a.available_capacity))
+      : max
+    return {
+      max,
+      available: Math.min(avail, max || avail),
+      used: Math.max(0, (max || avail) - Math.min(avail, max || avail)),
+      unit,
+    }
+  }
+  const max = Number(a.capacity_max || 0)
+  const available = a.available_capacity !== undefined
+    ? Number(a.available_capacity)
+    : Math.max(0, max - Number(a.current_occupancy || 0))
+  return {
+    max,
+    available,
+    used: Number(a.current_occupancy || 0),
+    unit,
+  }
+}
+
 const VIEW_OPTIONS: { id: ViewMode; label: string; title: string; icon: typeof LayoutGrid }[] = [
   { id: 'cards', label: 'Cards', title: 'Card grid', icon: LayoutGrid },
   { id: 'list', label: 'List', title: 'Compact list', icon: LayoutList },
@@ -128,7 +165,7 @@ function AssetMetaChips({
       {a.unit_mode === 'hierarchy' && (a.child_count ?? 0) > 0 && (
         <span className="inline-flex items-center gap-1 rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-medium text-sky-700 dark:text-sky-300">
           <Layers className="h-3 w-3" />
-          {a.child_count} sub
+          {Math.floor(Number(a.available_child_count ?? a.child_count))}/{a.child_count} sub
         </span>
       )}
       {a.unit_mode === 'serialized' && (a.unit_count ?? 0) > 0 && (
@@ -148,7 +185,7 @@ function AssetMetaChips({
           'inline-flex max-w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[11px]',
           availability.kind === 'range'
             ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
-            : 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+            : 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300',
         )}
       >
         <Calendar className="h-3 w-3 shrink-0" />
@@ -158,7 +195,18 @@ function AssetMetaChips({
             {availability.detail ? ` · ${availability.detail}` : ''}
           </span>
         ) : (
-          <span className="truncate">{availability.label}</span>
+          <span className="truncate">
+            {(() => {
+              const cap = assetCapacityDisplay(a)
+              if (cap.available > 0) {
+                if (cap.max > 0 && cap.available < cap.max) {
+                  return `${Math.floor(cap.available)} of ${Math.floor(cap.max)} available`
+                }
+                return 'Available'
+              }
+              return 'Fully booked'
+            })()}
+          </span>
         )}
       </span>
     </>
@@ -337,12 +385,17 @@ export default function RentalAssetsTab({
                 </div>
 
                 <div className="flex flex-1 flex-col gap-2 px-3 pb-2.5">
-                  <CapacityBar
-                    used={Number(a.current_occupancy || 0)}
-                    max={Number(a.capacity_max || 0)}
-                    unit={a.capacity_unit}
-                    available={a.available_capacity !== undefined ? Number(a.available_capacity) : undefined}
-                  />
+                  {(() => {
+                    const cap = assetCapacityDisplay(a)
+                    return (
+                      <CapacityBar
+                        used={cap.used}
+                        max={cap.max}
+                        unit={cap.unit}
+                        available={cap.available}
+                      />
+                    )
+                  })()}
                   <div className="flex flex-wrap items-center gap-1">
                     <AssetMetaChips a={a} routeLabel={routeLabel} availability={availability} />
                   </div>
@@ -399,12 +452,17 @@ export default function RentalAssetsTab({
                   {prices[1] ? <p className="truncate text-[11px] text-muted-foreground">{prices.slice(1).join(' · ')}</p> : null}
                 </div>
                 <div className="hidden w-28 shrink-0 md:block" onClick={(e) => e.stopPropagation()}>
-                  <CapacityBar
-                    used={Number(a.current_occupancy || 0)}
-                    max={Number(a.capacity_max || 0)}
-                    unit={a.capacity_unit}
-                    available={a.available_capacity !== undefined ? Number(a.available_capacity) : undefined}
-                  />
+                  {(() => {
+                    const cap = assetCapacityDisplay(a)
+                    return (
+                      <CapacityBar
+                        used={cap.used}
+                        max={cap.max}
+                        unit={cap.unit}
+                        available={cap.available}
+                      />
+                    )
+                  })()}
                 </div>
                 <Button
                   size="sm"
@@ -444,12 +502,11 @@ export default function RentalAssetsTab({
                   const route = shortRouteLabel(routeRaw)
                   const prices = priceParts(a)
                   const kind = kindLabel(a)
-                  const max = Number(a.capacity_max || 0)
-                  const avail = a.available_capacity !== undefined
-                    ? Number(a.available_capacity)
-                    : Math.max(0, max - Number(a.current_occupancy || 0))
+                  const cap = assetCapacityDisplay(a)
+                  const max = cap.max
+                  const avail = cap.available
                   const usedPct = max > 0 ? Math.min(100, Math.round(((max - avail) / max) * 100)) : 0
-                  const unit = capacityUnitLabel(a.capacity_unit)
+                  const unit = capacityUnitLabel(cap.unit)
                   return (
                     <tr
                       key={a.id}
@@ -527,14 +584,20 @@ export default function RentalAssetsTab({
                         <div
                           className={cn(
                             'inline-flex max-w-[13rem] flex-col gap-0.5 rounded-lg px-2 py-1 text-[11px]',
-                            availability.kind === 'range'
+                            availability.kind === 'range' || avail > 0
                               ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
-                              : 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+                              : 'bg-rose-500/10 text-rose-800 dark:text-rose-300',
                           )}
                         >
                           <span className="inline-flex items-center gap-1 font-medium">
                             <Calendar className="h-3 w-3 shrink-0" />
-                            {availability.label}
+                            {availability.kind === 'range'
+                              ? availability.label
+                              : avail > 0
+                                ? (max > 0 && avail < max
+                                    ? `${Math.floor(avail)} of ${Math.floor(max)} available`
+                                    : 'Available')
+                                : 'Fully booked'}
                           </span>
                           {availability.kind === 'range' && availability.detail ? (
                             <span className="pl-4 text-[10px] leading-snug opacity-90">{availability.detail}</span>
