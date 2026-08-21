@@ -97,6 +97,28 @@ export const useDeleteLead = () => {
   })
 }
 
+export const usePurgeLead = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => crmApi.deleteLead(id, { permanent: true }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      qc.invalidateQueries({ queryKey: KEY('leads', 'new-count') })
+    },
+  })
+}
+
+export const usePurgeTrashedLeads = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => crmApi.purgeTrashedLeads(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      qc.invalidateQueries({ queryKey: KEY('leads', 'new-count') })
+    },
+  })
+}
+
 export const useRestoreLead = () => {
   const qc = useQueryClient()
   return useMutation({

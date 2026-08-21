@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { useLeads, useSaveLead, useConvertLead, useDeleteLead, useRestoreLead } from '@/hooks/useCrm'
+import { Checkbox } from '@/components/ui/checkbox'
+import { useLeads, useSaveLead, useConvertLead, useDeleteLead, usePurgeLead, usePurgeTrashedLeads, useRestoreLead } from '@/hooks/useCrm'
 import { crmApi, type Lead } from '@/api/crm'
 import { Plus, Loader2, Target, Sparkles, ArrowRight, Check, GitBranch, XCircle, AlertTriangle, UserRound, Trash2, RotateCcw } from 'lucide-react'
 import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
@@ -72,6 +73,13 @@ function sourceLabel(source?: string | null) {
     manual: 'Manual',
   }
   return labels[key] || source || '—'
+}
+
+function truncateEmail(email?: string | null, maxChars = 20) {
+  const value = (email || '').trim()
+  if (!value) return '—'
+  if (value.length <= maxChars) return value
+  return `${value.slice(0, maxChars)}...`
 }
 
 function statusLabel(status: string) {
@@ -671,8 +679,15 @@ export default function LeadsPage() {
   const [roadmapLead, setRoadmapLead] = useState<Lead | null>(null)
   const [convertLead, setConvertLead] = useState<Lead | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Lead | null>(null)
+  const [pendingPurge, setPendingPurge] = useState<Lead | null>(null)
+  const [pendingPurgeAll, setPendingPurgeAll] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [pendingBulkDelete, setPendingBulkDelete] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const { options: assigneeOptions, isLoading: assigneesLoading } = useAssigneeOptions()
   const removeLead = useDeleteLead()
+  const purgeLead = usePurgeLead()
+  const purgeTrashed = usePurgeTrashedLeads()
   const restoreLead = useRestoreLead()
 
   const { data, isLoading } = useLeads({
@@ -684,6 +699,17 @@ export default function LeadsPage() {
   })
   const { data: trashPage } = useLeads({ deleted: true, page: 1, size: 1 })
   const trashCount = trashPage?.total ?? 0
+  const pageItems = data?.items
+  const pageIds = useMemo(() => (pageItems ?? []).map((l) => l.id), [pageItems])
+  const selectedCount = selectedIds.size
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id))
+  const somePageSelected = pageIds.some((id) => selectedIds.has(id))
+  const tableCols = 11
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+    setPendingBulkDelete(false)
+  }, [showDeleted, search, status, pageSize])
 
   const score = async (id: string) => {
     await crmApi.scoreLead(id)
@@ -708,6 +734,16 @@ export default function LeadsPage() {
               <span className="ml-2 rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-800">{trashCount}</span>
             ) : null}
           </Button>
+          {showDeleted && trashCount > 0 ? (
+            <Button
+              variant="outline"
+              className="border-red-300 text-red-700 hover:bg-red-50"
+              onClick={() => setPendingPurgeAll(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete all
+            </Button>
+          ) : null}
           {!showDeleted ? (
             <Button onClick={() => setShowCreate(true)}>
               <Plus className="w-4 h-4 mr-2" /> New lead
@@ -718,7 +754,7 @@ export default function LeadsPage() {
 
       {showDeleted ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          These leads were moved to trash. Restore a record to put it back on the active list.
+          These leads were moved to trash. Restore a record to put it back on the active list, or delete it permanently.
         </div>
       ) : (
         <div className="flex gap-2 flex-wrap">
@@ -736,25 +772,60 @@ export default function LeadsPage() {
         onSubmit={(e) => { e.preventDefault(); setSearch(searchInput); setPage(1) }}
         placeholder="Search by name, company, email…" />
 
+      {selectedCount > 0 ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2">
+          <p className="text-sm font-medium text-red-900">
+            {selectedCount} lead{selectedCount === 1 ? '' : 's'} selected
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-red-300 text-red-700 hover:bg-red-100"
+            onClick={() => setPendingBulkDelete(true)}
+          >
+            <Trash2 className="w-4 h-4 mr-1.5" />
+            {showDeleted ? 'Delete selected permanently' : 'Delete selected'}
+          </Button>
+        </div>
+      ) : null}
+
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Lead</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Name</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Email</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Phone</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Assigned to</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Title</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Company</TableColumnLabel></th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+                <th className="w-10 px-3 py-2">
+                  <Checkbox
+                    checked={allPageSelected}
+                    aria-label="Select all leads on this page"
+                    ref={(el) => {
+                      if (el) el.indeterminate = somePageSelected && !allPageSelected
+                    }}
+                    onCheckedChange={(checked) => {
+                      setSelectedIds((prev) => {
+                        const next = new Set(prev)
+                        if (checked) pageIds.forEach((id) => next.add(id))
+                        else pageIds.forEach((id) => next.delete(id))
+                        return next
+                      })
+                    }}
+                  />
+                </th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Lead</TableColumnLabel></th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Name</TableColumnLabel></th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Email</TableColumnLabel></th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Phone</TableColumnLabel></th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Assigned to</TableColumnLabel></th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Title</TableColumnLabel></th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Company</TableColumnLabel></th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Source</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {isLoading ? <LoadingRow cols={9} /> : !data?.items?.length ? (
-                <EmptyRow cols={9} message={showDeleted ? 'No deleted leads' : 'No leads yet'} action={
+              {isLoading ? <LoadingRow cols={tableCols} /> : !data?.items?.length ? (
+                <EmptyRow cols={tableCols} message={showDeleted ? 'No deleted leads' : 'No leads yet'} action={
                   showDeleted ? undefined : (
                   <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>
                     <Target className="w-4 h-4 mr-1" /> Capture your first lead
@@ -763,16 +834,24 @@ export default function LeadsPage() {
                 } />
               ) : data.items.map(l => (
                 <tr key={l.id} className={showDeleted ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-gray-50'}>
-                  <td className="px-6 py-4">
+                  <td className="w-10 px-3 py-2">
+                    <Checkbox
+                      checked={selectedIds.has(l.id)}
+                      aria-label={`Select ${l.number || l.id}`}
+                      onCheckedChange={(checked) => {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev)
+                          if (checked) next.add(l.id)
+                          else next.delete(l.id)
+                          return next
+                        })
+                      }}
+                    />
+                  </td>
+                  <td className="px-4 py-2">
                     <p className="text-sm font-medium">
                       {l.number || '—'}
                     </p>
-                    {l.source ? (
-                      <p className="mt-0.5 flex items-center gap-1.5">
-                        <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">Source</span>
-                        <Badge variant="soft">{sourceLabel(l.source)}</Badge>
-                      </p>
-                    ) : null}
                     <p className="mt-0.5 whitespace-nowrap text-xs text-gray-500">{formatDateTime(l.created_at)}</p>
                     {showDeleted && l.deleted_at ? (
                       <p className="mt-0.5 whitespace-nowrap text-[11px] text-amber-800">Deleted {formatDateTime(l.deleted_at)}</p>
@@ -783,12 +862,16 @@ export default function LeadsPage() {
                       </p>
                     ) : null}
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                  <td className="px-4 py-2 text-sm font-medium text-gray-900">
                     {[l.first_name, l.last_name].filter(Boolean).join(' ') || '—'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{l.email || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600 hidden lg:table-cell">{l.phone || '—'}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-2 text-sm text-gray-600 whitespace-nowrap">
+                    <span className="cursor-default" title={l.email || undefined}>
+                      {truncateEmail(l.email)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-sm text-gray-600 hidden lg:table-cell">{l.phone || '—'}</td>
+                  <td className="px-4 py-2">
                     {showDeleted ? (
                       <span className="text-xs font-medium capitalize text-gray-600">{statusLabel(l.status || 'new')}</span>
                     ) : (
@@ -798,7 +881,7 @@ export default function LeadsPage() {
                       />
                     )}
                   </td>
-                  <td className="px-6 py-4 hidden lg:table-cell">
+                  <td className="px-4 py-2 hidden lg:table-cell">
                     {showDeleted ? (
                       <span className="text-sm text-gray-500">
                         {assigneeOptions.find((o) => o.value === (l.assigned_to || ''))?.label || '—'}
@@ -811,25 +894,35 @@ export default function LeadsPage() {
                       />
                     )}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{l.title || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{l.company || '—'}</td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-4 py-2 text-sm text-gray-600 hidden md:table-cell">{l.title || '—'}</td>
+                  <td className="px-4 py-2 text-sm text-gray-600 hidden md:table-cell">{l.company || '—'}</td>
+                  <td className="px-4 py-2 text-right">
                     <div className="flex justify-end gap-1">
                       {showDeleted ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={restoreLead.isPending}
-                          onClick={() => {
-                            restoreLead.mutate(l.id, {
-                              onSuccess: () => toast.success('Lead restored'),
-                              onError: () => toast.error('Could not restore lead'),
-                            })
-                          }}
-                        >
-                          {restoreLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RotateCcw className="w-4 h-4 mr-1" />}
-                          Restore
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={restoreLead.isPending}
+                            onClick={() => {
+                              restoreLead.mutate(l.id, {
+                                onSuccess: () => toast.success('Lead restored'),
+                                onError: () => toast.error('Could not restore lead'),
+                              })
+                            }}
+                          >
+                            {restoreLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RotateCcw className="w-4 h-4 mr-1" />}
+                            Restore
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Delete permanently"
+                            onClick={() => setPendingPurge(l)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </>
                       ) : (
                         <>
                           <Button variant="ghost" size="sm" onClick={() => score(l.id)} title="AI score">
@@ -844,6 +937,13 @@ export default function LeadsPage() {
                         </>
                       )}
                     </div>
+                  </td>
+                  <td className="px-4 py-2">
+                    {l.source ? (
+                      <Badge variant="soft">{sourceLabel(l.source)}</Badge>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -913,6 +1013,137 @@ export default function LeadsPage() {
           <p className="text-sm text-gray-600">
             <strong>{[pendingDelete.first_name, pendingDelete.last_name].filter(Boolean).join(' ') || pendingDelete.number}</strong>
             {' '}will be hidden from the active list. You can restore it from Deleted leads.
+          </p>
+        </CrmModal>
+      )}
+      {pendingBulkDelete && (
+        <CrmModal
+          title={
+            showDeleted
+              ? (selectedCount === 1 ? 'Delete lead permanently' : `Delete ${selectedCount} leads permanently`)
+              : (selectedCount === 1 ? 'Move lead to trash' : `Move ${selectedCount} leads to trash`)
+          }
+          onClose={() => !bulkDeleting && setPendingBulkDelete(false)}
+          maxW={modalWidthSm}
+          footer={
+            <>
+              <Button type="button" variant="outline" disabled={bulkDeleting} onClick={() => setPendingBulkDelete(false)}>Cancel</Button>
+              <Button
+                type="button"
+                disabled={bulkDeleting || selectedCount === 0}
+                onClick={async () => {
+                  const ids = Array.from(selectedIds)
+                  if (!ids.length) return
+                  setBulkDeleting(true)
+                  let ok = 0
+                  let already = 0
+                  let fail = 0
+                  for (const id of ids) {
+                    try {
+                      await crmApi.deleteLead(id, showDeleted ? { permanent: true } : undefined)
+                      ok++
+                    } catch (err) {
+                      const status = (err as { response?: { status?: number } })?.response?.status
+                      if (!showDeleted && status === 409) already++
+                      else fail++
+                    }
+                  }
+                  await qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
+                  setSelectedIds(new Set())
+                  setPendingBulkDelete(false)
+                  setBulkDeleting(false)
+                  const done = ok + already
+                  if (done) {
+                    toast.success(
+                      showDeleted
+                        ? (done === 1 ? 'Lead deleted permanently' : `${done} leads deleted permanently`)
+                        : (done === 1 ? 'Lead moved to trash' : `${done} leads moved to trash`),
+                    )
+                  }
+                  if (fail) toast.error(`Could not delete ${fail} lead${fail === 1 ? '' : 's'}`)
+                }}
+              >
+                {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                {showDeleted ? 'Delete permanently' : 'Move to trash'}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-600">
+            {showDeleted
+              ? (selectedCount === 1
+                ? 'The selected lead will be permanently deleted. This cannot be undone.'
+                : `${selectedCount} selected leads will be permanently deleted. This cannot be undone.`)
+              : (selectedCount === 1
+                ? 'The selected lead will be hidden from the active list. You can restore it from Deleted leads.'
+                : `${selectedCount} selected leads will be hidden from the active list. You can restore them from Deleted leads.`)}
+          </p>
+        </CrmModal>
+      )}
+      {pendingPurge && (
+        <CrmModal
+          title="Delete lead permanently"
+          onClose={() => !purgeLead.isPending && setPendingPurge(null)}
+          maxW={modalWidthSm}
+          footer={
+            <>
+              <Button type="button" variant="outline" disabled={purgeLead.isPending} onClick={() => setPendingPurge(null)}>Cancel</Button>
+              <Button
+                type="button"
+                disabled={purgeLead.isPending}
+                onClick={() => {
+                  purgeLead.mutate(pendingPurge.id, {
+                    onSuccess: () => {
+                      toast.success('Lead deleted permanently')
+                      setPendingPurge(null)
+                    },
+                    onError: (err) => toast.error(extractApiError(err, 'Could not delete lead')),
+                  })
+                }}
+              >
+                {purgeLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                Delete permanently
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-600">
+            <strong>{[pendingPurge.first_name, pendingPurge.last_name].filter(Boolean).join(' ') || pendingPurge.number}</strong>
+            {' '}will be permanently deleted. This cannot be undone.
+          </p>
+        </CrmModal>
+      )}
+      {pendingPurgeAll && (
+        <CrmModal
+          title="Delete all trashed leads"
+          onClose={() => !purgeTrashed.isPending && setPendingPurgeAll(false)}
+          maxW={modalWidthSm}
+          footer={
+            <>
+              <Button type="button" variant="outline" disabled={purgeTrashed.isPending} onClick={() => setPendingPurgeAll(false)}>Cancel</Button>
+              <Button
+                type="button"
+                disabled={purgeTrashed.isPending}
+                onClick={() => {
+                  purgeTrashed.mutate(undefined, {
+                    onSuccess: (res) => {
+                      const n = res?.deleted ?? 0
+                      toast.success(n === 1 ? 'Lead deleted permanently' : `${n} leads deleted permanently`)
+                      setPendingPurgeAll(false)
+                      setSelectedIds(new Set())
+                    },
+                    onError: (err) => toast.error(extractApiError(err, 'Could not delete leads')),
+                  })
+                }}
+              >
+                {purgeTrashed.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                Delete all
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-600">
+            All {trashCount} lead{trashCount === 1 ? '' : 's'} in trash will be permanently deleted. This cannot be undone.
           </p>
         </CrmModal>
       )}

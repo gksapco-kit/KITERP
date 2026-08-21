@@ -459,9 +459,24 @@ class LeadService:
         return obj
 
     async def delete(self, vendor_id: UUID, lead_id: UUID, *,
+                     permanent: bool = False,
                      actor_id: Optional[UUID] = None,
                      request: Optional[Request] = None) -> None:
         obj = await self.get(vendor_id, lead_id)
+        if permanent:
+            if not obj.deleted_at:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Only trashed leads can be permanently deleted",
+                )
+            await self.audit.log(
+                vendor_id=vendor_id, entity="crm_lead", entity_id=obj.id,
+                action="purge", actor_id=actor_id, before=obj, request=request,
+                commit=False,
+            )
+            await self.db.delete(obj)
+            await self.db.commit()
+            return
         if obj.deleted_at:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Lead is already in the trash")
         obj.deleted_at = datetime.now(timezone.utc)
@@ -471,6 +486,26 @@ class LeadService:
             commit=False,
         )
         await self.db.commit()
+
+    async def purge_all_trashed(self, vendor_id: UUID, *,
+                                actor_id: Optional[UUID] = None,
+                                request: Optional[Request] = None) -> int:
+        result = await self.db.execute(
+            select(CrmLead).where(
+                CrmLead.vendor_id == vendor_id,
+                CrmLead.deleted_at.is_not(None),
+            )
+        )
+        items = list(result.scalars().all())
+        for obj in items:
+            await self.audit.log(
+                vendor_id=vendor_id, entity="crm_lead", entity_id=obj.id,
+                action="purge", actor_id=actor_id, before=obj, request=request,
+                commit=False,
+            )
+            await self.db.delete(obj)
+        await self.db.commit()
+        return len(items)
 
     async def restore(self, vendor_id: UUID, lead_id: UUID, *,
                       actor_id: Optional[UUID] = None,

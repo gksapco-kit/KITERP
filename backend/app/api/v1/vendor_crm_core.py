@@ -211,14 +211,29 @@ async def update_lead(
                                          actor_id=vu.user_id, request=request)
 
 
-@router.delete("/leads/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_lead(
-    lead_id: UUID, request: Request,
+@router.delete("/leads/trash")
+async def purge_trashed_leads(
+    request: Request,
     vu: VendorUser = Depends(require_permission("crm.leads.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    await LeadService(db).delete(vu.vendor_id, lead_id,
-                                  actor_id=vu.user_id, request=request)
+    deleted = await LeadService(db).purge_all_trashed(
+        vu.vendor_id, actor_id=vu.user_id, request=request,
+    )
+    return {"deleted": deleted}
+
+
+@router.delete("/leads/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_lead(
+    lead_id: UUID, request: Request,
+    permanent: bool = Query(False),
+    vu: VendorUser = Depends(require_permission("crm.leads.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    await LeadService(db).delete(
+        vu.vendor_id, lead_id, permanent=permanent,
+        actor_id=vu.user_id, request=request,
+    )
     return None
 
 

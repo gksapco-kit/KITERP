@@ -616,7 +616,10 @@ export const crmApi = {
   createLead: (data: Partial<Lead>) => apiClient.post<Lead>(`${BASE}/leads`, data).then(r => r.data),
   updateLead: (id: string, data: Partial<Lead>) =>
     apiClient.put<Lead>(`${BASE}/leads/${id}`, data).then(r => r.data),
-  deleteLead: (id: string) => apiClient.delete(`${BASE}/leads/${id}`),
+  deleteLead: (id: string, opts?: { permanent?: boolean }) =>
+    apiClient.delete(`${BASE}/leads/${id}`, { params: opts?.permanent ? { permanent: true } : undefined }),
+  purgeTrashedLeads: () =>
+    apiClient.delete<{ deleted: number }>(`${BASE}/leads/trash`).then(r => r.data),
   restoreLead: (id: string) => apiClient.post<Lead>(`${BASE}/leads/${id}/restore`).then(r => r.data),
   assignLead: (id: string, user_id: string) =>
     apiClient.post(`${BASE}/leads/${id}/assign`, { user_id }).then(r => r.data),

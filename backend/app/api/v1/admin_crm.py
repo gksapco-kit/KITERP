@@ -235,14 +235,28 @@ async def update_lead(
     )
 
 
+@router.delete("/leads/trash")
+async def purge_trashed_leads(
+    request: Request,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    deleted = await LeadService(db).purge_all_trashed(
+        await _vid(db), actor_id=current_user.id, request=request,
+    )
+    return {"deleted": deleted}
+
+
 @router.delete("/leads/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_lead(
     lead_id: UUID, request: Request,
+    permanent: bool = Query(False),
     current_user: User = Depends(get_current_platform_staff),
     db: AsyncSession = Depends(get_db),
 ):
     await LeadService(db).delete(
-        await _vid(db), lead_id, actor_id=current_user.id, request=request,
+        await _vid(db), lead_id, permanent=permanent,
+        actor_id=current_user.id, request=request,
     )
     return None
 
