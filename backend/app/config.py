@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     # Set to false if platform operators must review each signup.
     AUTO_APPROVE_NEW_VENDORS: bool = True
 
+    # Public Talk to us / contact / lead forms. Honeypot + heuristics always run.
+    # Set TURNSTILE_SECRET_KEY (and storefront VITE_TURNSTILE_SITE_KEY) to enable CAPTCHA.
+    # PUBLIC_FORM_REQUIRE_CAPTCHA=true rejects submits that have no Turnstile token.
+    TURNSTILE_SECRET_KEY: str = ""
+    TURNSTILE_SITE_KEY: str = ""
+    PUBLIC_FORM_REQUIRE_CAPTCHA: bool = False
+
     # Razorpay (online payments on business front checkout)
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""

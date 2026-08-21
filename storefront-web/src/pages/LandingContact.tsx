@@ -13,6 +13,7 @@ import {
   composedEnquiryName,
   type EnquiryFormValues,
 } from '@/components/landing/LandingEnquiryForm'
+import { PublicFormTrap, emptyTrapState, trapPayload } from '@/components/landing/PublicFormTrap'
 import { useDocumentSeo } from '@/lib/documentSeo'
 import { compactJsonLd, contactPageJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
 import '@/styles/kiterp-landing.css'
@@ -33,6 +34,7 @@ export default function LandingContact() {
   const [contact, setContact] = useState<PlatformContact | null>(null)
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState<EnquiryFormValues>(EMPTY_TALK_FORM)
+  const [trap, setTrap] = useState(emptyTrapState)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
 
@@ -98,9 +100,11 @@ export default function LandingContact() {
         phone: form.phone.trim() || undefined,
         source: form.source || 'talk_to_us',
         message: form.notes.trim(),
+        ...trapPayload(trap),
       })
       toast.success(res.data.message || 'Message sent!')
       setForm(EMPTY_TALK_FORM)
+      setTrap(emptyTrapState())
       setSent(true)
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
@@ -205,6 +209,7 @@ export default function LandingContact() {
                 sourceOptions={TALK_TO_US_SOURCE_OPTIONS}
                 notesLabel="Message"
                 notesPlaceholder="How can we help?"
+                footer={<PublicFormTrap value={trap} onChange={(patch) => setTrap((t) => ({ ...t, ...patch }))} />}
               />
 
               <p className="kiterp-contact-crm-note">

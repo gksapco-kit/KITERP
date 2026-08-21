@@ -9,6 +9,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useVendor } from '@/contexts/VendorContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { storeApi } from '@/api/store'
+import { PublicFormTrap, emptyTrapState, trapPayload } from '@/components/landing/PublicFormTrap'
 import {
   resolveBusinessContactAddress,
   resolveBusinessContactEmail,
@@ -24,6 +25,7 @@ export default function ContactPage() {
   const address = resolveBusinessContactAddress(undefined, undefined, vendor)
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' })
+  const [trap, setTrap] = useState(emptyTrapState)
   const [sending, setSending] = useState(false)
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -44,9 +46,11 @@ export default function ContactPage() {
         email: form.email.trim() || undefined,
         phone: form.phone.trim() || undefined,
         message: form.message.trim(),
+        ...trapPayload(trap),
       })
       toast.success(res.message || 'Message sent!')
       setForm({ name: '', email: '', phone: '', message: '' })
+      setTrap(emptyTrapState())
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
       toast.error(typeof detail === 'string' ? detail : 'Failed to send message')
@@ -158,6 +162,7 @@ export default function ContactPage() {
               placeholder="Describe your question or issue…"
             />
           </div>
+          <PublicFormTrap value={trap} onChange={(patch) => setTrap((t) => ({ ...t, ...patch }))} />
           <Button type="submit" className="w-full gap-2" disabled={sending}>
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             {sending ? 'Sending…' : 'Submit query'}

@@ -145,6 +145,8 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [fileUploads, setFileUploads] = useState<Record<string, File>>({})
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const formStartedAt = useRef(Date.now())
+  const [hpWebsite, setHpWebsite] = useState('')
 
   const setValue = (name: string, value: string) => setValues(v => ({ ...v, [name]: value }))
 
@@ -170,6 +172,8 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
         ...values,
         gdpr_consent: gdprConsent,
         form_type: 'contact',
+        hp_website: hpWebsite,
+        form_started_at: formStartedAt.current,
       }
       const pageId = resolvePageIdForBlock(site, blockId)
       if (pageId) payload.page_id = pageId
@@ -314,6 +318,19 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
 
   const formEl = (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+        <label>
+          Website
+          <input
+            type="text"
+            name="hp_website"
+            tabIndex={-1}
+            autoComplete="off"
+            value={hpWebsite}
+            onChange={(e) => setHpWebsite(e.target.value)}
+          />
+        </label>
+      </div>
       {/* Multi-step progress bar */}
       {isMultiStep && maxStep > 1 && (
         <div className="flex gap-1 mb-2">

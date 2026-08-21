@@ -18,6 +18,10 @@ class PlatformLeadCreate(BaseModel):
         False,
         description="Create even when a matching lead already exists.",
     )
+    hp_website: Optional[str] = Field(None, max_length=500)
+    website: Optional[str] = Field(None, max_length=500)
+    form_started_at: Optional[int] = None
+    captcha_token: Optional[str] = Field(None, max_length=4000)
 
     @field_validator("first_name", "last_name", "title", "company", "notes", "source", "phone")
     @classmethod

@@ -17,6 +17,10 @@ class StorefrontContactQueryCreate(BaseModel):
     phone: Optional[str] = Field(None, max_length=40)
     message: str = Field(..., min_length=5, max_length=4000)
     source: Optional[str] = Field(None, max_length=80)
+    hp_website: Optional[str] = Field(None, max_length=500)
+    website: Optional[str] = Field(None, max_length=500)
+    form_started_at: Optional[int] = None
+    captcha_token: Optional[str] = Field(None, max_length=4000)
 
     @field_validator("name", "first_name", "last_name", "title", "company", "source", "phone")
     @classmethod

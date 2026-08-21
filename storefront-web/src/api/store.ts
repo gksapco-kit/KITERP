@@ -580,6 +580,9 @@ export const storeApi = {
     email?: string
     phone?: string
     message: string
+    hp_website?: string
+    form_started_at?: number
+    captcha_token?: string
   }): Promise<{ ok: boolean; id: string; message: string }> => {
     const res = await apiClient.post('/catalog/contact-queries', data)
     return res.data

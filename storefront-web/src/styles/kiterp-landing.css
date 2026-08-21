@@ -2847,6 +2847,20 @@
   }
 }
 
+.kiterp-hp {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.kiterp-turnstile {
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+}
+
 /* -- Careers application page ---------------------------------------------- */
 .kiterp-careers-page {
   --kiterp-primary: #64c3a0;

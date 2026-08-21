@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from xml.sax.saxutils import escape
 import logging
@@ -32,6 +32,12 @@ from app.utils.vendor_storefront import vendor_live_on_storefront
 from app.services.storefront_theme_config import normalize_theme_config, theme_config_needs_migration
 from app.utils.social_link_normalize import normalize_social_links
 from app.utils.view_dedupe import claim_unique_view, visitor_key_from_request
+from app.services.public_form_guard import (
+    SilentFormDrop,
+    client_ip,
+    enforce_public_form_guard,
+    public_form_thanks,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +54,49 @@ _MAX_CAREER_PHOTO_BYTES = 5 * 1024 * 1024
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 router = APIRouter()
+
+
+def _public_form_accept(message: Optional[str] = None) -> dict:
+    return {
+        "ok": True,
+        "id": str(uuid4()),
+        "message": message or public_form_thanks(),
+    }
+
+
+async def _guard_contact_query(request: Request, body: StorefrontContactQueryCreate, bucket: str) -> None:
+    await enforce_public_form_guard(
+        request,
+        bucket=bucket,
+        honeypot=body.hp_website,
+        extra_honeypot=body.website,
+        first_name=body.first_name,
+        last_name=body.last_name,
+        name=body.name,
+        email=str(body.email) if body.email else None,
+        title=body.title,
+        company=body.company,
+        message=body.message,
+        form_started_at=body.form_started_at,
+        captcha_token=body.captcha_token,
+    )
+
+
+async def _guard_platform_lead(request: Request, body: PlatformLeadCreate) -> None:
+    await enforce_public_form_guard(
+        request,
+        bucket="platform_leads",
+        honeypot=body.hp_website,
+        extra_honeypot=body.website,
+        first_name=body.first_name,
+        last_name=body.last_name,
+        email=str(body.email) if body.email else None,
+        title=body.title,
+        company=body.company,
+        message=body.notes,
+        form_started_at=body.form_started_at,
+        captcha_token=body.captcha_token,
+    )
 
 _VISIT_COUNT_KEY = "storefront_visit_count"
 _PLACEHOLDER_LOCATION = re.compile(r"^(?:[-–—._\s]+|n/?a|null|undefined|none|unknown|0+)$", re.I)
@@ -610,6 +659,18 @@ async def get_platform_contact(db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.get("/form-protection")
+async def get_form_protection():
+    """Public: whether the landing/contact forms should render a CAPTCHA widget."""
+    from app.config import settings
+    site_key = (settings.TURNSTILE_SITE_KEY or "").strip()
+    return {
+        "captcha": "turnstile" if site_key else None,
+        "site_key": site_key or None,
+        "required": bool(site_key and settings.PUBLIC_FORM_REQUIRE_CAPTCHA),
+    }
+
+
 @router.post("/platform-contact-queries", status_code=status.HTTP_201_CREATED)
 async def submit_platform_contact_query(
     request: Request,
@@ -617,8 +678,11 @@ async def submit_platform_contact_query(
     db: AsyncSession = Depends(get_db),
 ):
     """Landing-page Contact form → admin Queries inbox + platform CRM lead."""
-    fwd = request.headers.get("x-forwarded-for") or ""
-    ip = (fwd.split(",")[0].strip() if fwd else None) or (request.client.host if request.client else None)
+    try:
+        await _guard_contact_query(request, body, "platform_contact")
+    except SilentFormDrop:
+        return _public_form_accept()
+    ip = client_ip(request)
     ua = (request.headers.get("user-agent") or "")[:1000] or None
 
     row = StorefrontContactQuery(
@@ -801,6 +865,10 @@ async def submit_platform_lead(
     db: AsyncSession = Depends(get_db),
 ):
     """Landing-page New lead form → Super Admin CRM Leads."""
+    try:
+        await _guard_platform_lead(request, body)
+    except SilentFormDrop:
+        return _public_form_accept("Thanks — we received your details and will get back to you soon.")
     from app.schemas.crm.schemas import LeadCreate
     from app.services.crm.services import LeadService
     from app.services.platform_crm_tenant import get_platform_crm_vendor_id
@@ -1123,6 +1191,10 @@ async def submit_storefront_contact_query(
     db: AsyncSession = Depends(get_db),
 ):
     """Public Contact Us form: store a customer query for the store / admin Queries inbox."""
+    try:
+        await _guard_contact_query(request, body, "vendor_contact")
+    except SilentFormDrop:
+        return _public_form_accept()
     repo = VendorRepository(db)
     vendor = await repo.find_by_slug(vendor_slug)
     if not vendor or not vendor_live_on_storefront(vendor.status):
@@ -1131,8 +1203,7 @@ async def submit_storefront_contact_query(
             detail="Vendor not found",
         )
 
-    fwd = request.headers.get("x-forwarded-for") or ""
-    ip = (fwd.split(",")[0].strip() if fwd else None) or (request.client.host if request.client else None)
+    ip = client_ip(request)
     ua = (request.headers.get("user-agent") or "")[:1000] or None
 
     row = StorefrontContactQuery(
@@ -1178,13 +1249,16 @@ async def submit_storefront_contact_query_by_tenant(
     db: AsyncSession = Depends(get_db),
 ):
     """Same as slug submit, for storefronts that resolve vendor via subdomain / headers."""
+    try:
+        await _guard_contact_query(request, body, "vendor_contact")
+    except SilentFormDrop:
+        return _public_form_accept()
     repo = VendorRepository(db)
     vendor = await repo.get_by_id(vendor_id)
     if not vendor or not vendor_live_on_storefront(vendor.status):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
-    fwd = request.headers.get("x-forwarded-for") or ""
-    ip = (fwd.split(",")[0].strip() if fwd else None) or (request.client.host if request.client else None)
+    ip = client_ip(request)
     ua = (request.headers.get("user-agent") or "")[:1000] or None
 
     row = StorefrontContactQuery(

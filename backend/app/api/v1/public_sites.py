@@ -1223,6 +1223,24 @@ async def submit_contact_public(
     )
     site = await resolve_site_for_public_contact_form(db, site_id, preview_token=str(preview_token or ""))
 
+    from app.services.public_form_guard import SilentFormDrop, enforce_public_form_guard, public_form_thanks
+    try:
+        raw_name = str(body.get("name") or "")
+        await enforce_public_form_guard(
+            request,
+            bucket="website_contact",
+            honeypot=str(body.get("hp_website") or ""),
+            first_name=str(body.get("first_name") or ""),
+            last_name=str(body.get("last_name") or ""),
+            name=raw_name,
+            email=str(body.get("email") or "") or None,
+            message=str(body.get("message") or body.get("notes") or "") or None,
+            form_started_at=body.get("form_started_at"),
+            captcha_token=str(body.get("captcha_token") or "") or None,
+        )
+    except SilentFormDrop:
+        return {"ok": True, "submission_id": None, "lead_id": None, "message": public_form_thanks()}
+
     result = await submit_website_contact_form(
         db,
         site,

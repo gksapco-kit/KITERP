@@ -12,6 +12,7 @@ import {
   LandingEnquiryFields,
   type EnquiryFormValues,
 } from '@/components/landing/LandingEnquiryForm'
+import { PublicFormTrap, emptyTrapState, trapPayload } from '@/components/landing/PublicFormTrap'
 import { useDocumentSeo } from '@/lib/documentSeo'
 import { compactJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
 import '@/styles/kiterp-landing.css'
@@ -20,6 +21,7 @@ const DUPLICATE_MESSAGE = 'We may already have your details. Submit again if thi
 
 export default function LandingLead() {
   const [form, setForm] = useState<EnquiryFormValues>(EMPTY_ENQUIRY_FORM)
+  const [trap, setTrap] = useState(emptyTrapState)
   const [sending, setSending] = useState(false)
   const [duplicate, setDuplicate] = useState(false)
   const [sent, setSent] = useState(false)
@@ -98,9 +100,11 @@ export default function LandingLead() {
         source: form.source,
         notes: form.notes.trim() || undefined,
         force,
+        ...trapPayload(trap),
       })
       toast.success(res.data.message || 'Thanks — we received your details.')
       setForm(EMPTY_ENQUIRY_FORM)
+      setTrap(emptyTrapState())
       setDuplicate(false)
       setSent(true)
     } catch (err: unknown) {
@@ -190,11 +194,14 @@ export default function LandingLead() {
                 notesLabel="Notes"
                 notesPlaceholder="What are you looking for?"
                 footer={
-                  duplicate ? (
-                    <p className="kiterp-contact-field kiterp-contact-field--full kiterp-lead-duplicate">
-                      {DUPLICATE_MESSAGE}
-                    </p>
-                  ) : null
+                  <>
+                    <PublicFormTrap value={trap} onChange={(patch) => setTrap((t) => ({ ...t, ...patch }))} />
+                    {duplicate ? (
+                      <p className="kiterp-contact-field kiterp-contact-field--full kiterp-lead-duplicate">
+                        {DUPLICATE_MESSAGE}
+                      </p>
+                    ) : null}
+                  </>
                 }
               />
 
