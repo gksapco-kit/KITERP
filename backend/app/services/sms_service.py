@@ -152,6 +152,20 @@ def is_valid_e164(phone: str) -> bool:
     return normalized.startswith("+") and 10 <= len(digits) <= 15
 
 
+def format_public_phone(phone: Optional[str]) -> Optional[str]:
+    """Display phone with country code, e.g. '+91 9441757900'."""
+    raw = (phone or "").strip()
+    if not raw:
+        return None
+    e164 = normalize_e164(raw)
+    if not e164:
+        return raw
+    digits = re.sub(r"\D", "", e164)
+    if e164.startswith("+91") and len(digits) == 12:
+        return f"+91 {e164[3:]}"
+    return e164
+
+
 class SmsService:
     def __init__(self) -> None:
         self.account_sid = (settings.TWILIO_ACCOUNT_SID or "").strip()

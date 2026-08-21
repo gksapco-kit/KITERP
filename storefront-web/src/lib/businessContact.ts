@@ -1,5 +1,6 @@
 import type { LiveItem } from '@/blocks/registry'
 import type { VendorData } from '@/contexts/VendorContext'
+import { formatPhoneDisplay } from '@/lib/phoneE164'
 
 /** Treat dashes / n/a as empty so placeholder rows are not shown on the contact page. */
 function meaningfulContactValue(value: string | null | undefined): string {
@@ -82,10 +83,10 @@ export function collectBusinessContactPhones(
 ): string[] {
   const meta = profile?.meta as Record<string, unknown> | undefined
   const fromSettings = supportPhonesFromVendor(vendor)
-  if (fromSettings.length > 0) return fromSettings
+  if (fromSettings.length > 0) return fromSettings.map(formatPhoneDisplay)
 
   const fromProfile = firstNonEmpty(meta?.support_phone as string, meta?.phone as string)
-  return fromProfile ? [fromProfile] : []
+  return fromProfile ? [formatPhoneDisplay(fromProfile)] : []
 }
 
 /**

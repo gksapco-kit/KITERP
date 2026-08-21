@@ -641,8 +641,10 @@ async def get_platform_contact(db: AsyncSession = Depends(get_db)):
 
     result = await db.execute(select(PlatformSetting))
     settings = {row.key: (row.value or "") for row in result.scalars().all()}
+    from app.services.sms_service import format_public_phone
+
     email = (settings.get("contact_email") or "").strip()
-    phone = (settings.get("contact_phone") or "").strip()
+    phone = format_public_phone(settings.get("contact_phone") or "")
     street = (settings.get("contact_street_address") or "").strip()
     city = (settings.get("contact_city") or "").strip()
     state = (settings.get("contact_state") or "").strip()
@@ -650,7 +652,7 @@ async def get_platform_contact(db: AsyncSession = Depends(get_db)):
     address_parts = [p for p in (street, city, state, postal) if p]
     return {
         "email": email or None,
-        "phone": phone or None,
+        "phone": phone,
         "street_address": street or None,
         "city": city or None,
         "state": state or None,

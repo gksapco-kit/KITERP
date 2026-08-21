@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
 import { useUpdateVendor } from '@/hooks/useVendor'
 import { adminApi } from '@/api/admin.api'
+import { formatPhoneDisplay, normalizePhoneE164 } from '@/lib/phoneE164'
 import { toast } from 'sonner'
 import { Save, Eye, EyeOff, Key, Loader2, ExternalLink } from 'lucide-react'
 
@@ -150,7 +151,7 @@ export default function Settings() {
 
   const handleSaveContact = async () => {
     const email = contactEmail.trim()
-    const phone = contactPhone.trim()
+    const phone = normalizePhoneE164(contactPhone.trim())
     if (!email) {
       toast.error('Email is required')
       return
@@ -373,7 +374,9 @@ export default function Settings() {
                     <dt className="text-gray-500">Email</dt>
                     <dd className="font-medium text-right sm:text-left">{displayContact.email || 'Not set'}</dd>
                     <dt className="text-gray-500">Phone</dt>
-                    <dd className="font-medium text-right sm:text-left">{displayContact.phone || 'Not set'}</dd>
+                    <dd className="font-medium text-right sm:text-left">
+                      {displayContact.phone ? formatPhoneDisplay(displayContact.phone) : 'Not set'}
+                    </dd>
                     <dt className="text-gray-500">Address</dt>
                     <dd className="font-medium text-right sm:text-left">{formatAddress(displayContact)}</dd>
                   </dl>

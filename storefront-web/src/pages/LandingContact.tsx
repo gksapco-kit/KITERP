@@ -16,6 +16,7 @@ import {
 import { PublicFormTrap, emptyTrapState, trapPayload } from '@/components/landing/PublicFormTrap'
 import { useDocumentSeo } from '@/lib/documentSeo'
 import { compactJsonLd, contactPageJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
+import { formatPhoneDisplay } from '@/lib/phoneE164'
 import '@/styles/kiterp-landing.css'
 
 type PlatformContact = {
@@ -72,6 +73,7 @@ export default function LandingContact() {
       .map((p) => (p || '').trim())
       .filter(Boolean)
       .join(', ')
+  const phoneDisplay = formatPhoneDisplay(contact?.phone)
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -114,7 +116,7 @@ export default function LandingContact() {
     }
   }
 
-  const hasContact = Boolean(contact?.phone || contact?.email || address)
+  const hasContact = Boolean(phoneDisplay || contact?.email || address)
 
   return (
     <div className="kiterp-landing kiterp-contact-page font-kiterp-body">
@@ -143,14 +145,14 @@ export default function LandingContact() {
                 <Loader2 className="w-5 h-5 animate-spin text-[var(--kiterp-primary)]" />
               ) : hasContact ? (
                 <>
-                  {contact?.phone ? (
-                    <a href={`tel:${contact.phone.replace(/\s+/g, '')}`} className="kiterp-contact-channel">
+                  {phoneDisplay ? (
+                    <a href={`tel:${phoneDisplay.replace(/\s+/g, '')}`} className="kiterp-contact-channel">
                       <span className="kiterp-contact-channel-icon">
                         <Phone className="w-4 h-4" />
                       </span>
                       <span>
                         <span className="kiterp-contact-channel-label">Phone</span>
-                        <span className="kiterp-contact-channel-value">{contact.phone}</span>
+                        <span className="kiterp-contact-channel-value">{phoneDisplay}</span>
                       </span>
                     </a>
                   ) : null}

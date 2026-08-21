@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
 import { storefrontApi, type StorefrontVendor } from '@/api/storefront.api'
+import { formatPhoneDisplay } from '@/lib/phoneE164'
 
 function meaningfulContact(value: string | null | undefined): string {
   const trimmed = (value || '').trim()
@@ -21,7 +22,7 @@ function contactEmail(vendor: StorefrontVendor) {
 }
 
 function contactPhone(vendor: StorefrontVendor) {
-  return meaningfulContact(vendor.support_phone)
+  return formatPhoneDisplay(meaningfulContact(vendor.support_phone))
 }
 
 function contactAddress(vendor: StorefrontVendor) {

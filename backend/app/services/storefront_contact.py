@@ -24,6 +24,17 @@ def _is_placeholder_email(email: str) -> bool:
     return is_phone_signup_placeholder_email(email)
 
 
+def _format_public_phones(values: list[str]) -> list[str]:
+    from app.services.sms_service import format_public_phone
+
+    out: list[str] = []
+    for value in values:
+        formatted = format_public_phone(value)
+        if formatted:
+            out.append(formatted)
+    return out
+
+
 def _is_placeholder_contact(value: str) -> bool:
     """Dashes / n/a placeholders should not appear on the public contact panel."""
     if not value:
@@ -46,12 +57,14 @@ def resolve_public_support_email(vendor, store=None) -> Optional[str]:
 
 def resolve_public_support_phone(vendor, store=None) -> Optional[str]:
     """Business support phone only (BU → vendor defaults). No account primary_phone fallback."""
+    from app.services.sms_service import format_public_phone
+
     branch_phone = _str(getattr(store, "phone", None)) if store else ""
     if branch_phone and not _is_placeholder_contact(branch_phone):
-        return branch_phone
+        return format_public_phone(branch_phone)
     primary = _str(getattr(vendor, "support_phone", None))
     if primary and not _is_placeholder_contact(primary):
-        return primary
+        return format_public_phone(primary)
     return None
 
 
@@ -136,9 +149,9 @@ def build_profile_live_meta(vendor, store=None) -> dict[str, Any]:
         "support_emails": branch_extra_emails
         if use_branch_emails
         else _extra_strings(vendor_settings, "support_emails"),
-        "support_phones": branch_extra_phones
-        if use_branch_phones
-        else _extra_strings(vendor_settings, "support_phones"),
+        "support_phones": _format_public_phones(
+            branch_extra_phones if use_branch_phones else _extra_strings(vendor_settings, "support_phones")
+        ),
     }
     return meta
 
