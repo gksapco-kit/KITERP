@@ -1991,6 +1991,12 @@ async def ensure_rental_schema() -> None:
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS duration_rates JSONB DEFAULT '[]'::jsonb",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS period_rates JSONB DEFAULT '[]'::jsonb",
         "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS additional_charges JSONB DEFAULT '[]'::jsonb",
+        # Soft-delete bin (rent021) — required so list_assets WHERE deleted_at IS NULL works
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ",
+        "CREATE INDEX IF NOT EXISTS ix_rental_asset_deleted_at ON rental_asset(deleted_at)",
+        "CREATE INDEX IF NOT EXISTS ix_rental_asset_vendor_deleted ON rental_asset(vendor_id, deleted_at)",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS change_history JSONB DEFAULT '[]'::jsonb",
+        "ALTER TABLE rental_asset ADD COLUMN IF NOT EXISTS version_number INTEGER DEFAULT 1",
         """
         CREATE TABLE IF NOT EXISTS rental_registration_form (
             id UUID PRIMARY KEY,
@@ -2020,12 +2026,17 @@ async def ensure_rental_schema() -> None:
             customer_name VARCHAR(255),
             channel VARCHAR(20) DEFAULT 'storefront',
             answers JSONB DEFAULT '{}'::jsonb,
-            created_at TIMESTAMPTZ DEFAULT now()
+            created_at TIMESTAMPTZ DEFAULT now(),
+            deleted_at TIMESTAMPTZ
         )
         """,
         "CREATE INDEX IF NOT EXISTS ix_rental_registration_submission_vendor ON rental_registration_submission(vendor_id)",
         "CREATE INDEX IF NOT EXISTS ix_rental_registration_submission_form ON rental_registration_submission(form_id)",
         "CREATE INDEX IF NOT EXISTS ix_rental_registration_submission_booking ON rental_registration_submission(booking_id)",
+        # Soft-delete bin for discarded / replaced guest registrations
+        "ALTER TABLE rental_registration_submission ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ",
+        "CREATE INDEX IF NOT EXISTS ix_rental_registration_submission_deleted_at ON rental_registration_submission(deleted_at)",
+        "CREATE INDEX IF NOT EXISTS ix_rental_registration_submission_vendor_deleted ON rental_registration_submission(vendor_id, deleted_at)",
         # rent015: booking ↔ unit assignment tracking
         """
         CREATE TABLE IF NOT EXISTS rental_booking_unit (

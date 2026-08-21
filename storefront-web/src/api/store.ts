@@ -204,6 +204,23 @@ export const storeApi = {
   getRentalAsset: async (id: string) => {
     const res = await apiClient.get(`/store/rentals/assets/${id}`); return res.data
   },
+  listRentalAssetChildren: async (id: string) => {
+    const res = await apiClient.get(`/store/rentals/assets/${id}/children`)
+    return res.data as Array<{
+      id: string
+      name?: string
+      asset_code?: string
+      status?: string
+      available_capacity?: number
+      capacity_max?: number
+      capacity_unit?: string
+      location?: string
+      daily_rate?: number
+      weekly_rate?: number
+      monthly_rate?: number
+      deposit_amount?: number
+    }>
+  },
 
   // Paginated catalog endpoint — same namespace as products/services
   listCatalogRentals: async (params?: Record<string, unknown>) => {

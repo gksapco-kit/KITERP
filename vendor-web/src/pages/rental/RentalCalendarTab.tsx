@@ -496,30 +496,42 @@ export default function RentalCalendarTab({ assets, assetId, onAssetChange, onBo
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="rounded-lg border border-border bg-card px-2.5 py-1.5">
-        <div className="flex flex-wrap items-end gap-x-2 gap-y-1.5">
+      {/* Toolbar — same label height + h-8 controls in both browse modes */}
+      <div className="rounded-lg border border-border bg-card px-3 py-2">
+        <div className="flex flex-wrap items-end gap-x-2.5 gap-y-2">
           <div className="shrink-0">
-            <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <label className="mb-0.5 block h-3.5 text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground">
               Browse by
             </label>
-            <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-xs">
+            <div
+              role="tablist"
+              aria-label="Browse by"
+              className="inline-flex h-8 items-stretch rounded-md border border-border bg-muted/40 p-0.5 text-xs"
+            >
               <button
                 type="button"
+                role="tab"
+                aria-selected={browseMode === 'date'}
                 onClick={() => switchMode('date')}
                 className={cn(
-                  'rounded px-2 py-1 transition-colors',
-                  browseMode === 'date' ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  'inline-flex min-w-[4.25rem] items-center justify-center rounded-[5px] px-3 transition-colors',
+                  browseMode === 'date'
+                    ? 'bg-primary font-semibold text-primary-foreground shadow-sm'
+                    : 'font-medium text-muted-foreground hover:bg-background/70 hover:text-foreground',
                 )}
               >
                 Date
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={browseMode === 'asset'}
                 onClick={() => switchMode('asset')}
                 className={cn(
-                  'rounded px-2 py-1 transition-colors',
-                  browseMode === 'asset' ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  'inline-flex min-w-[4.25rem] items-center justify-center rounded-[5px] px-3 transition-colors',
+                  browseMode === 'asset'
+                    ? 'bg-primary font-semibold text-primary-foreground shadow-sm'
+                    : 'font-medium text-muted-foreground hover:bg-background/70 hover:text-foreground',
                 )}
               >
                 Asset
@@ -529,11 +541,11 @@ export default function RentalCalendarTab({ assets, assetId, onAssetChange, onBo
 
           {browseMode === 'date' ? (
             <>
-              <div className="min-w-0">
-                <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="shrink-0">
+                <label className="mb-0.5 block h-3.5 text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground">
                   Date
                 </label>
-                <div className="flex items-center gap-0.5">
+                <div className="flex h-8 items-center gap-0.5">
                   <button
                     type="button"
                     aria-label="Previous day"
@@ -558,11 +570,11 @@ export default function RentalCalendarTab({ assets, assetId, onAssetChange, onBo
                   </button>
                 </div>
               </div>
-              <div className="min-w-[10rem] flex-1 sm:max-w-[14rem]">
-                <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="min-w-[10rem] flex-1 basis-[12rem]">
+                <label className="mb-0.5 block h-3.5 text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground">
                   Search
                 </label>
-                <div className="relative">
+                <div className="relative h-8">
                   <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     className="h-8 pl-7"
@@ -575,11 +587,13 @@ export default function RentalCalendarTab({ assets, assetId, onAssetChange, onBo
             </>
           ) : (
             <>
-              <div className="min-w-[10rem] flex-1 sm:max-w-[14rem]">
-                <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="min-w-[10rem] flex-1 basis-[12rem]">
+                <label className="mb-0.5 block h-3.5 text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground">
                   Asset
                 </label>
                 <Select
+                  className="!h-8"
+                  triggerClassName="!h-8 !min-h-8 !max-h-8 !py-0"
                   value={parentId || '__none__'}
                   onChange={(v) => {
                     setUnitId('__all__')
@@ -588,11 +602,13 @@ export default function RentalCalendarTab({ assets, assetId, onAssetChange, onBo
                   options={assetSelectOptions(assets)}
                 />
               </div>
-              <div className="min-w-[8rem] flex-1 sm:max-w-[12rem]">
-                <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="min-w-[8rem] flex-1 basis-[10rem] sm:max-w-[14rem]">
+                <label className="mb-0.5 block h-3.5 text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground">
                   Unit
                 </label>
                 <Select
+                  className="!h-8"
+                  triggerClassName="!h-8 !min-h-8 !max-h-8 !py-0"
                   value={hasUnitChoices ? unitId : '__all__'}
                   onChange={(v) => {
                     setUnitId(v)
@@ -609,46 +625,67 @@ export default function RentalCalendarTab({ assets, assetId, onAssetChange, onBo
             </>
           )}
 
-          <div className="ml-auto flex flex-wrap items-center gap-1">
-            {browseMode === 'asset' && hasResources && (
-              <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setPreferResources(true)}
-                  className={cn(
-                    'rounded px-2 py-1 transition-colors',
-                    view === 'resources' ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-                  )}
+          <div className="ml-auto flex shrink-0 flex-wrap items-end gap-2">
+            {browseMode === 'asset' && hasResources ? (
+              <div className="shrink-0">
+                <label className="mb-0.5 block h-3.5 text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground">
+                  View
+                </label>
+                <div
+                  role="tablist"
+                  aria-label="Calendar view"
+                  className="inline-flex h-8 items-stretch rounded-md border border-border bg-muted/40 p-0.5 text-xs"
                 >
-                  By {resourceNoun}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreferResources(false)}
-                  className={cn(
-                    'rounded px-2 py-1 transition-colors',
-                    view === 'month' ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  Month
-                </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={view === 'resources'}
+                    onClick={() => setPreferResources(true)}
+                    className={cn(
+                      'inline-flex min-w-[4.5rem] items-center justify-center rounded-[5px] px-2.5 transition-colors',
+                      view === 'resources'
+                        ? 'bg-primary font-semibold text-primary-foreground shadow-sm'
+                        : 'font-medium text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                    )}
+                  >
+                    By {resourceNoun}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={view === 'month'}
+                    onClick={() => setPreferResources(false)}
+                    className={cn(
+                      'inline-flex min-w-[4.5rem] items-center justify-center rounded-[5px] px-2.5 transition-colors',
+                      view === 'month'
+                        ? 'bg-primary font-semibold text-primary-foreground shadow-sm'
+                        : 'font-medium text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                    )}
+                  >
+                    Month
+                  </button>
+                </div>
               </div>
-            )}
-            {onBookRequest && (
-              <Button
-                size="sm"
-                className="h-8 gap-1"
-                disabled={browseMode === 'asset' && !parentId}
-                onClick={bookFromToolbar}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                New booking
-              </Button>
-            )}
+            ) : null}
+            {onBookRequest ? (
+              <div className="shrink-0">
+                {/* Spacer matches field labels so the button lines up with h-8 controls */}
+                <span className="mb-0.5 block h-3.5" aria-hidden />
+                <Button
+                  size="sm"
+                  className="h-8 gap-1"
+                  disabled={browseMode === 'asset' && !parentId}
+                  onClick={bookFromToolbar}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  New booking
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
 
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border/60 pt-1.5">
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border/60 pt-2">
           {LEGEND.map((l) => (
             <span key={l.label} className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
               <span className={cn('h-1.5 w-1.5 rounded-[2px]', l.tone)} />
@@ -670,9 +707,9 @@ export default function RentalCalendarTab({ assets, assetId, onAssetChange, onBo
                   type="button"
                   onClick={() => setStatusChip(key)}
                   className={cn(
-                    'rounded-full border px-2 py-0.5 text-[10px] transition-colors',
+                    'rounded-full border px-2.5 py-0.5 text-[10px] transition-colors',
                     statusChip === key
-                      ? 'border-primary/40 bg-primary/10 font-medium text-foreground'
+                      ? 'border-primary bg-primary font-semibold text-primary-foreground shadow-sm'
                       : 'border-border bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground',
                   )}
                 >
@@ -729,7 +766,11 @@ export default function RentalCalendarTab({ assets, assetId, onAssetChange, onBo
                       </p>
                     </div>
                     <div className="min-w-0 sm:w-[11.5rem] sm:shrink-0">
-                      {nextLabel ? (
+                      {item.status === 'available' ? (
+                        <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                          Free now
+                        </p>
+                      ) : nextLabel ? (
                         <div className="flex items-start gap-1.5">
                           <Clock className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground/80" />
                           <div className="min-w-0">

@@ -122,12 +122,15 @@ export function StorefrontRegistrationFields({
   onChange,
   onUploadImage,
   accent = '#0f766e',
+  selectOptionsByKey,
 }: {
   fields: StorefrontRegField[]
   values: Record<string, string | boolean>
   onChange: (key: string, value: string | boolean) => void
   onUploadImage?: (file: File) => Promise<string>
   accent?: string
+  /** Override select options for specific field keys (e.g. room_no ← available sub-assets). */
+  selectOptionsByKey?: Record<string, string[]>
 }) {
   const inputClass =
     'h-11 rounded-lg border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:border-slate-400'
@@ -135,6 +138,9 @@ export function StorefrontRegistrationFields({
     <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
       {fields.map((field) => {
         const value = values[field.key]
+        const overrideOptions = selectOptionsByKey?.[field.key]
+        const asSelect = field.type === 'select' || (overrideOptions && overrideOptions.length > 0)
+        const selectOptions = overrideOptions?.length ? overrideOptions : (field.options || [])
         const wide = field.type === 'textarea' || field.type === 'checkbox' || field.type === 'heading' || field.type === 'terms' || field.type === 'image'
         if (field.type === 'heading') {
           return (
@@ -215,14 +221,14 @@ export function StorefrontRegistrationFields({
                 value={typeof value === 'string' ? value : ''}
                 onChange={(e) => onChange(field.key, e.target.value)}
               />
-            ) : field.type === 'select' ? (
+            ) : asSelect ? (
               <select
                 className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
                 value={typeof value === 'string' ? value : ''}
                 onChange={(e) => onChange(field.key, e.target.value)}
               >
                 <option value="">Select…</option>
-                {(field.options || []).map((opt) => (
+                {selectOptions.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>

@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from fastapi import HTTPException
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timezone
 
 from app.models.rental import (
     RentalBooking,
@@ -203,6 +204,7 @@ class RentalRegistrationService:
             "answers": row.answers or {},
             "fields": (form.fields or []) if form else [],
             "created_at": row.created_at.isoformat() if row.created_at else None,
+            "deleted_at": row.deleted_at.isoformat() if getattr(row, "deleted_at", None) else None,
         }
 
     async def _get_form(self, vendor_id: UUID, form_id: UUID) -> RentalRegistrationForm:
@@ -246,6 +248,7 @@ class RentalRegistrationService:
                 .where(
                     RentalRegistrationSubmission.vendor_id == vendor_id,
                     RentalRegistrationSubmission.form_id.in_([f.id for f in forms]),
+                    RentalRegistrationSubmission.deleted_at.is_(None),
                 )
                 .group_by(RentalRegistrationSubmission.form_id)
             )
@@ -264,6 +267,7 @@ class RentalRegistrationService:
             select(func.count(RentalRegistrationSubmission.id)).where(
                 RentalRegistrationSubmission.vendor_id == vendor_id,
                 RentalRegistrationSubmission.form_id == form.id,
+                RentalRegistrationSubmission.deleted_at.is_(None),
             )
         )
         d["submission_count"] = int(cr.scalar() or 0)
@@ -364,11 +368,22 @@ class RentalRegistrationService:
             return None
         return self._form_dict(form, public=channel != "staff")
 
-    async def list_submissions(self, vendor_id: UUID, form_id: Optional[UUID] = None) -> list[dict]:
+    async def list_submissions(
+        self,
+        vendor_id: UUID,
+        form_id: Optional[UUID] = None,
+        *,
+        deleted_only: bool = False,
+    ) -> list[dict]:
         q = select(RentalRegistrationSubmission).where(RentalRegistrationSubmission.vendor_id == vendor_id)
         if form_id:
             q = q.where(RentalRegistrationSubmission.form_id == form_id)
-        q = q.order_by(RentalRegistrationSubmission.created_at.desc()).limit(300)
+        if deleted_only:
+            q = q.where(RentalRegistrationSubmission.deleted_at.is_not(None))
+            q = q.order_by(RentalRegistrationSubmission.deleted_at.desc()).limit(300)
+        else:
+            q = q.where(RentalRegistrationSubmission.deleted_at.is_(None))
+            q = q.order_by(RentalRegistrationSubmission.created_at.desc()).limit(300)
         result = await self.db.execute(q)
         rows = result.scalars().all()
         form_ids = {r.form_id for r in rows}
@@ -387,10 +402,13 @@ class RentalRegistrationService:
         if not booking_ids:
             return {}
         result = await self.db.execute(
-            select(RentalRegistrationSubmission).where(
+            select(RentalRegistrationSubmission)
+            .where(
                 RentalRegistrationSubmission.vendor_id == vendor_id,
                 RentalRegistrationSubmission.booking_id.in_(booking_ids),
+                RentalRegistrationSubmission.deleted_at.is_(None),
             )
+            .order_by(RentalRegistrationSubmission.created_at.desc())
         )
         rows = result.scalars().all()
         form_ids = {r.form_id for r in rows}
@@ -398,7 +416,31 @@ class RentalRegistrationService:
         if form_ids:
             fr = await self.db.execute(select(RentalRegistrationForm).where(RentalRegistrationForm.id.in_(form_ids)))
             forms_map = {f.id: f for f in fr.scalars().all()}
-        return {r.booking_id: self._submission_dict(r, forms_map.get(r.form_id)) for r in rows if r.booking_id}
+        out: dict[UUID, dict] = {}
+        for r in rows:
+            if not r.booking_id or r.booking_id in out:
+                continue
+            out[r.booking_id] = self._submission_dict(r, forms_map.get(r.form_id))
+        return out
+
+    async def discarded_submissions_for_booking(self, vendor_id: UUID, booking_id: UUID) -> list[dict]:
+        result = await self.db.execute(
+            select(RentalRegistrationSubmission)
+            .where(
+                RentalRegistrationSubmission.vendor_id == vendor_id,
+                RentalRegistrationSubmission.booking_id == booking_id,
+                RentalRegistrationSubmission.deleted_at.is_not(None),
+            )
+            .order_by(RentalRegistrationSubmission.deleted_at.desc())
+            .limit(50)
+        )
+        rows = result.scalars().all()
+        form_ids = {r.form_id for r in rows}
+        forms_map: dict = {}
+        if form_ids:
+            fr = await self.db.execute(select(RentalRegistrationForm).where(RentalRegistrationForm.id.in_(form_ids)))
+            forms_map = {f.id: f for f in fr.scalars().all()}
+        return [self._submission_dict(r, forms_map.get(r.form_id)) for r in rows]
 
     async def capture_for_booking(
         self,
@@ -417,6 +459,7 @@ class RentalRegistrationService:
         if incoming_id and str(incoming_id) != str(form_data["id"]):
             raise HTTPException(400, "Registration form is out of date. Refresh and try again.")
         cleaned = _validate_answers(form_data.get("fields") or [], answers if isinstance(answers, dict) else {})
+        await self._soft_delete_booking_submissions(vendor_id, booking.id)
         row = RentalRegistrationSubmission(
             id=uuid4(),
             vendor_id=vendor_id,
@@ -463,3 +506,113 @@ class RentalRegistrationService:
         await self.db.refresh(row)
         form = await self._get_form(vendor_id, row.form_id)
         return self._submission_dict(row, form)
+
+    async def _booking_owned(self, vendor_id: UUID, booking_id: UUID) -> RentalBooking:
+        result = await self.db.execute(
+            select(RentalBooking).where(
+                RentalBooking.id == booking_id,
+                RentalBooking.vendor_id == vendor_id,
+            )
+        )
+        booking = result.scalar_one_or_none()
+        if not booking:
+            raise HTTPException(404, "Rental booking not found")
+        return booking
+
+    async def _soft_delete_booking_submissions(self, vendor_id: UUID, booking_id: UUID) -> int:
+        result = await self.db.execute(
+            select(RentalRegistrationSubmission).where(
+                RentalRegistrationSubmission.vendor_id == vendor_id,
+                RentalRegistrationSubmission.booking_id == booking_id,
+                RentalRegistrationSubmission.deleted_at.is_(None),
+            )
+        )
+        rows = result.scalars().all()
+        now = datetime.now(timezone.utc)
+        for row in rows:
+            row.deleted_at = now
+        return len(rows)
+
+    async def discard_booking_registration(self, vendor_id: UUID, booking_id: UUID) -> dict:
+        await self._booking_owned(vendor_id, booking_id)
+        removed = await self._soft_delete_booking_submissions(vendor_id, booking_id)
+        await self.db.commit()
+        return {"ok": True, "removed": removed}
+
+    async def restore_submission(self, vendor_id: UUID, submission_id: UUID) -> dict:
+        result = await self.db.execute(
+            select(RentalRegistrationSubmission).where(
+                RentalRegistrationSubmission.id == submission_id,
+                RentalRegistrationSubmission.vendor_id == vendor_id,
+            )
+        )
+        row = result.scalar_one_or_none()
+        if not row:
+            raise HTTPException(404, "Registration submission not found")
+        if row.deleted_at is None:
+            raise HTTPException(400, "This registration is not discarded")
+
+        # If restoring onto a booking that already has an active form, move that one to the bin.
+        if row.booking_id:
+            await self._soft_delete_booking_submissions(vendor_id, row.booking_id)
+
+        row.deleted_at = None
+        await self.db.commit()
+        await self.db.refresh(row)
+        form = await self._get_form(vendor_id, row.form_id)
+        booking = None
+        if row.booking_id:
+            booking = await self._booking_owned(vendor_id, row.booking_id)
+        return self._submission_dict(row, form, booking)
+
+    async def replace_booking_registration(self, vendor_id: UUID, booking_id: UUID, data: dict) -> dict:
+        """Discard any existing booking registration and save a new filled form."""
+        booking = await self._booking_owned(vendor_id, booking_id)
+        form_data = None
+        incoming_id = data.get("form_id") or data.get("registration_form_id")
+        if incoming_id:
+            form = await self._get_form(vendor_id, UUID(str(incoming_id)))
+            form_data = self._form_dict(form)
+        else:
+            existing = await self.submissions_for_bookings(vendor_id, [booking_id])
+            prev = existing.get(booking_id)
+            if prev and prev.get("form_id"):
+                try:
+                    form = await self._get_form(vendor_id, UUID(str(prev["form_id"])))
+                    form_data = self._form_dict(form)
+                except HTTPException:
+                    form_data = None
+            if not form_data:
+                form_data = await self.get_active_form(vendor_id, "staff")
+            if not form_data:
+                form_data = await self.get_active_form(vendor_id, "storefront")
+        if not form_data:
+            raise HTTPException(400, "No registration form available. Enable a staff or storefront form first.")
+
+        answers = data.get("answers") or data.get("registration_answers") or {}
+        cleaned = _validate_answers(form_data.get("fields") or [], answers if isinstance(answers, dict) else {})
+        name = str(data.get("customer_name") or booking.customer_name or "").strip()
+        if not name:
+            for key in ("full_name", "primary_guest", "organizer_name", "company_or_name"):
+                val = cleaned.get(key)
+                if isinstance(val, str) and val.strip():
+                    name = val.strip()
+                    break
+
+        await self._soft_delete_booking_submissions(vendor_id, booking_id)
+        row = RentalRegistrationSubmission(
+            id=uuid4(),
+            vendor_id=vendor_id,
+            form_id=UUID(str(form_data["id"])),
+            form_version=int(form_data.get("version") or 1),
+            booking_id=booking.id,
+            customer_id=booking.customer_id,
+            customer_name=(name or booking.customer_name or "")[:255] or None,
+            channel="staff",
+            answers=cleaned,
+        )
+        self.db.add(row)
+        await self.db.commit()
+        await self.db.refresh(row)
+        form = await self._get_form(vendor_id, row.form_id)
+        return self._submission_dict(row, form, booking)

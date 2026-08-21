@@ -4,7 +4,7 @@ import { statusBadgeClass } from './rentalConstants'
 
 export function StatusBadge({ status }: { status?: string }) {
   return (
-    <span className={`inline-flex items-center whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-medium border capitalize ${statusBadgeClass(status)}`}>
+    <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(status)}`}>
       {(status || '—').replace(/_/g, ' ')}
     </span>
   )

@@ -13,6 +13,8 @@ type Props = {
   onUploadImage?: (file: File) => Promise<string>
   theme?: RegistrationTheme
   disabled?: boolean
+  /** When set, section headings become editable title inputs (form builder). */
+  onHeadingLabelChange?: (fieldKey: string, label: string) => void
 }
 
 function ImageUploadField({
@@ -94,21 +96,32 @@ function ImageUploadField({
   )
 }
 
-export function RegistrationFormFields({ fields, values, onChange, onUploadImage, theme, disabled }: Props) {
+export function RegistrationFormFields({ fields, values, onChange, onUploadImage, theme, disabled, onHeadingLabelChange }: Props) {
   const accent = theme?.accent || '#0f766e'
   const layout = theme?.layout || 'card'
   const wrapClass =
-    layout === 'split'
-      ? 'grid gap-4 sm:grid-cols-2'
-      : layout === 'minimal'
-        ? 'space-y-3'
-        : 'space-y-4'
+    layout === 'minimal'
+      ? 'space-y-3'
+      : 'grid grid-cols-1 gap-4 sm:grid-cols-2'
   return (
     <div className={wrapClass}>
       {fields.map((field) => {
         const value = values[field.key]
         const span = field.type === 'textarea' || field.type === 'checkbox' || field.type === 'heading' || field.type === 'terms' || field.type === 'image' ? 'sm:col-span-2' : ''
         if (field.type === 'heading') {
+          if (onHeadingLabelChange && !disabled) {
+            return (
+              <input
+                key={field.id || field.key}
+                value={field.label}
+                onChange={(e) => onHeadingLabelChange(field.key, e.target.value)}
+                placeholder="Section title"
+                className={`${span} w-full rounded-md px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-white outline-none ring-offset-2 placeholder:text-white/50 focus:ring-2 focus:ring-white/40`}
+                style={{ background: accent }}
+                aria-label="Edit section heading"
+              />
+            )
+          }
           return (
             <div
               key={field.id || field.key}

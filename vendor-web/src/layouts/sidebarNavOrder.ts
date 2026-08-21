@@ -50,6 +50,7 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/rental/bookings': 'rental',
   '/rental/calendar': 'rental',
   '/rental/returns': 'rental',
+  '/rental/filled-registrations': 'rental',
   '/rental/reports': 'rental',
   '/rental/registration-forms': 'rental',
   '/rental/settings': 'rental',

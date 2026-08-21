@@ -7,15 +7,10 @@ import { useCustomers, useSalesAreas } from '@/hooks/useVendor'
 import { rentalApi } from './api'
 import type { RentalAsset, RentalBooking } from './rentalConstants'
 import RentalDashboard from './RentalDashboard'
-import RentalBookingSheet from './RentalBookingSheet'
 import RentalBookingCreateSheet from './RentalBookingCreateSheet'
-import ReturnAssetModal from './ReturnAssetModal'
 
 export default function RentalDashboardPage() {
   const navigate = useNavigate()
-  const [selectedBooking, setSelectedBooking] = useState<RentalBooking | null>(null)
-  const [returnBooking, setReturnBooking] = useState<RentalBooking | null>(null)
-  const [bookingSheetOpen, setBookingSheetOpen] = useState(false)
   const [createSheetOpen, setCreateSheetOpen] = useState(false)
 
   const { data: assets = [] } = useQuery({
@@ -44,34 +39,25 @@ export default function RentalDashboardPage() {
   )
   const customers = customerData?.items ?? []
 
-  const returnAsset = useMemo(
-    () => (returnBooking ? (assets as RentalAsset[]).find((a) => a.id === returnBooking.asset_id) || null : null),
-    [assets, returnBooking],
-  )
-
-  const openBooking = (b: RentalBooking) => {
-    setSelectedBooking(b)
-    setBookingSheetOpen(true)
-  }
-
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Rental Management</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Overview of your rental assets, active bookings, and revenue.
+    <div className="w-full space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Rental</p>
+          <h1 className="mt-0.5 text-xl font-bold tracking-tight text-foreground">Operations overview</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Fleet availability, booking pipeline, and rental revenue at a glance.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => navigate('/rental/settings')}>
-            <Settings2 className="mr-1 h-4 w-4" /> Settings
-          </Button>
-          <Button size="sm" onClick={() => navigate('/rental/assets')}>
-            <Plus className="mr-1 h-4 w-4" /> Add Asset
+            <Settings2 className="mr-1.5 h-3.5 w-3.5" /> Settings
           </Button>
           <Button size="sm" variant="outline" onClick={() => setCreateSheetOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" /> New Booking
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> New Booking
+          </Button>
+          <Button size="sm" onClick={() => navigate('/rental/assets')}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Asset
           </Button>
         </div>
       </div>
@@ -80,15 +66,7 @@ export default function RentalDashboardPage() {
         allBookings={allBookings as RentalBooking[]}
         onGoToAssets={() => navigate('/rental/assets')}
         onGoToBookings={(status) => navigate(status ? `/rental/bookings?status=${status}` : '/rental/bookings')}
-        onSelectBooking={openBooking}
-      />
-
-      <RentalBookingSheet
-        open={bookingSheetOpen}
-        booking={selectedBooking}
-        onClose={() => { setBookingSheetOpen(false); setSelectedBooking(null) }}
-        onChanged={(b) => setSelectedBooking(b)}
-        onRequestReturn={(b) => { setReturnBooking(b); setBookingSheetOpen(false) }}
+        onSelectBooking={(b) => navigate(`/rental/bookings/${b.id}`)}
       />
 
       <RentalBookingCreateSheet
@@ -98,24 +76,10 @@ export default function RentalDashboardPage() {
         customers={customers}
         salesAreaOptions={salesAreaOptions}
         onCreated={(b) => {
-          setSelectedBooking(b)
           setCreateSheetOpen(false)
-          setBookingSheetOpen(true)
+          navigate(`/rental/bookings/${b.id}`)
         }}
       />
-
-      {returnBooking && (
-        <ReturnAssetModal
-          booking={returnBooking}
-          asset={returnAsset}
-          onClose={() => setReturnBooking(null)}
-          onDone={(b) => {
-            setSelectedBooking(b)
-            setReturnBooking(null)
-            setBookingSheetOpen(true)
-          }}
-        />
-      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, Clock, Package, RotateCcw, Wrench } from 'lucide-react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
@@ -6,7 +7,6 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { rentalApi } from './api'
 import type { RentalAsset, RentalBooking } from './rentalConstants'
 import { RentalEmptyState, StatusBadge, TableSkeleton } from './RentalPrimitives'
-import RentalBookingSheet from './RentalBookingSheet'
 import ReturnAssetModal from './ReturnAssetModal'
 
 type ReturnFilter = 'pending_return' | 'completed' | 'all'
@@ -18,11 +18,10 @@ const FILTER_OPTIONS: { value: ReturnFilter; label: string }[] = [
 ]
 
 export default function RentalReturnsPage() {
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const [filter, setFilter] = useState<ReturnFilter>('pending_return')
-  const [selectedBooking, setSelectedBooking] = useState<RentalBooking | null>(null)
   const [returnBooking, setReturnBooking] = useState<RentalBooking | null>(null)
-  const [detailOpen, setDetailOpen] = useState(false)
 
   const IN_PROGRESS_STATUSES = new Set(['pending', 'approved', 'confirmed', 'active'])
 
@@ -165,7 +164,7 @@ export default function RentalReturnsPage() {
                     <tr
                       key={b.id}
                       className="cursor-pointer transition-colors hover:bg-muted/40"
-                      onClick={() => { setSelectedBooking(b); setDetailOpen(true) }}
+                      onClick={() => navigate(`/rental/bookings/${b.id}`)}
                     >
                       <td className="px-4 py-3">
                         <p className="font-medium text-foreground">{b.booking_number || `#${b.id.slice(0, 6)}`}</p>
@@ -211,23 +210,13 @@ export default function RentalReturnsPage() {
         )}
       </div>
 
-      <RentalBookingSheet
-        open={detailOpen}
-        booking={selectedBooking}
-        onClose={() => { setDetailOpen(false); setSelectedBooking(null); invalidate() }}
-        onChanged={(b) => { setSelectedBooking(b); invalidate() }}
-        onRequestReturn={(b) => { setReturnBooking(b); setDetailOpen(false) }}
-      />
-
       {returnBooking && (
         <ReturnAssetModal
           booking={returnBooking}
           asset={returnAssetForModal}
           onClose={() => setReturnBooking(null)}
-          onDone={(b) => {
+          onDone={() => {
             setReturnBooking(null)
-            setSelectedBooking(b)
-            setDetailOpen(true)
             invalidate()
           }}
         />

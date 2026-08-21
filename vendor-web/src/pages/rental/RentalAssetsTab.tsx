@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import {
   Archive, Calendar, LayoutGrid, LayoutList, Layers, MapPin, Package,
-  Pencil, Plus, Search, Table2, Tag, X,
+  Pencil, Plus, RotateCcw, Search, Table2, Tag, Trash2, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { cn, formatCurrency, mediaUrl } from '@/lib/utils'
+import { cn, formatCurrency, formatDate, mediaUrl } from '@/lib/utils'
 import { ASSET_STATUSES, RENTAL_ASSET_KINDS, type RentalAsset, type RentalBooking } from './rentalConstants'
 import { assetCardAvailability } from './rentalDates'
 import { CardGridSkeleton, RentalEmptyState, StatusBadge, CapacityBar } from './RentalPrimitives'
@@ -73,6 +73,10 @@ type Props = {
   /** Open master in display / view mode (card click). */
   onView?: (asset: RentalAsset) => void
   onEdit: (asset: RentalAsset) => void
+  showBin?: boolean
+  onToggleBin?: () => void
+  onRestore?: (asset: RentalAsset) => void
+  restoringId?: string | null
 }
 
 function priceParts(a: RentalAsset) {
@@ -217,6 +221,7 @@ export default function RentalAssetsTab({
   assets, allBookings, loading, salesAreaLabelById,
   q, onQChange, status, onStatusChange, category, onCategoryChange,
   onCreate, onView, onEdit,
+  showBin = false, onToggleBin, onRestore, restoringId = null,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredView)
 
@@ -253,20 +258,29 @@ export default function RentalAssetsTab({
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[200px]">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-8" placeholder="Search assets…" value={q} onChange={(e) => onQChange(e.target.value)} />
+            <Input
+              className="pl-8"
+              placeholder={showBin ? 'Search bin…' : 'Search assets…'}
+              value={q}
+              onChange={(e) => onQChange(e.target.value)}
+            />
           </div>
-          <Select
-            value={category || '__all__'}
-            onChange={(v) => onCategoryChange(v === '__all__' ? '' : v)}
-            options={[{ value: '__all__', label: 'All kinds' }, ...RENTAL_ASSET_KINDS]}
-            wrapperClassName="w-44"
-          />
-          <Select
-            value={status || '__all__'}
-            onChange={(v) => onStatusChange(v === '__all__' ? '' : v)}
-            options={[{ value: '__all__', label: 'All statuses' }, ...ASSET_STATUSES]}
-            wrapperClassName="w-48"
-          />
+          {!showBin && (
+            <>
+              <Select
+                value={category || '__all__'}
+                onChange={(v) => onCategoryChange(v === '__all__' ? '' : v)}
+                options={[{ value: '__all__', label: 'All kinds' }, ...RENTAL_ASSET_KINDS]}
+                wrapperClassName="w-44"
+              />
+              <Select
+                value={status || '__all__'}
+                onChange={(v) => onStatusChange(v === '__all__' ? '' : v)}
+                options={[{ value: '__all__', label: 'All statuses' }, ...ASSET_STATUSES]}
+                wrapperClassName="w-48"
+              />
+            </>
+          )}
           {hasActiveFilters && (
             <button
               type="button"
@@ -279,33 +293,48 @@ export default function RentalAssetsTab({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div
-            className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5 text-xs"
-            role="group"
-            aria-label="Show as"
-          >
-            {VIEW_OPTIONS.map(({ id, label, title, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                title={title}
-                aria-pressed={viewMode === id}
-                onClick={() => setViewModePersisted(id)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium transition-all',
-                  viewMode === id
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
-          </div>
-          <Button size="sm" onClick={onCreate}>
-            <Plus className="mr-1 h-4 w-4" /> Add Rental Asset
-          </Button>
+          {!showBin && (
+            <div
+              className="inline-flex h-8 items-stretch rounded-md border border-border bg-muted/40 p-0.5 text-xs"
+              role="group"
+              aria-label="Show as"
+            >
+              {VIEW_OPTIONS.map(({ id, label, title, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  title={title}
+                  aria-pressed={viewMode === id}
+                  onClick={() => setViewModePersisted(id)}
+                  className={cn(
+                    'inline-flex items-center justify-center gap-1.5 rounded-[5px] px-2.5 transition-colors',
+                    viewMode === id
+                      ? 'bg-primary font-semibold text-primary-foreground shadow-sm'
+                      : 'font-medium text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {onToggleBin && (
+            <Button
+              size="sm"
+              variant={showBin ? 'default' : 'outline'}
+              className="gap-1.5"
+              onClick={onToggleBin}
+            >
+              <Trash2 className={cn('h-3.5 w-3.5', !showBin && 'text-red-500')} />
+              {showBin ? 'Back to assets' : 'Bin'}
+            </Button>
+          )}
+          {!showBin && (
+            <Button size="sm" onClick={onCreate}>
+              <Plus className="mr-1 h-4 w-4" /> Add Rental Asset
+            </Button>
+          )}
         </div>
       </div>
 
@@ -320,22 +349,32 @@ export default function RentalAssetsTab({
         <CardGridSkeleton count={4} />
       ) : filtered.length === 0 ? (
         <RentalEmptyState
-          icon={Package}
-          title={assets.length === 0 ? 'No rental assets yet' : 'No assets match these filters'}
+          icon={showBin ? Trash2 : Package}
+          title={
+            showBin
+              ? (assets.length === 0 ? 'Bin is empty' : 'No matching assets in bin')
+              : (assets.length === 0 ? 'No rental assets yet' : 'No assets match these filters')
+          }
           description={
-            assets.length === 0
-              ? 'Add your first rentable rack, unit, or item to get started.'
-              : 'Try clearing filters or searching a different term.'
+            showBin
+              ? (assets.length === 0
+                ? 'Deleted assets appear here for history. They are never permanently erased.'
+                : 'Try a different search term.')
+              : (assets.length === 0
+                ? 'Add your first rentable rack, unit, or item to get started.'
+                : 'Try clearing filters or searching a different term.')
           }
           action={
-            assets.length === 0 ? (
-              <Button size="sm" onClick={onCreate}><Plus className="mr-1 h-4 w-4" /> Add Rental Asset</Button>
-            ) : (
-              <Button size="sm" variant="outline" onClick={clearFilters}>Clear filters</Button>
-            )
+            showBin
+              ? (onToggleBin ? <Button size="sm" variant="outline" onClick={onToggleBin}>Back to assets</Button> : undefined)
+              : assets.length === 0 ? (
+                <Button size="sm" onClick={onCreate}><Plus className="mr-1 h-4 w-4" /> Add Rental Asset</Button>
+              ) : (
+                <Button size="sm" variant="outline" onClick={clearFilters}>Clear filters</Button>
+              )
           }
         />
-      ) : viewMode === 'cards' ? (
+      ) : viewMode === 'cards' && !showBin ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((a) => {
             const availability = assetCardAvailability(a, allBookings)
@@ -410,7 +449,7 @@ export default function RentalAssetsTab({
             )
           })}
         </div>
-      ) : viewMode === 'list' ? (
+      ) : viewMode === 'list' || showBin ? (
         <div className="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border">
           {filtered.map((a) => {
             const availability = assetCardAvailability(a, allBookings)
@@ -440,39 +479,67 @@ export default function RentalAssetsTab({
                         {a.asset_code}
                       </span>
                     ) : null}
-                    <StatusBadge status={a.status} />
+                    {showBin ? (
+                      <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:text-red-300">
+                        In bin
+                      </span>
+                    ) : (
+                      <StatusBadge status={a.status} />
+                    )}
                   </div>
                   <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1">
                     {kind ? <span className="text-[11px] capitalize text-muted-foreground">{kind}</span> : null}
-                    <AssetMetaChips a={a} routeLabel={routeLabel} availability={availability} />
+                    {showBin && a.deleted_at ? (
+                      <span className="text-[11px] text-muted-foreground">Deleted {formatDate(a.deleted_at)}</span>
+                    ) : (
+                      <AssetMetaChips a={a} routeLabel={routeLabel} availability={availability} />
+                    )}
                   </div>
                 </div>
-                <div className="hidden min-w-[7.5rem] shrink-0 text-right sm:block">
-                  <p className="truncate text-xs font-medium text-foreground" title={prices[0]}>{prices[0]}</p>
-                  {prices[1] ? <p className="truncate text-[11px] text-muted-foreground">{prices.slice(1).join(' · ')}</p> : null}
-                </div>
-                <div className="hidden w-28 shrink-0 md:block" onClick={(e) => e.stopPropagation()}>
-                  {(() => {
-                    const cap = assetCapacityDisplay(a)
-                    return (
-                      <CapacityBar
-                        used={cap.used}
-                        max={cap.max}
-                        unit={cap.unit}
-                        available={cap.available}
-                      />
-                    )
-                  })()}
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 shrink-0 p-0 text-muted-foreground"
-                  onClick={(e) => { e.stopPropagation(); onEdit(a) }}
-                  title="Edit asset"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
+                {!showBin && (
+                  <div className="hidden min-w-[7.5rem] shrink-0 text-right sm:block">
+                    <p className="truncate text-xs font-medium text-foreground" title={prices[0]}>{prices[0]}</p>
+                    {prices[1] ? <p className="truncate text-[11px] text-muted-foreground">{prices.slice(1).join(' · ')}</p> : null}
+                  </div>
+                )}
+                {!showBin && (
+                  <div className="hidden w-28 shrink-0 md:block" onClick={(e) => e.stopPropagation()}>
+                    {(() => {
+                      const cap = assetCapacityDisplay(a)
+                      return (
+                        <CapacityBar
+                          used={cap.used}
+                          max={cap.max}
+                          unit={cap.unit}
+                          available={cap.available}
+                        />
+                      )
+                    })()}
+                  </div>
+                )}
+                {showBin ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 shrink-0 gap-1.5"
+                    disabled={restoringId === a.id}
+                    onClick={(e) => { e.stopPropagation(); onRestore?.(a) }}
+                    title="Restore from bin"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Restore
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 shrink-0 p-0 text-muted-foreground"
+                    onClick={(e) => { e.stopPropagation(); onEdit(a) }}
+                    title="Edit asset"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             )
           })}

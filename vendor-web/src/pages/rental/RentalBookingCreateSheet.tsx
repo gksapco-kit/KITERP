@@ -128,6 +128,14 @@ export default function RentalBookingCreateSheet({
 
   const selectedAsset = useMemo(() => assets.find((a) => a.id === form.asset_id) || null, [assets, form.asset_id])
 
+  const { data: periodCapacity } = useQuery({
+    queryKey: ['rental-free-capacity', form.asset_id, form.start_date, form.end_date],
+    queryFn: () => rentalApi.freeCapacity(form.asset_id, form.start_date, form.end_date),
+    enabled: open && !!form.asset_id && !!form.start_date && !!form.end_date && form.end_date >= form.start_date,
+  })
+  const periodAvailable = periodCapacity?.available_capacity
+  const quantityMax = periodAvailable ?? selectedAsset?.available_capacity ?? undefined
+
   useEffect(() => {
     if (!open || !form.customer_name.trim()) {
       setCreditHint(null)
@@ -173,15 +181,10 @@ export default function RentalBookingCreateSheet({
           notes: notes.includes(tag) ? notes : [notes, tag].filter(Boolean).join('\n'),
         }
       }
-      const data = await rentalApi.createBooking(body)
-      // Only assign immediately when the booking is already live (units stay free until then).
-      if (preferredUnitId && data?.id && data.status === 'active') {
-        try {
-          await rentalApi.assignUnitsToBooking(data.id, { unit_ids: [preferredUnitId], assigned_by: 'calendar' })
-        } catch {
-          // Booking still created; assign from the booking sheet later.
-        }
-      }
+      const data = await rentalApi.createBooking({
+        ...body,
+        ...(preferredUnitId ? { unit_id: preferredUnitId, unit_ids: [preferredUnitId] } : {}),
+      })
       return data
     },
     onSuccess: (data) => {
@@ -370,15 +373,21 @@ export default function RentalBookingCreateSheet({
               <Input
                 type="number"
                 min={1}
-                max={selectedAsset?.available_capacity ?? undefined}
+                max={quantityMax ?? undefined}
                 value={form.quantity}
                 onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
               />
               {selectedAsset && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Available: <strong className="text-foreground">{selectedAsset.available_capacity ?? '—'}</strong>
+                  Available for these dates:{' '}
+                  <strong className="text-foreground">
+                    {periodAvailable != null ? periodAvailable : (selectedAsset.available_capacity ?? '—')}
+                  </strong>
                   {selectedAsset.capacity_unit ? ` ${selectedAsset.capacity_unit}` : ''}
                   {' · '}Max: {selectedAsset.capacity_max ?? '—'}
+                  {periodAvailable == null && selectedAsset.available_capacity != null ? (
+                    <span className="block mt-0.5 text-[11px]">(stock on hand — checking dates…)</span>
+                  ) : null}
                 </p>
               )}
             </div>

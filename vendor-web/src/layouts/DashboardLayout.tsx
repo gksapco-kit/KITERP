@@ -718,7 +718,8 @@ const allSections: NavSection[] = [
       { to: '/rental/bookings', icon: CalendarCheck2, label: 'Bookings', requiresPermission: 'rentals.view' },
       { to: '/rental/calendar', icon: CalendarDays, label: 'Availability Calendar', requiresPermission: 'rentals.view' },
       { to: '/rental/returns', icon: RotateCcw, label: 'Returns & Settlements', requiresPermission: 'rentals.view' },
-      { to: '/rental/reports', icon: BarChart3, label: 'Reports', requiresPermission: 'reports.view', groupLabel: 'Insights', groupColor: 'violet' },
+      { to: '/rental/filled-registrations', icon: ClipboardList, label: 'Filled Registrations', requiresPermission: 'rentals.view' },
+      { to: '/rental/reports', icon: BarChart3, label: 'Rental Report Analytics', requiresPermission: 'reports.view', groupLabel: 'Insights', groupColor: 'violet' },
       { to: '/rental/registration-forms', icon: FileSignature, label: 'Registration Forms', requiresPermission: 'rentals.manage', groupLabel: 'Configuration', groupColor: 'slate' },
       { to: '/rental/settings', icon: Settings2, label: 'Settings', requiresPermission: 'rentals.manage' },
     ],
@@ -1276,7 +1277,8 @@ const pageTitles: Record<string, string> = {
   '/rental/bookings': 'Bookings',
   '/rental/calendar': 'Availability Calendar',
   '/rental/returns': 'Returns & Settlements',
-  '/rental/reports': 'Reports',
+  '/rental/filled-registrations': 'Filled Registrations',
+  '/rental/reports': 'Rental Report Analytics',
   '/rental/registration-forms': 'Registration Forms',
   '/rental/settings': 'Rental Settings',
   '/invoices': 'Invoices',
@@ -2676,6 +2678,8 @@ export default function DashboardLayout() {
          location.pathname.startsWith('/purchase-orders/') ? 'Purchase Order' :
          location.pathname.startsWith('/projects/') ? 'Project Details' :
          location.pathname.startsWith('/controlling/orders/') ? 'CO Manufacturing Order' :
+         location.pathname.startsWith('/rental/bookings/') ? 'Booking Details' :
+         location.pathname.startsWith('/rental/assets/') ? 'Asset Details' :
          'Dashboard')
 
   useEffect(() => {

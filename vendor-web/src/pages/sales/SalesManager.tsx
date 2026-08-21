@@ -604,7 +604,7 @@ export default function SalesManagerPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-primary" /> Sales Reporting Manager
+            <BarChart3 className="w-6 h-6 text-primary" /> Sales Report Analytics
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Summary & detailed sales reporting across orders, channels, products and customers.

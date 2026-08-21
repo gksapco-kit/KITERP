@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Car, Check, ClipboardList, Eye, Home, ImagePlus, Loader2, PartyPopper, Plus,
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { FieldLabel } from '@/components/common/FieldLabel'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { extractApiError } from '@/lib/errorMessages'
 import { mediaUrl } from '@/lib/utils'
 import { rentalApi } from './api'
@@ -36,18 +37,6 @@ type Draft = {
   theme: RegistrationTheme
   use_on_storefront: boolean
   use_on_staff_booking: boolean
-}
-
-type SubmissionRow = {
-  id: string
-  form_id?: string
-  form_name?: string | null
-  customer_name?: string | null
-  booking_number?: string | null
-  channel?: string
-  created_at?: string | null
-  answers?: Record<string, unknown>
-  fields?: Array<{ key: string; label: string; type: string }>
 }
 
 const blankModern = REGISTRATION_TEMPLATES.find((t) => t.key === 'blank_modern')!
@@ -83,21 +72,14 @@ const MAX_REG_FIELDS = 80
 
 export default function RentalRegistrationFormsPage() {
   const qc = useQueryClient()
-  const [tab, setTab] = useState<'forms' | 'submissions'>('forms')
   const [picking, setPicking] = useState(false)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [previewValues, setPreviewValues] = useState<Record<string, string | boolean>>({})
-  const [registering, setRegistering] = useState(false)
-  const [regAnswers, setRegAnswers] = useState<Record<string, string | boolean>>({})
-  const [regCustomerName, setRegCustomerName] = useState('')
+  const [logoUploading, setLogoUploading] = useState(false)
 
   const { data: forms = [], isLoading } = useQuery({
     queryKey: ['rental-registration-forms'],
     queryFn: () => rentalApi.listRegistrationForms() as Promise<RegistrationFormRecord[]>,
-  })
-  const { data: submissions = [], isLoading: loadingSubs } = useQuery({
-    queryKey: ['rental-registration-submissions'],
-    queryFn: () => rentalApi.listRegistrationSubmissions() as Promise<SubmissionRow[]>,
   })
 
   const save = useMutation({
@@ -178,7 +160,7 @@ export default function RentalRegistrationFormsPage() {
     })
   }
 
-  const addField = () => {
+  const addField = (insertAt?: number) => {
     let createdId = ''
     setDraft((d) => {
       if (!d) return d
@@ -195,65 +177,27 @@ export default function RentalRegistrationFormsPage() {
         key = `question_${n}`
       }
       createdId = `f_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-      return {
-        ...d,
-        fields: [
-          ...fields,
-          {
-            id: createdId,
-            key,
-            label: `Question ${n}`,
-            type: 'text',
-            required: false,
-            placeholder: '',
-            help: '',
-            content: '',
-            options: [],
-          },
-        ],
+      const nextField: RegistrationField = {
+        id: createdId,
+        key,
+        label: `Question ${n}`,
+        type: 'text',
+        required: false,
+        placeholder: '',
+        help: '',
+        content: '',
+        options: [],
       }
+      const at = typeof insertAt === 'number' ? Math.max(0, Math.min(insertAt, fields.length)) : fields.length
+      const next = fields.slice()
+      next.splice(at, 0, nextField)
+      return { ...d, fields: next }
     })
     if (!createdId) return
     requestAnimationFrame(() => {
       document.getElementById(`reg-field-${createdId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
   }
-
-  const storefrontForm = useMemo(
-    () => forms.find((f) => f.use_on_storefront && f.status === 'published') || null,
-    [forms],
-  )
-  const relatedSubs = useMemo(() => {
-    if (draft?.id) return submissions.filter((s) => s.form_id === draft.id)
-    if (storefrontForm) return submissions.filter((s) => s.form_id === storefrontForm.id)
-    return []
-  }, [draft?.id, storefrontForm, submissions])
-
-  const submitCustomer = useMutation({
-    mutationFn: async () => {
-      if (!storefrontForm) throw new Error('No storefront form')
-      const missing = (storefrontForm.fields || []).filter((f) => {
-        if (f.type === 'heading' || !f.required) return false
-        const v = regAnswers[f.key]
-        return f.type === 'checkbox' || f.type === 'terms' ? v !== true : !String(v ?? '').trim()
-      })
-      if (missing.length) throw new Error(`Please fill: ${missing.map((f) => f.label).join(', ')}`)
-      return rentalApi.createRegistrationSubmission({
-        form_id: storefrontForm.id,
-        customer_name: regCustomerName.trim() || undefined,
-        answers: regAnswers,
-      })
-    },
-    onSuccess: () => {
-      toast.success('Customer registration saved')
-      setRegistering(false)
-      setRegAnswers({})
-      setRegCustomerName('')
-      qc.invalidateQueries({ queryKey: ['rental-registration-submissions'] })
-      qc.invalidateQueries({ queryKey: ['rental-registration-forms'] })
-    },
-    onError: (e) => toast.error(extractApiError(e, e instanceof Error ? e.message : 'Could not save registration')),
-  })
 
   if (picking) {
     return (
@@ -436,26 +380,37 @@ export default function RentalRegistrationFormsPage() {
                     </button>
                   </div>
                 ) : null}
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50">
-                  <ImagePlus className="h-4 w-4" />
-                  {draft.theme.logo_url ? 'Replace logo' : 'Upload company logo'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0]
-                      e.target.value = ''
-                      if (!file) return
-                      try {
-                        const uploaded = await rentalApi.uploadRegistrationImage(file)
-                        setDraft((d) => (d ? { ...d, theme: { ...d.theme, logo_url: uploaded.url } } : d))
-                      } catch (err) {
-                        toast.error(extractApiError(err, 'Could not upload logo'))
-                      }
-                    }}
-                  />
-                </label>
+                <ImageSourcePicker
+                  title="Company logo"
+                  uploading={logoUploading}
+                  preferDirectUrl
+                  onFile={async (file) => {
+                    setLogoUploading(true)
+                    try {
+                      const uploaded = await rentalApi.uploadRegistrationImage(file)
+                      setDraft((d) => (d ? { ...d, theme: { ...d.theme, logo_url: uploaded.url } } : d))
+                    } catch (err) {
+                      toast.error(extractApiError(err, 'Could not upload logo'))
+                    } finally {
+                      setLogoUploading(false)
+                    }
+                  }}
+                  onUrl={async (url) => {
+                    setDraft((d) => (d ? { ...d, theme: { ...d.theme, logo_url: url } } : d))
+                  }}
+                >
+                  {({ open, uploading }) => (
+                    <button
+                      type="button"
+                      onClick={open}
+                      disabled={uploading}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 disabled:pointer-events-none disabled:opacity-60"
+                    >
+                      {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                      {uploading ? 'Uploading…' : draft.theme.logo_url ? 'Replace logo' : 'Upload company logo'}
+                    </button>
+                  )}
+                </ImageSourcePicker>
               </div>
             </section>
 
@@ -465,27 +420,75 @@ export default function RentalRegistrationFormsPage() {
                   <h2 className="text-sm font-semibold">Questions</h2>
                   <p className="text-xs text-muted-foreground">{draft.fields.length} fields</p>
                 </div>
-                <Button type="button" size="sm" variant="outline" onClick={addField}>
+                <Button type="button" size="sm" variant="outline" onClick={() => addField()}>
                   <Plus className="mr-1 h-4 w-4" /> Add field
                 </Button>
               </div>
-              <div className="space-y-3">
-                {draft.fields.map((field, idx) => (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {draft.fields.map((field, idx) => {
+                  const wide =
+                    field.type === 'heading'
+                    || field.type === 'textarea'
+                    || field.type === 'checkbox'
+                    || field.type === 'terms'
+                    || field.type === 'image'
+                  const sectionEnd =
+                    idx === draft.fields.length - 1 || draft.fields[idx + 1]?.type === 'heading'
+                  return (
+                  <Fragment key={field.id || field.key || `field-${idx}`}>
                   <div
-                    key={field.id || field.key || `field-${idx}`}
                     id={`reg-field-${field.id || field.key || idx}`}
-                    className="rounded-xl border border-border p-3"
+                    className={`rounded-xl border border-border p-3 ${wide ? 'sm:col-span-2' : ''}`}
                   >
-                    <div className="grid gap-2 sm:grid-cols-[1fr_9rem_auto]">
-                      <Input
-                        value={field.label}
-                        onChange={(e) => {
-                          const label = e.target.value
-                          updateField(idx, { label, key: slugKey(label) || field.key })
-                        }}
-                      />
+                    {field.type === 'heading' ? (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            className="flex h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                            value={field.type}
+                            onChange={(e) => updateField(idx, { type: e.target.value as RegistrationField['type'] })}
+                          >
+                            {FIELD_TYPE_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </select>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => setDraft({ ...draft, fields: draft.fields.filter((_, i) => i !== idx) })}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <input
+                          value={field.label}
+                          onChange={(e) => updateField(idx, { label: e.target.value })}
+                          placeholder="Section title"
+                          className="w-full rounded-md px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-white outline-none ring-offset-2 placeholder:text-white/50 focus:ring-2 focus:ring-primary/40"
+                          style={{ background: draft.theme.accent || '#0f766e' }}
+                          aria-label="Section heading title"
+                        />
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[11px] text-muted-foreground">Click the bar to rename this section.</p>
+                          <Button type="button" size="sm" variant="outline" onClick={() => addField(idx + 1)}>
+                            <Plus className="mr-1 h-3.5 w-3.5" /> Add field
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                    <>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <Input
+                          className="min-w-0 flex-1"
+                          value={field.label}
+                          onChange={(e) => {
+                            const label = e.target.value
+                            updateField(idx, { label, key: slugKey(label) || field.key })
+                          }}
+                        />
+                        <Button type="button" size="sm" variant="ghost" className="shrink-0" onClick={() => setDraft({ ...draft, fields: draft.fields.filter((_, i) => i !== idx) })}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <select
-                        className="flex h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"
                         value={field.type}
                         onChange={(e) => {
                           const type = e.target.value as RegistrationField['type']
@@ -508,6 +511,10 @@ export default function RentalRegistrationFormsPage() {
                             })
                             return
                           }
+                          if (type === 'heading') {
+                            updateField(idx, { type, required: false, placeholder: '' })
+                            return
+                          }
                           updateField(idx, { type })
                         }}
                       >
@@ -515,11 +522,7 @@ export default function RentalRegistrationFormsPage() {
                           <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                       </select>
-                      <Button type="button" size="sm" variant="ghost" onClick={() => setDraft({ ...draft, fields: draft.fields.filter((_, i) => i !== idx) })}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
-                    {field.type !== 'heading' && (
                     <div className="mt-2 flex flex-wrap items-center gap-3">
                       <label className="flex items-center gap-1.5 text-xs">
                         <input type="checkbox" checked={field.required} onChange={(e) => updateField(idx, { required: e.target.checked })} />
@@ -527,14 +530,13 @@ export default function RentalRegistrationFormsPage() {
                       </label>
                       {field.type !== 'terms' && field.type !== 'image' && (
                         <Input
-                          className="h-8 max-w-xs"
+                          className="h-8 min-w-0 flex-1"
                           placeholder="Placeholder"
                           value={field.placeholder || ''}
                           onChange={(e) => updateField(idx, { placeholder: e.target.value })}
                         />
                       )}
                     </div>
-                    )}
                     {field.type === 'terms' && (
                       <Textarea
                         className="mt-2"
@@ -552,9 +554,26 @@ export default function RentalRegistrationFormsPage() {
                         onChange={(e) => updateField(idx, { options: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
                       />
                     )}
+                    </>
+                    )}
                   </div>
-                ))}
-                <Button type="button" variant="outline" className="w-full" onClick={addField}>
+                  {field.type !== 'heading' && sectionEnd ? (
+                    <div className="sm:col-span-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="w-full border-dashed"
+                        onClick={() => addField(idx + 1)}
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" /> Add field to this section
+                      </Button>
+                    </div>
+                  ) : null}
+                  </Fragment>
+                  )
+                })}
+                <Button type="button" variant="outline" className="w-full sm:col-span-2" onClick={() => addField()}>
                   <Plus className="mr-1 h-4 w-4" /> Add field
                 </Button>
               </div>
@@ -613,6 +632,15 @@ export default function RentalRegistrationFormsPage() {
                   theme={draft.theme}
                   onUploadImage={async (file) => (await rentalApi.uploadRegistrationImage(file)).url}
                   onChange={(key, value) => setPreviewValues((prev) => ({ ...prev, [key]: value }))}
+                  onHeadingLabelChange={(fieldKey, label) => {
+                    setDraft((d) => {
+                      if (!d) return d
+                      return {
+                        ...d,
+                        fields: d.fields.map((f) => (f.key === fieldKey ? { ...f, label } : f)),
+                      }
+                    })
+                  }}
                 />
               </div>
             </div>
@@ -632,213 +660,84 @@ export default function RentalRegistrationFormsPage() {
           <h1 className="text-xl font-bold text-foreground">Registration Forms</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Design Google Forms-style intake for renters. Enable a form for the storefront to show <strong>Register & Book</strong> instead of Booking.
+            Filled customer answers appear under Operations → Filled registrations.
           </p>
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-border">
-        {([
-          { id: 'forms' as const, label: 'Forms & templates' },
-          { id: 'submissions' as const, label: `Filled registrations${relatedSubs.length ? ` (${relatedSubs.length})` : ''}` },
-        ]).map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setTab(item.id)}
-            className={`border-b-2 px-3 py-2 text-sm font-medium ${tab === item.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'}`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'forms' ? (
-        <div className="space-y-8">
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Your registration forms</h2>
-              <p className="text-xs text-muted-foreground">Open a form to edit fields, then enable it for storefront if customers should fill it.</p>
-            </div>
-            {isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading forms…</p>
-            ) : forms.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
-                <p className="text-sm text-muted-foreground">No saved forms yet. Pick a template below to start.</p>
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {forms.map((form) => (
-                  <button
-                    key={form.id}
-                    type="button"
-                    onClick={() => openForm(form)}
-                    className="rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/40 hover:shadow-sm"
-                  >
-                    <div className="mb-3 h-2 w-16 rounded-full" style={{ background: form.theme?.accent || '#0f766e' }} />
-                    <h3 className="font-semibold text-foreground">{form.name}</h3>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{form.description || 'No description'}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
-                      <span className={`rounded-full px-2 py-0.5 ${form.status === 'published' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-muted text-muted-foreground'}`}>
-                        {form.status}
-                      </span>
-                      {form.use_on_storefront && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-700 dark:text-sky-300">Storefront</span>}
-                      {form.use_on_staff_booking && <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-violet-700 dark:text-violet-300">Staff</span>}
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{form.submission_count || 0} filled</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Templates</h2>
-              <p className="text-xs text-muted-foreground">Need extra details? Start another form from a template, then add or change questions.</p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {REGISTRATION_TEMPLATES.map((tpl) => {
-                const Icon = TEMPLATE_ICONS[tpl.icon]
-                return (
-                  <button
-                    key={tpl.key}
-                    type="button"
-                    onClick={() => startFromTemplate(tpl)}
-                    className="group overflow-hidden rounded-2xl border border-border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
-                  >
-                    <div className="flex items-center gap-3 px-4 py-3" style={{ background: `${tpl.accent}14` }}>
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full text-white" style={{ background: tpl.accent }}>
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{tpl.tagline}</p>
-                        <h3 className="text-sm font-bold text-foreground">{tpl.name}</h3>
-                      </div>
-                    </div>
-                    <div className="space-y-2 p-4">
-                      <p className="text-xs text-muted-foreground">{tpl.description}</p>
-                      <p className="text-xs text-muted-foreground">{tpl.fields.filter((f) => f.type !== 'heading').length} questions</p>
-                      <span className="inline-flex items-center text-sm font-medium text-primary">Use this template</span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {!storefrontForm ? (
-            <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center">
-              <p className="text-sm font-medium text-foreground">No storefront form is enabled</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Open a form, turn on <strong>Enable storefront</strong>, and save. Only that form’s filled customer details appear here.
-              </p>
+      <div className="space-y-8">
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Your registration forms</h2>
+            <p className="text-xs text-muted-foreground">Open a form to edit fields, then enable it for storefront if customers should fill it.</p>
+          </div>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading forms…</p>
+          ) : forms.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
+              <p className="text-sm text-muted-foreground">No saved forms yet. Pick a template below to start.</p>
             </div>
           ) : (
-            <>
-              <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{storefrontForm.name}</p>
-                  <p className="text-xs text-muted-foreground">Storefront-enabled form — customer and staff registrations show below.</p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setRegistering((open) => !open)
-                    setRegAnswers({})
-                    setRegCustomerName('')
-                  }}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {forms.map((form) => (
+                <button
+                  key={form.id}
+                  type="button"
+                  onClick={() => openForm(form)}
+                  className="rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/40 hover:shadow-sm"
                 >
-                  <Plus className="mr-1 h-4 w-4" /> Register customer details
-                </Button>
-              </div>
-
-              {registering && (
-                <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
-                  <h3 className="text-sm font-semibold">Register customer — {storefrontForm.name}</h3>
-                  <div>
-                    <FieldLabel>Customer name</FieldLabel>
-                    <Input
-                      value={regCustomerName}
-                      onChange={(e) => setRegCustomerName(e.target.value)}
-                      placeholder="Name to show in this list"
-                    />
+                  <div className="mb-3 h-2 w-16 rounded-full" style={{ background: form.theme?.accent || '#0f766e' }} />
+                  <h3 className="font-semibold text-foreground">{form.name}</h3>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{form.description || 'No description'}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
+                    <span className={`rounded-full px-2 py-0.5 ${form.status === 'published' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-muted text-muted-foreground'}`}>
+                      {form.status}
+                    </span>
+                    {form.use_on_storefront && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-700 dark:text-sky-300">Storefront</span>}
+                    {form.use_on_staff_booking && <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-violet-700 dark:text-violet-300">Staff</span>}
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{form.submission_count || 0} filled</span>
                   </div>
-                  <RegistrationFormFields
-                    fields={storefrontForm.fields || []}
-                    values={regAnswers}
-                    theme={storefrontForm.theme}
-                    onUploadImage={async (file) => (await rentalApi.uploadRegistrationImage(file)).url}
-                    onChange={(key, value) => setRegAnswers((prev) => ({ ...prev, [key]: value }))}
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => submitCustomer.mutate()} disabled={submitCustomer.isPending}>
-                      {submitCustomer.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
-                      Save registration
-                    </Button>
-                    <Button variant="outline" onClick={() => setRegistering(false)}>Cancel</Button>
-                  </div>
-                </div>
-              )}
-
-              {loadingSubs ? (
-                <p className="text-sm text-muted-foreground">Loading filled registrations…</p>
-              ) : relatedSubs.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-                  No filled details yet for the storefront form. Register a customer above, or wait for a storefront booking.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {relatedSubs.map((row) => {
-                    const answerFields = (row.fields || []).filter((f) => f.type !== 'heading')
-                    return (
-                      <details key={row.id} className="rounded-xl border border-border bg-card open:shadow-sm" open>
-                        <summary className="cursor-pointer list-none px-4 py-3">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">{row.customer_name || 'Guest'}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {row.form_name || storefrontForm.name}
-                                {row.booking_number ? ` · ${row.booking_number}` : ''}
-                                {row.channel ? ` · ${row.channel}` : ''}
-                              </p>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              {row.created_at ? new Date(row.created_at).toLocaleString('en-IN') : '—'}
-                            </p>
-                          </div>
-                        </summary>
-                        <div className="grid gap-2 border-t border-border px-4 py-3 sm:grid-cols-2">
-                          {answerFields.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No field labels stored for this form.</p>
-                          ) : answerFields.map((field) => {
-                            const raw = row.answers?.[field.key]
-                            const text = typeof raw === 'boolean' ? (raw ? 'Yes' : 'No') : String(raw ?? '—')
-                            const imageUrl = field.type === 'image' && typeof raw === 'string' ? raw : ''
-                            return (
-                              <div key={field.key} className="rounded-lg bg-muted/40 px-3 py-2">
-                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{field.label}</p>
-                                {imageUrl ? (
-                                  <a href={imageUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block">
-                                    <img src={imageUrl} alt={field.label} className="h-20 w-20 rounded-md object-cover" />
-                                  </a>
-                                ) : (
-                                  <p className="text-sm text-foreground">{text || '—'}</p>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </details>
-                    )
-                  })}
-                </div>
-              )}
-            </>
+                </button>
+              ))}
+            </div>
           )}
-        </div>
-      )}
+        </section>
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Templates</h2>
+            <p className="text-xs text-muted-foreground">Need extra details? Start another form from a template, then add or change questions.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {REGISTRATION_TEMPLATES.map((tpl) => {
+              const Icon = TEMPLATE_ICONS[tpl.icon]
+              return (
+                <button
+                  key={tpl.key}
+                  type="button"
+                  onClick={() => startFromTemplate(tpl)}
+                  className="group overflow-hidden rounded-2xl border border-border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+                >
+                  <div className="flex items-center gap-3 px-4 py-3" style={{ background: `${tpl.accent}14` }}>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full text-white" style={{ background: tpl.accent }}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{tpl.tagline}</p>
+                      <h3 className="text-sm font-bold text-foreground">{tpl.name}</h3>
+                    </div>
+                  </div>
+                  <div className="space-y-2 p-4">
+                    <p className="text-xs text-muted-foreground">{tpl.description}</p>
+                    <p className="text-xs text-muted-foreground">{tpl.fields.filter((f) => f.type !== 'heading').length} questions</p>
+                    <span className="inline-flex items-center text-sm font-medium text-primary">Use this template</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      </div>
     </div>
   )
 }

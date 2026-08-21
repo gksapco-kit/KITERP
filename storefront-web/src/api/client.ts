@@ -5,6 +5,7 @@ import {
   authBagKey,
   getActiveAuthScope,
   readScopedCustomerTokens,
+  readVendorSiblingTokens,
   setAuthStorageScope,
   writeScopedCustomerTokens,
 } from '@/lib/customerAuthStorage'
@@ -57,7 +58,17 @@ export function setVendorContext(slug: string, id: string) {
   ssSet(SS_VENDOR_SLUG, _vendorSlug)
   ssSet(SS_VENDOR_ID, _vendorId)
   clearLegacySharedVendorKeys()
+
+  const prevScope = getActiveAuthScope()
   setAuthStorageScope(_vendorId, _storeId)
+  const nextScope = getActiveAuthScope()
+  if (prevScope === nextScope) return
+
+  // Carry unknown/global (or same-vendor BU) bags across vendor pin. Do not copy
+  // another vendor's session when this tab navigates to a different storefront.
+  const prevVendorPart = prevScope.split(':')[0]
+  if (prevVendorPart !== 'unknown' && prevVendorPart !== _vendorId) return
+  applyAuthBagSwap(prevScope, nextScope, _vendorId)
 }
 
 export function getVendorSlug(): string | null {
@@ -92,18 +103,9 @@ export function setBranchQueryParam(branch: string | null) {
  * If the new BU has no saved bag yet, carry forward the previous vendor session
  * (do not force logout — that was bouncing logged-in users back to signup/login).
  */
-export function setStorefrontBuContext(storeId: string | null, branch: string | null) {
-  const nextStore = storeId?.trim() || null
-  const nextBranch = branch?.trim() || null
-  const prevScope = getActiveAuthScope()
-  _storeId = nextStore
-  _branchQuery = nextBranch
-  setAuthStorageScope(_vendorId || ssGet(SS_VENDOR_ID), _storeId)
-  const nextScope = getActiveAuthScope()
-
+function applyAuthBagSwap(prevScope: string, nextScope: string, vendorId?: string | null) {
   if (prevScope === nextScope) return
 
-  // Persist current global bag under the previous scope (if any), then load the next.
   const carriedBag = safeLocalGet('customer-auth-storage')
   if (carriedBag) safeLocalSet(authBagKey(prevScope), carriedBag)
 
@@ -118,15 +120,22 @@ export function setStorefrontBuContext(storeId: string | null, branch: string | 
   let nextRefresh = safeLocalGet(`customer_refresh_token:${nextScope}`)
   let nextBag = safeLocalGet(authBagKey(nextScope))
 
+  if (!nextBag && !nextAccess && vendorId) {
+    const sibling = readVendorSiblingTokens(vendorId)
+    nextAccess = sibling.access
+    nextRefresh = sibling.refresh
+  }
+
   // No BU-specific session yet — reuse the vendor-wide / previous session.
   if (!nextBag && !nextAccess && (carriedBag || prevAccess)) {
     nextBag = carriedBag || safeLocalGet(authBagKey(prevScope))
     nextAccess = prevAccess
     nextRefresh = prevRefresh
-    if (nextBag) safeLocalSet(authBagKey(nextScope), nextBag)
-    if (nextAccess) safeLocalSet(`customer_access_token:${nextScope}`, nextAccess)
-    if (nextRefresh) safeLocalSet(`customer_refresh_token:${nextScope}`, nextRefresh)
   }
+
+  if (nextBag) safeLocalSet(authBagKey(nextScope), nextBag)
+  if (nextAccess) safeLocalSet(`customer_access_token:${nextScope}`, nextAccess)
+  if (nextRefresh) safeLocalSet(`customer_refresh_token:${nextScope}`, nextRefresh)
 
   if (nextAccess) safeLocalSet('customer_access_token', nextAccess)
   else safeLocalRemove('customer_access_token')
@@ -164,6 +173,16 @@ export function setStorefrontBuContext(storeId: string | null, branch: string | 
   // logging out here is what creates the "redirect to home" loop.
 }
 
+export function setStorefrontBuContext(storeId: string | null, branch: string | null) {
+  const nextStore = storeId?.trim() || null
+  const nextBranch = branch?.trim() || null
+  const prevScope = getActiveAuthScope()
+  _storeId = nextStore
+  _branchQuery = nextBranch
+  setAuthStorageScope(_vendorId || ssGet(SS_VENDOR_ID), _storeId)
+  applyAuthBagSwap(prevScope, getActiveAuthScope(), _vendorId || ssGet(SS_VENDOR_ID))
+}
+
 export const apiClient = axios.create({ baseURL: API_URL, headers: { 'Content-Type': 'application/json' }, timeout: 30_000 })
 
 apiClient.interceptors.request.use((config) => {
@@ -179,7 +198,8 @@ apiClient.interceptors.request.use((config) => {
 })
 
 apiClient.interceptors.request.use((config) => {
-  const { access: token } = readScopedCustomerTokens()
+  const { access: scoped } = readScopedCustomerTokens()
+  const token = scoped || useAuthStore.getState().accessToken
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -288,7 +308,10 @@ function clearAuthAndRedirect() {
 apiClient.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean
+      _scopeRetry?: boolean
+    }
 
     // Log 401 errors for debugging
     if (error.response?.status === 401) {
@@ -318,6 +341,19 @@ apiClient.interceptors.response.use(
           return apiClient(originalRequest)
         })
         .catch((err) => Promise.reject(err))
+    }
+
+    // Scope remount can send /store/auth/me with no Bearer even though the
+    // session is still in localStorage. Recover and retry before refresh/logout.
+    if (!originalRequest._scopeRetry) {
+      const existingAuth = originalRequest.headers?.Authorization
+      const { access: recoveredAccess } = readScopedCustomerTokens()
+      const retryAccess = recoveredAccess || useAuthStore.getState().accessToken
+      if (!existingAuth && retryAccess) {
+        originalRequest._scopeRetry = true
+        originalRequest.headers.Authorization = `Bearer ${retryAccess}`
+        return apiClient(originalRequest)
+      }
     }
 
     originalRequest._retry = true
@@ -371,7 +407,9 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest)
     } catch (refreshError) {
       processQueue(refreshError, null)
-      clearAuthAndRedirect()
+      const sentAuth = !!originalRequest.headers?.Authorization
+      // A 401 with no Bearer is a scope miss, not an expired login — do not wipe.
+      if (sentAuth) clearAuthAndRedirect()
       return Promise.reject(refreshError)
     } finally {
       isRefreshing = false

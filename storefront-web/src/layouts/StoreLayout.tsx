@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { useCart, useCustomerLogout, useCustomerMe } from '@/hooks/useStore'
 import { UnifiedNav, AnnouncementBar } from '@/kit/header/UnifiedNav'
 import { useAuthStore } from '@/stores/authStore'
+import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 import { useCartStore, selectCartItemCount } from '@/stores/cartStore'
 import { VendorProvider, useVendor } from '@/contexts/VendorContext'
 import { StorefrontDisplayFieldsBridge } from '@/contexts/StorefrontDisplayFieldsBridge'
@@ -481,7 +482,8 @@ function StoreContent() {
   const { storePath } = useBranch()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
   const storeSpecificTemplateId = useStoreSpecificAssignedTemplateId()
-  const { isAuthenticated, customer } = useAuthStore()
+  const { customer } = useAuthStore()
+  const { isLoggedIn } = useIsCustomerLoggedIn()
   const cartCount = useCartStore(selectCartItemCount)
   const logout = useCustomerLogout()
   const navigate = useNavigate()
@@ -614,7 +616,7 @@ function StoreContent() {
     : headerStyle === 'centered' ? 'centered'
     : 'bordered'
 
-  const kitUser = isAuthenticated && customer
+  const kitUser = isLoggedIn && customer
     ? {
         id: customer.id,
         name: customer.full_name ?? customer.email ?? '',
@@ -648,7 +650,7 @@ function StoreContent() {
         sheetExtra={<StoreBranchPicker className="w-full max-w-none" compact />}
         links={kitLinks}
         cta={headerCta}
-        extraTray={isAuthenticated ? <CustomerNotificationsBell storePath={storePath} /> : undefined}
+        extraTray={isLoggedIn ? <CustomerNotificationsBell storePath={storePath} /> : undefined}
         showSearch={showSearch}
         showCart
         showAccount

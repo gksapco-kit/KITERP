@@ -1,17 +1,17 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Calendar as CalendarIcon, Plus, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useCustomers, useSalesAreas } from '@/hooks/useVendor'
+import { extractApiError } from '@/lib/errorMessages'
 import { rentalApi } from './api'
 import type { RentalAsset, RentalBooking } from './rentalConstants'
 import RentalDashboard from './RentalDashboard'
 import RentalAssetsTab from './RentalAssetsTab'
 import RentalAssetSheet from './RentalAssetSheet'
 import RentalBookingsTab from './RentalBookingsTab'
-import RentalBookingSheet from './RentalBookingSheet'
 import RentalBookingCreateSheet from './RentalBookingCreateSheet'
 import RentalCalendarTab from './RentalCalendarTab'
 import ReturnAssetModal from './ReturnAssetModal'
@@ -27,7 +27,6 @@ const TABS: { id: Tab; label: string }[] = [
 export default function RentalHubPage() {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
-  const [selectedBooking, setSelectedBooking] = useState<RentalBooking | null>(null)
   const [returnBooking, setReturnBooking] = useState<RentalBooking | null>(null)
   const [calendarBookPrefill, setCalendarBookPrefill] = useState<Record<string, unknown> | null>(null)
 
@@ -37,11 +36,11 @@ export default function RentalHubPage() {
   const assetSheetId = assetSheetParam && assetSheetParam !== 'new' ? assetSheetParam : null
   const bookingParam = params.get('booking')
   const bookingCreateOpen = bookingParam === 'new'
-  const bookingDetailId = bookingParam && bookingParam !== 'new' ? bookingParam : null
 
   const assetQ = params.get('q') || ''
   const assetStatus = params.get('status') || ''
   const assetCategory = params.get('category') || ''
+  const showBin = params.get('bin') === '1'
   const bookingStatus = params.get('bstatus') || ''
   const calAssetId = params.get('calAsset') || ''
 
@@ -57,12 +56,22 @@ export default function RentalHubPage() {
   }, [setParams])
 
   const setTab = (next: Tab) => patch({ tab: next === 'dashboard' ? null : next }, false)
+  const qc = useQueryClient()
 
   const { data: assets = [], isLoading: loadingAssets } = useQuery({
-    queryKey: ['rental-assets'],
-    queryFn: () => rentalApi.listAssets(),
+    queryKey: ['rental-assets', showBin ? 'bin' : 'active'],
+    queryFn: () => rentalApi.listAssets({ deleted_only: showBin }),
     staleTime: 0,
     refetchOnMount: 'always',
+  })
+
+  const restoreAsset = useMutation({
+    mutationFn: (id: string) => rentalApi.restoreAsset(id),
+    onSuccess: () => {
+      toast.success('Asset restored from bin')
+      qc.invalidateQueries({ queryKey: ['rental-assets'] })
+    },
+    onError: (e) => toast.error(extractApiError(e, 'Restore asset')),
   })
   const { data: allBookings = [] } = useQuery({
     queryKey: ['rental-bookings', '__all_for_locks__'],
@@ -117,21 +126,8 @@ export default function RentalHubPage() {
     patch({ tab: 'bookings', booking: 'new' }, false)
   }
   const openBookingDetail = (b: RentalBooking) => {
-    setSelectedBooking(b)
-    patch({ tab: tab === 'dashboard' ? 'bookings' : tab, booking: b.id }, false)
+    navigate(`/rental/bookings/${b.id}`)
   }
-  const closeBookingSheet = () => {
-    setSelectedBooking(null)
-    patch({ booking: null }, false)
-  }
-
-  const effectiveSelectedBooking = useMemo(() => {
-    if (!bookingDetailId) return null
-    if (selectedBooking?.id === bookingDetailId) return selectedBooking
-    return (bookings as RentalBooking[]).find((b) => b.id === bookingDetailId)
-      || (allBookings as RentalBooking[]).find((b) => b.id === bookingDetailId)
-      || null
-  }, [bookingDetailId, selectedBooking, bookings, allBookings])
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -179,7 +175,7 @@ export default function RentalHubPage() {
       {tab === 'assets' && (
         <RentalAssetsTab
           assets={assets as RentalAsset[]}
-          allBookings={allBookings as RentalBooking[]}
+          allBookings={(showBin ? [] : allBookings) as RentalBooking[]}
           loading={loadingAssets}
           salesAreaLabelById={salesAreaLabelById}
           q={assetQ}
@@ -188,9 +184,13 @@ export default function RentalHubPage() {
           onStatusChange={(v) => patch({ status: v || null })}
           category={assetCategory}
           onCategoryChange={(v) => patch({ category: v || null })}
+          showBin={showBin}
+          onToggleBin={() => patch({ bin: showBin ? null : '1', status: null })}
           onCreate={openCreateAsset}
           onView={(a) => navigate(`/rental/assets/${a.id}`)}
           onEdit={(a) => navigate(`/rental/assets/${a.id}/edit`)}
+          onRestore={(a) => restoreAsset.mutate(a.id)}
+          restoringId={restoreAsset.isPending ? restoreAsset.variables : null}
         />
       )}
 
@@ -202,7 +202,6 @@ export default function RentalHubPage() {
           onStatusChange={(v) => patch({ bstatus: v || null })}
           onCreate={openCreateBooking}
           onSelect={openBookingDetail}
-          selectedId={bookingDetailId}
         />
       )}
 
@@ -240,17 +239,9 @@ export default function RentalHubPage() {
         initialValues={calendarBookPrefill}
         onCreated={(b) => {
           setCalendarBookPrefill(null)
-          setSelectedBooking(b)
-          patch({ tab: 'bookings', booking: b.id }, false)
+          patch({ booking: null }, false)
+          navigate(`/rental/bookings/${b.id}`)
         }}
-      />
-
-      <RentalBookingSheet
-        open={!!bookingDetailId}
-        booking={effectiveSelectedBooking}
-        onClose={closeBookingSheet}
-        onChanged={(b) => setSelectedBooking(b)}
-        onRequestReturn={(b) => setReturnBooking(b)}
       />
 
       {returnBooking && (
@@ -258,8 +249,7 @@ export default function RentalHubPage() {
           booking={returnBooking}
           asset={returnAsset}
           onClose={() => setReturnBooking(null)}
-          onDone={(b) => {
-            setSelectedBooking(b)
+          onDone={() => {
             setReturnBooking(null)
           }}
         />

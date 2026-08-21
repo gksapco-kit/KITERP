@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlertTriangle, Archive, ArrowLeft, CalendarRange, Copy, Eye, Image, IndianRupee,
+  AlertTriangle, Archive, ArrowLeft, CalendarRange, Clock, Copy, Eye, Image, IndianRupee,
   Layers, Link2, Loader2, MapPin, Package, Pencil, Plus, Star, Tag, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -14,7 +14,7 @@ import { Select } from '@/components/ui/select'
 import { FieldLabel } from '@/components/common/FieldLabel'
 import { CatalogMediaUpload } from '@/components/common/ImageUpload'
 import { extractApiError } from '@/lib/errorMessages'
-import { formatCurrency, formatDate, cn, mediaUrl } from '@/lib/utils'
+import { formatCurrency, formatDate, formatDateTime, cn, mediaUrl } from '@/lib/utils'
 import { filterCategoryTree, flattenCategoryTree } from '@/lib/categoryHierarchy'
 import { useCategoryTree, useSalesAreas, useStores } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -145,6 +145,107 @@ function Section({
   )
 }
 
+/** True when old/new are the same value (incl. numeric 36 vs 36.0) or a noop store_ids placeholder. */
+function historyValuesEqual(oldVal: unknown, newVal: unknown): boolean {
+  const a = String(oldVal ?? '')
+  const b = String(newVal ?? '')
+  if (a === b) return true
+  if (a === '(previous)' && (b === 'updated' || b === '(unchanged)')) return true
+  const na = Number(a)
+  const nb = Number(b)
+  return a !== '' && b !== '' && Number.isFinite(na) && Number.isFinite(nb) && na === nb
+}
+
+function AssetChangeHistoryPanel({
+  asset,
+}: {
+  asset: Pick<RentalAsset, 'change_history' | 'version_number' | 'created_at' | 'updated_at' | 'deleted_at'> | null
+}) {
+  const history = asset?.change_history || []
+  const version = asset?.version_number ?? 1
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          {history.length} {history.length === 1 ? 'entry' : 'entries'} · v{version}
+        </p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <DisplayField
+          label="Created"
+          value={asset?.created_at ? formatDateTime(asset.created_at) : undefined}
+        />
+        <DisplayField
+          label="Last updated"
+          value={asset?.updated_at ? formatDateTime(asset.updated_at) : undefined}
+        />
+        <DisplayField
+          label="Version"
+          value={`v${version}`}
+        />
+      </div>
+      {history.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+          No edits recorded yet. Changes appear here after you save this asset.
+        </p>
+      ) : (
+        <div className="max-h-96 space-y-2 overflow-y-auto">
+          {[...history].reverse().map((h, i) => {
+            const changes = h.changes || {}
+            const actionNew = changes._action?.new
+            const changedFields = Object.keys(changes).filter((k) => {
+              if (k === '_action') return false
+              return !historyValuesEqual(changes[k]?.old, changes[k]?.new)
+            })
+            return (
+              <div key={`${h.version}-${h.changed_at}-${i}`} className="rounded-lg border border-border bg-background/70 p-2.5 text-xs">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-foreground">v{h.version ?? '?'}</span>
+                  <span className="text-muted-foreground">
+                    {h.changed_at
+                      ? new Date(h.changed_at).toLocaleString('en-IN', {
+                          day: 'numeric', month: 'short', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })
+                      : '—'}
+                  </span>
+                  {h.changed_by_name ? (
+                    <span className="text-muted-foreground">by {h.changed_by_name}</span>
+                  ) : null}
+                </div>
+                {actionNew ? (
+                  <span className="font-medium text-emerald-700 dark:text-emerald-400">{String(actionNew)}</span>
+                ) : null}
+                {changedFields.length > 0 ? (
+                  <div className="mt-1 space-y-1">
+                    {changedFields.slice(0, 8).map((field) => (
+                      <div key={field} className="flex flex-wrap gap-1.5 text-muted-foreground">
+                        <span className="font-medium capitalize text-foreground">{field.replace(/_/g, ' ')}:</span>
+                        <span className="max-w-[10rem] truncate text-red-500 line-through">
+                          {String(changes[field]?.old ?? '(empty)')}
+                        </span>
+                        <span>→</span>
+                        <span className="max-w-[10rem] truncate text-emerald-600 dark:text-emerald-400">
+                          {String(changes[field]?.new ?? '(empty)')}
+                        </span>
+                      </div>
+                    ))}
+                    {changedFields.length > 8 ? (
+                      <p className="italic text-muted-foreground">+{changedFields.length - 8} more fields</p>
+                    ) : null}
+                  </div>
+                ) : !actionNew ? (
+                  <span className="italic text-muted-foreground">No field changes recorded</span>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Form state ─────────────────────────────────────────────────────────────────
 
 type AssetFormState = ReturnType<typeof emptyAssetForm>
@@ -211,6 +312,7 @@ const SECTIONS: FormSectionDef[] = [
   { key: 'availability', label: 'Availability',  icon: CalendarRange, hint: 'Storefront display window and booking dates.' },
   { key: 'location',     label: 'Location',      icon: MapPin,       hint: 'Sales area, warehouse location and status.' },
   { key: 'tracking',     label: 'Unit Tracking', icon: Layers,       hint: 'Sub-assets, serialized units and hierarchy.' },
+  { key: 'history',      label: 'History',       icon: Clock,        hint: 'Who changed what on this asset and when.' },
 ]
 
 export default function RentalAssetFormPage() {
@@ -611,12 +713,35 @@ export default function RentalAssetFormPage() {
       const end = toDateInputValue(data.display_end_date)
       toast.success(start || end ? `Asset updated · Available ${start || '…'} → ${end || '…'}` : 'Rental asset updated')
       setSavedUnitMode(data.unit_mode ?? 'none')
+      setDetailAsset(data)
       invalidate()
     },
     onError: (e) => toast.error(extractApiError(e, 'Update rental asset')),
   })
 
+  const deleteAsset = useMutation({
+    mutationFn: (id: string) => rentalApi.deleteAsset(id),
+    onSuccess: () => {
+      toast.success('Asset moved to bin')
+      invalidate()
+      navigate('/rental/assets?bin=1')
+    },
+    onError: (e) => toast.error(extractApiError(e, 'Move asset to bin')),
+  })
+
+  const restoreAsset = useMutation({
+    mutationFn: (id: string) => rentalApi.restoreAsset(id),
+    onSuccess: (data: RentalAsset) => {
+      toast.success('Asset restored from bin')
+      setDetailAsset(data)
+      invalidate()
+      navigate(`/rental/assets/${data.id}/edit`, { replace: true })
+    },
+    onError: (e) => toast.error(extractApiError(e, 'Restore asset')),
+  })
+
   const saving = createAsset.isPending || updateAsset.isPending
+  const isInBin = Boolean(detailAsset?.deleted_at)
 
   const save = () => {
     if (!form.name.trim()) {
@@ -708,6 +833,7 @@ export default function RentalAssetFormPage() {
     viewCompleted.add('availability')
     if (form.sales_area_id || form.location || form.notes) viewCompleted.add('location')
     if (form.unit_mode && form.unit_mode !== 'none') viewCompleted.add('tracking')
+    if ((detailAsset?.change_history?.length || 0) > 0) viewCompleted.add('history')
 
     return (
       <FormPageWithNav activeSectionKey={activeTab} nav={null}>
@@ -715,7 +841,7 @@ export default function RentalAssetFormPage() {
           <div className={formEditLayout.stickyBar}>
             <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
               <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-foreground" onClick={() => navigate('/rental/assets')}>
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-foreground" onClick={() => navigate(isInBin ? '/rental/assets?bin=1' : '/rental/assets')}>
                   <ArrowLeft className="mr-1 h-4 w-4" />Back
                 </Button>
                 <div className="min-w-0">
@@ -741,13 +867,21 @@ export default function RentalAssetFormPage() {
                     {form.asset_type ? ` · ${form.asset_type}` : ''}
                   </p>
                 </div>
-                <StatusBadge status={form.operational_status} />
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  form.status === 'active' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' :
-                  form.status === 'archived' ? 'bg-red-500/10 text-red-600 dark:text-red-300' :
-                  'bg-muted text-muted-foreground'
-                }`}>{catalogLabel}</span>
-                {!form.is_visible && (
+                {isInBin ? (
+                  <span className="inline-flex items-center rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:text-red-300">
+                    In bin
+                  </span>
+                ) : (
+                  <>
+                    <StatusBadge status={form.operational_status} />
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      form.status === 'active' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' :
+                      form.status === 'archived' ? 'bg-red-500/10 text-red-600 dark:text-red-300' :
+                      'bg-muted text-muted-foreground'
+                    }`}>{catalogLabel}</span>
+                  </>
+                )}
+                {!form.is_visible && !isInBin && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
                     <Eye className="h-3 w-3" />Hidden
                   </span>
@@ -758,9 +892,21 @@ export default function RentalAssetFormPage() {
                   </span>
                 )}
               </div>
-              <Button size="sm" className="h-8 shrink-0 gap-1.5" onClick={() => navigate(`/rental/assets/${assetId}/edit`)}>
-                <Pencil className="h-3.5 w-3.5" />Edit Asset
-              </Button>
+              {isInBin ? (
+                <Button
+                  size="sm"
+                  className="h-8 shrink-0 gap-1.5"
+                  disabled={restoreAsset.isPending || !assetId}
+                  onClick={() => assetId && restoreAsset.mutate(assetId)}
+                >
+                  {restoreAsset.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Restore from bin
+                </Button>
+              ) : (
+                <Button size="sm" className="h-8 shrink-0 gap-1.5" onClick={() => navigate(`/rental/assets/${assetId}/edit`)}>
+                  <Pencil className="h-3.5 w-3.5" />Edit Asset
+                </Button>
+              )}
             </div>
           </div>
 
@@ -1075,6 +1221,18 @@ export default function RentalAssetFormPage() {
                 </CardContent>
               </Card>
             )}
+
+            {showTab('history') && (
+              <Card>
+                <CardContent className={formDisplayCompact.cardBody}>
+                  <div className={formDisplayCompact.sectionHeader}>
+                    <Clock className={formDisplayCompact.sectionHeaderIcon} />
+                    <span className={formDisplayCompact.sectionHeaderTitle}>Change history</span>
+                  </div>
+                  <AssetChangeHistoryPanel asset={detailAsset} />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </FormPageWithNav>
@@ -1085,14 +1243,16 @@ export default function RentalAssetFormPage() {
     <FormPageWithNav activeSectionKey={activeTab} nav={null}>
       <CatalogEditStickyBar
         backLabel="Rental Assets"
-        onBack={() => navigate('/rental/assets')}
+        onBack={() => navigate(isInBin ? '/rental/assets?bin=1' : '/rental/assets')}
         title={isEdit ? (form.name || 'Edit Rental Asset') : 'New Rental Asset'}
         badge={
           loading
             ? <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Loading…</span>
-            : form.asset_code
-              ? <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">{form.asset_code}</span>
-              : null
+            : isInBin
+              ? <span className="inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-300">In bin</span>
+              : form.asset_code
+                ? <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">{form.asset_code}</span>
+                : null
         }
         status={form.status}
         onStatusChange={(v) => set('status', v)}
@@ -1103,11 +1263,16 @@ export default function RentalAssetFormPage() {
             onChange={(v) => setForm((f) => ({ ...f, is_visible: v }))}
           />
         }
-        onSave={save}
-        saveLabel={isEdit ? 'Update Asset' : 'Save Asset'}
-        saveLabelShort="Save"
-        isSaving={saving}
-        isEdit={isEdit}
+        onSave={isInBin ? () => {
+          if (assetId) restoreAsset.mutate(assetId)
+        } : save}
+        saveLabel={isInBin ? 'Restore from bin' : isEdit ? 'Update Asset' : 'Save Asset'}
+        saveLabelShort={isInBin ? 'Restore' : 'Save'}
+        isSaving={isInBin ? restoreAsset.isPending : saving}
+        isEdit={isEdit && !isInBin}
+        onDelete={isEdit && assetId && !isInBin ? () => deleteAsset.mutate(assetId) : undefined}
+        isDeleting={deleteAsset.isPending}
+        deleteConfirmMessage="Move this asset to the bin? It stays in history and can be restored."
       />
 
       <FormSectionTabs
@@ -1743,6 +1908,16 @@ export default function RentalAssetFormPage() {
             </div>
           </Section>
         )}
+
+        <Section sectionKey="history" active={activeTab === 'history'} title="Change History" icon={Clock}>
+          {!isEdit ? (
+            <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+              History starts after you save this asset for the first time.
+            </p>
+          ) : (
+            <AssetChangeHistoryPanel asset={detailAsset} />
+          )}
+        </Section>
 
       </div>
     </FormPageWithNav>

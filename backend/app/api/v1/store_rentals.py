@@ -63,6 +63,16 @@ async def get_store_rental_asset(
     return asset
 
 
+@router.get("/assets/{asset_id}/children")
+async def list_store_rental_asset_children(
+    asset_id: UUID,
+    vendor_id: UUID = Depends(get_store_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Available bookable sub-assets under a hierarchy parent (storefront picker)."""
+    return await RentalService(db).list_storefront_asset_children(vendor_id, asset_id)
+
+
 @router.post("/bookings", status_code=status.HTTP_201_CREATED)
 async def create_store_rental_booking(
     body: dict,

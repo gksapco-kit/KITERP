@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { storeApi } from '@/api/store'
 import { useCatalogRentals } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 import { useVendor } from '@/contexts/VendorContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { formatCurrency, mediaUrl } from '@/lib/utils'
@@ -213,7 +214,8 @@ export default function RentalsPage() {
   const { storePath } = useVendor()
   const navigate = useNavigate()
   const theme = useTheme()
-  const { customer, isAuthenticated } = useAuthStore()
+  const { customer } = useAuthStore()
+  const { isLoggedIn: isAuthenticated } = useIsCustomerLoggedIn()
   const qc = useQueryClient()
 
   const rentalDetailPath = (a: RentalAsset) => storePath(`/rentals/${a.slug || a.id}`)

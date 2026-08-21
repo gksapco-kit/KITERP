@@ -1,8 +1,18 @@
 import apiClient from '@/api/client'
-import type { RentalAsset, RentalAssetUnit, RentalBooking, RentalBookingUnit, RentalReturn, RentalMediaItem } from './rentalConstants'
+import type { RentalAsset, RentalAssetUnit, RentalBooking, RentalBookingUnit, RentalReturn, RentalMediaItem, RentalOverview } from './rentalConstants'
 
 export const rentalApi = {
   dashboard: () => apiClient.get('/vendors/me/rentals/dashboard').then((r) => r.data),
+
+  reportsOverview: (params: {
+    date_from?: string
+    date_to?: string
+    category?: string
+    basis?: 'booking' | 'rental_period'
+  }) =>
+    apiClient
+      .get('/vendors/me/rental-reports/overview', { params })
+      .then((r) => r.data as RentalOverview),
 
   listAssets: (params?: {
     status?: string
@@ -10,6 +20,7 @@ export const rentalApi = {
     category_id?: string
     q?: string
     is_active?: boolean
+    deleted_only?: boolean
   }) =>
     apiClient
       .get('/vendors/me/rentals/assets', { params: params || {} })
@@ -24,8 +35,13 @@ export const rentalApi = {
   updateAsset: (id: string, body: Record<string, unknown>) =>
     apiClient.patch(`/vendors/me/rentals/assets/${id}`, body).then((r) => r.data as RentalAsset),
 
+  /** Soft-delete — moves asset to the bin (history retained). */
   deleteAsset: (id: string) =>
-    apiClient.delete(`/vendors/me/rentals/assets/${id}`).then((r) => r.data),
+    apiClient.delete(`/vendors/me/rentals/assets/${id}`).then((r) => r.data as RentalAsset),
+
+  /** Restore a soft-deleted asset from the bin. */
+  restoreAsset: (id: string) =>
+    apiClient.post(`/vendors/me/rentals/assets/${id}/restore`).then((r) => r.data as RentalAsset),
 
   // ── Media gallery ────────────────────────────────────────────────────────
   uploadAssetMedia: (assetId: string, file: File) => {
@@ -56,6 +72,8 @@ export const rentalApi = {
   // ── Bookings ─────────────────────────────────────────────────────────────
   listBookings: (status?: string) =>
     apiClient.get('/vendors/me/rentals/bookings', { params: status ? { status } : {} }).then((r) => r.data),
+  getBooking: (id: string) =>
+    apiClient.get(`/vendors/me/rentals/bookings/${id}`).then((r) => r.data as RentalBooking),
   createBooking: (body: Record<string, unknown>) =>
     apiClient.post('/vendors/me/rentals/bookings', body).then((r) => r.data as RentalBooking),
   updateBooking: (id: string, body: Record<string, unknown>) =>
@@ -64,6 +82,10 @@ export const rentalApi = {
     apiClient.post(`/vendors/me/rentals/bookings/${id}/payment`, body).then((r) => r.data),
   updateDelivery: (id: string, body: Record<string, unknown>) =>
     apiClient.patch(`/vendors/me/rentals/bookings/${id}/delivery`, body).then((r) => r.data),
+  replaceBookingRegistration: (id: string, body: Record<string, unknown>) =>
+    apiClient.put(`/vendors/me/rentals/bookings/${id}/registration`, body).then((r) => r.data),
+  discardBookingRegistration: (id: string) =>
+    apiClient.delete(`/vendors/me/rentals/bookings/${id}/registration`).then((r) => r.data as { ok: boolean; removed: number }),
   processReturn: (id: string, body: Record<string, unknown>) =>
     apiClient.post(`/vendors/me/rentals/bookings/${id}/return`, body).then((r) => r.data),
   calendar: (assetId: string, from: string, to: string) =>
@@ -79,6 +101,19 @@ export const rentalApi = {
         days: Array<{ date: string; status: string; reserved_qty: number; available_capacity: number; detail?: string | null }>
       }>
       resource_kind?: 'child' | 'unit' | null
+    }),
+
+  /** Capacity free for a continuous booking window (same rules as create booking). */
+  freeCapacity: (assetId: string, start: string, end: string) =>
+    apiClient.get(`/vendors/me/rentals/assets/${assetId}/free-capacity`, { params: { start, end } }).then((r) => r.data as {
+      asset_id: string
+      start_date: string
+      end_date: string
+      available_capacity: number
+      reserved_qty: number
+      capacity_max: number
+      capacity_unit?: string | null
+      unit_mode?: string | null
     }),
 
   /** Flat availability for every asset/unit on a single day (date-browse mode). */
@@ -144,9 +179,21 @@ export const rentalApi = {
     apiClient.patch(`/vendors/me/rentals/registration-forms/${id}`, body).then((r) => r.data),
   deleteRegistrationForm: (id: string) =>
     apiClient.delete(`/vendors/me/rentals/registration-forms/${id}`),
-  listRegistrationSubmissions: (formId?: string) =>
+  listRegistrationSubmissions: (opts?: string | { formId?: string; deleted_only?: boolean }) => {
+    const formId = typeof opts === 'string' ? opts : opts?.formId
+    const deletedOnly = typeof opts === 'object' && opts?.deleted_only
+    return apiClient
+      .get('/vendors/me/rentals/registration-forms/submissions', {
+        params: {
+          ...(formId ? { form_id: formId } : {}),
+          ...(deletedOnly ? { deleted_only: true } : {}),
+        },
+      })
+      .then((r) => r.data)
+  },
+  restoreRegistrationSubmission: (id: string) =>
     apiClient
-      .get('/vendors/me/rentals/registration-forms/submissions', { params: formId ? { form_id: formId } : {} })
+      .post(`/vendors/me/rentals/registration-forms/submissions/${id}/restore`)
       .then((r) => r.data),
   createRegistrationSubmission: (body: Record<string, unknown>) =>
     apiClient.post('/vendors/me/rentals/registration-forms/submissions', body).then((r) => r.data),

@@ -210,6 +210,17 @@ export function useStorefrontRental(idOrSlug: string) {
   })
 }
 
+/** Bookable sub-assets under a hierarchy parent (for storefront picker). */
+export function useStorefrontRentalChildren(assetId: string | undefined, enabled = true) {
+  const { vendorSlug } = useVendor()
+  return useQuery({
+    queryKey: ['storefront-rental-children', assetId, vendorSlug],
+    queryFn: () => storeApi.listRentalAssetChildren(assetId!),
+    enabled: !!assetId && !!vendorSlug && enabled,
+    staleTime: 15_000,
+  })
+}
+
 export function useRentalRegistrationForm() {
   const { vendorSlug } = useVendor()
   return useQuery({
@@ -798,10 +809,12 @@ export function useStoreNotificationsPreview(limit = 8) {
 // Auth
 export function useCustomerMe() {
   const { setCustomer, accessToken } = useAuthStore()
+  const { vendor } = useVendor()
   return useQuery({
     queryKey: storeKeys.me,
     queryFn: async () => { const c = await storeApi.getMe(); setCustomer(c); return c },
-    enabled: !!accessToken,
+    // Wait until vendor pin has run so scoped tokens (vendorId:storeId) are readable.
+    enabled: !!accessToken && !!vendor?.id,
     retry: false,
   })
 }

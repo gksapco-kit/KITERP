@@ -28,13 +28,14 @@ async def list_rental_assets(
     category_id: str | None = Query(None, description="Filter by vendor category UUID"),
     q: str | None = Query(None, description="Full-text search on name, code, location"),
     is_active: bool | None = Query(None),
+    deleted_only: bool = Query(False, description="When true, list soft-deleted assets in the bin"),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_active_user),
 ):
     return await RentalService(db).list_assets(
         vendor_id, status=status, category=category, category_id=category_id,
-        q=q, is_active=is_active,
+        q=q, is_active=is_active, deleted_only=deleted_only,
     )
 
 
@@ -48,13 +49,22 @@ async def get_rental_asset(
     return await RentalService(db).get_asset(vendor_id, asset_id)
 
 
+def _actor_payload(user: User) -> dict:
+    return {
+        "id": str(user.id),
+        "name": (user.full_name or user.email or "Vendor user").strip(),
+    }
+
+
 @router.post("/assets", status_code=201)
 async def create_rental_asset(
     body: dict,
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    user: User = Depends(get_current_active_user),
 ):
+    body = dict(body or {})
+    body["_actor"] = _actor_payload(user)
     return await RentalService(db).create_asset(vendor_id, body)
 
 
@@ -64,20 +74,33 @@ async def update_rental_asset(
     body: dict,
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    user: User = Depends(get_current_active_user),
 ):
+    body = dict(body or {})
+    body["_actor"] = _actor_payload(user)
     return await RentalService(db).update_asset(vendor_id, asset_id, body)
 
 
-@router.delete("/assets/{asset_id}", status_code=204, dependencies=[Depends(require_permission("rentals.manage"))])
+@router.delete("/assets/{asset_id}", dependencies=[Depends(require_permission("rentals.manage"))])
 async def delete_rental_asset(
     asset_id: UUID,
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_active_user),
+    user: User = Depends(get_current_active_user),
 ):
-    """Delete a rental asset. Blocked if there are active bookings."""
-    await RentalService(db).delete_asset(vendor_id, asset_id)
+    """Move a rental asset to the bin (soft delete). History is retained."""
+    return await RentalService(db).delete_asset(vendor_id, asset_id, {"_actor": _actor_payload(user)})
+
+
+@router.post("/assets/{asset_id}/restore", dependencies=[Depends(require_permission("rentals.manage"))])
+async def restore_rental_asset(
+    asset_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    """Restore a soft-deleted rental asset from the bin."""
+    return await RentalService(db).restore_asset(vendor_id, asset_id, {"_actor": _actor_payload(user)})
 
 
 @router.get("/availability")
@@ -101,6 +124,19 @@ async def asset_availability_calendar(
     _user: User = Depends(get_current_active_user),
 ):
     return await RentalService(db).get_availability_calendar(vendor_id, asset_id, from_date, to_date)
+
+
+@router.get("/assets/{asset_id}/free-capacity")
+async def asset_free_capacity_for_range(
+    asset_id: UUID,
+    start: date = Query(..., description="Inclusive start date"),
+    end: date = Query(..., description="Inclusive end date"),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Capacity free for a continuous booking window (same rules as create booking)."""
+    return await RentalService(db).get_free_capacity_for_range(vendor_id, asset_id, start, end)
 
 
 @router.get("/bookings")
@@ -189,6 +225,31 @@ async def update_rental_delivery(
     _user: User = Depends(get_current_active_user),
 ):
     return await RentalService(db).update_delivery(vendor_id, booking_id, body)
+
+
+@router.put("/bookings/{booking_id}/registration", dependencies=[Depends(require_permission("rentals.manage"))])
+async def replace_booking_registration(
+    booking_id: UUID,
+    body: dict,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Replace (or create) the guest registration linked to this booking."""
+    from app.services.rental_registration import RentalRegistrationService
+    return await RentalRegistrationService(db).replace_booking_registration(vendor_id, booking_id, body)
+
+
+@router.delete("/bookings/{booking_id}/registration", status_code=200, dependencies=[Depends(require_permission("rentals.manage"))])
+async def discard_booking_registration(
+    booking_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Discard the guest registration linked to this booking."""
+    from app.services.rental_registration import RentalRegistrationService
+    return await RentalRegistrationService(db).discard_booking_registration(vendor_id, booking_id)
 
 
 # ── Sub-assets: child assets (hierarchy mode) ─────────────────────────
@@ -359,12 +420,30 @@ async def get_active_registration_form(
 @router.get("/registration-forms/submissions")
 async def list_registration_submissions(
     form_id: UUID | None = Query(None),
+    deleted_only: bool = Query(False),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_active_user),
 ):
     from app.services.rental_registration import RentalRegistrationService
-    return await RentalRegistrationService(db).list_submissions(vendor_id, form_id)
+    return await RentalRegistrationService(db).list_submissions(
+        vendor_id, form_id, deleted_only=deleted_only
+    )
+
+
+@router.post(
+    "/registration-forms/submissions/{submission_id}/restore",
+    dependencies=[Depends(require_permission("rentals.manage"))],
+)
+async def restore_registration_submission(
+    submission_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),
+):
+    """Restore a discarded registration submission from the bin."""
+    from app.services.rental_registration import RentalRegistrationService
+    return await RentalRegistrationService(db).restore_submission(vendor_id, submission_id)
 
 
 @router.post("/registration-forms/upload-image", dependencies=[Depends(require_permission("rentals.manage"))])

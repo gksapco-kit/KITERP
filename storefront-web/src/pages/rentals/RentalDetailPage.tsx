@@ -7,8 +7,9 @@ import {
 } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { storeApi } from '@/api/store'
-import { useStorefrontRental, useRentalRegistrationForm } from '@/hooks/useStore'
+import { useStorefrontRental, useRentalRegistrationForm, useStorefrontRentalChildren } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 import { useVendor } from '@/contexts/VendorContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { formatCurrency, mediaUrl } from '@/lib/utils'
@@ -73,6 +74,7 @@ type RentalAsset = {
   child_count?: number
   available_child_count?: number
   unit_count?: number
+  is_bookable?: boolean
 }
 
 function formatDisplayDate(value?: string | null) {
@@ -131,6 +133,10 @@ function stockAvailabilityLabel(asset: RentalAsset) {
 
 function availabilityChipLabel(asset: RentalAsset) {
   return availabilityLabel(asset) || stockAvailabilityLabel(asset)
+}
+
+function subAssetLabel(child: { name?: string; asset_code?: string }) {
+  return String(child.asset_code || child.name || '').trim()
 }
 
 function statusTone(status?: string) {
@@ -291,12 +297,23 @@ export default function RentalDetailPage() {
   const navigate = useNavigate()
   const { storePath, vendor } = useVendor()
   const theme = useTheme()
-  const { customer, isAuthenticated } = useAuthStore()
+  const { customer } = useAuthStore()
+  const { isLoggedIn: isAuthenticated } = useIsCustomerLoggedIn()
   const qc = useQueryClient()
   const { data, isLoading, isError, refetch } = useStorefrontRental(slug)
   const { data: registration } = useRentalRegistrationForm()
   const asset = data as RentalAsset | undefined
   const registrationForm = registration?.enabled ? registration.form : null
+  const needsSubAssetPicker =
+    Boolean(asset?.id)
+    && (
+      (asset?.unit_mode === 'hierarchy' && (asset?.child_count ?? 0) > 0)
+      || asset?.is_bookable === false
+    )
+  const { data: subAssets = [], isLoading: subAssetsLoading } = useStorefrontRentalChildren(
+    asset?.id,
+    needsSubAssetPicker,
+  )
 
   const showBook = searchParams.get('book') === '1'
   const [bookStep, setBookStep] = useState<'register' | 'details'>('details')
@@ -304,6 +321,7 @@ export default function RentalDetailPage() {
   const [regAnswers, setRegAnswers] = useState<Record<string, string | boolean>>({})
   const [activeMedia, setActiveMedia] = useState(0)
   const [bookQty, setBookQty] = useState('1')
+  const [selectedSubAssetId, setSelectedSubAssetId] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [startTime, setStartTime] = useState('10:00')
@@ -315,6 +333,45 @@ export default function RentalDetailPage() {
   const [selectedExtras, setSelectedExtras] = useState<string[]>([])
   const [confirmedBooking, setConfirmedBooking] = useState<Record<string, unknown> | null>(null)
   const [payMethod, setPayMethod] = useState('upi')
+
+  const selectedSubAsset = useMemo(
+    () => subAssets.find((c) => c.id === selectedSubAssetId),
+    [subAssets, selectedSubAssetId],
+  )
+  const subAssetLabels = useMemo(
+    () => subAssets.map((c) => subAssetLabel(c)).filter(Boolean),
+    [subAssets],
+  )
+  const roomSelectOptions = useMemo(
+    () => (subAssetLabels.length ? { room_no: subAssetLabels } : undefined),
+    [subAssetLabels],
+  )
+  const requiresSubAsset = needsSubAssetPicker && (asset?.is_bookable === false || subAssets.length > 0)
+  const bookingAssetId = selectedSubAssetId || (requiresSubAsset ? '' : asset?.id || '')
+
+  const pickSubAsset = (childId: string) => {
+    setSelectedSubAssetId(childId)
+    const child = subAssets.find((c) => c.id === childId)
+    const label = child ? subAssetLabel(child) : ''
+    if (label) {
+      setRegAnswers((prev) => ({ ...prev, room_no: label }))
+    }
+    if (child) {
+      const cap = Math.max(1, Math.floor(Number(child.available_capacity || child.capacity_max || 1)))
+      setBookQty(String(Math.min(1, cap) || 1))
+    }
+  }
+
+  const onRoomAnswerChange = (key: string, value: string | boolean) => {
+    setRegAnswers((prev) => ({ ...prev, [key]: value }))
+    if (key !== 'room_no' || typeof value !== 'string') return
+    const match = subAssets.find((c) => subAssetLabel(c) === value)
+    if (match) {
+      setSelectedSubAssetId(match.id)
+      const cap = Math.max(1, Math.floor(Number(match.available_capacity || match.capacity_max || 1)))
+      setBookQty(String(Math.min(1, cap) || 1))
+    }
+  }
 
   // Keep the selected plan in sync with rates configured on this asset
   useEffect(() => {
@@ -441,7 +498,11 @@ export default function RentalDetailPage() {
     const fields = registrationForm?.fields || []
     const keys = new Set(fields.map((f) => f.key))
     if (keys.has('room_no') && !String(next.room_no ?? '').trim()) {
-      next.room_no = String(asset?.asset_code || asset?.name || '').trim()
+      if (selectedSubAsset) {
+        next.room_no = subAssetLabel(selectedSubAsset)
+      } else if (!requiresSubAsset) {
+        next.room_no = String(asset?.asset_code || asset?.name || '').trim()
+      }
     }
     if (keys.has('check_in_date') && startDate) next.check_in_date = startDate
     if (keys.has('check_out_date') && endDate) next.check_out_date = endDate
@@ -480,6 +541,7 @@ export default function RentalDetailPage() {
   const openBookForm = () => {
     if (!asset) return
     setBookQty(String(Math.min(Number(asset.available_capacity || 1), Number(asset.capacity_max || 1)) || 1))
+    setSelectedSubAssetId('')
     const plan = pricingPlan
     const range = datesForPlan(plan, startDate || undefined, {
       min: asset.display_start_date,
@@ -513,6 +575,10 @@ export default function RentalDetailPage() {
       toast.error(`Please fill: ${missing.map((f) => f.label).join(', ')}`)
       return
     }
+    if (requiresSubAsset && !selectedSubAssetId) {
+      toast.error(subAssets.length ? 'Please choose an available room / sub-asset' : 'No sub-assets are available to book right now')
+      return
+    }
     setRegModalOpen(false)
     setBookStep('details')
     setSearchParams({ book: '1' }, { replace: true })
@@ -543,7 +609,7 @@ export default function RentalDetailPage() {
   const book = useMutation({
     mutationFn: (answers?: Record<string, string | boolean>) =>
       storeApi.createRentalBooking({
-        asset_id: asset!.id,
+        asset_id: bookingAssetId,
         start_date: startDate,
         end_date: endDate,
         start_time: startTime || undefined,
@@ -563,6 +629,7 @@ export default function RentalDetailPage() {
       qc.invalidateQueries({ queryKey: ['store-rentals'] })
       qc.invalidateQueries({ queryKey: ['my-rentals'] })
       qc.invalidateQueries({ queryKey: ['catalog-rentals'] })
+      qc.invalidateQueries({ queryKey: ['storefront-rental-children'] })
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -917,15 +984,47 @@ export default function RentalDetailPage() {
                   </p>
                 ) : (
                   <>
+                    {needsSubAssetPicker ? (
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                          Available for rent
+                          {requiresSubAsset ? <span className="ml-0.5 text-red-600">*</span> : null}
+                        </label>
+                        {subAssetsLoading ? (
+                          <div className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+                          </div>
+                        ) : subAssets.length === 0 ? (
+                          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            No sub-assets are available to rent right now.
+                          </p>
+                        ) : (
+                          <select
+                            className="h-10 w-full rounded-lg border bg-white px-2.5 text-sm"
+                            value={selectedSubAssetId}
+                            onChange={(e) => pickSubAsset(e.target.value)}
+                          >
+                            <option value="">Select room / unit…</option>
+                            {subAssets.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {subAssetLabel(c)}
+                                {c.location ? ` · ${c.location}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    ) : null}
+
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
                         <label className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                          Quantity ({asset.capacity_unit || 'units'})
+                          Quantity ({selectedSubAsset?.capacity_unit || asset.capacity_unit || 'units'})
                         </label>
                         <Input
                           type="number"
                           min={1}
-                          max={asset.available_capacity}
+                          max={selectedSubAsset?.available_capacity ?? asset.available_capacity}
                           value={bookQty}
                           onChange={(e) => setBookQty(e.target.value)}
                           className="h-10 rounded-lg"
@@ -1133,8 +1232,14 @@ export default function RentalDetailPage() {
                         || !endTime
                         || book.isPending
                         || (startDate === endDate && endTime < startTime)
+                        || (requiresSubAsset && !selectedSubAssetId)
+                        || !bookingAssetId
                       }
                       onClick={() => {
+                        if (requiresSubAsset && !selectedSubAssetId) {
+                          toast.error(subAssets.length ? 'Please choose an available room / sub-asset' : 'No sub-assets are available to book right now')
+                          return
+                        }
                         const answers = registrationForm ? seedRegAnswers(regAnswers) : undefined
                         if (registrationForm && answers) {
                           setRegAnswers(answers)
@@ -1168,7 +1273,7 @@ export default function RentalDetailPage() {
             onClick={() => setRegModalOpen(false)}
           >
             <div
-              className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl"
+              className="flex max-h-[100dvh] w-full max-w-5xl flex-col overflow-hidden bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
@@ -1200,11 +1305,12 @@ export default function RentalDetailPage() {
                     fields={registrationForm.fields || []}
                     values={regAnswers}
                     accent={registrationForm.theme?.accent}
+                    selectOptionsByKey={roomSelectOptions}
                     onUploadImage={async (file) => {
                       const uploaded = await storeApi.uploadRentalRegistrationImage(file)
                       return uploaded.url
                     }}
-                    onChange={(key, value) => setRegAnswers((prev) => ({ ...prev, [key]: value }))}
+                    onChange={onRoomAnswerChange}
                   />
                 </div>
               </div>

@@ -529,6 +529,19 @@ export type RentalAsset = {
   display_end_date?: string | null
   is_active?: boolean
   is_visible?: boolean
+  /** ISO timestamp when soft-deleted into the bin; null/undefined if active. */
+  deleted_at?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+  /** Catalog change log entries. */
+  change_history?: Array<{
+    version?: number
+    changed_at?: string
+    changed_by?: string | null
+    changed_by_name?: string | null
+    changes?: Record<string, { old?: string | null; new?: string | null }>
+  }>
+  version_number?: number
   store_scope?: string
   store_ids?: string[]
   notes?: string
@@ -536,6 +549,17 @@ export type RentalAsset = {
   delivery_info?: string | null
   /** When true, storefront shows "Need delivery" on booking */
   delivery_enabled?: boolean
+}
+
+export type RentalBookingRegistration = {
+  id: string
+  form_id: string
+  form_name?: string | null
+  answers?: Record<string, unknown>
+  fields?: Array<{ key: string; label: string; type: string }>
+  channel?: string
+  deleted_at?: string | null
+  created_at?: string | null
 }
 
 export type RentalBooking = {
@@ -586,14 +610,57 @@ export type RentalBooking = {
   return_notes?: string | null
   timeline?: Array<{ event: string; detail?: string; at?: string }>
   notes?: string
-  registration?: {
-    id: string
-    form_id: string
-    form_name?: string | null
-    answers?: Record<string, unknown>
-    fields?: Array<{ key: string; label: string; type: string }>
-    channel?: string
-  } | null
+  registration?: RentalBookingRegistration | null
+  discarded_registrations?: RentalBookingRegistration[]
+}
+
+// ── Rental Report Analytics types ────────────────────────────────────────────
+
+export type RentalKpi = { value: number; prev: number; delta_pct: number | null }
+
+export type RentalTrendPoint = { date: string; revenue: number; bookings: number }
+
+export type RentalOverview = {
+  range: { from: string; to: string; days: number; prev_from: string; prev_to: string }
+  basis: 'booking' | 'rental_period'
+  generated_at: string
+  kpis: {
+    revenue: RentalKpi
+    bookings: RentalKpi
+    avg_booking_value: RentalKpi
+    net_revenue: RentalKpi
+    deposits_held: RentalKpi
+    deposits_refunded: RentalKpi
+    late_fees: RentalKpi
+    damage_charges: RentalKpi
+    outstanding: RentalKpi
+    customers: RentalKpi
+    new_customers: RentalKpi
+    cancellation_rate: RentalKpi
+  }
+  trend: RentalTrendPoint[]
+  by_status: Array<{ status: string; bookings: number; revenue: number }>
+  by_payment_status: Array<{ status: string; bookings: number; revenue: number }>
+  by_payment_method: Array<{ method: string; bookings: number; revenue: number }>
+  by_pricing_plan: Array<{ plan: string; bookings: number; revenue: number }>
+  by_category: Array<{ category: string; bookings: number; revenue: number }>
+  top_assets: Array<{
+    id: string; name: string; category: string
+    bookings: number; revenue: number; utilization_pct: number
+  }>
+  top_customers: Array<{
+    id: string | null; name: string; email: string; bookings: number; spent: number
+  }>
+  return_conditions: Array<{
+    condition: string; count: number; damage_charge: number; late_fee: number
+  }>
+  by_hour: Array<{ hour: number; bookings: number; revenue: number }>
+  by_dow: Array<{ dow: number; label: string; bookings: number; revenue: number }>
+  overdue: { total: number; bucket_1_7: number; bucket_8_30: number; bucket_30_plus: number }
+  delivery: {
+    total_with_delivery: number; delivered: number; on_time: number; on_time_pct: number
+  }
+  asset_status_mix: Array<{ status: string; count: number }>
 }
 
 export function statusBadgeClass(status?: string): string {

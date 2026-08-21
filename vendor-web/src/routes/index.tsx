@@ -52,11 +52,13 @@ import RentalDashboardPage from '@/pages/rental/RentalDashboardPage'
 import RentalAssetsPage from '@/pages/rental/RentalAssetsPage'
 import RentalAssetFormPage from '@/pages/rental/RentalAssetFormPage'
 import RentalBookingsPage from '@/pages/rental/RentalBookingsPage'
+import RentalBookingDetailPage from '@/pages/rental/RentalBookingDetailPage'
 import RentalCalendarPage from '@/pages/rental/RentalCalendarPage'
 import RentalReturnsPage from '@/pages/rental/RentalReturnsPage'
 import RentalReportsPage from '@/pages/rental/RentalReportsPage'
 import RentalSettingsPage from '@/pages/rental/RentalSettingsPage'
 import RentalRegistrationFormsPage from '@/pages/rental/RentalRegistrationFormsPage'
+import RentalFilledRegistrationsPage from '@/pages/rental/RentalFilledRegistrationsPage'
 import InvoicesPage from '@/pages/invoices/index'
 import InvoiceDetail from '@/pages/invoices/InvoiceDetail'
 import InvoiceTemplatesPage from '@/pages/invoices/InvoiceTemplates'
@@ -461,8 +463,10 @@ export const router = createBrowserRouter([
       { path: 'rental/assets/:assetId/edit', element: <RentalAssetFormPage /> },
       { path: 'rental/assets/:assetId', element: <RentalAssetFormPage /> },
       { path: 'rental/bookings', element: <RentalBookingsPage /> },
+      { path: 'rental/bookings/:bookingId', element: <RentalBookingDetailPage /> },
       { path: 'rental/calendar', element: <RentalCalendarPage /> },
       { path: 'rental/returns', element: <RentalReturnsPage /> },
+      { path: 'rental/filled-registrations', element: <RentalFilledRegistrationsPage /> },
       { path: 'rental/reports', element: <RentalReportsPage /> },
       { path: 'rental/registration-forms', element: <RentalRegistrationFormsPage /> },
       { path: 'rental/settings', element: <RentalSettingsPage /> },

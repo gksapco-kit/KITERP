@@ -110,11 +110,18 @@ class RentalAsset(Base):
     # serialized = individual rental_asset_unit rows with serial numbers.
     unit_mode = Column(String(20), default="none")
 
+    # Soft delete — set when moved to bin; never hard-deleted for history.
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    # Catalog-style change log: [{version, changed_at, changed_by_name, changes: {field: {old, new}}}]
+    change_history = Column(JSONB, default=list)
+    version_number = Column(Integer, default=1)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
         Index("uq_rental_asset_vendor_slug", "vendor_id", "slug", unique=True),
+        Index("ix_rental_asset_vendor_deleted", "vendor_id", "deleted_at"),
     )
 
 
@@ -312,3 +319,4 @@ class RentalRegistrationSubmission(Base):
     channel = Column(String(20), default="storefront")  # storefront | staff
     answers = Column(JSONB, default=dict)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)

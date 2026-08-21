@@ -42,6 +42,7 @@ from app.api.v1 import (
     vendor_marketplace,
     vendor_subscriptions,
     vendor_rentals,
+    vendor_rental_reports,
     admin_schema_catalog,
     admin_website_analytics,
     admin_crm,
@@ -142,6 +143,11 @@ api_router.include_router(vendor_production_analytics.router, prefix="/vendors/m
 api_router.include_router(vendor_marketplace.router, prefix="/vendors/me/marketplace", tags=["Vendor Marketplace"])
 api_router.include_router(vendor_subscriptions.router, prefix="/vendors/me/subscriptions", tags=["Customer Subscriptions"])
 api_router.include_router(vendor_rentals.router, prefix="/vendors/me/rentals", tags=["Rentals"])
+api_router.include_router(
+    vendor_rental_reports.router,
+    prefix="/vendors/me/rental-reports",
+    tags=["Rental Manager Reports"],
+)
 
 # ── CRM ──────────────────────────────────────────────────────────
 api_router.include_router(vendor_crm_core.router, prefix="/vendors/me/crm", tags=["CRM Core"])
