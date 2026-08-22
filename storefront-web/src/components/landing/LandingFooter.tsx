@@ -1,4 +1,5 @@
 import { Store } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { vendorAppUrl, adminAppUrl } from '@/lib/appUrls'
 import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 
@@ -27,18 +28,18 @@ export function LandingFooter() {
           <div>
             <p className="text-white text-sm font-semibold mb-3">Platform</p>
             <ul className="space-y-2 text-sm">
-              <li><a href="#apps" className="hover:text-white transition-colors">Apps</a></li>
-              <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
+              <li><Link to="/apps" className="hover:text-white transition-colors">All apps</Link></li>
+              <li><Link to="/#pricing" className="hover:text-white transition-colors">Pricing</Link></li>
             </ul>
           </div>
           <div>
             <p className="text-white text-sm font-semibold mb-3">Community</p>
             <ul className="space-y-2 text-sm">
-              <li><a href="/partners" className="hover:text-white transition-colors">Our Partners</a></li>
-              <li><a href="#community" className="hover:text-white transition-colors">Vendor community</a></li>
-              <li><a href="/careers" className="hover:text-white transition-colors">Careers</a></li>
-              <li><a href="/lead" className="hover:text-white transition-colors">Add new lead</a></li>
-              <li><a href="/contact" className="hover:text-white transition-colors">Contact us</a></li>
+              <li><Link to="/partners" className="hover:text-white transition-colors">Our Partners</Link></li>
+              <li><Link to="/#community" className="hover:text-white transition-colors">Vendor community</Link></li>
+              <li><Link to="/careers" className="hover:text-white transition-colors">Careers</Link></li>
+              <li><Link to="/lead" className="hover:text-white transition-colors">Add new lead</Link></li>
+              <li><Link to="/contact" className="hover:text-white transition-colors">Contact us</Link></li>
             </ul>
           </div>
         </div>

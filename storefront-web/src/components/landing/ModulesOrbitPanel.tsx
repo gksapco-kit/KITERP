@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom'
 import { LANDING_MODULES, type LandingModule } from './landingData'
+import { moduleCampaignPath } from './moduleCampaignContent'
 import type { CSSProperties } from 'react'
 
 /** 14 modules evenly spaced on one ring. Labels fan out radially so they never overlap. */
@@ -32,13 +34,11 @@ function OrbitCore() {
 type Props = {
   highlightedModuleId?: string | null
   onHoverModule: (id: string | null) => void
-  onSelectModule: (id: string) => void
 }
 
 export function ModulesOrbitPanel({
   highlightedModuleId = null,
   onHoverModule,
-  onSelectModule,
 }: Props) {
   const total = ORBIT_MODULE_COUNT
 
@@ -89,12 +89,11 @@ export function ModulesOrbitPanel({
                 ...moduleOrbitStyle(module, angle, index),
               }}
             >
-              <button
-                type="button"
+              <Link
+                to={moduleCampaignPath(module.id)}
                 className={`kiterp-orbit-node-hit${isHighlighted ? ' kiterp-orbit-node-hit--active' : ''}`}
                 onMouseEnter={() => onHoverModule(module.id)}
                 onFocus={() => onHoverModule(module.id)}
-                onClick={() => onSelectModule(module.id)}
                 aria-current={isHighlighted ? 'true' : undefined}
                 aria-label={`${module.label}, ${count} apps`}
               >
@@ -107,7 +106,7 @@ export function ModulesOrbitPanel({
                   <span className="kiterp-orbit-node-title">{module.label}</span>
                   <span className="kiterp-orbit-node-count">{count} apps</span>
                 </span>
-              </button>
+              </Link>
             </div>
           )
         })}

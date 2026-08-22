@@ -1,5 +1,7 @@
+import { Link } from 'react-router-dom'
 import type { CSSProperties } from 'react'
 import type { LandingApp, LandingModule } from './landingData'
+import { moduleCampaignPath } from './moduleCampaignContent'
 
 function modulePanelStyle(module: LandingModule): CSSProperties {
   return {
@@ -63,6 +65,10 @@ export function ModulePreviewPanel({ module }: { module: LandingModule }) {
           <AppTile key={app.id} app={app} accent={module.accent.accent} />
         ))}
       </div>
+
+      <Link to={moduleCampaignPath(module.id)} className="kiterp-module-preview-open-btn">
+        Open {module.label} details →
+      </Link>
     </div>
   )
 }

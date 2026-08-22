@@ -1,14 +1,36 @@
 import {
   ArrowUpRight,
+  Bell,
   CreditCard,
   Image as ImageIcon,
+  LayoutGrid,
   Package,
   Plus,
+  Receipt,
   ShoppingBag,
 } from 'lucide-react'
+import {
+  FinanceTabView,
+  HrTabView,
+  InboxTabView,
+  OrdersTabView,
+  PosTabView,
+  SeoTabView,
+  StorefrontTabView,
+  WebsiteTabView,
+} from './campaignDemoTabViews'
+import { normalizeDemoNavKey } from './campaignDemoNav'
 
 /** Per-scene mock UI shown inside the browser demo. */
-export function DemoSceneContent({ sceneId }: { sceneId: string }) {
+export function DemoSceneContent({
+  sceneId,
+  activeMenuItem,
+}: {
+  sceneId: string
+  activeMenuItem?: string
+}) {
+  const menu = activeMenuItem ?? ''
+
   switch (sceneId) {
     case 'dashboard':
       return <DashboardContent />
@@ -17,13 +39,39 @@ export function DemoSceneContent({ sceneId }: { sceneId: string }) {
     case 'products':
       return <ProductsContent />
     case 'orders':
-      return <OrdersContent />
+      return <OrdersTabView menuItem={menu} />
     case 'website':
-      return <WebsiteContent />
+      return <WebsiteTabView menuItem={menu} />
     case 'pos':
-      return <PosContent />
+      return normalizeDemoNavKey(menu) === 'register' || !menu
+        ? <PosContent />
+        : <PosTabView menuItem={menu} />
     case 'finance':
-      return <FinanceContent />
+      return normalizeDemoNavKey(menu) === 'ledger' || !menu
+        ? <FinanceContent />
+        : <FinanceTabView menuItem={menu} />
+    case 'inbox':
+      return normalizeDemoNavKey(menu) === 'inbox' || !menu
+        ? <InboxContent />
+        : <InboxTabView menuItem={menu} />
+    case 'workspace':
+      return <WorkspaceContent />
+    case 'form':
+      return <FormRecordContent />
+    case 'seo':
+      return <SeoTabView menuItem={menu} />
+    case 'storefront':
+      return <StorefrontTabView menuItem={menu} />
+    case 'hr':
+      return normalizeDemoNavKey(menu) === 'employees' || !menu
+        ? <HrContent />
+        : <HrTabView menuItem={menu} />
+    case 'analytics':
+      return <AnalyticsContent />
+    case 'production':
+      return <ProductionContent />
+    case 'settings':
+      return <SettingsContent />
     default:
       return <DashboardContent />
   }
@@ -177,7 +225,10 @@ function WebsiteContent() {
     <div className="democ democ-row democ-grow">
       <div className="democ-palette">
         {['Hero', 'Grid', 'Banner', 'Footer'].map((b) => (
-          <span key={b} className="democ-palette-item"><Plus className="w-3 h-3" />{b}</span>
+          <span key={b} className="democ-palette-item" data-palette-block={b}>
+            <Plus className="w-3 h-3" />
+            {b}
+          </span>
         ))}
       </div>
       <div className="democ-canvas democ-grow">
@@ -260,6 +311,259 @@ function FinanceContent() {
               </li>
             ))}
           </ul>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function InboxContent() {
+  const items: [string, string, string, boolean][] = [
+    ['Leave approval', 'Priya S. · 2d ago', 'Pending', true],
+    ['Customer inquiry', 'WhatsApp · 1h ago', 'Unread', false],
+    ['Low stock alert', 'Inventory · today', 'New', false],
+    ['Payment received', 'Finance · today', 'Read', false],
+  ]
+  return (
+    <div className="democ democ-row democ-grow democ-inbox">
+      <div className="democ-inbox-list democ-flex1">
+        <div className="democ-panel-head">Inbox</div>
+        {items.map(([title, meta, badge, selected]) => (
+          <div key={title} className={`democ-inbox-item${selected ? ' is-selected' : ''}`}>
+            <span className="democ-inbox-item-title">{title}</span>
+            <span className="democ-inbox-item-meta">{meta}</span>
+            <span className={`democ-badge ${badge === 'Pending' ? 'amber' : badge === 'Unread' ? 'blue' : 'gray'}`}>
+              {badge}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="democ-inbox-detail democ-flex1">
+        <div className="democ-panel-head">Leave approval</div>
+        <p className="democ-inbox-detail-line">Employee: Priya Sharma</p>
+        <p className="democ-inbox-detail-line">Dates: 28 Aug – 30 Aug</p>
+        <div className="democ-inbox-actions">
+          <span className="democ-inbox-btn democ-inbox-btn--primary">Approve</span>
+          <span className="democ-inbox-btn">Review</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function WorkspaceContent() {
+  const apps = [
+    ['Sales', ShoppingBag],
+    ['Inventory', Package],
+    ['Finance', CreditCard],
+    ['HR', Bell],
+    ['CRM', LayoutGrid],
+    ['POS', Receipt],
+  ] as const
+  return (
+    <div className="democ democ-workspace">
+      <div className="democ-panel-head">My workspace</div>
+      <div className="democ-workspace-grid">
+        {apps.map(([label, Icon]) => (
+          <div key={label} className="democ-workspace-tile">
+            <span className="democ-workspace-icon">
+              <Icon className="w-3.5 h-3.5" />
+            </span>
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FormRecordContent() {
+  return (
+    <div className="democ democ-form">
+      <p className="democ-form-id">DOC/2026/08/0042</p>
+      <div className="democ-form-fields">
+        <div className="democ-form-field"><span /><span className="democ-form-field-val" /></div>
+        <div className="democ-form-field"><span /><span className="democ-form-field-val democ-form-field-val--short" /></div>
+      </div>
+      <div className="democ-form-tabs">
+        <span className="is-active">Lines</span><span>Details</span><span>Notes</span>
+      </div>
+      <div className="democ-table">
+        <div className="democ-tr democ-thead">
+          <span>Item</span><span>Qty</span><span className="ta-r">Amount</span>
+        </div>
+        {[
+          ['Consulting day', '2', '₹18,000'],
+          ['Travel allowance', '1', '₹2,400'],
+          ['Materials', '5', '₹4,100'],
+        ].map(([item, qty, amt]) => (
+          <div key={item} className="democ-tr democ-form-row">
+            <span className="democ-strong">{item}</span>
+            <span>{qty}</span>
+            <span className="ta-r democ-strong">{amt}</span>
+          </div>
+        ))}
+      </div>
+      <div className="democ-form-total"><span>Total</span><strong>₹24,500</strong></div>
+    </div>
+  )
+}
+
+function SeoContent() {
+  return (
+    <div className="democ democ-seo">
+      <div className="democ-seo-fields">
+        <div className="democ-seo-field">
+          <span className="democ-seo-label">Meta title</span>
+          <span className="democ-seo-value">Summer collection — Your Brand</span>
+        </div>
+        <div className="democ-seo-field">
+          <span className="democ-seo-label">Description</span>
+          <span className="democ-seo-value democ-seo-value--long">Shop new arrivals with free delivery this week.</span>
+        </div>
+        <div className="democ-seo-preview">
+          <span className="democ-seo-preview-url">yourbrand.com › blog › summer-drop</span>
+          <strong>Summer collection launch</strong>
+          <p>Preview how this page appears in Google search results.</p>
+        </div>
+      </div>
+      <div className="democ-seo-posts">
+        <div className="democ-panel-head">Scheduled posts</div>
+        {[
+          ['GST checklist for SMEs', 'Draft'],
+          ['5 ways to reduce stockouts', 'Scheduled'],
+        ].map(([title, status]) => (
+          <div key={title} className="democ-seo-post">
+            <span>{title}</span>
+            <span className={`democ-badge ${status === 'Scheduled' ? 'green' : 'gray'}`}>{status}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function StorefrontContent() {
+  return (
+    <div className="democ democ-storefront">
+      <div className="democ-storefront-hero democ-storefront-block">Featured summer sale · Up to 30% off</div>
+      <div className="democ-storefront-grid">
+        {['Handmade soap', 'Organic tea', 'Gift hamper', 'Candles'].map((name) => (
+          <div key={name} className="democ-storefront-product">
+            <span className="democ-storefront-thumb" />
+            <span className="democ-storefront-name">{name}</span>
+            <span className="democ-storefront-price">₹499</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function HrContent() {
+  return (
+    <div className="democ democ-hr">
+      <div className="democ-tiles">
+        <div className="democ-tile">
+          <span className="democ-tile-label">Present today</span>
+          <strong className="democ-tile-value">42</strong>
+        </div>
+        <div className="democ-tile">
+          <span className="democ-tile-label">On leave</span>
+          <strong className="democ-tile-value">3</strong>
+        </div>
+        <div className="democ-tile">
+          <span className="democ-tile-label">Open roles</span>
+          <strong className="democ-tile-value">2</strong>
+        </div>
+      </div>
+      <div className="democ-table democ-hr-table">
+        <div className="democ-tr democ-thead">
+          <span>Employee</span><span>Dept</span><span>Status</span>
+        </div>
+        {[
+          ['Priya Sharma', 'Sales', 'Present'],
+          ['Arjun Mehta', 'Warehouse', 'Present'],
+          ['Neha Gupta', 'Finance', 'Leave'],
+        ].map(([name, dept, status]) => (
+          <div key={name} className="democ-tr democ-hr-row">
+            <span className="democ-strong">{name}</span>
+            <span>{dept}</span>
+            <span><i className={`democ-badge ${status === 'Leave' ? 'amber' : 'green'}`}>{status}</i></span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function AnalyticsContent() {
+  return (
+    <div className="democ">
+      <div className="democ-row democ-grow">
+        <div className="democ-panel democ-flex2">
+          <div className="democ-panel-head">Plan vs actual</div>
+          <Bars values={[62, 58, 71, 54, 68, 49]} accent />
+        </div>
+        <div className="democ-panel democ-flex1 democ-analytics-variance">
+          <div className="democ-panel-head">Variance</div>
+          {[
+            ['Materials', '−6.2%', 'amber'],
+            ['Labour', '+2.1%', 'green'],
+            ['Overhead', '−1.4%', 'amber'],
+          ].map(([label, val, tone]) => (
+            <div key={label} className="democ-analytics-row">
+              <span>{label}</span>
+              <span className={`democ-analytics-val democ-analytics-val--${tone}`}>{val}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProductionContent() {
+  const cols = [
+    { stage: 'Planned', items: ['MO-1042', 'MO-1045'] },
+    { stage: 'In progress', items: ['MO-1038'] },
+    { stage: 'Done', items: ['MO-1031', 'MO-1034'] },
+  ]
+  return (
+    <div className="democ democ-row democ-grow democ-production">
+      {cols.map((col) => (
+        <div key={col.stage} className="democ-production-col">
+          <div className="democ-production-stage">{col.stage}</div>
+          {col.items.map((mo) => (
+            <div key={mo} className="democ-production-card">
+              <span className="democ-strong">{mo}</span>
+              <span>Qty 120 · WC-02</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SettingsContent() {
+  return (
+    <div className="democ democ-settings">
+      <div className="democ-settings-group">
+        <div className="democ-panel-head">Integrations</div>
+        {['Payment gateway', 'SMS alerts', 'Accounting export'].map((item) => (
+          <div key={item} className="democ-settings-row">
+            <span>{item}</span>
+            <span className="democ-settings-toggle is-on" aria-hidden />
+          </div>
+        ))}
+      </div>
+      <div className="democ-settings-group">
+        <div className="democ-panel-head">Modules enabled</div>
+        <div className="democ-workspace-grid democ-settings-modules">
+          {['Sales', 'HR', 'Finance', 'CRM', 'Inventory', 'Website'].map((m) => (
+            <div key={m} className="democ-workspace-tile democ-settings-module">{m}</div>
+          ))}
         </div>
       </div>
     </div>

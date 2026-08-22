@@ -54,6 +54,9 @@ import Policies from '@/pages/Policies'
 import ContactPage from '@/pages/Contact'
 import LandingContact from '@/pages/LandingContact'
 import LandingLead from '@/pages/LandingLead'
+import AppsDirectoryPage from '@/pages/AppsDirectoryPage'
+import ModuleCampaignPage from '@/pages/ModuleCampaignPage'
+import { CAMPAIGN_MODULE_IDS, isValidModuleId } from '@/components/landing/moduleCampaignContent'
 import OrderConfirmationPage from '@/checkout/pages/OrderConfirmationPage'
 import OrderStatusPage from '@/checkout/pages/OrderStatusPage'
 import UpiPaymentProofPage from '@/checkout/pages/UpiPaymentProofPage'
@@ -83,6 +86,41 @@ import HrLogin from '@/pages/hr/HrLogin'
 import HrChangePassword from '@/pages/hr/HrChangePassword'
 import DevEmployeeHrLinks from '@/pages/DevEmployeeHrLinks'
 
+function usePlatformAppsScroll() {
+  const { pathname, hash } = useLocation()
+
+  useEffect(() => {
+    if (hash) return
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    requestAnimationFrame(() => {
+      document.getElementById('overview')?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    })
+  }, [pathname, hash])
+}
+
+/**
+ * Platform marketing at `/apps` and `/apps/{module}`.
+ * Static routes are registered per module so `/apps/hr` never matches `/:vendorSlug/hr`.
+ */
+function PlatformAppsRouter() {
+  const { pathname } = useLocation()
+  usePlatformAppsScroll()
+
+  const segments = pathname.split('/').filter(Boolean)
+  if (segments[0] !== 'apps') return <Navigate to="/" replace />
+
+  const moduleId = segments[1] ?? ''
+  const tail = segments.slice(2)
+
+  if (!moduleId) return <AppsDirectoryPage />
+  if (tail.length > 0) {
+    if (isValidModuleId(moduleId)) return <Navigate to={`/apps/${moduleId}`} replace />
+    return <Navigate to="/apps" replace />
+  }
+  if (!isValidModuleId(moduleId)) return <Navigate to="/apps" replace />
+  return <ModuleCampaignPage moduleId={moduleId} />
+}
+
 function LegacyEmployeeToHrRedirect() {
   const { vendorSlug } = useParams<{ vendorSlug: string }>()
   const { pathname, search } = useLocation()
@@ -108,6 +146,13 @@ function VendorDraftCatalogShell() {
 
 function VendorStoreLayout() {
   const { vendorSlug } = useParams<{ vendorSlug: string }>()
+  const { pathname } = useLocation()
+
+  // `/apps/hr` can match `/:vendorSlug` + `hr` before platform routes — render marketing pages here.
+  if (pathname === '/apps' || pathname.startsWith('/apps/')) {
+    return <PlatformAppsRouter />
+  }
+
   if (isReservedVendorSlug(vendorSlug)) {
     return <Navigate to="/" replace />
   }
@@ -176,6 +221,12 @@ export const router = createBrowserRouter([
     path: '/',
     element: <Landing />,
   },
+  { path: '/apps', element: <PlatformAppsRouter /> },
+  ...CAMPAIGN_MODULE_IDS.map((moduleId) => ({
+    path: `/apps/${moduleId}`,
+    element: <PlatformAppsRouter />,
+  })),
+  { path: '/apps/*', element: <PlatformAppsRouter /> },
   {
     path: '/contact',
     element: <LandingContact />,

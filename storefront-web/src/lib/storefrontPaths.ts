@@ -6,6 +6,7 @@
 
 /** First path segments owned by the platform — vendors cannot use these slugs. */
 export const RESERVED_VENDOR_SLUGS = new Set([
+  'apps',
   'store',
   'stores',
   'admin',

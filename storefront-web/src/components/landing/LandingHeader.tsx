@@ -3,7 +3,13 @@ import { Link } from 'react-router-dom'
 import { vendorAppUrl } from '@/lib/appUrls'
 import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 
-export function LandingHeader() {
+type Props = { variant?: 'home' | 'campaign' }
+
+export function LandingHeader({ variant = 'home' }: Props) {
+  const appsHref = variant === 'campaign' ? '/apps' : '/#apps'
+  const pricingHref = variant === 'campaign' ? '#pricing' : '/#pricing'
+  const communityHref = '/#community'
+
   return (
     <>
       <header className="kiterp-landing-header fixed top-0 inset-x-0 z-50 border-b border-[#1e3d34]/06 bg-white/90 backdrop-blur-xl supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_rgba(30,61,52,0.04)]">
@@ -22,13 +28,19 @@ export function LandingHeader() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-[#1e3d34]/70" aria-label="Primary">
-            <a href="#apps" className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
-              Apps
-            </a>
-            <a href="#pricing" className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+            {variant === 'campaign' ? (
+              <Link to="/apps" className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+                Apps
+              </Link>
+            ) : (
+              <a href={appsHref} className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+                Apps
+              </a>
+            )}
+            <a href={pricingHref} className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
               Pricing
             </a>
-            <a href="#community" className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+            <a href={communityHref} className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
               Community
             </a>
           </nav>
@@ -49,7 +61,6 @@ export function LandingHeader() {
           </div>
         </div>
       </header>
-      {/* Keeps page content below the fixed header */}
       <div className="kiterp-landing-header-spacer" aria-hidden />
     </>
   )
