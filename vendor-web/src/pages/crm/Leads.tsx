@@ -75,27 +75,40 @@ function sourceLabel(source?: string | null) {
   return labels[key] || source || '—'
 }
 
+const CELL_PREVIEW_CHARS = 20
+
+function previewText(value?: string | null, maxChars = CELL_PREVIEW_CHARS) {
+  const text = (value || '').trim()
+  if (!text) return { display: '—', full: '' }
+  if (text.length <= maxChars) return { display: text, full: text }
+  return { display: `${text.slice(0, maxChars)}…`, full: text }
+}
+
+function TextPreview({ value, className }: { value?: string | null; className?: string }) {
+  const { display, full } = previewText(value)
+  if (!full) return <span className={className}>—</span>
+  return (
+    <span className={className} title={full}>
+      {display}
+    </span>
+  )
+}
+
 function SourceChip({ source }: { source?: string | null }) {
   if (!source?.trim()) {
     return <span className="text-sm text-gray-400">—</span>
   }
   const label = sourceLabel(source)
+  const { display, full } = previewText(label)
   return (
     <Badge
       variant="soft"
-      title={label}
+      title={full}
       className="max-w-[14rem] min-w-0 whitespace-nowrap overflow-hidden"
     >
-      <span className="truncate">{label}</span>
+      <span className="truncate">{display}</span>
     </Badge>
   )
-}
-
-function truncateEmail(email?: string | null, maxChars = 20) {
-  const value = (email || '').trim()
-  if (!value) return '—'
-  if (value.length <= maxChars) return value
-  return `${value.slice(0, maxChars)}...`
 }
 
 function statusLabel(status: string) {
@@ -720,7 +733,7 @@ export default function LeadsPage() {
   const selectedCount = selectedIds.size
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id))
   const somePageSelected = pageIds.some((id) => selectedIds.has(id))
-  const tableCols = 11
+  const tableCols = 12
 
   useEffect(() => {
     setSelectedIds(new Set())
@@ -807,10 +820,10 @@ export default function LeadsPage() {
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full min-w-[72rem]">
+          <table className="w-full min-w-[78rem]">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="w-10 px-3 py-2">
+                <th className="w-10 px-3 py-1.5">
                   <Checkbox
                     checked={allPageSelected}
                     aria-label="Select all leads on this page"
@@ -827,16 +840,17 @@ export default function LeadsPage() {
                     }}
                   />
                 </th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Lead</TableColumnLabel></th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Name</TableColumnLabel></th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Email</TableColumnLabel></th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Phone</TableColumnLabel></th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Assigned to</TableColumnLabel></th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Title</TableColumnLabel></th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Company</TableColumnLabel></th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase min-w-[9rem]"><TableColumnLabel>Source</TableColumnLabel></th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+                <th className="text-left px-4 py-1.5 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Lead</TableColumnLabel></th>
+                <th className="text-left px-4 py-1.5 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Name</TableColumnLabel></th>
+                <th className="text-left px-4 py-1.5 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Email</TableColumnLabel></th>
+                <th className="text-left px-4 py-1.5 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Phone</TableColumnLabel></th>
+                <th className="text-left px-4 py-1.5 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="text-left px-4 py-1.5 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Assigned to</TableColumnLabel></th>
+                <th className="text-left px-4 py-1.5 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Title</TableColumnLabel></th>
+                <th className="text-left px-4 py-1.5 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Company</TableColumnLabel></th>
+                <th className="text-left px-4 py-1.5 text-xs font-medium text-gray-500 uppercase min-w-[9rem]"><TableColumnLabel>Source</TableColumnLabel></th>
+                <th className="text-left px-4 py-1.5 text-xs font-medium text-gray-500 uppercase min-w-[8rem]"><TableColumnLabel>Note</TableColumnLabel></th>
+                <th className="text-right px-4 py-1.5 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -850,7 +864,7 @@ export default function LeadsPage() {
                 } />
               ) : data.items.map(l => (
                 <tr key={l.id} className={showDeleted ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-gray-50'}>
-                  <td className="w-10 px-3 py-2">
+                  <td className="w-10 px-3 py-1.5">
                     <Checkbox
                       checked={selectedIds.has(l.id)}
                       aria-label={`Select ${l.number || l.id}`}
@@ -864,30 +878,25 @@ export default function LeadsPage() {
                       }}
                     />
                   </td>
-                  <td className="px-4 py-2">
-                    <p className="text-sm font-medium">
-                      {l.number || '—'}
+                  <td className="px-4 py-1.5 align-middle">
+                    <p className="text-sm font-medium leading-5">
+                      <TextPreview value={l.number} />
                     </p>
-                    <p className="mt-0.5 whitespace-nowrap text-xs text-gray-500">{formatDateTime(l.created_at)}</p>
+                    <p className="whitespace-nowrap text-xs leading-4 text-gray-500">{formatDateTime(l.created_at)}</p>
                     {showDeleted && l.deleted_at ? (
-                      <p className="mt-0.5 whitespace-nowrap text-[11px] text-amber-800">Deleted {formatDateTime(l.deleted_at)}</p>
-                    ) : null}
-                    {l.notes ? (
-                      <p className="mt-0.5 max-w-[16rem] truncate text-[11px] text-gray-400" title={l.notes}>
-                        {l.notes}
-                      </p>
+                      <p className="whitespace-nowrap text-[11px] leading-4 text-amber-800">Deleted {formatDateTime(l.deleted_at)}</p>
                     ) : null}
                   </td>
-                  <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                    {[l.first_name, l.last_name].filter(Boolean).join(' ') || '—'}
+                  <td className="px-4 py-1.5 text-sm font-medium text-gray-900 whitespace-nowrap">
+                    <TextPreview value={[l.first_name, l.last_name].filter(Boolean).join(' ')} />
                   </td>
-                  <td className="px-4 py-2 text-sm text-gray-600 whitespace-nowrap">
-                    <span className="cursor-default" title={l.email || undefined}>
-                      {truncateEmail(l.email)}
-                    </span>
+                  <td className="px-4 py-1.5 text-sm text-gray-600 whitespace-nowrap">
+                    <TextPreview value={l.email} />
                   </td>
-                  <td className="px-4 py-2 text-sm text-gray-600 hidden lg:table-cell">{l.phone || '—'}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-1.5 text-sm text-gray-600 whitespace-nowrap hidden lg:table-cell">
+                    <TextPreview value={l.phone} />
+                  </td>
+                  <td className="px-4 py-1.5">
                     {showDeleted ? (
                       <span className="text-xs font-medium capitalize text-gray-600">{statusLabel(l.status || 'new')}</span>
                     ) : (
@@ -897,7 +906,7 @@ export default function LeadsPage() {
                       />
                     )}
                   </td>
-                  <td className="px-4 py-2 hidden lg:table-cell">
+                  <td className="px-4 py-1.5 hidden lg:table-cell">
                     {showDeleted ? (
                       <span className="text-sm text-gray-500">
                         {assigneeOptions.find((o) => o.value === (l.assigned_to || ''))?.label || '—'}
@@ -910,12 +919,19 @@ export default function LeadsPage() {
                       />
                     )}
                   </td>
-                  <td className="px-4 py-2 text-sm text-gray-600 hidden md:table-cell">{l.title || '—'}</td>
-                  <td className="px-4 py-2 text-sm text-gray-600 hidden md:table-cell">{l.company || '—'}</td>
-                  <td className="px-4 py-2 align-middle min-w-[9rem]">
+                  <td className="px-4 py-1.5 text-sm text-gray-600 whitespace-nowrap hidden md:table-cell">
+                    <TextPreview value={l.title} />
+                  </td>
+                  <td className="px-4 py-1.5 text-sm text-gray-600 whitespace-nowrap hidden md:table-cell">
+                    <TextPreview value={l.company} />
+                  </td>
+                  <td className="px-4 py-1.5 align-middle min-w-[9rem]">
                     <SourceChip source={l.source} />
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-1.5 align-middle min-w-[8rem] whitespace-nowrap">
+                    <TextPreview value={l.notes} className="text-sm text-gray-600" />
+                  </td>
+                  <td className="px-4 py-1.5 text-right">
                     <div className="flex justify-end gap-1">
                       {showDeleted ? (
                         <>

@@ -48,6 +48,25 @@ function leadName(lead: { first_name?: string | null; last_name?: string | null 
   return [lead.first_name, lead.last_name].filter(Boolean).join(' ') || '—'
 }
 
+const CELL_PREVIEW_CHARS = 20
+
+function previewText(value?: string | null, maxChars = CELL_PREVIEW_CHARS) {
+  const text = (value || '').trim()
+  if (!text) return { display: '—', full: '' }
+  if (text.length <= maxChars) return { display: text, full: text }
+  return { display: `${text.slice(0, maxChars)}…`, full: text }
+}
+
+function TextPreview({ value, className }: { value?: string | null; className?: string }) {
+  const { display, full } = previewText(value)
+  if (!full) return <span className={className}>—</span>
+  return (
+    <span className={className} title={full}>
+      {display}
+    </span>
+  )
+}
+
 export default function PlatformCrmLeads() {
   const { user } = useAuthStore()
   const allowed = isPlatformStaff(user)
@@ -255,55 +274,68 @@ export default function PlatformCrmLeads() {
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border bg-white">
-          <table className="w-full min-w-[56rem]">
+          <table className="w-full min-w-[64rem]">
             <thead>
               <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                <th className="px-4 py-3">Lead</th>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Title</th>
-                <th className="px-4 py-3">Company</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-1.5">Lead</th>
+                <th className="px-4 py-1.5">Name</th>
+                <th className="px-4 py-1.5">Email</th>
+                <th className="px-4 py-1.5">Phone</th>
+                <th className="px-4 py-1.5">Status</th>
+                <th className="px-4 py-1.5">Title</th>
+                <th className="px-4 py-1.5">Company</th>
+                <th className="px-4 py-1.5">Source</th>
+                <th className="px-4 py-1.5">Note</th>
+                <th className="px-4 py-1.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {items.map((lead) => (
-                <tr key={lead.id} className="align-top hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <p className="text-sm font-medium text-gray-900">{lead.number || '—'}</p>
-                    {lead.source ? (
-                      <p className="mt-0.5 flex items-center gap-1.5">
-                        <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">Source</span>
-                        <span
-                          title={sourceLabel(lead.source)}
-                          className="inline-flex max-w-[14rem] min-w-0 truncate whitespace-nowrap rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800"
-                        >
-                          {sourceLabel(lead.source)}
-                        </span>
-                      </p>
-                    ) : null}
-                    <p className="mt-0.5 whitespace-nowrap text-xs text-gray-500">
+                <tr key={lead.id} className="align-middle hover:bg-gray-50">
+                  <td className="px-4 py-1.5">
+                    <p className="text-sm font-medium leading-5 text-gray-900">
+                      <TextPreview value={lead.number} />
+                    </p>
+                    <p className="whitespace-nowrap text-xs leading-4 text-gray-500">
                       {lead.created_at ? new Date(lead.created_at).toLocaleString() : '—'}
                     </p>
-                    {lead.notes ? (
-                      <p className="mt-0.5 max-w-[18rem] truncate text-[11px] text-gray-400" title={lead.notes}>
-                        {lead.notes}
-                      </p>
-                    ) : null}
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{leadName(lead)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{lead.email || '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{lead.phone || '—'}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-1.5 text-sm font-medium text-gray-900 whitespace-nowrap">
+                    <TextPreview value={leadName(lead) === '—' ? '' : leadName(lead)} />
+                  </td>
+                  <td className="px-4 py-1.5 text-sm text-gray-600 whitespace-nowrap">
+                    <TextPreview value={lead.email} />
+                  </td>
+                  <td className="px-4 py-1.5 text-sm text-gray-600 whitespace-nowrap">
+                    <TextPreview value={lead.phone} />
+                  </td>
+                  <td className="px-4 py-1.5">
                     <span className="text-xs font-medium capitalize px-2 py-1 rounded-full bg-gray-50 text-gray-700 border border-gray-200">
                       {lead.status || 'new'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{lead.title || '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{lead.company || '—'}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-1.5 text-sm text-gray-600 whitespace-nowrap">
+                    <TextPreview value={lead.title} />
+                  </td>
+                  <td className="px-4 py-1.5 text-sm text-gray-600 whitespace-nowrap">
+                    <TextPreview value={lead.company} />
+                  </td>
+                  <td className="px-4 py-1.5 whitespace-nowrap">
+                    {lead.source ? (
+                      <span
+                        title={sourceLabel(lead.source)}
+                        className="inline-flex max-w-[14rem] min-w-0 truncate whitespace-nowrap rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800"
+                      >
+                        {previewText(sourceLabel(lead.source)).display}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-1.5 text-sm text-gray-600 whitespace-nowrap">
+                    <TextPreview value={lead.notes} />
+                  </td>
+                  <td className="px-4 py-1.5 text-right">
                     <div className="flex justify-end gap-2">
                       {showDeleted ? (
                         <Button
