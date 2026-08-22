@@ -461,7 +461,7 @@ export function PharmaTrackTracePage() {
             </span>
           </div>
           <p className="mb-3 text-xs text-muted-foreground">
-            Checks against serials in KITERP. Configure a VRS endpoint in Foundations to also query
+            Checks against serials in KIT ERP. Configure a VRS endpoint in Foundations to also query
             your DSCSA Verification Router Service.
           </p>
           <div className="flex flex-wrap gap-2">

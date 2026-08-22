@@ -12,7 +12,7 @@ function loadVendorConfig(slug) {
 }
 
 const defaults = {
-  name: "KITERP",
+  name: "KIT ERP",
   slug: "kiterp-mobile",
   scheme: "kiterp",
   bundleId: "com.kiterp.mobile",

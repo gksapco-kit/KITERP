@@ -12,10 +12,10 @@ export type DocumentSeoInput = {
 }
 
 export const VENDOR_SEO = {
-  siteName: 'KITERP',
-  defaultTitle: 'KITERP — Vendor Business Dashboard',
+  siteName: 'KIT ERP',
+  defaultTitle: 'KIT ERP — Vendor Business Dashboard',
   defaultDescription:
-    'KITERP vendor dashboard for products, orders, websites, CRM, finance, HR, and business operations.',
+    'KIT ERP vendor dashboard for products, orders, websites, CRM, finance, HR, and business operations.',
   themeColor: '#0f172a',
 } as const
 

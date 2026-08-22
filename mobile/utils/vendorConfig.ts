@@ -16,7 +16,7 @@ const extra = Constants.expoConfig?.extra ?? {};
 const VENDOR_SLUG: string | null = extra.vendorSlug ?? null;
 const IS_BRANDED_APP: boolean = extra.isBrandedApp ?? false;
 const BUILD_PRIMARY: string = extra.primaryColor || "#2563eb";
-const BUILD_NAME: string = extra.appName || "KITERP";
+const BUILD_NAME: string = extra.appName || "KIT ERP";
 
 let _cachedBranding: VendorBranding | null = null;
 
@@ -47,7 +47,7 @@ export async function loadVendorBranding(): Promise<VendorBranding> {
       vendorSlug: null,
       vendorId: null,
       isBrandedApp: false,
-      name: "KITERP",
+      name: "KIT ERP",
       primaryColor: "#2563eb",
       themeConfig: {},
     };

@@ -183,7 +183,7 @@ export default function StorefrontLayout() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-6 text-center text-xs">
-            &copy; {new Date().getFullYear()} {vendor.display_name}. Powered by KITERP
+            &copy; {new Date().getFullYear()} {vendor.display_name}. Powered by KIT ERP
           </div>
         </div>
       </footer>

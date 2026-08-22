@@ -64,7 +64,7 @@ export default function StoreRouteSeo() {
 
     let pageLabel = 'Home'
     let description = vendor?.description?.trim()
-      || `Shop products and services from ${vendorName} on KITERP.`
+      || `Shop products and services from ${vendorName} on KIT ERP.`
     let noindex = false
     let jsonLd = null as ReturnType<typeof compactJsonLd>
 

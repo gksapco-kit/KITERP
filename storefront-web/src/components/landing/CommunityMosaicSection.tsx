@@ -376,12 +376,12 @@ export function CommunityMosaicSection({
                 <p className="mt-1 kiterp-mosaic-subline text-[10px] sm:text-[11px] font-medium max-w-none mx-auto leading-snug">
                   {storeCount > 0 ? (
                     <>
-                      Real stores on <span className="kiterp-mosaic-brand">KITERP</span>
+                      Real stores on <span className="kiterp-mosaic-brand">KIT ERP</span>
                       {' '}— tap a logo or search below
                     </>
                   ) : (
                     <>
-                      Live storefronts on <span className="kiterp-mosaic-brand">KITERP</span>
+                      Live storefronts on <span className="kiterp-mosaic-brand">KIT ERP</span>
                       {' '}— search when vendors go live
                     </>
                   )}

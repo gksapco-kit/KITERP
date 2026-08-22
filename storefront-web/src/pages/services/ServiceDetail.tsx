@@ -719,7 +719,7 @@ export default function ServiceDetail() {
       ? (service.meta_title?.trim() || `${service.name} | ${vendorName}`)
       : vendorPageTitle('Service', vendorName),
     description: service
-      ? (serviceDescription || `Book ${service.name} from ${vendorName} on KITERP.`)
+      ? (serviceDescription || `Book ${service.name} from ${vendorName} on KIT ERP.`)
       : undefined,
     keywords: seoKeywords(service?.meta_keywords) || service?.tags?.join(', '),
     canonicalPath: servicePath,

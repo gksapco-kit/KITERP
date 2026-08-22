@@ -58,9 +58,9 @@ export default function Partners() {
   const [reloadKey, setReloadKey] = useState(0)
 
   useDocumentSeo({
-    title: 'Our Partners — KITERP Business Directory',
+    title: 'Our Partners — KIT ERP Business Directory',
     description:
-      'Explore KITERP partner businesses. Find local stores, services, and brands running on the KITERP business front platform.',
+      'Explore KIT ERP partner businesses. Find local stores, services, and brands running on the KIT ERP business front platform.',
     keywords: 'KITERP partners, business directory, multi-vendor stores',
     canonicalPath: '/partners',
     ogImage: '/favicon-192.png',

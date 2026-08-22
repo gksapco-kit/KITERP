@@ -22,7 +22,7 @@ export function VendorSignupMarketingPanel({
       {showLogo ? (
         <a href={homeHref} className="mb-4 inline-flex shrink-0 items-center gap-2 self-start transition-opacity hover:opacity-80 xl:mb-5">
           <Store className="h-5 w-5 xl:h-6 xl:w-6" style={{ color: SIGNUP_BRAND }} aria-hidden />
-          <span className="text-base font-bold tracking-tight text-slate-900 xl:text-lg">KITERP</span>
+          <span className="text-base font-bold tracking-tight text-slate-900 xl:text-lg">KIT ERP</span>
         </a>
       ) : null}
 
@@ -55,7 +55,7 @@ export function VendorSignupMarketingPanel({
 
         <p className="mt-4 flex shrink-0 items-center gap-2 text-xs text-slate-400 xl:mt-6 xl:text-sm">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0 xl:h-4 xl:w-4" style={{ color: SIGNUP_BRAND }} aria-hidden />
-          Secured by KITERP
+          Secured by KIT ERP
         </p>
       </div>
     </div>

@@ -304,7 +304,7 @@ function IntegrationForm({
           <div className="space-y-1 rounded-lg border border-amber-100 bg-amber-50/70 p-3 text-xs text-muted-foreground">
             <p className="font-medium text-amber-900">UPI not showing at checkout?</p>
             <p>
-              UPI is controlled by your Razorpay merchant account, not KITERP. In Razorpay Dashboard go to
+              UPI is controlled by your Razorpay merchant account, not KIT ERP. In Razorpay Dashboard go to
               {' '}<strong>Account &amp; Settings → Payment Configuration</strong>, ensure UPI (QR / apps / collect) is
               visible, complete KYC if needed, then save. If UPI is enabled but still missing, raise a support ticket
               with Razorpay — they must provision UPI for your Merchant ID.

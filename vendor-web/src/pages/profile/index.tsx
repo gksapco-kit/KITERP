@@ -903,7 +903,7 @@ function ActivitySection({ open, toggle }: { open: boolean; toggle: () => void }
         ? [{
             icon: CheckCircle2,
             title: 'Account created',
-            meta: 'Welcome to KITERP',
+            meta: 'Welcome to KIT ERP',
             time: fmt(new Date(user.created_at)),
             color: 'text-primary bg-accent border-primary/30',
           }]
@@ -1024,7 +1024,7 @@ function IdentifiersSection({ open, toggle }: { open: boolean; toggle: () => voi
   return (
     <SectionWrapper
       title="Identifiers"
-      subtitle="Your unique IDs across KITERP"
+      subtitle="Your unique IDs across KIT ERP"
       icon={Hash}
       open={open}
       toggle={toggle}

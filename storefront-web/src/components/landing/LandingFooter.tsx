@@ -10,7 +10,7 @@ export function LandingFooter() {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Store className="w-6 h-6 text-[#64C3A0]" />
-              <span className="text-white font-bold">KITERP</span>
+              <span className="text-white font-bold">KIT ERP</span>
             </div>
             <p className="text-sm leading-relaxed">
               Multi-vendor commerce, services, HR, and storefront builder — all on one KIT ERP platform.
@@ -43,7 +43,7 @@ export function LandingFooter() {
           </div>
         </div>
         <p className="text-center text-xs border-t border-white/10 pt-8">
-          &copy; {new Date().getFullYear()} KITERP. All rights reserved.
+          &copy; {new Date().getFullYear()} KIT ERP. All rights reserved.
         </p>
       </div>
     </footer>

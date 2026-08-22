@@ -190,7 +190,7 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="absolute bottom-3 text-[11px] text-white/50">Powered by KITERP</p>
+          <p className="absolute bottom-3 text-[11px] text-white/50">Powered by KIT ERP</p>
         </div>
 
         {/* ── Right form panel ── */}
@@ -346,7 +346,7 @@ export default function Login() {
 
             <div className="mt-auto pt-6 flex items-center justify-center gap-1.5 text-xs text-gray-400">
               <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Secured by KITERP</span>
+              <span>Secured by KIT ERP</span>
             </div>
           </div>
         </div>

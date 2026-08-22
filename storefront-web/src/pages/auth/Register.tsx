@@ -268,7 +268,7 @@ export default function Register() {
             </div>
           </div>
 
-          <p className="absolute bottom-3 text-white/50 text-[11px]">Powered by KITERP</p>
+          <p className="absolute bottom-3 text-white/50 text-[11px]">Powered by KIT ERP</p>
         </div>
 
         {/* ── Right form panel ── */}
@@ -395,7 +395,7 @@ export default function Register() {
 
             <div className="flex items-center justify-center gap-1.5 mt-3 text-[11px] text-gray-400">
               <ShieldCheck className="w-3 h-3" />
-              <span>Secured by KITERP</span>
+              <span>Secured by KIT ERP</span>
             </div>
           </div>
         </div>

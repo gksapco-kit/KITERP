@@ -328,7 +328,7 @@ export default function SignupWelcome() {
           !showModal && 'opacity-0',
         )}
       >
-        <span className="text-sm font-semibold tracking-tight text-white">KITERP</span>
+        <span className="text-sm font-semibold tracking-tight text-white">KIT ERP</span>
         {state.verificationHint ? (
           <HeaderEmailVerify hint={state.verificationHint} />
         ) : (

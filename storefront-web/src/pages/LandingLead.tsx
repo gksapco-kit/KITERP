@@ -27,8 +27,8 @@ export default function LandingLead() {
   const [sent, setSent] = useState(false)
 
   useDocumentSeo({
-    title: 'Add a new lead — KITERP',
-    description: 'Share your details with the KITERP team. We will follow up about the platform, pricing, and onboarding.',
+    title: 'Add a new lead — KIT ERP',
+    description: 'Share your details with the KIT ERP team. We will follow up about the platform, pricing, and onboarding.',
     keywords: 'KITERP lead, KIT ERP enquiry, business platform demo',
     canonicalPath: '/lead',
     ogImage: '/favicon-192.png',
@@ -37,9 +37,9 @@ export default function LandingLead() {
       {
         '@context': 'https://schema.org',
         '@type': 'WebPage',
-        name: 'Add a new lead — KITERP',
+        name: 'Add a new lead — KIT ERP',
         url: '/lead',
-        description: 'Share your details with the KITERP team.',
+        description: 'Share your details with the KIT ERP team.',
       },
     ]),
   })

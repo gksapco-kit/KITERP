@@ -132,7 +132,7 @@ function KiterpNavDemo({
         <aside className="kiterp-demo-sidebar">
           <div className="kiterp-demo-brand">
             <Store className="w-4 h-4" />
-            <span>KITERP</span>
+            <span>KIT ERP</span>
           </div>
           <nav className="kiterp-demo-nav">
             {KITERP_DEMO_SCENES.map((item, i) => {
@@ -572,7 +572,7 @@ export function LandingDemoVideo() {
             ? 'Press pause to explore'
             : hasVideoFile === false
               ? `${KITERP_DEMO_SCENES[sceneIndex].navLabel} · hover to explore`
-              : 'KITERP platform tour'}
+              : 'KIT ERP platform tour'}
         </span>
       </div>
     </div>

@@ -214,13 +214,13 @@ export default function Careers() {
     [openings],
   )
   useDocumentSeo({
-    title: 'Careers at KITERP — Join the KIT ERP Team',
+    title: 'Careers at KIT ERP — Join the KIT ERP Team',
     description:
-      'Explore open roles at KITERP. Apply for full-time, part-time, contract, and internship positions across product, engineering, sales, and operations.',
+      'Explore open roles at KIT ERP. Apply for full-time, part-time, contract, and internship positions across product, engineering, sales, and operations.',
     keywords: 'KITERP careers, KIT ERP jobs, hiring, internships',
     canonicalPath: '/careers',
     ogImage: '/images/careers-why-join.png',
-    ogImageAlt: 'Careers at KITERP',
+    ogImageAlt: 'Careers at KIT ERP',
     jsonLd: careersJsonLd,
   })
 
@@ -1165,7 +1165,7 @@ export default function Careers() {
                           required
                         />
                       </label>
-                      <label className="kiterp-careers-field">
+                      <div className="kiterp-careers-field">
                         <span>Phone</span>
                         <PhoneInput
                           value={form.phone}
@@ -1176,7 +1176,7 @@ export default function Careers() {
                           size="sm"
                           showStatusHints={false}
                         />
-                      </label>
+                      </div>
                       <label className="kiterp-careers-field kiterp-careers-field--full">
                         <span>City</span>
                         <input

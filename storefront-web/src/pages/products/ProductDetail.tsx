@@ -239,7 +239,7 @@ export default function ProductDetail() {
       ? (product.meta_title?.trim() || `${product.name} | ${vendorName}`)
       : vendorPageTitle('Product', vendorName),
     description: product
-      ? (productDescription || `Buy ${product.name} from ${vendorName} on KITERP.`)
+      ? (productDescription || `Buy ${product.name} from ${vendorName} on KIT ERP.`)
       : undefined,
     keywords: seoKeywords(product?.meta_keywords) || product?.tags?.join(', '),
     canonicalUrl: product?.canonical_url,

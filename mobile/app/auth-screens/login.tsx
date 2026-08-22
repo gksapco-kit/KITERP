@@ -44,7 +44,7 @@ export default function LoginScreen() {
     display_name: string
   } | null>(null)
   const [resolving, setResolving] = useState(false)
-  const [storeName, setStoreName] = useState(branded ? 'Store' : 'KITERP')
+  const [storeName, setStoreName] = useState(branded ? 'Store' : 'KIT ERP')
 
   useEffect(() => {
     if (!branded) return
@@ -183,7 +183,7 @@ export default function LoginScreen() {
               />
             </View>
             <Text style={styles.heroTitle}>
-              {branded ? 'Welcome back' : 'Welcome to KITERP'}
+              {branded ? 'Welcome back' : 'Welcome to KIT ERP'}
             </Text>
             <Text style={styles.heroSub}>
               {branded

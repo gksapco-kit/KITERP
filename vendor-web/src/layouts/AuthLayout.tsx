@@ -27,11 +27,11 @@ export default function AuthLayout() {
       : authPath === '/forgot-password' ? 'Forgot Password'
         : authPath === '/auth/handoff' ? 'Sign In'
           : authPath === '/register' || authPath === '/signup' ? 'Register'
-            : 'KITERP'
+            : 'KIT ERP'
 
   useDocumentSeo({
-    title: authTitle === 'KITERP' ? 'KITERP — Vendor Business Dashboard' : vendorAppPageTitle(authTitle),
-    description: 'Sign in to manage your KITERP business — products, orders, website builder, and operations.',
+    title: authTitle === 'KIT ERP' ? 'KIT ERP — Vendor Business Dashboard' : vendorAppPageTitle(authTitle),
+    description: 'Sign in to manage your KIT ERP business — products, orders, website builder, and operations.',
     noindex: true,
   })
 
@@ -59,7 +59,7 @@ export default function AuthLayout() {
           className="inline-flex shrink-0 items-center gap-2 self-start text-white transition-opacity hover:opacity-80"
         >
           <KitErpBrandMark className="h-9 w-9" />
-          <span className="text-base font-bold tracking-tight xl:text-lg">KITERP</span>
+          <span className="text-base font-bold tracking-tight xl:text-lg">KIT ERP</span>
         </a>
         <div className="flex flex-1 items-center justify-center">
           <div className="mx-auto max-w-md text-center text-white">
@@ -85,7 +85,7 @@ export default function AuthLayout() {
             className="inline-flex items-center gap-2 transition-opacity hover:opacity-80"
           >
             <KitErpBrandMark />
-            <span className="text-base font-bold text-slate-900">KITERP</span>
+            <span className="text-base font-bold text-slate-900">KIT ERP</span>
           </a>
         </header>
         <div className="flex flex-1 items-center justify-center p-8">

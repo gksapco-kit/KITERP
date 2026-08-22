@@ -191,9 +191,9 @@ type OtpChannel = 'phone' | 'email'
 export default function VendorSignup() {
   const navigate = useNavigate()
   useDocumentSeo({
-    title: 'Create Your Business — KITERP',
+    title: 'Create Your Business — KIT ERP',
     description:
-      'Create a KITERP business account to launch your online store, bookings, website, and operations dashboard in one platform.',
+      'Create a KIT ERP business account to launch your online store, bookings, website, and operations dashboard in one platform.',
     keywords: 'KITERP signup, create business, online store, vendor registration',
     canonicalPath: VENDOR_SIGNUP_PATH,
     ogImage: '/favicon-192.png',

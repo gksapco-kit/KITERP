@@ -141,14 +141,14 @@ export default function PartnerDetail() {
   const maps = vendor ? partnerMapsHref(vendor) : null
 
   useDocumentSeo({
-    title: name ? `${name} — KITERP Partner` : 'Partner — KITERP',
+    title: name ? `${name} — KIT ERP Partner` : 'Partner — KIT ERP',
     description: vendor?.description?.trim()
       || (name
-        ? `${name}${location ? ` in ${location}` : ''} on the KITERP partner directory.`
-        : 'View this KITERP partner business.'),
+        ? `${name}${location ? ` in ${location}` : ''} on the KIT ERP partner directory.`
+        : 'View this KIT ERP partner business.'),
     canonicalPath: `/partners/${slug}`,
     ogImage: vendor?.logo_url || '/favicon-192.png',
-    ogImageAlt: name || 'KITERP partner',
+    ogImageAlt: name || 'KIT ERP partner',
     ogType: 'profile',
     jsonLd: vendor
       ? compactJsonLd([

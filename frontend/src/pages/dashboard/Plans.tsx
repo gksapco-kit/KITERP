@@ -30,7 +30,7 @@ const FEATURE_META: Record<string, { label: string; icon: typeof Smartphone; des
   analytics: { label: 'Analytics', icon: BarChart3, description: 'Access to analytics dashboard' },
   api_access: { label: 'API Access', icon: Code, description: 'Programmatic API access' },
   priority_support: { label: 'Priority Support', icon: Headphones, description: 'Faster support response' },
-  white_label: { label: 'White Label', icon: Tag, description: 'Remove KITERP branding' },
+  white_label: { label: 'White Label', icon: Tag, description: 'Remove KIT ERP branding' },
   restaurant: { label: 'Restaurant', icon: Tag, description: 'Floor plan, KDS, reservations, QR ordering' },
   pos: { label: 'POS', icon: Tag, description: 'Point of sale and checkout' },
 }

@@ -53,9 +53,9 @@ export function contactPageJsonLd(): JsonLd {
   return {
     '@context': 'https://schema.org',
     '@type': 'ContactPage',
-    name: 'Contact KITERP',
+    name: 'Contact KIT ERP',
     url: absoluteUrl('/contact'),
-    description: 'Contact the KITERP team for platform support, partnerships, and onboarding help.',
+    description: 'Contact the KIT ERP team for platform support, partnerships, and onboarding help.',
     isPartOf: { '@type': 'WebSite', name: PLATFORM_SEO.siteName, url: absoluteUrl('/') },
   }
 }

@@ -13,8 +13,8 @@ export default function VerifyEmail() {
   const location = useLocation()
   const navigate = useNavigate()
   useDocumentSeo({
-    title: 'Verify Email — KITERP',
-    description: 'Verify your email to finish creating your KITERP business account.',
+    title: 'Verify Email — KIT ERP',
+    description: 'Verify your email to finish creating your KIT ERP business account.',
     canonicalPath: VENDOR_VERIFY_EMAIL_PATH,
     noindex: true,
   })
@@ -115,7 +115,7 @@ export default function VerifyEmail() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
           <a href="/" className="flex items-center gap-2">
             <Store className="w-7 h-7 text-blue-600" />
-            <span className="font-bold text-lg text-gray-900">KITERP</span>
+            <span className="font-bold text-lg text-gray-900">KIT ERP</span>
           </a>
         </div>
       </header>
@@ -204,7 +204,7 @@ export default function VerifyEmail() {
           )}
 
           <div className="flex items-center justify-center gap-1.5 mt-4 text-xs text-gray-400">
-            <ShieldCheck className="w-3.5 h-3.5" /> Secured by KITERP
+            <ShieldCheck className="w-3.5 h-3.5" /> Secured by KIT ERP
           </div>
         </div>
       </div>

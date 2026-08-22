@@ -984,8 +984,8 @@ function BlockBasedPreview({ templateId }: { templateId: string }) {
 export default function TemplateBrowserPreview() {
   const { templateId = '' } = useParams<{ templateId: string }>()
   useDocumentSeo({
-    title: 'Template Preview — KITERP',
-    description: 'Private KITERP website template preview.',
+    title: 'Template Preview — KIT ERP',
+    description: 'Private KIT ERP website template preview.',
     noindex: true,
   })
   if (!templateId) return (

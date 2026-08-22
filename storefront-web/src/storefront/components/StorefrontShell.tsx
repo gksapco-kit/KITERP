@@ -90,7 +90,7 @@ export const StorefrontShell = ({ storeName, tagline, nav, basePath, children }:
         <div className="max-w-7xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-8 text-sm">
           <div>
             <div className="text-lg mb-3" style={{ fontFamily: 'var(--sf-display)' }}>{storeName}</div>
-            <p className="opacity-70 max-w-xs">A demo business front powered by KITERP. Replace this copy from your dashboard.</p>
+            <p className="opacity-70 max-w-xs">A demo business front powered by KIT ERP. Replace this copy from your dashboard.</p>
           </div>
           <FooterCol title="Shop" links={nav.map((n) => n.label)} />
           <FooterCol title="Help" links={['Shipping', 'Returns', 'Size guide', 'Contact']} />

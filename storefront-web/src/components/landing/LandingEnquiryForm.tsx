@@ -47,6 +47,7 @@ type Props = {
   notesLabel: string
   notesPlaceholder: string
   footer?: ReactNode
+  compact?: boolean
 }
 
 export function composedEnquiryName(form: EnquiryFormValues) {
@@ -60,6 +61,7 @@ export function LandingEnquiryFields({
   notesLabel,
   notesPlaceholder,
   footer,
+  compact = false,
 }: Props) {
   const set = (patch: Partial<EnquiryFormValues>) => onChange({ ...form, ...patch })
 
@@ -116,7 +118,7 @@ export function LandingEnquiryFields({
           autoComplete="email"
         />
       </label>
-      <label className="kiterp-contact-field">
+      <div className="kiterp-contact-field">
         <span>Phone</span>
         <PhoneInput
           value={form.phone}
@@ -125,8 +127,9 @@ export function LandingEnquiryFields({
           autoComplete="tel"
           name="phone"
           showStatusHints={false}
+          size={compact ? 'sm' : 'md'}
         />
-      </label>
+      </div>
 
       <div className="kiterp-contact-field kiterp-contact-field--full">
         <span>Source</span>

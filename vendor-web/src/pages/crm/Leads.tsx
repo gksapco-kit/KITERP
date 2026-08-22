@@ -75,6 +75,22 @@ function sourceLabel(source?: string | null) {
   return labels[key] || source || '—'
 }
 
+function SourceChip({ source }: { source?: string | null }) {
+  if (!source?.trim()) {
+    return <span className="text-sm text-gray-400">—</span>
+  }
+  const label = sourceLabel(source)
+  return (
+    <Badge
+      variant="soft"
+      title={label}
+      className="max-w-[14rem] min-w-0 whitespace-nowrap overflow-hidden"
+    >
+      <span className="truncate">{label}</span>
+    </Badge>
+  )
+}
+
 function truncateEmail(email?: string | null, maxChars = 20) {
   const value = (email || '').trim()
   if (!value) return '—'
@@ -791,7 +807,7 @@ export default function LeadsPage() {
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[72rem]">
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="w-10 px-3 py-2">
@@ -819,8 +835,8 @@ export default function LeadsPage() {
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden lg:table-cell"><TableColumnLabel>Assigned to</TableColumnLabel></th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Title</TableColumnLabel></th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase hidden md:table-cell"><TableColumnLabel>Company</TableColumnLabel></th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase min-w-[9rem]"><TableColumnLabel>Source</TableColumnLabel></th>
                 <th className="text-right px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Source</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -896,6 +912,9 @@ export default function LeadsPage() {
                   </td>
                   <td className="px-4 py-2 text-sm text-gray-600 hidden md:table-cell">{l.title || '—'}</td>
                   <td className="px-4 py-2 text-sm text-gray-600 hidden md:table-cell">{l.company || '—'}</td>
+                  <td className="px-4 py-2 align-middle min-w-[9rem]">
+                    <SourceChip source={l.source} />
+                  </td>
                   <td className="px-4 py-2 text-right">
                     <div className="flex justify-end gap-1">
                       {showDeleted ? (
@@ -937,13 +956,6 @@ export default function LeadsPage() {
                         </>
                       )}
                     </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    {l.source ? (
-                      <Badge variant="soft">{sourceLabel(l.source)}</Badge>
-                    ) : (
-                      <span className="text-sm text-gray-400">—</span>
-                    )}
                   </td>
                 </tr>
               ))}

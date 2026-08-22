@@ -126,7 +126,7 @@ export default function AboutPage() {
 
       {/* Legal / info footer */}
       <p className="text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} KITERP. All rights reserved.
+        © {new Date().getFullYear()} KIT ERP. All rights reserved.
       </p>
     </div>
   )

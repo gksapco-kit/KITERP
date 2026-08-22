@@ -40,9 +40,9 @@ export default function LandingContact() {
   const [sent, setSent] = useState(false)
 
   useDocumentSeo({
-    title: 'Contact KITERP — Support & Sales',
+    title: 'Contact KIT ERP — Support & Sales',
     description:
-      'Contact the KITERP team for platform support, partnerships, pricing questions, and business onboarding help.',
+      'Contact the KIT ERP team for platform support, partnerships, pricing questions, and business onboarding help.',
     keywords: 'KITERP contact, KIT ERP support, business platform help',
     canonicalPath: '/contact',
     ogImage: '/favicon-192.png',
@@ -202,7 +202,7 @@ export default function LandingContact() {
             <form id="talk-to-us" onSubmit={onSubmit} className="kiterp-contact-form" noValidate>
               <h2 className="kiterp-contact-form-title">Talk to us</h2>
               <p className="kiterp-contact-form-hint">
-                A name, company, source, and email or phone fill the leads columns. We typically reply within one business day.
+                We typically reply within one business day.
               </p>
 
               <LandingEnquiryFields
@@ -211,12 +211,9 @@ export default function LandingContact() {
                 sourceOptions={TALK_TO_US_SOURCE_OPTIONS}
                 notesLabel="Message"
                 notesPlaceholder="How can we help?"
+                compact
                 footer={<PublicFormTrap value={trap} onChange={(patch) => setTrap((t) => ({ ...t, ...patch }))} />}
               />
-
-              <p className="kiterp-contact-crm-note">
-                Submitting this form creates a lead with your name, company, source, and message.
-              </p>
 
               <button type="submit" disabled={sending} className="kiterp-btn-primary kiterp-contact-submit">
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

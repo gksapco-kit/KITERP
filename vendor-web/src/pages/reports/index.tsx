@@ -1004,7 +1004,7 @@ export default function ReportsPage() {
       `🔴 *Top Shortages:*`,
       ...mrpFiltered.filter(r => r.gap > 0).slice(0, 5).map(r => `• ${r.name}: need ${r.gap} more (have ${r.available_stock})`),
       ``,
-      `_Sent via KITERP_`,
+      `_Sent via KIT ERP_`,
     ]
     window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
   }
@@ -1189,7 +1189,7 @@ export default function ReportsPage() {
       lines.push(`\n⏳ Pending Orders: ${statusSegments.find(s => s.label === 'pending')?.value ?? 0}`)
     if (contact.smart_triggers.includes('low_stock'))
       lines.push(`\n⚠️ Low Stock Items: ${inventoryStats.lowCount}`)
-    lines.push(`\n_Sent via KITERP at ${new Date().toLocaleString('en-IN')}_`)
+    lines.push(`\n_Sent via KIT ERP at ${new Date().toLocaleString('en-IN')}_`)
     return lines.join('\n')
   }
 
@@ -1656,7 +1656,7 @@ export default function ReportsPage() {
                             <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                               <MessageCircle className="w-3 h-3 text-white" />
                             </div>
-                            <span className="text-xs font-medium text-gray-700">KITERP Bot → {contact.label}</span>
+                            <span className="text-xs font-medium text-gray-700">KIT ERP Bot → {contact.label}</span>
                           </div>
                           <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono leading-relaxed max-h-36 overflow-y-auto">{buildReportText(contact)}</pre>
                         </div>

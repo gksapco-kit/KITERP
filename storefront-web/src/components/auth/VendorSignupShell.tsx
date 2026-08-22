@@ -36,7 +36,7 @@ export function VendorSignupShell({
           <div className="mx-auto flex max-w-xl items-center justify-between md:max-w-lg xl:max-w-xl">
             <a href={homeHref} className="flex items-center gap-2 transition-opacity hover:opacity-80 md:hidden">
               <Store className="h-5 w-5" style={{ color: SIGNUP_BRAND }} aria-hidden />
-              <span className="text-base font-bold text-slate-900">KITERP</span>
+              <span className="text-base font-bold text-slate-900">KIT ERP</span>
             </a>
             <span className="hidden md:block" aria-hidden />
             <a href={signInHref} className="text-xs sm:text-sm text-slate-600">

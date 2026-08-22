@@ -409,7 +409,7 @@ export default function ForgotPassword() {
 
           <div className="flex items-center justify-center gap-1.5 py-4 border-t text-xs text-gray-500" style={{ backgroundColor: background }}>
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Secured by KITERP</span>
+            <span>Secured by KIT ERP</span>
           </div>
         </div>
       </div>

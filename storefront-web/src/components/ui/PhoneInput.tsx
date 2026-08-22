@@ -96,7 +96,7 @@ function CountryDropdown({
     : orderedCountries
 
   return (
-    <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-72 overflow-hidden max-h-[90vh] overflow-y-auto">
+    <div className="phone-input-dropdown absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-72 overflow-hidden max-h-[min(20rem,70vh)] overflow-y-auto">
       {/* Search */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 bg-gray-50">
         <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -105,7 +105,7 @@ function CountryDropdown({
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search country or code…"
-          className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
+          className="phone-input-country-search flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 border-0 shadow-none p-0 w-auto"
         />
         {search && (
           <button type="button" onClick={() => setSearch('')}>
@@ -208,16 +208,23 @@ export function PhoneInput({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click or Escape
   useEffect(() => {
     if (!dropOpen) return
-    const handler = (e: MouseEvent) => {
+    const onPointer = (e: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
         setDropOpen(false)
       }
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDropOpen(false)
+    }
+    document.addEventListener('mousedown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [dropOpen])
 
   const emit = useCallback(
@@ -272,10 +279,10 @@ export function PhoneInput({
 
   return (
     <div className={cn(showStatusHints || showErrorMessage ? 'space-y-1' : undefined, className)}>
+      <div ref={wrapRef} className={cn('phone-input-wrap relative', dropOpen && 'z-30')}>
       <div
-        ref={wrapRef}
         className={cn(
-          'phone-input-shell relative flex items-stretch overflow-hidden rounded-xl border bg-white transition-[border-color,box-shadow]',
+          'phone-input-shell flex items-stretch overflow-hidden rounded-xl border bg-white transition-[border-color,box-shadow]',
           fieldH,
           dropOpen
             ? 'border-[var(--kiterp-primary,#64c3a0)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--kiterp-primary,#64c3a0)_18%,transparent)]'
@@ -294,6 +301,8 @@ export function PhoneInput({
           type="button"
           disabled={disabled}
           onClick={() => setDropOpen(v => !v)}
+          aria-expanded={dropOpen}
+          aria-haspopup="listbox"
           aria-label={`Country code ${country.dialCode}`}
           title={`${country.name} (${country.iso})`}
           className={cn(
@@ -357,7 +366,7 @@ export function PhoneInput({
           )}
         </div>
 
-        {/* Dropdown */}
+      </div>
         {dropOpen && (
           <CountryDropdown
             selected={country}

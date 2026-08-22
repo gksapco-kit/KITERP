@@ -74,7 +74,7 @@ export default function StorefrontAbout() {
               </div>
               <div>
                 <p className="font-medium text-gray-900">Verified Seller</p>
-                <p className="text-sm text-gray-500">This store has been verified by KITERP platform.</p>
+                <p className="text-sm text-gray-500">This store has been verified by KIT ERP platform.</p>
               </div>
             </div>
             <div className="flex items-start gap-3">

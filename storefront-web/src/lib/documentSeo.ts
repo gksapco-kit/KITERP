@@ -20,10 +20,10 @@ export type DocumentSeoInput = {
 }
 
 export const PLATFORM_SEO = {
-  siteName: 'KITERP',
-  defaultTitle: 'KITERP — Business Front & Multi-Vendor Commerce Platform',
+  siteName: 'KIT ERP',
+  defaultTitle: 'KIT ERP — Business Front & Multi-Vendor Commerce Platform',
   defaultDescription:
-    'KITERP powers branded business fronts, online stores, bookings, and multi-vendor commerce from one platform. Discover partners, create your business, and sell online.',
+    'KIT ERP powers branded business fronts, online stores, bookings, and multi-vendor commerce from one platform. Discover partners, create your business, and sell online.',
   defaultKeywords:
     'KITERP, KIT ERP, business front, multi-vendor, ecommerce, online store, bookings, SaaS',
   themeColor: '#0f172a',

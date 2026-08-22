@@ -345,7 +345,7 @@ function FooterStandard({ vendor, storePath, theme }: { vendor: any; storePath: 
         </div>
         <div className={cn('border-t py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs', surface.borderClass, surface.mutedClass)}>
           <p>&copy; {new Date().getFullYear()} {vendor?.display_name}. All rights reserved.</p>
-          <p>Powered by <Link to="/" className="hover:underline font-medium" style={surface.brandLinkStyle}>KITERP</Link></p>
+          <p>Powered by <Link to="/" className="hover:underline font-medium" style={surface.brandLinkStyle}>KIT ERP</Link></p>
         </div>
       </div>
     </footer>
@@ -419,7 +419,7 @@ function FooterFull({ vendor, storePath, theme }: { vendor: any; storePath: (p: 
         </div>
         <div className={cn('border-t py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs', surface.borderClass, surface.mutedClass)}>
           <p>&copy; {new Date().getFullYear()} {vendor?.display_name}. All rights reserved.</p>
-          <p>Powered by <Link to="/" className="hover:underline font-medium" style={surface.brandLinkStyle}>KITERP</Link></p>
+          <p>Powered by <Link to="/" className="hover:underline font-medium" style={surface.brandLinkStyle}>KIT ERP</Link></p>
         </div>
       </div>
     </footer>

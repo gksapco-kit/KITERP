@@ -47,7 +47,7 @@ export default function Index() {
   }, [isAuthenticated, role, branding])
 
   const bgColor = branding?.primaryColor || BRAND.primary
-  const appName = branding?.name || 'KITERP'
+  const appName = branding?.name || 'KIT ERP'
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: bgColor }}>

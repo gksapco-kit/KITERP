@@ -17,7 +17,7 @@ export function LandingHeader() {
               <Store className="w-4 h-4 sm:w-[18px] sm:h-[18px]" strokeWidth={2.25} />
             </span>
             <span className="font-bold text-base sm:text-[17px] tracking-tight text-[#1e3d34]">
-              KIT<span className="text-[#3d9a7a]">ERP</span>
+              KIT <span className="text-[#3d9a7a]">ERP</span>
             </span>
           </Link>
 

@@ -276,7 +276,10 @@ export default function PlatformCrmLeads() {
                     {lead.source ? (
                       <p className="mt-0.5 flex items-center gap-1.5">
                         <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">Source</span>
-                        <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
+                        <span
+                          title={sourceLabel(lead.source)}
+                          className="inline-flex max-w-[14rem] min-w-0 truncate whitespace-nowrap rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800"
+                        >
                           {sourceLabel(lead.source)}
                         </span>
                       </p>

@@ -2687,8 +2687,8 @@ export default function DashboardLayout() {
     applyDocumentSeo({
       title,
       description: pageTitle === 'Dashboard'
-        ? 'KITERP vendor dashboard for products, orders, websites, CRM, finance, HR, and business operations.'
-        : `${pageTitle} — KITERP vendor business dashboard.`,
+        ? 'KIT ERP vendor dashboard for products, orders, websites, CRM, finance, HR, and business operations.'
+        : `${pageTitle} — KIT ERP vendor business dashboard.`,
       noindex: true,
     })
   }, [pageTitle])
