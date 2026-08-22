@@ -16,7 +16,7 @@ from app.schemas.vendor import VendorResponse
 from app.schemas.vendor_product import ProductResponse, ProductListResponse
 from app.schemas.vendor_service import ServiceResponse, ServiceListResponse
 from app.schemas.storefront_contact_query import StorefrontContactQueryCreate
-from app.schemas.storefront_lead import PlatformLeadCreate, PlatformLeadLookup
+from app.schemas.storefront_lead import PlatformLeadCreate, PlatformLeadLookup, compose_crm_source
 from app.models.storefront_contact_query import StorefrontContactQuery
 from app.models.platform_career_application import PlatformCareerApplication
 from app.services.vendor_service import VendorService
@@ -708,6 +708,7 @@ async def submit_platform_contact_query(
 
         first, last = _contact_lead_name_parts(body)
         vid = await get_platform_crm_vendor_id(db)
+        crm_source = compose_crm_source(body.source, body.referral_name, default="talk_to_us")
         lead = await LeadService(db).create(
             vid,
             LeadCreate(
@@ -717,7 +718,7 @@ async def submit_platform_contact_query(
                 company=body.company,
                 email=str(body.email) if body.email else None,
                 phone=body.phone,
-                source=body.source or "talk_to_us",
+                source=crm_source,
                 status="new",
                 notes=body.message,
                 custom_fields={"contact_query_id": str(row.id)},
@@ -732,6 +733,7 @@ async def submit_platform_contact_query(
                     "email": str(body.email) if body.email else None,
                     "phone": body.phone,
                     "source": body.source or "talk_to_us",
+                    "referral_name": body.referral_name,
                     "message": body.message,
                 },
             ),
@@ -896,6 +898,7 @@ async def submit_platform_lead(
             },
         )
 
+    crm_source = compose_crm_source(body.source, body.referral_name, default="website")
     obj = await LeadService(db).create(
         vid,
         LeadCreate(
@@ -905,12 +908,13 @@ async def submit_platform_lead(
             company=body.company,
             email=email,
             phone=phone,
-            source=body.source or "website",
+            source=crm_source,
             status="new",
             notes=body.notes,
             intake_payload={
                 "channel": "landing_add_lead",
                 "source": body.source or "website",
+                "referral_name": body.referral_name,
             },
         ),
         request=request,

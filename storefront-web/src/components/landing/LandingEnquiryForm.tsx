@@ -9,6 +9,7 @@ export type EnquiryFormValues = {
   email: string
   phone: string
   source: string
+  referral_name: string
   notes: string
 }
 
@@ -20,6 +21,7 @@ export const EMPTY_ENQUIRY_FORM: EnquiryFormValues = {
   email: '',
   phone: '',
   source: 'website',
+  referral_name: '',
   notes: '',
 }
 
@@ -52,6 +54,12 @@ type Props = {
 
 export function composedEnquiryName(form: EnquiryFormValues) {
   return [form.first_name, form.last_name].map((p) => p.trim()).filter(Boolean).join(' ')
+}
+
+export function enquiryReferralName(form: EnquiryFormValues) {
+  if (form.source !== 'referral') return undefined
+  const name = form.referral_name.trim()
+  return name || undefined
 }
 
 export function LandingEnquiryFields({
@@ -146,6 +154,17 @@ export function LandingEnquiryFields({
           ))}
         </div>
       </div>
+      {form.source === 'referral' ? (
+        <label className="kiterp-contact-field kiterp-contact-field--full">
+          <span>Referral name</span>
+          <input
+            value={form.referral_name}
+            onChange={(e) => set({ referral_name: e.target.value })}
+            placeholder="Who referred you?"
+            autoComplete="off"
+          />
+        </label>
+      ) : null}
 
       <label className="kiterp-contact-field kiterp-contact-field--full kiterp-contact-field--message">
         <span>{notesLabel}</span>

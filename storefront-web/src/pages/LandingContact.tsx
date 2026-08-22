@@ -11,6 +11,7 @@ import {
   LandingEnquiryFields,
   TALK_TO_US_SOURCE_OPTIONS,
   composedEnquiryName,
+  enquiryReferralName,
   type EnquiryFormValues,
 } from '@/components/landing/LandingEnquiryForm'
 import { PublicFormTrap, emptyTrapState, trapPayload } from '@/components/landing/PublicFormTrap'
@@ -90,6 +91,10 @@ export default function LandingContact() {
       toast.error('Please add a little more detail in your message')
       return
     }
+    if (form.source === 'referral' && !enquiryReferralName(form)) {
+      toast.error('Enter the referral name')
+      return
+    }
     setSending(true)
     try {
       const res = await apiClient.post<{ message?: string }>('/catalog/platform-contact-queries', {
@@ -101,6 +106,7 @@ export default function LandingContact() {
         email: form.email.trim() || undefined,
         phone: form.phone.trim() || undefined,
         source: form.source || 'talk_to_us',
+        referral_name: enquiryReferralName(form),
         message: form.notes.trim(),
         ...trapPayload(trap),
       })

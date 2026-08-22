@@ -10,6 +10,7 @@ import {
   EMPTY_ENQUIRY_FORM,
   LEAD_SOURCE_OPTIONS,
   LandingEnquiryFields,
+  enquiryReferralName,
   type EnquiryFormValues,
 } from '@/components/landing/LandingEnquiryForm'
 import { PublicFormTrap, emptyTrapState, trapPayload } from '@/components/landing/PublicFormTrap'
@@ -88,6 +89,10 @@ export default function LandingLead() {
       toast.error('Enter a name, email, or phone number')
       return
     }
+    if (form.source === 'referral' && !enquiryReferralName(form)) {
+      toast.error('Enter the referral name')
+      return
+    }
     setSending(true)
     try {
       const res = await apiClient.post<{ message?: string }>('/catalog/platform-leads', {
@@ -98,6 +103,7 @@ export default function LandingLead() {
         email: form.email.trim() || undefined,
         phone: form.phone.trim() || undefined,
         source: form.source,
+        referral_name: enquiryReferralName(form),
         notes: form.notes.trim() || undefined,
         force,
         ...trapPayload(trap),

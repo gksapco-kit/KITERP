@@ -5,6 +5,15 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 _ALLOWED_SOURCES = {"website", "ads", "referral", "other", "talk_to_us"}
 
 
+def compose_crm_source(source: Optional[str], referral_name: Optional[str] = None, *, default: str = "website") -> str:
+    """Keep known source keys; attach the referrer name for CRM display."""
+    key = (source or "").strip().lower().replace(" ", "_") or default
+    name = (referral_name or "").strip()
+    if key == "referral" and name:
+        return f"Referral — {name}"[:80]
+    return key if key in _ALLOWED_SOURCES or key == default else default
+
+
 class PlatformLeadCreate(BaseModel):
     first_name: Optional[str] = Field(None, max_length=80)
     last_name: Optional[str] = Field(None, max_length=80)
@@ -14,6 +23,7 @@ class PlatformLeadCreate(BaseModel):
     phone: Optional[str] = Field(None, max_length=40)
     notes: Optional[str] = Field(None, max_length=4000)
     source: Optional[str] = Field(None, max_length=80)
+    referral_name: Optional[str] = Field(None, max_length=80)
     force: bool = Field(
         False,
         description="Create even when a matching lead already exists.",
@@ -23,7 +33,7 @@ class PlatformLeadCreate(BaseModel):
     form_started_at: Optional[int] = None
     captcha_token: Optional[str] = Field(None, max_length=4000)
 
-    @field_validator("first_name", "last_name", "title", "company", "notes", "source", "phone")
+    @field_validator("first_name", "last_name", "title", "company", "notes", "source", "referral_name", "phone")
     @classmethod
     def strip_optional(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
