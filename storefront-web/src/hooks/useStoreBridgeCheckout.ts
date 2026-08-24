@@ -12,6 +12,7 @@ import { useBranch } from '@/contexts/BranchContext'
 import { branchCodeForStore, pickDefaultOpenBranch } from '@/lib/branchMatching'
 import { storeApi } from '@/api/store'
 import { openRazorpayCheckout, mockRazorpayPay } from '@/lib/razorpay'
+import { isAxiosError } from 'axios'
 import { extractApiError } from '@/lib/errorMessages'
 import {
   checkoutSelectionToPaymentMethod,
@@ -21,6 +22,7 @@ import {
   validateCheckoutPaymentMethod,
 } from '@/lib/checkoutPayment'
 import { validateCheckoutFields, scrollToFirstCheckoutField, type CheckoutFieldErrors } from '@/checkout/validateCheckout'
+import { useCheckoutConfig } from '@/checkout/config'
 import {
   buildCheckoutNotesFromIntent,
   cartHasIntentLine,
@@ -47,6 +49,13 @@ function paymentToCheckout(method: 'cod' | 'upi' | 'card'): PaymentSelection {
   return { kind: 'tab', tab: 'card' }
 }
 
+function isSignInRequiredPreviewError(error: unknown): boolean {
+  if (!isAxiosError(error)) return false
+  if (error.response?.status === 401) return true
+  const detail = error.response?.data?.detail
+  return typeof detail === 'string' && /sign in/i.test(detail)
+}
+
 export function useStoreBridgeCheckout() {
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -54,6 +63,7 @@ export function useStoreBridgeCheckout() {
   const { customer, isAuthenticated, setTokens, setCustomer } = useAuthStore()
   const { vendorSlug } = useVendor()
   const { branchCode, isBranchClosed, selectedBranch, branches } = useBranch()
+  const { allowGuest } = useCheckoutConfig()
   const isGuest = !isAuthenticated
   const { data: cart } = useCart()
   const { data: storeInfo } = useStoreInfo()
@@ -191,25 +201,28 @@ export function useStoreBridgeCheckout() {
   const refreshPreview = useCallback(async (options?: { coupon?: string | null; shippingMethodId?: string }) => {
     if (!cartItemsPayload.length) {
       setServerPreview(null)
+      setPreviewError(undefined)
+      return
+    }
+    // Guest preview is blocked server-side when sign-in is mandatory — use local totals instead.
+    if (isGuest && !allowGuest) {
+      setServerPreview(null)
+      setPreviewError(undefined)
       return
     }
     const methodId = options?.shippingMethodId ?? shippingMethodId
     const coupon = options?.coupon !== undefined ? options.coupon : couponCode
-    setPreviewLoading(true)
-    setPreviewError(undefined)
-    try {
-      const checkoutBranch = selectedBranch ?? pickDefaultOpenBranch(branches)
-      const orderBranchCode = checkoutBranch ? branchCodeForStore(checkoutBranch) : branchCode ?? undefined
-      const previewBody = {
-        shipping_method_id: methodId,
-        coupon_code: coupon ?? undefined,
-        shipping_state: resolvedAddress?.region,
-        store_id: checkoutBranch?.id ?? undefined,
-        branch_code: orderBranchCode,
-      }
-      const data = isGuest
-        ? await storeApi.guestCheckoutPreview({ ...previewBody, items: cartItemsPayload })
-        : await storeApi.checkoutPreview(previewBody)
+    const checkoutBranch = selectedBranch ?? pickDefaultOpenBranch(branches)
+    const orderBranchCode = checkoutBranch ? branchCodeForStore(checkoutBranch) : branchCode ?? undefined
+    const previewBody = {
+      shipping_method_id: methodId,
+      coupon_code: coupon ?? undefined,
+      shipping_state: resolvedAddress?.region,
+      store_id: checkoutBranch?.id ?? undefined,
+      branch_code: orderBranchCode,
+    }
+
+    const applyPreview = (data: Awaited<ReturnType<typeof storeApi.checkoutPreview>>) => {
       setServerPreview(data)
       if (data.shipping_methods?.length && !data.shipping_methods.some(m => m.id === methodId)) {
         setShippingMethodId(data.shipping_methods[0].id)
@@ -221,7 +234,6 @@ export function useStoreBridgeCheckout() {
       if (connected.length > 0 || codOk || manualUpi?.enabled) {
         setPayment(prev => {
           if (prev) return prev
-          // Subscriptions / bookings: prefer UPI when available
           if (preferUpi && manualUpi?.enabled) {
             return { kind: 'tab', tab: 'upi' }
           }
@@ -238,12 +250,33 @@ export function useStoreBridgeCheckout() {
           return { kind: 'tab', tab: 'bnpl' }
         })
       }
+    }
+
+    setPreviewLoading(true)
+    setPreviewError(undefined)
+    try {
+      if (isGuest) {
+        applyPreview(await storeApi.guestCheckoutPreview({ ...previewBody, items: cartItemsPayload }))
+        return
+      }
+      try {
+        applyPreview(await storeApi.checkoutPreview(previewBody))
+      } catch (authErr) {
+        // Server cart may be empty while local lines exist (booking/subscription seed).
+        try {
+          applyPreview(await storeApi.guestCheckoutPreview({ ...previewBody, items: cartItemsPayload }))
+        } catch (guestErr) {
+          if (!isSignInRequiredPreviewError(guestErr) && !isSignInRequiredPreviewError(authErr)) {
+            setServerPreview(null)
+          }
+        }
+      }
     } catch {
-      setPreviewError('Could not load checkout totals')
+      setServerPreview(null)
     } finally {
       setPreviewLoading(false)
     }
-  }, [cartItemsPayload, shippingMethodId, couponCode, resolvedAddress?.region, isGuest, selectedBranch, branches, branchCode, vendorSlug])
+  }, [cartItemsPayload, shippingMethodId, couponCode, resolvedAddress?.region, isGuest, allowGuest, selectedBranch, branches, branchCode, vendorSlug])
 
   useEffect(() => {
     void refreshPreview()
@@ -455,6 +488,9 @@ export function useStoreBridgeCheckout() {
     },
 
     placeOrder: async (): Promise<{ ok: boolean; orderId?: string; error?: string; fieldErrors?: CheckoutFieldErrors }> => {
+      if (!allowGuest && isGuest) {
+        return { ok: false, error: 'Please sign in to place your order.' }
+      }
       if (isBranchClosed) {
         return {
           ok: false,

@@ -1,4 +1,5 @@
-import { useSearchParams, Navigate, useLocation } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { CheckoutConfigProvider, type CheckoutLayout, type PaymentMode, useCheckoutConfig } from '@/checkout/config'
 import { TwoColumnLayout } from '@/checkout/layouts/TwoColumnLayout'
@@ -15,7 +16,7 @@ import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme
 import { useCompletePendingBuyNow } from '@/hooks/useCompletePendingBuyNow'
 import { useCompletePendingCheckoutIntent } from '@/hooks/useCompletePendingCheckoutIntent'
 import { isSignInMandatoryForCart } from '@/lib/storefrontDisplayFields'
-import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
+import { useHasActiveCustomerSession } from '@/hooks/useAuthHydrated'
 import { peekPendingCheckoutIntent } from '@/lib/pendingCheckoutIntent'
 import { useCartStore } from '@/stores/cartStore'
 import type { StyleConfig } from '@/blocks/registry'
@@ -39,9 +40,11 @@ function CheckoutPageSkeleton() {
 
 export default function Checkout() {
   const { storePath } = useBranch()
+  const navigate = useNavigate()
   const { vendor, vendorSlug, displayFields, isLoading: vendorLoading } = useVendor()
   const location = useLocation()
-  const { ready: authReady, isLoggedIn } = useIsCustomerLoggedIn()
+  const { ready: authReady, hasSession } = useHasActiveCustomerSession()
+  const loginRedirectedRef = useRef(false)
   const { completing: completingBuyNow } = useCompletePendingBuyNow()
   const { completing: completingCheckoutIntent } = useCompletePendingCheckoutIntent()
   const { data: cart, isLoading: cartLoading } = useCart()
@@ -79,6 +82,12 @@ export default function Checkout() {
       )
     : false
   const allowGuest = !requireSignIn
+
+  useEffect(() => {
+    if (!authReady || vendorLoading || !requireSignIn || hasSession || loginRedirectedRef.current) return
+    loginRedirectedRef.current = true
+    navigate(storePath('/login'), { state: { from: storePath('/checkout') }, replace: true })
+  }, [authReady, vendorLoading, requireSignIn, hasSession, navigate, storePath])
 
   // Precedence: URL param (QA/demo) > wb_site style_config (website builder)
   //             > vendor theme_config > theme.css default
@@ -125,13 +134,11 @@ export default function Checkout() {
     )
   }
 
-  if (requireSignIn && !isLoggedIn) {
+  if (requireSignIn && !hasSession) {
     return (
-      <Navigate
-        to={storePath('/login')}
-        replace
-        state={{ from: location.pathname + location.search }}
-      />
+      <div className="checkout-root relative min-h-[70vh]" style={checkoutTheme}>
+        <CheckoutPageSkeleton />
+      </div>
     )
   }
 
@@ -193,13 +200,6 @@ function Inner({
       >
         {checkout.state.processingMessage ? (
           <CheckoutProcessingOverlay message={checkout.state.processingMessage} />
-        ) : null}
-        {checkout.state.error ? (
-          <div className="mx-auto max-w-6xl px-3 py-3 sm:px-4 md:px-6">
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              {checkout.state.error}
-            </p>
-          </div>
         ) : null}
         <CheckoutHeader />
         {activeLayout === 'wizard'    && <WizardLayout    {...checkout} />}

@@ -181,6 +181,12 @@ export default function StorefrontDisplayPage() {
         [selectedTemplateId]: entry,
       }
     }
+    delete payload.sign_in_mandatory
+    if (payload.delivery_conditions && typeof payload.delivery_conditions === 'object') {
+      const dc = { ...(payload.delivery_conditions as Record<string, unknown>) }
+      delete dc.sign_in_mandatory
+      payload.delivery_conditions = dc
+    }
     updateVendor.mutate({ settings: payload } as Partial<Vendor>, {
       onSuccess: () => toast.success('Business Front display updated'),
       onSettled: () => {

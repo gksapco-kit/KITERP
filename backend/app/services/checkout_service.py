@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.vendor import Vendor
 from app.models.vendor_product import Product
+from app.models.store import Store
 from app.services.coupon_service import CouponService
 
 DEFAULT_SHIPPING_METHODS: list[dict[str, Any]] = [
@@ -216,27 +217,69 @@ def _legacy_sign_in_mandatory(settings: dict) -> bool:
         return top_level
     conditions = settings.get("delivery_conditions")
     if not isinstance(conditions, dict):
-        return True
-    return conditions.get("sign_in_mandatory") is not False
+        return False
+    return conditions.get("sign_in_mandatory") is True
 
 
-def _display_sign_in_for_kind(settings: dict, kind: str) -> bool:
+def _template_mode(settings: dict) -> str:
+    mode = settings.get("storefront_template_mode")
+    if mode in ("single", "per_unit"):
+        return mode
+    return "single" if settings.get("storefront_link_mode") == "single" else "per_unit"
+
+
+def _settings_str(settings: dict | None, key: str) -> str | None:
+    if not settings:
+        return None
+    raw = settings.get(key)
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    return None
+
+
+def _resolve_sign_in_template_id(
+    vendor_settings: dict,
+    store_settings: dict | None = None,
+) -> str | None:
+    if _template_mode(vendor_settings) == "single":
+        return _settings_str(vendor_settings, "single_front_template_id")
+    if store_settings:
+        store_tid = _settings_str(store_settings, "front_template_id")
+        if store_tid:
+            return store_tid
+    return _settings_str(vendor_settings, "single_front_template_id")
+
+
+def _merged_kind_display_map(
+    settings: dict,
+    kind: str,
+    template_id: str | None,
+) -> dict | None:
     global_fields = settings.get("display_fields")
-    kind_map = global_fields.get(kind) if isinstance(global_fields, dict) else None
-    if isinstance(kind_map, dict) and _SIGN_IN_FIELD in kind_map:
-        return bool(kind_map.get(_SIGN_IN_FIELD))
+    global_kind = global_fields.get(kind) if isinstance(global_fields, dict) else None
+    merged: dict = {}
+    if isinstance(global_kind, dict):
+        merged.update(global_kind)
 
     by_template = settings.get("display_fields_by_template")
-    found: list[bool] = []
-    if isinstance(by_template, dict):
-        for entry in by_template.values():
-            if not isinstance(entry, dict):
-                continue
+    if template_id and isinstance(by_template, dict):
+        entry = by_template.get(template_id)
+        if isinstance(entry, dict):
             kind_entry = entry.get(kind)
-            if isinstance(kind_entry, dict) and _SIGN_IN_FIELD in kind_entry:
-                found.append(bool(kind_entry.get(_SIGN_IN_FIELD)))
-    if found:
-        return any(found)
+            if isinstance(kind_entry, dict):
+                merged.update(kind_entry)
+
+    return merged or None
+
+
+def _display_sign_in_for_kind(
+    settings: dict,
+    kind: str,
+    template_id: str | None = None,
+) -> bool:
+    kind_map = _merged_kind_display_map(settings, kind, template_id)
+    if isinstance(kind_map, dict) and _SIGN_IN_FIELD in kind_map:
+        return bool(kind_map.get(_SIGN_IN_FIELD))
     return _legacy_sign_in_mandatory(settings)
 
 
@@ -258,16 +301,50 @@ def item_kinds_for_sign_in(items: list | None) -> set[str]:
     return kinds
 
 
-def is_sign_in_mandatory(vendor: Vendor, item_kinds: set[str] | None = None) -> bool:
+def is_sign_in_mandatory(
+    vendor: Vendor,
+    item_kinds: set[str] | None = None,
+    store_settings: dict | None = None,
+) -> bool:
     """When true, guest checkout is disabled for this storefront / item mix."""
     settings = vendor.settings if isinstance(vendor.settings, dict) else {}
+    template_id = _resolve_sign_in_template_id(settings, store_settings)
     kinds = item_kinds or set()
     if not kinds:
         return (
-            _display_sign_in_for_kind(settings, "product")
-            or _display_sign_in_for_kind(settings, "service")
+            _display_sign_in_for_kind(settings, "product", template_id)
+            or _display_sign_in_for_kind(settings, "service", template_id)
         )
-    return any(_display_sign_in_for_kind(settings, kind) for kind in kinds)
+    return any(_display_sign_in_for_kind(settings, kind, template_id) for kind in kinds)
+
+
+async def resolve_store_settings_for_sign_in(
+    db: AsyncSession,
+    vendor_id: UUID,
+    store_id: str | None = None,
+    branch_code: str | None = None,
+) -> dict | None:
+    store: Store | None = None
+    if store_id:
+        try:
+            sid = UUID(str(store_id))
+            store = (
+                await db.execute(
+                    select(Store).where(Store.id == sid, Store.vendor_id == vendor_id),
+                )
+            ).scalar_one_or_none()
+        except (ValueError, TypeError):
+            store = None
+    elif branch_code and str(branch_code).strip():
+        code = str(branch_code).strip()
+        store = (
+            await db.execute(
+                select(Store).where(Store.vendor_id == vendor_id, Store.code == code),
+            )
+        ).scalar_one_or_none()
+    if store and isinstance(store.settings, dict):
+        return store.settings
+    return None
 
 
 def resolve_shipping_amount(

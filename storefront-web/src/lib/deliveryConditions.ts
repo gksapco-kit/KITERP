@@ -58,7 +58,9 @@ export function isSignInMandatory(
   if (typeof settings?.sign_in_mandatory === 'boolean') {
     return settings.sign_in_mandatory
   }
-  return readDeliveryConditions(settings).sign_in_mandatory
+  const raw = settings?.delivery_conditions
+  if (!raw || typeof raw !== 'object') return false
+  return (raw as { sign_in_mandatory?: unknown }).sign_in_mandatory === true
 }
 
 export function shouldCalculateGst(

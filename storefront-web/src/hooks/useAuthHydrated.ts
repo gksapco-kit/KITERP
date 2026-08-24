@@ -43,3 +43,19 @@ export function useIsCustomerLoggedIn(): { ready: boolean; isLoggedIn: boolean }
 
   return { ready, isLoggedIn }
 }
+
+/** True only when a bearer token exists — not a stale cached customer profile alone. */
+export function hasActiveCustomerSession(): boolean {
+  const state = useAuthStore.getState()
+  const { access } = readScopedCustomerTokens()
+  return !!(access || (state.isAuthenticated && state.accessToken))
+}
+
+export function useHasActiveCustomerSession(): { ready: boolean; hasSession: boolean } {
+  const ready = useAuthHydrated()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const accessToken = useAuthStore((s) => s.accessToken)
+  const scopedToken = ready ? !!readScopedCustomerTokens().access : false
+  const hasSession = !!(scopedToken || (isAuthenticated && accessToken))
+  return { ready, hasSession }
+}

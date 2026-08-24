@@ -72,11 +72,15 @@ export type TemplateDisplayFields = {
 }
 
 export function createAllEnabledProductDisplayFields(): DisplayFieldMap {
-  return Object.fromEntries(PRODUCT_DISPLAY_FIELD_DEFS.map(f => [f.key, true]))
+  return Object.fromEntries(
+    PRODUCT_DISPLAY_FIELD_DEFS.map((f) => [f.key, f.key !== SIGN_IN_MANDATORY_FIELD]),
+  )
 }
 
 export function createAllEnabledServiceDisplayFields(): DisplayFieldMap {
-  return Object.fromEntries(SERVICE_DISPLAY_FIELD_DEFS.map(f => [f.key, true]))
+  return Object.fromEntries(
+    SERVICE_DISPLAY_FIELD_DEFS.map((f) => [f.key, f.key !== SIGN_IN_MANDATORY_FIELD]),
+  )
 }
 
 /** Default for any website / builder template — all catalog detail fields enabled. */
@@ -99,7 +103,7 @@ export function mergeDisplayFieldMap(
     } else if (fallback && def.key in fallback) {
       out[def.key] = Boolean(fallback[def.key])
     } else {
-      out[def.key] = true
+      out[def.key] = def.key === SIGN_IN_MANDATORY_FIELD ? false : true
     }
   }
   return out
@@ -118,8 +122,8 @@ function readLegacySignInMandatory(
 ): boolean {
   if (typeof settings?.sign_in_mandatory === 'boolean') return settings.sign_in_mandatory
   const raw = settings?.delivery_conditions
-  if (!raw || typeof raw !== 'object') return true
-  return (raw as { sign_in_mandatory?: unknown }).sign_in_mandatory !== false
+  if (!raw || typeof raw !== 'object') return false
+  return (raw as { sign_in_mandatory?: unknown }).sign_in_mandatory === true
 }
 
 function hasSignInKey(map?: DisplayFieldMap | null): boolean {

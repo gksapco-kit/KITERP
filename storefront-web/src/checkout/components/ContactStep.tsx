@@ -15,8 +15,9 @@ type Props = {
 export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {} }: Props) {
   const { allowGuest, requirePhone } = useCheckoutConfig();
   const { isLoggedIn } = useIsCustomerLoggedIn();
-  const showNameFields = !isLoggedIn && customer.isGuest !== false;
-  const showPhoneField = showNameFields || !customer.phone?.trim();
+  const showGuestContactFields = allowGuest || isLoggedIn;
+  const showNameFields = showGuestContactFields && !isLoggedIn && customer.isGuest !== false;
+  const showPhoneField = showGuestContactFields && (showNameFields || !customer.phone?.trim());
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -58,7 +59,29 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
             </button>
           </span>
         </div>
-      ) : null}
+      ) : (
+        <div className="ck-surface ck-border ck-radius-md space-y-3 p-4">
+          <p className="text-sm font-semibold text-foreground">Sign in required</p>
+          <p className="ck-text-muted text-sm">
+            This store requires an account before checkout. Sign in or create one to continue.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="ck-btn-primary" onClick={handleSignIn}>
+              Sign in
+            </button>
+            <button
+              type="button"
+              className="ck-btn-ghost"
+              onClick={() => {
+                const registerPath = location.pathname.replace(/\/[^/]*$/, '/register')
+                navigate(registerPath, { state: { from: location.pathname + location.search } })
+              }}
+            >
+              Create account
+            </button>
+          </div>
+        </div>
+      )}
 
       {showNameFields && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -87,45 +110,49 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
         </div>
       )}
 
-      <Field label="Email address *" error={fieldErrors.email} fieldKey="email">
-        <div className="relative">
-          <Mail
-            size={16}
-            className="ck-text-muted pointer-events-none absolute"
-            style={{ top: "50%", left: 12, transform: "translateY(-50%)" }}
-          />
-          <input
-            className="ck-input"
-            style={{ paddingLeft: 36 }}
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={customer.email ?? ""}
-            aria-invalid={!!fieldErrors.email}
-            data-checkout-field="email"
-            onChange={(e) => onChange({ ...customer, email: e.target.value })}
-          />
-        </div>
-      </Field>
+      {showGuestContactFields && (
+        <>
+          <Field label="Email address *" error={fieldErrors.email} fieldKey="email">
+            <div className="relative">
+              <Mail
+                size={16}
+                className="ck-text-muted pointer-events-none absolute"
+                style={{ top: "50%", left: 12, transform: "translateY(-50%)" }}
+              />
+              <input
+                className="ck-input"
+                style={{ paddingLeft: 36 }}
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={customer.email ?? ""}
+                aria-invalid={!!fieldErrors.email}
+                data-checkout-field="email"
+                onChange={(e) => onChange({ ...customer, email: e.target.value })}
+              />
+            </div>
+          </Field>
 
-      {showPhoneField && (
-        <Field
-          label={requirePhone ? "Phone number *" : "Phone number"}
-          error={fieldErrors.phone}
-          fieldKey="phone"
-        >
-          <PhoneInput
-            value={customer.phone ?? ""}
-            onChange={(phone) => onChange({ ...customer, phone })}
-            defaultCountryIso="IN"
-            autoComplete="tel"
-            name="phone"
-            showStatusHints={false}
-            showErrorMessage={false}
-            error={fieldErrors.phone}
-            className={fieldErrors.phone ? "ck-phone-error" : undefined}
-          />
-        </Field>
+          {showPhoneField && (
+            <Field
+              label={requirePhone ? "Phone number *" : "Phone number"}
+              error={fieldErrors.phone}
+              fieldKey="phone"
+            >
+              <PhoneInput
+                value={customer.phone ?? ""}
+                onChange={(phone) => onChange({ ...customer, phone })}
+                defaultCountryIso="IN"
+                autoComplete="tel"
+                name="phone"
+                showStatusHints={false}
+                showErrorMessage={false}
+                error={fieldErrors.phone}
+                className={fieldErrors.phone ? "ck-phone-error" : undefined}
+              />
+            </Field>
+          )}
+        </>
       )}
     </div>
   );

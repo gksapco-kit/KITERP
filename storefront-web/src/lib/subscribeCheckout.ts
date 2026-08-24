@@ -3,7 +3,12 @@ import type { QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { storeApi } from '@/api/store'
 import { readScopedCustomerTokens } from '@/lib/customerAuthStorage'
+import { hasActiveCustomerSession } from '@/hooks/useAuthHydrated'
 import { isSignInMandatory } from '@/lib/deliveryConditions'
+import {
+  isSignInMandatoryForCatalog,
+  type TemplateDisplayFields,
+} from '@/lib/storefrontDisplayFields'
 import {
   setPendingCheckoutIntent,
   type PendingCheckoutIntent,
@@ -13,6 +18,11 @@ import { useGuestCartStore, type GuestCartItem } from '@/stores/guestCartStore'
 import { buildGuestCart, storeKeys } from '@/hooks/useStore'
 import { useCartStore } from '@/stores/cartStore'
 import type { Cart } from '@/types'
+
+/** True when the shopper has a usable bearer session (not a stale profile blob). */
+export function isCustomerLoggedIn(): boolean {
+  return hasActiveCustomerSession()
+}
 
 /** Sync zustand auth flag with scoped tokens so cart API calls use the session. */
 export function ensureCustomerSessionActive(): boolean {
@@ -46,15 +56,26 @@ export async function proceedSubscribeToCheckout(opts: {
   storePath: (path: string) => string
   qc: QueryClient
   onBeforeNavigate?: () => void
-  /** Vendor settings — used so Business Front Display “Sign in mandatory” is honored. */
+  /** Vendor settings — used when displayFields is not passed. */
   vendorSettings?: Record<string, unknown> | null
-  /** Override; defaults to isSignInMandatory(vendorSettings). */
+  /** Business Front Display fields for the active website template. */
+  displayFields?: TemplateDisplayFields | null
+  /** Catalog kind for product vs service checkout gates. */
+  catalogKind?: 'product' | 'service'
+  /** Override; defaults from displayFields + catalogKind, else legacy vendor settings. */
   requireSignIn?: boolean
 }): Promise<void> {
   const { intent, cartItem, vendorSlug, navigate, storePath, qc, onBeforeNavigate } = opts
   const requireSignIn =
     opts.requireSignIn
-    ?? (opts.vendorSettings != null ? isSignInMandatory(opts.vendorSettings) : false)
+    ?? (opts.displayFields && opts.catalogKind
+      ? isSignInMandatoryForCatalog(
+          opts.catalogKind === 'service' ? opts.displayFields.service : opts.displayFields.product,
+          opts.vendorSettings,
+        )
+      : opts.vendorSettings != null
+        ? isSignInMandatory(opts.vendorSettings)
+        : false)
 
   setPendingCheckoutIntent(intent)
 
@@ -68,11 +89,12 @@ export async function proceedSubscribeToCheckout(opts: {
   }
 
   const loggedIn = ensureCustomerSessionActive()
+  const needsSignIn = requireSignIn && !isCustomerLoggedIn()
 
   if (!loggedIn) {
     useGuestCartStore.getState().addItem(vendorSlug, cartItem)
     applyLocalCart(qc, buildGuestCart(useGuestCartStore.getState().getItems(vendorSlug)))
-    if (requireSignIn) {
+    if (needsSignIn) {
       toast.info('Please sign in to continue to checkout')
       go(storePath('/login'), { from: storePath('/checkout') })
       return

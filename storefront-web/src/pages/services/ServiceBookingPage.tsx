@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useService, useBookingSlots } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useHasActiveCustomerSession } from '@/hooks/useAuthHydrated'
 import { useVendor } from '@/contexts/VendorContext'
 import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
 import { isSignInMandatoryForCatalog } from '@/lib/storefrontDisplayFields'
@@ -26,6 +27,14 @@ export default function ServiceBookingPage() {
   const { storePath, vendorSlug, vendor, displayFields } = useVendor()
   const navigate = useNavigate()
   const { customer } = useAuthStore()
+  const { hasSession } = useHasActiveCustomerSession()
+  const requireSignIn = vendor
+    ? isSignInMandatoryForCatalog(
+        displayFields.service,
+        vendor.settings as Record<string, unknown> | undefined,
+      )
+    : false
+  const needsSignIn = requireSignIn && !hasSession
   const qc = useQueryClient()
   const [checkoutPending, setCheckoutPending] = useState(false)
 
@@ -143,6 +152,11 @@ export default function ServiceBookingPage() {
       if (!selectedDate || !selectedSlot) toast.error('Please select a date and time slot')
       return
     }
+    if (needsSignIn) {
+      toast.info('Please sign in to continue to checkout')
+      navigate(storePath('/login'), { state: { from: storePath('/checkout') } })
+      return
+    }
     const slot = slots.find(s => s.start === selectedSlot)
     const startTime = slot?.start_time ?? new Date(selectedSlot).toTimeString().slice(0, 5)
     const label = selectedPlan ? `${service.name} — ${selectedPlan.name}` : service.name
@@ -171,10 +185,7 @@ export default function ServiceBookingPage() {
         },
         cartItem,
         vendorSlug,
-        requireSignIn: isSignInMandatoryForCatalog(
-          displayFields.service,
-          vendor?.settings as Record<string, unknown> | undefined,
-        ),
+        requireSignIn,
         vendorSettings: vendor?.settings as Record<string, unknown> | undefined,
         navigate,
         storePath,
@@ -271,8 +282,16 @@ export default function ServiceBookingPage() {
                         <div className="sm:col-span-2"><Label>Notes (optional)</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" /></div>
                       </div>
                       <Button type="submit" className="w-full" disabled={checkoutPending}>
-                        {checkoutPending ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Continuing...</> : 'Continue to checkout'}
+                        {checkoutPending ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Continuing...</> : needsSignIn ? 'Sign in to continue' : 'Continue to checkout'}
                       </Button>
+                      {needsSignIn && (
+                        <p className="text-center text-xs text-muted-foreground leading-relaxed">
+                          <Link to={storePath('/login')} state={{ from: storePath('/checkout') }} className="font-medium text-primary hover:underline">
+                            Sign in
+                          </Link>
+                          {' '}required before checkout.
+                        </p>
+                      )}
                     </form>
                   </CardContent>
                 </Card>

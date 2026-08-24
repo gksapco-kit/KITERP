@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useService, useRequestQuote } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
-import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
+import { useHasActiveCustomerSession } from '@/hooks/useAuthHydrated'
 import { storeApi } from '@/api/store'
 import { claimSessionTrack, getVisitorId } from '@/lib/visitorId'
 import { formatCurrency, imgUrl } from '@/lib/utils'
@@ -25,6 +25,7 @@ import type { ServicePlan, ServiceAvailability } from '@/types'
 import { isDisplayFieldEnabled, isSignInMandatoryForCatalog } from '@/lib/storefrontDisplayFields'
 import { serviceBookingLabel, serviceBookingCtaLabel, serviceSubscriptionLabel, serviceSubscriptionCtaLabel, serviceQuoteCtaLabel } from '@/lib/serviceStorefrontCta'
 import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
+import { toast } from 'sonner'
 import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDocumentSeo, vendorPageTitle } from '@/lib/documentSeo'
@@ -333,10 +334,20 @@ function BookingModal({
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { storePath, vendorSlug, vendor, displayFields } = useVendor()
+  const { hasSession } = useHasActiveCustomerSession()
   const requireSignIn = isSignInMandatoryForCatalog(
     displayFields.service,
     vendor?.settings as Record<string, unknown> | undefined,
   )
+  const needsSignIn = requireSignIn && !hasSession
+  const checkoutLoginPath = storePath('/login')
+  const checkoutReturnPath = storePath('/checkout')
+
+  const redirectToSignIn = () => {
+    toast.info('Please sign in to continue to checkout')
+    onClose()
+    navigate(checkoutLoginPath, { state: { from: checkoutReturnPath } })
+  }
   const [bookingPending, setBookingPending] = useState(false)
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
   const nextSlotTime = useMemo(() => {
@@ -377,6 +388,10 @@ function BookingModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!bookingDate || bookingPending) return
+    if (needsSignIn) {
+      redirectToSignIn()
+      return
+    }
     const effectiveTime = startTime
       ? clampTimeToBounds(startTime, timeBoundsForDate)
       : undefined
@@ -533,14 +548,23 @@ function BookingModal({
               Cancel
             </Button>
             <Button
-              type="submit"
+              type={needsSignIn ? 'button' : 'submit'}
               className={`flex-1 h-9 rounded-xl font-bold text-sm ${themeUi.btnSolid}`}
-              disabled={!bookingDate || bookingPending}
+              disabled={!needsSignIn && (!bookingDate || bookingPending)}
+              onClick={needsSignIn ? redirectToSignIn : undefined}
             >
               {bookingPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <CalendarDays className="w-3.5 h-3.5 mr-1.5" />}
-              Continue to checkout
+              {needsSignIn ? 'Sign in to continue' : 'Continue to checkout'}
             </Button>
           </div>
+          {needsSignIn && (
+            <p className="text-center text-[11px] text-gray-500 leading-relaxed">
+              <Link to={checkoutLoginPath} state={{ from: checkoutReturnPath }} className={`font-medium ${themeUi.textPrimary} hover:underline`}>
+                Sign in
+              </Link>
+              {' '}required before checkout.
+            </p>
+          )}
         </form>
       </div>
     </div>
@@ -691,12 +715,20 @@ export default function ServiceDetail() {
   const { slug } = useParams<{ slug: string }>()
   const { data: service, isLoading } = useService(slug!)
   const { customer } = useAuthStore()
-  const { isLoggedIn } = useIsCustomerLoggedIn()
+  const { hasSession } = useHasActiveCustomerSession()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
   const signInMandatory = vendor
     ? isSignInMandatoryForCatalog(sf, vendor.settings as Record<string, unknown>)
     : false
-  const navigate = useNavigate()
-  const qc = useQueryClient()
+  const openBooking = () => {
+    if (!hasSession && signInMandatory) {
+      toast.info('Please sign in to continue to checkout')
+      navigate(storePath('/login'), { state: { from: storePath('/checkout') } })
+      return
+    }
+    setShowBooking(true)
+  }
   const [subscribePending, setSubscribePending] = useState(false)
   const [showBooking, setShowBooking] = useState(false)
   const [showQuote, setShowQuote] = useState(false)
@@ -1075,7 +1107,7 @@ export default function ServiceDetail() {
                 </Button>
                 {canQuote && (
                   <Button variant="outline" className="w-full h-9 font-semibold rounded-lg text-sm"
-                    onClick={() => { if (!isLoggedIn && signInMandatory) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
+                    onClick={() => { if (!hasSession && signInMandatory) { navigate(storePath('/login'), { state: { from: storePath('/checkout') } }); return }; setShowQuote(true) }}>
                     <MessageSquare className="w-4 h-4 mr-1.5" /> {quoteCtaLabel}
                   </Button>
                 )}
@@ -1124,12 +1156,20 @@ export default function ServiceDetail() {
                 ) : null}
 
                 <Button className={`w-full h-12 font-bold rounded-xl shadow-sm ${themeUi.btnSolid}`} size="lg"
-                  onClick={() => setShowBooking(true)}>
+                  onClick={openBooking}>
                   <CalendarDays className="w-5 h-5 mr-2" /> {bookingCtaLabel}
                 </Button>
+                {signInMandatory && !hasSession && (
+                  <p className="text-center text-xs text-gray-500 leading-relaxed">
+                    <Link to={storePath('/login')} state={{ from: storePath('/checkout') }} className={`font-medium ${themeUi.textPrimary} hover:underline`}>
+                      Sign in
+                    </Link>
+                    {' '}required before booking checkout.
+                  </p>
+                )}
                 {canQuote && (
                   <Button variant="outline" className="w-full h-12 font-bold rounded-xl" size="lg"
-                    onClick={() => { if (!isLoggedIn && signInMandatory) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
+                    onClick={() => { if (!hasSession && signInMandatory) { navigate(storePath('/login'), { state: { from: storePath('/checkout') } }); return }; setShowQuote(true) }}>
                     <MessageSquare className="w-5 h-5 mr-2" /> {quoteCtaLabel}
                   </Button>
                 )}
@@ -1158,7 +1198,7 @@ export default function ServiceDetail() {
                 )}
                 {canQuote && (
                   <Button className={`w-full h-12 font-bold rounded-xl shadow-sm ${themeUi.btnSolid}`} size="lg"
-                    onClick={() => { if (!isLoggedIn && signInMandatory) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
+                    onClick={() => { if (!hasSession && signInMandatory) { navigate(storePath('/login'), { state: { from: storePath('/checkout') } }); return }; setShowQuote(true) }}>
                     <MessageSquare className="w-5 h-5 mr-2" /> {quoteCtaLabel}
                   </Button>
                 )}

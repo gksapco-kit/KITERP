@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -17,7 +17,7 @@ import {
   AlertCircle, ChevronLeft,
 } from 'lucide-react'
 import { useAuthStoreTheme } from './authStoreTheme'
-import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
+import { useIsCustomerLoggedIn, useHasActiveCustomerSession } from '@/hooks/useAuthHydrated'
 
 import { safeLocalGet, safeLocalRemove, safeLocalSet } from '@/lib/safeStorage'
 
@@ -45,7 +45,9 @@ export default function Login() {
   const navigate = useNavigate()
   const routeLocation = useLocation()
   const [showPw, setShowPw] = useState(false)
-  const { ready: authReady, isLoggedIn } = useIsCustomerLoggedIn()
+  const { ready: authReady } = useIsCustomerLoggedIn()
+  const { hasSession } = useHasActiveCustomerSession()
+  const browseHomeRef = useRef(false)
 
   const from = useMemo(() => {
     const stateFrom = (routeLocation.state as { from?: unknown } | null)?.from
@@ -65,12 +67,13 @@ export default function Login() {
     return storePath('/')
   }, [routeLocation.state, routeLocation.search, storePath])
 
-  // Already signed in — skip login/signup and continue to the intended page (or home)
+  // Valid session — continue to the saved return URL (usually checkout).
   useEffect(() => {
-    if (authReady && isLoggedIn) {
+    if (browseHomeRef.current) return
+    if (authReady && hasSession) {
       navigate(from, { replace: true })
     }
-  }, [authReady, isLoggedIn, from, navigate])
+  }, [authReady, hasSession, from, navigate])
 
   const savedForVendor = useMemo(() => readCustomerSavedLogin(vendor?.id), [vendor?.id])
   const [rememberEmail, setRememberEmail] = useState(() => !!savedForVendor)
@@ -198,6 +201,8 @@ export default function Login() {
           <div className="mx-auto w-full max-w-[340px] flex-1 flex flex-col">
             <Link
               to={storePath('/')}
+              replace
+              onClick={() => { browseHomeRef.current = true }}
               className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-gray-500 transition-colors hover:text-gray-800"
             >
               <ChevronLeft className="h-4 w-4" />

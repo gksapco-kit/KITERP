@@ -16,7 +16,12 @@ from app.schemas.checkout import (
     CheckoutPreviewRequest, GuestCheckoutPreviewRequest,
     RazorpayCreateRequest, RazorpayVerifyRequest,
 )
-from app.services.checkout_service import CheckoutService, is_sign_in_mandatory, item_kinds_for_sign_in
+from app.services.checkout_service import (
+    CheckoutService,
+    is_sign_in_mandatory,
+    item_kinds_for_sign_in,
+    resolve_store_settings_for_sign_in,
+)
 from app.services.payment_gateway_service import PaymentGatewayService
 from app.services.payment_integration_service import build_checkout_payment_info
 from app.config import settings
@@ -35,7 +40,17 @@ async def guest_checkout_preview(
     vendor = await vendor_repo.get_by_id(vendor_id)
     if not vendor:
         raise HTTPException(404, "Store not found")
-    if is_sign_in_mandatory(vendor, item_kinds_for_sign_in([i.model_dump() for i in data.items])):
+    store_settings = await resolve_store_settings_for_sign_in(
+        db,
+        vendor_id,
+        store_id=data.store_id,
+        branch_code=data.branch_code,
+    )
+    if is_sign_in_mandatory(
+        vendor,
+        item_kinds_for_sign_in([i.model_dump() for i in data.items]),
+        store_settings=store_settings,
+    ):
         raise HTTPException(401, "Sign in is required to checkout at this store")
 
     items = [i.model_dump() for i in data.items]
