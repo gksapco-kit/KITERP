@@ -212,6 +212,7 @@ export default function StorefrontDisplayPage() {
             Choose fields per website template. Customers see only the fields you enable here.
             Product wishlist (heart) and view count (eye) apply to catalog cards and related products.
             Share (WhatsApp, Email, Message) appears on product and service detail pages.
+            Sign in mandatory on each list controls guest checkout for products or services.
           </p>
         </div>
         <div className="shrink-0">

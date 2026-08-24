@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     # Set to false if platform operators must review each signup.
     AUTO_APPROVE_NEW_VENDORS: bool = True
 
-    # Public Talk to us / contact / lead forms. Honeypot + heuristics always run.
+    # Public Talk to us / contact / lead forms. Honeypot + IP rate-limit always run.
     # Set TURNSTILE_SECRET_KEY (and storefront VITE_TURNSTILE_SITE_KEY) to enable CAPTCHA.
     # PUBLIC_FORM_REQUIRE_CAPTCHA=true rejects submits that have no Turnstile token.
     TURNSTILE_SECRET_KEY: str = ""

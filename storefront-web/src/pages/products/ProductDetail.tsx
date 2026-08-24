@@ -28,7 +28,7 @@ import { usePrefetchImages } from '@/hooks/usePrefetchImages'
 import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
 import { useQueryClient } from '@tanstack/react-query'
 import { setPendingBuyNow } from '@/lib/pendingBuyNow'
-import { isSignInMandatory } from '@/lib/deliveryConditions'
+import { isSignInMandatoryForCatalog } from '@/lib/storefrontDisplayFields'
 import { hasStorefrontDisplayPrice } from '@/lib/servicePricing'
 import { storeApi } from '@/api/store'
 import { toast } from 'sonner'
@@ -48,9 +48,9 @@ export default function ProductDetail() {
   const qc = useQueryClient()
   const [subscribePending, setSubscribePending] = useState(false)
   const requestQuote = useRequestQuote()
-  const signInMandatory = isSignInMandatory(
-    (vendor?.settings ?? {}) as Record<string, unknown>,
-  )
+  const signInMandatory = vendor
+    ? isSignInMandatoryForCatalog(sf, vendor.settings as Record<string, unknown>)
+    : false
   const [qty, setQty] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
@@ -450,6 +450,7 @@ export default function ProductDetail() {
         },
         cartItem,
         vendorSlug,
+        requireSignIn: signInMandatory,
         navigate,
         storePath,
         qc,

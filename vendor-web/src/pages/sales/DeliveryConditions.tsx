@@ -5,7 +5,6 @@ import {
   Loader2,
   Info,
   IndianRupee,
-  LogIn,
   Truck,
 } from 'lucide-react'
 import { useUpdateVendor } from '@/hooks/useVendor'
@@ -150,7 +149,6 @@ export default function DeliveryConditionsPage() {
     free_delivery_threshold: null,
     minimum_delivery_charge: null,
     calculate_gst: true,
-    sign_in_mandatory: true,
   })
   const [express, setExpress] = useState<ExpressDeliveryForm>(readExpressDelivery(null))
 
@@ -199,7 +197,7 @@ export default function DeliveryConditionsPage() {
               Delivery Conditions
             </h1>
             <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-              Delivery charges, checkout sign-in, GST, and express delivery.
+              Delivery charges, GST, and express delivery.
             </p>
           </div>
           <Button type="submit" disabled={updateVendor.isPending} className="h-9 shrink-0 gap-2">
@@ -291,25 +289,9 @@ export default function DeliveryConditionsPage() {
             ) : null}
           </section>
 
-          {/* RIGHT — Sign-in, GST, Express */}
+          {/* RIGHT — GST, Express */}
           <div className="flex flex-col divide-y divide-border">
-            <section className="grid gap-5 p-5 sm:grid-cols-2 sm:gap-6 lg:p-6">
-              <div className="space-y-3">
-                <SectionTitle
-                  icon={LogIn}
-                  title="Checkout sign-in"
-                  hint="Require account before checkout"
-                />
-                <ToggleRow
-                  id="sign-in-mandatory"
-                  label="Sign in mandatory"
-                  description="Off allows guest checkout."
-                  checked={form.sign_in_mandatory}
-                  onCheckedChange={sign_in_mandatory =>
-                    setForm(prev => ({ ...prev, sign_in_mandatory }))
-                  }
-                />
-              </div>
+            <section className="p-5 lg:p-6">
               <div className="space-y-3">
                 <SectionTitle
                   icon={IndianRupee}

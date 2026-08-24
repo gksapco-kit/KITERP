@@ -31,6 +31,7 @@ export const PRODUCT_DISPLAY_FIELD_DEFS = [
   { key: 'shipping_info', label: 'Shipping Info' },
   { key: 'weight', label: 'Weight' },
   { key: 'dimensions', label: 'Dimensions' },
+  { key: 'sign_in_mandatory', label: 'Sign in mandatory' },
 ] as const
 
 export const SERVICE_DISPLAY_FIELD_DEFS = [
@@ -58,7 +59,10 @@ export const SERVICE_DISPLAY_FIELD_DEFS = [
   { key: 'offer_label', label: 'Offer / Sale Label' },
   { key: 'service_mode', label: 'Service Mode' },
   { key: 'share', label: 'Share (WhatsApp / Email / Message)' },
+  { key: 'sign_in_mandatory', label: 'Sign in mandatory' },
 ] as const
+
+export const SIGN_IN_MANDATORY_FIELD = 'sign_in_mandatory'
 
 export type DisplayFieldMap = Record<string, boolean>
 
@@ -109,6 +113,28 @@ export function readDisplayFieldsByTemplate(
   return raw as Record<string, TemplateDisplayFields>
 }
 
+function readLegacySignInMandatory(
+  settings: Record<string, unknown> | null | undefined,
+): boolean {
+  if (typeof settings?.sign_in_mandatory === 'boolean') return settings.sign_in_mandatory
+  const raw = settings?.delivery_conditions
+  if (!raw || typeof raw !== 'object') return true
+  return (raw as { sign_in_mandatory?: unknown }).sign_in_mandatory !== false
+}
+
+function hasSignInKey(map?: DisplayFieldMap | null): boolean {
+  return !!map && SIGN_IN_MANDATORY_FIELD in map
+}
+
+function applyLegacySignIn(
+  map: DisplayFieldMap,
+  settings: Record<string, unknown> | null | undefined,
+  ...saved: Array<DisplayFieldMap | null | undefined>
+): DisplayFieldMap {
+  if (saved.some(hasSignInKey)) return map
+  return { ...map, [SIGN_IN_MANDATORY_FIELD]: readLegacySignInMandatory(settings) }
+}
+
 export function resolveTemplateDisplayFieldsFromSettings(
   settings: Record<string, unknown> | null | undefined,
   templateId: string | null | undefined,
@@ -117,22 +143,40 @@ export function resolveTemplateDisplayFieldsFromSettings(
   const global = settings?.display_fields as Partial<TemplateDisplayFields> | undefined
   if (!templateId?.trim()) {
     return {
-      product: mergeDisplayFieldMap(PRODUCT_DISPLAY_FIELD_DEFS, global?.product, defaults.product),
-      service: mergeDisplayFieldMap(SERVICE_DISPLAY_FIELD_DEFS, global?.service, defaults.service),
+      product: applyLegacySignIn(
+        mergeDisplayFieldMap(PRODUCT_DISPLAY_FIELD_DEFS, global?.product, defaults.product),
+        settings,
+        global?.product,
+      ),
+      service: applyLegacySignIn(
+        mergeDisplayFieldMap(SERVICE_DISPLAY_FIELD_DEFS, global?.service, defaults.service),
+        settings,
+        global?.service,
+      ),
     }
   }
   const byTemplate = readDisplayFieldsByTemplate(settings)
   const templateEntry = byTemplate[templateId.trim()]
   return {
-    product: mergeDisplayFieldMap(
-      PRODUCT_DISPLAY_FIELD_DEFS,
+    product: applyLegacySignIn(
+      mergeDisplayFieldMap(
+        PRODUCT_DISPLAY_FIELD_DEFS,
+        templateEntry?.product,
+        mergeDisplayFieldMap(PRODUCT_DISPLAY_FIELD_DEFS, global?.product, defaults.product),
+      ),
+      settings,
       templateEntry?.product,
-      mergeDisplayFieldMap(PRODUCT_DISPLAY_FIELD_DEFS, global?.product, defaults.product),
+      global?.product,
     ),
-    service: mergeDisplayFieldMap(
-      SERVICE_DISPLAY_FIELD_DEFS,
+    service: applyLegacySignIn(
+      mergeDisplayFieldMap(
+        SERVICE_DISPLAY_FIELD_DEFS,
+        templateEntry?.service,
+        mergeDisplayFieldMap(SERVICE_DISPLAY_FIELD_DEFS, global?.service, defaults.service),
+      ),
+      settings,
       templateEntry?.service,
-      mergeDisplayFieldMap(SERVICE_DISPLAY_FIELD_DEFS, global?.service, defaults.service),
+      global?.service,
     ),
   }
 }

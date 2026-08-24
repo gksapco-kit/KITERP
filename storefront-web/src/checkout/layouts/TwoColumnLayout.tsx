@@ -89,6 +89,7 @@ export function TwoColumnLayout({ state, actions }: Props) {
                 onSubmit={actions.setShippingAddress}
                 onChange={actions.setShippingAddress}
                 hideSubmit
+                hidePhone
                 fieldErrors={state.fieldErrors}
               />
             )}

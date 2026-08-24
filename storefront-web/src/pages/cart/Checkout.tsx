@@ -14,7 +14,7 @@ import { useBuilderSite } from '@/contexts/BuilderSiteContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
 import { useCompletePendingBuyNow } from '@/hooks/useCompletePendingBuyNow'
 import { useCompletePendingCheckoutIntent } from '@/hooks/useCompletePendingCheckoutIntent'
-import { isSignInMandatory } from '@/lib/deliveryConditions'
+import { isSignInMandatoryForCart } from '@/lib/storefrontDisplayFields'
 import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
 import { peekPendingCheckoutIntent } from '@/lib/pendingCheckoutIntent'
 import { useCartStore } from '@/stores/cartStore'
@@ -39,7 +39,7 @@ function CheckoutPageSkeleton() {
 
 export default function Checkout() {
   const { storePath } = useBranch()
-  const { vendor, vendorSlug } = useVendor()
+  const { vendor, vendorSlug, displayFields, isLoading: vendorLoading } = useVendor()
   const location = useLocation()
   const { ready: authReady, isLoggedIn } = useIsCustomerLoggedIn()
   const { completing: completingBuyNow } = useCompletePendingBuyNow()
@@ -61,9 +61,23 @@ export default function Checkout() {
     !hasCartItems
     && (cartLoading || completingBuyNow || completingCheckoutIntent)
 
-  const requireSignIn = isSignInMandatory(
-    (vendor?.settings ?? {}) as Record<string, unknown>,
-  )
+  const requireSignIn = vendor
+    ? isSignInMandatoryForCart(
+        displayFields,
+        vendor.settings as Record<string, unknown>,
+        [
+          ...((cart?.items ?? []) as Array<{ product_id?: string; service_id?: string; item_type?: string }>),
+          ...((localCart?.items ?? []) as Array<{ product_id?: string; service_id?: string; item_type?: string }>),
+          ...(pendingIntent?.cartItem
+            ? [{
+                product_id: pendingIntent.cartItem.product_id,
+                service_id: pendingIntent.cartItem.service_id,
+                item_type: pendingIntent.cartItem.item_type,
+              }]
+            : []),
+        ],
+      )
+    : false
   const allowGuest = !requireSignIn
 
   // Precedence: URL param (QA/demo) > wb_site style_config (website builder)
@@ -76,22 +90,13 @@ export default function Checkout() {
 
   const checkoutTheme = useBuilderSiteCheckoutTheme()
 
-  // Wait for auth rehydrate so a logged-in user is not bounced to login/signup
-  if (!authReady) {
+  // Wait for auth, vendor settings, and cart lines so product vs service
+  // "Sign in mandatory" checkboxes are applied to the actual items.
+  if (!authReady || vendorLoading) {
     return (
       <div className="checkout-root relative min-h-[70vh]" style={checkoutTheme}>
         <CheckoutPageSkeleton />
       </div>
-    )
-  }
-
-  if (requireSignIn && !isLoggedIn) {
-    return (
-      <Navigate
-        to={storePath('/login')}
-        replace
-        state={{ from: location.pathname + location.search }}
-      />
     )
   }
 
@@ -117,6 +122,16 @@ export default function Checkout() {
           Continue shopping
         </a>
       </div>
+    )
+  }
+
+  if (requireSignIn && !isLoggedIn) {
+    return (
+      <Navigate
+        to={storePath('/login')}
+        replace
+        state={{ from: location.pathname + location.search }}
+      />
     )
   }
 

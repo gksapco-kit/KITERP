@@ -308,6 +308,7 @@ export const SETTINGS_SECTION_ENTRIES: NavSearchEntry[] = [
     keywords: [
       'display', 'business front', 'appearance', 'how store looks',
       'business front settings', 'shop appearance', 'product fields', 'service fields',
+      'sign in mandatory', 'guest checkout', 'checkout sign in', 'require login',
     ],
   },
   {

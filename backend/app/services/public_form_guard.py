@@ -228,6 +228,8 @@ async def enforce_public_form_guard(
             detail="Could not verify this submission. Please refresh and try again.",
         )
 
+    # Field-level heuristics are logged only. Do not reject Talk to us / Add lead
+    # on name, title, company, or message — same as the Super Admin add-lead form.
     score = score_public_form_spam(
         first_name=first_name,
         last_name=last_name,
@@ -239,10 +241,6 @@ async def enforce_public_form_guard(
     )
     if score >= 3:
         logger.info(
-            "public form spam score=%s bucket=%s ip=%s email=%s name=%s",
+            "public form spam score=%s bucket=%s ip=%s email=%s name=%s (accepted)",
             score, bucket, ip, (email or "")[:80], (name or first_name or "")[:80],
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="We could not accept this submission. Use a real name and a short message, or email us directly.",
         )

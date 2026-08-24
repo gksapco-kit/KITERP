@@ -10,13 +10,13 @@ import {
   EMPTY_ENQUIRY_FORM,
   LandingEnquiryFields,
   TALK_TO_US_SOURCE_OPTIONS,
-  composedEnquiryName,
   enquiryReferralName,
   type EnquiryFormValues,
 } from '@/components/landing/LandingEnquiryForm'
 import { PublicFormTrap, emptyTrapState, trapPayload } from '@/components/landing/PublicFormTrap'
 import { useDocumentSeo } from '@/lib/documentSeo'
 import { compactJsonLd, contactPageJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
+import { extractApiError } from '@/lib/errorMessages'
 import { formatPhoneDisplay } from '@/lib/phoneE164'
 import '@/styles/kiterp-landing.css'
 
@@ -78,17 +78,8 @@ export default function LandingContact() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const name = composedEnquiryName(form)
-    if (name.length < 2 || !form.notes.trim()) {
-      toast.error('Please enter your name and message')
-      return
-    }
-    if (!form.email.trim() && !form.phone.trim()) {
-      toast.error('Provide an email or phone number so we can reply')
-      return
-    }
-    if (form.notes.trim().length < 5) {
-      toast.error('Please add a little more detail in your message')
+    if (!form.first_name.trim() && !form.last_name.trim() && !form.email.trim() && !form.phone.trim()) {
+      toast.error('Enter a name, email, or phone number')
       return
     }
     if (form.source === 'referral' && !enquiryReferralName(form)) {
@@ -96,27 +87,35 @@ export default function LandingContact() {
       return
     }
     setSending(true)
+    const payload = {
+      first_name: form.first_name.trim() || undefined,
+      last_name: form.last_name.trim() || undefined,
+      title: form.title.trim() || undefined,
+      company: form.company.trim() || undefined,
+      email: form.email.trim() || undefined,
+      phone: form.phone.trim() || undefined,
+      source: form.source || 'talk_to_us',
+      referral_name: enquiryReferralName(form),
+      notes: form.notes.trim() || undefined,
+      ...trapPayload(trap),
+    }
     try {
-      const res = await apiClient.post<{ message?: string }>('/catalog/platform-contact-queries', {
-        name,
-        first_name: form.first_name.trim() || undefined,
-        last_name: form.last_name.trim() || undefined,
-        title: form.title.trim() || undefined,
-        company: form.company.trim() || undefined,
-        email: form.email.trim() || undefined,
-        phone: form.phone.trim() || undefined,
-        source: form.source || 'talk_to_us',
-        referral_name: enquiryReferralName(form),
-        message: form.notes.trim(),
-        ...trapPayload(trap),
-      })
+      const postLead = (force: boolean) =>
+        apiClient.post<{ message?: string }>('/catalog/platform-leads', { ...payload, force })
+      let res
+      try {
+        res = await postLead(false)
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status
+        if (status !== 409) throw err
+        res = await postLead(true)
+      }
       toast.success(res.data.message || 'Message sent!')
       setForm(EMPTY_TALK_FORM)
       setTrap(emptyTrapState())
       setSent(true)
     } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : 'Failed to send message')
+      toast.error(extractApiError(err, 'Could not send message'))
     } finally {
       setSending(false)
     }

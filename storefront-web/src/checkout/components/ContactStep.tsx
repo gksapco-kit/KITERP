@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useCheckoutConfig } from "../config";
 import { Customer } from "../types";
 import { useIsCustomerLoggedIn } from "@/hooks/useAuthHydrated";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 
 type Props = {
   customer: Partial<Customer>;
@@ -12,9 +13,10 @@ type Props = {
 };
 
 export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {} }: Props) {
-  const { allowGuest } = useCheckoutConfig();
+  const { allowGuest, requirePhone } = useCheckoutConfig();
   const { isLoggedIn } = useIsCustomerLoggedIn();
   const showNameFields = !isLoggedIn && customer.isGuest !== false;
+  const showPhoneField = showNameFields || !customer.phone?.trim();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -60,7 +62,7 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
 
       {showNameFields && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="First name" error={fieldErrors.firstName} fieldKey="firstName">
+          <Field label="First name *" error={fieldErrors.firstName} fieldKey="firstName">
             <input
               className="ck-input"
               autoComplete="given-name"
@@ -71,7 +73,7 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
               onChange={(e) => onChange({ ...customer, firstName: e.target.value })}
             />
           </Field>
-          <Field label="Last name" error={fieldErrors.lastName} fieldKey="lastName">
+          <Field label="Last name *" error={fieldErrors.lastName} fieldKey="lastName">
             <input
               className="ck-input"
               autoComplete="family-name"
@@ -85,7 +87,7 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
         </div>
       )}
 
-      <Field label="Email address" error={fieldErrors.email} fieldKey="email">
+      <Field label="Email address *" error={fieldErrors.email} fieldKey="email">
         <div className="relative">
           <Mail
             size={16}
@@ -105,6 +107,26 @@ export function ContactStep({ customer, onChange, onSignInClick, fieldErrors = {
           />
         </div>
       </Field>
+
+      {showPhoneField && (
+        <Field
+          label={requirePhone ? "Phone number *" : "Phone number"}
+          error={fieldErrors.phone}
+          fieldKey="phone"
+        >
+          <PhoneInput
+            value={customer.phone ?? ""}
+            onChange={(phone) => onChange({ ...customer, phone })}
+            defaultCountryIso="IN"
+            autoComplete="tel"
+            name="phone"
+            showStatusHints={false}
+            showErrorMessage={false}
+            error={fieldErrors.phone}
+            className={fieldErrors.phone ? "ck-phone-error" : undefined}
+          />
+        </Field>
+      )}
     </div>
   );
 }

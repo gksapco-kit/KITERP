@@ -92,7 +92,7 @@ export default function CartScreen() {
     if (!slug) return
     try {
       const vendor = await resolveVendorBySlug(slug)
-      setSignInMandatory(isSignInMandatory(vendor.settings))
+      setSignInMandatory(isSignInMandatory(vendor.settings, items))
     } catch {
       setSignInMandatory(true)
     }

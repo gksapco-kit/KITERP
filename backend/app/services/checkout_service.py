@@ -207,13 +207,67 @@ def should_calculate_gst(vendor: Vendor) -> bool:
     return bool(vendor.is_gst_registered)
 
 
-def is_sign_in_mandatory(vendor: Vendor) -> bool:
-    """When true, guest checkout is disabled for this storefront."""
-    settings = vendor.settings if isinstance(vendor.settings, dict) else {}
+_SIGN_IN_FIELD = "sign_in_mandatory"
+
+
+def _legacy_sign_in_mandatory(settings: dict) -> bool:
+    top_level = settings.get("sign_in_mandatory")
+    if isinstance(top_level, bool):
+        return top_level
     conditions = settings.get("delivery_conditions")
     if not isinstance(conditions, dict):
         return True
     return conditions.get("sign_in_mandatory") is not False
+
+
+def _display_sign_in_for_kind(settings: dict, kind: str) -> bool:
+    global_fields = settings.get("display_fields")
+    kind_map = global_fields.get(kind) if isinstance(global_fields, dict) else None
+    if isinstance(kind_map, dict) and _SIGN_IN_FIELD in kind_map:
+        return bool(kind_map.get(_SIGN_IN_FIELD))
+
+    by_template = settings.get("display_fields_by_template")
+    found: list[bool] = []
+    if isinstance(by_template, dict):
+        for entry in by_template.values():
+            if not isinstance(entry, dict):
+                continue
+            kind_entry = entry.get(kind)
+            if isinstance(kind_entry, dict) and _SIGN_IN_FIELD in kind_entry:
+                found.append(bool(kind_entry.get(_SIGN_IN_FIELD)))
+    if found:
+        return any(found)
+    return _legacy_sign_in_mandatory(settings)
+
+
+def item_kinds_for_sign_in(items: list | None) -> set[str]:
+    kinds: set[str] = set()
+    for item in items or []:
+        if isinstance(item, dict):
+            service_id = item.get("service_id")
+            product_id = item.get("product_id")
+            item_type = item.get("item_type")
+        else:
+            service_id = getattr(item, "service_id", None)
+            product_id = getattr(item, "product_id", None)
+            item_type = getattr(item, "item_type", None)
+        if service_id or item_type == "service":
+            kinds.add("service")
+        if product_id or item_type == "product":
+            kinds.add("product")
+    return kinds
+
+
+def is_sign_in_mandatory(vendor: Vendor, item_kinds: set[str] | None = None) -> bool:
+    """When true, guest checkout is disabled for this storefront / item mix."""
+    settings = vendor.settings if isinstance(vendor.settings, dict) else {}
+    kinds = item_kinds or set()
+    if not kinds:
+        return (
+            _display_sign_in_for_kind(settings, "product")
+            or _display_sign_in_for_kind(settings, "service")
+        )
+    return any(_display_sign_in_for_kind(settings, kind) for kind in kinds)
 
 
 def resolve_shipping_amount(

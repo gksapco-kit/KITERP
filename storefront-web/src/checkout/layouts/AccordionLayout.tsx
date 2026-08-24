@@ -58,6 +58,7 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
                     onSubmit={actions.setShippingAddress}
                     onChange={actions.setShippingAddress}
                     hideSubmit
+                    hidePhone
                     fieldErrors={state.fieldErrors}
                   />
                 )}

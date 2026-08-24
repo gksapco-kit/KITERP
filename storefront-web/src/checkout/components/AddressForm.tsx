@@ -10,6 +10,8 @@ type Props = {
   hideSubmit?: boolean;
   formId?: string;
   fieldErrors?: Record<string, string>;
+  /** Phone is collected on the Contact step. */
+  hidePhone?: boolean;
 };
 
 const COUNTRIES = [
@@ -30,7 +32,7 @@ function defaultCountry(initial?: Partial<Address>): string {
   return c.length === 2 ? c.toUpperCase() : c
 }
 
-export function AddressForm({ initial, onSubmit, onChange, hideSubmit, formId, fieldErrors = {} }: Props) {
+export function AddressForm({ initial, onSubmit, onChange, hideSubmit, formId, fieldErrors = {}, hidePhone = false }: Props) {
   const { requirePhone } = useCheckoutConfig();
   const [v, setV] = useState<Address>({
     fullName: initial?.fullName ?? "",
@@ -64,7 +66,7 @@ export function AddressForm({ initial, onSubmit, onChange, hideSubmit, formId, f
     if (!v.region.trim()) e.region = "Required";
     if (!v.postalCode.trim()) e.postalCode = "Required";
     if (!v.country.trim()) e.country = "Required";
-    if (requirePhone && !v.phone?.trim()) e.phone = "Phone is required";
+    if (!hidePhone && requirePhone && !v.phone?.trim()) e.phone = "Phone is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -172,19 +174,21 @@ export function AddressForm({ initial, onSubmit, onChange, hideSubmit, formId, f
             ))}
           </select>
         </Field>
-        <Field label={requirePhone ? "Phone" : "Phone (optional)"} error={displayErrors.phone} fieldKey="phone">
-          <PhoneInput
-            value={v.phone}
-            onChange={(phone) => update("phone", phone)}
-            defaultCountryIso="IN"
-            autoComplete="tel"
-            name="phone"
-            showStatusHints={false}
-            showErrorMessage={false}
-            error={displayErrors.phone}
-            className={displayErrors.phone ? "ck-phone-error" : undefined}
-          />
-        </Field>
+        {!hidePhone && (
+          <Field label={requirePhone ? "Phone" : "Phone (optional)"} error={displayErrors.phone} fieldKey="phone">
+            <PhoneInput
+              value={v.phone}
+              onChange={(phone) => update("phone", phone)}
+              defaultCountryIso="IN"
+              autoComplete="tel"
+              name="phone"
+              showStatusHints={false}
+              showErrorMessage={false}
+              error={displayErrors.phone}
+              className={displayErrors.phone ? "ck-phone-error" : undefined}
+            />
+          </Field>
+        )}
       </div>
 
       {!hideSubmit && (

@@ -668,7 +668,7 @@ function CountryPicker({ value, onChange, mode, className = '' }: CountryPickerP
         )}
       >
         <span className="inline-flex h-3.5 shrink-0 items-center justify-center text-sm leading-none">{currentEntry?.flag}</span>
-        {mode === 'dialCode' && <span className="font-mono text-[11px] font-medium leading-none tabular-nums">{currentEntry?.dialCode}</span>}
+        {mode === 'dialCode' && <span className="font-mono text-[11px] font-semibold leading-none tabular-nums !text-gray-900">{currentEntry?.dialCode}</span>}
         {mode === 'name' && <span className="max-w-[5.5rem] truncate text-[11px] font-medium leading-none">{currentEntry?.name}</span>}
         <ChevronDown className="h-3 w-3 shrink-0 self-center text-muted-foreground" aria-hidden />
       </button>
@@ -701,7 +701,7 @@ function CountryPicker({ value, onChange, mode, className = '' }: CountryPickerP
                   >
                     <span className="text-base">{c.flag}</span>
                     <span className="flex-1 truncate">{c.name}</span>
-                    {mode === 'dialCode' && <span className="text-xs text-gray-400 font-mono">{c.dialCode}</span>}
+                    {mode === 'dialCode' && <span className="text-xs font-semibold text-gray-900 font-mono">{c.dialCode}</span>}
                     {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary/70 shrink-0" />}
                   </button>
                   {isLastPopular && <div className="border-t mx-2 my-0.5" />}

@@ -61,6 +61,7 @@ export function WizardLayout({ state, actions }: { state: CheckoutState; actions
                       onSubmit={actions.setShippingAddress}
                       onChange={actions.setShippingAddress}
                       hideSubmit
+                      hidePhone
                       fieldErrors={state.fieldErrors}
                     />
                   )}

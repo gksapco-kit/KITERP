@@ -32,6 +32,13 @@ export function validateCheckoutFields(params: {
 
     if (!customer.firstName?.trim()) errors.firstName = 'First name is required'
     if (!customer.lastName?.trim()) errors.lastName = 'Last name is required'
+
+    if (requirePhone) {
+      const phone = customer.phone?.trim() ?? ''
+      const digits = phone.replace(/\D/g, '')
+      if (!phone) errors.phone = 'Phone number is required'
+      else if (digits.length < 10) errors.phone = 'Enter a valid phone number'
+    }
   }
 
   if (!requireShippingAddress) return errors
@@ -63,6 +70,7 @@ export function scrollToFirstCheckoutField(errors: CheckoutFieldErrors) {
     'email',
     'firstName',
     'lastName',
+    'phone',
     'fullName',
     'line1',
     'city',

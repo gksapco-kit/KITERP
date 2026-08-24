@@ -257,7 +257,7 @@ function storefrontPathRequiresLogin(pathname: string): boolean {
   const match = pathname.match(/^\/store\/[^/]+(\/.*)?$/)
   if (!match) return false
   const tail = match[1] ?? ''
-  return /^\/account(\/|$)/.test(tail) || tail === '/checkout'
+  return /^\/account(\/|$)/.test(tail)
 }
 
 /**

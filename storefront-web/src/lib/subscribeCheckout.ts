@@ -3,6 +3,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { storeApi } from '@/api/store'
 import { readScopedCustomerTokens } from '@/lib/customerAuthStorage'
+import { isSignInMandatory } from '@/lib/deliveryConditions'
 import {
   setPendingCheckoutIntent,
   type PendingCheckoutIntent,
@@ -45,8 +46,15 @@ export async function proceedSubscribeToCheckout(opts: {
   storePath: (path: string) => string
   qc: QueryClient
   onBeforeNavigate?: () => void
+  /** Vendor settings — used so Business Front Display “Sign in mandatory” is honored. */
+  vendorSettings?: Record<string, unknown> | null
+  /** Override; defaults to isSignInMandatory(vendorSettings). */
+  requireSignIn?: boolean
 }): Promise<void> {
   const { intent, cartItem, vendorSlug, navigate, storePath, qc, onBeforeNavigate } = opts
+  const requireSignIn =
+    opts.requireSignIn
+    ?? (opts.vendorSettings != null ? isSignInMandatory(opts.vendorSettings) : false)
 
   setPendingCheckoutIntent(intent)
 
@@ -64,7 +72,12 @@ export async function proceedSubscribeToCheckout(opts: {
   if (!loggedIn) {
     useGuestCartStore.getState().addItem(vendorSlug, cartItem)
     applyLocalCart(qc, buildGuestCart(useGuestCartStore.getState().getItems(vendorSlug)))
-    go(storePath('/login'), { from: storePath('/checkout') })
+    if (requireSignIn) {
+      toast.info('Please sign in to continue to checkout')
+      go(storePath('/login'), { from: storePath('/checkout') })
+      return
+    }
+    go(storePath('/checkout'))
     return
   }
 

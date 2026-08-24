@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { platformCrmApi } from '@/api/platformCrm.api'
+import { isAxiosAuthError } from '@/lib/errorMessages'
 
 const KEY = (...parts: (string | number | undefined | Record<string, unknown>)[]) =>
   ['platform-crm', ...parts] as const
@@ -29,6 +30,22 @@ export const usePlatformLeads = (params: Record<string, unknown> = {}) =>
   useQuery({
     queryKey: KEY('leads', params),
     queryFn: () => platformCrmApi.listLeads(params),
+  })
+
+/** Count of platform CRM leads still in `new` status (sidebar badge on Leads). */
+export const useNewLeadCount = (enabled = true) =>
+  useQuery({
+    queryKey: KEY('leads', 'new-count'),
+    queryFn: async () => {
+      const data = await platformCrmApi.listLeads({ status: 'new', page: 1, size: 1 })
+      return data.total ?? 0
+    },
+    enabled,
+    staleTime: 0,
+    refetchInterval: (query) =>
+      query.state.error && isAxiosAuthError(query.state.error) ? false : 5_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
 export const useSavePlatformLead = () => {

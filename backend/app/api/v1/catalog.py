@@ -692,7 +692,7 @@ async def submit_platform_contact_query(
         name=body.name or "Contact",
         email=str(body.email) if body.email else None,
         phone=body.phone,
-        message=body.message,
+        message=body.message or "",
         status="new",
         ip_address=ip,
         user_agent=ua,
@@ -1214,10 +1214,10 @@ async def submit_storefront_contact_query(
 
     row = StorefrontContactQuery(
         vendor_id=vendor.id,
-        name=body.name,
+        name=body.name or "Contact",
         email=str(body.email) if body.email else None,
         phone=body.phone,
-        message=body.message,
+        message=body.message or "",
         status="new",
         ip_address=ip,
         user_agent=ua,
@@ -1269,10 +1269,10 @@ async def submit_storefront_contact_query_by_tenant(
 
     row = StorefrontContactQuery(
         vendor_id=vendor.id,
-        name=body.name,
+        name=body.name or "Contact",
         email=str(body.email) if body.email else None,
         phone=body.phone,
-        message=body.message,
+        message=body.message or "",
         status="new",
         ip_address=ip,
         user_agent=ua,

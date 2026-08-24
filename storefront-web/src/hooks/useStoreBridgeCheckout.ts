@@ -389,7 +389,10 @@ export function useStoreBridgeCheckout() {
   const actions = useMemo(() => ({
     setCustomer: (c: Partial<Customer>) => {
       setCustomerInfo(c)
-      clearFieldErrors(['email', 'firstName', 'lastName'])
+      clearFieldErrors(['email', 'firstName', 'lastName', 'phone'])
+      if (c.phone) {
+        setShippingAddressState(prev => prev ? { ...prev, phone: c.phone } : prev)
+      }
     },
 
     setShippingAddress: (a: Address) => {
@@ -517,6 +520,9 @@ export function useStoreBridgeCheckout() {
         const name = [customerInfo.firstName, customerInfo.lastName].filter(Boolean).join(' ').trim()
         if (!email) return { ok: false, error: 'Please enter your email address.' }
         if (!name) return { ok: false, error: 'Please enter your name.' }
+        if (!customerInfo.phone?.trim()) {
+          return { ok: false, error: 'Please enter your phone number.' }
+        }
         if (requiresShipping && !resolvedAddress?.line1) {
           return { ok: false, error: 'Please enter a delivery address.' }
         }

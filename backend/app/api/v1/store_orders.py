@@ -101,13 +101,13 @@ async def guest_checkout(
     from app.repositories.customer_repo import CustomerRepository
     from app.repositories.vendor_repo import VendorRepository
     from app.core.security import create_access_token, create_refresh_token
-    from app.services.checkout_service import is_sign_in_mandatory
+    from app.services.checkout_service import is_sign_in_mandatory, item_kinds_for_sign_in
 
     vendor_repo = VendorRepository(db)
     vendor = await vendor_repo.get_by_id(vendor_id)
     if not vendor:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Store not found")
-    if is_sign_in_mandatory(vendor):
+    if is_sign_in_mandatory(vendor, item_kinds_for_sign_in([i.model_dump() for i in data.items])):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             "Sign in is required to place an order at this store",

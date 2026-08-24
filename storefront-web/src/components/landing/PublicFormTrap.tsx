@@ -56,6 +56,7 @@ export function PublicFormTrap({ value, onChange }: Props) {
         sitekey: siteKey,
         callback: (token: string) => onChange({ captchaToken: token }),
         'expired-callback': () => onChange({ captchaToken: '' }),
+        'error-callback': () => onChange({ captchaToken: '' }),
       })
     }
     const existing = document.querySelector<HTMLScriptElement>('script[data-kiterp-turnstile]')

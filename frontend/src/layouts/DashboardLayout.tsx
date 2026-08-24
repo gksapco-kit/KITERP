@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { toast } from 'sonner'
 import { useDocumentSeo, adminPageTitle } from '@/lib/documentSeo'
 import {
   LayoutDashboard,
@@ -36,6 +37,8 @@ import { FINANCE_ADMIN_BASE, FINANCE_ADMIN_NAV_ITEMS, getFinanceAdminNavItem } f
 import { useVendorStore } from '@/stores/vendorStore'
 import { Button } from '@/components/ui/button'
 import ResponsiveViewportBadge from '@/components/dev/ResponsiveViewportBadge'
+import { useNewLeadCount } from '@/hooks/usePlatformCrm'
+import { countBadgeCircleClass, formatBadgeCount } from '@/lib/countBadge'
 
 type NavItem = {
   to: string
@@ -198,6 +201,27 @@ function FinanceExpandableNav({
   )
 }
 
+function NavCountBadge({ count }: { count: number }) {
+  if (count <= 0) return null
+  return (
+    <span className={cn(countBadgeCircleClass(count), 'ml-0.5')} aria-label={`${count} new leads`}>
+      {formatBadgeCount(count)}
+    </span>
+  )
+}
+
+function notifyNewLeads(added: number) {
+  const title = added === 1 ? 'New lead received' : `${added} new leads received`
+  const body = added === 1 ? 'Open Leads to review it.' : 'Open Leads to review them.'
+  toast.info(title, { description: body })
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+  try {
+    new Notification(title, { body, tag: 'kiterp-new-leads' })
+  } catch {
+    /* ignore blocked or unsupported browser notifications */
+  }
+}
+
 function CrmExpandableNav({
   onNavigate,
 }: {
@@ -206,10 +230,25 @@ function CrmExpandableNav({
   const location = useLocation()
   const onCrmRoute = location.pathname === CRM_ADMIN_BASE || location.pathname.startsWith(`${CRM_ADMIN_BASE}/`)
   const [expanded, setExpanded] = useState(onCrmRoute)
+  const { data: newLeadCount, isSuccess: leadCountReady } = useNewLeadCount(true)
+  const leadBadgeCount = newLeadCount ?? 0
+  const prevLeadCount = useRef<number | null>(null)
 
   useEffect(() => {
     if (onCrmRoute) setExpanded(true)
   }, [onCrmRoute])
+
+  useEffect(() => {
+    if (!leadCountReady) return
+    if (prevLeadCount.current === null) {
+      prevLeadCount.current = leadBadgeCount
+      return
+    }
+    if (leadBadgeCount > prevLeadCount.current) {
+      notifyNewLeads(leadBadgeCount - prevLeadCount.current)
+    }
+    prevLeadCount.current = leadBadgeCount
+  }, [leadCountReady, leadBadgeCount])
 
   return (
     <div className="space-y-1">
@@ -227,6 +266,7 @@ function CrmExpandableNav({
       >
         <UsersRound className="h-5 w-5 shrink-0" />
         <span className="min-w-0 flex-1 truncate text-left">CRM Management</span>
+        {!expanded ? <NavCountBadge count={leadBadgeCount} /> : null}
         <ChevronDown
           className={cn(
             'h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200',
@@ -239,6 +279,7 @@ function CrmExpandableNav({
         <div id="admin-crm-submenu" className="space-y-1 pl-3" role="group" aria-label="CRM Management pages">
           {CRM_ADMIN_NAV_ITEMS.map((item) => {
             const to = `${CRM_ADMIN_BASE}/${item.slug}`
+            const leadBadge = item.slug === 'leads' ? leadBadgeCount : 0
             return (
               <NavLink
                 key={item.slug}
@@ -255,6 +296,7 @@ function CrmExpandableNav({
               >
                 <item.icon className="h-5 w-5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                <NavCountBadge count={leadBadge} />
               </NavLink>
             )
           })}

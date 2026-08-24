@@ -109,7 +109,10 @@ class GuestCustomerInfo(BaseModel):
     @field_validator("phone")
     @classmethod
     def validate_phone_length(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and len(v) < 10:
+        if v is None:
+            return None
+        digits = "".join(ch for ch in v if ch.isdigit())
+        if len(digits) < 10:
             raise ValueError("Phone must be at least 10 digits")
         return v
 

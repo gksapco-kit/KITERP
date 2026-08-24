@@ -4,6 +4,7 @@ import { useService, useBookingSlots } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
+import { isSignInMandatoryForCatalog } from '@/lib/storefrontDisplayFields'
 import { useQueryClient } from '@tanstack/react-query'
 import { AvailabilityCalendar, TimeSlotPicker } from '@/kit/bookings/AvailabilityCalendar'
 import { GroupBookingFlow, RecurringBookingFlow, WaitlistFlow } from '@/kit/bookings/BookingFlows'
@@ -22,7 +23,7 @@ import { toast } from 'sonner'
 
 export default function ServiceBookingPage() {
   const { slug } = useParams<{ slug: string }>()
-  const { storePath, vendorSlug } = useVendor()
+  const { storePath, vendorSlug, vendor, displayFields } = useVendor()
   const navigate = useNavigate()
   const { customer } = useAuthStore()
   const qc = useQueryClient()
@@ -170,6 +171,11 @@ export default function ServiceBookingPage() {
         },
         cartItem,
         vendorSlug,
+        requireSignIn: isSignInMandatoryForCatalog(
+          displayFields.service,
+          vendor?.settings as Record<string, unknown> | undefined,
+        ),
+        vendorSettings: vendor?.settings as Record<string, unknown> | undefined,
         navigate,
         storePath,
         qc,

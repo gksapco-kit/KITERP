@@ -17,9 +17,9 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useBuilderSiteCheckoutTheme } from '@/hooks/useBuilderSiteCheckoutTheme'
 import {
   computeCartTaxAmount,
-  isSignInMandatory,
   resolveDeliveryCharge,
 } from '@/lib/deliveryConditions'
+import { isSignInMandatoryForCart } from '@/lib/storefrontDisplayFields'
 import { TableSkeleton } from '@/kit/states/StateScreens'
 import { CartDetailLineItem } from './CartDetailLineItem'
 import type { ProductVariant } from '@/types'
@@ -29,7 +29,7 @@ import { toast } from 'sonner'
 
 export default function CartPage() {
   const { storePath } = useBranch()
-  const { vendorSlug, vendor } = useVendor()
+  const { vendorSlug, vendor, displayFields, isLoading: vendorLoading } = useVendor()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
   const { isLoggedIn } = useIsCustomerLoggedIn()
@@ -40,18 +40,27 @@ export default function CartPage() {
   const changeVariant = useChangeCartVariant()
   const checkoutTheme = useBuilderSiteCheckoutTheme()
   const vendorSettings = (vendor?.settings ?? {}) as Record<string, unknown>
-  const requireSignIn = isSignInMandatory(vendorSettings)
+  const rawItems = (cart?.items ?? []) as Array<Record<string, unknown>>
+  const requireSignIn = vendor
+    ? isSignInMandatoryForCart(
+        displayFields,
+        vendorSettings,
+        rawItems.map(i => ({
+          product_id: i.product_id ? String(i.product_id) : null,
+          service_id: i.service_id ? String(i.service_id) : null,
+          item_type: i.item_type ? String(i.item_type) : null,
+        })),
+      )
+    : false
 
   const handleProceedToCheckout = () => {
-    if (requireSignIn && !isLoggedIn) {
+    if (!vendorLoading && requireSignIn && !isLoggedIn) {
       toast.info('Please sign in to continue to checkout')
       navigate(storePath('/login'), { state: { from: storePath('/checkout') } })
       return
     }
     navigate(storePath('/checkout'))
   }
-
-  const rawItems = (cart?.items ?? []) as Array<Record<string, unknown>>
   const { data: productMap = {} } = useCartProducts(
     rawItems.map((i) => ({
       product_id: String(i.product_id ?? ''),

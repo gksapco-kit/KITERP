@@ -136,7 +136,7 @@ function CountryDropdown({
                     {c.iso}
                   </span>
                   <span className="flex-1 truncate text-gray-800">{c.name}</span>
-                  <span className="shrink-0 text-xs text-gray-400">{c.dialCode}</span>
+                  <span className="shrink-0 text-xs font-semibold !text-gray-900">{c.dialCode}</span>
                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
                 </button>
                 {isLastPopular && <div className="border-t border-gray-100 my-0.5" />}
@@ -317,7 +317,7 @@ export function PhoneInput({
           <span className={cn('whitespace-nowrap text-xs leading-none text-gray-700', isSm && 'text-[11px]')}>
             <span className="font-semibold tracking-wide">{country.iso}</span>
             {' '}
-            <span className="font-medium text-[var(--kiterp-primary-deeper,#3d9a7a)]">{country.dialCode}</span>
+            <span className="font-semibold !text-gray-900">{country.dialCode}</span>
           </span>
           <ChevronDown
             className={cn(

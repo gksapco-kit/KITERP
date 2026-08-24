@@ -47,10 +47,17 @@ export function readDeliveryConditions(
   }
 }
 
-/** True when vendor requires customers to sign in before checkout / Buy Now. */
+/**
+ * True when vendor requires customers to sign in before checkout / Buy Now.
+ * Business Front Display stores this at settings.sign_in_mandatory; older
+ * stores keep it under delivery_conditions.
+ */
 export function isSignInMandatory(
   settings: Record<string, unknown> | null | undefined,
 ): boolean {
+  if (typeof settings?.sign_in_mandatory === 'boolean') {
+    return settings.sign_in_mandatory
+  }
   return readDeliveryConditions(settings).sign_in_mandatory
 }
 

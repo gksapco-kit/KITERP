@@ -22,7 +22,7 @@ import MediaViewer from '@/components/MediaViewer'
 import { CatalogShareButton } from '@/components/catalog/CatalogShareButton'
 import SubscriptionConfigurator from '@/components/SubscriptionConfigurator'
 import type { ServicePlan, ServiceAvailability } from '@/types'
-import { isDisplayFieldEnabled } from '@/lib/storefrontDisplayFields'
+import { isDisplayFieldEnabled, isSignInMandatoryForCatalog } from '@/lib/storefrontDisplayFields'
 import { serviceBookingLabel, serviceBookingCtaLabel, serviceSubscriptionLabel, serviceSubscriptionCtaLabel, serviceQuoteCtaLabel } from '@/lib/serviceStorefrontCta'
 import { proceedSubscribeToCheckout } from '@/lib/subscribeCheckout'
 import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
@@ -332,7 +332,11 @@ function BookingModal({
 }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { storePath, vendorSlug } = useVendor()
+  const { storePath, vendorSlug, vendor, displayFields } = useVendor()
+  const requireSignIn = isSignInMandatoryForCatalog(
+    displayFields.service,
+    vendor?.settings as Record<string, unknown> | undefined,
+  )
   const [bookingPending, setBookingPending] = useState(false)
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
   const nextSlotTime = useMemo(() => {
@@ -402,6 +406,8 @@ function BookingModal({
         },
         cartItem,
         vendorSlug,
+        requireSignIn,
+        vendorSettings: vendor?.settings as Record<string, unknown> | undefined,
         navigate,
         storePath,
         qc,
@@ -686,6 +692,9 @@ export default function ServiceDetail() {
   const { data: service, isLoading } = useService(slug!)
   const { customer } = useAuthStore()
   const { isLoggedIn } = useIsCustomerLoggedIn()
+  const signInMandatory = vendor
+    ? isSignInMandatoryForCatalog(sf, vendor.settings as Record<string, unknown>)
+    : false
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [subscribePending, setSubscribePending] = useState(false)
@@ -872,6 +881,8 @@ export default function ServiceDetail() {
         },
         cartItem,
         vendorSlug,
+        requireSignIn: signInMandatory,
+        vendorSettings: vendor?.settings as Record<string, unknown> | undefined,
         navigate,
         storePath,
         qc,
@@ -1064,7 +1075,7 @@ export default function ServiceDetail() {
                 </Button>
                 {canQuote && (
                   <Button variant="outline" className="w-full h-9 font-semibold rounded-lg text-sm"
-                    onClick={() => { if (!isLoggedIn) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
+                    onClick={() => { if (!isLoggedIn && signInMandatory) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
                     <MessageSquare className="w-4 h-4 mr-1.5" /> {quoteCtaLabel}
                   </Button>
                 )}
@@ -1118,7 +1129,7 @@ export default function ServiceDetail() {
                 </Button>
                 {canQuote && (
                   <Button variant="outline" className="w-full h-12 font-bold rounded-xl" size="lg"
-                    onClick={() => { if (!isLoggedIn) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
+                    onClick={() => { if (!isLoggedIn && signInMandatory) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
                     <MessageSquare className="w-5 h-5 mr-2" /> {quoteCtaLabel}
                   </Button>
                 )}
@@ -1147,7 +1158,7 @@ export default function ServiceDetail() {
                 )}
                 {canQuote && (
                   <Button className={`w-full h-12 font-bold rounded-xl shadow-sm ${themeUi.btnSolid}`} size="lg"
-                    onClick={() => { if (!isLoggedIn) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
+                    onClick={() => { if (!isLoggedIn && signInMandatory) { navigate(storePath('/login')); return }; setShowQuote(true) }}>
                     <MessageSquare className="w-5 h-5 mr-2" /> {quoteCtaLabel}
                   </Button>
                 )}

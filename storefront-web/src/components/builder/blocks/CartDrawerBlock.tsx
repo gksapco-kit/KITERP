@@ -15,7 +15,7 @@ import { CartDetailLineItem } from '@/pages/cart/CartDetailLineItem'
 import type { ProductVariant } from '@/types'
 import { variantDisplayLabel } from '@/lib/variantOptions'
 import { maxCartLineQty, validateCartLineQtyChange } from '@/lib/cartLineStock'
-import { isSignInMandatory } from '@/lib/deliveryConditions'
+import { isSignInMandatoryForCart } from '@/lib/storefrontDisplayFields'
 import { toast } from 'sonner'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
@@ -59,16 +59,23 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
   const updateItem = useUpdateCartItem()
   const removeItem = useRemoveCartItem()
   const changeVariant = useChangeCartVariant()
-  const { storePath, vendorSlug, vendor } = useVendor()
-  const requireSignIn = isSignInMandatory(
-    (vendor?.settings ?? {}) as Record<string, unknown>,
-  )
+  const { storePath, vendorSlug, vendor, displayFields } = useVendor()
+  const rawItems = (cart?.items ?? []) as Array<Record<string, unknown>>
+  const requireSignIn = vendor
+    ? isSignInMandatoryForCart(
+        displayFields,
+        vendor.settings as Record<string, unknown>,
+        rawItems.map(i => ({
+          product_id: i.product_id ? String(i.product_id) : null,
+          service_id: i.service_id ? String(i.service_id) : null,
+          item_type: i.item_type ? String(i.item_type) : null,
+        })),
+      )
+    : false
   const checkoutHref =
     requireSignIn && !isAuthenticated
       ? `${storePath('/login')}?from=${encodeURIComponent(storePath('/checkout'))}`
       : storePath('/checkout')
-
-  const rawItems = (cart?.items ?? []) as Array<Record<string, unknown>>
   const { data: productMap = {} } = useCartProducts(
     rawItems.map((i) => ({
       product_id: String(i.product_id ?? ''),
@@ -113,10 +120,8 @@ export default function CartDrawerBlock({ style, props, liveItems, blockId }: Pr
     ? liveItems.filter(p => p.id && !inCartIds.has(p.id)).slice(0, 3)
     : []
 
-  if (!isAuthenticated) {
-    // We never want to render the drawer floating button for guests — they'll
-    // hit the cart on /login first. We still listen for the open event so an
-    // upstream "Sign in to view cart" hint can be triggered later.
+  if (!isAuthenticated && requireSignIn) {
+    // Sign-in is mandatory — guests must authenticate before using the cart drawer.
     return null
   }
 
