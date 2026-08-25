@@ -23,6 +23,8 @@ interface Props {
   open: boolean
   onClose: () => void
   navEntries: NavSearchEntry[]
+  /** Installed sidebar app ids — used to hide record searches for uninstalled apps. */
+  enabledSectionIds?: string[]
 }
 
 type Tab = 'navigate' | 'records'
@@ -34,16 +36,17 @@ interface EntityCategory {
   color: string
   bg: string
   description: string
+  sectionId: string
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const ENTITY_CATEGORIES: EntityCategory[] = [
-  { id: 'products',   label: 'Products',        icon: Package,       color: 'text-blue-600',    bg: 'bg-blue-50 dark:bg-blue-950/40',    description: 'Search products by name or SKU' },
-  { id: 'orders',     label: 'Orders',          icon: ShoppingCart,  color: 'text-amber-600',   bg: 'bg-amber-50 dark:bg-amber-950/40',  description: 'Find orders by number or customer' },
-  { id: 'customers',  label: 'Customers',       icon: Users,         color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/40', description: 'Look up customers by name or phone' },
-  { id: 'invoices',   label: 'Invoices',        icon: FileText,      color: 'text-violet-600',  bg: 'bg-violet-50 dark:bg-violet-950/40', description: 'Find invoices by number or customer' },
-  { id: 'purchase-orders', label: 'Purchase Orders', icon: ClipboardList, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-950/40', description: 'Search POs by number or supplier' },
+  { id: 'products',   label: 'Products',        icon: Package,       color: 'text-blue-600',    bg: 'bg-blue-50 dark:bg-blue-950/40',    description: 'Search products by name or SKU', sectionId: 'inventory' },
+  { id: 'orders',     label: 'Orders',          icon: ShoppingCart,  color: 'text-amber-600',   bg: 'bg-amber-50 dark:bg-amber-950/40',  description: 'Find orders by number or customer', sectionId: 'sales' },
+  { id: 'customers',  label: 'Customers',       icon: Users,         color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/40', description: 'Look up customers by name or phone', sectionId: 'master-data' },
+  { id: 'invoices',   label: 'Invoices',        icon: FileText,      color: 'text-violet-600',  bg: 'bg-violet-50 dark:bg-violet-950/40', description: 'Find invoices by number or customer', sectionId: 'sales' },
+  { id: 'purchase-orders', label: 'Purchase Orders', icon: ClipboardList, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-950/40', description: 'Search POs by number or supplier', sectionId: 'procurement' },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -164,54 +167,77 @@ function NavResults({
 // ── Record Results ────────────────────────────────────────────────────────────
 
 function RecordResults({
-  query, onNavigate,
+  query, onNavigate, enabledSectionIds,
 }: {
   query: string
   onNavigate: (to: string) => void
+  enabledSectionIds?: string[]
 }) {
   const dq = useDebounce(query.trim(), 300)
   const active = dq.length >= 2
+  const enabledSet = useMemo(
+    () => (enabledSectionIds ? new Set(enabledSectionIds) : null),
+    [enabledSectionIds],
+  )
+  const isCategoryEnabled = useCallback(
+    (sectionId: string) => !enabledSet || enabledSet.has(sectionId),
+    [enabledSet],
+  )
 
   const productsQ = useQuery({
     queryKey: ['us-products', dq],
     queryFn: () => vendorApi.listProducts({ search: dq, limit: 5 }),
-    enabled: active,
+    enabled: active && isCategoryEnabled('inventory'),
     staleTime: 30_000,
   })
   const ordersQ = useQuery({
     queryKey: ['us-orders', dq],
     queryFn: () => vendorApi.listOrders({ search: dq, limit: 5 }),
-    enabled: active,
+    enabled: active && isCategoryEnabled('sales'),
     staleTime: 30_000,
   })
   const customersQ = useQuery({
     queryKey: ['us-customers', dq],
     queryFn: () => vendorApi.listCustomers({ search: dq, limit: 5 }),
-    enabled: active,
+    enabled: active && isCategoryEnabled('master-data'),
     staleTime: 30_000,
   })
   const invoicesQ = useQuery({
     queryKey: ['us-invoices', dq],
     queryFn: () => vendorApi.listInvoices({ search: dq, limit: 5 }),
-    enabled: active,
+    enabled: active && isCategoryEnabled('sales'),
     staleTime: 30_000,
   })
   const posQ = useQuery({
     queryKey: ['us-pos', dq],
     queryFn: () => vendorApi.listPurchaseOrders({ search: dq, limit: 5 }),
-    enabled: active,
+    enabled: active && isCategoryEnabled('procurement'),
     staleTime: 30_000,
   })
 
   const isLoading = productsQ.isLoading || ordersQ.isLoading || customersQ.isLoading || invoicesQ.isLoading || posQ.isLoading
 
+  const visibleCategories = useMemo(
+    () => ENTITY_CATEGORIES.filter((cat) => isCategoryEnabled(cat.sectionId)),
+    [isCategoryEnabled],
+  )
+
   // Category cards shown before typing
   if (!active) {
+    if (visibleCategories.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <AlertCircle className="w-10 h-10 text-muted-foreground/30 mb-3" />
+          <p className="text-sm font-medium text-foreground">No record categories available</p>
+          <p className="text-xs text-muted-foreground mt-1">Install apps from All Apps to search records</p>
+        </div>
+      )
+    }
     return (
       <div className="p-4">
         <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Browse by category</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {ENTITY_CATEGORIES.map((cat) => {
+          {visibleCategories.map((cat) => {
             const Icon = cat.icon
             return (
               <button
@@ -429,7 +455,7 @@ function RecordRow({
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function UniversalSearch({
- open, onClose, navEntries }: Props) {
+ open, onClose, navEntries, enabledSectionIds }: Props) {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<Tab>('navigate')
@@ -615,6 +641,7 @@ export function UniversalSearch({
             <RecordResults
               query={query}
               onNavigate={handleNavigate}
+              enabledSectionIds={enabledSectionIds}
             />
           )}
         </div>

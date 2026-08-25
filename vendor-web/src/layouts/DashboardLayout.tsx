@@ -3,7 +3,7 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useKiterpModalOpen } from '@/hooks/useKiterpModalOpen'
 import { useViewportAnchoredPanel } from '@/hooks/useViewportAnchoredPanel'
 import { createPortal } from 'react-dom'
-import { Outlet, NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, Link, useNavigate, Navigate } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
   Users, Settings, LogOut, Store, MessageSquare, MessageSquareText,
@@ -152,7 +152,7 @@ import { UniversalSearch } from '@/components/UniversalSearch'
 import { KitErpThemePickerModal } from '@/components/KitErpThemePickerModal'
 import { SidebarAppsPickerModal } from '@/components/SidebarAppsPickerModal'
 import { getKitErpThemeOption } from '@/lib/kitErpThemes'
-import { buildNavIndex, type NavSearchEntry } from '@/lib/appSearchIndex'
+import { buildNavIndex, resolveRouteSectionId, type NavSearchEntry } from '@/lib/appSearchIndex'
 import { isHrNavVisible } from '@/lib/hrModuleSettings'
 import {
   BUSINESS_UNIT_STORE_LABEL,
@@ -2218,6 +2218,16 @@ export default function DashboardLayout() {
   const [enabledSectionIds, setEnabledSectionIds] = useState<string[]>(allVisibleSectionIds)
   const skipEnabledSectionsSaveRef = useRef(true)
 
+  const blockedRouteSectionId = useMemo(() => {
+    const routeSectionId = resolveRouteSectionId(
+      location.pathname,
+      location.search,
+      displaySections as Parameters<typeof resolveRouteSectionId>[2],
+    )
+    if (!routeSectionId || enabledSectionIds.includes(routeSectionId)) return null
+    return routeSectionId
+  }, [location.pathname, location.search, displaySections, enabledSectionIds])
+
   useEffect(() => {
     if (!navOrderScope) return
     skipEnabledSectionsSaveRef.current = true
@@ -2252,17 +2262,6 @@ export default function DashboardLayout() {
 
   const showAppsPickerHint =
     optionalAppsCount > 0 && enabledOptionalAppsCount < optionalAppsCount
-
-  useEffect(() => {
-    const activeSection = displaySections.find((s) =>
-      s.items.some((it) => isNavRouteActive(location.pathname, location.search, it.to)),
-    )
-    if (activeSection) {
-      setEnabledSectionIds((prev) =>
-        prev.includes(activeSection.id) ? prev : [...prev, activeSection.id],
-      )
-    }
-  }, [location.pathname, location.search, displaySections])
 
   useEffect(() => {
     if (railFlyoutSectionId && !enabledSectionIds.includes(railFlyoutSectionId)) {
@@ -2307,8 +2306,8 @@ export default function DashboardLayout() {
   }, [])
 
   const navSearchIndex = useMemo<NavSearchEntry[]>(
-    () => buildNavIndex(orderedVisibleSections as Parameters<typeof buildNavIndex>[0]),
-    [orderedVisibleSections],
+    () => buildNavIndex(sidebarSections as Parameters<typeof buildNavIndex>[0]),
+    [sidebarSections],
   )
 
   useEffect(() => {
@@ -4500,6 +4499,7 @@ export default function DashboardLayout() {
           open={searchOpen}
           onClose={() => setSearchOpen(false)}
           navEntries={navSearchIndex}
+          enabledSectionIds={enabledSectionIds}
         />
 
         <KitErpThemePickerModal
@@ -4517,16 +4517,36 @@ export default function DashboardLayout() {
               toast.error(SIDEBAR_APPS_ADMIN_ONLY_MESSAGE)
               return
             }
-            setEnabledSectionIds(normalizeEnabledSectionIds(ids, allVisibleSectionIds))
+            const normalized = normalizeEnabledSectionIds(ids, allVisibleSectionIds)
+            const removedIds = enabledSectionIds.filter((id) => !normalized.includes(id))
+            let redirectAfterUninstall = false
+            if (removedIds.length > 0) {
+              const routeSectionId = resolveRouteSectionId(
+                location.pathname,
+                location.search,
+                displaySections as Parameters<typeof resolveRouteSectionId>[2],
+              )
+              if (routeSectionId && removedIds.includes(routeSectionId)) {
+                redirectAfterUninstall = true
+              }
+            }
+            setEnabledSectionIds(normalized)
+            if (redirectAfterUninstall) {
+              navigate('/', { replace: true })
+            }
           }}
         />
 
-        {/* Page content */}
+        {/* Page content — hide outlet for uninstalled apps so page never flashes */}
         <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 sm:p-6 lg:p-8 bg-background font-sans text-sm">
           <RestaurantScopeBanner />
-          <FieldMappingProvider>
-            <Outlet />
-          </FieldMappingProvider>
+          {blockedRouteSectionId ? (
+            <Navigate to="/" replace />
+          ) : (
+            <FieldMappingProvider>
+              <Outlet />
+            </FieldMappingProvider>
+          )}
         </main>
       </div>
     </div>

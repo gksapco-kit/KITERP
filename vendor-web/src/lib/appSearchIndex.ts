@@ -389,14 +389,61 @@ export const EXTRA_NAV_ENTRIES: NavSearchEntry[] = [
   { kind: 'nav', id: 'projects-hub',       label: 'Projects',                 description: 'Sales → Project management',            section: 'Sales Management',       sectionId: 'sales',     to: '/projects',                  keywords: ['project', 'tasks', 'milestones', 'kanban', 'pm', 'delivery', 'project management'] },
 ]
 
+// ── Route matching (shared with install guard) ────────────────────────────────
+
+function navItemPath(to: string): string {
+  const base = to.split('?')[0]
+  if (base.length > 1 && base.endsWith('/')) return base.slice(0, -1)
+  return base
+}
+
+function pathnameMatchesNavItem(pathname: string, navPath: string): boolean {
+  if (navPath === '/') return pathname === '/'
+  if (pathname === navPath) return true
+  return pathname.startsWith(`${navPath}/`)
+}
+
+/** True when the current URL already matches this nav item (including child paths). */
+export function isNavRouteActive(pathname: string, search: string, navTo: string): boolean {
+  const qIdx = navTo.indexOf('?')
+  const path = qIdx >= 0 ? navTo.slice(0, qIdx) : navTo
+  if (!pathnameMatchesNavItem(pathname, navItemPath(path))) return false
+  if (qIdx < 0) return true
+  const locParams = new URLSearchParams(search)
+  const itemParams = new URLSearchParams(navTo.slice(qIdx + 1))
+  let paramsMatch = true
+  itemParams.forEach((value, key) => {
+    if (locParams.get(key) !== value) paramsMatch = false
+  })
+  return paramsMatch
+}
+
+/** Resolve which sidebar app owns the current route, if any. */
+export function resolveRouteSectionId(
+  pathname: string,
+  search: string,
+  sections: NavSection[],
+): string | null {
+  for (const section of sections) {
+    for (const item of section.items) {
+      if (isNavRouteActive(pathname, search, item.to)) return section.id
+    }
+  }
+  for (const entry of [...SETTINGS_SECTION_ENTRIES, ...EXTRA_NAV_ENTRIES]) {
+    if (isNavRouteActive(pathname, search, entry.to)) return entry.sectionId
+  }
+  return null
+}
+
 // ── Builder ───────────────────────────────────────────────────────────────────
 
 /**
- * Flatten already-filtered visible nav sections into a search index.
- * Pass `visibleSections` (post-permission-filter) from DashboardLayout.
+ * Flatten installed nav sections into a search index.
+ * Pass `sidebarSections` (installed apps only) from DashboardLayout.
  */
 export function buildNavIndex(sections: NavSection[]): NavSearchEntry[] {
   const entries: NavSearchEntry[] = []
+  const enabledSectionIds = new Set(sections.map((s) => s.id))
 
   for (const section of sections) {
     for (const item of section.items) {
@@ -421,14 +468,16 @@ export function buildNavIndex(sections: NavSection[]): NavSearchEntry[] {
     }
   }
 
-  // Append settings deep-link entries
+  // Append settings deep-link entries for installed apps only
   for (const entry of SETTINGS_SECTION_ENTRIES) {
+    if (!enabledSectionIds.has(entry.sectionId)) continue
     const alreadyIndexed = entries.some((e) => e.id === entry.id)
     if (!alreadyIndexed) entries.push(entry)
   }
 
-  // Append generic extras that don't appear in the sidebar
+  // Append generic extras that don't appear in the sidebar (installed apps only)
   for (const extra of EXTRA_NAV_ENTRIES) {
+    if (!enabledSectionIds.has(extra.sectionId)) continue
     const alreadyIndexed = entries.some((e) => e.id === extra.id)
     if (!alreadyIndexed) entries.push(extra)
   }
