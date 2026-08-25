@@ -181,21 +181,28 @@ export function ModuleCampaignFeatureBand({ module, moduleId, feature, index }: 
 
 export function ModuleCampaignAppsSection({ module, moduleId }: { module: LandingModule; moduleId: string }) {
   const signupUrl = `${VENDOR_SIGNUP_PATH}?module=${encodeURIComponent(moduleId)}`
+  const ModuleIcon = module.icon
+  const gridDensity = module.apps.length >= 8 ? 'compact' : module.apps.length >= 5 ? 'cozy' : 'standard'
 
   return (
     <section className="kiterp-campaign-apps scroll-mt-36" id="apps-in-module">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="kiterp-campaign-apps-header">
-          <h2 className="font-kiterp-script text-3xl sm:text-4xl text-[#1e3d34]">
-            Everything in {module.label}
-          </h2>
-          <p className="mt-2 text-sm sm:text-base text-[#1e3d34]/60 max-w-2xl mx-auto">
-            {module.description} All {module.apps.length} apps below are included in your ₹999/month plan.
-          </p>
+          <div
+            className="kiterp-campaign-apps-module-badge"
+            style={{ background: module.accent.iconBg }}
+          >
+            <ModuleIcon className="w-3.5 h-3.5 text-white" strokeWidth={2} aria-hidden />
+            <span>{module.title}</span>
+            <span className="kiterp-campaign-apps-module-count">{module.apps.length} apps</span>
+          </div>
+          <h2 className="kiterp-campaign-apps-title">Everything in {module.label}</h2>
+          <p className="kiterp-campaign-apps-lead">{module.description}</p>
+          <span className="kiterp-campaign-apps-price-pill">₹999/month · all modules included</span>
         </div>
 
         <div
-          className="kiterp-campaign-apps-panel kiterp-module-apps-panel kiterp-module-apps-panel--themed"
+          className="kiterp-campaign-apps-panel"
           style={{
             ['--module-accent' as string]: module.accent.accent,
             ['--module-glow' as string]: module.accent.glow,
@@ -203,30 +210,34 @@ export function ModuleCampaignAppsSection({ module, moduleId }: { module: Landin
             ['--module-icon-bg' as string]: module.accent.iconBg,
           }}
         >
-          <div className="kiterp-module-apps-grid kiterp-campaign-apps-grid">
+          <div className="kiterp-campaign-apps-panel-accent" aria-hidden />
+
+          <ul
+            className="kiterp-campaign-apps-grid"
+            data-count={module.apps.length}
+            data-density={gridDensity}
+          >
             {module.apps.map((app) => {
               const AppIcon = app.icon
               return (
-                <div key={app.id} className="kiterp-campaign-app-tile">
-                  <div
-                    className="kiterp-app-icon w-[3.25rem] h-[3.25rem] rounded-xl flex items-center justify-center p-1.5 mx-auto"
-                    style={{
-                      background: `linear-gradient(145deg, #ffffff 0%, color-mix(in srgb, ${module.accent.accent} 8%, white) 100%)`,
-                      border: `1px solid color-mix(in srgb, ${module.accent.accent} 14%, #e4ece9)`,
-                      boxShadow: `0 1px 4px color-mix(in srgb, ${module.accent.accent} 8%, transparent)`,
-                    }}
-                  >
-                    <AppIcon className="w-7 h-7" strokeWidth={1.75} />
-                  </div>
+                <li key={app.id} className="kiterp-campaign-app-card">
+                  <span className="kiterp-campaign-app-icon" aria-hidden>
+                    <AppIcon className="kiterp-campaign-app-icon-glyph" strokeWidth={1.75} />
+                  </span>
                   <span className="kiterp-campaign-app-name">{app.label}</span>
-                </div>
+                </li>
               )
             })}
-          </div>
+          </ul>
+
           <div className="kiterp-campaign-apps-cta">
-            <a href={signupUrl} className="kiterp-btn-primary px-6 py-3">
+            <a href={signupUrl} className="kiterp-btn-primary kiterp-campaign-apps-cta-btn">
               Get started with {module.label}
+              <ChevronRight className="w-4 h-4 shrink-0" aria-hidden />
             </a>
+            <p className="kiterp-campaign-apps-cta-note">
+              {module.apps.length} apps · one plan · setup in minutes
+            </p>
           </div>
         </div>
       </div>

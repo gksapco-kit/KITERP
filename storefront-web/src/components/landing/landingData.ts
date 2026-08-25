@@ -233,7 +233,7 @@ export const LANDING_MODULES: LandingModule[] = [
     icon: Sparkles,
     color: G.main,
     accent: MODULE_ACCENT_PRESETS.mint,
-    description: 'Dashboard, inbox, notifications, workspace shortcuts, and store settings.',
+    description: 'Notifications, inbox, relationship tools, and workspace app shortcuts.',
     apps: [
       { id: 'notifications', label: 'Notifications', icon: Bell, color: G.main },
       { id: 'inbox', label: 'Inbox', icon: MessageSquare, color: G.mint },
