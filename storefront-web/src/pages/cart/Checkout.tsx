@@ -19,6 +19,7 @@ import { isSignInMandatoryForCart } from '@/lib/storefrontDisplayFields'
 import { useHasActiveCustomerSession } from '@/hooks/useAuthHydrated'
 import { peekPendingCheckoutIntent } from '@/lib/pendingCheckoutIntent'
 import { useCartStore } from '@/stores/cartStore'
+import { loadRazorpayScript } from '@/lib/razorpay'
 import type { StyleConfig } from '@/blocks/registry'
 
 /** Stable shell so auth/cart hydration does not flash a blank spinner. */
@@ -178,6 +179,12 @@ function Inner({
   const { layout: configLayout } = useCheckoutConfig()
   const { data: storeInfo } = useStoreInfo()
   const activeLayout = layout ?? configLayout
+
+  useEffect(() => {
+    if (checkout.state.connectedPayments.some(p => p.provider === 'razorpay')) {
+      void loadRazorpayScript()
+    }
+  }, [checkout.state.connectedPayments])
 
   return (
     <CheckoutConfigProvider

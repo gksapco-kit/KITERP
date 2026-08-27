@@ -11,7 +11,8 @@ import { useVendor } from '@/contexts/VendorContext'
 import { useBranch } from '@/contexts/BranchContext'
 import { branchCodeForStore, pickDefaultOpenBranch } from '@/lib/branchMatching'
 import { storeApi } from '@/api/store'
-import { openRazorpayCheckout, mockRazorpayPay } from '@/lib/razorpay'
+import { ensureCustomerSessionActive } from '@/lib/subscribeCheckout'
+import { payOrderWithRazorpay, verifyRazorpayOrderPayment } from '@/lib/payOrderWithRazorpay'
 import { isAxiosError } from 'axios'
 import { extractApiError } from '@/lib/errorMessages'
 import {
@@ -308,8 +309,8 @@ export function useStoreBridgeCheckout() {
   )
   const taxAmount = Math.round((serverPreview?.tax_amount ?? 0) * 100)
   const discountAmount = Math.round((serverPreview?.discount_amount ?? 0) * 100)
-  const totalAmount = Math.round(
-    (serverPreview?.total != null && requiresShipping
+  const totalRupees =
+    serverPreview?.total != null
       ? serverPreview.total
       : Math.max(
           0,
@@ -317,8 +318,8 @@ export function useStoreBridgeCheckout() {
             + (requiresShipping ? (serverPreview?.shipping_amount ?? 0) : 0)
             + (serverPreview?.tax_amount ?? 0)
             - (serverPreview?.discount_amount ?? 0),
-        )) * 100,
-  )
+        )
+  const totalAmount = Math.round(totalRupees * 100)
 
   const checkoutCart: Cart = useMemo(() => ({
     id: 'store_cart',
@@ -371,48 +372,24 @@ export function useStoreBridgeCheckout() {
   }, [qc])
 
   const completeOnlinePayment = useCallback(async (orderId: string, paymentMethod: string) => {
-    const rzp = await storeApi.createRazorpayOrder(orderId)
-
-    const finish = async (payment: {
-      razorpay_payment_id: string
-      razorpay_order_id: string
-      razorpay_signature: string
-    }) => {
-      setProcessingMessage('Confirming your payment…')
-      await storeApi.verifyRazorpayPayment({
-        order_id: orderId,
-        ...payment,
-      })
-      const pending = vendorSlug ? peekPendingCheckoutIntent(vendorSlug) : null
-      setProcessingMessage(
-        pending?.kind === 'booking' ? 'Confirming your booking…' : 'Activating your subscription…',
-      )
-      await fulfillPendingCheckoutIntent(vendorSlug, orderId, paymentMethod)
-      await prefetchOrderConfirmation(orderId)
-      await resetCartAfterOrder(qc, vendorSlug)
-      navigate(storePath(`/order/${orderId}/confirmation`))
-    }
-
-    if (rzp.dev_mode) {
-      const mock = await mockRazorpayPay(rzp.razorpay_order_id)
-      await finish(mock)
-      return
-    }
-
-    setProcessingMessage(null)
-    await openRazorpayCheckout({
-      key: rzp.key_id,
-      amount: rzp.amount,
-      currency: rzp.currency,
-      name: storeName,
-      description: `Order payment`,
-      order_id: rzp.razorpay_order_id,
-      prefill: rzp.prefill,
-      ...(rzp.checkout_config_id ? { checkout_config_id: rzp.checkout_config_id } : {}),
-      handler: async (response) => {
-        await finish(response)
-      },
+    const paymentResult = await payOrderWithRazorpay({
+      orderId,
+      storeName,
+      onStage: setProcessingMessage,
     })
+
+    setProcessingMessage('Confirming your payment…')
+    await verifyRazorpayOrderPayment(orderId, paymentResult)
+    const pending = vendorSlug ? peekPendingCheckoutIntent(vendorSlug) : null
+    setProcessingMessage(
+      pending?.kind === 'booking' ? 'Confirming your booking…' : 'Activating your subscription…',
+    )
+    await fulfillPendingCheckoutIntent(vendorSlug, orderId, paymentMethod)
+    await prefetchOrderConfirmation(orderId)
+    await resetCartAfterOrder(qc, vendorSlug)
+    setProcessingMessage(null)
+    setIsPlacingOrder(false)
+    navigate(storePath(`/order/${orderId}/confirmation`))
   }, [navigate, storePath, storeName, qc, vendorSlug, prefetchOrderConfirmation])
 
   const setPaymentSelection = useCallback((p: PaymentSelection) => setPayment(p), [])
@@ -522,10 +499,26 @@ export function useStoreBridgeCheckout() {
       }
       setFieldErrors({})
 
-      const paymentMethod = checkoutSelectionToPaymentMethod(payment)
+      const connected = serverPreview?.connected_payments ?? []
+      const effectivePayment: PaymentSelection | undefined = payment ?? (
+        connected.length > 0
+          ? { kind: 'provider', provider: connected[0].provider as PaymentProvider }
+          : undefined
+      )
+      const paymentMethod = checkoutSelectionToPaymentMethod(effectivePayment)
       const paymentValidationError = validateCheckoutPaymentMethod(paymentMethod)
       if (paymentValidationError) {
         return { ok: false, error: paymentValidationError }
+      }
+
+      const wantsHostedRazorpay =
+        effectivePayment?.kind === 'provider' && effectivePayment.provider === 'razorpay'
+      const orderPaymentMethod = wantsHostedRazorpay ? 'razorpay' : paymentMethod
+      if (wantsHostedRazorpay && totalAmount < 100) {
+        return {
+          ok: false,
+          error: 'Online payment requires a minimum order total of ₹1. Choose Cash on Delivery or contact the store if this service should be free.',
+        }
       }
       const checkoutPhone = (
         resolvedAddress?.phone
@@ -600,7 +593,7 @@ export function useStoreBridgeCheckout() {
             },
             items: cartItemsPayload,
             shipping_address: shippingPayload,
-            payment_method: paymentMethod,
+            payment_method: orderPaymentMethod,
             shipping_method_id: shippingMethodId,
             notes: notes || undefined,
             coupon_code: couponCode ?? undefined,
@@ -610,12 +603,13 @@ export function useStoreBridgeCheckout() {
           if (result.access_token && result.refresh_token) {
             setTokens({ access_token: result.access_token, refresh_token: result.refresh_token, token_type: 'bearer' })
             if (result.customer) setCustomer(result.customer as any)
+            ensureCustomerSessionActive()
           }
           orderId = result.id
         } else {
           const order = await checkoutMutation.mutateAsync({
             shipping_address: shippingPayload,
-            payment_method: paymentMethod,
+            payment_method: orderPaymentMethod,
             shipping_method_id: shippingMethodId,
             notes: notes || undefined,
             coupon_code: couponCode ?? undefined,
@@ -625,10 +619,10 @@ export function useStoreBridgeCheckout() {
           orderId = order.id
         }
 
-        if (isOnlineCheckoutPayment(paymentMethod, payment)) {
+        if (isOnlineCheckoutPayment(orderPaymentMethod, effectivePayment)) {
           try {
-            if (isHostedCheckoutGateway(paymentMethod)) {
-              if (paymentMethod !== 'razorpay') {
+            if (isHostedCheckoutGateway(orderPaymentMethod)) {
+              if (orderPaymentMethod !== 'razorpay') {
                 navigate(storePath(`/order/${orderId}/status`))
                 return {
                   ok: false,
@@ -636,8 +630,10 @@ export function useStoreBridgeCheckout() {
                   orderId,
                 }
               }
-              setProcessingMessage('Preparing payment…')
-              await completeOnlinePayment(orderId, paymentMethod)
+              setProcessingMessage('Opening Razorpay secure checkout…')
+              await completeOnlinePayment(orderId, orderPaymentMethod)
+              leavingForConfirmation = true
+              return { ok: true, orderId }
             } else {
               navigate(storePath(`/order/${orderId}/status`))
               return {
@@ -647,12 +643,14 @@ export function useStoreBridgeCheckout() {
               }
             }
           } catch (payErr) {
+            setIsPlacingOrder(false)
+            setProcessingMessage(null)
             const cancelled =
               payErr instanceof Error && payErr.message === 'Payment cancelled'
             if (cancelled) {
               return {
                 ok: false,
-                error: 'Payment cancelled. Your cart is unchanged — tap Place order when you are ready to pay.',
+                error: 'Payment cancelled. Your order was saved — tap Confirm booking & pay again when ready.',
                 orderId,
               }
             }
@@ -666,7 +664,15 @@ export function useStoreBridgeCheckout() {
               orderId,
             }
           }
-        } else if (isManualProofPayment(payment)) {
+        } else if (wantsHostedRazorpay) {
+          // Razorpay was selected but payment method did not resolve as online — do not skip the gateway.
+          navigate(storePath(`/order/${orderId}/status`))
+          return {
+            ok: false,
+            error: 'Could not open Razorpay checkout. Open your order page to retry payment.',
+            orderId,
+          }
+        } else if (isManualProofPayment(effectivePayment)) {
           // Fulfill after UPI proof is submitted (see UpiPaymentProofPage)
           leavingForConfirmation = true
           navigate(storePath(`/order/${orderId}/payment`))
@@ -680,7 +686,7 @@ export function useStoreBridgeCheckout() {
                 ? 'Confirming your booking…'
                 : 'Confirming your order…',
           )
-          await fulfillPendingCheckoutIntent(vendorSlug, orderId, paymentMethod)
+          await fulfillPendingCheckoutIntent(vendorSlug, orderId, orderPaymentMethod)
           await prefetchOrderConfirmation(orderId)
           await resetCartAfterOrder(qc, vendorSlug)
           leavingForConfirmation = true
@@ -707,6 +713,7 @@ export function useStoreBridgeCheckout() {
     cartItemsPayload, cart?.items, setTokens, setCustomer, vendorSlug, qc,
     branchCode, isBranchClosed, branches, clearFieldErrors, selectedSavedAddressId, savedAddresses, isPlacingOrder,
     setPaymentSelection, setNotesValue, setGiftMessageValue, customer?.phone, requiresShipping,
+    totalAmount, serverPreview,
   ])
 
   return {

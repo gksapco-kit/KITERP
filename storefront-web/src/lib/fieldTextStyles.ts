@@ -216,7 +216,15 @@ export function fieldTextStyle(
           }
         })()
       : {}),
-    ...(fs.text_align === 'left' || fs.text_align === 'center' || fs.text_align === 'right'
+    ...(fs.font_weight === 'bold' || fs.font_weight === 700 || fs.font_weight === '700'
+      ? { fontWeight: 'bold' as const }
+      : fs.font_weight === 'normal' || fs.font_weight === 400 || fs.font_weight === '400'
+        ? { fontWeight: 'normal' as const }
+        : {}),
+    ...(fs.font_style === 'italic' && typeof fs.font_family !== 'string'
+      ? { fontStyle: 'italic' as const }
+      : {}),
+    ...(fs.text_align === 'left' || fs.text_align === 'center' || fs.text_align === 'right' || fs.text_align === 'justify'
       ? { textAlign: fs.text_align as CSSProperties['textAlign'] }
       : {}),
     ...wrapStyle,
@@ -396,7 +404,12 @@ export function buildFieldStylesCss(
       } else if (fs.font_style === 'italic') {
         textRules.push('font-style: italic !important')
       }
-      if (fs.text_align === 'left' || fs.text_align === 'center' || fs.text_align === 'right') {
+      if (fs.font_weight === 'bold' || fs.font_weight === 700 || fs.font_weight === '700') {
+        textRules.push('font-weight: bold !important')
+      } else if (fs.font_weight === 'normal' || fs.font_weight === 400 || fs.font_weight === '400') {
+        textRules.push('font-weight: normal !important')
+      }
+      if (fs.text_align === 'left' || fs.text_align === 'center' || fs.text_align === 'right' || fs.text_align === 'justify') {
         textRules.push(`text-align: ${fs.text_align} !important`)
       }
       if (fs.text_wrap === true) {

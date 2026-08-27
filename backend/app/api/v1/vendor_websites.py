@@ -194,6 +194,17 @@ async def _touch_site_content(db: AsyncSession, site_id: str, page_id: Optional[
         )
 
 
+async def _invalidate_public_site_cache(db: AsyncSession, site_id: str, vendor) -> None:
+    """Flush cached published-site JSON so live storefront reflects builder edits immediately."""
+    try:
+        from app.api.v1.public_sites import invalidate_site_cache
+
+        site = await _get_site(db, site_id, vendor.id)
+        await invalidate_site_cache(site.subdomain, site_id, vendor_slug=vendor.slug)
+    except Exception:
+        pass
+
+
 async def _get_page(
     db: AsyncSession,
     page_id: str,
@@ -1101,6 +1112,7 @@ async def create_block(
     await _touch_site_content(db, site_id, page_id)
     await db.commit()
     await db.refresh(block)
+    await _invalidate_public_site_cache(db, site_id, vendor)
     return block
 
 
@@ -1138,6 +1150,7 @@ async def update_block(
     await _touch_site_content(db, site_id, page_id)
     await db.commit()
     await db.refresh(block)
+    await _invalidate_public_site_cache(db, site_id, vendor)
     return block
 
 
@@ -1158,6 +1171,7 @@ async def delete_block(
     await db.delete(block)
     await _touch_site_content(db, site_id, page_id)
     await db.commit()
+    await _invalidate_public_site_cache(db, site_id, vendor)
 
 
 @router.post("/{site_id}/pages/{page_id}/blocks/reorder")
@@ -1183,6 +1197,7 @@ async def reorder_blocks(
             block.updated_at = now
     await _touch_site_content(db, site_id, page_id)
     await db.commit()
+    await _invalidate_public_site_cache(db, site_id, vendor)
     return {"ok": True}
 
 
@@ -1216,8 +1231,10 @@ async def duplicate_block(
         sort_order=block.sort_order + 1,
     )
     db.add(new_block)
+    await _touch_site_content(db, site_id, page_id)
     await db.commit()
     await db.refresh(new_block)
+    await _invalidate_public_site_cache(db, site_id, vendor)
     return new_block
 
 

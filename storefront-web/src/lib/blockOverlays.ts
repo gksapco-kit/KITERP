@@ -40,7 +40,7 @@ export type BlockOverlayItem = {
   opacity?: number
   zIndex?: number
   shadow?: boolean
-  align?: 'left' | 'center' | 'right'
+  align?: 'left' | 'center' | 'right' | 'justify'
   objectFit?: 'cover' | 'contain' | 'fill'
   imageScale?: number
   bgFill?: 'solid' | 'none'

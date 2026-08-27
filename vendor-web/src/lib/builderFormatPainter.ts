@@ -13,6 +13,7 @@ export const FORMAT_PAINT_STYLE_KEYS = [
   'field_border_color',
   'font_family',
   'font_style',
+  'font_weight',
   'text_transform',
   'text_align',
   'vertical_align',
@@ -53,8 +54,13 @@ export function extractFormatPaintStyleFromElement(el: HTMLElement): FormatPaint
       out.font_style = 'italic'
     }
   }
+  const fw = cs.fontWeight
+  const fwNum = parseInt(fw, 10)
+  if (fw === 'bold' || fw === 'bolder' || (Number.isFinite(fwNum) && fwNum >= 600)) {
+    out.font_weight = 'bold'
+  }
   const ta = cs.textAlign
-  if (ta === 'left' || ta === 'center' || ta === 'right' || ta === 'start' || ta === 'end') {
+  if (ta === 'left' || ta === 'center' || ta === 'right' || ta === 'justify' || ta === 'start' || ta === 'end') {
     out.text_align = ta === 'start' ? 'left' : ta === 'end' ? 'right' : ta
   }
   const lh = parseFloat(cs.lineHeight)
@@ -89,6 +95,7 @@ const SECTION_TYPOGRAPHY_FALLBACK_KEYS: FormatPaintStyleKey[] = [
   'text_color_override',
   'font_family',
   'font_style',
+  'font_weight',
   'text_transform',
   'text_align',
   'vertical_align',
@@ -232,8 +239,9 @@ export function formatPaintStyleSummary(style: FormatPaintStyle): string {
   }
   if (typeof style.text_color_override === 'string') parts.push('color')
   if (typeof style.font_family === 'string') parts.push(String(style.font_family))
+  if (style.font_weight === 'bold') parts.push('bold')
   if (style.font_style === 'italic') parts.push('italic')
-  if (style.text_align === 'left' || style.text_align === 'center' || style.text_align === 'right') {
+  if (style.text_align === 'left' || style.text_align === 'center' || style.text_align === 'right' || style.text_align === 'justify') {
     parts.push(String(style.text_align))
   }
   if (typeof style.text_transform === 'string') parts.push(String(style.text_transform))

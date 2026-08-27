@@ -1496,15 +1496,21 @@ async def get_sitemap_xml(
 
 # ── Cache invalidation helper (called from publish handler) ───────────────────
 
-async def invalidate_site_cache(subdomain: Optional[str], site_id: str) -> None:
-    """Call this after publishing a site to clear the 60-s public cache."""
+async def invalidate_site_cache(
+    subdomain: Optional[str],
+    site_id: str,
+    *,
+    vendor_slug: Optional[str] = None,
+) -> None:
+    """Clear the public-site Redis cache after publish or builder content edits."""
     if not redis_client:
         return
     try:
-        if subdomain:
+        subdomain_keys = {k for k in (subdomain, vendor_slug) if k}
+        for key_sub in subdomain_keys:
             # Clear the shared key plus every per-branch variant for this subdomain.
-            await redis_client.delete(f"pub_site:subdomain:{subdomain}")
-            async for key in redis_client.scan_iter(f"pub_site:subdomain:{subdomain}:branch:*"):
+            await redis_client.delete(f"pub_site:subdomain:{key_sub}")
+            async for key in redis_client.scan_iter(f"pub_site:subdomain:{key_sub}:branch:*"):
                 await redis_client.delete(key)
         await redis_client.delete(f"pub_site:info:{site_id}")
         # Flush all live resource caches for this site

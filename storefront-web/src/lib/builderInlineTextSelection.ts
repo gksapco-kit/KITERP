@@ -211,7 +211,23 @@ function stylePatchToCss(patch: Record<string, unknown>): Partial<CSSStyleDeclar
   } else if (typeof patch.font_style === 'string' && patch.font_style === 'normal') {
     css.fontStyle = 'normal'
   }
+  if (patch.font_weight === 'bold' || patch.font_weight === 700 || patch.font_weight === '700') {
+    css.fontWeight = 'bold'
+  } else if (patch.font_weight === 'normal' || patch.font_weight === 400 || patch.font_weight === '400') {
+    css.fontWeight = 'normal'
+  }
   return css
+}
+
+function stylePatchHasCss(css: Partial<CSSStyleDeclaration>): boolean {
+  return Boolean(
+    css.color
+    || css.fontSize
+    || css.textTransform
+    || css.fontFamily
+    || css.fontStyle != null
+    || css.fontWeight != null,
+  )
 }
 
 function findInlineStyleSpanForRange(range: Range): HTMLSpanElement | null {
@@ -232,12 +248,13 @@ export function applyPatchToLastStyledSpan(
     return false
   }
   const css = stylePatchToCss(patch)
-  if (!css.color && !css.fontSize && !css.textTransform && !css.fontFamily && css.fontStyle == null) return false
+  if (!stylePatchHasCss(css)) return false
   if (css.color) span.style.color = css.color
   if (css.fontSize) span.style.fontSize = css.fontSize
   if (css.textTransform) span.style.textTransform = css.textTransform
   if (css.fontFamily) span.style.fontFamily = css.fontFamily
   if (css.fontStyle != null) span.style.fontStyle = css.fontStyle
+  if (css.fontWeight != null) span.style.fontWeight = css.fontWeight
   notifyInlineTextCommit(root)
   return true
 }
@@ -255,7 +272,7 @@ export function applyInlineTextSelectionStyle(
   if (!working || working.collapsed || !root.contains(working.commonAncestorContainer)) return false
 
   const css = stylePatchToCss(patch)
-  if (!css.color && !css.fontSize && !css.textTransform && !css.fontFamily && css.fontStyle == null) return false
+  if (!stylePatchHasCss(css)) return false
 
   const existingSpan = findInlineStyleSpanForRange(working)
   if (existingSpan && working.toString() === existingSpan.textContent) {
@@ -264,6 +281,7 @@ export function applyInlineTextSelectionStyle(
     if (css.textTransform) existingSpan.style.textTransform = css.textTransform
     if (css.fontFamily) existingSpan.style.fontFamily = css.fontFamily
     if (css.fontStyle != null) existingSpan.style.fontStyle = css.fontStyle
+    if (css.fontWeight != null) existingSpan.style.fontWeight = css.fontWeight
     finishInlineStyleApply(key, existingSpan, root)
     return true
   }
@@ -274,6 +292,7 @@ export function applyInlineTextSelectionStyle(
   if (css.textTransform) span.style.textTransform = css.textTransform
   if (css.fontFamily) span.style.fontFamily = css.fontFamily
   if (css.fontStyle != null) span.style.fontStyle = css.fontStyle
+  if (css.fontWeight != null) span.style.fontWeight = css.fontWeight
   span.setAttribute('data-inline-style', 'true')
 
   try {

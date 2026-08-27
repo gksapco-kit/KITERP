@@ -87,6 +87,7 @@ import {
   TypographyFontStack,
   TextCaseList,
   TextFieldAlignGrid,
+  TextStyleToggleGroup,
   LayoutTransformPositionGroup,
   FieldPositionNudge,
   type LayoutTransformScope,
@@ -11415,6 +11416,12 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         overlayPatch.bgColor = String(stylePatch.field_bg_color)
         overlayPatch.bgFill = 'solid'
       }
+      if ('font_weight' in stylePatch) {
+        overlayPatch.fontWeight = stylePatch.font_weight === 'bold' ? 'bold' : 'normal'
+      }
+      if ('font_style' in stylePatch) {
+        overlayPatch.italic = stylePatch.font_style === 'italic'
+      }
       if (Object.keys(overlayPatch).length > 0) updateSelectedOverlay(overlayPatch)
       return
     }
@@ -11547,6 +11554,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
         font_size_px: overlayTextLayer.fontSize,
         text_color_override: overlayTextLayer.color,
         text_align: overlayTextLayer.align,
+        font_weight: overlayTextLayer.fontWeight === 'bold' ? 'bold' : null,
+        font_style: overlayTextLayer.italic ? 'italic' : null,
         field_bg_color: isOverlayNoFill(overlayTextLayer) ? undefined : overlayTextLayer.bgColor,
       }
     : activeTextField && activeTextField !== CONTENT_GROUP_FIELD_KEY
@@ -11590,6 +11599,8 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     ...(toolbarLiveTypography.line_height_ratio != null
       ? { line_height_ratio: toolbarLiveTypography.line_height_ratio }
       : {}),
+    ...(toolbarLiveTypography.font_weight ? { font_weight: toolbarLiveTypography.font_weight } : {}),
+    ...(toolbarLiveTypography.font_style ? { font_style: toolbarLiveTypography.font_style } : {}),
     ...(toolbarLiveTypography.field_bg_color ? { field_bg_color: toolbarLiveTypography.field_bg_color } : {}),
     ...(toolbarLiveTypography.field_border_color
       ? { field_border_color: toolbarLiveTypography.field_border_color }
@@ -12186,6 +12197,15 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
             showBackgroundPicker={isCtaField || !!overlayTextLayer || !selectedOverlay}
           />
         </div>
+
+        <TextStyleToggleGroup
+          embedded
+          size="compact"
+          fontWeight={(typographySource as any).font_weight as string | undefined}
+          fontStyle={(typographySource as any).font_style as string | undefined}
+          onFontWeightChange={weight => updateTextStyle({ font_weight: weight })}
+          onFontStyleChange={style => updateTextStyle({ font_style: style })}
+        />
 
         <TextFieldAlignGrid
           embedded

@@ -39,7 +39,7 @@ export type OverlayLayerItem = {
   fontFamily?: string
   fontWeight?: string
   italic?: boolean
-  align?: 'left' | 'center' | 'right'
+  align?: 'left' | 'center' | 'right' | 'justify'
   description?: string
   shadow?: boolean
   opacity?: number

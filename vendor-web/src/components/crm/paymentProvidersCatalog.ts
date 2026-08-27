@@ -47,8 +47,30 @@ export const PAYMENT_PROVIDERS: PaymentProviderDef[] = [
 
 export const PAYMENT_PROVIDER_IDS = new Set(PAYMENT_PROVIDERS.map(p => p.id))
 
+export const PAYMENT_MODE_OPTIONS = [
+  { value: 'live', label: 'Live' },
+  { value: 'sandbox', label: 'Sandbox' },
+] as const
+
+/** Map stored values (test / sandbox / live) onto the Live / Sandbox dropdown. */
+export function normalizePaymentMode(raw: string | undefined | null): 'live' | 'sandbox' {
+  const v = (raw || '').trim().toLowerCase()
+  if (v === 'live' || v === 'production' || v === 'prod') return 'live'
+  return 'sandbox'
+}
+
+export function razorpayKeyImpliesMode(keyId: string): 'live' | 'sandbox' | null {
+  const id = keyId.trim()
+  if (id.startsWith('rzp_live_')) return 'live'
+  if (id.startsWith('rzp_test_')) return 'sandbox'
+  return null
+}
+
 export const PAYMENT_SETTING_HINTS: Record<string, Record<string, string>> = {
-  razorpay: { mode: 'test or live', checkout_config_id: 'optional — from Razorpay Dashboard → Payment Configuration' },
+  razorpay: {
+    mode: 'Sandbox uses rzp_test_ keys. Live uses rzp_live_ keys from Razorpay Dashboard → API Keys.',
+    checkout_config_id: 'optional — from Razorpay Dashboard → Payment Configuration',
+  },
   stripe: { mode: 'test or live' },
   square: { mode: 'sandbox or live', location_id: 'Optional Square location ID for in-person / online checkout' },
   paypal: { mode: 'sandbox or live' },

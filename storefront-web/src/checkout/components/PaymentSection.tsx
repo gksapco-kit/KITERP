@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { CreditCard, Wallet, Building2, Clock, Apple, Smartphone } from "lucide-react";
 import { useCheckoutConfig, type ConnectedPayment } from "../config";
-import { PaymentSelection, PaymentTabType, PaymentProvider, type Money } from "../types";
+import type { PaymentSelection, PaymentTabType, PaymentProvider, Money } from "../types";
 import {
   HostedGatewayCheckoutNote,
   CodPaymentForm,
@@ -100,6 +100,16 @@ function ConnectedPaymentsPanel({
   total?: Money;
 }) {
   const selected = resolveSelectedPaymentId(value, connectedPayments);
+
+  useEffect(() => {
+    if (value) return;
+    const defaultProvider = connectedPayments[0]?.provider;
+    if (defaultProvider) {
+      onChange?.({ kind: "provider", provider: defaultProvider as PaymentProvider });
+    } else if (codEnabled) {
+      onChange?.({ kind: "provider", provider: "cod" });
+    }
+  }, [value, connectedPayments, codEnabled, onChange]);
 
   const select = (provider: string) => {
     if (provider === "cod") {

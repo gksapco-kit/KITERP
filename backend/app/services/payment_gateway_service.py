@@ -40,17 +40,25 @@ class PaymentGatewayService:
             key_secret = str(creds.get("key_secret") or "").strip()
             if key_id and key_secret:
                 return key_id, key_secret
+            if key_id and not key_secret:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Razorpay Key Secret is missing. Open CRM → Integrations → Razorpay and save both Key ID and Key Secret.",
+                )
 
         key_id = get_razorpay_key_id(vendor, settings.RAZORPAY_KEY_ID)
         key_secret = settings.RAZORPAY_KEY_SECRET
-        if not key_id or not key_secret:
-            if settings.DEBUG:
-                return "rzp_test_dev", "dev_secret"
+        if key_id and key_secret:
+            return key_id, key_secret
+        if settings.DEBUG:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Online payments are not configured. Use Cash on Delivery or contact the store.",
+                detail="Razorpay is not configured. Add Key ID and Key Secret in CRM → Integrations, or set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in the server environment.",
             )
-        return key_id, key_secret
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Online payments are not configured. Use Cash on Delivery or contact the store.",
+        )
 
     async def _webhook_secret(self, vendor) -> str:
         creds = await load_payment_credentials(self.db, vendor.id, "razorpay")
@@ -80,23 +88,6 @@ class PaymentGatewayService:
         amount_paise = int(Decimal(str(order.total or 0)) * 100)
         if amount_paise < 100:
             raise HTTPException(400, "Order total must be at least ₹1 for online payment")
-
-        # Dev mock when keys are placeholder
-        if key_id == "rzp_test_dev":
-            return {
-                "key_id": key_id,
-                "razorpay_order_id": f"order_dev_{order.id}",
-                "amount": amount_paise,
-                "currency": "INR",
-                "order_id": str(order.id),
-                "dev_mode": True,
-                "checkout_config_id": checkout_config_id,
-                "prefill": {
-                    "name": customer_name,
-                    "email": customer_email or "",
-                    "contact": customer_phone or "",
-                },
-            }
 
         payload = {
             "amount": amount_paise,
@@ -140,8 +131,6 @@ class PaymentGatewayService:
         vendor,
     ) -> bool:
         _, key_secret = await self._credentials(vendor)
-        if key_secret == "dev_secret":
-            return razorpay_signature == "dev_sig"
         body = f"{razorpay_order_id}|{razorpay_payment_id}"
         expected = hmac.new(
             key_secret.encode(),

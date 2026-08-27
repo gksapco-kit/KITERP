@@ -293,6 +293,17 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
                   )
                 })()
 
+            const serviceDetailUrl = useLive && item.url ? storePath(item.url) : null
+            const linkedMediaNode = serviceDetailUrl && !isEditorCanvas ? (
+              <Link
+                to={serviceDetailUrl}
+                className="block shrink-0 cursor-pointer"
+                aria-label={`View ${item.title}`}
+              >
+                {mediaNode}
+              </Link>
+            ) : mediaNode
+
             return (
               <div
                 key={item.id}
@@ -305,7 +316,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
                 )}
                 style={{ padding: isList ? cardLayout.cardPadding : undefined }}
               >
-                {mediaNode}
+                {linkedMediaNode}
                 <div
                   className={cn(isList ? 'flex-1 min-w-0 flex flex-col' : 'flex flex-1 flex-col min-h-0')}
                   style={{ padding: isList ? 0 : cardLayout.cardPadding }}

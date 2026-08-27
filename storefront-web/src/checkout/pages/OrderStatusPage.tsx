@@ -1,11 +1,17 @@
-import { Link, useParams } from "react-router-dom";
-import { Check, ClipboardList, Clock, ExternalLink, Loader2, MapPin, Package, Truck } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Check, ClipboardList, Clock, CreditCard, ExternalLink, Loader2, MapPin, Package, Truck } from "lucide-react";
+import { toast } from "sonner";
 import { CheckoutHeader, CheckoutFooter } from "../components/Header";
 import { CheckoutConfigProvider, formatMoney, useCheckoutConfig } from "../config";
 import { LineItem } from "../components/LineItem";
 import { useBranch } from "@/contexts/BranchContext";
 import { useBuilderSiteCheckoutTheme } from "@/hooks/useBuilderSiteCheckoutTheme";
-import { useOrder } from "@/hooks/useStore";
+import { useOrder, useStoreInfo, storeKeys } from "@/hooks/useStore";
+import { useVendor } from "@/contexts/VendorContext";
+import { fulfillPendingCheckoutIntent } from "@/lib/fulfillCheckoutIntent";
+import { payOrderWithRazorpay, verifyRazorpayOrderPayment } from "@/lib/payOrderWithRazorpay";
 import type { CartItem } from "../types";
 import type { OrderTimelineEvent } from "../types";
 import type { Order } from "@/types";
@@ -22,8 +28,42 @@ function Inner() {
   const { locale } = useCheckoutConfig();
   const { orderId } = useParams<{ orderId: string }>();
   const { storePath } = useBranch();
+  const navigate = useNavigate();
   const checkoutTheme = useBuilderSiteCheckoutTheme();
-  const { data: order, isLoading, error } = useOrder(orderId ?? "");
+  const { data: order, isLoading, error, refetch } = useOrder(orderId ?? "");
+  const { data: storeInfo } = useStoreInfo();
+  const { vendorSlug } = useVendor();
+  const qc = useQueryClient();
+  const [paying, setPaying] = useState(false);
+  const storeName =
+    (storeInfo as { display_name?: string; business_name?: string } | undefined)?.display_name
+    ?? (storeInfo as { business_name?: string } | undefined)?.business_name
+    ?? "Store";
+
+  const canPayWithRazorpay =
+    !!order
+    && order.payment_method === "razorpay"
+    && order.payment_status !== "paid"
+    && order.total >= 1;
+
+  const handleRazorpayPay = async () => {
+    if (!orderId || !order || paying) return;
+    setPaying(true);
+    try {
+      const payment = await payOrderWithRazorpay({ orderId, storeName });
+      await verifyRazorpayOrderPayment(orderId, payment);
+      await fulfillPendingCheckoutIntent(vendorSlug, orderId, "razorpay");
+      await refetch();
+      await qc.invalidateQueries({ queryKey: storeKeys.order(orderId) });
+      toast.success("Payment received — thank you!");
+      navigate(storePath(`/order/${orderId}/confirmation`));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Payment could not be completed.";
+      if (msg !== "Payment cancelled") toast.error(msg);
+    } finally {
+      setPaying(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -107,7 +147,20 @@ function Inner() {
               {formatMoney({ amount: Math.round(order.total * 100), currency: "INR" }, locale)}
             </SidePanel>
             <SidePanel icon={<ClipboardList size={14} />} title="Payment">
-              {order.payment_method ?? order.payment_status ?? "—"}
+              <div className="space-y-2">
+                <p>{order.payment_method ?? order.payment_status ?? "—"}</p>
+                {canPayWithRazorpay ? (
+                  <button
+                    type="button"
+                    className="ck-btn-primary flex w-full items-center justify-center gap-2"
+                    disabled={paying}
+                    onClick={() => void handleRazorpayPay()}
+                  >
+                    {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                    {paying ? "Opening Razorpay…" : "Pay with Razorpay"}
+                  </button>
+                ) : null}
+              </div>
             </SidePanel>
             <Link to={storePath("/products")} className="ck-btn-secondary block text-center no-underline">
               Continue shopping

@@ -865,9 +865,7 @@ export default function TimelineBlock({ site, style, props, blockId }: Props) {
     ? replacement.items
     : ((props.items as TimelineItem[] | undefined) || [])
 
-  const visibleItems: VisibleTimelineItem[] = useReplacement
-    ? rawItems.map((item, index) => ({ item, index }))
-    : visibleArrayEntries(rawItems, props, 'items')
+  const visibleItems: VisibleTimelineItem[] = visibleArrayEntries(rawItems, props, 'items')
 
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
 
@@ -888,7 +886,8 @@ export default function TimelineBlock({ site, style, props, blockId }: Props) {
         ? 'max-w-5xl'
         : 'max-w-3xl'
 
-  if (visibleItems.length === 0 && !showTitle) {
+  if (visibleItems.length === 0) {
+    if (!isEditorCanvas) return null
     return (
       <section
         className={builderSectionContainerWithMax(sectionWidthClass)}

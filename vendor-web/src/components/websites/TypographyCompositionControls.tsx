@@ -2,6 +2,7 @@ import type { ComponentProps, MouseEvent, PointerEvent as ReactPointerEvent, Rea
 import { forwardRef, useCallback, useEffect, useRef } from 'react'
 import {
   AlignCenter,
+  AlignJustify,
   AlignLeft,
   AlignRight,
   AlignVerticalJustifyCenter,
@@ -23,11 +24,13 @@ import {
   RotateCcw,
   RotateCw,
   WrapText,
+  Bold,
+  Italic,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Select } from '@/components/ui/select'
 
-export type TextAlignH = 'left' | 'center' | 'right'
+export type TextAlignH = 'left' | 'center' | 'right' | 'justify'
 export type TextAlignV = 'top' | 'middle' | 'bottom'
 import {
   FONT_SIZE_PX_CHOICES,
@@ -46,6 +49,7 @@ import { pinInlineTextSelectionBeforeToolbarAction } from '@storefront/lib/build
 import {
   DESIGN_BAR_SOFT_ACTIVE,
   DESIGN_BAR_SOFT_CELL,
+  DESIGN_BAR_SOFT_DIVIDE,
   DESIGN_BAR_SOFT_INNER_BORDER,
   generalDesignBarCluster,
 } from '@/components/websites/designBarVisualUi'
@@ -75,6 +79,7 @@ const sizeStyles = {
     wrapH: 'h-[4.5rem]',
     /** Fixed tracks — avoid `grid-cols-3` (1fr) which stretches flex-wrapped clusters. */
     padGrid: 'grid grid-cols-[repeat(3,2.25rem)]',
+    alignPadGrid: 'grid grid-cols-[repeat(4,2.25rem)]',
   },
   compact: {
     cell: 'w-7 h-7 @max-[640px]/designbar:h-[1.5rem] @max-[640px]/designbar:w-6',
@@ -84,6 +89,7 @@ const sizeStyles = {
     wrapW: 'w-7 @max-[640px]/designbar:w-6',
     wrapH: 'h-14 @max-[640px]/designbar:h-12',
     padGrid: 'grid grid-cols-[repeat(3,1.75rem)] @max-[640px]/designbar:grid-cols-[repeat(3,1.5rem)]',
+    alignPadGrid: 'grid grid-cols-[repeat(4,1.75rem)] @max-[640px]/designbar:grid-cols-[repeat(4,1.5rem)]',
   },
   mini: {
     cell: 'w-6 h-6',
@@ -93,6 +99,7 @@ const sizeStyles = {
     wrapW: 'w-6',
     wrapH: 'h-[4.5rem]',
     padGrid: 'grid grid-cols-[repeat(3,1.5rem)]',
+    alignPadGrid: 'grid grid-cols-[repeat(4,1.5rem)]',
   },
   /** Position / flip pads — wide cells for easier freehand nudging. */
   transformPad: {
@@ -579,6 +586,86 @@ export function ColorIdentPickerRow({
   )
 }
 
+export function isBoldFontWeight(weight: unknown): boolean {
+  if (weight === 'bold' || weight === 'bolder') return true
+  const n = typeof weight === 'number' ? weight : parseInt(String(weight ?? ''), 10)
+  return Number.isFinite(n) && n >= 600
+}
+
+/** Bold / italic toggles for the design bar typography cluster. */
+export function TextStyleToggleGroup({
+  fontWeight,
+  fontStyle,
+  onFontWeightChange,
+  onFontStyleChange,
+  size = 'compact',
+  embedded = false,
+  className,
+  onMouseDown,
+}: {
+  fontWeight?: string | number | null
+  fontStyle?: string | null
+  onFontWeightChange: (weight: 'bold' | 'normal' | null) => void
+  onFontStyleChange: (style: 'italic' | 'normal' | null) => void
+  size?: ControlSize
+  embedded?: boolean
+  className?: string
+  onMouseDown?: (e: MouseEvent) => void
+}) {
+  const s = sizeStyles[size]
+  const boldActive = isBoldFontWeight(fontWeight)
+  const italicActive = fontStyle === 'italic'
+
+  const cell = (
+    active: boolean,
+    onClick: () => void,
+    title: string,
+    Icon: typeof Bold,
+    borderClass: string,
+  ) => (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={cn(
+        s.cell,
+        'flex flex-1 min-h-0 items-center justify-center transition-colors',
+        borderClass,
+        active ? softCellActive : cn('bg-white text-gray-600', softCellBtn),
+      )}
+    >
+      <Icon className={s.icon} strokeWidth={2.5} />
+    </button>
+  )
+
+  return (
+    <div
+      className={cn(
+        embedded ? cn(embeddedShell, 'h-full') : toolbarShell,
+        'flex-col divide-y',
+        DESIGN_BAR_SOFT_DIVIDE,
+        className,
+      )}
+      onMouseDown={onMouseDown}
+    >
+      {cell(
+        boldActive,
+        () => onFontWeightChange(boldActive ? 'normal' : 'bold'),
+        boldActive ? 'Remove bold' : 'Bold',
+        Bold,
+        '',
+      )}
+      {cell(
+        italicActive,
+        () => onFontStyleChange(italicActive ? 'normal' : 'italic'),
+        italicActive ? 'Remove italic' : 'Italic',
+        Italic,
+        '',
+      )}
+    </div>
+  )
+}
+
 /** Excel-style alignment — single box, flush cells, wrap column on the right. */
 export function TextFieldAlignGrid({
   textAlign = 'left',
@@ -607,9 +694,13 @@ export function TextFieldAlignGrid({
   onMouseDown?: (e: MouseEvent) => void
 }) {
   const s = sizeStyles[size]
-  const h = (textAlign === 'center' || textAlign === 'right') ? textAlign : 'left'
+  const h: TextAlignH =
+    textAlign === 'center' || textAlign === 'right' || textAlign === 'justify'
+      ? textAlign
+      : 'left'
   const v = (verticalAlign === 'middle' || verticalAlign === 'bottom') ? verticalAlign : 'top'
   const wrap = textWrap !== false
+  const alignGrid = 'alignPadGrid' in s ? s.alignPadGrid : s.padGrid
 
   const cell = (
     active: boolean,
@@ -637,13 +728,15 @@ export function TextFieldAlignGrid({
 
   return (
     <div className={cn(embedded ? cn(embeddedShell, 'h-full') : toolbarShell, className)} onMouseDown={onMouseDown}>
-      <div className={cn(s.padGrid, embedded && 'h-full')}>
+      <div className={cn(alignGrid, embedded && 'h-full')}>
         {cell(v === 'top', () => onVerticalAlignChange('top'), 'Align top', AlignVerticalJustifyStart, cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
         {cell(v === 'middle', () => onVerticalAlignChange('middle'), 'Align middle', AlignVerticalJustifyCenter, cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
-        {cell(v === 'bottom', () => onVerticalAlignChange('bottom'), 'Align bottom', AlignVerticalJustifyEnd, cn('border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
+        {cell(v === 'bottom', () => onVerticalAlignChange('bottom'), 'Align bottom', AlignVerticalJustifyEnd, cn('border-r border-b', DESIGN_BAR_SOFT_INNER_BORDER))}
+        <div className={cn(s.cell, 'border-b bg-white', DESIGN_BAR_SOFT_INNER_BORDER)} aria-hidden />
         {cell(h === 'left', () => onTextAlignChange('left'), 'Align left', AlignLeft, cn('border-r', DESIGN_BAR_SOFT_INNER_BORDER))}
         {cell(h === 'center', () => onTextAlignChange('center'), 'Align center', AlignCenter, cn('border-r', DESIGN_BAR_SOFT_INNER_BORDER))}
-        {cell(h === 'right', () => onTextAlignChange('right'), 'Align right', AlignRight, '')}
+        {cell(h === 'right', () => onTextAlignChange('right'), 'Align right', AlignRight, cn('border-r', DESIGN_BAR_SOFT_INNER_BORDER))}
+        {cell(h === 'justify', () => onTextAlignChange('justify'), 'Justify', AlignJustify, '')}
       </div>
       <div
         className={cn(

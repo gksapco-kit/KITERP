@@ -9,6 +9,7 @@ export const FIELD_TYPOGRAPHY_CLEAR_KEYS = [
   'text_color_override',
   'font_family',
   'font_style',
+  'font_weight',
   'text_transform',
   'text_align',
   'vertical_align',

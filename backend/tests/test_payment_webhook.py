@@ -147,14 +147,16 @@ async def test_razorpay_signature_valid_and_invalid(db_session, test_vendor, mon
 
 
 @pytest.mark.asyncio
-async def test_razorpay_signature_dev_mode(db_session, test_vendor, monkeypatch):
-    """In DEBUG with no keys, only the literal dev signature passes."""
-    monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", "")
-    monkeypatch.setattr(settings, "RAZORPAY_KEY_SECRET", "")
-    monkeypatch.setattr(settings, "DEBUG", True)
+async def test_razorpay_signature_with_env_keys(db_session, test_vendor, monkeypatch):
+    """Platform env keys are used when vendor CRM credentials are absent."""
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", "rzp_test_env")
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_SECRET", "secret_env")
     gw = PaymentGatewayService(db_session)
 
-    assert await gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, "dev_sig", test_vendor) is True
+    body = f"{RZP_ORDER_ID}|{RZP_PAYMENT_ID}"
+    good = hmac.new(b"secret_env", body.encode(), hashlib.sha256).hexdigest()
+
+    assert await gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, good, test_vendor) is True
     assert await gw.verify_razorpay_signature(RZP_ORDER_ID, RZP_PAYMENT_ID, "wrong", test_vendor) is False
 
 

@@ -15,7 +15,11 @@ import {
   PAYMENT_PROVIDERS,
   PAYMENT_PROVIDER_IDS,
   PAYMENT_SETTING_HINTS,
+  PAYMENT_MODE_OPTIONS,
+  normalizePaymentMode,
+  razorpayKeyImpliesMode,
 } from '@/components/crm/paymentProvidersCatalog'
+import { Select } from '@/components/ui/select'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
@@ -59,7 +63,11 @@ function isSecretField(key: string) {
 function settingsToForm(settings: Record<string, unknown> | undefined): Record<string, string> {
   if (!settings) return {}
   return Object.fromEntries(
-    Object.entries(settings).map(([k, v]) => [k, v == null ? '' : String(v)]),
+    Object.entries(settings).map(([k, v]) => {
+      if (k === 'checkout_active') return [k, v === true || v === 'true' ? 'true' : '']
+      if (k === 'mode') return [k, normalizePaymentMode(v == null ? '' : String(v))]
+      return [k, v == null ? '' : String(v)]
+    }),
   )
 }
 
@@ -204,7 +212,12 @@ function IntegrationForm({
       const result = await crmApi.testIntegration({
         provider: provider.id,
         credentials: credentialsForApi(),
-        settings,
+        settings: {
+          ...settings,
+          ...(provider.settings.includes('mode')
+            ? { mode: normalizePaymentMode(settings.mode) }
+            : {}),
+        },
         test_email: testEmail || undefined,
         test_phone: testPhone || undefined,
         integration_id: existing?.id,
@@ -221,8 +234,12 @@ function IntegrationForm({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
+    const payloadSettings: Record<string, string> = { ...settings }
+    if (provider.settings.includes('mode')) {
+      payloadSettings.mode = normalizePaymentMode(settings.mode)
+    }
     upsert.mutate(
-      { provider: provider.id, label, credentials: credentialsForApi(), settings },
+      { provider: provider.id, label, credentials: credentialsForApi(), settings: payloadSettings },
       {
         onSuccess: () => {
           toast.success(existing ? 'Integration updated' : 'Integration connected')
@@ -276,6 +293,12 @@ function IntegrationForm({
                   }
                   onChange={value => {
                     setCreds(p => ({ ...p, [k]: value }))
+                    if (provider.id === 'razorpay' && k === 'key_id') {
+                      const implied = razorpayKeyImpliesMode(value)
+                      if (implied) {
+                        setSettings(p => ({ ...p, mode: implied }))
+                      }
+                    }
                     markDirty()
                   }}
                 />
@@ -287,16 +310,39 @@ function IntegrationForm({
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase text-gray-500">Settings</p>
             {provider.settings.map(k => (
-              <Field key={k} label={k}>
-                <Input
-                  value={settings[k] || ''}
-                  onChange={e => { setSettings(p => ({ ...p, [k]: e.target.value })); markDirty() }}
-                />
+              <Field key={k} label={k === 'mode' ? 'Mode' : k}>
+                {k === 'mode' ? (
+                  <Select
+                    value={normalizePaymentMode(settings.mode)}
+                    onChange={value => {
+                      setSettings(p => ({ ...p, mode: value }))
+                      markDirty()
+                    }}
+                    options={[...PAYMENT_MODE_OPTIONS]}
+                  />
+                ) : (
+                  <Input
+                    value={settings[k] || ''}
+                    onChange={e => { setSettings(p => ({ ...p, [k]: e.target.value })); markDirty() }}
+                  />
+                )}
                 {SETTING_HINTS[provider.id]?.[k] && (
                   <p className="text-xs text-muted-foreground mt-1">{SETTING_HINTS[provider.id][k]}</p>
                 )}
               </Field>
             ))}
+            {provider.id === 'razorpay' && (() => {
+              const implied = razorpayKeyImpliesMode(creds.key_id || '')
+              const selected = normalizePaymentMode(settings.mode)
+              if (!implied || implied === selected) return null
+              return (
+                <p className="text-xs text-amber-800 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                  {implied === 'sandbox'
+                    ? 'This Key ID is a test key (rzp_test_). Switch Mode to Sandbox, or paste a live Key ID (rzp_live_) for Live.'
+                    : 'This Key ID is a live key (rzp_live_). Switch Mode to Live, or paste a test Key ID (rzp_test_) for Sandbox.'}
+                </p>
+              )
+            })()}
           </div>
         )}
 

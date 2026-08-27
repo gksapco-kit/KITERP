@@ -927,6 +927,8 @@ export function resolveToolbarTypographyDisplay(
   vertical_align: string | null
   text_wrap: boolean | null
   line_height_ratio: number | null
+  font_weight: string | null
+  font_style: string | null
 } {
   if (!fieldKey) {
     const resolved = resolveFormatPaintStyle({ blockProps, fieldKey: null })
@@ -947,6 +949,8 @@ export function resolveToolbarTypographyDisplay(
       text_wrap: typeof resolved.text_wrap === 'boolean' ? resolved.text_wrap : null,
       line_height_ratio:
         typeof resolved.line_height_ratio === 'number' ? resolved.line_height_ratio : null,
+      font_weight: typeof resolved.font_weight === 'string' ? resolved.font_weight : null,
+      font_style: typeof resolved.font_style === 'string' ? resolved.font_style : null,
     }
   }
 
@@ -961,6 +965,8 @@ export function resolveToolbarTypographyDisplay(
       vertical_align: null,
       text_wrap: null,
       line_height_ratio: null,
+      font_weight: null,
+      font_style: null,
     }
   }
 
@@ -1057,6 +1063,8 @@ export function resolveToolbarTypographyDisplay(
   const text_wrap = typeof resolved.text_wrap === 'boolean' ? resolved.text_wrap : null
   const line_height_ratio =
     typeof resolved.line_height_ratio === 'number' ? resolved.line_height_ratio : null
+  const font_weight = typeof resolved.font_weight === 'string' ? resolved.font_weight : null
+  const font_style = typeof resolved.font_style === 'string' ? resolved.font_style : null
 
   return {
     font_family,
@@ -1068,6 +1076,8 @@ export function resolveToolbarTypographyDisplay(
     vertical_align,
     text_wrap,
     line_height_ratio,
+    font_weight,
+    font_style,
   }
 }
 
