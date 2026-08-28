@@ -9817,7 +9817,7 @@ function PropsEditor({
             </label>
           )}
           <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
-            Pages the grid when there are more images than this count. Visitors can also use Previous / Next in the enlarged photo view.
+            Keeps your column layout. Count is rounded up to full rows. Visitors can also use Previous / Next in the enlarged photo view.
           </p>
         </PropsCollapsible>
       )}

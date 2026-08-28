@@ -9,7 +9,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useAuthStore } from '@/stores/authStore'
 import { formatCurrency, imgUrl } from '@/lib/utils'
 import { resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
-import { isPricedAmount, isPriceNotApplicable, servicePriceFallbackLabel } from '@/lib/servicePricing'
+import { isPricedAmount, isPriceNotApplicable, resolveServicePrice, servicePriceFallbackLabel } from '@/lib/servicePricing'
 import { linkOnLight, textOnSolid } from '@/lib/themeColors'
 import {
   ArrowRight, ShoppingBag, Wrench, Loader2, Star, Truck, ShieldCheck,
@@ -214,7 +214,9 @@ function FeaturedServicesSection({ props, theme, storePath, services }: {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {services.items.map((s: any) => (
+          {services.items.map((s: any) => {
+            const displayPrice = resolveServicePrice(s)
+            return (
             <Link key={s.id} to={storePath(`/services/${s.slug}`)}
               className="group flex gap-4 rounded-xl p-5 border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all shadow-sm" style={{ backgroundColor: theme.colors.background }}>
               {show('card_image') && (
@@ -244,15 +246,15 @@ function FeaturedServicesSection({ props, theme, storePath, services }: {
                 {(show('card_price') || show('card_duration')) && (
                   <div className="mt-3 flex items-center gap-3 flex-wrap">
                     {show('card_price') && !isPriceNotApplicable(s.price_type) && (
-                      isPricedAmount(s.price) && s.price_type !== 'free' ? (
-                        <span className="text-base font-bold" style={{ color: linkOnLight(c.primary, c.secondary) }}>{formatCurrency(s.price)}</span>
+                      isPricedAmount(displayPrice) && s.price_type !== 'free' ? (
+                        <span className="text-base font-bold" style={{ color: linkOnLight(c.primary, c.secondary) }}>{formatCurrency(displayPrice)}</span>
                       ) : (
                         <span className={`text-sm font-semibold px-2.5 py-1 rounded-md border ${
                           s.price_type === 'free'
                             ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
-                            : 'text-amber-800 bg-amber-50 border-amber-200'
+                            : 'text-amber-800 bg-amber-50 border-emerald-200'
                         }`}>
-                          {servicePriceFallbackLabel(s.price, s.price_type, 'Get a Quote')}
+                          {servicePriceFallbackLabel(displayPrice, s.price_type, 'Get a Quote')}
                         </span>
                       )
                     )}
@@ -264,7 +266,8 @@ function FeaturedServicesSection({ props, theme, storePath, services }: {
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 self-center shrink-0" />
             </Link>
-          ))}
+            )
+          })}
         </div>
       </div>
     </section>

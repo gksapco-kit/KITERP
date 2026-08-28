@@ -7,6 +7,8 @@
  */
 type PlanLike = {
   price?: number | null
+  price_min?: number | null
+  plan_price_type?: string | null
   duration_minutes?: number | null
   is_active?: boolean
   sort_order?: number
@@ -27,13 +29,29 @@ function firstUsablePlan(plans: PlanLike[] | null | undefined): PlanLike | undef
   return [...pool].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0]
 }
 
-/** Resolve a displayable price: service price → price_min → first plan's price → 0. */
+function planDisplayPrice(plan: PlanLike | undefined): number {
+  if (!plan) return 0
+  if (isPricedAmount(plan.price)) return plan.price
+  if (isPricedAmount(plan.price_min)) return plan.price_min
+  return 0
+}
+
+/** Resolve a displayable price: service price → price_min → first priced plan → 0. */
 export function resolveServicePrice(service: ServiceLike | null | undefined): number {
   if (!service) return 0
-  if (service.price != null) return service.price
-  if (service.price_min != null) return service.price_min
-  const plan = firstUsablePlan(service.plans)
-  return plan?.price ?? 0
+  if (isPriceNotApplicable(service.price_type)) return 0
+  if (isPricedAmount(service.price)) return service.price
+  if (isPricedAmount(service.price_min)) return service.price_min
+  const plans = service.plans || []
+  const active = plans.filter(p => p.is_active !== false)
+  const pool = [...(active.length ? active : plans)].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+  for (const plan of pool) {
+    if (plan.plan_price_type === 'not_applicable') continue
+    if (plan.plan_price_type === 'free') return 0
+    const amount = planDisplayPrice(plan)
+    if (amount > 0) return amount
+  }
+  return 0
 }
 
 /** True when a numeric price should be shown as currency (not Free / quote). */

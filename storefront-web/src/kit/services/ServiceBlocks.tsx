@@ -11,7 +11,7 @@ import {
 import { cn, imgUrl } from "@/lib/utils";
 import type { Service } from "../types";
 import { formatPrice } from "../mock";
-import { isPricedAmount, servicePriceFallbackLabel, isPriceNotApplicable } from "@/lib/servicePricing";
+import { isPricedAmount, servicePriceFallbackLabel, isPriceNotApplicable, resolveServicePrice } from "@/lib/servicePricing";
 
 export interface ServiceCardProps {
   service: Service;
@@ -51,6 +51,7 @@ export function ServiceCard({
     isMinimalCard: cardLayout.isMinimalCard,
     isCompactCard: cardLayout.isCompactCard,
   });
+  const displayPrice = resolveServicePrice(service)
 
   const handleNavClick = (e: MouseEvent) => {
     if (onNavigateClick) {
@@ -126,9 +127,9 @@ export function ServiceCard({
             <span className="font-semibold">
               {service.price_type === 'free'
                 ? 'Free'
-                : isPricedAmount(service.price)
-                  ? formatPrice(service.price, service.currency)
-                  : (servicePriceFallbackLabel(service.price, service.price_type, 'Get a Quote') ?? '')}
+                : isPricedAmount(displayPrice)
+                  ? formatPrice(displayPrice, service.currency)
+                  : (servicePriceFallbackLabel(displayPrice, service.price_type, 'Get a Quote') ?? '')}
             </span>
           )}
         </div>

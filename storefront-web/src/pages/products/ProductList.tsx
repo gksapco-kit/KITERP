@@ -30,14 +30,20 @@ import { catalogToKitProduct } from '@/lib/catalogToKitProduct'
 import { addCatalogProductToCart } from '@/lib/catalogAddToCart'
 import { CatalogAddOrQtyControl } from '@/components/catalog/CatalogAddOrQtyControl'
 import { shouldShowServiceBookCta, serviceBookingListCtaLabel } from '@/lib/serviceStorefrontCta'
-import { resolveServiceDuration } from '@/lib/servicePricing'
+import { resolveServiceDuration, resolveServicePrice } from '@/lib/servicePricing'
 import { ServiceCard } from '@/kit/services/ServiceBlocks'
 import { vendorDashboardUrl } from '@/lib/vendorDashboardUrl'
 
 type FilterType = 'products' | 'services' | 'both'
 
 function catalogEffectivePrice(
-  item: { price?: number; price_min?: number; price_type?: string; variants?: Array<{ price?: number; price_type?: string; is_active?: boolean }> },
+  item: {
+    price?: number
+    price_min?: number
+    price_type?: string
+    plans?: Array<{ price?: number; price_min?: number; is_active?: boolean; sort_order?: number }>
+    variants?: Array<{ price?: number; price_type?: string; is_active?: boolean }>
+  },
   isProduct: boolean,
   variants: Array<{ price?: number; price_type?: string }>,
 ): number | null {
@@ -54,8 +60,8 @@ function catalogEffectivePrice(
     if (Number(item.price) > 0) return Number(item.price)
     return null
   }
-  if ((item as { price_type?: string }).price_type === 'not_applicable') return null
-  const servicePrice = Number(item.price || item.price_min || 0)
+  if (item.price_type === 'not_applicable') return null
+  const servicePrice = resolveServicePrice(item)
   return servicePrice > 0 ? servicePrice : null
 }
 
@@ -794,6 +800,8 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                           durationMinutes: resolveServiceDuration(item),
                           price: effectivePrice ?? 0,
                           currency: item.currency || 'INR',
+                          price_type: item.price_type,
+                          plans: item.plans,
                           features: item.features || [],
                           allowQuoteRequest: !!item.allow_quote_request,
                           requiresBooking: item.requires_booking,
@@ -864,6 +872,8 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                         durationMinutes: resolveServiceDuration(item),
                         price: effectivePrice ?? 0,
                         currency: item.currency || 'INR',
+                        price_type: item.price_type,
+                        plans: item.plans,
                         features: item.features || [],
                         allowQuoteRequest: !!item.allow_quote_request,
                         requiresBooking: item.requires_booking,

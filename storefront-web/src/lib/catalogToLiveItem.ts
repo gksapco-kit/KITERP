@@ -1,6 +1,7 @@
 import type { LiveItem } from '@/blocks/registry'
 import type { Product, ProductVariant, Service } from '@/types'
 import { formatLiveProductPrice } from '@/lib/liveProductUtils'
+import { resolveServicePrice } from '@/lib/servicePricing'
 import { resolveProductThumbnailUrl, resolveServiceThumbnailUrl } from '@/lib/productImageUtils'
 
 function isLiveCatalogId(id: string | null | undefined): boolean {
@@ -102,7 +103,7 @@ export function liveItemToCatalogProduct(item: LiveItem): Product | null {
 
 export function catalogServiceToLiveItem(service: Service): LiveItem {
   const currency = service.currency || 'INR'
-  const price = service.price ?? service.price_min ?? 0
+  const price = resolveServicePrice(service)
   const imageUrl = resolveServiceThumbnailUrl({
     image_url: service.image_url,
     media: service.media,

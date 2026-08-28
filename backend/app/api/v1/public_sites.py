@@ -897,8 +897,10 @@ async def get_live_resource_public(
     elif resource == "services":
         from app.models.vendor_service import Service
         from app.services.service_media import resolve_service_thumbnail_url
+        from app.services.service_pricing import live_service_price_fields
         q = (
             select(Service)
+            .options(selectinload(Service.plans))
             .where(
                 Service.vendor_id == vendor.id,
                 Service.status == "active",
@@ -909,16 +911,9 @@ async def get_live_resource_public(
         )
         rows = (await db.execute(q)).scalars().all()
         for s in rows:
-            price_val = float(s.price) if s.price is not None else None
-            if s.price_type == "free":
-                price_formatted = "Free"
-            elif s.price_type == "not_applicable":
-                price_formatted = None
-                price_val = None
-            elif price_val is not None and price_val > 0:
-                price_formatted = f"{s.currency or 'INR'} {price_val:,.0f}"
-            else:
-                price_formatted = "Get a Quote"
+            price_fields = live_service_price_fields(s)
+            price_val = price_fields["price"]
+            price_formatted = price_fields["price_formatted"]
             items.append(_norm_item(
                 id=str(s.id),
                 title=s.name or "",

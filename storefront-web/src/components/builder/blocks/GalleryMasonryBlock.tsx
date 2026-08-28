@@ -49,9 +49,14 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
   const tileImg = catalogTileImageClass(imageShape)
   const showNav = props.show_nav === true
   const pageSizeRaw = Number(props.page_size)
-  const pageSize = Number.isFinite(pageSizeRaw) && pageSizeRaw > 0
+  const requestedPageSize = Number.isFinite(pageSizeRaw) && pageSizeRaw > 0
     ? Math.min(24, Math.floor(pageSizeRaw))
     : DEFAULT_PAGE_SIZE
+  // Keep full rows so Previous/Next never collapses the configured column count.
+  const pageSize = Math.min(
+    24,
+    Math.max(columns, Math.ceil(requestedPageSize / columns) * columns),
+  )
   const propImagesRaw = Array.isArray(props.images)
     ? (props.images as { src?: string; alt?: string; caption?: string }[])
     : []
@@ -132,7 +137,9 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
     const shellClass = cn(
       'relative w-full overflow-hidden',
       tileWrap,
-      imageShape === 'circle' && 'aspect-square max-w-[min(100%,280px)] mx-auto',
+      imageShape === 'circle' && (showNav
+        ? 'aspect-square w-full'
+        : 'aspect-square max-w-[min(100%,280px)] mx-auto'),
     )
     const frameStyle = {
       ...(item ? arrayItemImageFrameStyle(item) : {}),
@@ -200,14 +207,14 @@ export default function GalleryMasonryBlock({ style, props, liveItems, blockId }
       {(showTitle) && (
         <BuilderTextField fieldKey="title" blockId={blockId} blockProps={props} value={title ?? ''} as="h2" className="text-3xl font-bold text-gray-900 mb-8 text-center" placeholder="Section title" />
       )}
-      {layout === 'featured' ? (
+      {layout === 'featured' && !showNav ? (
         <div className="grid grid-cols-3 grid-rows-2 max-w-5xl mx-auto min-h-[320px]" style={{ gap: itemGap }}>
           <Img url={visible[0].url} alt={visible[0].alt} index={visible[0].index} displayIndex={displayIndexOf(0)} item={visible[0].item} className="col-span-2 row-span-2 h-full min-h-[280px] rounded-xl" />
           {visible.slice(1, 3).map((img, i) => (
             <Img key={i} url={img.url} alt={img.alt} index={img.index} displayIndex={displayIndexOf(1 + i)} item={img.item} className="h-full min-h-[130px]" />
           ))}
         </div>
-      ) : layout === 'masonry' ? (
+      ) : layout === 'masonry' && !showNav ? (
         <div className={cn('columns-2 sm:columns-3 gap-4 space-y-4 max-w-5xl mx-auto', columns >= 4 && 'lg:columns-4', columns >= 5 && 'lg:columns-5')} style={{ columnGap: itemGap }}>
           {visible.map((img, i) => (
             <Img key={i} url={img.url} alt={img.alt} index={img.index} displayIndex={displayIndexOf(i)} item={img.item} heightPx={itemSize ?? 240} className="break-inside-avoid mb-4" />

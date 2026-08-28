@@ -81,6 +81,7 @@ export interface Service {
   price: number;
   currency?: string;
   price_type?: string;
+  plans?: Array<{ price?: number | null; price_min?: number | null; is_active?: boolean; sort_order?: number }>;
   features?: string[];
   allowQuoteRequest?: boolean;
   requiresBooking?: boolean;
