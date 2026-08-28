@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Lock, Tag } from "lucide-react";
+import { ChevronDown, ChevronUp, Lock, ShoppingBag, Tag } from "lucide-react";
 import { Cart } from "../types";
 import { formatMoney, useCheckoutConfig } from "../config";
 import { LineItem } from "./LineItem";
@@ -32,6 +32,7 @@ export function OrderSummary({
   const showCouponField = showCouponInput ?? showCoupon;
 
   const totalDiscount = cart.discounts.reduce((sum, d) => sum + d.amount.amount, 0);
+  const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <aside className="ck-surface-elevated ck-border ck-radius-md p-5 md:p-6 lg:flex lg:max-h-[calc(100vh-6rem)] lg:flex-col">
@@ -44,6 +45,10 @@ export function OrderSummary({
         >
           <span className="flex items-center gap-2 text-sm font-medium">
             {open ? "Hide" : "Show"} order summary
+            <span className="ck-badge inline-flex items-center gap-1">
+              <ShoppingBag size={12} />
+              {itemCount}
+            </span>
             {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </span>
           <span className="text-base font-semibold">{formatMoney(cart.total, locale)}</span>
@@ -53,7 +58,13 @@ export function OrderSummary({
       <div
         className={`${collapsibleOnMobile && !open ? "hidden md:block" : "block"} lg:flex lg:min-h-0 lg:flex-1 lg:flex-col`}
       >
-        <h3 className="mb-4 shrink-0 text-base font-semibold">Order summary</h3>
+        <h3 className="mb-4 flex shrink-0 items-center gap-2 text-base font-semibold">
+          Order summary
+          <span className="ck-badge inline-flex items-center gap-1 font-medium">
+            <ShoppingBag size={12} />
+            {itemCount}
+          </span>
+        </h3>
 
         {showItems && (
           <div className="ck-border-b mb-4 pb-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">

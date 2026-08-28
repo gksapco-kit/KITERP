@@ -10,7 +10,7 @@ import { useCart, useCustomerLogout, useCustomerMe } from '@/hooks/useStore'
 import { UnifiedNav, AnnouncementBar } from '@/kit/header/UnifiedNav'
 import { useAuthStore } from '@/stores/authStore'
 import { useIsCustomerLoggedIn } from '@/hooks/useAuthHydrated'
-import { useCartStore, selectCartItemCount } from '@/stores/cartStore'
+import { countCartItems } from '@/stores/cartStore'
 import { VendorProvider, useVendor } from '@/contexts/VendorContext'
 import { StorefrontDisplayFieldsBridge } from '@/contexts/StorefrontDisplayFieldsBridge'
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
@@ -484,7 +484,8 @@ function StoreContent() {
   const storeSpecificTemplateId = useStoreSpecificAssignedTemplateId()
   const { customer } = useAuthStore()
   const { isLoggedIn } = useIsCustomerLoggedIn()
-  const cartCount = useCartStore(selectCartItemCount)
+  const { data: liveCart } = useCart()
+  const cartCount = countCartItems(liveCart)
   const logout = useCustomerLogout()
   const navigate = useNavigate()
   const theme = useTheme()
@@ -521,7 +522,6 @@ function StoreContent() {
   }, [draftCatalogEmbed, pathname, vendorSlug])
 
   useCustomerMe()
-  useCart()
   useJourneyBeacon(vendor?.id, customer?.id)
   const { links: headerNavLinks, cta: headerCta } = useStorefrontHeaderNav()
 

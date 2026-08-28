@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { isServiceCartItem } from '@/lib/serviceCart'
 import { safeLocalStateStorage } from '@/lib/safeStorage'
 
 export type GuestCartItem = {
@@ -19,6 +20,7 @@ type GuestCartState = {
   byVendor: Record<string, GuestCartItem[]>
   getItems: (vendorSlug: string) => GuestCartItem[]
   addItem: (vendorSlug: string, item: GuestCartItem) => void
+  setItems: (vendorSlug: string, items: GuestCartItem[]) => void
   updateQty: (vendorSlug: string, index: number, qty: number) => void
   removeItem: (vendorSlug: string, index: number) => void
   clear: (vendorSlug: string) => void
@@ -31,17 +33,23 @@ export const useGuestCartStore = create<GuestCartState>()(
       getItems: (vendorSlug) => get().byVendor[vendorSlug] ?? [],
       addItem: (vendorSlug, item) => {
         const items = [...(get().byVendor[vendorSlug] ?? [])]
-        const idx = items.findIndex((i) => {
-          if (item.service_id && !item.product_id) {
-            return i.service_id === item.service_id && !i.product_id
-          }
-          return i.product_id === item.product_id && i.variant_id === item.variant_id
-        })
+        if (isServiceCartItem(item)) {
+          const products = items.filter((i) => !isServiceCartItem(i))
+          products.push({ ...item, qty: 1 })
+          set({ byVendor: { ...get().byVendor, [vendorSlug]: products } })
+          return
+        }
+        const idx = items.findIndex((i) =>
+          i.product_id === item.product_id && i.variant_id === item.variant_id,
+        )
         if (idx >= 0) {
           items[idx] = { ...items[idx], qty: items[idx].qty + item.qty, price: item.price }
         } else {
           items.push(item)
         }
+        set({ byVendor: { ...get().byVendor, [vendorSlug]: items } })
+      },
+      setItems: (vendorSlug, items) => {
         set({ byVendor: { ...get().byVendor, [vendorSlug]: items } })
       },
       updateQty: (vendorSlug, index, qty) => {

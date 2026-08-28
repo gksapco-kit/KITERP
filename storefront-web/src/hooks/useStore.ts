@@ -8,6 +8,7 @@ import { useGuestCartStore, type GuestCartItem } from '@/stores/guestCartStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { apiError, extractApiError, formatCustomerAuthError } from '@/lib/errorMessages'
 import { clearPendingBuyNow, peekPendingBuyNow } from '@/lib/pendingBuyNow'
+import { cartHasIntentLine, peekPendingCheckoutIntent } from '@/lib/pendingCheckoutIntent'
 import { readScopedCustomerTokens } from '@/lib/customerAuthStorage'
 import { getCartQtyForVariant } from '@/lib/stockValidation'
 import type { Cart, Product } from '@/types'
@@ -278,12 +279,6 @@ export function useCart() {
   const guestItems = useGuestCartStore(s => s.byVendor[vendorSlug] ?? EMPTY_GUEST_CART_ITEMS)
   const guestCart = useMemo(() => buildGuestCart(guestItems), [guestItems])
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      syncCartStore(guestCart)
-    }
-  }, [isAuthenticated, guestCart])
-
   const server = useQuery({
     queryKey: storeKeys.cart,
     queryFn: async () => {
@@ -302,16 +297,32 @@ export function useCart() {
 
   const resolvedCart = useMemo(() => {
     if (!isAuthenticated) return guestCart
-    // Prefer a locally seeded cart (e.g. subscription line) over an empty server refetch
+    // Prefer a locally seeded booking/subscription line over an empty server refetch —
+    // but only while that intent is still pending. Otherwise the header badge stays
+    // at 1 after the cart page has already gone empty.
     const cached = cartFromStore ?? server.data
     const cachedCount = cached?.items?.length ?? 0
     const serverCount = server.data?.items?.length ?? 0
     if (cachedCount > 0 && serverCount === 0 && server.isFetched) {
-      return cached
+      const intent = vendorSlug ? peekPendingCheckoutIntent(vendorSlug) : null
+      if (intent && cartHasIntentLine(cached.items, intent.cartItem)) {
+        return cached
+      }
+      return server.data
     }
     if (server.isFetched && server.data !== undefined && serverCount > 0) return server.data
     return cached ?? server.data
-  }, [isAuthenticated, guestCart, server.isFetched, server.data, cartFromStore])
+  }, [isAuthenticated, guestCart, server.isFetched, server.data, cartFromStore, vendorSlug])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      syncCartStore(guestCart)
+      return
+    }
+    if (resolvedCart) {
+      syncCartStore(resolvedCart)
+    }
+  }, [isAuthenticated, guestCart, resolvedCart])
 
   if (!isAuthenticated) {
     return {

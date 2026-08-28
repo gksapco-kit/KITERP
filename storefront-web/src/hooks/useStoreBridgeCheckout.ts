@@ -5,7 +5,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCart, useUpdateCartItem, useRemoveCartItem, useCheckout, useStoreInfo, resetCartAfterOrder, storeKeys } from './useStore'
+import { useCart, useUpdateCartItem, useRemoveCartItem, useCheckout, useStoreInfo, resetCartAfterOrder, storeKeys, buildGuestCart } from './useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendor } from '@/contexts/VendorContext'
 import { useBranch } from '@/contexts/BranchContext'
@@ -32,6 +32,9 @@ import {
   peekPendingCheckoutIntent,
 } from '@/lib/pendingCheckoutIntent'
 import { fulfillPendingCheckoutIntent } from '@/lib/fulfillCheckoutIntent'
+import { keepSingleServiceIndexed, keepSingleServiceLines, pruneServerServiceLines } from '@/lib/serviceCart'
+import { useGuestCartStore } from '@/stores/guestCartStore'
+import { useCartStore } from '@/stores/cartStore'
 import type { Address, Cart, Customer, PaymentSelection, PaymentProvider, ShippingMethod } from '@/checkout/types'
 
 const FALLBACK_SHIPPING: ShippingMethod[] = [
@@ -131,6 +134,35 @@ export function useStoreBridgeCheckout() {
     if (pendingIntent.kind === 'subscription') return formatSubscriptionCheckoutSummary(pendingIntent)
     return formatBookingCheckoutSummary(pendingIntent)
   }, [pendingIntent])
+
+  // Drop leftover booking/subscription lines so checkout and the cart badge stay on one service.
+  useEffect(() => {
+    if (!vendorSlug || !pendingIntent) return
+    if (pendingIntent.kind !== 'booking' && pendingIntent.kind !== 'subscription') return
+    const items = (cart?.items ?? []) as Array<{
+      service_id?: string | null
+      product_id?: string | null
+      item_type?: string | null
+    }>
+    if (!items.length) return
+    const kept = keepSingleServiceLines(items, pendingIntent)
+    if (kept.length === items.length) return
+    if (isGuest) {
+      const next = keepSingleServiceLines(useGuestCartStore.getState().getItems(vendorSlug), pendingIntent)
+      useGuestCartStore.getState().setItems(vendorSlug, next)
+      const guestCart = buildGuestCart(next)
+      qc.setQueryData(storeKeys.cart, guestCart)
+      useCartStore.getState().setCart(guestCart)
+      return
+    }
+    let cancelled = false
+    void pruneServerServiceLines(pendingIntent).then((next) => {
+      if (cancelled) return
+      qc.setQueryData(storeKeys.cart, next)
+      useCartStore.getState().setCart(next)
+    }).catch(() => { /* checkout can still filter locally */ })
+    return () => { cancelled = true }
+  }, [vendorSlug, pendingIntent, cart?.items, isGuest, qc])
   const placeOrderLabel = checkoutIntentKind === 'subscription'
     ? 'Subscribe & pay'
     : checkoutIntentKind === 'booking'
@@ -184,8 +216,14 @@ export function useStoreBridgeCheckout() {
       ? savedAddresses.find(a => a.id === selectedSavedAddressId)
       : savedAddresses[0])
 
+  const checkoutLines = useMemo(() => {
+    const items = (cart?.items ?? []) as Array<Record<string, unknown>>
+    const restrict = pendingIntent?.kind === 'booking' || pendingIntent?.kind === 'subscription'
+    return restrict ? keepSingleServiceIndexed(items, pendingIntent) : items.map((item, index) => ({ item, index }))
+  }, [cart?.items, pendingIntent])
+
   const cartItemsPayload = useMemo(
-    () => ((cart?.items ?? []) as Record<string, unknown>[]).map(item => ({
+    () => checkoutLines.map(({ item }) => ({
       product_id: item.product_id ? String(item.product_id) : undefined,
       service_id: item.service_id ? String(item.service_id) : undefined,
       item_type: (item.item_type as string | undefined)
@@ -196,7 +234,7 @@ export function useStoreBridgeCheckout() {
       price: Number(item.price),
       image_url: item.image_url ? String(item.image_url) : undefined,
     })),
-    [cart?.items],
+    [checkoutLines],
   )
 
   const refreshPreview = useCallback(async (options?: { coupon?: string | null; shippingMethodId?: string }) => {
@@ -300,8 +338,8 @@ export function useStoreBridgeCheckout() {
 
   // Prefer server preview; fall back to cart line totals so summary does not jump from ₹0.
   const localSubtotal = useMemo(
-    () => (cart?.items ?? []).reduce((s, i) => s + Number(i.price) * Number(i.qty), 0),
-    [cart?.items],
+    () => checkoutLines.reduce((s, { item }) => s + Number(item.price) * Number(item.qty), 0),
+    [checkoutLines],
   )
   const subtotalAmount = Math.round((serverPreview?.subtotal ?? localSubtotal) * 100)
   const shippingAmount = Math.round(
@@ -323,7 +361,7 @@ export function useStoreBridgeCheckout() {
 
   const checkoutCart: Cart = useMemo(() => ({
     id: 'store_cart',
-    items: ((cart?.items ?? []) as Record<string, unknown>[]).map((item, i) => {
+    items: checkoutLines.map(({ item, index }) => {
       const isIntentLine = pendingIntent && (
         (pendingIntent.kind === 'subscription' && (
           (pendingIntent.payload.service_id && String(item.service_id ?? '') === pendingIntent.payload.service_id)
@@ -333,8 +371,8 @@ export function useStoreBridgeCheckout() {
       )
       const intentLabel = isIntentLine ? checkoutIntentSummary : null
       return {
-      id: String(i),
-      productId: String(item.product_id ?? item.service_id ?? i),
+      id: String(index),
+      productId: String(item.product_id ?? item.service_id ?? index),
       variantId: item.variant_id ? String(item.variant_id) : undefined,
       name: String(item.name ?? ''),
       variantLabel: intentLabel
@@ -357,7 +395,7 @@ export function useStoreBridgeCheckout() {
       amount: totalAmount,
       currency,
     },
-  }), [cart, subtotalAmount, shippingAmount, taxAmount, discountAmount, totalAmount, couponCode, serverPreview, currency, pendingIntent, checkoutIntentSummary])
+  }), [checkoutLines, subtotalAmount, shippingAmount, taxAmount, discountAmount, totalAmount, couponCode, serverPreview, currency, pendingIntent, checkoutIntentSummary])
 
   const prefetchOrderConfirmation = useCallback(async (orderId: string) => {
     setProcessingMessage('Loading order confirmation…')

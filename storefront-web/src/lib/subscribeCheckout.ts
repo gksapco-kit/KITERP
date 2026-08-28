@@ -14,6 +14,7 @@ import {
   type PendingCheckoutIntent,
 } from '@/lib/pendingCheckoutIntent'
 import { useAuthStore } from '@/stores/authStore'
+import { pruneServerServiceLines } from '@/lib/serviceCart'
 import { useGuestCartStore, type GuestCartItem } from '@/stores/guestCartStore'
 import { buildGuestCart, storeKeys } from '@/hooks/useStore'
 import { useCartStore } from '@/stores/cartStore'
@@ -116,12 +117,14 @@ export async function proceedSubscribeToCheckout(opts: {
 
   try {
     await qc.cancelQueries({ queryKey: storeKeys.cart })
+    await pruneServerServiceLines(intent)
     const cart = await storeApi.addToCart(payload)
     applyLocalCart(qc, cart)
   } catch (firstErr) {
     // Authenticated checkout reads the server cart — local seed alone causes "Cart is empty".
     try {
       await qc.cancelQueries({ queryKey: storeKeys.cart })
+      await pruneServerServiceLines(intent)
       const cart = await storeApi.addToCart(payload)
       applyLocalCart(qc, cart)
     } catch (err) {

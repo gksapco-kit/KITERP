@@ -33,19 +33,34 @@ class CartService:
         cart = await self.repo.get_or_create(vendor_id, customer_id)
         items = _clone_cart_items(cart.items)
 
-        # Match existing line: product+variant, or service
+        is_service = bool(item.service_id and not item.product_id) or item.item_type == "service"
+        if is_service:
+            # One booking/subscription at a time — replace leftover service lines.
+            items = [
+                existing
+                for existing in items
+                if not (
+                    existing.get("item_type") == "service"
+                    or (existing.get("service_id") and not existing.get("product_id"))
+                )
+            ]
+            dumped = item.model_dump(exclude_none=True)
+            dumped["qty"] = 1
+            dumped["item_type"] = dumped.get("item_type") or "service"
+            items.append(dumped)
+            _persist_cart_items(cart, items)
+            await self.db.commit()
+            await self.db.refresh(cart)
+            return cart
+
+        # Match existing product+variant line
         for i, existing in enumerate(items):
             same_product = (
                 item.product_id
                 and existing.get("product_id") == item.product_id
                 and existing.get("variant_id") == item.variant_id
             )
-            same_service = (
-                item.service_id
-                and existing.get("service_id") == item.service_id
-                and not item.product_id
-            )
-            if same_product or same_service:
+            if same_product:
                 items[i]["qty"] += item.qty
                 items[i]["price"] = item.price
                 if item.item_type:

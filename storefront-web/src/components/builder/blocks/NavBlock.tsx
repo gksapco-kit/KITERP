@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useVendor } from '@/contexts/VendorContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useStorePath } from '@/hooks/useStorePath'
-import { useCartStore, selectCartItemCount } from '@/stores/cartStore'
+import { countCartItems } from '@/stores/cartStore'
 import { useCart } from '@/hooks/useStore'
 import { useAuthStore } from '@/stores/authStore'
 import { imgUrl, cn } from '@/lib/utils'
@@ -74,8 +74,8 @@ export default function NavBlock({
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated, customer } = useAuthStore()
-  const cartCount = useCartStore(selectCartItemCount)
-  useCart()
+  const { data: liveCart } = useCart()
+  const cartCount = countCartItems(liveCart)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -144,7 +144,7 @@ export default function NavBlock({
   const showBrandName = props.show_brand_name !== false
   const showNavLinks = props.show_nav_links !== false
   const showSearch = props.show_search !== false
-  const showCart = props.show_cart !== false
+  const showCart = isEditorCanvas ? props.show_cart !== false : true
   const showAccount = props.show_login !== false && props.show_account !== false
   const ctaLabel = resolveNavCtaLabel(props.cta_label as string | null)
   const ctaUrl = resolveNavCtaUrl(props.cta_url as string | null, ctaLabel)

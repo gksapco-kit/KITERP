@@ -49,46 +49,52 @@ export function LineItem({ item, editable, onUpdateQuantity, onRemove, compact }
           </div>
         </div>
 
-        {editable && (
+        {(editable || onRemove) && (
           <div className="mt-2 flex items-center justify-between">
-            <div
-              className="ck-border ck-radius-sm flex items-center"
-              style={{ width: "fit-content" }}
-            >
+            {editable ? (
+              <div
+                className="ck-border ck-radius-sm flex items-center"
+                style={{ width: "fit-content" }}
+              >
+                <button
+                  type="button"
+                  aria-label="Decrease quantity"
+                  className="ck-btn-ghost"
+                  onClick={() => onUpdateQuantity?.(item.id, Math.max(1, item.quantity - 1))}
+                  disabled={item.quantity <= 1}
+                  style={{ padding: "6px 10px" }}
+                >
+                  <Minus size={14} />
+                </button>
+                <span className="px-2 text-sm" style={{ minWidth: 24, textAlign: "center" }}>
+                  {item.quantity}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Increase quantity"
+                  className="ck-btn-ghost"
+                  onClick={() =>
+                    onUpdateQuantity?.(item.id, Math.min(item.maxQuantity ?? 99, item.quantity + 1))
+                  }
+                  disabled={item.quantity >= (item.maxQuantity ?? 99)}
+                  style={{ padding: "6px 10px" }}
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+            ) : (
+              <span />
+            )}
+            {onRemove && (
               <button
                 type="button"
-                aria-label="Decrease quantity"
-                className="ck-btn-ghost"
-                onClick={() => onUpdateQuantity?.(item.id, Math.max(1, item.quantity - 1))}
-                disabled={item.quantity <= 1}
-                style={{ padding: "6px 10px" }}
+                className="ck-btn-ghost flex items-center gap-1"
+                onClick={() => onRemove(item.id)}
+                aria-label={`Remove ${item.name}`}
               >
-                <Minus size={14} />
+                <Trash2 size={14} /> Remove
               </button>
-              <span className="px-2 text-sm" style={{ minWidth: 24, textAlign: "center" }}>
-                {item.quantity}
-              </span>
-              <button
-                type="button"
-                aria-label="Increase quantity"
-                className="ck-btn-ghost"
-                onClick={() =>
-                  onUpdateQuantity?.(item.id, Math.min(item.maxQuantity ?? 99, item.quantity + 1))
-                }
-                disabled={item.quantity >= (item.maxQuantity ?? 99)}
-                style={{ padding: "6px 10px" }}
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-            <button
-              type="button"
-              className="ck-btn-ghost flex items-center gap-1"
-              onClick={() => onRemove?.(item.id)}
-              aria-label={`Remove ${item.name}`}
-            >
-              <Trash2 size={14} /> Remove
-            </button>
+            )}
           </div>
         )}
       </div>
