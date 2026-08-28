@@ -553,7 +553,7 @@ const BLOCK_CATALOG: BlockDef[] = [
   { type: 'cta', label: 'Call to Action', icon: Zap, desc: 'Bold CTA section to convert visitors', category: 'conversion', defaultProps: { headline: 'Ready to shop?', subtitle: 'Browse our collection and find something you will love today.', cta_label: 'Start shopping', cta_url: '/products' } },
   { type: 'contact_form', label: 'Contact Form', icon: Mail, desc: 'Contact form with fields', category: 'contact', defaultProps: { title: 'Get in touch', layout: 'split', full_page: false, email: '', phone: '', address: '', show_map: false, form_fields: [{ name: 'name', type: 'text', required: true, placeholder: 'Your name' }, { name: 'email', type: 'email', required: true, placeholder: 'Your email' }, { name: 'message', type: 'textarea', required: true, placeholder: 'How can we help?' }] } },
   { type: 'portfolio_grid', label: 'Portfolio Grid', icon: Camera, desc: 'Filterable work portfolio grid', category: 'portfolio', defaultProps: { title: 'Our Work', columns: 3, filterable: true } },
-  { type: 'gallery_masonry', label: 'Gallery Masonry', icon: ImageIcon, desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery', layout: 'masonry', columns: 3, images: [] } },
+  { type: 'gallery_masonry', label: 'Gallery Masonry', icon: ImageIcon, desc: 'Masonry image gallery', category: 'media', defaultProps: { title: 'Gallery', layout: 'masonry', columns: 3, images: [], show_nav: true, page_size: 6 } },
   { type: 'video_gallery', label: 'Video multiple', icon: Video, desc: 'YouTube / Vimeo / Instagram video grid with layouts', category: 'media', defaultProps: { title: 'Video gallery', layout: 'grid', columns: 3, videos: [{ video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }, { video_url: '', title: '', caption: '' }] } },
   { type: 'product_grid', label: 'Latest Products', icon: ShoppingBag, desc: 'Latest products from your catalog — same live grid as Shop our latest', category: 'ecommerce', defaultProps: { title: 'Shop our latest', columns: 4, show_badges: true, padding_top: 64, padding_bottom: 64, image_object_fit: 'contain', add_button_style: 'filled', data_source: { type: 'products', auto: true } } },
   { type: 'blog_grid', label: 'Blog Grid', icon: FileText, desc: 'Latest posts in a grid', category: 'blog', defaultProps: { title: 'Latest Posts', columns: 3, show_count: 12, image_height_pct: 56 } },
@@ -9783,6 +9783,42 @@ function PropsEditor({
             </label>
             {inputRow({ label: 'Reserve button', fieldKey: 'cta', placeholder: 'Reserve' })}
           </div>
+        </PropsCollapsible>
+      )}
+
+      {(block.block_type === 'gallery_masonry' || block.block_type === 'gallery_grid' || block.block_type === 'image_gallery') && (
+        <PropsCollapsible
+          title="Previous / Next"
+          preview={(p as any).show_nav === true ? 'On' : 'Off'}
+        >
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={(p as any).show_nav === true}
+              onChange={e => onUpdate({ show_nav: e.target.checked } as any)}
+              className="rounded accent-primary"
+            />
+            <span className="text-xs text-gray-600">Show Previous and Next on the gallery</span>
+          </label>
+          {(p as any).show_nav === true && (
+            <label className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-gray-600 shrink-0">Images per page</span>
+              <input
+                type="number"
+                min={1}
+                max={24}
+                value={Number((p as any).page_size) > 0 ? Number((p as any).page_size) : 6}
+                onChange={e => {
+                  const n = Number(e.target.value)
+                  onUpdate({ page_size: Number.isFinite(n) && n > 0 ? Math.min(24, Math.floor(n)) : 6 } as any)
+                }}
+                className="w-16 rounded border border-border px-2 py-1 text-xs"
+              />
+            </label>
+          )}
+          <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+            Pages the grid when there are more images than this count. Visitors can also use Previous / Next in the enlarged photo view.
+          </p>
         </PropsCollapsible>
       )}
 
