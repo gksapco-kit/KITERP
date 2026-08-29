@@ -68,13 +68,20 @@ export function sectionImageObjectStyle(field: string, props: Record<string, unk
 
 /* ── Section image decor: corners, shadow, opacity, layering, gradient overlay ── */
 
-export type SectionImageShadow = 'none' | 'sm' | 'md' | 'lg' | 'xl'
+export type SectionImageShadow = 'none' | 'sm' | 'md' | 'lg' | 'xl' | 'inner' | 'glow'
 export type SectionImageLayer = 'front' | 'back'
 export type SectionImageOverlay =
   | 'none'
   | 'dark-bottom'
   | 'dark-full'
   | 'top-fade'
+  | 'left-fade'
+  | 'right-fade'
+  | 'vignette'
+  | 'spotlight'
+  | 'warm'
+  | 'cool'
+  | 'sunset'
   | 'brand'
 
 export const SECTION_IMAGE_SHADOW_CSS: Record<SectionImageShadow, string | undefined> = {
@@ -83,6 +90,8 @@ export const SECTION_IMAGE_SHADOW_CSS: Record<SectionImageShadow, string | undef
   md: '0 6px 16px rgba(0,0,0,0.16)',
   lg: '0 14px 32px rgba(0,0,0,0.22)',
   xl: '0 24px 52px rgba(0,0,0,0.30)',
+  inner: 'inset 0 2px 12px rgba(0,0,0,0.35)',
+  glow: '0 0 28px rgba(15,23,42,0.28), 0 8px 24px rgba(15,23,42,0.18)',
 }
 
 export function sectionImageDecorKeys(field: string) {
@@ -113,7 +122,9 @@ export function readSectionImageRadius(field: string, props: Record<string, unkn
 export function readSectionImageShadow(field: string, props: Record<string, unknown>): SectionImageShadow {
   const { shadow } = sectionImageDecorKeys(field)
   const raw = props[shadow]
-  return raw === 'sm' || raw === 'md' || raw === 'lg' || raw === 'xl' ? raw : 'none'
+  return raw === 'sm' || raw === 'md' || raw === 'lg' || raw === 'xl' || raw === 'inner' || raw === 'glow'
+    ? raw
+    : 'none'
 }
 
 export function readSectionImageOpacity(field: string, props: Record<string, unknown>): number {
@@ -130,9 +141,11 @@ export function readSectionImageLayer(field: string, props: Record<string, unkno
 export function readSectionImageOverlay(field: string, props: Record<string, unknown>): SectionImageOverlay {
   const { overlay } = sectionImageDecorKeys(field)
   const raw = props[overlay]
-  return raw === 'dark-bottom' || raw === 'dark-full' || raw === 'top-fade' || raw === 'brand'
-    ? raw
-    : 'none'
+  const allowed: SectionImageOverlay[] = [
+    'dark-bottom', 'dark-full', 'top-fade', 'left-fade', 'right-fade',
+    'vignette', 'spotlight', 'warm', 'cool', 'sunset', 'brand',
+  ]
+  return allowed.includes(raw as SectionImageOverlay) ? (raw as SectionImageOverlay) : 'none'
 }
 
 /** Wrapper-level CSS for corners / shadow / opacity (applied to the image frame, not the <img>). */
@@ -160,6 +173,20 @@ export function sectionImageOverlayCss(
       return 'linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0.55))'
     case 'top-fade':
       return 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)'
+    case 'left-fade':
+      return 'linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 42%, rgba(0,0,0,0) 72%)'
+    case 'right-fade':
+      return 'linear-gradient(to left, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 42%, rgba(0,0,0,0) 72%)'
+    case 'vignette':
+      return 'radial-gradient(ellipse at center, rgba(0,0,0,0) 35%, rgba(0,0,0,0.55) 100%)'
+    case 'spotlight':
+      return 'radial-gradient(ellipse 70% 85% at 50% 45%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 100%)'
+    case 'warm':
+      return 'linear-gradient(135deg, rgba(120,53,15,0.55) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.5) 100%)'
+    case 'cool':
+      return 'linear-gradient(135deg, rgba(15,23,42,0.65) 0%, rgba(30,58,138,0.35) 50%, rgba(0,0,0,0.45) 100%)'
+    case 'sunset':
+      return 'linear-gradient(to top, rgba(124,45,18,0.75) 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.15) 100%)'
     case 'brand': {
       const c = brandColor || '#0f172a'
       return `linear-gradient(135deg, ${c}cc, ${c}33)`
@@ -167,6 +194,49 @@ export function sectionImageOverlayCss(
     default:
       return undefined
   }
+}
+
+/** Stack image overlay gradient on top of a photo (for full-bleed backgrounds). */
+export function sectionImageBackgroundLayers(
+  field: string,
+  props: Record<string, unknown>,
+  imageUrl: string,
+  brandColor?: string,
+  defaultOverlay: SectionImageOverlay = 'none',
+): {
+  backgroundImage: string
+  backgroundSize: string
+  backgroundPosition: string
+  backgroundRepeat: 'no-repeat'
+} {
+  const { overlay: overlayPropKey } = sectionImageDecorKeys(field)
+  const overlayKey = props[overlayPropKey]
+  const effectiveOverlay: SectionImageOverlay = overlayKey == null
+    ? defaultOverlay
+    : readSectionImageOverlay(field, props)
+  const overlay = sectionImageOverlayCss(effectiveOverlay, brandColor)
+  const imageLayer = `url(${imageUrl})`
+  const imageSize = sectionImageBackgroundSize(field, props)
+  const imagePosition = sectionImageBackgroundPosition(field, props)
+  return {
+    backgroundImage: overlay ? `${overlay}, ${imageLayer}` : imageLayer,
+    backgroundPosition: overlay ? `center, ${imagePosition}` : imagePosition,
+    backgroundSize: overlay ? `auto, ${imageSize}` : imageSize,
+    backgroundRepeat: 'no-repeat',
+  }
+}
+
+export function sectionImageBackgroundPosition(field: string, props: Record<string, unknown>): string {
+  const { x, y } = readSectionImageFocal(field, props)
+  return `${x}% ${y}%`
+}
+
+export function sectionImageBackgroundSize(field: string, props: Record<string, unknown>): string {
+  const fit = readSectionImageFit(field, props)
+  if (fit === 'contain') return 'contain'
+  if (fit === 'fill') return '100% 100%'
+  const scale = readSectionImageScale(field, props)
+  return scale !== 100 ? `${scale}%` : 'cover'
 }
 
 /** Per-item image style keys stored on array entries (categories[i], images[i], …). */

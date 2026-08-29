@@ -45,6 +45,12 @@ export const MEDIA_CLIP_IDS = [
   // Organic
   'leaf',
   'blob',
+  // Extra editorial
+  'parallelogram_r',
+  'parallelogram_l',
+  'heart',
+  'cut_corners',
+  'rounded_arch',
 ] as const
 
 export type MediaClipId = (typeof MEDIA_CLIP_IDS)[number]
@@ -96,6 +102,11 @@ export const MEDIA_CLIP_OPTIONS: MediaClipOption[] = [
   { id: 'squircle', label: 'Squircle', shortLabel: 'Squircle', hint: 'Extra-rounded rectangle' },
   { id: 'leaf', label: 'Leaf', shortLabel: 'Leaf', hint: 'Organic leaf silhouette' },
   { id: 'blob', label: 'Blob', shortLabel: 'Blob', hint: 'Soft organic blob' },
+  { id: 'parallelogram_r', label: 'Parallelogram right', shortLabel: 'Para R', hint: 'Slanted frame (leans right)' },
+  { id: 'parallelogram_l', label: 'Parallelogram left', shortLabel: 'Para L', hint: 'Slanted frame (leans left)' },
+  { id: 'heart', label: 'Heart', shortLabel: 'Heart', hint: 'Heart silhouette' },
+  { id: 'cut_corners', label: 'Cut corners', shortLabel: 'Cut', hint: 'Chamfered corners on all sides' },
+  { id: 'rounded_arch', label: 'Rounded arch', shortLabel: 'R Arch', hint: 'Wide rounded top, flat bottom' },
 ]
 
 /** Grouped picker sections — keeps the shape library scannable in narrow panels. */
@@ -122,7 +133,11 @@ export const MEDIA_CLIP_GROUPS: { label: string; ids: MediaClipId[] }[] = [
   },
   {
     label: 'Organic',
-    ids: ['leaf', 'blob'],
+    ids: ['leaf', 'blob', 'heart'],
+  },
+  {
+    label: 'Editorial extras',
+    ids: ['parallelogram_r', 'parallelogram_l', 'cut_corners', 'rounded_arch'],
   },
 ]
 
@@ -170,6 +185,11 @@ export const MEDIA_CLIP_CSS: Record<Exclude<MediaClipId, 'none'>, string> = {
   squircle: 'inset(0 round 22%)',
   leaf: 'polygon(50% 0%, 78% 12%, 96% 38%, 88% 68%, 62% 96%, 50% 100%, 38% 96%, 12% 68%, 4% 38%, 22% 12%)',
   blob: 'polygon(18% 0%, 58% 4%, 96% 22%, 100% 58%, 82% 92%, 48% 100%, 12% 88%, 0% 52%, 6% 18%)',
+  parallelogram_r: 'polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%)',
+  parallelogram_l: 'polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%)',
+  heart: 'polygon(50% 18%, 62% 6%, 78% 6%, 90% 18%, 90% 34%, 50% 78%, 10% 34%, 10% 18%, 22% 6%, 38% 6%)',
+  cut_corners: 'polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%)',
+  rounded_arch: 'inset(0 round 50% 50% 0 0)',
 }
 
 /** @deprecated Use MEDIA_CLIP_CSS */

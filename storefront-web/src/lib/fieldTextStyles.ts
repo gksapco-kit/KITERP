@@ -436,6 +436,7 @@ export function buildFieldStylesCss(
       }
 
       const widthPct = readFieldWidthPct(fs.field_width_pct)
+      const hasExplicitWidth = widthPct != null
       if (widthPct != null) {
         layoutRules.push(
           `width: ${widthPct}% !important`,
@@ -475,7 +476,7 @@ export function buildFieldStylesCss(
         layoutRules.push('position: relative !important')
         if (inline) {
           layoutRules.push('display: inline-flex !important', 'max-width: 100% !important')
-        } else {
+        } else if (!hasExplicitWidth) {
           layoutRules.push('width: 100% !important')
         }
         if (offsetX !== 0) layoutRules.push(`left: ${offsetX}px !important`)
@@ -507,8 +508,10 @@ export function buildFieldStylesCss(
           'flex-direction: column !important',
           `justify-content: ${jc} !important`,
           `min-height: ${minH}px !important`,
-          'width: 100% !important',
         )
+        if (!hasExplicitWidth) {
+          layoutRules.push('width: 100% !important')
+        }
       }
 
       let css = ''

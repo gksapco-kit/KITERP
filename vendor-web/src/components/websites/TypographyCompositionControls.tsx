@@ -1,5 +1,5 @@
 import type { ComponentProps, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
-import { forwardRef, useCallback, useEffect, useRef } from 'react'
+import { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   AlignCenter,
   AlignJustify,
@@ -44,7 +44,7 @@ import {
   stepFontSizePx,
 } from '@/lib/builderTypography'
 import { FIELD_OFFSET_STEP_PX, readFieldOffset, readFlipFlag, readRotateDeg } from '@storefront/lib/fieldTextStyles'
-import { BUILDER_FONT_FAMILIES, builderFontPreviewStyle, ensureBuilderFontLoaded, matchBuilderFontFamily } from '@storefront/lib/builderFontFamilies'
+import { BUILDER_FONT_FAMILIES, builderFontPreviewStyle, ensureBuilderFontLoaded, matchBuilderFontFamily, preloadBuilderFontPickerFonts } from '@storefront/lib/builderFontFamilies'
 import { pinInlineTextSelectionBeforeToolbarAction } from '@storefront/lib/builderInlineTextSelection'
 import {
   DESIGN_BAR_SOFT_ACTIVE,
@@ -242,6 +242,25 @@ export function FontFamilyControl({
       ? current
       : null
 
+  useEffect(() => {
+    if (current) ensureBuilderFontLoaded(current)
+  }, [current])
+
+  const triggerLabelStyle = current ? builderFontPreviewStyle(current) : undefined
+
+  const fontOptions = useMemo(
+    () => [
+      { value: '', label: 'Auto' },
+      ...(extraFont ? [{ value: extraFont, label: extraFont, style: builderFontPreviewStyle(extraFont) }] : []),
+      ...BUILDER_FONT_FAMILIES.map(font => ({
+        value: font,
+        label: font,
+        style: builderFontPreviewStyle(font),
+      })),
+    ],
+    [extraFont],
+  )
+
   return (
     <div
       onClick={e => e.stopPropagation()}
@@ -263,13 +282,13 @@ export function FontFamilyControl({
           if (next) ensureBuilderFontLoaded(next)
           onChange(next || null)
         }}
-        options={[
-          { value: '', label: 'Auto' },
-          ...(extraFont ? [{ value: extraFont, label: extraFont }] : []),
-          ...BUILDER_FONT_FAMILIES.map(font => ({ value: font, label: font })),
-        ]}
+        options={fontOptions}
         placeholder="Auto"
         aria-label="Font family"
+        triggerLabelStyle={triggerLabelStyle}
+        onOpenChange={open => {
+          if (open) preloadBuilderFontPickerFonts()
+        }}
         className={cn(
           'border-0 bg-white font-medium text-gray-800 truncate',
           stacked ? 'h-7 px-2 text-[10px]' : cn(s.select, 'border-l border-gray-200'),

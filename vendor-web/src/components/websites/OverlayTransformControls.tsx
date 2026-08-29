@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { FIELD_OFFSET_STEP_PX } from '@storefront/lib/fieldTextStyles'
 import {
   collectOverlayTargets,
+  overlaySnapThreshold,
   snapOverlayDrag,
   type OverlayBox,
   type OverlayGuideLine,
@@ -357,7 +358,13 @@ export function OverlayTransformControls({
     // Flash alignment guides purely as a visual hint, without moving the layer.
     if (onShowGuides && containerWidth && containerHeight) {
       const targets = collectOverlayTargets(siblings ?? [], containerWidth, containerHeight)
-      const { guides } = snapOverlayDrag({ x: nextX, y: nextY, w, h }, targets)
+      const isPercentSpace = containerWidth <= OVERLAY_AXIS_MAX && containerHeight <= OVERLAY_AXIS_MAX
+      const threshold = overlaySnapThreshold(
+        isPercentSpace ? 800 : containerWidth,
+        isPercentSpace ? 400 : containerHeight,
+        isPercentSpace ? 'percent' : 'px',
+      )
+      const { guides } = snapOverlayDrag({ x: nextX, y: nextY, w, h }, targets, threshold)
       onShowGuides(guides)
       window.setTimeout(() => onShowGuides?.([]), 600)
     }

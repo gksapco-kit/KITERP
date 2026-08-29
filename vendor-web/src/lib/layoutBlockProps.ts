@@ -180,6 +180,7 @@ export function mergeLayoutBlockProps(
     // Drop style keys from the previous preset so Image Left does not keep Dark/Card/Video flags.
     const aboutExclusiveKeys = [
       'layout', 'variant', 'image_position', 'bg_style', 'card_style', 'show_stats', 'media_type',
+      'align', 'content_vertical', 'min_height', 'image_overlay', 'media_clip', 'image_shadow',
     ] as const
     for (const key of aboutExclusiveKeys) {
       if (!(key in propsOverride)) delete merged[key]

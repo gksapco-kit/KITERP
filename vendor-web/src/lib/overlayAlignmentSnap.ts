@@ -22,6 +22,23 @@ export type OverlayGuideLine =
 
 export const OVERLAY_SNAP_THRESHOLD_PX = 6
 
+/** ~6px snap radius in overlay coords (px or 0–100 percent space). */
+export function overlaySnapThreshold(
+  containerW: number,
+  containerH: number,
+  unit: 'percent' | 'px' = 'px',
+): number {
+  if (unit === 'percent') {
+    const w = Math.max(containerW, 1)
+    const h = Math.max(containerH, 1)
+    return Math.min(
+      (OVERLAY_SNAP_THRESHOLD_PX / w) * 100,
+      (OVERLAY_SNAP_THRESHOLD_PX / h) * 100,
+    )
+  }
+  return OVERLAY_SNAP_THRESHOLD_PX
+}
+
 export function rectFromBox(box: OverlayBox): OverlayRect {
   return {
     left: box.x,

@@ -185,7 +185,7 @@ function googleFontStylesheetHref(fontFamily: string): string {
 /** Load a Google Font stylesheet for canvas / builder preview. No-op for system fonts. */
 export function ensureBuilderFontLoaded(fontFamily: string | null | undefined): void {
   const resolved = resolveBuilderFont(fontFamily)
-  const name = resolved?.loadFamily ?? fontFamily?.trim()
+  const name = resolved?.loadFamily ?? normalizeFontFamily(fontFamily)
   if (!name || SYSTEM_FONTS.has(name)) return
   if (typeof document === 'undefined') return
 
@@ -197,6 +197,15 @@ export function ensureBuilderFontLoaded(fontFamily: string | null | undefined): 
   link.rel = 'stylesheet'
   link.href = googleFontStylesheetHref(name)
   document.head.appendChild(link)
+}
+
+/** Preload fonts for the family picker menu (call when the menu opens). */
+export function preloadBuilderFontPickerFonts(
+  fonts: readonly string[] = BUILDER_FONT_FAMILIES,
+): void {
+  for (const font of fonts) {
+    ensureBuilderFontLoaded(font)
+  }
 }
 
 export function normalizeFontFamily(value: unknown): string | null {

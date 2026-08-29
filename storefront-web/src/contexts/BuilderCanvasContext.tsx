@@ -48,6 +48,9 @@ export interface BuilderCanvasContextValue {
   ) => void
   /** Remove a deletable field (hero eyebrow, CTA button, etc.) from the section. */
   onDeleteBlockField?: (blockId: string, fieldKey: string) => void
+  /** Builder undo/redo — used when canvas text fields intercept Ctrl+Z / Ctrl+Y. */
+  onEditorUndo?: () => void
+  onEditorRedo?: () => void
   /** Builder canvas: submit contact form via authenticated vendor API (draft sites). */
   submitContactForm?: (
     siteId: string,

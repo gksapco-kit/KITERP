@@ -1,6 +1,7 @@
 /** Layout variants shown when adding a section from the builder catalog. */
 import { FOOTER_LAYOUT_PRESETS } from '@/lib/footerLayoutTheme'
 import { NAV_LAYOUT_PRESETS } from '@/lib/navLayoutTheme'
+import { ABOUT_SHAPED_IMAGE_PRESETS } from '@storefront/lib/aboutShapedImageLayout'
 
 export type SectionLayoutPreset = {
   label: string
@@ -249,6 +250,20 @@ export const BLOCK_QUICK_PRESETS: Record<string, SectionLayoutPreset[]> = {
     { label: 'Image Left', desc: 'Photo left, story right', props: { layout: 'split', image_position: 'left' } },
     { label: 'Statement Center', desc: 'Centered text only', props: { layout: 'statement', variant: 'centered', image_position: 'none' } },
     { label: 'Full Width Image', desc: 'Large image + overlay text', props: { layout: 'overlay', image_position: 'background' } },
+    { label: 'Centered Overlay', desc: 'Hero text centered on photo', props: { layout: 'overlay', image_position: 'background', variant: 'centered', align: 'center' } },
+    { label: 'Bottom Caption', desc: 'Text anchored to image bottom', props: { layout: 'overlay', image_position: 'background', content_vertical: 'bottom' } },
+    { label: 'Right Align Overlay', desc: 'Story aligned to the right', props: { layout: 'overlay', image_position: 'background', align: 'right' } },
+    { label: 'Cinematic Banner', desc: 'Tall wide photo backdrop', props: { layout: 'overlay', image_position: 'background', min_height: 560 } },
+    { label: 'Gradient Fade', desc: 'Photo with bottom gradient', props: { layout: 'overlay', image_position: 'background', image_overlay: 'dark-bottom' } },
+    { label: 'Vignette Photo', desc: 'Soft vignette on full photo', props: { layout: 'overlay', image_position: 'background', image_overlay: 'vignette' } },
+    { label: 'Boxed on Image', desc: 'Story in a card on photo', props: { layout: 'overlay', image_position: 'background', card_style: 'card' } },
+    { label: 'Stats on Photo', desc: 'Metrics over full-width image', props: { layout: 'overlay', image_position: 'background', show_stats: true } },
+    { label: 'Image Top', desc: 'Full-width photo above story', props: { layout: 'stacked', image_position: 'top' } },
+    { label: 'Image Bottom', desc: 'Story above full-width photo', props: { layout: 'stacked', image_position: 'bottom' } },
+    { label: 'Portrait Split', desc: 'Tall portrait photo beside text', props: { layout: 'inline_split', image_position: 'right' } },
+    { label: 'Oval Image', desc: 'Centered photo in an oval frame', props: { ...ABOUT_SHAPED_IMAGE_PRESETS.oval } },
+    { label: 'Squircle Image', desc: 'Centered photo in a soft rounded frame', props: { ...ABOUT_SHAPED_IMAGE_PRESETS.squircle } },
+    { label: 'Capsule Frame', desc: 'Photo in a wide stadium capsule shape', props: { ...ABOUT_SHAPED_IMAGE_PRESETS.capsule } },
     { label: 'Two Column Text', desc: 'Split text columns', props: { layout: 'columns', image_position: 'none' } },
     { label: 'Stats + Story', desc: 'About with inline stats', props: { layout: 'split', image_position: 'left', show_stats: true } },
     { label: 'Video About', desc: 'Video embed beside story', props: { layout: 'split', image_position: 'right', media_type: 'video' } },

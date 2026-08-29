@@ -675,10 +675,14 @@ export function BuilderSectionPaddingHandles({
     : liveHeight - liveBottom
   const hideBottom = liveHeight < 16 || bottomHandleY - topHandleY < 4
 
-  // Drag pills sit on the outer section border (slightly outside) so the bottom
-  // control stays visible at section edges; seam guide lines stay on padding seams.
-  const topPillY = 0
-  const bottomPillY = liveHeight
+  // Keep drag pills inside the padding bands (not on the outer seam) so they do not
+  // collide with the "+ Section" insert control between adjacent blocks.
+  const topPillY = liveTop > 32
+    ? liveTop / 2
+    : Math.max(12, liveTop > 0 ? liveTop * 0.5 : 12)
+  const bottomPillY = liveBottom > 32
+    ? liveHeight - liveBottom / 2
+    : liveHeight - Math.max(12, liveBottom > 0 ? liveBottom * 0.5 : 12)
 
   const flushPreview = () => {
     const drag = dragRef.current
@@ -833,9 +837,7 @@ export function BuilderSectionPaddingHandles({
         )}
         style={{
           top: handleY,
-          transform: edge === 'top'
-            ? 'translateY(calc(-50% - 14px))'
-            : 'translateY(calc(-50% + 14px))',
+          transform: 'translateY(-50%)',
         }}
       >
         <div

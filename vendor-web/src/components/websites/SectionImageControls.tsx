@@ -51,6 +51,7 @@ const HEIGHT_STEP = 40
 const ZOOM_STEP = 10
 const RADIUS_STEP = 4
 const OPACITY_STEP = 10
+const WIDTH_STEP = 5
 
 const SHADOW_OPTIONS: { value: SectionImageShadow; label: string; title: string }[] = [
   { value: 'none', label: '✕', title: 'No shadow' },
@@ -58,13 +59,22 @@ const SHADOW_OPTIONS: { value: SectionImageShadow; label: string; title: string 
   { value: 'md', label: 'M', title: 'Medium shadow' },
   { value: 'lg', label: 'L', title: 'Large shadow' },
   { value: 'xl', label: 'XL', title: 'Extra large shadow' },
+  { value: 'inner', label: 'In', title: 'Inset shadow' },
+  { value: 'glow', label: 'Gl', title: 'Soft outer glow' },
 ]
 
 const OVERLAY_OPTIONS: { value: SectionImageOverlay; label: string; title: string }[] = [
   { value: 'none', label: 'Off', title: 'No gradient overlay' },
   { value: 'dark-bottom', label: 'Btm', title: 'Dark fade from bottom (best for captions)' },
   { value: 'top-fade', label: 'Top', title: 'Dark fade from top' },
+  { value: 'left-fade', label: 'L', title: 'Dark fade from left' },
+  { value: 'right-fade', label: 'R', title: 'Dark fade from right' },
+  { value: 'vignette', label: 'Vig', title: 'Dark edges, clear center' },
+  { value: 'spotlight', label: 'Spot', title: 'Bright center, dark edges' },
   { value: 'dark-full', label: 'Dim', title: 'Even dark wash' },
+  { value: 'warm', label: 'Warm', title: 'Warm amber tint' },
+  { value: 'cool', label: 'Cool', title: 'Cool blue tint' },
+  { value: 'sunset', label: 'Sun', title: 'Sunset warmth from bottom' },
   { value: 'brand', label: 'Brand', title: 'Brand color gradient' },
 ]
 
@@ -115,6 +125,22 @@ function FocalPad({
       <div className={visualFocalCorner} aria-hidden />
       {btn(0, FOCAL_STEP, 'Pan down — show lower part of image', ArrowDown)}
       <div className={visualFocalCorner} aria-hidden />
+    </div>
+  )
+}
+
+function WidthStepper({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
+  const current = Number.isFinite(value) && value > 0 ? value : 70
+  const bump = (d: number) => onCommit(Math.max(30, Math.min(100, current + d)))
+  return (
+    <div className={cn(visualPanel, 'relative')} title="Image frame width (% of section)">
+      <button type="button" className={visualStepperCell} onClick={() => bump(-WIDTH_STEP)} aria-label="Narrower">
+        <Minus className="h-2.5 w-2.5" />
+      </button>
+      <span className={cn(visualStepperValue, 'min-w-[2rem]')}>{current}%</span>
+      <button type="button" className={visualStepperCell} onClick={() => bump(WIDTH_STEP)} aria-label="Wider">
+        <Plus className="h-2.5 w-2.5" />
+      </button>
     </div>
   )
 }
@@ -220,6 +246,12 @@ export function SectionImageControls({
   const zoom = readSectionImageScale(styleField, styleSource)
   const panelHeight = Number(blockProps.min_height) || 640
   const showPanelHeight = !primarySlot && blockType.includes('hero') && imageField === 'image_url'
+  const showShapedWidth = !primarySlot
+    && blockType === 'about_split'
+    && blockProps.layout === 'shaped'
+    && imageField === 'image_url'
+  const shapedWidth = Number.isFinite(Number(blockProps.shaped_width)) && Number(blockProps.shaped_width) > 0
+    ? Number(blockProps.shaped_width) : 70
 
   const applyPatch = (patch: Record<string, unknown>) => {
     if (resolvedSlots.length > 1) {
@@ -288,6 +320,12 @@ export function SectionImageControls({
             onCommit={n => onUpdate({ min_height: n })}
           />
         ) : null}
+        {showShapedWidth ? (
+          <WidthStepper
+            value={shapedWidth}
+            onCommit={n => onUpdate({ shaped_width: n })}
+          />
+        ) : null}
       </div>
 
       <div className={visualRow}>
@@ -350,7 +388,7 @@ export function SectionImageControls({
             </div>
           ) : null}
           {showOverlay ? (
-          <div className={visualSegmentTrack} role="group" aria-label="Gradient overlay">
+          <div className={cn(visualSegmentTrack, 'max-w-[min(100%,22rem)] flex-wrap')} role="group" aria-label="Gradient overlay">
             {OVERLAY_OPTIONS.map(opt => (
               <button
                 key={opt.value}

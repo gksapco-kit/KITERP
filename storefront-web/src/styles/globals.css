@@ -651,6 +651,13 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   isolation: isolate;
 }
 
+.builder-canvas-text-field,
+[data-field-layout] > [data-text-key] {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
 .builder-canvas-text-field-multiline {
   display: block;
   white-space: pre-wrap;
@@ -747,9 +754,11 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   clip-path: none !important;
 }
 
-/* About split — stack text and image cleanly; neutralize desktop field offsets on small screens. */
-.about-split-block .about-split-grid {
-  grid-template-columns: minmax(0, 1fr);
+/* About split — stack text and image on small screens; lg:grid-cols-2 on the block handles desktop. */
+@media (max-width: 1023px) {
+  .about-split-block .about-split-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .about-split-block .about-split-text-wrap {
@@ -767,6 +776,15 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 
 .about-split-block .about-split-text-col [data-field-layout] {
   max-width: 100%;
+}
+
+.about-split-block .about-split-text-col [data-field-layout][data-field-width-constrained] {
+  max-width: none;
+}
+
+.builder-page .about-split-block .about-split-text-col:has([data-field-layout][data-field-width-constrained]),
+[data-page-canvas] .about-split-block .about-split-text-col:has([data-field-layout][data-field-width-constrained]) {
+  overflow-x: visible;
 }
 
 .about-split-block .about-split-image-col {

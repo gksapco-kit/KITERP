@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from 'react'
 import { cn } from '@/lib/utils'
 import { resolveCategoryStockImageUrl } from '@/data/categoryStockImages'
 import { heroUsesBackgroundImage, resolveGradientCss } from '@/lib/heroLayoutUtils'
+import { resolveAboutShapedImageLayout } from '@storefront/lib/aboutShapedImageLayout'
 
 type PreviewProps = {
   blockType: string
@@ -1098,6 +1099,169 @@ function TeamPreview({ variantProps, sampleUrls }: { variantProps: Record<string
 
 const ALT_PREVIEW_ICONS = ['🥗', '🌿', '✨', '🍃']
 
+function AboutSplitPreview({ variantProps, sampleUrls }: { variantProps: Record<string, unknown>; sampleUrls: string[] }) {
+  const layout = String(variantProps.layout ?? 'split')
+  const img = sampleUrls[0]
+  const isDark = variantProps.bg_style === 'dark'
+  const isCard = variantProps.card_style === 'card'
+  const showStats = !!variantProps.show_stats
+  const darkBars = isDark
+
+  if (layout === 'statement') {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-1 px-3 py-2 bg-white">
+        {heroPreviewBars(false, { eyebrow: true })}
+        {showStats && (
+          <div className="flex gap-2 mt-1">
+            {[0, 1, 2].map(i => <Bar key={i} w="w-5" h="h-2" className="bg-primary/30" />)}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (layout === 'columns') {
+    return (
+      <div className="h-full p-2 grid grid-cols-2 gap-2 bg-white">
+        <div className="flex flex-col gap-0.5">
+          <Bar w="w-3/4" h="h-1.5" className="bg-slate-600" />
+          <Bar w="w-1/2" h="h-1" className="bg-primary/50" />
+        </div>
+        <div className="flex flex-col gap-0.5 justify-center">
+          <Bar w="w-full" h="h-0.5" className="bg-slate-200" />
+          <Bar w="w-4/5" h="h-0.5" className="bg-slate-200" />
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'overlay' || layout === 'full') {
+    const align = String(variantProps.align ?? (variantProps.variant === 'centered' ? 'center' : 'left'))
+    const vertical = String(variantProps.content_vertical ?? 'center')
+    const justifyV = vertical === 'bottom' ? 'justify-end' : vertical === 'top' ? 'justify-start' : 'justify-center'
+    const alignH = align === 'center' ? 'items-center' : align === 'right' ? 'items-end' : 'items-start'
+    const textW = align === 'center' ? 'w-[70%]' : align === 'right' ? 'w-[65%]' : 'w-[70%]'
+
+    return (
+      <div className="h-full relative overflow-hidden">
+        {img
+          ? <Img src={img} className="absolute inset-0 w-full h-full rounded-none object-cover" />
+          : <div className="absolute inset-0 bg-slate-400" />}
+        <div className="absolute inset-0 bg-black/40" />
+        <div className={cn('relative h-full flex flex-col p-2', justifyV, alignH)}>
+          {isCard ? (
+            <div className={cn('bg-white/90 rounded-md p-1.5 shadow-sm', textW)}>
+              {heroPreviewBars(false, { eyebrow: true })}
+            </div>
+          ) : (
+            <div className={textW}>
+              {heroPreviewBars(true, { eyebrow: true })}
+            </div>
+          )}
+          {showStats && (
+            <div className="flex gap-1 mt-1">
+              {[0, 1, 2].map(i => <Bar key={i} w="w-4" h="h-1.5" className="bg-white/70" />)}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if (layout === 'shaped') {
+    const shaped = resolveAboutShapedImageLayout(variantProps.media_clip)
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-1 px-2 py-1.5 bg-[#faf8f4]">
+        <Bar w="w-1/3" h="h-1" className="bg-primary/60" />
+        <Bar w="w-2/5" h="h-1.5" className="bg-slate-600" />
+        <div
+          className={cn('my-0.5 overflow-hidden', shaped.previewWidthClass, shaped.previewAspectClass)}
+          style={{ clipPath: shaped.clipPath, WebkitClipPath: shaped.clipPath }}
+        >
+          {img
+            ? <Img src={img} className="w-full h-full rounded-none object-cover" />
+            : <div className="w-full h-full bg-slate-300" />}
+        </div>
+        <Bar w="w-3/4" h="h-0.5" className="bg-slate-200" />
+        <Bar w="w-1/2" h="h-0.5" className="bg-slate-200" />
+      </div>
+    )
+  }
+
+  if (layout === 'stacked') {
+    const imageOnTop = variantProps.image_position !== 'bottom'
+    const imagePanel = img
+      ? <Img src={img} className="w-full h-[48%] shrink-0 rounded-none object-cover" />
+      : <div className="w-full h-[48%] shrink-0 bg-slate-300" />
+    const textPanel = (
+      <div className="flex-1 flex flex-col justify-center gap-0.5 px-2 py-1.5 min-h-0">
+        {heroPreviewBars(darkBars, { eyebrow: true })}
+      </div>
+    )
+    return (
+      <div className={cn('h-full flex flex-col overflow-hidden', isDark ? 'bg-slate-900' : 'bg-white')}>
+        {imageOnTop ? imagePanel : textPanel}
+        {imageOnTop ? textPanel : imagePanel}
+      </div>
+    )
+  }
+
+  if (layout === 'inline_split') {
+    const imageOnRight = variantProps.image_position !== 'left'
+    const media = img
+      ? <Img src={img} className="w-[34%] shrink-0 aspect-[3/4] rounded-md object-cover shadow-sm" />
+      : <div className="w-[34%] shrink-0 aspect-[3/4] rounded-md bg-slate-300" />
+    const copy = (
+      <div className="flex-1 flex flex-col justify-center gap-0.5 min-w-0 px-1">
+        <Bar w="w-1/3" h="h-1" className="bg-primary/60" />
+        <Bar w="w-4/5" h="h-1.5" className={isDark ? 'bg-white/80' : 'bg-slate-600'} />
+        <Bar w="w-full" h="h-0.5" className={isDark ? 'bg-white/30' : 'bg-slate-200'} />
+      </div>
+    )
+    return (
+      <div className={cn('h-full flex items-center gap-1.5 p-1.5', isDark && 'bg-slate-900')}>
+        {imageOnRight ? copy : media}
+        {imageOnRight ? media : copy}
+      </div>
+    )
+  }
+
+  const imageOnRight = variantProps.image_position === 'right'
+  const media = img
+    ? <Img src={img} className="w-[42%] h-full shrink-0 rounded-md object-cover" />
+    : <div className="w-[42%] h-full shrink-0 rounded-md bg-slate-300" />
+  const copy = (
+    <div className="flex-1 flex flex-col justify-center gap-0.5 min-w-0 px-1">
+      <Bar w="w-1/3" h="h-1" className="bg-primary/60" />
+      <Bar w="w-4/5" h="h-1.5" className={isDark ? 'bg-white/80' : 'bg-slate-600'} />
+      <Bar w="w-full" h="h-0.5" className={isDark ? 'bg-white/30' : 'bg-slate-200'} />
+      {showStats && (
+        <div className="flex gap-1 mt-1">
+          {[0, 1].map(i => <Bar key={i} w="w-4" h="h-1.5" className="bg-primary/35" />)}
+        </div>
+      )}
+    </div>
+  )
+
+  if (isCard) {
+    return (
+      <div className={cn('h-full p-1.5', isDark ? 'bg-slate-900' : 'bg-slate-50')}>
+        <div className={cn('h-full flex items-center gap-1.5 rounded-md border p-1', isDark ? 'border-white/15 bg-white/5' : 'border-slate-200 bg-white')}>
+          {imageOnRight ? copy : media}
+          {imageOnRight ? media : copy}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn('h-full flex items-center gap-1.5 p-1.5', isDark ? 'bg-slate-900' : 'bg-white')}>
+      {imageOnRight ? copy : media}
+      {imageOnRight ? media : copy}
+    </div>
+  )
+}
+
 function AlternatingMedia({
   row,
   variantProps,
@@ -1745,8 +1909,9 @@ export function SectionLayoutPreview({ blockType, variantProps, sampleUrls }: Pr
     case 'blog_grid':
       return <GridCardsPreview variantProps={variantProps} sampleUrls={sampleUrls} withImages={sampleUrls.length > 0} />
     case 'features_alternating':
-    case 'about_split':
       return <AlternatingPreview variantProps={variantProps} sampleUrls={sampleUrls} />
+    case 'about_split':
+      return <AboutSplitPreview variantProps={variantProps} sampleUrls={sampleUrls} />
     case 'stats':
       return <StatsPreview variantProps={variantProps} sampleUrls={sampleUrls} />
     case 'testimonials':

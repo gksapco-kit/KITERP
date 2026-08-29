@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type ElementType, type FocusEvent as ReactFocusEvent, type MouseEvent as ReactMouseEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type ElementType, type FocusEvent as ReactFocusEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import { cn } from '@/lib/utils'
 import {
   fieldTextStyle,
@@ -6,6 +6,7 @@ import {
   isInlineEditTag,
   isMultilineCanvasField,
   mergeFieldTypographyClassName,
+  CONTENT_GROUP_FIELD_KEY,
 } from '@/lib/fieldTextStyles'
 import { isMultiSelectModifier } from '@/lib/builderMultiSelect'
 import {
@@ -15,9 +16,16 @@ import {
   restoreSavedInlineSelection,
 } from '@/lib/builderInlineTextSelection'
 import {
+  copyFromElement,
+  copyTextToSystemClipboard,
+  cutFromElement,
   insertPlainTextInElement,
+  isBuilderCanvasClipboardTarget,
   normalizeClipboardPlainText,
   readPlainTextFromClipboardEvent,
+  readSelectedTextInElement,
+  selectAllElementContents,
+  writeTextToClipboardEvent,
   type CanvasTextClipboardAction,
 } from '@/lib/builderCanvasPaste'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
@@ -72,6 +80,9 @@ export function BuilderTextField({
 
   const pendingLineBreakRef = useRef(false)
   const pendingClipboardActionRef = useRef<CanvasTextClipboardAction | null>(null)
+  const pendingClipboardReplaceAllRef = useRef(false)
+  const editingRef = useRef(editing)
+  editingRef.current = editing
 
   const commitValue = useCallback((closeEditing = false) => {
     const next = readValue()
@@ -125,23 +136,29 @@ export function BuilderTextField({
     sel.addRange(range)
   }, [fieldKey])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!editing || !pendingClipboardActionRef.current || !ref.current) return
     const action = pendingClipboardActionRef.current
     pendingClipboardActionRef.current = null
     const el = ref.current
 
     const run = async () => {
-      el.focus()
+      el.focus({ preventScroll: true })
       if (action === 'paste') {
         try {
           const raw = await navigator.clipboard.readText()
           const plain = normalizeClipboardPlainText(raw)
           if (!plain) return
-          ensureFieldSelection(el, false)
-          insertPlainTextInElement(el, plain)
+          if (pendingClipboardReplaceAllRef.current) {
+            insertPlainTextInElement(el, plain, { replaceAll: true })
+          } else {
+            ensureFieldSelection(el, false)
+            insertPlainTextInElement(el, plain)
+          }
+          pendingClipboardReplaceAllRef.current = false
           commitValue(false)
         } catch {
+          pendingClipboardReplaceAllRef.current = false
           // Clipboard permission denied — user can paste with Ctrl+V while focused
         }
         return
@@ -149,16 +166,15 @@ export function BuilderTextField({
 
       ensureFieldSelection(el, true)
       if (action === 'copy') {
-        document.execCommand('copy')
+        await copyFromElement(el, true)
         return
       }
       if (action === 'cut') {
-        document.execCommand('cut')
-        commitValue(false)
+        if (await cutFromElement(el, true)) commitValue(false)
       }
     }
 
-    requestAnimationFrame(() => { void run() })
+    void run()
   }, [editing, commitValue, ensureFieldSelection])
 
   useEffect(() => {
@@ -210,6 +226,7 @@ export function BuilderTextField({
     const onClipboard = (e: Event) => {
       const action = (e as CustomEvent<{ action: CanvasTextClipboardAction }>).detail?.action
       if (!action) return
+      pendingClipboardReplaceAllRef.current = action === 'paste' && !editingRef.current
       pendingClipboardActionRef.current = action
       activate()
       setEditing(true)
@@ -241,9 +258,43 @@ export function BuilderTextField({
     requestAnimationFrame(() => insertLineBreak())
   }, [editing, insertLineBreak])
 
-  const isPrimaryPasteTarget = isEditor
-    && ctx?.activeBlockId === blockId
-    && ctx?.activeTextField === fieldKey
+  const editableSelectionCount = (ctx?.activeTextFields ?? []).filter(
+    k => k !== CONTENT_GROUP_FIELD_KEY,
+  ).length
+  const isKeyboardClipboardTarget = isEditor
+    && isSelected
+    && (
+      ctx?.activeTextField === fieldKey
+      || (!ctx?.activeTextField && editableSelectionCount === 1)
+    )
+
+  const handleCopy = useCallback((e: ReactClipboardEvent) => {
+    if (!isEditor || !ref.current) return
+    const sel = window.getSelection()
+    if (!sel?.rangeCount) return
+    const range = sel.getRangeAt(0)
+    if (!ref.current.contains(range.commonAncestorContainer) || range.collapsed) return
+    e.preventDefault()
+    e.stopPropagation()
+    const text = readSelectedTextInElement(ref.current)
+    if (!text) return
+    writeTextToClipboardEvent(e, text)
+  }, [isEditor])
+
+  const handleCut = useCallback((e: ReactClipboardEvent) => {
+    if (!editing || !ref.current) return
+    const sel = window.getSelection()
+    if (!sel?.rangeCount) return
+    const range = sel.getRangeAt(0)
+    if (!ref.current.contains(range.commonAncestorContainer) || range.collapsed) return
+    e.preventDefault()
+    e.stopPropagation()
+    const text = readSelectedTextInElement(ref.current)
+    if (!text) return
+    writeTextToClipboardEvent(e, text)
+    range.deleteContents()
+    commitValue(false)
+  }, [editing, commitValue])
 
   const handlePaste = useCallback((e: ReactClipboardEvent) => {
     if (!editing || !ref.current) return
@@ -252,33 +303,75 @@ export function BuilderTextField({
     const plain = readPlainTextFromClipboardEvent(e)
     if (!plain) return
     insertPlainTextInElement(ref.current, plain)
-  }, [editing])
+    commitValue(false)
+  }, [editing, commitValue])
 
   useEffect(() => {
-    if (!isEditor || editing || !isPrimaryPasteTarget) return
+    if (!isEditor || !isKeyboardClipboardTarget) return
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v')) return
+      if (!(e.ctrlKey || e.metaKey)) return
+      const key = e.key.toLowerCase()
+      if (key !== 'c' && key !== 'x' && key !== 'v') return
       const t = e.target as HTMLElement | null
-      if (t?.closest('input, textarea, select, [contenteditable="true"]') && t !== ref.current) return
+      if (t?.closest('input, textarea, select') && t !== ref.current) return
+      if (!isBuilderCanvasClipboardTarget(e.target)) return
+
+      const el = ref.current
+      const inField = el && (t === el || el.contains(t))
+
+      if (editingRef.current && inField) {
+        if (key === 'v') return
+        if (key === 'c' || key === 'x') {
+          e.preventDefault()
+          e.stopPropagation()
+          el.focus({ preventScroll: true })
+          const sel = window.getSelection()
+          const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null
+          if (!range || range.collapsed || !el.contains(range.commonAncestorContainer)) {
+            selectAllElementContents(el)
+          }
+          const text = readSelectedTextInElement(el)
+          if (!text) return
+          void copyTextToSystemClipboard(text).then(ok => {
+            if (key === 'x' && ok) {
+              const s = window.getSelection()
+              if (s?.rangeCount) s.getRangeAt(0).deleteContents()
+              commitValue(false)
+            }
+          })
+        }
+        return
+      }
+
       e.preventDefault()
       e.stopPropagation()
+      pendingClipboardReplaceAllRef.current = key === 'v'
+      pendingClipboardActionRef.current = key === 'x' ? 'cut' : key === 'c' ? 'copy' : 'paste'
+      activate()
       setEditing(true)
-      void navigator.clipboard.readText().then(raw => {
-        const plain = normalizeClipboardPlainText(raw)
-        if (!plain || !ref.current) return
-        requestAnimationFrame(() => {
-          if (!ref.current) return
-          insertPlainTextInElement(ref.current, plain, { replaceAll: true })
-        })
-      }).catch(() => {
-        // Clipboard permission denied — editing mode allows manual paste via handlePaste
-      })
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [isEditor, editing, isPrimaryPasteTarget])
+  }, [isEditor, isKeyboardClipboardTarget, activate, commitValue])
+
+  const beginEditing = useCallback((additive = false, clientX?: number, clientY?: number) => {
+    activate(additive, clientX, clientY)
+    if (!additive) setEditing(true)
+  }, [activate])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      const isUndoKey = e.key === 'z' || e.key === 'Z'
+      const isRedoKey = e.key === 'y' || e.key === 'Y' || (isUndoKey && e.shiftKey)
+      if (isUndoKey || isRedoKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        setEditing(false)
+        if (isRedoKey) ctx?.onEditorRedo?.()
+        else ctx?.onEditorUndo?.()
+        return
+      }
+    }
     if (e.key === 'Escape') {
       e.preventDefault()
       e.stopPropagation()
@@ -330,6 +423,7 @@ export function BuilderTextField({
       contentEditable={isEditor && editing}
       suppressContentEditableWarning
       spellCheck={editing}
+      tabIndex={isEditor ? -1 : undefined}
       className={cn(
         typographyClassName,
         isEditor && !embeddedInControl && 'builder-canvas-text-field',
@@ -345,7 +439,11 @@ export function BuilderTextField({
         minWidth: editing ? 40 : undefined,
       }}
       onMouseDown={(e: React.MouseEvent) => {
-        if (isEditor) e.stopPropagation()
+        if (!isEditor) return
+        e.stopPropagation()
+        if (embeddedInControl) return
+        if (isMultiSelectModifier(e)) return
+        beginEditing(false, e.clientX, e.clientY)
       }}
       onMouseUp={() => rememberInlineTextSelection(ref.current, fieldKey)}
       onKeyUp={() => rememberInlineTextSelection(ref.current, fieldKey)}
@@ -354,7 +452,7 @@ export function BuilderTextField({
         if (!isEditor) return
         e.stopPropagation()
         if (isMultiSelectModifier(e)) {
-          activate(true, e.clientX, e.clientY)
+          beginEditing(true, e.clientX, e.clientY)
           return
         }
         if (embeddedInControl) {
@@ -365,9 +463,10 @@ export function BuilderTextField({
           if (!editing) setEditing(true)
           return
         }
-        activate(false, e.clientX, e.clientY)
-        if (!editing) setEditing(true)
+        beginEditing(false, e.clientX, e.clientY)
       }}
+      onCopy={handleCopy}
+      onCut={handleCut}
       onBlur={(e: ReactFocusEvent<HTMLElement>) => {
         if (isBuilderTypographyToolbarElement(e.relatedTarget)) return
         if (editing) commit()

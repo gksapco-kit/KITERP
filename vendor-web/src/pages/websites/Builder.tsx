@@ -33,6 +33,7 @@ import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import {
   collectOverlayTargets,
+  overlaySnapThreshold,
   snapOverlayDrag,
   snapOverlayResize,
   type OverlayGuideLine,
@@ -82,6 +83,7 @@ import {
   useBuilderSectionBox,
   useSectionChromeToolbarDrag,
 } from '@/components/websites/BuilderSectionOverlay'
+import { BuilderCanvasSectionGap } from '@/components/websites/BuilderCanvasSectionGap'
 import { SectionSizeControl } from '@/components/websites/SectionSizeControl'
 import {
   TypographyFontStack,
@@ -120,6 +122,7 @@ import {
 import { ScrollAnimationControls } from '@/components/websites/ScrollAnimationControls'
 import { StoreContentGroupTabs } from '@/components/websites/StoreContentGroupTabs'
 import { animationOptionLabel } from '@storefront/lib/builderScrollAnimations'
+import { isBuilderCanvasClipboardTarget, blurCanvasInlineTextEdit } from '@storefront/lib/builderCanvasPaste'
 import { blockTypeSupportsBlockLink } from '@storefront/lib/blockLinkPolicy'
 import { isDirectVideoFile } from '@storefront/lib/videoEmbed'
 import { defaultMarqueeItems, marqueeItemsForEditor, marqueeItemsToLegacyText, parseMarqueeItems, patchMarqueeBlockItems, patchMarqueeBlockItemsFromRaw } from '@storefront/lib/marqueeItems'
@@ -1118,11 +1121,13 @@ function ReadyPagePickerModal({
   open,
   pages,
   onSelect,
+  onAddNew,
   onClose,
 }: {
   open: boolean
   pages: ReadyPageItem[]
   onSelect: (slug: string, title: string, pageType: string) => void
+  onAddNew: () => void
   onClose: () => void
 }) {
   const { ref, pos, headerMouseDown } = useDraggablePopup(open)
@@ -1167,7 +1172,7 @@ function ReadyPagePickerModal({
           <div className="flex items-center gap-2 min-w-0">
             <Move className="w-3 h-3 opacity-60 shrink-0" />
             <Layout className="w-4 h-4 shrink-0" />
-            <span className="text-sm font-bold">Add a Ready Page</span>
+            <span className="text-sm font-bold">Add Page</span>
           </div>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-white/20 shrink-0">
             <X className="w-4 h-4" />
@@ -1177,12 +1182,30 @@ function ReadyPagePickerModal({
         {/* Sub-header */}
         <div className="px-4 pt-3 pb-1">
           <p className="text-xs text-gray-500">
-            Select a pre-built page to add to your site. Only pages you haven't added yet are shown.
+            Start with a blank page or pick a pre-built template. Only templates you haven&apos;t added yet are shown.
           </p>
         </div>
 
         {/* Page grid */}
         <div className="px-3 pb-3 pt-2 grid grid-cols-2 gap-2 max-h-[360px] overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => {
+              onClose()
+              onAddNew()
+            }}
+            className="flex flex-col items-start gap-2 rounded-xl border border-primary/30 bg-primary/[0.04] hover:border-primary/50 hover:bg-primary/[0.08] hover:shadow-sm p-3 text-left transition-all group"
+          >
+            <div className="w-8 h-8 rounded-lg bg-primary/15 group-hover:bg-primary/25 flex items-center justify-center transition-colors shrink-0">
+              <Plus className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-primary transition-colors leading-snug">
+                Add New Page
+              </p>
+              <p className="text-[10px] text-gray-400 leading-snug mt-0.5">Start with a blank page</p>
+            </div>
+          </button>
           {pages.map(rp => (
             <button
               key={rp.slug}
@@ -3197,6 +3220,7 @@ function OverlayElement({
     document.body.style.cursor = 'move'
     const snapW = usePercent ? OVERLAY_AXIS_MAX : cw
     const snapH = usePercent ? OVERLAY_AXIS_MAX : ch
+    const snapThreshold = overlaySnapThreshold(cw, ch, usePercent ? 'percent' : 'px')
     const onMove = (mv: MouseEvent) => {
       if (Math.abs(mv.clientX - originX) > 3 || Math.abs(mv.clientY - originY) > 3) {
         dragMovedRef.current = true
@@ -3212,7 +3236,11 @@ function OverlayElement({
         normalizeOverlayBox(s, cw, ch),
       )
       const targets = collectOverlayTargets(normalizedSiblings, snapW, snapH)
-      const snapped = snapOverlayDrag({ x: rawX, y: rawY, w: live.w, h: live.h }, targets)
+      const snapped = snapOverlayDrag(
+        { x: rawX, y: rawY, w: live.w, h: live.h },
+        targets,
+        snapThreshold,
+      )
       onDragGuides?.(snapped.guides, usePercent ? 'percent' : 'px')
       onUpdate({
         x: Math.max(0, Math.min(maxX, snapped.x)),
@@ -3250,8 +3278,11 @@ function OverlayElement({
     const { scaleX, scaleY } = container ? overlayContainerScale(container) : { scaleX: 1, scaleY: 1 }
     const minW = usePercent ? OVERLAY_MIN_W_PERCENT : 40
     const minH = usePercent ? OVERLAY_MIN_H_PERCENT : 20
+    const axisMaxW = usePercent ? OVERLAY_AXIS_MAX : cw
+    const axisMaxH = usePercent ? OVERLAY_AXIS_MAX : ch
     const snapW = usePercent ? OVERLAY_AXIS_MAX : cw
     const snapH = usePercent ? OVERLAY_AXIS_MAX : ch
+    const snapThreshold = overlaySnapThreshold(cw, ch, usePercent ? 'percent' : 'px')
     document.body.style.cursor = OVERLAY_RESIZE_CURSORS[handle]
     const onMove = (mv: MouseEvent) => {
       const dx = usePercent
@@ -3261,15 +3292,32 @@ function OverlayElement({
         ? ((mv.clientY - sy) / scaleY / ch) * 100
         : (mv.clientY - sy) / scaleY
       let nx = ox, ny = oy, nw = ow, nh = oh
-      if (handle.includes('e')) nw = Math.max(minW, ow + dx)
-      if (handle.includes('w')) { nx = ox + dx; nw = Math.max(minW, ow - dx) }
-      if (handle.includes('s')) nh = Math.max(minH, oh + dy)
-      if (handle.includes('n')) { ny = oy + dy; nh = Math.max(minH, oh - dy) }
+      if (handle.includes('e')) nw = Math.max(minW, Math.min(axisMaxW - ox, ow + dx))
+      if (handle.includes('w')) {
+        nx = ox + dx
+        nw = Math.max(minW, ow - dx)
+        if (nx < 0) { nw += nx; nx = 0 }
+        nw = Math.min(nw, axisMaxW - nx)
+      }
+      if (handle.includes('s')) nh = Math.max(minH, Math.min(axisMaxH - oy, oh + dy))
+      if (handle.includes('n')) {
+        ny = oy + dy
+        nh = Math.max(minH, oh - dy)
+        if (ny < 0) { nh += ny; ny = 0 }
+        nh = Math.min(nh, axisMaxH - ny)
+      }
       const normalizedSiblings = (siblings ?? []).map(s =>
         normalizeOverlayBox(s, cw, ch),
       )
       const targets = collectOverlayTargets(normalizedSiblings, snapW, snapH)
-      const snapped = snapOverlayResize({ x: nx, y: ny, w: nw, h: nh }, targets, handle, minW, minH)
+      const snapped = snapOverlayResize(
+        { x: nx, y: ny, w: nw, h: nh },
+        targets,
+        handle,
+        minW,
+        minH,
+        snapThreshold,
+      )
       onDragGuides?.(snapped.guides, usePercent ? 'percent' : 'px')
       onUpdate({
         x: snapped.x,
@@ -9975,6 +10023,37 @@ function PropsEditor({
                   pushSectionSpacing({ section_scale: n }, false)
                 }}
               />
+              {block.block_type === 'about_split' && (block.props as Record<string, unknown>).layout === 'shaped' ? (
+                <div className="space-y-2 border-t border-border/50 pt-2">
+                  <SectionSpacingField
+                    label="Image width"
+                    value={Number.isFinite(Number((block.props as Record<string, unknown>).shaped_width))
+                      && Number((block.props as Record<string, unknown>).shaped_width) > 0
+                      ? Number((block.props as Record<string, unknown>).shaped_width) : 70}
+                    min={30}
+                    max={100}
+                    step={5}
+                    unit="%"
+                    hint="Width of the shaped image frame relative to the section."
+                    onPreview={n => onPreview({ shaped_width: n })}
+                    onCommit={n => onUpdate({ shaped_width: n })}
+                  />
+                  <SectionSpacingField
+                    label="Image height"
+                    value={Number.isFinite(Number((block.props as Record<string, unknown>).shaped_height))
+                      && Number((block.props as Record<string, unknown>).shaped_height) >= 100
+                      ? Number((block.props as Record<string, unknown>).shaped_height) : 320}
+                    min={100}
+                    max={800}
+                    step={20}
+                    unit="px"
+                    hint="Fixed height for the shaped image frame. Overrides the default aspect ratio."
+                    onPreview={n => onPreview({ shaped_height: n })}
+                    onCommit={n => onUpdate({ shaped_height: n })}
+                  />
+                </div>
+              ) : null}
+
               {block.block_type === 'nav' && navHeaderBarSize != null ? (
                 <div className="space-y-2 border-t border-border/50 pt-2">
                   <SectionSpacingField
@@ -11425,6 +11504,10 @@ function BlockDesignBar({ block, onUpdate, onInsertAfter, onOpenLinkEditorForOve
     const fieldKey = savedSelection?.key || activeTextField || null
     let stylePatch = { ...patch }
 
+    if (typeof stylePatch.font_family === 'string' && stylePatch.font_family.trim()) {
+      ensureBuilderFontLoaded(stylePatch.font_family)
+    }
+
     if (overlayTextLayer) {
       if (opts?.fontSizeDelta != null) {
         const fallback = overlayTextLayer.type === 'badge' ? 12 : overlayTextLayer.type === 'button' ? 14 : 16
@@ -12653,6 +12736,8 @@ export default function WebsiteBuilder() {
     /** When true, always insert a new section ? never apply layout to an existing block of the same type. */
     insertOnly?: boolean
   } | null>(null)
+  /** Canvas "+ Section" gap sets where the next catalog pick should insert (cleared after use). */
+  const pendingSectionInsertIdxRef = useRef<number | null>(null)
   const [expandedSectionPages, setExpandedSectionPages] = useState<Set<string>>(() => new Set())
   const [sidebarDraggedPageId, setSidebarDraggedPageId] = useState<string | null>(null)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
@@ -12895,6 +12980,7 @@ export default function WebsiteBuilder() {
   }, [pushHistory])
 
   const handleUndo = useCallback(() => {
+    blurCanvasInlineTextEdit()
     if (historyIndex.current <= 0) return
     historyIndex.current -= 1
     const snapshot = historyStack.current[historyIndex.current]
@@ -12911,6 +12997,7 @@ export default function WebsiteBuilder() {
   }, [])
 
   const handleRedo = useCallback(() => {
+    blurCanvasInlineTextEdit()
     if (historyIndex.current >= historyStack.current.length - 1) return
     historyIndex.current += 1
     const snapshot = historyStack.current[historyIndex.current]
@@ -13469,15 +13556,46 @@ export default function WebsiteBuilder() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase()
-      const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target as HTMLElement)?.isContentEditable
+      const target = e.target as HTMLElement
+      const ctrl = e.ctrlKey || e.metaKey
+
+      if (ctrl && !e.altKey) {
+        const isUndoKey = e.key === 'z' || e.key === 'Z'
+        const isRedoKey = e.key === 'y' || e.key === 'Y' || (isUndoKey && e.shiftKey)
+        if (isUndoKey || isRedoKey) {
+          const inCanvasText = target?.closest?.(
+            '[data-page-canvas] [data-text-key], [data-page-canvas] .builder-canvas-text-field',
+          )
+          if (
+            inCanvasText
+            && (target.isContentEditable || inCanvasText === target || inCanvasText.contains(target))
+          ) {
+            e.preventDefault()
+            blurCanvasInlineTextEdit()
+            if (isRedoKey) handleRedo()
+            else handleUndo()
+            return
+          }
+        }
+      }
+
+      const tag = target?.tagName?.toLowerCase()
+      const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable
       if (isInput) return
 
       const { handleDuplicateBlock: dup, handleMoveBlock: move } = kbHandlersRef.current
-      const ctrl = e.ctrlKey || e.metaKey
       if (ctrl && e.key === 'k') { e.preventDefault(); setCommandPaletteOpen(v => !v); return }
-      if (ctrl && e.key === 'z') { e.preventDefault(); handleUndo(); return }
-      if (ctrl && (e.key === 'y' || e.key === 'Z')) { e.preventDefault(); handleRedo(); return }
+      if (ctrl && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault()
+        if (e.shiftKey) handleRedo()
+        else handleUndo()
+        return
+      }
+      if (ctrl && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault()
+        handleRedo()
+        return
+      }
       if (ctrl && e.key === 'd') {
         e.preventDefault()
         if (selectedBlockId) dup(selectedBlockId)
@@ -13488,17 +13606,33 @@ export default function WebsiteBuilder() {
           : e.key.toLowerCase() === 'c' ? 'copy' as const
             : 'paste' as const
         const layerTarget = overlayImageTarget?.blockId === selectedBlockId && overlayImageTarget.overlayId
+        const textFieldKeys = activeTextTarget?.blockId === selectedBlockId
+          ? editableFieldKeys(activeTextTarget)
+          : []
+        const textFieldKey = activeTextTarget?.blockId === selectedBlockId
+          ? (primaryTextFieldKey(activeTextTarget) ?? textFieldKeys[0] ?? null)
+          : null
+        const canvasClipboard = isBuilderCanvasClipboardTarget(e.target)
         if (clipAction === 'paste') {
-          if (hasOverlayClipboard() && selectedBlockId) {
+          if (hasOverlayClipboard() && selectedBlockId && canvasClipboard) {
             e.preventDefault()
             runOverlayClipboardActionRef.current('paste', selectedBlockId)
+            return
+          }
+          if (textFieldKey && selectedBlockId && canvasClipboard) {
+            e.preventDefault()
+            runCanvasTextClipboardAction(clipAction, selectedBlockId, textFieldKey)
           }
           return
         }
-        if (layerTarget) {
+        if (layerTarget && canvasClipboard) {
           e.preventDefault()
           runOverlayClipboardActionRef.current(clipAction, selectedBlockId ?? undefined)
           return
+        }
+        if (textFieldKey && selectedBlockId && canvasClipboard) {
+          e.preventDefault()
+          runCanvasTextClipboardAction(clipAction, selectedBlockId, textFieldKey)
         }
       }
       if ((e.key === 'e' || e.key === 'E') && !ctrl && selectedBlockId) {
@@ -14820,15 +14954,6 @@ export default function WebsiteBuilder() {
       if (selected) {
         if (!resolvedTargetId && selected.block_type === def.type) {
           resolvedTargetId = selectedBlockId
-        } else if (
-          insertAtIdx < 0
-          && !resolvedTargetId
-          && selected.block_type !== def.type
-          && !GLOBAL_STRUCTURE_BLOCK_TYPES.has(selected.block_type)
-          && !GLOBAL_STRUCTURE_BLOCK_TYPES.has(def.type)
-        ) {
-          resolvedInsertIdx = selectedIdx
-          replaceBlockId = selectedBlockId
         }
       }
     }
@@ -14851,6 +14976,7 @@ export default function WebsiteBuilder() {
 
   const layoutPickerCurrentProps = useMemo(() => {
     if (!sectionLayoutPicker || !activePageId) return undefined
+    if (sectionLayoutPicker.insertOnly) return undefined
     const blockId = sectionLayoutPicker.targetBlockId
       ?? ((localBlocks[activePageId] || []).find(b => b.id === selectedBlockId && b.block_type === sectionLayoutPicker.def.type)?.id)
       ?? (GLOBAL_STRUCTURE_BLOCK_TYPES.has(sectionLayoutPicker.def.type)
@@ -16600,7 +16726,7 @@ export default function WebsiteBuilder() {
       let insertIdx = before ? targetIdx : targetIdx + 1
       insertIdx = Math.max(0, Math.min(insertIdx, activeBlocks.length))
       if (shouldOpenLayoutPickerForBlock(draggingNewBlock)) {
-        openSectionLayoutPicker(draggingNewBlock, insertIdx)
+        openSectionLayoutPicker(draggingNewBlock, insertIdx, undefined, { insertOnly: true })
         setDraggingNewBlock(null)
         setDropTarget(null)
         return
@@ -16623,7 +16749,7 @@ export default function WebsiteBuilder() {
     setDropTarget(null)
     if (draggingNewBlock) {
       if (shouldOpenLayoutPickerForBlock(draggingNewBlock)) {
-        openSectionLayoutPicker(draggingNewBlock, activeBlocks.length)
+        openSectionLayoutPicker(draggingNewBlock, activeBlocks.length, undefined, { insertOnly: true })
         setDraggingNewBlock(null)
         return
       }
@@ -16731,6 +16857,11 @@ export default function WebsiteBuilder() {
     openLeftBuilderPanel()
   }, [])
 
+  const handleInsertSectionAt = useCallback((insertIdx: number) => {
+    pendingSectionInsertIdxRef.current = Math.max(0, Math.min(insertIdx, activeBlocks.length))
+    openSectionsPanel()
+  }, [activeBlocks.length, openSectionsPanel])
+
   // Insert a block after the currently selected block
   const handleAddBlockAfter = useCallback((blockType: string) => {
     if (!activePageId) return
@@ -16738,15 +16869,24 @@ export default function WebsiteBuilder() {
     if (!def) return
     const currentIdx = activeBlocks.findIndex(b => b.id === selectedBlockId)
     const insertIdx = currentIdx >= 0 ? currentIdx + 1 : activeBlocks.length
-    openSectionLayoutPicker(def, insertIdx)
+    openSectionLayoutPicker(def, insertIdx, undefined, { insertOnly: true })
   }, [activePageId, activeBlocks, selectedBlockId, openSectionLayoutPicker])
+
+  const resolveSectionInsertIdx = useCallback(() => {
+    const pending = pendingSectionInsertIdxRef.current
+    if (pending != null) {
+      pendingSectionInsertIdxRef.current = null
+      return Math.max(0, Math.min(pending, activeBlocks.length))
+    }
+    const currentIdx = activeBlocks.findIndex(b => b.id === selectedBlockId)
+    return currentIdx >= 0 ? currentIdx + 1 : activeBlocks.length
+  }, [activeBlocks, selectedBlockId])
 
   // "Add Section" panel: always INSERT a new section (after the selected block,
   // or at the end). Confirm when the page already has that section type.
   const handleAddSectionFromPanel = useCallback((def: BlockDef) => {
     if (!activePageId) return
-    const currentIdx = activeBlocks.findIndex(b => b.id === selectedBlockId)
-    const insertIdx = currentIdx >= 0 ? currentIdx + 1 : activeBlocks.length
+    const insertIdx = resolveSectionInsertIdx()
 
     const proceed = () => {
       openSectionLayoutPicker(def, insertIdx, undefined, { insertOnly: true })
@@ -16783,7 +16923,7 @@ export default function WebsiteBuilder() {
     }
 
     proceed()
-  }, [activePageId, activeBlocks, selectedBlockId, openSectionLayoutPicker, openTextPrompt])
+  }, [activePageId, activeBlocks, selectedBlockId, openSectionLayoutPicker, openTextPrompt, resolveSectionInsertIdx])
 
   // Keep keyboard-shortcut ref in sync with latest handlers (avoids TDZ on init)
   kbHandlersRef.current.handleDeleteBlock = handleDeleteBlock
@@ -17776,6 +17916,7 @@ export default function WebsiteBuilder() {
         open={readyPagePickerOpen}
         pages={availableReadyPages as unknown as ReadyPageItem[]}
         onSelect={handleAddReadyPage}
+        onAddNew={handleAddPage}
         onClose={() => setReadyPagePickerOpen(false)}
       />
 
@@ -18809,20 +18950,7 @@ export default function WebsiteBuilder() {
                           )}
                         >
                           <div className="flex items-center gap-0.5 px-1 py-1">
-                            <button
-                              type="button"
-                              onClick={() => toggleSectionPageExpanded(page.id)}
-                              className="p-0.5 hover:bg-gray-100 rounded shrink-0"
-                              title={isExpanded ? 'Collapse sections' : 'Expand sections'}
-                              aria-expanded={isExpanded}
-                            >
-                              <ChevronDown
-                                className={cn(
-                                  'w-3 h-3 text-gray-500 transition-transform',
-                                  isExpanded ? 'rotate-0' : '-rotate-90',
-                                )}
-                              />
-                            </button>
+                            {/* Page name / navigate button — fills remaining space */}
                             <button
                               type="button"
                               onClick={() => {
@@ -18851,9 +18979,11 @@ export default function WebsiteBuilder() {
                                 <span className="text-[10px] text-gray-400 font-mono leading-none">/{page.slug}</span>
                               </div>
                             </button>
+                            {/* Block count */}
                             <span className="text-[10px] font-medium text-gray-400 shrink-0 tabular-nums px-1">
                               {totalBlocks}
                             </span>
+                            {/* Actions menu */}
                             <PageActionsMenu
                               page={page}
                               pageCount={countPersistedPages(localPages)}
@@ -18866,6 +18996,21 @@ export default function WebsiteBuilder() {
                               onDuplicate={() => { void handleDuplicatePage(page) }}
                               onDelete={() => handleDeletePage(page.id, page.title)}
                             />
+                            {/* Expand / collapse chevron — rightmost so it reads left→right naturally */}
+                            <button
+                              type="button"
+                              onClick={() => toggleSectionPageExpanded(page.id)}
+                              className="p-0.5 hover:bg-gray-100 rounded shrink-0"
+                              title={isExpanded ? 'Collapse sections' : 'Expand sections'}
+                              aria-expanded={isExpanded}
+                            >
+                              <ChevronDown
+                                className={cn(
+                                  'w-3 h-3 text-gray-500 transition-transform',
+                                  isExpanded ? 'rotate-0' : '-rotate-90',
+                                )}
+                              />
+                            </button>
                           </div>
 
                           {isExpanded && (
@@ -18973,18 +19118,14 @@ export default function WebsiteBuilder() {
                     {localPages.length === 0 && (
                       <p className="text-xs text-gray-400 text-center py-4 px-1">No pages yet.</p>
                     )}
-                    <button onClick={handleAddPage} className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-xs text-primary font-semibold hover:bg-accent hover:border-primary/60 transition-colors mt-1">
-                      <Plus className="w-3.5 h-3.5" /> Add New Page
+                    <button
+                      type="button"
+                      onClick={() => setReadyPagePickerOpen(true)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-xs text-primary font-semibold hover:bg-accent hover:border-primary/60 transition-colors mt-1"
+                    >
+                      <Plus className="w-3.5 h-3.5 shrink-0" />
+                      Add Page
                     </button>
-                    {availableReadyPages.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setReadyPagePickerOpen(true)}
-                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-dashed border-gray-200 text-xs text-gray-500 font-semibold hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 transition-colors mt-1.5"
-                      >
-                        <Layout className="w-3.5 h-3.5" /> Add Ready Page
-                      </button>
-                    )}
                     {activePage && localPages.length > 0 && (
                       <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-2.5 space-y-2">
                         <div className="text-[11px] font-semibold text-gray-700 truncate" title={activePage.title}>
@@ -19390,6 +19531,8 @@ export default function WebsiteBuilder() {
                   onTextFieldBatchStylePatch={handleCanvasTextFieldBatchStylePatch}
                   onPropLinkEdit={(blockId, propKey, anchor) => openLinkEditorForProp(blockId, propKey, anchor)}
                   onDeleteBlockField={handleCanvasDeleteBlockField}
+                  onEditorUndo={handleUndo}
+                  onEditorRedo={handleRedo}
                 >
                 <>
                   <div
@@ -19664,6 +19807,8 @@ export default function WebsiteBuilder() {
 
                       </BuilderSectionOverlay>
                     ))}
+
+                      {/* Section gap insert buttons removed — use the Sections panel to add blocks */}
                   </div>
 
                   {/* Drop zone at end — omit when page ends with footer so the footer isn’t visually stacked under a dashed “slot” */}

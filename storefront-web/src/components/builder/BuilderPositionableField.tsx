@@ -206,12 +206,9 @@ export function BuilderPositionableField({
     const patch: Record<string, unknown> = {}
     if (start.axis === 'width' || start.axis === 'both') {
       const widthPx = widthPreviewPx ?? el.offsetWidth
-      // Buttons / inline chips: snap back to fit-content near the natural label width.
-      // Text boxes: snap to auto when near the parent column width and content fits.
       const nearNaturalWidth = Math.abs(widthPx - start.naturalWidth) <= FIELD_RESIZE_SNAP_PX
-      const atColumnWidth = Math.abs(widthPx - start.parentWidth) <= FIELD_RESIZE_SNAP_PX
-      const contentFitsInColumn = start.naturalWidth <= start.parentWidth - FIELD_RESIZE_SNAP_PX
-      if (inline ? nearNaturalWidth : (atColumnWidth && contentFitsInColumn)) {
+      // Inline CTAs snap back to label width; text fields always persist the dragged width.
+      if (inline && nearNaturalWidth) {
         patch.field_width_pct = null
       } else {
         patch.field_width_pct = clampWidthPct(
@@ -358,8 +355,12 @@ export function BuilderPositionableField({
       naturalHeight: measureFieldContentHeight(el),
       naturalWidth: measureFieldContentWidth(el),
     }
-    setWidthPreviewPx(el.offsetWidth)
-    setHeightPreviewPx(el.offsetHeight)
+    if (axis === 'width' || axis === 'both') {
+      setWidthPreviewPx(el.offsetWidth)
+    }
+    if (axis === 'height' || axis === 'both') {
+      setHeightPreviewPx(el.offsetHeight)
+    }
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
 

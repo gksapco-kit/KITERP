@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown, Search, X } from 'lucide-react'
 import { cn, searchFieldInnerInputClassName, formFieldFocusClassName } from '@/lib/utils'
@@ -10,6 +10,8 @@ export type ThemeSelectOption = {
   hint?: string
   /** Renders options under a labeled section in the menu */
   group?: string
+  /** Optional inline style (e.g. font-family preview in the picker). */
+  style?: CSSProperties
 }
 
 /** Attribute on portaled ThemeSelect menus — Dialog must ignore outside-click for these. */
@@ -61,6 +63,10 @@ export type ThemeSelectProps = {
   searchable?: boolean
   /** Placeholder for the in-menu search field. */
   searchPlaceholder?: string
+  /** Optional style for the closed trigger label (e.g. font preview). */
+  triggerLabelStyle?: CSSProperties
+  /** Notified when the menu opens or closes. */
+  onOpenChange?: (open: boolean) => void
   /**
    * When false, option hints still appear in the menu but not on the closed trigger
    * (keeps field height aligned with single-line inputs/selects).
@@ -255,6 +261,8 @@ export function ThemeSelect({
   menuPlacement = 'auto',
   searchable,
   searchPlaceholder = 'Type a letter…',
+  triggerLabelStyle,
+  onOpenChange,
   showSelectedHint = true,
   'aria-label': ariaLabel,
 }: ThemeSelectProps) {
@@ -351,7 +359,12 @@ export function ThemeSelect({
         )}
       >
         <div className="min-w-0 flex-1">
-          <span className={cn(themeSelectUi.itemLabel, (opt.label || '').length <= 4 && 'whitespace-nowrap break-normal')}>{opt.label}</span>
+          <span
+            className={cn(themeSelectUi.itemLabel, (opt.label || '').length <= 4 && 'whitespace-nowrap break-normal')}
+            style={opt.style}
+          >
+            {opt.label}
+          </span>
           {opt.hint ? <span className={themeSelectUi.itemHint}>{opt.hint}</span> : null}
         </div>
         {isSelected ? <Check className={themeSelectUi.check} aria-hidden /> : null}
@@ -366,8 +379,11 @@ export function ThemeSelect({
       setQuery('')
       setHighlightIndex(-1)
       setMenuRect(null)
+      onOpenChange?.(false)
+    } else {
+      onOpenChange?.(true)
     }
-  }, [open])
+  }, [open, onOpenChange])
 
   useEffect(() => {
     if (!open || !isSearchable) return
@@ -670,11 +686,16 @@ export function ThemeSelect({
       >
         {showHintOnTrigger ? (
           <span className="min-w-0 flex-1 overflow-hidden">
-            <span className="block truncate leading-snug">{displayLabel}</span>
+            <span className="block truncate leading-snug" style={triggerLabelStyle}>{displayLabel}</span>
             <span className="block truncate text-[11px] leading-tight text-muted-foreground">{selected!.hint}</span>
           </span>
         ) : (
-          <span className={cn('min-w-0 flex-1 truncate leading-snug', !selected && 'text-muted-foreground')}>{displayLabel}</span>
+          <span
+            className={cn('min-w-0 flex-1 truncate leading-snug', !selected && 'text-muted-foreground')}
+            style={triggerLabelStyle}
+          >
+            {displayLabel}
+          </span>
         )}
         <ChevronDown
           className={cn(

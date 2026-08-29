@@ -1,4 +1,4 @@
-import { resolveBuilderFont } from '@/lib/builderFontFamilies'
+import { ensureBuilderFontLoaded, resolveBuilderFont } from '@/lib/builderFontFamilies'
 
 export const BUILDER_TYPOGRAPHY_TOOLBAR_ATTR = 'data-builder-typography-toolbar'
 export const BUILDER_DESIGN_BAR_CHROME_ATTR = 'data-builder-design-bar-chrome'
@@ -199,6 +199,7 @@ function stylePatchToCss(patch: Record<string, unknown>): Partial<CSSStyleDeclar
   }
   if (typeof patch.text_transform === 'string') css.textTransform = patch.text_transform
   if (typeof patch.font_family === 'string' && patch.font_family.trim()) {
+    ensureBuilderFontLoaded(patch.font_family)
     const resolved = resolveBuilderFont(patch.font_family)
     if (resolved) {
       css.fontFamily = resolved.fontFamily
