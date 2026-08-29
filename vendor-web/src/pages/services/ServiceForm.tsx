@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useService, useServices, useCreateService, useUpdateService, useDeleteService, useCategoryTree, useStores, useServiceBOM, useServiceResources } from '@/hooks/useVendor'
+import { useService, useServices, useCreateService, useUpdateService, useDeleteService, useCategoryTree, useCreateCategory, useStores, useServiceBOM, useServiceResources } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { mediaUrl, cn } from '@/lib/utils'
 import { CatalogMediaDisplayGallery } from '@/components/common/CatalogMediaLightbox'
@@ -684,10 +684,13 @@ export default function ServiceForm() {
   const updateService = useUpdateService()
   const deleteService = useDeleteService()
   const { data: categoryData } = useCategoryTree()
+  const createCategory = useCreateCategory()
   const serviceCategories = useMemo(
     () => filterCategoryTree(categoryData?.categories || [], 'service'),
     [categoryData?.categories],
   )
+  const [showCreateCategory, setShowCreateCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
 
   const [viewMode, setViewMode] = useState(searchParams.get('mode') === 'view')
   const [isSaving, setIsSaving] = useState(false)
@@ -830,6 +833,27 @@ export default function ServiceForm() {
   const watchedDescription  = watch('description')
   const watchedMetaDescription = watch('meta_description')
   const watchedPrerequisites = watch('prerequisites')
+
+  const handleQuickCreateCategory = async () => {
+    const name = newCategoryName.trim()
+    if (name.length < 2) {
+      toast.error('Category name must be at least 2 characters')
+      return
+    }
+    try {
+      await createCategory.mutateAsync({
+        name,
+        applies_to: 'service',
+        sort_order: 0,
+      })
+      setValue('category', name)
+      setValue('subcategory', '')
+      setNewCategoryName('')
+      setShowCreateCategory(false)
+    } catch {
+      /* useCreateCategory shows toast */
+    }
+  }
 
   const currencySymbol = CURRENCY_SYMBOL[watchedCurrency] || watchedCurrency
 
@@ -2113,7 +2137,22 @@ export default function ServiceForm() {
                   ) : null}
                 </div>
               </FormField>
-              <FormField label="Category">
+              <FormField
+                label="Category"
+                action={
+                  <button
+                    type="button"
+                    className="inline-flex h-5 items-center gap-0.5 text-[0.6875rem] font-medium text-blue-600 hover:text-blue-700 sm:text-xs"
+                    onClick={() => {
+                      setShowCreateCategory((v) => !v)
+                      if (showCreateCategory) setNewCategoryName('')
+                    }}
+                  >
+                    <Plus className="h-3 w-3" />
+                    {showCreateCategory ? 'Cancel' : 'Create category'}
+                  </button>
+                }
+              >
                 <CategoryHierarchyPicker
                   tree={serviceCategories}
                   category={watchedCategory || ''}
@@ -2129,6 +2168,31 @@ export default function ServiceForm() {
                 <Input className="w-full min-w-0" {...register('tags')} placeholder="repair, home-service, ac" />
               </FormField>
             </div>
+            {showCreateCategory && (
+              <div className="flex flex-col gap-2 rounded-lg border border-dashed border-blue-200 bg-blue-50/70 p-3 sm:flex-row sm:items-center">
+                <Input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="New category name"
+                  className="h-8 min-h-8 w-full text-sm sm:h-9 sm:flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void handleQuickCreateCategory()
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 shrink-0 sm:h-9"
+                  disabled={createCategory.isPending}
+                  onClick={() => void handleQuickCreateCategory()}
+                >
+                  {createCategory.isPending ? 'Creating…' : 'Create & select'}
+                </Button>
+              </div>
+            )}
             <div className={formEditLayout.fieldGrid3}>
               <FormField label="Short Description">
                 <AiDescriptionTextarea

@@ -25,6 +25,7 @@ import { useServices, useDeleteService, useUpdateService, useCategories } from '
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { useVendorStore } from '@/stores/vendorStore'
 import { formatCurrency, mediaUrl } from '@/lib/utils'
+import { formatServiceListPrice, resolveServiceDisplayAmount } from '@/lib/servicePricing'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { TablePagination } from '@/components/table/TablePagination'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -42,7 +43,8 @@ import { toast } from 'sonner'
 const resolveUrl = mediaUrl
 
 function shareService(service: Service, action: 'copy' | 'whatsapp' | 'email' | 'native') {
-  const priceText = service.price ? ` - ${formatCurrency(service.price)}` : ''
+  const shareAmount = resolveServiceDisplayAmount(service)
+  const priceText = shareAmount > 0 ? ` - ${formatCurrency(shareAmount, service.currency)}` : ''
   const text = `Check out ${service.name}${priceText}${service.category ? ` in ${service.category}` : ''}`
   if (action === 'copy') { navigator.clipboard.writeText(text); toast.success('Service info copied!') }
   else if (action === 'whatsapp') window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
@@ -247,7 +249,7 @@ export default function Services() {
         name:             (s) => s.name,
         service_type:     (s) => s.service_type,
         service_mode:     (s) => s.service_mode || '',
-        price:            (s) => s.price ?? s.price_min ?? 0,
+        price:            (s) => resolveServiceDisplayAmount(s),
         duration_minutes: (s) => s.duration_minutes ?? 0,
         status:           (s) => s.status,
       },
@@ -528,9 +530,9 @@ export default function Services() {
                             onSave={(v) => patchField(service.id, 'price', Number(v))}
                             title="Edit price"
                           >
-                            <span className="text-sm font-medium text-gray-900">{formatCurrency(service.price)}</span>
+                            <span className="text-sm font-medium text-gray-900">{formatCurrency(service.price, service.currency)}</span>
                           </InlineEditCell>
-                        ) : service.price_min != null && service.price_max != null ? (
+                        ) : service.price_min != null && service.price_max != null && (service.price_min > 0 || service.price_max > 0) ? (
                           <div className="space-y-1">
                             <InlineEditCell
                               type="number"
@@ -541,7 +543,7 @@ export default function Services() {
                               onSave={(v) => patchField(service.id, 'price_min', Number(v))}
                               title="Edit min price"
                             >
-                              <span className="text-xs text-gray-700">{formatCurrency(service.price_min)}</span>
+                              <span className="text-xs text-gray-700">{formatCurrency(service.price_min, service.currency)}</span>
                             </InlineEditCell>
                             <InlineEditCell
                               type="number"
@@ -552,22 +554,33 @@ export default function Services() {
                               onSave={(v) => patchField(service.id, 'price_max', Number(v))}
                               title="Edit max price"
                             >
-                              <span className="text-xs text-gray-700">{formatCurrency(service.price_max)}</span>
+                              <span className="text-xs text-gray-700">{formatCurrency(service.price_max, service.currency)}</span>
                             </InlineEditCell>
                           </div>
-                        ) : (
-                          <InlineEditCell
-                            type="number"
-                            value={0}
-                            min={0}
-                            step="0.01"
-                            saving={isSaving(service.id, 'price')}
-                            onSave={(v) => patchField(service.id, 'price', Number(v))}
-                            title="Set price"
-                          >
-                            <span className="text-gray-400 text-xs capitalize">{service.price_type || '—'}</span>
-                          </InlineEditCell>
-                        )}
+                        ) : (() => {
+                          const { text, sub, hasAmount } = formatServiceListPrice(service)
+                          if (hasAmount) {
+                            return (
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">{text}</p>
+                                {sub ? <p className="text-xs text-gray-400">{sub}</p> : null}
+                              </div>
+                            )
+                          }
+                          return (
+                            <InlineEditCell
+                              type="number"
+                              value={0}
+                              min={0}
+                              step="0.01"
+                              saving={isSaving(service.id, 'price')}
+                              onSave={(v) => patchField(service.id, 'price', Number(v))}
+                              title="Set price"
+                            >
+                              <span className="text-gray-400 text-xs">{text}</span>
+                            </InlineEditCell>
+                          )
+                        })()}
                       </td>
                       <td className="px-4 py-3">
                         <InlineEditCell
