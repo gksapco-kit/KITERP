@@ -4286,7 +4286,7 @@ function syncNavLinksInBlockMap(
 
 function pagesNavKey(pages: WebsitePage[]): string {
   return pages
-    .map(p => `${p.id}:${p.slug}:${p.title}:${p.show_in_nav}:${p.is_homepage}`)
+    .map(p => `${p.id}:${p.slug}:${p.title}:${p.show_in_nav}:${p.is_homepage}:${p.sort_order ?? 0}`)
     .join('|')
 }
 
@@ -12716,6 +12716,8 @@ export default function WebsiteBuilder() {
   const [rightPanel, setRightPanel] = useState<'props' | 'page' | 'style' | 'links'>('props')
   const [sidebarDraggedIdx, setSidebarDraggedIdx] = useState<number | null>(null)
   const [sidebarDragOverIdx, setSidebarDragOverIdx] = useState<number | null>(null)
+  const [pageListDragIdx, setPageListDragIdx] = useState<number | null>(null)
+  const [pageListDragOverIdx, setPageListDragOverIdx] = useState<number | null>(null)
   const [sectionSearch, setSectionSearch] = useState('')
   const [sectionCategory, setSectionCategory] = useState('all')
   const [builderWelcomeDismissed, setBuilderWelcomeDismissed] = useState(() => readBuilderWelcomeDismissed())
@@ -17521,19 +17523,7 @@ export default function WebsiteBuilder() {
     })
   }, [siteId, site, openTextPrompt, queryClient])
 
-  const handleMovePage = useCallback(async (pageId: string, direction: 'up' | 'down') => {
-    const backup = localPagesRef.current
-    const sorted = [...backup].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    const idx = sorted.findIndex(p => p.id === pageId)
-    if (idx < 0) return
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1
-    if (targetIdx < 0 || targetIdx >= sorted.length) return
-
-    const reordered = [...sorted]
-    const [moved] = reordered.splice(idx, 1)
-    reordered.splice(targetIdx, 0, moved)
-    const nextPages = reordered.map((p, i) => ({ ...p, sort_order: i }))
-
+  const persistPageOrder = useCallback(async (nextPages: WebsitePage[], backup: WebsitePage[]) => {
     localPagesRef.current = nextPages
     setLocalPages(nextPages)
     skipServerHydrateRef.current = Date.now()
@@ -17572,6 +17562,25 @@ export default function WebsiteBuilder() {
       toast.error(extractApiError(err, 'Failed to reorder pages'))
     }
   }, [siteId, site, queryClient])
+
+  const handleReorderPagesByIndex = useCallback(async (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return
+    const backup = localPagesRef.current
+    const sorted = [...backup].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    if (fromIdx < 0 || toIdx < 0 || fromIdx >= sorted.length || toIdx >= sorted.length) return
+    const reordered = [...sorted]
+    const [moved] = reordered.splice(fromIdx, 1)
+    reordered.splice(toIdx, 0, moved)
+    await persistPageOrder(reordered.map((p, i) => ({ ...p, sort_order: i })), backup)
+  }, [persistPageOrder])
+
+  const handleMovePage = useCallback(async (pageId: string, direction: 'up' | 'down') => {
+    const sorted = [...localPagesRef.current].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const idx = sorted.findIndex(p => p.id === pageId)
+    if (idx < 0) return
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+    await handleReorderPagesByIndex(idx, targetIdx)
+  }, [handleReorderPagesByIndex])
 
   // Store test URL — business front /:slug resolves vendors via GET /catalog/vendor/{slug} (Vendor.slug),
   // not wb_sites.subdomain. In dev, always use the logged-in vendor's catalog slug so links don't 404.
@@ -18934,22 +18943,58 @@ export default function WebsiteBuilder() {
                         {`${localPages.length} page${localPages.length !== 1 ? 's' : ''}`}
                       </FormColumnLabel>
                       <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">
-                        Open <strong className="font-semibold text-gray-500">Actions</strong> on a page to duplicate or delete it.
+                        Drag pages to reorder the store menu. Open <strong className="font-semibold text-gray-500">Actions</strong> to duplicate or delete.
                       </p>
                     </div>
                     {pageSectionGroups.map(({ page, entries, totalBlocks }, pageIndex) => {
                       const isExpanded = expandedSectionPages.has(page.id)
                       const isActivePage = activePageId === page.id
+                      const isPageDragSource = pageListDragIdx === pageIndex
+                      const isPageDropTarget = pageListDragOverIdx === pageIndex && pageListDragIdx !== pageIndex
                       const pageTypeLabel = page.page_type === 'landing' ? '🚀' : page.page_type === 'blog' ? '📝' : page.page_type === 'product' ? '🛍️' : '📄'
                       return (
                         <div
                           key={page.id}
+                          onDragOver={e => {
+                            if (pageListDragIdx == null) return
+                            e.preventDefault()
+                            e.dataTransfer.dropEffect = 'move'
+                            if (pageListDragOverIdx !== pageIndex) setPageListDragOverIdx(pageIndex)
+                          }}
+                          onDrop={e => {
+                            if (pageListDragIdx == null) return
+                            e.preventDefault()
+                            e.stopPropagation()
+                            void handleReorderPagesByIndex(pageListDragIdx, pageIndex)
+                            setPageListDragIdx(null)
+                            setPageListDragOverIdx(null)
+                          }}
                           className={cn(
                             'rounded-xl border overflow-hidden transition-colors group/page',
                             isActivePage ? 'border-primary/30 bg-primary/[0.03]' : 'border-gray-100 bg-white',
+                            isPageDragSource && 'opacity-50',
+                            isPageDropTarget && 'border-primary/50 bg-accent ring-1 ring-primary/20',
                           )}
                         >
                           <div className="flex items-center gap-0.5 px-1 py-1">
+                            <span
+                              draggable
+                              onDragStart={e => {
+                                e.stopPropagation()
+                                e.dataTransfer.effectAllowed = 'move'
+                                e.dataTransfer.setData('text/plain', page.id)
+                                setPageListDragIdx(pageIndex)
+                              }}
+                              onDragEnd={() => {
+                                setPageListDragIdx(null)
+                                setPageListDragOverIdx(null)
+                              }}
+                              className="inline-flex h-6 w-5 shrink-0 cursor-grab items-center justify-center text-gray-300 hover:text-gray-500 active:cursor-grabbing"
+                              title="Drag to reorder menu"
+                              aria-label={`Reorder ${page.title}`}
+                            >
+                              <GripVertical className="h-3.5 w-3.5 pointer-events-none" />
+                            </span>
                             {/* Page name / navigate button — fills remaining space */}
                             <button
                               type="button"

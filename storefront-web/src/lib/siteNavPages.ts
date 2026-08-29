@@ -64,26 +64,33 @@ export function excludeHomeNavLinks(
 }
 
 /**
- * Always show the home link first (deduped if already present elsewhere).
- * Uses a short "Home" label so the first item stays readable in crowded headers
- * (long homepage titles were getting clipped to fragments like "me").
+ * Ensure a Home link exists, but keep the builder page order.
+ * Forcing Home to the front made live-store nav ignore Pages reorder.
  */
 export function applyHomeNavVisibility(
   links: NavLinkItem[],
   _pathname: string,
   storePath: (p: string) => string,
 ): NavLinkItem[] {
-  const rest = excludeHomeNavLinks(links, storePath)
-  return [{ label: 'Home', href: storePath('/') }, ...rest]
+  const homeHref = storePath('/')
+  const seen = new Set<string>()
+  const next: NavLinkItem[] = []
+  for (const link of links) {
+    const key = pathRelativeToStore(link.href, storePath)
+    if (seen.has(key)) continue
+    seen.add(key)
+    next.push(isStoreHomeNavHref(link.href, storePath) ? { ...link, label: 'Home', href: homeHref } : link)
+  }
+  if (!seen.has('/')) {
+    next.unshift({ label: 'Home', href: homeHref })
+  }
+  return next
 }
 
 function pagesToNavItems(pages: SitePage[], storePath: (p: string) => string, limit: number): NavLinkItem[] {
   const seen = new Set<string>()
   const items: NavLinkItem[] = []
-  const sorted = [...pages].sort((a, b) => {
-    if (a.is_homepage !== b.is_homepage) return a.is_homepage ? -1 : 1
-    return (a.sort_order ?? 0) - (b.sort_order ?? 0)
-  })
+  const sorted = [...pages].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
   for (const page of sorted) {
     const url = pageToNavUrl(page)
     if (seen.has(url)) continue
@@ -122,10 +129,7 @@ export function sitePagesToLiveNavItems(site: PublicSite, limit = 20): SitePageN
   const items: SitePageNavItem[] = []
   const sorted = [...pages]
     .filter(p => p.show_in_nav !== false && p.is_published !== false)
-    .sort((a, b) => {
-      if (a.is_homepage !== b.is_homepage) return a.is_homepage ? -1 : 1
-      return (a.sort_order ?? 0) - (b.sort_order ?? 0)
-    })
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
   for (const page of sorted) {
     const url = pageToNavUrl(page)
     if (seen.has(url)) continue

@@ -197,10 +197,7 @@ function sitePagesToLiveItems(site: PublicSite, limit: number): LiveItem[] {
   const items: LiveItem[] = []
   const sorted = [...pages]
     .filter(p => p.show_in_nav !== false && p.is_published !== false)
-    .sort((a, b) => {
-      if (a.is_homepage !== b.is_homepage) return a.is_homepage ? -1 : 1
-      return (a.sort_order ?? 0) - (b.sort_order ?? 0)
-    })
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
   for (const page of sorted) {
     let url = page.is_homepage ? '/' : `/${String(page.slug || '').replace(/^\/+|\/+$/g, '')}`
     if (url === '/home') url = '/'

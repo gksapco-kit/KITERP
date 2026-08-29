@@ -963,7 +963,6 @@ async def update_page(
         db, page_id, site_id, note="page edited", author_user_id=user.id,
     )
     data = body.dict(exclude_none=True)
-    slug_change_requested = "slug" in data
     if data.get("is_homepage") is True:
         await db.execute(
             update(WebsitePage)
@@ -984,13 +983,9 @@ async def update_page(
     for k, v in data.items():
         setattr(page, k, v)
     page.updated_at = datetime.utcnow()
+    await _touch_site_content(db, site_id, page_id)
     await db.commit()
-    if slug_change_requested and not page.is_homepage:
-        try:
-            from app.api.v1.public_sites import invalidate_site_cache
-            await invalidate_site_cache(vendor.subdomain, site_id, vendor_slug=vendor.slug)
-        except Exception:
-            pass
+    await _invalidate_public_site_cache(db, site_id, vendor)
     return await _get_page(db, page_id, site_id)
 
 
@@ -1069,7 +1064,10 @@ async def reorder_pages(
         except HTTPException:
             continue
         page.sort_order = item.sort_order
+        page.updated_at = datetime.utcnow()
+    await _touch_site_content(db, site_id)
     await db.commit()
+    await _invalidate_public_site_cache(db, site_id, vendor)
     return {"ok": True}
 
 
