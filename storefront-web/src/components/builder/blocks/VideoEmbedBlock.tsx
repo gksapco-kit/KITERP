@@ -16,6 +16,7 @@ import {
   getVideoThumbnailUrl,
   isDirectVideoFile,
   isInstagramEmbedUrl,
+  videoPreviewSrc,
 } from '@/lib/videoEmbed'
 
 function aspectRatioCss(value: string): string {
@@ -196,8 +197,8 @@ function VideoPlayer({
         <div className="relative w-full" style={{ aspectRatio }}>
           {directSrc ? (
             <video
-              src={directSrc}
-              className="absolute inset-0 h-full w-full bg-black object-contain"
+              src={videoPreviewSrc(directSrc)}
+              className="absolute inset-0 h-full w-full bg-neutral-200 object-contain"
               controls
               playsInline
               preload="metadata"

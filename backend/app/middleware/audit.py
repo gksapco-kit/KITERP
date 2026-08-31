@@ -20,9 +20,9 @@ import uuid
 from dataclasses import dataclass
 from typing import Optional
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
@@ -41,14 +41,24 @@ class CrmAuditContext:
     started_at: float
 
 
-class CrmAuditMiddleware(BaseHTTPMiddleware):
+class CrmAuditMiddleware:
     """Attach per-request audit context for CRM endpoints.
 
     Adds ``X-Request-Id`` to the response so audit rows can be correlated to
     HTTP requests in logs.
+
+    Pure ASGI — BaseHTTPMiddleware buffers the body and can 500 file uploads.
     """
 
-    async def dispatch(self, request: Request, call_next):
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope)
         path = request.url.path or ""
         is_crm = path.startswith(CRM_PATH_PREFIX) or path.startswith(CRM_PUBLIC_PREFIX)
 
@@ -72,22 +82,23 @@ class CrmAuditMiddleware(BaseHTTPMiddleware):
             )
             request.state.crm_audit = ctx
 
-        response: Response = await call_next(request)
+        async def send_wrapper(message):
+            if is_crm and message["type"] == "http.response.start":
+                try:
+                    ctx = request.state.crm_audit
+                    headers = MutableHeaders(raw=message.setdefault("headers", []))
+                    headers["X-Request-Id"] = ctx.request_id
+                    if request.method in WRITE_METHODS:
+                        elapsed_ms = int((time.monotonic() - ctx.started_at) * 1000)
+                        logger.debug(
+                            "crm.audit method=%s path=%s status=%s ms=%s req_id=%s",
+                            ctx.method, ctx.path, message.get("status"), elapsed_ms, ctx.request_id,
+                        )
+                except Exception:
+                    pass
+            await send(message)
 
-        if is_crm:
-            try:
-                ctx: CrmAuditContext = request.state.crm_audit
-                response.headers["X-Request-Id"] = ctx.request_id
-                if request.method in WRITE_METHODS:
-                    elapsed_ms = int((time.monotonic() - ctx.started_at) * 1000)
-                    logger.debug(
-                        "crm.audit method=%s path=%s status=%s ms=%s req_id=%s",
-                        ctx.method, ctx.path, response.status_code, elapsed_ms, ctx.request_id,
-                    )
-            except Exception:
-                pass
-
-        return response
+        await self.app(scope, receive, send_wrapper)
 
 
 def install(app) -> None:

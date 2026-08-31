@@ -1031,7 +1031,7 @@ export const vendorApi = {
   uploadVendorLogo: async (file: File): Promise<{ logo_url: string }> => {
     const form = new FormData()
     form.append('file', file)
-    const response = await apiClient.post('/uploads/vendor/logo', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    const response = await apiClient.post('/uploads/vendor/logo', form, { timeout: 120_000 })
     return response.data
   },
 
@@ -1097,7 +1097,7 @@ export const vendorApi = {
   uploadVendorBanner: async (file: File): Promise<{ banner_url: string }> => {
     const form = new FormData()
     form.append('file', file)
-    const response = await apiClient.post('/uploads/vendor/banner', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    const response = await apiClient.post('/uploads/vendor/banner', form, { timeout: 120_000 })
     return response.data
   },
 
@@ -1105,7 +1105,7 @@ export const vendorApi = {
   uploadVendorBrandingAsset: async (file: File): Promise<{ url: string }> => {
     const form = new FormData()
     form.append('file', file)
-    const response = await apiClient.post('/uploads/vendor/branding-asset', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    const response = await apiClient.post('/uploads/vendor/branding-asset', form, { timeout: 120_000 })
     return response.data
   },
 
@@ -1150,7 +1150,7 @@ export const vendorApi = {
   uploadVendorExtraBanner: async (file: File): Promise<{ banner_url: string; extra_banners: string[] }> => {
     const form = new FormData()
     form.append('file', file)
-    const response = await apiClient.post('/uploads/vendor/extra-banner', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    const response = await apiClient.post('/uploads/vendor/extra-banner', form, { timeout: 120_000 })
     return response.data
   },
 
@@ -1193,7 +1193,9 @@ export const vendorApi = {
   uploadProductImage: async (productId: string, file: File): Promise<{ id: string; url: string; alt_text: string; position: number; is_primary: boolean; media_type: string }> => {
     const form = new FormData()
     form.append('file', file)
-    const response = await apiClient.post(`/uploads/products/${productId}/images`, form)
+    const response = await apiClient.post(`/uploads/products/${productId}/images`, form, {
+      timeout: 120_000,
+    })
     return response.data
   },
 
@@ -1213,7 +1215,9 @@ export const vendorApi = {
   uploadVariantMedia: async (variantId: string, file: File): Promise<{ media: VariantMediaItem[]; added: VariantMediaItem }> => {
     const form = new FormData()
     form.append('file', file)
-    const response = await apiClient.post(`/uploads/variants/${variantId}/media`, form)
+    const response = await apiClient.post(`/uploads/variants/${variantId}/media`, form, {
+      timeout: 120_000,
+    })
     return response.data
   },
 

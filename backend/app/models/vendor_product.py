@@ -262,7 +262,7 @@ class ProductVariant(Base):
     search_keywords = Column(Text, nullable=True)
 
     # Variant-specific media (images/videos/3D); overrides product media when set
-    media = Column(JSONB, default=[])
+    media = Column(JSONB, default=list)
 
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

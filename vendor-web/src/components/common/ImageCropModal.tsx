@@ -17,9 +17,45 @@ interface ImageCropModalProps {
   file: File
   aspectRatio?: number        // e.g. 1 for square, 3 for banner. Undefined = free
   maxOutputWidth?: number     // cap the exported image width
-  onConfirm: (croppedFile: File) => void
+  outputType?: 'jpeg' | 'png' | 'auto'
+  /** When set, compress the export until it is at or under this size. Omit to keep full quality. */
+  maxBytes?: number
+  onConfirm: (croppedFile: File) => void | Promise<void>
   onCancel: () => void
   title?: string
+}
+
+function canvasToFile(
+  canvas: HTMLCanvasElement,
+  originalFile: File,
+  outputType: ImageCropModalProps['outputType'] = 'auto',
+  maxBytes?: number,
+): Promise<File> {
+  const forceJpeg = outputType === 'jpeg'
+  const mimeType = forceJpeg ? 'image/jpeg' : (originalFile.type === 'image/png' ? 'image/png' : 'image/jpeg')
+  const ext = mimeType === 'image/png' ? 'png' : 'jpg'
+  const base = originalFile.name.replace(/\.[^.]+$/, '') || 'image'
+
+  const tryBlob = (quality: number) =>
+    new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('Canvas empty'))),
+        mimeType,
+        mimeType === 'image/jpeg' ? quality : undefined,
+      )
+    })
+
+  return (async () => {
+    let quality = 0.92
+    let blob = await tryBlob(quality)
+    if (maxBytes && mimeType === 'image/jpeg') {
+      while (blob.size > maxBytes && quality > 0.5) {
+        quality -= 0.12
+        blob = await tryBlob(quality)
+      }
+    }
+    return new File([blob], `${base}-cropped.${ext}`, { type: mimeType })
+  })()
 }
 
 function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: number): Crop {
@@ -34,14 +70,20 @@ async function getCroppedImg(
   image: HTMLImageElement,
   pixelCrop: PixelCrop,
   originalFile: File,
-  scale = 1,
+  options: { maxOutputWidth?: number; outputType?: ImageCropModalProps['outputType']; maxBytes?: number } = {},
 ): Promise<File> {
   const canvas = document.createElement('canvas')
   const scaleX = image.naturalWidth / image.width
   const scaleY = image.naturalHeight / image.height
 
-  const outputWidth = Math.round(pixelCrop.width * scaleX)
-  const outputHeight = Math.round(pixelCrop.height * scaleY)
+  let outputWidth = Math.round(pixelCrop.width * scaleX)
+  let outputHeight = Math.round(pixelCrop.height * scaleY)
+  const cap = options.maxOutputWidth
+  if (cap && outputWidth > cap) {
+    const ratio = cap / outputWidth
+    outputWidth = cap
+    outputHeight = Math.max(1, Math.round(outputHeight * ratio))
+  }
 
   canvas.width = outputWidth
   canvas.height = outputHeight
@@ -56,33 +98,23 @@ async function getCroppedImg(
     image,
     pixelCrop.x * scaleX,
     pixelCrop.y * scaleY,
-    outputWidth,
-    outputHeight,
+    pixelCrop.width * scaleX,
+    pixelCrop.height * scaleY,
     0,
     0,
     outputWidth,
     outputHeight,
   )
 
-  return new Promise((resolve, reject) => {
-    const mimeType = originalFile.type === 'image/png' ? 'image/png' : 'image/jpeg'
-    const quality = mimeType === 'image/jpeg' ? 0.92 : undefined
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) { reject(new Error('Canvas empty')); return }
-        const ext = mimeType === 'image/png' ? 'png' : 'jpg'
-        const name = originalFile.name.replace(/\.[^.]+$/, '') + `-cropped.${ext}`
-        resolve(new File([blob], name, { type: mimeType }))
-      },
-      mimeType,
-      quality,
-    )
-  })
+  return canvasToFile(canvas, originalFile, options.outputType, options.maxBytes)
 }
 
 export function ImageCropModal({
   file,
   aspectRatio,
+  maxOutputWidth,
+  outputType = 'auto',
+  maxBytes,
   onConfirm,
   onCancel,
   title = 'Crop & Resize Image',
@@ -187,7 +219,11 @@ export function ImageCropModal({
     if (!imgRef.current || !completedCrop) return
     setProcessing(true)
     try {
-      let croppedFile = await getCroppedImg(imgRef.current, completedCrop, file)
+      let croppedFile = await getCroppedImg(imgRef.current, completedCrop, file, {
+        maxOutputWidth,
+        outputType,
+        maxBytes,
+      })
 
       const targetW = parseInt(outputW)
       const targetH = parseInt(outputH)
@@ -195,10 +231,10 @@ export function ImageCropModal({
       const cropNatH = Math.round(completedCrop.height * (imgRef.current.naturalHeight / imgRef.current.height))
 
       if (!isNaN(targetW) && !isNaN(targetH) && (targetW !== cropNatW || targetH !== cropNatH)) {
-        croppedFile = await resizeFile(croppedFile, targetW, targetH, file)
+        croppedFile = await resizeFile(croppedFile, targetW, targetH, file, { outputType, maxBytes, maxOutputWidth })
       }
 
-      onConfirm(croppedFile)
+      await onConfirm(croppedFile)
     } catch (err) {
       console.error('Crop error:', err)
     } finally {
@@ -206,7 +242,9 @@ export function ImageCropModal({
     }
   }
 
-  const useOriginal = () => onConfirm(file)
+  const useOriginal = async () => {
+    await onConfirm(file)
+  }
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
@@ -376,28 +414,30 @@ async function resizeFile(
   targetW: number,
   targetH: number,
   originalFile: File,
+  options: { outputType?: ImageCropModalProps['outputType']; maxBytes?: number; maxOutputWidth?: number } = {},
 ): Promise<File> {
+  let width = targetW
+  let height = targetH
+  const cap = options.maxOutputWidth
+  if (cap && width > cap) {
+    const ratio = cap / width
+    width = cap
+    height = Math.max(1, Math.round(height * ratio))
+  }
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
     img.onload = () => {
       const canvas = document.createElement('canvas')
-      canvas.width = targetW
-      canvas.height = targetH
+      canvas.width = width
+      canvas.height = height
       const ctx = canvas.getContext('2d')
       if (!ctx) { reject(new Error('Canvas ctx')); return }
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
-      ctx.drawImage(img, 0, 0, targetW, targetH)
+      ctx.drawImage(img, 0, 0, width, height)
       URL.revokeObjectURL(url)
-      const mimeType = originalFile.type === 'image/png' ? 'image/png' : 'image/jpeg'
-      const quality = mimeType === 'image/jpeg' ? 0.92 : undefined
-      canvas.toBlob((blob) => {
-        if (!blob) { reject(new Error('Canvas empty')); return }
-        const ext = mimeType === 'image/png' ? 'png' : 'jpg'
-        const name = originalFile.name.replace(/\.[^.]+$/, '') + `-resized.${ext}`
-        resolve(new File([blob], name, { type: mimeType }))
-      }, mimeType, quality)
+      canvasToFile(canvas, originalFile, options.outputType, options.maxBytes).then(resolve, reject)
     }
     img.onerror = reject
     img.src = url

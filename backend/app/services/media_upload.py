@@ -41,7 +41,10 @@ def detect_media_type(file: UploadFile) -> str:
     ext = ("." + file.filename.rsplit(".", 1)[-1].lower()) if file.filename and "." in file.filename else ""
     if ct in ALLOWED_VIDEO_TYPES or ext in ALLOWED_VIDEO_EXTENSIONS:
         return "video"
-    if ct in ALLOWED_3D_TYPES or ext in ALLOWED_3D_EXTENSIONS:
+    # Prefer the filename over generic octet-stream (Windows often sends that for JPEGs).
+    if ext in ALLOWED_3D_EXTENSIONS:
+        return "model3d"
+    if ct in ALLOWED_3D_TYPES and ext not in ALLOWED_IMAGE_EXTENSIONS:
         return "model3d"
     return "image"
 
@@ -143,8 +146,12 @@ async def delete_stored_file(file_url: Optional[str]) -> bool:
     return await get_file_service().delete_file(file_url)
 
 
-async def save_media_file(file: UploadFile, subfolder: str) -> str:
-    """Validate type/size and upload catalog/vendor media."""
+async def save_media_file(file: UploadFile, subfolder: str, *, max_bytes: int | None = None) -> str:
+    """Validate type/size and upload catalog/vendor media.
+
+    ``max_bytes=0`` skips the size check (used for vendor branding banners).
+    ``max_bytes=None`` uses the default per media type.
+    """
     ext = _file_extension(file)
     if not _upload_type_allowed(file):
         raise HTTPException(
@@ -154,8 +161,9 @@ async def save_media_file(file: UploadFile, subfolder: str) -> str:
 
     contents = await file.read()
     media = detect_media_type(file)
-    max_size = MAX_VIDEO_SIZE if media == "video" else MAX_3D_SIZE if media == "model3d" else MAX_IMAGE_SIZE
-    if len(contents) > max_size:
+    default_max = MAX_VIDEO_SIZE if media == "video" else MAX_3D_SIZE if media == "model3d" else MAX_IMAGE_SIZE
+    max_size = default_max if max_bytes is None else max_bytes
+    if max_size > 0 and len(contents) > max_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File too large. Max {max_size // (1024 * 1024)} MB for {media}.",

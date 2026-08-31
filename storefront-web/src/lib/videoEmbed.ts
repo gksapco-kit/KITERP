@@ -2,6 +2,13 @@ import { getStorefrontApiBaseUrl } from '@/lib/apiBase'
 
 const DIRECT_VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.m4v', '.ogv', '.ogg']
 
+/** Seek a fraction of a second so browsers paint a poster frame instead of a black tile. */
+export function videoPreviewSrc(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed || trimmed.includes('#')) return trimmed
+  return `${trimmed}#t=0.15`
+}
+
 /** True when the URL points to a directly-playable video file (e.g. uploaded from a device). */
 export function isDirectVideoFile(url: string): boolean {
   const trimmed = url.trim().toLowerCase()

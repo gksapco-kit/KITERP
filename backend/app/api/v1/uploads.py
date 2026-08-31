@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 from uuid import UUID
 
 from app.database import get_db
@@ -89,8 +90,54 @@ async def _get_managed_product(
     return product
 
 
-async def _save_file(file: UploadFile, subfolder: str) -> str:
-    return await save_media_file(file, subfolder)
+def _as_media_list(raw) -> list[dict]:
+    """JSONB media must be a list of dicts — never share Column default=[] or crash on strings."""
+    if not isinstance(raw, list):
+        return []
+    return [dict(item) for item in raw if isinstance(item, dict)]
+
+
+async def _get_managed_variant(
+    user: User,
+    db: AsyncSession,
+    variant_id: UUID,
+    vendor_id: UUID | None = None,
+) -> ProductVariant:
+    """Load a variant the current dashboard vendor (or platform staff) may edit.
+
+    Snapshots scalar/JSONB fields before the product query so a later
+    ``selectinload`` cannot expire them and trigger MissingGreenlet after I/O.
+    """
+    result = await db.execute(select(ProductVariant).where(ProductVariant.id == variant_id))
+    variant = result.scalar_one_or_none()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Variant not found")
+
+    product_id = variant.product_id
+    # Touch columns now (loaded) so we do not lazy-load after the next await.
+    _ = variant.name
+    _ = _as_media_list(variant.media)
+    await _get_managed_product(user, db, product_id, vendor_id)
+    return variant
+
+
+async def _reload_variant(db: AsyncSession, variant_id: UUID) -> ProductVariant:
+    result = await db.execute(select(ProductVariant).where(ProductVariant.id == variant_id))
+    variant = result.scalar_one_or_none()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Variant not found")
+    return variant
+
+
+def _persist_variant_media(variant: ProductVariant, media: list[dict]) -> list[dict]:
+    safe = _as_media_list(media)
+    variant.media = safe
+    flag_modified(variant, "media")
+    return safe
+
+
+async def _save_file(file: UploadFile, subfolder: str, *, max_bytes: int | None = None) -> str:
+    return await save_media_file(file, subfolder, max_bytes=max_bytes)
 
 
 @router.post("/proxy-image")
@@ -127,7 +174,7 @@ async def upload_vendor_logo(
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
 
-    url = await _save_file(file, "vendor-logos")
+    url = await _save_file(file, "vendor-logos", max_bytes=0)
 
     if vendor.logo_url:
         await delete_stored_file(vendor.logo_url)
@@ -149,7 +196,7 @@ async def upload_vendor_banner(
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
 
-    url = await _save_file(file, "vendor-banners")
+    url = await _save_file(file, "vendor-banners", max_bytes=0)
 
     if vendor.banner_url:
         await delete_stored_file(vendor.banner_url)
@@ -200,7 +247,7 @@ async def upload_vendor_branding_asset(
 ):
     """Save a branding image and return its URL without changing vendor logo/banner."""
     vendor_id = await _get_vendor_id(current_user, db)
-    url = await _save_file(file, f"vendor-branding/{vendor_id}")
+    url = await _save_file(file, f"vendor-branding/{vendor_id}", max_bytes=0)
     return JSONResponse(content={"url": url})
 
 
@@ -467,7 +514,7 @@ async def upload_vendor_extra_banner(
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
 
-    url = await _save_file(file, "vendor-banners")
+    url = await _save_file(file, "vendor-banners", max_bytes=0)
 
     cfg = dict(vendor.theme_config or {})
     extras: list = list(cfg.get("extra_banners", []))
@@ -630,7 +677,7 @@ async def upload_logo_anonymous(
     file: UploadFile = File(...),
 ):
     """Upload a logo during onboarding (before vendor is created). Returns URL to use later."""
-    url = await _save_file(file, "vendor-logos")
+    url = await _save_file(file, "vendor-logos", max_bytes=0)
     return JSONResponse(content={"logo_url": url})
 
 
@@ -639,7 +686,7 @@ async def upload_banner_anonymous(
     file: UploadFile = File(...),
 ):
     """Upload a banner during onboarding (before vendor is created). Returns URL to use later."""
-    url = await _save_file(file, "vendor-banners")
+    url = await _save_file(file, "vendor-banners", max_bytes=0)
     return JSONResponse(content={"banner_url": url})
 
 
@@ -664,7 +711,7 @@ async def upload_product_image(
     image = ProductImage(
         product_id=product.id,
         url=url,
-        alt_text=product.name,
+        alt_text=(product.name or "")[:255],
         position=existing_count,
         is_primary=existing_count == 0 and media == "image",
         media_type=media,
@@ -789,40 +836,31 @@ async def upload_variant_media(
     variant_id: UUID,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_active_user),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload a media file (image/video/3D) for a specific variant."""
-    vendor_id = await _get_vendor_id(current_user, db)
-
-    result = await db.execute(select(ProductVariant).where(ProductVariant.id == variant_id))
-    variant = result.scalar_one_or_none()
-    if not variant:
-        raise HTTPException(status_code=404, detail="Variant not found")
-
-    # Ensure the variant belongs to this vendor's product
-    repo = ProductRepository(db)
-    product = await repo.get_by_vendor_and_id(vendor_id, variant.product_id)
-    if not product:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    media = detect_media_type(file)
+    variant = await _get_managed_variant(current_user, db, variant_id, vendor_id)
+    variant_name = (variant.name or "")[:255]
+    media_kind = detect_media_type(file)
     url = await _save_file(file, f"variants/{variant_id}")
 
-    current_media = list(variant.media or [])
-    is_primary = len(current_media) == 0 and media == "image"
-    current_media.append({
+    # Re-select after file I/O — do not lazy-load expired JSONB on the old instance.
+    variant = await _reload_variant(db, variant_id)
+    current_media = _as_media_list(variant.media)
+    is_primary = len(current_media) == 0 and media_kind == "image"
+    added = {
         "url": url,
-        "media_type": media,
+        "media_type": media_kind,
         "is_primary": is_primary,
-        "alt_text": variant.name,
+        "alt_text": variant_name,
         "position": len(current_media),
-    })
-    from sqlalchemy.orm.attributes import flag_modified
-    variant.media = current_media
-    flag_modified(variant, "media")
+    }
+    current_media.append(added)
+    _persist_variant_media(variant, current_media)
     await db.commit()
 
-    return JSONResponse(content={"media": current_media, "added": current_media[-1]})
+    return JSONResponse(content={"media": current_media, "added": added})
 
 
 @router.delete("/variants/{variant_id}/media")
@@ -830,33 +868,21 @@ async def delete_variant_media(
     variant_id: UUID,
     url: str,
     current_user: User = Depends(get_current_active_user),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Remove a media item from a variant."""
-    vendor_id = await _get_vendor_id(current_user, db)
+    variant = await _get_managed_variant(current_user, db, variant_id, vendor_id)
 
-    result = await db.execute(select(ProductVariant).where(ProductVariant.id == variant_id))
-    variant = result.scalar_one_or_none()
-    if not variant:
-        raise HTTPException(status_code=404, detail="Variant not found")
+    current_media = [m for m in _as_media_list(variant.media) if m.get("url") != url]
 
-    repo = ProductRepository(db)
-    product = await repo.get_by_vendor_and_id(vendor_id, variant.product_id)
-    if not product:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    current_media = [m for m in (variant.media or []) if m.get("url") != url]
-
-    # Set primary to first image if needed
     if current_media and not any(m.get("is_primary") for m in current_media):
         for m in current_media:
             if m.get("media_type", "image") == "image":
                 m["is_primary"] = True
                 break
 
-    from sqlalchemy.orm.attributes import flag_modified
-    variant.media = current_media
-    flag_modified(variant, "media")
+    _persist_variant_media(variant, current_media)
     await db.commit()
 
     await delete_stored_file(url)
@@ -869,27 +895,16 @@ async def set_primary_variant_media(
     variant_id: UUID,
     url: str,
     current_user: User = Depends(get_current_active_user),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Set a media item as primary for a variant."""
-    vendor_id = await _get_vendor_id(current_user, db)
+    variant = await _get_managed_variant(current_user, db, variant_id, vendor_id)
 
-    result = await db.execute(select(ProductVariant).where(ProductVariant.id == variant_id))
-    variant = result.scalar_one_or_none()
-    if not variant:
-        raise HTTPException(status_code=404, detail="Variant not found")
-
-    repo = ProductRepository(db)
-    product = await repo.get_by_vendor_and_id(vendor_id, variant.product_id)
-    if not product:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    current_media = list(variant.media or [])
+    current_media = _as_media_list(variant.media)
     for m in current_media:
         m["is_primary"] = m.get("url") == url and m.get("media_type", "image") == "image"
-    from sqlalchemy.orm.attributes import flag_modified
-    variant.media = current_media
-    flag_modified(variant, "media")
+    _persist_variant_media(variant, current_media)
     await db.commit()
 
     return JSONResponse(content={"media": current_media})
@@ -900,46 +915,36 @@ async def reorder_variant_media(
     variant_id: UUID,
     body: dict,
     current_user: User = Depends(get_current_active_user),
+    vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Reorder variant media by url list (display order)."""
-    vendor_id = await _get_vendor_id(current_user, db)
-
-    result = await db.execute(select(ProductVariant).where(ProductVariant.id == variant_id))
-    variant = result.scalar_one_or_none()
-    if not variant:
-        raise HTTPException(status_code=404, detail="Variant not found")
-
-    repo = ProductRepository(db)
-    product = await repo.get_by_vendor_and_id(vendor_id, variant.product_id)
-    if not product:
-        raise HTTPException(status_code=403, detail="Access denied")
+    variant = await _get_managed_variant(current_user, db, variant_id, vendor_id)
 
     media_urls = body.get("media_urls") or []
     if not media_urls:
         raise HTTPException(status_code=400, detail="media_urls required")
 
-    url_to_item = {m.get("url"): m for m in (variant.media or [])}
-    reordered = []
-    seen = set()
-    for pos, url in enumerate(media_urls):
-        item = url_to_item.get(str(url))
+    existing = _as_media_list(variant.media)
+    url_to_item = {str(m.get("url")): m for m in existing if m.get("url")}
+    reordered: list[dict] = []
+    seen: set[str] = set()
+    for pos, item_url in enumerate(media_urls):
+        item = url_to_item.get(str(item_url))
         if item:
             item = dict(item)
             item["position"] = pos
             reordered.append(item)
-            seen.add(str(url))
+            seen.add(str(item_url))
 
-    for item in variant.media or []:
-        url = item.get("url")
-        if url and str(url) not in seen:
+    for item in existing:
+        item_url = item.get("url")
+        if item_url and str(item_url) not in seen:
             copy = dict(item)
             copy["position"] = len(reordered)
             reordered.append(copy)
 
-    from sqlalchemy.orm.attributes import flag_modified
-    variant.media = reordered
-    flag_modified(variant, "media")
+    _persist_variant_media(variant, reordered)
     await db.commit()
     return JSONResponse(content={"media": reordered})
 

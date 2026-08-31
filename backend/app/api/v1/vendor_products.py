@@ -586,7 +586,7 @@ async def create_product(
         db.add(ProductImage(
             product_id=product.id,
             url=url,
-            alt_text=data.name,
+            alt_text=(data.name or "")[:255],
             position=i,
             is_primary=is_primary,
             media_type=media,

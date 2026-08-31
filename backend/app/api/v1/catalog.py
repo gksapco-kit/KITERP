@@ -1412,6 +1412,10 @@ async def list_products(
     search: Optional[str] = None,
     min_price: Optional[float] = Query(None, ge=0),
     max_price: Optional[float] = Query(None, ge=0),
+    sort: Optional[str] = Query(
+        None,
+        description="default, price_low, price_high, newest, oldest, rating, name, name_desc",
+    ),
     branch: Optional[str] = Query(None, description="Business unit code or id"),
     store_id: Optional[str] = Query(None, description="Business unit id"),
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
@@ -1422,41 +1426,28 @@ async def list_products(
     repo = ProductRepository(db)
     skip = (page - 1) * size
     sid = await resolve_store_id(db, vendor_id, store_id=store_id, branch=branch)
+    catalog_sort = (sort or "default").strip().lower() or "default"
     
+    price_filtered = min_price is not None or max_price is not None
     items, total = await repo.list_by_vendor(
         vendor_id=vendor_id,
-        skip=skip,
-        limit=size,
+        skip=0 if price_filtered else skip,
+        limit=10000 if price_filtered else size,
         status="active",
         category=category,
         search=search,
         visible_only=True,
         store_id=sid,
+        sort=catalog_sort,
     )
 
-    # Apply price range filter if provided
-    if min_price is not None:
-        items = [p for p in items if float(p.price or 0) >= min_price]
-    if max_price is not None:
-        items = [p for p in items if float(p.price or 0) <= max_price]
-
-    # Recalculate total if price filters applied
-    if min_price is not None or max_price is not None:
-        all_items, _ = await repo.list_by_vendor(
-            vendor_id=vendor_id,
-            skip=0,
-            limit=10000,
-            status="active",
-            category=category,
-            search=search,
-            visible_only=True,
-            store_id=sid,
-        )
+    if price_filtered:
         if min_price is not None:
-            all_items = [p for p in all_items if float(p.price or 0) >= min_price]
+            items = [p for p in items if float(p.price or 0) >= min_price]
         if max_price is not None:
-            all_items = [p for p in all_items if float(p.price or 0) <= max_price]
-        total = len(all_items)
+            items = [p for p in items if float(p.price or 0) <= max_price]
+        total = len(items)
+        items = items[skip:skip + size]
 
     review_repo = ReviewRepository(db)
     product_dicts = []
@@ -1685,6 +1676,10 @@ async def list_services(
     search: Optional[str] = None,
     min_price: Optional[float] = Query(None, ge=0),
     max_price: Optional[float] = Query(None, ge=0),
+    sort: Optional[str] = Query(
+        None,
+        description="default, price_low, price_high, newest, oldest, rating, name, name_desc",
+    ),
     branch: Optional[str] = Query(None, description="Business unit code or id"),
     store_id: Optional[str] = Query(None, description="Business unit id"),
     vendor_id: UUID = Depends(get_vendor_id_from_tenant),
@@ -1695,41 +1690,28 @@ async def list_services(
     repo = ServiceRepository(db)
     skip = (page - 1) * size
     sid = await resolve_store_id(db, vendor_id, store_id=store_id, branch=branch)
+    catalog_sort = (sort or "default").strip().lower() or "default"
 
+    price_filtered = min_price is not None or max_price is not None
     items, total = await repo.list_by_vendor(
         vendor_id=vendor_id,
-        skip=skip,
-        limit=size,
+        skip=0 if price_filtered else skip,
+        limit=10000 if price_filtered else size,
         status="active",
         category=category,
         search=search,
         visible_only=True,
         store_id=sid,
+        sort=catalog_sort,
     )
 
-    # Apply price range filter if provided
-    if min_price is not None:
-        items = [s for s in items if float(s.price or s.price_min or 0) >= min_price]
-    if max_price is not None:
-        items = [s for s in items if float(s.price or s.price_max or 0) <= max_price]
-
-    # Recalculate total if price filters applied
-    if min_price is not None or max_price is not None:
-        all_items, _ = await repo.list_by_vendor(
-            vendor_id=vendor_id,
-            skip=0,
-            limit=10000,
-            status="active",
-            category=category,
-            search=search,
-            visible_only=True,
-            store_id=sid,
-        )
+    if price_filtered:
         if min_price is not None:
-            all_items = [s for s in all_items if float(s.price or s.price_min or 0) >= min_price]
+            items = [s for s in items if float(s.price or s.price_min or 0) >= min_price]
         if max_price is not None:
-            all_items = [s for s in all_items if float(s.price or s.price_max or 0) <= max_price]
-        total = len(all_items)
+            items = [s for s in items if float(s.price or s.price_max or 0) <= max_price]
+        total = len(items)
+        items = items[skip:skip + size]
 
     review_repo = ReviewRepository(db)
     from app.services.service_media import resolve_service_thumbnail_url

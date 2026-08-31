@@ -1004,8 +1004,7 @@ function VariantMediaEdit({
       commitMedia(result.media)
       toast.success(`${label} uploaded successfully`)
     } catch (err: unknown) {
-      const detail = extractApiError(err, 'Unknown error')
-      toast.error(`${label} upload failed: ${detail}`)
+      toast.error(extractApiError(err, `${label} upload failed`))
     }
   }
 
@@ -1015,7 +1014,7 @@ function VariantMediaEdit({
       commitMedia(result.media)
       toast.success('Media removed')
     } catch (err: unknown) {
-      toast.error(`Failed to delete media: ${extractApiError(err, 'Unknown error')}`)
+      toast.error(extractApiError(err, 'Failed to delete media'))
     }
   }
 
@@ -1025,7 +1024,7 @@ function VariantMediaEdit({
       commitMedia(result.media)
       toast.success('Primary image updated')
     } catch (err: unknown) {
-      toast.error(`Failed to set primary: ${extractApiError(err, 'Unknown error')}`)
+      toast.error(extractApiError(err, 'Failed to set primary'))
     }
   }
 
@@ -3567,9 +3566,8 @@ export default function ProductForm() {
       qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
       qc.invalidateQueries({ queryKey: ['vendor', 'products'] })
       toast.success(`${label} uploaded`)
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.message || 'Upload failed'
-      toast.error(`${label} upload failed: ${msg}`)
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, `${label} upload failed`))
     }
   }, [catalogProductId, qc])
 

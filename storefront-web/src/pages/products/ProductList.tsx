@@ -20,7 +20,6 @@ import { catalogSearchPlaceholder, resolveStorefrontOfferingType } from '@/lib/c
 import { useAuthStore } from '@/stores/authStore'
 import { useTheme } from '@/contexts/ThemeContext'
 import StarRating from '@/components/StarRating'
-import { processRows, type SortDir } from '@/lib/tableList'
 import { themeUi } from '@/lib/themeColors'
 import { ProductCard } from '@/kit/products/ProductCard'
 import { ProductGridSkeleton } from '@/kit/states/StateScreens'
@@ -199,9 +198,6 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showFilters, setShowFilters] = useState(false)
 
-  const [sortKey, setSortKey] = useState('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
-
   // Filter state — page default is Products or Services only
   const [filterType, setFilterType] = useState<FilterType>(defaultFilterType)
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory)
@@ -235,7 +231,8 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
     category: selectedCategory || undefined,
     min_price: minPrice ? parseFloat(minPrice) : undefined,
     max_price: maxPrice ? parseFloat(maxPrice) : undefined,
-  }), [page, search, selectedCategory, minPrice, maxPrice, filterType, pageSize])
+    sort: sortBy || 'default',
+  }), [page, search, selectedCategory, minPrice, maxPrice, filterType, pageSize, sortBy])
 
   const serviceParams = useMemo(() => ({
     page: filterType === 'products' ? 1 : (filterType === 'both' ? 1 : page),
@@ -244,7 +241,8 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
     category: selectedCategory || undefined,
     min_price: minPrice ? parseFloat(minPrice) : undefined,
     max_price: maxPrice ? parseFloat(maxPrice) : undefined,
-  }), [page, search, selectedCategory, minPrice, maxPrice, filterType, pageSize])
+    sort: sortBy || 'default',
+  }), [page, search, selectedCategory, minPrice, maxPrice, filterType, pageSize, sortBy])
 
   const { data: productsData, isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = useProducts(
     filterType === 'services' ? null : productParams
@@ -277,36 +275,36 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
         return true
       })
     }
+    const itemPrice = (item: (typeof items)[number]) => {
+      const isProduct = item.type === 'product'
+      const variants = isProduct
+        ? ((item as Product).variants || []).filter((v) => v.is_active !== false)
+        : []
+      return catalogEffectivePrice(item, isProduct, variants)
+    }
     if (sortBy === 'price_low') {
-      items.sort((a, b) => {
-        const aPrice = a.type === 'product' ? (a as Product).price : ((a as Service).price || (a as Service).price_min || 0)
-        const bPrice = b.type === 'product' ? (b as Product).price : ((b as Service).price || (b as Service).price_min || 0)
-        return aPrice - bPrice
-      })
+      items.sort((a, b) => (itemPrice(a) ?? Number.POSITIVE_INFINITY) - (itemPrice(b) ?? Number.POSITIVE_INFINITY))
     } else if (sortBy === 'price_high') {
-      items.sort((a, b) => {
-        const aPrice = a.type === 'product' ? (a as Product).price : ((a as Service).price || (a as Service).price_max || 0)
-        const bPrice = b.type === 'product' ? (b as Product).price : ((b as Service).price || (b as Service).price_max || 0)
-        return bPrice - aPrice
-      })
+      items.sort((a, b) => (itemPrice(b) ?? -1) - (itemPrice(a) ?? -1))
     } else if (sortBy === 'newest') {
       items.sort((a, b) => (new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()))
+    } else if (sortBy === 'oldest') {
+      items.sort((a, b) => (new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()))
     } else if (sortBy === 'rating') {
-      items.sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0))
+      items.sort((a, b) => {
+        const ratingDiff = (b.avg_rating || 0) - (a.avg_rating || 0)
+        if (ratingDiff !== 0) return ratingDiff
+        return (b.review_count || 0) - (a.review_count || 0)
+      })
+    } else if (sortBy === 'name') {
+      items.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { numeric: true }))
+    } else if (sortBy === 'name_desc') {
+      items.sort((a, b) => (b.name || '').localeCompare(a.name || '', undefined, { numeric: true }))
     }
     return items
   }, [productsData, servicesData, filterType, inStockOnly, sortBy])
 
-  const sortAccessors: Record<string, (row: (typeof allCombinedItems)[number]) => unknown> = useMemo(() => ({
-    name: (r) => r.name ?? '',
-    price: (r) => r.type === 'product' ? (r as Product).price : ((r as Service).price || (r as Service).price_min || 0),
-    created_at: (r) => r.created_at ?? '',
-  }), [])
-
-  const sortedItems = useMemo(
-    () => processRows(allCombinedItems, '', () => [], sortKey, sortDir, sortAccessors),
-    [allCombinedItems, sortKey, sortDir, sortAccessors],
-  )
+  const sortedItems = allCombinedItems
 
   const combinedItems = useMemo(() => {
     if (filterType === 'both') {
@@ -452,7 +450,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
 
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Sort By</label>
-                <Select value={sortBy} onValueChange={setSortBy}>
+                <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(1) }}>
                   <SelectTrigger className={`mt-1.5 ${selectTriggerCls}`} aria-label="Sort by">
                     <SelectValue />
                   </SelectTrigger>
@@ -528,33 +526,8 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                   </Button>
                 </form>
 
-                <div className="grid grid-cols-2 gap-1.5 w-full sm:flex sm:flex-wrap sm:items-center sm:gap-2 lg:justify-end lg:shrink-0 lg:w-auto">
-                  <span className="col-span-2 hidden text-xs font-medium uppercase tracking-wide text-gray-400 sm:col-span-1 sm:inline">Sort</span>
-                  <div className="min-w-0">
-                    <Select value={sortKey} onValueChange={setSortKey}>
-                      <SelectTrigger className={selectTriggerCls} aria-label="Sort by">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className={selectContentCls}>
-                        <SelectItem value="name">Name</SelectItem>
-                        <SelectItem value="price">Price</SelectItem>
-                        <SelectItem value="created_at">Date added</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="min-w-0">
-                    <Select value={sortDir} onValueChange={(v) => setSortDir(v as SortDir)}>
-                      <SelectTrigger className={selectTriggerCls} aria-label="Sort direction">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className={selectContentCls}>
-                        <SelectItem value="asc">Ascending</SelectItem>
-                        <SelectItem value="desc">Descending</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="col-span-2 flex items-center justify-between gap-2 sm:col-span-1 sm:contents">
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end lg:shrink-0">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="mx-1 hidden h-6 w-px bg-gray-200 sm:block" aria-hidden />
 
                     <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50/80">
@@ -591,7 +564,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                 <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Refine</span>
                   <div className="min-w-0 w-full sm:w-[11rem]">
-                    <Select value={sortBy} onValueChange={setSortBy}>
+                    <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(1) }}>
                       <SelectTrigger className={selectTriggerCls} aria-label="Catalog sort (relevance, price, newest)">
                         <SelectValue />
                       </SelectTrigger>
@@ -977,13 +950,13 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                   >
                     <Link
                       to={cardLinkTo}
-                      className="w-full h-40 sm:w-44 sm:h-44 bg-gray-50 rounded-lg overflow-hidden shrink-0 relative block"
+                      className="w-full h-52 sm:w-64 sm:h-64 bg-gray-50 rounded-lg overflow-hidden shrink-0 relative flex items-center justify-center"
                     >
                       {imageUrl ? (
-                        <img src={imgUrl(imageUrl)} alt={item.name} className="w-full h-full object-cover object-center" />
+                        <img src={imgUrl(imageUrl)} alt={item.name} className="max-w-full max-h-full w-full h-full object-contain object-center" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          {isProduct ? <ShoppingBag className="w-10 h-10 text-gray-200" /> : <Wrench className="w-10 h-10 text-gray-200" />}
+                          {isProduct ? <ShoppingBag className="w-14 h-14 text-gray-200" /> : <Wrench className="w-14 h-14 text-gray-200" />}
                         </div>
                       )}
                       <span className="absolute top-2 right-2 text-white text-xs font-bold px-2 py-0.5 rounded bg-[color:var(--color-primary)]">

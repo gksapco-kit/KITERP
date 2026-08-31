@@ -208,7 +208,10 @@ export function extractApiError(error: unknown, context: string): string {
     case 429:
       return `${context}: Too many requests — please wait a moment and try again`
     case 500:
-      return `${context}: Internal server error — the team has been notified`
+      if (typeof data?.detail === 'string' && data.detail.trim()) {
+        return `${context}: ${_sanitiseDetail(data.detail)}`
+      }
+      return `${context}: Internal server error — please try a smaller JPG/PNG or try again`
     case 502:
     case 503:
       if (typeof ax.response?.data === 'object' && ax.response.data && typeof (ax.response.data as { detail?: unknown }).detail === 'string') {

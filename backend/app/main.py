@@ -7,8 +7,7 @@ from fastapi import FastAPI, Request
 mimetypes.add_type("model/gltf-binary", ".glb")
 mimetypes.add_type("model/gltf+json", ".gltf")
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from contextlib import asynccontextmanager
 
 from app.config import settings
@@ -179,13 +178,28 @@ app.add_middleware(VendorPlatformStaffMutationAuditMiddleware)
 # API Routes
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
-# Serve uploaded files statically
+# Serve uploaded files. Prefer the local volume; if the object is only on S3
+# (or local serve would 500), redirect to the public bucket/CloudFront URL.
 uploads_dir = Path(__file__).resolve().parent.parent / "uploads"
 try:
     uploads_dir.mkdir(parents=True, exist_ok=True)
 except OSError as exc:
     logger.warning("Upload directory not writable at startup (%s): %s", uploads_dir, exc)
-app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
+
+
+@app.api_route("/uploads/{file_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
+async def serve_uploaded_file(file_path: str):
+    """Stream website/product media without buffering the whole file into RAM."""
+    from app.services.file_service import FileService
+
+    fs = FileService()
+    local = fs.safe_local_path(file_path)
+    if local is not None and local.is_file():
+        return FileResponse(local)
+    remote = fs.remote_public_url(file_path)
+    if remote:
+        return RedirectResponse(url=remote, status_code=302)
+    return JSONResponse(status_code=404, content={"detail": "File not found"})
 
 
 from fastapi.exceptions import RequestValidationError

@@ -4,10 +4,43 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import ColumnElement
 
 from app.models.vendor_service import Service, ServiceAvailability, ServicePlan
+from app.models.review import Review
 from app.services.catalog_store_scope import service_available_at_store
 from app.repositories.base import BaseRepository
+
+
+def _service_sort_clauses(sort: Optional[str]) -> tuple[ColumnElement, ...]:
+    key = (sort or "").strip().lower()
+    if key == "price_low":
+        return (func.coalesce(Service.price, Service.price_min, 0).asc(), Service.created_at.desc())
+    if key == "price_high":
+        return (func.coalesce(Service.price, Service.price_max, Service.price_min, 0).desc(), Service.created_at.desc())
+    if key == "newest":
+        return (Service.created_at.desc(),)
+    if key == "oldest":
+        return (Service.created_at.asc(),)
+    if key == "name":
+        return (func.lower(Service.name).asc(),)
+    if key == "name_desc":
+        return (func.lower(Service.name).desc(),)
+    if key == "rating":
+        avg_rating = (
+            select(func.coalesce(func.avg(Review.rating), 0.0))
+            .where(
+                Review.service_id == Service.id,
+                Review.review_type == "service",
+                Review.is_visible.is_(True),
+            )
+            .correlate(Service)
+            .scalar_subquery()
+        )
+        return (avg_rating.desc(), Service.created_at.desc())
+    if key in ("default", "featured"):
+        return (Service.is_featured.desc(), Service.created_at.desc())
+    return (Service.created_at.desc(),)
 
 
 class ServiceRepository(BaseRepository[Service]):
@@ -114,6 +147,7 @@ class ServiceRepository(BaseRepository[Service]):
         service_type: Optional[str] = None,
         service_mode: Optional[str] = None,
         store_id: Optional[UUID] = None,
+        sort: Optional[str] = None,
     ) -> tuple[List[Service], int]:
         """List services for a vendor with filters."""
         query = select(Service).where(Service.vendor_id == vendor_id)
@@ -176,7 +210,7 @@ class ServiceRepository(BaseRepository[Service]):
         query = (
             query
             .options(selectinload(Service.availability), selectinload(Service.plans), selectinload(Service.store_assignments))
-            .order_by(Service.created_at.desc())
+            .order_by(*_service_sort_clauses(sort))
             .offset(skip)
             .limit(limit)
         )

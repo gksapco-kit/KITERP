@@ -10,7 +10,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import aiofiles
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile, status
 
 from app.config import settings
 
@@ -43,6 +43,26 @@ class FileService:
                 return f"{self.cloudfront_url}/{key}"
             return f"https://{self.bucket}.s3.{self.region}.amazonaws.com/{key}"
         return f"/uploads/{key}"
+
+    def safe_local_path(self, key: str) -> Optional[Path]:
+        """Resolve a stored key under uploads/ without path traversal."""
+        rel = (key or "").replace("\\", "/").lstrip("/")
+        if not rel or any(part == ".." for part in rel.split("/")):
+            return None
+        dest = (_LOCAL_UPLOAD_ROOT / rel).resolve()
+        root = _LOCAL_UPLOAD_ROOT.resolve()
+        if dest != root and root not in dest.parents:
+            return None
+        return dest
+
+    def remote_public_url(self, key: str) -> Optional[str]:
+        """CloudFront/S3 URL when object storage is configured."""
+        if not self._use_s3:
+            return None
+        rel = (key or "").replace("\\", "/").lstrip("/")
+        if not rel or any(part == ".." for part in rel.split("/")):
+            return None
+        return self._public_url(rel)
 
     def url_to_key(self, file_url: str) -> Optional[str]:
         """Resolve a stored URL back to an object key (S3 key or local uploads path)."""
@@ -92,10 +112,37 @@ class FileService:
         """Upload raw bytes and return the public URL."""
         unique_filename = f"{uuid.uuid4().hex}{ext}"
         key = self._build_key(folder, unique_filename)
-        if self._use_s3:
-            await self._s3_put(key, body, content_type)
-        else:
-            await self._local_put(key, body)
+        try:
+            if self._use_s3:
+                await self._s3_put(key, body, content_type)
+            else:
+                await self._local_put(key, body)
+        except HTTPException:
+            raise
+        except PermissionError as exc:
+            logger.exception("Upload failed (not writable): %s", key)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Upload storage is not writable. Try again or contact support.",
+            ) from exc
+        except OSError as exc:
+            if getattr(exc, "errno", None) == 28:
+                logger.exception("Upload failed (disk full): %s", key)
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Upload storage is full. Contact support.",
+                ) from exc
+            logger.exception("Upload failed (OS error): %s", key)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Could not save the file. Try again.",
+            ) from exc
+        except Exception as exc:
+            logger.exception("Upload failed: %s", key)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Could not save the file. Try again.",
+            ) from exc
         return self._public_url(key)
 
     async def read_bytes(self, file_url: str) -> Optional[bytes]:
@@ -209,17 +256,14 @@ class FileService:
             dest.parent.mkdir(parents=True, exist_ok=True)
             async with aiofiles.open(dest, "wb") as f:
                 await f.write(body)
-        except PermissionError as exc:
+        except PermissionError:
             logger.error(
                 "Local upload failed (permission denied): %s. "
                 "Ensure /app/uploads is writable by the app user, or configure "
                 "AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_S3_BUCKET for S3 uploads.",
                 dest,
             )
-            raise PermissionError(
-                f"Upload directory not writable: {dest.parent}. "
-                "Contact your administrator or configure S3 storage."
-            ) from exc
+            raise
         logger.debug("Local upload: %s (%d bytes)", dest, len(body))
 
     def _local_delete(self, key: str) -> bool:

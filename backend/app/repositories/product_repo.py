@@ -6,8 +6,10 @@ import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, exists, cast, String
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import ColumnElement
 
 from app.models.vendor_product import Product, ProductVariant, ProductImage
+from app.models.review import Review
 from app.services.catalog_store_scope import product_available_at_store
 from app.repositories.base import BaseRepository
 
@@ -27,6 +29,39 @@ def _restore_unique_value(value: Optional[str]) -> Optional[str]:
     if not value:
         return value
     return _DEL_SUFFIX_RE.sub("", value) or value
+
+
+def _product_sort_clauses(sort: Optional[str], *, deleted_only: bool = False) -> tuple[ColumnElement, ...]:
+    if deleted_only:
+        return (Product.deleted_at.desc(),)
+    key = (sort or "").strip().lower()
+    if key == "price_low":
+        return (Product.price.asc().nulls_last(), Product.created_at.desc())
+    if key == "price_high":
+        return (Product.price.desc().nulls_last(), Product.created_at.desc())
+    if key == "newest":
+        return (Product.created_at.desc(),)
+    if key == "oldest":
+        return (Product.created_at.asc(),)
+    if key == "name":
+        return (func.lower(Product.name).asc(),)
+    if key == "name_desc":
+        return (func.lower(Product.name).desc(),)
+    if key == "rating":
+        avg_rating = (
+            select(func.coalesce(func.avg(Review.rating), 0.0))
+            .where(
+                Review.product_id == Product.id,
+                Review.review_type == "product",
+                Review.is_visible.is_(True),
+            )
+            .correlate(Product)
+            .scalar_subquery()
+        )
+        return (avg_rating.desc(), Product.created_at.desc())
+    if key in ("default", "featured"):
+        return (Product.is_featured.desc(), Product.created_at.desc())
+    return (Product.created_at.desc(),)
 
 
 class ProductRepository(BaseRepository[Product]):
@@ -153,6 +188,7 @@ class ProductRepository(BaseRepository[Product]):
         store_id: Optional[UUID] = None,
         pharma_managed: Optional[bool] = None,
         deleted_only: bool = False,
+        sort: Optional[str] = None,
     ) -> tuple[List[Product], int]:
         """List products for a vendor with filters."""
         query = select(Product).where(Product.vendor_id == vendor_id)
@@ -278,7 +314,7 @@ class ProductRepository(BaseRepository[Product]):
         total = count_result.scalar_one()
         
         # Get items with relationships
-        order_col = Product.deleted_at.desc() if deleted_only else Product.created_at.desc()
+        order_cols = _product_sort_clauses(sort, deleted_only=deleted_only)
         query = (
             query
             .options(
@@ -286,7 +322,7 @@ class ProductRepository(BaseRepository[Product]):
                 selectinload(Product.images),
                 selectinload(Product.store_assignments),
             )
-            .order_by(order_col)
+            .order_by(*order_cols)
             .offset(skip)
             .limit(limit)
         )

@@ -4,6 +4,8 @@ support user (vendor membership role ``platform_staff``).
 
 Uses a separate DB session after the request so audit writes never interfere with
 the route transaction.
+
+Pure ASGI — BaseHTTPMiddleware buffers the body and can 500 file uploads.
 """
 from __future__ import annotations
 
@@ -11,9 +13,8 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.api.deps import normalized_vendor_role, preferred_vendor_id_from_request
 from app.config import settings
@@ -38,40 +39,56 @@ def _bearer_token(request: Request) -> Optional[str]:
     return auth[7:].strip() or None
 
 
-class VendorPlatformStaffMutationAuditMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response: Response = await call_next(request)
+class VendorPlatformStaffMutationAuditMiddleware:
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope)
+        status_code: Optional[int] = None
+
+        async def send_wrapper(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message.get("status")
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
         path = request.url.path or ""
         prefix = f"{settings.API_V1_PREFIX}/vendors/me"
         if not path.startswith(prefix):
-            return response
+            return
         if request.method not in WRITE_METHODS:
-            return response
-        if response.status_code < 200 or response.status_code >= 300:
-            return response
+            return
+        if status_code is None or status_code < 200 or status_code >= 300:
+            return
 
         token = _bearer_token(request)
         if not token:
-            return response
+            return
 
         payload = decode_token(token)
         if not payload or payload.get("type") != "access":
-            return response
+            return
 
         raw_uid = payload.get("sub")
         if not raw_uid:
-            return response
+            return
         try:
             user_id = UUID(str(raw_uid))
         except (ValueError, TypeError):
-            return response
+            return
 
         pref = preferred_vendor_id_from_request(request)
         detail = {
             "method": request.method,
             "path": path[:512],
-            "status_code": response.status_code,
+            "status_code": status_code,
         }
 
         try:
@@ -79,7 +96,7 @@ class VendorPlatformStaffMutationAuditMiddleware(BaseHTTPMiddleware):
                 user_repo = UserRepository(db)
                 user = await user_repo.get_by_id(user_id)
                 if not user or not user.is_active:
-                    return response
+                    return
 
                 vu_repo = VendorUserRepository(db)
                 vu = None
@@ -88,7 +105,7 @@ class VendorPlatformStaffMutationAuditMiddleware(BaseHTTPMiddleware):
                 if vu is None:
                     vu = await vu_repo.get_by_user_id(user_id)
                 if vu is None or normalized_vendor_role(vu) != "platform_staff":
-                    return response
+                    return
 
                 await log_vendor_platform_audit(
                     db,
@@ -101,5 +118,3 @@ class VendorPlatformStaffMutationAuditMiddleware(BaseHTTPMiddleware):
                 await db.commit()
         except Exception as e:
             logger.warning("vendor platform_staff mutation audit skipped: %s", e)
-
-        return response

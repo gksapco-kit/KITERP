@@ -913,7 +913,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
   const [bannerUploading, setBannerUploading] = useState(false)
   const [extraBannerUploading, setExtraBannerUploading] = useState(false)
   const [cropFile, setCropFile] = useState<File | null>(null)
-  const [cropTarget, setCropTarget] = useState<'logo' | 'banner' | null>(null)
+  const [cropTarget, setCropTarget] = useState<'logo' | 'banner' | 'extra-banner' | null>(null)
   const [bannerLightboxIndex, setBannerLightboxIndex] = useState<number | null>(null)
   const [profileSaving, setProfileSaving] = useState(false)
   const profileSavingRef = useRef(false)
@@ -1054,25 +1054,30 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
     if (target === 'logo') {
       await uploadLogoFile(croppedFile)
       toast.success(unitBrandingEditable ? 'Unit logo updated' : 'Logo updated')
-    } else if (target === 'banner') {
-      setBannerUploading(true)
-      try {
-        if (unitBrandingEditable && activeStore) {
-          const { url } = await vendorApi.uploadVendorBrandingAsset(croppedFile)
-          const next = orderedBanners.length === 0 ? [url] : [url, ...orderedBanners.slice(1)]
-          await persistBannerOrder(next)
-          toast.success('Unit banner updated')
-        } else {
-          const { banner_url } = await vendorApi.uploadVendorBanner(croppedFile)
-          if (vendor) setVendor({ ...vendor, banner_url })
-          await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
-          toast.success('Banner updated')
-        }
-      } catch {
-        toast.error('Could not upload banner — use a PNG or JPG file under 5MB')
-      }
-      setBannerUploading(false)
+      return
     }
+    if (target === 'extra-banner') {
+      await uploadExtraBannerFile(croppedFile)
+      return
+    }
+    if (target !== 'banner') return
+    setBannerUploading(true)
+    try {
+      if (unitBrandingEditable && activeStore) {
+        const { url } = await vendorApi.uploadVendorBrandingAsset(croppedFile)
+        const next = orderedBanners.length === 0 ? [url] : [url, ...orderedBanners.slice(1)]
+        await persistBannerOrder(next)
+        toast.success('Unit banner updated')
+      } else {
+        const { banner_url } = await vendorApi.uploadVendorBanner(croppedFile)
+        if (vendor) setVendor({ ...vendor, banner_url })
+        await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
+        toast.success('Banner updated')
+      }
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not upload banner'))
+    }
+    setBannerUploading(false)
   }
 
   const persistUnitBrandingSettings = async (patch: Record<string, unknown>) => {
@@ -1196,8 +1201,8 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
         void qc.invalidateQueries({ queryKey: vendorKeys.me() })
         toast.success('Banner added')
       }
-    } catch {
-      toast.error('Could not upload banner — use a PNG or JPG under 5MB')
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not upload banner'))
     } finally {
       setExtraBannerUploading(false)
     }
@@ -1259,7 +1264,8 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
       return
     }
     if (target !== 'extra-banner') return
-    await uploadExtraBannerFile(file)
+    setCropFile(file)
+    setCropTarget('extra-banner')
   }
 
   const applyBrandingFromRemoteImage = async (url: string, target: BrandingTarget) => {
@@ -1328,9 +1334,9 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
       if (index < next.length) next[index] = url
       else next.push(url)
       await persistBannerOrder(next)
-    } catch {
-      toast.error('Could not upload banner — use a PNG or JPG file under 5MB')
-      throw new Error('banner upload failed')
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not upload banner'))
+      throw err
     } finally {
       setBannerUploading(false)
     }
@@ -1371,8 +1377,8 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
             </span>
             <span className="text-xs text-muted-foreground">
               {unitBrandingEditable
-                ? 'Applies to this unit only · PNG/JPG · banner 3:1'
-                : 'PNG/JPG · banner 3:1 · default for all units'}
+                ? 'Applies to this unit only · PNG/JPG/WebP · banner 3:1'
+                : 'PNG/JPG/WebP · banner 3:1 · default for all units'}
             </span>
           </div>
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start">

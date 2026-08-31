@@ -23,6 +23,7 @@ import {
   isDirectVideoFile,
   isInstagramEmbedUrl,
   usesClickToPlayPoster,
+  videoPreviewSrc,
 } from '@/lib/videoEmbed'
 import {
   isBlockFieldHidden,
@@ -44,6 +45,73 @@ interface Props {
   liveItems: LiveItem[]
   branchCode?: string | null
   blockId?: string
+}
+
+/** Uploaded MP4/WebM tile — paint a frame (or a fallback) instead of a black box. */
+function DirectVideoTile({
+  src,
+  alt,
+  className,
+  shellClass,
+  frameStyle,
+  tileImg,
+  interactive,
+  onPlay,
+}: {
+  src: string
+  alt: string
+  className?: string
+  shellClass: string
+  frameStyle?: CSSProperties
+  tileImg: string
+  interactive: boolean
+  onPlay?: () => void
+}) {
+  const [failed, setFailed] = useState(false)
+  const previewSrc = videoPreviewSrc(src)
+
+  return (
+    <div
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      className={cn(shellClass, className, interactive && 'cursor-pointer group')}
+      style={frameStyle}
+      onClick={interactive ? onPlay : undefined}
+      onKeyDown={interactive ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onPlay?.()
+        }
+      } : undefined}
+    >
+      {failed ? (
+        <div
+          className={cn(
+            'absolute inset-0 flex flex-col items-center justify-center gap-2 bg-neutral-200 text-neutral-600',
+            tileImg,
+          )}
+        >
+          <Video className="h-8 w-8 opacity-70" />
+          <span className="px-3 text-center text-xs font-medium">{alt || 'Video'}</span>
+        </div>
+      ) : (
+        <video
+          src={previewSrc}
+          className={cn('absolute inset-0 h-full w-full bg-neutral-200 object-cover', tileImg)}
+          muted
+          playsInline
+          preload="metadata"
+          tabIndex={-1}
+          onError={() => setFailed(true)}
+        />
+      )}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/20">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white opacity-90 shadow-lg transition group-hover:scale-105">
+          <Play className="ml-0.5 h-6 w-6 fill-current" />
+        </span>
+      </div>
+    </div>
+  )
 }
 
 /** Poster + play button — same click-to-open flow as YouTube, including Instagram. */
@@ -205,25 +273,16 @@ export default function VideoGalleryBlock({ style, props, blockId }: Props) {
     const frameStyle = useFixedHeight ? { height: heightPx } : undefined
 
     const directPlayer: ReactNode = isDirect ? (
-      <div
-        className={cn(shellClass, className, !isEditorCanvas && 'cursor-pointer group')}
-        style={frameStyle}
-        onClick={!isEditorCanvas ? () => setLightbox(directSrc) : undefined}
-      >
-        <video
-          src={directSrc}
-          className={cn('absolute inset-0 h-full w-full bg-black object-contain', tileImg)}
-          muted
-          playsInline
-          preload="metadata"
-          tabIndex={-1}
-        />
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/20">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white opacity-90 shadow-lg transition group-hover:scale-105">
-            <Play className="ml-0.5 h-6 w-6 fill-current" />
-          </span>
-        </div>
-      </div>
+      <DirectVideoTile
+        src={directSrc}
+        alt={itemTitle || 'Video'}
+        className={className}
+        shellClass={shellClass}
+        frameStyle={frameStyle}
+        tileImg={tileImg}
+        interactive={!isEditorCanvas}
+        onPlay={!isEditorCanvas ? () => setLightbox(directSrc) : undefined}
+      />
     ) : null
 
     const posterPlayer = embedUrl && clickToPlay ? (

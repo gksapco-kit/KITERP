@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { VariantMediaUpload, type VariantMediaItem } from '@/components/common/ImageUpload'
 import { UOM_OPTIONS } from '@/lib/uomOptions'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { Select } from '@/components/ui/select'
 
@@ -338,8 +339,8 @@ function VariantMediaTab({
       setMedia(result.media)
       refreshLists()
       toast.success('Media uploaded')
-    } catch {
-      toast.error('Upload failed')
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Image upload failed'))
     }
   }
   const handleDelete = async (url: string) => {
