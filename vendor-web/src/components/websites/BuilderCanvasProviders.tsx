@@ -116,6 +116,7 @@ export function BuilderCanvasProviders({
   canvasScale = 1,
   previewBreakpoint = 'desktop',
   onSectionImageActivate,
+  onSectionImageStylePatch,
   onTextFieldActivate,
   onTextFieldCommit,
   onTextFieldStylePatch,
@@ -166,6 +167,7 @@ export function BuilderCanvasProviders({
     field: string,
     opts?: { arrayKey?: string; index?: number; itemField?: string; additive?: boolean },
   ) => void
+  onSectionImageStylePatch?: (blockId: string, patch: Record<string, unknown>) => void
   onTextFieldActivate?: (
     blockId: string,
     fieldKey: string,
@@ -251,6 +253,7 @@ export function BuilderCanvasProviders({
     canvasScale,
     previewBreakpoint,
     onSectionImageActivate,
+    onSectionImageStylePatch,
     onTextFieldActivate,
     onTextFieldCommit,
     onTextFieldStylePatch,
@@ -272,6 +275,7 @@ export function BuilderCanvasProviders({
     canvasScale,
     previewBreakpoint,
     onSectionImageActivate,
+    onSectionImageStylePatch,
     onTextFieldActivate,
     onTextFieldCommit,
     onTextFieldStylePatch,

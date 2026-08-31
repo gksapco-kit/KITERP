@@ -21,6 +21,8 @@ export interface BuilderCanvasContextValue {
     field: string,
     opts?: { arrayKey?: string; index?: number; itemField?: string; additive?: boolean },
   ) => void
+  /** Persist fit / focal / zoom from a canvas drag (one undo step). */
+  onSectionImageStylePatch?: (blockId: string, patch: Record<string, unknown>) => void
   onTextFieldActivate?: (
     blockId: string,
     fieldKey: string,

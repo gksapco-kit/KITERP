@@ -792,10 +792,49 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   position: relative;
   z-index: 0;
   isolation: isolate;
+  overflow: visible;
+}
+
+.about-split-block .about-split-image-pos {
+  max-width: 100%;
+}
+
+.about-split-block .about-split-image-col:has([data-builder-field-selected='true']),
+.about-split-block .about-split-image-col:has([data-field-width-constrained='true']) {
+  z-index: 3;
+}
+
+.about-split-block [data-field-layout='image_url'][data-field-width-constrained='true'] .about-split-image-media--circle,
+.about-split-block [data-field-layout='image_url'][data-field-width-constrained='true'] .about-split-image-media {
+  max-width: none;
+  width: 100%;
 }
 
 .about-split-block .about-split-image-stack {
   width: 100%;
+}
+
+.about-split-block .about-split-grid {
+  overflow: visible;
+}
+
+.about-split-block .about-split-image-caption {
+  position: relative;
+  z-index: 2;
+  margin-top: 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Quote / signature sit under the photo; keep drag offsets (do not force static). */
+.about-split-block .about-split-image-caption [data-field-layout='quote'],
+.about-split-block .about-split-image-caption [data-field-layout='signature'] {
+  position: relative !important;
+  width: auto !important;
+  max-width: 100%;
+  display: block !important;
+  height: auto !important;
+  min-height: 0 !important;
 }
 
 .about-split-block .about-split-image-frame {
@@ -813,6 +852,16 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   object-fit: cover;
 }
 
+/* Circle clip must stay a true circle — do not keep the default 4:5 / max-height crop. */
+.about-split-block .about-split-image-media--circle {
+  max-width: min(100%, 26.25rem);
+  margin-inline: auto;
+}
+
+.about-split-block .about-split-image-media--circle .about-split-image-frame {
+  border-radius: 50%;
+}
+
 .about-split-block .about-split-overlay .about-split-image-col {
   height: 100%;
 }
@@ -824,7 +873,8 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   }
 
   .about-split-block .about-split-image-stack {
-    max-width: 300px;
+    width: 100%;
+    max-width: none;
   }
 }
 
@@ -834,8 +884,8 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   .builder-page [data-bid] .about-split-block .about-split-text-col [data-field-layout],
   .builder-page [data-sf-bid] .about-split-block .about-split-text-wrap [data-field-layout],
   .builder-page [data-bid] .about-split-block .about-split-text-wrap [data-field-layout],
-  .about-split-block .about-split-text-col [data-field-layout],
-  .about-split-block .about-split-text-wrap [data-field-layout] {
+  .about-split-block .about-split-text-col [data-field-layout]:not([data-field-layout='quote']):not([data-field-layout='signature']),
+  .about-split-block .about-split-text-wrap [data-field-layout]:not([data-field-layout='quote']):not([data-field-layout='signature']) {
     position: static !important;
     top: auto !important;
     left: auto !important;
@@ -1033,9 +1083,39 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 }
 
 @media (min-width: 1024px) {
-  .about-split-block .about-split-image-col {
+  /* Image Left / Image Right: photo stays in its column while the story scrolls. */
+  .about-split-block .about-split-grid--pinned .about-split-image-col {
     position: sticky;
     top: 6rem;
+    align-self: start;
+    z-index: 0;
+  }
+
+  .about-split-block .about-split-grid--pinned .about-split-text-wrap,
+  .about-split-block .about-split-grid--pinned .about-split-text-col {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    overflow-x: clip;
+  }
+
+  .about-split-block .about-split-grid--pinned .about-split-image-stack {
+    width: 100%;
+    max-height: none;
+  }
+
+  .about-split-block .about-split-grid--pinned .about-split-image-media {
+    max-height: calc(100vh - 8rem);
+  }
+
+  .about-split-block .about-split-grid--pinned .about-split-image-media img {
+    max-height: calc(100vh - 8rem);
+    object-fit: cover;
+  }
+
+  .about-split-block .about-split-grid--pinned .about-split-image-media--circle,
+  .about-split-block .about-split-grid--pinned .about-split-image-media--circle img {
+    max-height: none;
   }
 }
 

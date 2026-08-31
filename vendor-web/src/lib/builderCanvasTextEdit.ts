@@ -50,7 +50,7 @@ const BLOCK_TEXT_FIELDS: Record<string, readonly string[]> = {
   nav: ['brand', 'cta_label', 'announcement'],
   footer: ['copyright', 'brand', 'description'],
   newsletter: ['title', 'subtitle', 'cta_label'],
-  about_split: ['title', 'subtitle', 'description'],
+  about_split: ['title', 'subtitle', 'description', 'quote', 'signature'],
   features: ['title', 'subtitle'],
   features_alternating: ['title', 'subtitle'],
   stats: ['title'],

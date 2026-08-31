@@ -113,7 +113,7 @@ const TOP_LEVEL_DELETABLE: Record<string, readonly string[]> = {
   hero_split: HERO_DELETABLE_FIELDS as unknown as string[],
   hero_minimal: ['headline', 'subtitle', 'cta_primary', 'cta_secondary', 'image_url', 'bg_image_url'],
   cta: ['headline', 'subtitle', 'cta_label', 'cta_secondary', 'bg_image_url'],
-  about_split: ['title', 'subtitle', 'description', 'image_url'],
+  about_split: ['title', 'subtitle', 'description', 'quote', 'signature', 'image_url'],
   newsletter: ['title', 'subtitle', 'cta_label'],
   image_block: ['image_url', 'caption', 'title'],
   features: ['title', 'subtitle'],

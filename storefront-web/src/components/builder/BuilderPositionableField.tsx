@@ -12,6 +12,7 @@ import {
   fieldLayoutWrapperStyle,
   measureFieldContentHeight,
   measureFieldContentWidth,
+  isMediaPositionField,
   readFieldMinHeight,
   readFieldOffset,
   readFieldWidthPct,
@@ -83,6 +84,8 @@ export function BuilderPositionableField({
   children,
   className,
   inline = false,
+  dragFromBody = false,
+  lockAspect = false,
   onClick,
 }: {
   fieldKey: string
@@ -92,6 +95,10 @@ export function BuilderPositionableField({
   className?: string
   /** Inline layout for buttons/chips in a flex row (no full-width wrapper). */
   inline?: boolean
+  /** Drag the frame itself (not only the move chip) to reposition. */
+  dragFromBody?: boolean
+  /** Resize from width only — photos / circles stay proportional. */
+  lockAspect?: boolean
   onClick?: (e: React.MouseEvent) => void
 }) {
   const ctx = useBuilderCanvas()
@@ -215,15 +222,21 @@ export function BuilderPositionableField({
           start.parentWidth,
           widthPx,
           start.maxWidth,
-          inline ? 5 : FIELD_WIDTH_MIN_PCT,
+          inline ? 5 : isMediaPositionField(fieldKey) || lockAspect ? 12 : FIELD_WIDTH_MIN_PCT,
         )
       }
       // Don't force wrapping on CTA buttons — labels stay on one line by default.
-      if (!inline && patch.field_width_pct != null && fieldStyle.text_wrap !== false) {
+      if (
+        !inline
+        && !lockAspect
+        && !isMediaPositionField(fieldKey)
+        && patch.field_width_pct != null
+        && fieldStyle.text_wrap !== false
+      ) {
         patch.text_wrap = true
       }
     }
-    if (start.axis === 'height' || start.axis === 'both') {
+    if (!lockAspect && (start.axis === 'height' || start.axis === 'both')) {
       const heightPx = Math.round(heightPreviewPx ?? el.offsetHeight)
       // Snap to auto-height only when near the natural content height; allow both
       // taller (extra space) and shorter (clipped) explicit heights to persist.
@@ -244,7 +257,7 @@ export function BuilderPositionableField({
     if (Object.keys(patch).length) {
       ctx.onTextFieldStylePatch(blockId, fieldKey, patch)
     }
-  }, [blockId, ctx, fieldKey, fieldStyle.text_wrap, heightPreviewPx, inline, widthPreviewPx])
+  }, [blockId, ctx, fieldKey, fieldStyle.text_wrap, heightPreviewPx, inline, lockAspect, widthPreviewPx])
 
   // Hold the latest finish callbacks in refs so the window listeners below can
   // stay attached for the whole gesture. Depending on the callbacks (or the
@@ -303,7 +316,9 @@ export function BuilderPositionableField({
   }, [widthPreviewPx, heightPreviewPx])
 
   const handleDragPointerDown = (e: ReactPointerEvent) => {
-    if (!isActive || !blockId) return
+    if (!blockId) return
+    if (!isActive && !dragFromBody) return
+    if (!isActive) activate(e.shiftKey || e.metaKey || e.ctrlKey)
     const el = wrapperRef.current
     const blockRoot = el?.closest('[data-block-id]') as HTMLElement | null
     if (!el || !blockRoot) return
@@ -335,6 +350,17 @@ export function BuilderPositionableField({
     dragDeltaRef.current = snapped.delta
     setDragDelta(snapped.delta)
     setSnapGuides(snapped.guides)
+  }
+
+  const handleBodyPointerDown = (e: ReactPointerEvent) => {
+    if (!dragFromBody || !isEditor || !blockId || e.button !== 0) return
+    if (e.altKey) return
+    const target = e.target as HTMLElement
+    if (target.closest('[data-field-resize-handle]')) return
+    if (target.closest('button[title="Drag to move"]')) return
+    const innerLayout = target.closest('[data-field-layout]') as HTMLElement | null
+    if (innerLayout && innerLayout.getAttribute('data-field-layout') !== fieldKey) return
+    handleDragPointerDown(e)
   }
 
   const handleResizePointerDown = (axis: ResizeAxis) => (e: ReactPointerEvent) => {
@@ -371,12 +397,13 @@ export function BuilderPositionableField({
     e.stopPropagation()
     const dx = (e.clientX - start.startX) / canvasScale
     const dy = (e.clientY - start.startY) / canvasScale
-    if (start.axis === 'width' || start.axis === 'both') {
+    if (lockAspect || start.axis === 'width' || start.axis === 'both') {
       const maxW = start.maxWidth
-      const minW = minResizeWidthPx(start.parentWidth, inline)
-      setWidthPreviewPx(Math.max(minW, Math.min(maxW, start.startWidth + dx)))
+      const minW = minResizeWidthPx(start.parentWidth, inline || isMediaPositionField(fieldKey))
+      const sizeDelta = lockAspect && start.axis === 'both' ? (Math.abs(dx) > Math.abs(dy) ? dx : dy) : dx
+      setWidthPreviewPx(Math.max(minW, Math.min(maxW, start.startWidth + (lockAspect ? sizeDelta : dx))))
     }
-    if (start.axis === 'height' || start.axis === 'both') {
+    if (!lockAspect && (start.axis === 'height' || start.axis === 'both')) {
       setHeightPreviewPx(
         Math.max(
           FIELD_MIN_HEIGHT_MIN_PX,
@@ -420,6 +447,7 @@ export function BuilderPositionableField({
   const layoutClassName = cn(
     inline ? 'inline-flex max-w-full' : hasCustomWidth ? 'relative min-w-0 max-w-full' : 'relative w-fit max-w-full min-w-0',
     isActive && 'group/field-pos z-[2]',
+    dragFromBody && isActive && 'cursor-move',
     isBoxConstrained && '[&_[data-builder-cta-shell]]:!h-full [&_[data-builder-cta-shell]]:!min-h-0 [&_[data-builder-cta-shell]]:!w-full',
     className,
   )
@@ -452,6 +480,7 @@ export function BuilderPositionableField({
       data-field-drag-preview={isDragging ? 'true' : undefined}
       className={layoutClassName}
       style={layoutStyle}
+      onPointerDown={dragFromBody ? handleBodyPointerDown : undefined}
       onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
       onClick={(e: React.MouseEvent) => {
         if ((e.target as HTMLElement).closest('[data-text-key], [data-builder-cta-shell], [data-field-resize-handle]')) return
@@ -492,6 +521,7 @@ export function BuilderPositionableField({
             onClick={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
           />
+          {!lockAspect && (
           <button
             type="button"
             data-field-resize-handle="s"
@@ -504,13 +534,14 @@ export function BuilderPositionableField({
             onClick={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
           />
+          )}
           <button
             type="button"
             data-field-resize-handle="se"
-            title="Drag to resize"
+            title={lockAspect ? 'Drag to resize' : 'Drag to resize'}
             aria-label="Resize"
             className={cn(resizeHandleClass, 'bottom-0 right-0 h-3.5 w-3.5 translate-x-1/2 translate-y-1/2 cursor-nwse-resize')}
-            onPointerDown={handleResizePointerDown('both')}
+            onPointerDown={handleResizePointerDown(lockAspect ? 'width' : 'both')}
             onPointerMove={handleResizePointerMove}
             onPointerUp={() => finishResize()}
             onClick={e => e.stopPropagation()}

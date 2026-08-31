@@ -6,12 +6,16 @@ import { cn } from '@/lib/utils'
 import { isCanvasImageSlotSelected } from '@/lib/canvasImageTarget'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import {
+  focalFromPointerDelta,
+  patchArrayItemImageStyle,
   readArrayItemFromBlockProps,
   readArrayItemImageStyleProps,
+  readSectionImageFocal,
   readSectionImageOverlay,
   sectionImageDecorStyle,
   sectionImageObjectStyle,
   sectionImageOverlayCss,
+  sectionImageStyleKeys,
 } from '@/lib/sectionImageStyle'
 
 const CORNER_CLASS =
@@ -198,6 +202,106 @@ export function BuilderSectionImage({
     : sectionImageOverlayCss(readSectionImageOverlay(styleField, styleProps))
 
   const hasFrameSize = frameClassName != null || frameStyle != null
+  const canPan = isEditor && !empty && !isLogoField && !!canvas?.onSectionImageStylePatch
+  const [dragFocal, setDragFocal] = useState<{ x: number; y: number } | null>(null)
+  const [panning, setPanning] = useState(false)
+  const panRef = useRef<{
+    pointerId: number
+    startClientX: number
+    startClientY: number
+    startX: number
+    startY: number
+    lastX: number
+    lastY: number
+    moved: boolean
+  } | null>(null)
+
+  const liveObjectStyle = dragFocal
+    ? {
+        ...objectStyle,
+        objectPosition: `${dragFocal.x}% ${dragFocal.y}%`,
+        ...(objectStyle?.transform
+          ? { transformOrigin: `${dragFocal.x}% ${dragFocal.y}%` }
+          : {}),
+      }
+    : objectStyle
+
+  const persistFocal = (x: number, y: number) => {
+    if (!blockId || !canvas?.onSectionImageStylePatch) return
+    const keys = sectionImageStyleKeys(styleField)
+    const focalPatch = { [keys.focalX]: x, [keys.focalY]: y }
+    const patch = isArraySlot
+      ? patchArrayItemImageStyle(styleProps, arrayKey!, index!, focalPatch)
+      : focalPatch
+    canvas.onSectionImageStylePatch(blockId, patch)
+  }
+
+  const endPan = (el: HTMLDivElement, pointerId: number) => {
+    const drag = panRef.current
+    if (!drag || drag.pointerId !== pointerId) return
+    panRef.current = null
+    setPanning(false)
+    if (el.hasPointerCapture(pointerId)) el.releasePointerCapture(pointerId)
+    if (drag.moved) persistFocal(drag.lastX, drag.lastY)
+    setDragFocal(null)
+  }
+
+  const onPanPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!canPan || e.button !== 0 || e.shiftKey || e.metaKey || e.ctrlKey) return
+    // Default drag moves the frame on the page; Alt-drag pans the crop inside the shape.
+    if (!e.altKey) return
+    if (multiCount > 1) return
+    if (!isActive) {
+      canvas?.onSectionImageActivate?.(blockId!, field, isArraySlot
+        ? { arrayKey, index, itemField }
+        : undefined)
+    }
+    const el = frameRef.current
+    if (!el) return
+    const start = readSectionImageFocal(styleField, isArraySlot
+      ? readArrayItemImageStyleProps(arrayItem!, styleProps, styleField)
+      : styleProps)
+    panRef.current = {
+      pointerId: e.pointerId,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startX: start.x,
+      startY: start.y,
+      lastX: start.x,
+      lastY: start.y,
+      moved: false,
+    }
+    el.setPointerCapture(e.pointerId)
+  }
+
+  const onPanPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = panRef.current
+    const el = frameRef.current
+    if (!drag || drag.pointerId !== e.pointerId || !el) return
+    const scale = canvas?.canvasScale && canvas.canvasScale > 0 ? canvas.canvasScale : 1
+    const dx = (e.clientX - drag.startClientX) / scale
+    const dy = (e.clientY - drag.startClientY) / scale
+    if (!drag.moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return
+    drag.moved = true
+    e.preventDefault()
+    if (!panning) setPanning(true)
+    const rect = el.getBoundingClientRect()
+    const next = focalFromPointerDelta(
+      { x: drag.startX, y: drag.startY },
+      dx,
+      dy,
+      rect.width / scale,
+      rect.height / scale,
+    )
+    drag.lastX = next.x
+    drag.lastY = next.y
+    setDragFocal(next)
+  }
+
+  const onPanPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = frameRef.current
+    if (el) endPan(el, e.pointerId)
+  }
 
   return (
     <div
@@ -206,13 +310,19 @@ export function BuilderSectionImage({
         'group/builder-section-img relative z-0 overflow-hidden',
         hasFrameSize ? frameClassName : 'h-full w-full',
         isEditor && 'cursor-pointer pointer-events-auto',
+        canPan && (panning ? 'cursor-grabbing select-none' : isActive && 'cursor-grab'),
         isEditor && isActive && 'z-[20]',
       )}
-      style={
-        hasFrameSize
+      onPointerDown={canPan ? onPanPointerDown : undefined}
+      onPointerMove={canPan ? onPanPointerMove : undefined}
+      onPointerUp={canPan ? onPanPointerUp : undefined}
+      onPointerCancel={canPan ? onPanPointerUp : undefined}
+      style={{
+        ...(hasFrameSize
           ? (decorStyle ? { ...frameStyle, ...decorStyle } : frameStyle)
-          : decorStyle
-      }
+          : decorStyle),
+        ...(canPan && isActive ? { touchAction: 'none' } : null),
+      }}
       data-builder-section-image={field}
       {...(isArraySlot ? {
         'data-builder-image-array-key': arrayKey,
@@ -222,12 +332,13 @@ export function BuilderSectionImage({
       data-builder-section-image-active={isActive ? 'true' : undefined}
       data-builder-field-selected={isActive ? 'true' : undefined}
       aria-selected={isActive}
+      title={canPan ? 'Drag to move · corner handles to resize · Alt-drag to pan inside the shape' : undefined}
     >
       <img
         src={src}
         alt={alt}
         className={cn('block min-h-0 min-w-0', className, empty && 'opacity-0')}
-        style={objectStyle ? { ...objectStyle, ...style } : style}
+        style={liveObjectStyle ? { ...liveObjectStyle, ...style } : style}
         loading="lazy"
         draggable={false}
       />
@@ -276,7 +387,7 @@ export function BuilderSectionImage({
               style={{ top: labelAnchor.top, left: labelAnchor.left }}
             >
               <ImageIcon className="h-3 w-3 shrink-0" aria-hidden />
-              {multiCount > 1 ? `${multiCount} selected` : 'Photo selected'}
+              {multiCount > 1 ? `${multiCount} selected` : panning ? 'Release to save' : 'Drag to move · handles to resize'}
             </div>,
             labelAnchor.portalRoot,
           )

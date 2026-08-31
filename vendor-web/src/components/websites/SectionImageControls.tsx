@@ -106,7 +106,7 @@ function FocalPad({
     <div
       className={visualFocalPad}
       role="group"
-      aria-label="Image focal point"
+      aria-label="Image focal point — or drag the photo on the canvas to fit"
     >
       <div className={visualFocalCorner} aria-hidden />
       {btn(0, -FOCAL_STEP, 'Pan up — show upper part of image', ArrowUp)}

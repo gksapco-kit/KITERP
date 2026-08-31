@@ -2,7 +2,8 @@ import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { cn, imgUrl } from '@/lib/utils'
 import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { MediaClipFrame } from '@/components/builder/MediaClipFrame'
-import { hasMediaClip } from '@/lib/mediaClip'
+import { hasMediaClip, mediaClipNeedsSquareBox } from '@/lib/mediaClip'
+import { BuilderPositionableField } from '@/components/builder/BuilderPositionableField'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderSectionImage } from '@/components/builder/BuilderSectionImage'
 import { BuilderSectionSurface } from '@/components/builder/BuilderSectionSurface'
@@ -43,6 +44,8 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const description = resolveBlockTextField(props, 'description', {
     fallback: () => (isEditorCanvas ? null : (profile?.description || site.description || '')),
   })
+  const quote = resolveBlockTextField(props, 'quote', { fallback: () => null })
+  const signature = resolveBlockTextField(props, 'signature', { fallback: () => null })
 
   const layout = String(props.layout ?? 'split')
   const imagePosition = String(props.image_position ?? 'right')
@@ -80,6 +83,8 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   const showSubtitle = !isBlockFieldHidden(props, 'subtitle') && (subtitle || isEditorCanvas)
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
   const showDescription = !isBlockFieldHidden(props, 'description') && (description || isEditorCanvas)
+  const showQuote = !isBlockFieldHidden(props, 'quote') && (quote || isEditorCanvas)
+  const showSignature = !isBlockFieldHidden(props, 'signature') && (signature || isEditorCanvas)
   const showMedia = !hideMedia && !imageHidden && (isVideo || imageUrl || isEditorCanvas)
 
   const stats = ((props.stats as Array<{ value?: string; label?: string }> | undefined) || DEFAULT_ABOUT_STATS)
@@ -131,16 +136,26 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
     if (!showMedia) return null
     const inline = variant === 'inline'
     const shaped = variant === 'shaped'
+    const circleClip = mediaClipNeedsSquareBox(mediaClip)
     const frameClass = inline
-      ? 'about-split-image-frame about-split-image-frame--inline rounded-2xl shadow-lg overflow-hidden'
+      ? cn(
+          'about-split-image-frame about-split-image-frame--inline shadow-lg overflow-hidden',
+          circleClip ? 'rounded-full absolute inset-0 h-full w-full' : 'rounded-2xl',
+        )
       : shaped
         ? 'about-split-image-frame about-split-image-frame--shaped w-full h-full'
-        : cn('about-split-image-frame', !clipped && 'rounded-2xl')
-    const mediaAspectClass = inline
-      ? 'aspect-[4/5] max-h-[420px] w-full'
-      : shaped
-        ? 'w-full h-full'  // outer wrapper owns dimensions; frame just fills it
-        : 'w-full aspect-video'
+        : cn(
+            'about-split-image-frame',
+            !clipped && 'rounded-2xl',
+            circleClip && 'rounded-full absolute inset-0 h-full w-full',
+          )
+    const mediaAspectClass = circleClip
+      ? 'w-full max-w-[min(100%,420px)] aspect-square mx-auto'
+      : inline
+        ? 'aspect-[4/5] max-h-[420px] w-full'
+        : shaped
+          ? 'w-full h-full'
+          : 'w-full aspect-[4/5] max-h-[min(72vh,560px)]'
 
     if (isVideo) {
       if (isDirectVideo && videoUrl) {
@@ -249,6 +264,65 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
     </div>
   )
 
+  const imageCaption = (showQuote || showSignature) ? (
+    <div className="about-split-image-caption">
+      {showQuote && (
+        <BuilderTextField
+          fieldKey="quote"
+          blockId={blockId}
+          blockProps={props}
+          value={quote ?? ''}
+          as="blockquote"
+          multiline
+          className={cn(
+            'border-l-2 pl-4 italic leading-relaxed',
+            isDark || useBackgroundMedia ? 'border-white/30 text-white/90' : 'text-gray-700',
+          )}
+          style={{ borderLeftColor: style.primary_color }}
+          placeholder="Add a short quote"
+        />
+      )}
+      {showSignature && (
+        <BuilderTextField
+          fieldKey="signature"
+          blockId={blockId}
+          blockProps={props}
+          value={signature ?? ''}
+          as="p"
+          className={cn(
+            'mt-1 text-sm font-medium',
+            isDark || useBackgroundMedia ? 'text-white/80' : 'text-gray-800',
+          )}
+          placeholder="— Signature"
+        />
+      )}
+    </div>
+  ) : null
+
+  const positionedImageStack = (mediaVariant: 'default' | 'inline' = 'default') => (
+    <BuilderPositionableField
+      fieldKey="image_url"
+      blockId={blockId}
+      blockProps={props}
+      dragFromBody
+      lockAspect
+      className="about-split-image-pos w-full max-w-full"
+    >
+      <div className="about-split-image-stack">
+        <div className={cn('about-split-image-media', mediaClipNeedsSquareBox(mediaClip) && 'about-split-image-media--circle')}>
+          {renderMediaBlock(mediaVariant)}
+        </div>
+        {imageCaption}
+      </div>
+    </BuilderPositionableField>
+  )
+
+  const imageColumn = (mediaVariant: 'default' | 'inline' = 'default') => (
+    <div className="about-split-image-col min-w-0">
+      {positionedImageStack(mediaVariant)}
+    </div>
+  )
+
   if (useBackgroundMedia) {
     const bg = imageUrl
       ? sectionImageBackgroundLayers('image_url', props, imageUrl, style.primary_color, 'dark-full')
@@ -298,6 +372,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
           )}
         >
           {overlayContent}
+          {imageCaption}
         </section>
       </div>
     )
@@ -309,7 +384,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
       <div className="about-split-block py-8 sm:py-12 space-y-8">
         {imageOnTop && showMedia && (
           <div className="about-split-image-col min-w-0 max-w-4xl mx-auto w-full">
-            {renderMediaBlock('default')}
+            {positionedImageStack('default')}
           </div>
         )}
         {isCard ? (
@@ -324,7 +399,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
         )}
         {!imageOnTop && showMedia && (
           <div className="about-split-image-col min-w-0 max-w-4xl mx-auto w-full">
-            {renderMediaBlock('default')}
+            {positionedImageStack('default')}
           </div>
         )}
       </div>
@@ -379,6 +454,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
                 {renderMediaBlock('shaped')}
               </div>
             )}
+            {imageCaption}
             {showDescription && (
               <BuilderTextField
                 fieldKey="description"
@@ -401,7 +477,10 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   if (isStatement) {
     return (
       <BuilderSectionSurface surface={surface} maxWidth="max-w-4xl">
-        <div className="about-split-block py-8 sm:py-12">{textBlock}</div>
+        <div className="about-split-block py-8 sm:py-12">
+          {textBlock}
+          {imageCaption}
+        </div>
       </BuilderSectionSurface>
     )
   }
@@ -476,10 +555,8 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
           )}
         </div>
         {showMedia && (
-          <div className="about-split-inline-media w-full shrink-0 lg:w-[min(42%,280px)]">
-            <div className="about-split-image-stack">
-              {renderMediaBlock('inline')}
-            </div>
+          <div className="about-split-inline-media about-split-image-col w-full shrink-0 lg:w-[min(42%,280px)]">
+            {positionedImageStack('inline')}
           </div>
         )}
       </div>
@@ -546,17 +623,11 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
     <div className="about-split-block py-8 sm:py-12">
       <div
         className={cn(
-          'about-split-grid grid gap-8 lg:gap-12 items-start',
+          'about-split-grid about-split-grid--pinned grid gap-8 lg:gap-12 items-start',
           showMedia && 'lg:grid-cols-2',
         )}
       >
-        {showMedia && !imageOnRight && (
-          <div className="about-split-image-col min-w-0">
-            <div className="about-split-image-stack">
-              {renderMediaBlock('default')}
-            </div>
-          </div>
-        )}
+        {showMedia && !imageOnRight && imageColumn()}
         {(showSubtitle || showTitle || showDescription || showStats) && (
           <BuilderContentGroup
             blockId={blockId}
@@ -566,13 +637,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
             {textBlock}
           </BuilderContentGroup>
         )}
-        {showMedia && imageOnRight && (
-          <div className="about-split-image-col min-w-0">
-            <div className="about-split-image-stack">
-              {renderMediaBlock('default')}
-            </div>
-          </div>
-        )}
+        {showMedia && imageOnRight && imageColumn()}
       </div>
     </div>
   )

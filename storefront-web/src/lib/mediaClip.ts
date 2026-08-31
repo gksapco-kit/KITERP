@@ -178,7 +178,8 @@ export const MEDIA_CLIP_CSS: Record<Exclude<MediaClipId, 'none'>, string> = {
   shield: 'polygon(0% 0%, 100% 0%, 100% 72%, 50% 100%, 0% 72%)',
   ticket: 'polygon(0% 8%, 8% 0%, 92% 0%, 100% 8%, 100% 92%, 92% 100%, 8% 100%, 0% 92%)',
   house: 'polygon(0% 40%, 50% 0%, 100% 40%, 100% 100%, 0% 100%)',
-  circle: 'circle(50% at 50% 50%)',
+  // closest-side = a true circle on any box; 50% is relative to the diagonal and looks like an arch on 4:5 photos.
+  circle: 'circle(closest-side at 50% 50%)',
   oval: 'ellipse(46% 50% at 50% 50%)',
   rounded: 'inset(0 round 10%)',
   pill: 'inset(0 round 999px)',
@@ -212,7 +213,13 @@ export function mediaClipStyle(value: unknown): CSSProperties {
   return {
     clipPath: clip,
     WebkitClipPath: clip,
+    ...(id === 'circle' ? { borderRadius: '50%' } : {}),
   }
+}
+
+/** Circle clip needs a square box or it reads as an arch / capsule. */
+export function mediaClipNeedsSquareBox(value: unknown): boolean {
+  return normalizeMediaClip(value) === 'circle'
 }
 
 /** @deprecated Use {@link sectionSupportsMediaClip} — all sections support clip props. */

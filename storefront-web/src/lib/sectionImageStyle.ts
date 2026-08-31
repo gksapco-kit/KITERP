@@ -36,8 +36,28 @@ export function readSectionImageFocal(field: string, props: Record<string, unkno
     if (!Number.isFinite(y)) y = Number(props.bg_image_focal_y)
   }
   return {
-    x: Number.isFinite(x) ? Math.min(100, Math.max(0, Math.round(x))) : 50,
-    y: Number.isFinite(y) ? Math.min(100, Math.max(0, Math.round(y))) : 50,
+    x: Number.isFinite(x) ? clampFocalPercent(x) : 50,
+    y: Number.isFinite(y) ? clampFocalPercent(y) : 50,
+  }
+}
+
+export function clampFocalPercent(n: number): number {
+  return Math.min(100, Math.max(0, Math.round(n)))
+}
+
+/** Drag the photo inside a crop: pointer right/down reveals more of the left/top. */
+export function focalFromPointerDelta(
+  start: { x: number; y: number },
+  dx: number,
+  dy: number,
+  frameW: number,
+  frameH: number,
+): { x: number; y: number } {
+  const w = Math.max(1, frameW)
+  const h = Math.max(1, frameH)
+  return {
+    x: clampFocalPercent(start.x - (dx / w) * 100),
+    y: clampFocalPercent(start.y - (dy / h) * 100),
   }
 }
 

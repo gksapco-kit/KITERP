@@ -246,6 +246,12 @@ export function isInlinePositionField(fieldKey: string): boolean {
   return leaf === 'cta_primary' || leaf === 'cta_secondary' || leaf === 'cta_label' || leaf === 'cta'
 }
 
+/** Photo / media frames that use field layout for move + resize (not typography). */
+export function isMediaPositionField(fieldKey: string): boolean {
+  const leaf = fieldKey.includes('.') ? fieldKey.split('.').pop()! : fieldKey
+  return leaf === 'image_url' || leaf === 'bg_image_url'
+}
+
 /** CTA / button shell colors from `_field_styles` layered on theme defaults. */
 export function fieldCtaShellStyle(
   props: Record<string, unknown>,
@@ -446,6 +452,8 @@ export function buildFieldStylesCss(
         )
         if (isInlinePositionField(key)) {
           layoutRules.push('display: inline-flex !important')
+        } else if (isMediaPositionField(key)) {
+          layoutRules.push('display: block !important')
         } else if (fs.text_wrap !== false) {
           textRules.push(
             'display: block !important',

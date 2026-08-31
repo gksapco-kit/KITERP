@@ -14476,6 +14476,10 @@ export default function WebsiteBuilder() {
 
   handleSectionImageActivateRef.current = handleSectionImageActivate
 
+  const handleSectionImageStylePatch = useCallback((blockId: string, patch: Record<string, unknown>) => {
+    handleUpdateBlockProps(blockId, patch as Partial<BlockProps>)
+  }, [handleUpdateBlockProps])
+
   const handleArrayItemImageFocus = useCallback((
     blockId: string,
     arrayKey: string,
@@ -19568,6 +19572,7 @@ export default function WebsiteBuilder() {
                     return (activeBlocks.find(b => b.id === imageBlockId)?.props ?? null) as Record<string, unknown> | null
                   })()}
                   onSectionImageActivate={handleSectionImageActivate}
+                  onSectionImageStylePatch={handleSectionImageStylePatch}
                   activeTextField={primaryTextFieldKey(activeTextTarget)}
                   activeTextFields={activeTextTarget?.fieldKeys ?? []}
                   onTextFieldActivate={handleCanvasTextFieldActivate}
