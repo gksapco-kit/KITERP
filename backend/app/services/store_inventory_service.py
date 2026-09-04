@@ -38,6 +38,8 @@ async def get_store_inventory_row(
     product_id: UUID,
     variant_id: UUID | None,
     storage_location_id: UUID | None,
+    *,
+    for_update: bool = False,
 ) -> StoreInventory | None:
     q = select(StoreInventory).where(
         StoreInventory.store_id == store_id,
@@ -51,6 +53,8 @@ async def get_store_inventory_row(
         q = q.where(StoreInventory.storage_location_id == storage_location_id)
     else:
         q = q.where(StoreInventory.storage_location_id.is_(None))
+    if for_update:
+        q = q.with_for_update()
     result = await db.execute(q)
     return result.scalar_one_or_none()
 
@@ -67,7 +71,7 @@ async def apply_store_inventory_delta(
     if storage_location_id:
         await validate_storage_location(db, vendor_id, store_id, storage_location_id)
 
-    inv = await get_store_inventory_row(db, store_id, product_id, variant_id, storage_location_id)
+    inv = await get_store_inventory_row(db, store_id, product_id, variant_id, storage_location_id, for_update=True)
     if inv:
         new_qty = (inv.quantity or 0) + delta
         if new_qty < 0:
@@ -105,7 +109,7 @@ async def set_store_inventory_quantity(
     if storage_location_id:
         await validate_storage_location(db, vendor_id, store_id, storage_location_id)
 
-    inv = await get_store_inventory_row(db, store_id, product_id, variant_id, storage_location_id)
+    inv = await get_store_inventory_row(db, store_id, product_id, variant_id, storage_location_id, for_update=True)
     before = inv.quantity or 0 if inv else 0
     delta = new_quantity - before
 

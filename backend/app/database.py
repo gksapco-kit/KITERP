@@ -2417,6 +2417,9 @@ async def ensure_purchase_requisition_schema() -> None:
         "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS purchase_order_id UUID REFERENCES purchase_order(id) ON DELETE SET NULL",
         "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS is_converted BOOLEAN DEFAULT FALSE",
         "ALTER TABLE purchase_requisition_item ADD COLUMN IF NOT EXISTS notes TEXT",
+        # PO approval parity with PR (proc011_po_approver_message)
+        "ALTER TABLE purchase_order ADD COLUMN IF NOT EXISTS approver_message TEXT",
+        "ALTER TABLE purchase_order_approval ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now()",
     ]
     async with engine.begin() as conn:
         for s in stmts:

@@ -39,6 +39,8 @@ ALL_PERMISSIONS = [
     "procurement.po.approve",
     "procurement.gr.post",
     "procurement.invoice.verify",
+    "procurement.invoice.approve",
+    "procurement.approver_matrix.manage",
     "masterdata.view", "masterdata.manage",
     # Merchandising & loyalty
     "merchandising.view", "merchandising.manage",
@@ -108,7 +110,7 @@ ALL_PERMISSIONS = [
     "finance.bank.manage", "finance.bank.reconcile",
     "finance.budget.manage",
     "finance.assets.manage",
-    "finance.tax.manage", "finance.tax.file",
+    "finance.tax.view", "finance.tax.manage", "finance.tax.file",
     "finance.controls.manage", "finance.controls.approve",
     "finance.capital.manage",
     "finance.reports.view",
@@ -140,6 +142,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         "inventory.view", "inventory.manage",
         "procurement.view", "procurement.manage",
         "procurement.requisition.approve", "procurement.po.approve",
+        "procurement.invoice.approve",
+        "procurement.approver_matrix.manage",
         "masterdata.view", "masterdata.manage",
         "merchandising.view", "merchandising.manage",
         "loyalty.view", "loyalty.manage",
@@ -158,6 +162,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         # Finance (view + budgets + reports + CO read + controlling approvals)
         "finance.view", "finance.edit", "finance.budget.manage",
         "finance.reports.view", "finance.controls.approve",
+        "finance.tax.view",
         "controlling.view", "controlling.variance.view",
         # Commission
         "commission.read", "commission.manage",
@@ -261,7 +266,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "customers.view",
         "invoices.view", "invoices.manage",
         "memos.view", "memos.manage",
-        "procurement.view", "procurement.invoice.verify",
+        "procurement.view", "procurement.invoice.verify", "procurement.invoice.approve",
         "reports.view",
         # Full Finance access (no tax.file — owner-only action)
         "finance.view", "finance.edit",
@@ -272,7 +277,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "finance.bank.manage", "finance.bank.reconcile",
         "finance.budget.manage",
         "finance.assets.manage",
-        "finance.tax.manage",
+        "finance.tax.view", "finance.tax.manage",
         "finance.controls.manage", "finance.controls.approve",
         "finance.capital.manage",
         "finance.reports.view",
@@ -294,12 +299,16 @@ DEFAULT_ROLE_PERMISSIONS = {
         "procurement.view", "procurement.manage",
         "procurement.requisition.approve",
         "procurement.po.approve",
+        "procurement.invoice.approve",
+        "procurement.approver_matrix.manage",
         "procurement.gr.post",
         "masterdata.view", "masterdata.manage",
         "inventory.view",
         "products.view",
         "invoices.view",
         "reports.view",
+        # Read-only tax codes so PO/RFQ lines can be priced with tax
+        "finance.tax.view",
     ],
     "production_planner": [
         "dashboard.view",
@@ -310,6 +319,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "masterdata.view",
         "products.view",
         "reports.view",
+        "finance.tax.view",
     ],
     # QA officer owns the pharma release/audit gate (intentionally removed from manager)
     "qa_officer": [
@@ -381,7 +391,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "finance.bank.manage", "finance.bank.reconcile",
         "finance.budget.manage",
         "finance.assets.manage",
-        "finance.tax.manage", "finance.tax.file",
+        "finance.tax.view", "finance.tax.manage", "finance.tax.file",
         "finance.controls.manage", "finance.controls.approve",
         "finance.capital.manage",
         "finance.reports.view",
@@ -389,7 +399,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "controlling.view", "controlling.costcenter.manage",
         "controlling.period_close", "controlling.variance.view",
         "reports.view",
-        "procurement.view", "procurement.invoice.verify",
+        "procurement.view", "procurement.invoice.verify", "procurement.invoice.approve",
     ],
     # Issued only via admin → vendor-web handoff; not inviteable from team UI.
     "platform_staff": ALL_PERMISSIONS,

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,13 +14,16 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
   useVendorInvoices, useCreateVendorInvoice, usePostVendorInvoice,
-  useMatchVendorInvoice, useCancelVendorInvoice, usePurchaseOrders,
+  useMatchVendorInvoice, useCancelVendorInvoice, usePurchaseOrders, useRecordInvoicePayment,
+  useRequestInvoiceApproval, useApproveOrRejectInvoice,
 } from '@/hooks/useVendor'
+import { ProcurementApproverFields } from '@/components/procurement/ProcurementApproverFields'
 import { ProcurementSupplierField } from '@/components/procurement/ProcurementSupplierField'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { VendorInvoice } from '@/types'
-import { Loader2, Plus, X, FileText, CheckCircle2, RefreshCw, Ban, ArrowRight, Banknote } from 'lucide-react'
+import { Loader2, Plus, X, FileText, CheckCircle2, Ban, ArrowRight, Banknote, Printer, Download, CreditCard, Send, ThumbsUp, ThumbsDown, Clock } from 'lucide-react'
+import { printInvoice, downloadInvoicePdf } from '@/lib/procurementPrintUtils'
 
 const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   draft:         { bg: 'bg-gray-100 dark:bg-gray-800',      text: 'text-gray-700 dark:text-gray-300',    label: 'Draft' },
@@ -41,6 +45,13 @@ const MATCH_BADGE: Record<string, string> = {
 
 const STATUSES = ['', 'draft', 'posted', 'matched', 'partial_match', 'blocked', 'paid', 'cancelled']
 
+const APPROVAL_BADGE: Record<string, { bg: string; text: string; label: string; icon?: string }> = {
+  not_required: { bg: 'bg-gray-100 dark:bg-gray-800',     text: 'text-gray-500',                   label: 'No Approval' },
+  pending:      { bg: 'bg-amber-50 dark:bg-amber-950/50', text: 'text-amber-700 dark:text-amber-400', label: 'Pending Approval' },
+  approved:     { bg: 'bg-green-50 dark:bg-green-950/50', text: 'text-green-700 dark:text-green-400', label: 'Approved' },
+  rejected:     { bg: 'bg-red-50 dark:bg-red-950/50',     text: 'text-red-700 dark:text-red-400',    label: 'Rejected' },
+}
+
 interface LineRow { description: string; qty: number; uom: string; unit_price: number; cgst_rate: number; sgst_rate: number; igst_rate: number }
 function emptyLine(): LineRow { return { description: '', qty: 1, uom: 'PCS', unit_price: 0, cgst_rate: 0, sgst_rate: 0, igst_rate: 0 } }
 
@@ -51,12 +62,34 @@ function calcLineTotal(l: LineRow) {
 
 // ── Detail Panel ──────────────────────────────────────────────────
 function InvoiceDetailPanel({ invoice, onClose }: { invoice: VendorInvoice; onClose: () => void }) {
+  const navigate = useNavigate()
   const post = usePostVendorInvoice()
   const match = useMatchVendorInvoice()
   const cancel = useCancelVendorInvoice()
+  const recordPayment = useRecordInvoicePayment()
+  const requestApproval = useRequestInvoiceApproval()
+  const approveReject = useApproveOrRejectInvoice()
+
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({
+    amount: String(invoice.total - (invoice.amount_paid ?? 0)),
+    payment_date: new Date().toISOString().slice(0, 10),
+    payment_reference: '',
+    payment_mode: 'bank_transfer',
+  })
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false)
+  const [approvalForm, setApprovalForm] = useState({
+    primaryApproverId: '',
+    secondaryApproverId: '',
+    approverMessage: invoice.approver_message ?? '',
+  })
+  const [rejectComments, setRejectComments] = useState('')
+  const [showRejectDialog, setShowRejectDialog] = useState(false)
 
   const badge = STATUS_BADGE[invoice.status] ?? STATUS_BADGE.draft
   const matchBadge = MATCH_BADGE[invoice.match_status] || 'bg-gray-100 text-gray-500'
+  const approvalBadge = APPROVAL_BADGE[(invoice as unknown as Record<string, unknown>).approval_status as string ?? 'not_required'] ?? APPROVAL_BADGE.not_required
+  const approvalStatus = (invoice as unknown as Record<string, unknown>).approval_status as string ?? 'not_required'
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-end bg-black/30" onClick={onClose}>
@@ -70,6 +103,9 @@ function InvoiceDetailPanel({ invoice, onClose }: { invoice: VendorInvoice; onCl
           <div className="flex items-center gap-2">
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${matchBadge}`}>{invoice.match_status.replace(/_/g, ' ')}</span>
+            {approvalStatus !== 'not_required' && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${approvalBadge.bg} ${approvalBadge.text}`}>{approvalBadge.label}</span>
+            )}
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
           </div>
         </div>
@@ -79,10 +115,33 @@ function InvoiceDetailPanel({ invoice, onClose }: { invoice: VendorInvoice; onCl
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div><p className="text-gray-500">Invoice Date</p><p className="font-medium">{formatDate(invoice.invoice_date)}</p></div>
             <div><p className="text-gray-500">Due Date</p><p className="font-medium">{invoice.due_date ? formatDate(invoice.due_date) : '—'}</p></div>
-            <div><p className="text-gray-500">PO Reference</p><p className="font-medium text-blue-600">{invoice.po_number || '—'}</p></div>
+            <div>
+              <p className="text-gray-500">PO Reference</p>
+              {invoice.purchase_order_id && invoice.po_number ? (
+                <button
+                  className="font-medium text-blue-600 hover:underline text-left"
+                  onClick={() => { onClose(); navigate(`/purchase-orders/${invoice.purchase_order_id}`) }}
+                >
+                  {invoice.po_number}
+                </button>
+              ) : (
+                <p className="font-medium text-gray-400">—</p>
+              )}
+            </div>
             <div><p className="text-gray-500">Currency</p><p className="font-medium">{invoice.currency}</p></div>
             <div><p className="text-gray-500">Amount Paid</p><p className="font-medium text-green-600">{formatCurrency(invoice.amount_paid)}</p></div>
             <div><p className="text-gray-500">Total</p><p className="font-bold text-lg">{formatCurrency(invoice.total)}</p></div>
+            {invoice.pr_number && invoice.requisition_id && (
+              <div className="col-span-3">
+                <p className="text-gray-500">Purchase Requisition</p>
+                <button
+                  className="font-medium text-indigo-600 hover:underline text-left text-sm"
+                  onClick={() => { onClose(); navigate(`/procurement/requisitions?pr=${invoice.requisition_id}`) }}
+                >
+                  {invoice.pr_number}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Tax summary */}
@@ -128,7 +187,31 @@ function InvoiceDetailPanel({ invoice, onClose }: { invoice: VendorInvoice; onCl
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 border-t pt-4">
-            {invoice.status === 'draft' && (
+            {/* Approval actions */}
+            {invoice.status === 'draft' && approvalStatus === 'not_required' && (
+              <Button variant="outline" size="sm" onClick={() => setShowApprovalDialog(true)} className="gap-2 text-amber-700 border-amber-300 hover:bg-amber-50">
+                <Send className="w-4 h-4" /> Request Approval
+              </Button>
+            )}
+            {invoice.status === 'draft' && approvalStatus === 'pending' && (
+              <>
+                <Button size="sm" onClick={() => approveReject.mutate({ id: invoice.id, action: 'approve' })} disabled={approveReject.isPending} className="gap-2 bg-green-600 hover:bg-green-700">
+                  {approveReject.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <ThumbsUp className="w-4 h-4" /> Approve
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => setShowRejectDialog(true)} className="gap-2">
+                  <ThumbsDown className="w-4 h-4" /> Reject
+                </Button>
+              </>
+            )}
+            {approvalStatus === 'pending' && (
+              <span className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                <Clock className="w-3.5 h-3.5" /> Awaiting approval
+              </span>
+            )}
+
+            {/* Standard lifecycle actions */}
+            {invoice.status === 'draft' && (approvalStatus === 'not_required' || approvalStatus === 'approved') && (
               <Button onClick={() => post.mutate(invoice.id)} disabled={post.isPending} className="gap-2">
                 {post.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 <ArrowRight className="w-4 h-4" /> Post Invoice
@@ -140,12 +223,161 @@ function InvoiceDetailPanel({ invoice, onClose }: { invoice: VendorInvoice; onCl
                 <CheckCircle2 className="w-4 h-4" /> Run 3-Way Match
               </Button>
             )}
+            {!['cancelled', 'paid'].includes(invoice.status) && invoice.status !== 'draft' && (
+              <Button variant="outline" size="sm" onClick={() => setShowPaymentDialog(true)} className="gap-2 text-green-700 border-green-300 hover:bg-green-50">
+                <CreditCard className="w-4 h-4" /> Record Payment
+              </Button>
+            )}
             {!['cancelled', 'paid'].includes(invoice.status) && (
               <Button variant="destructive" size="sm" onClick={() => cancel.mutate(invoice.id)} disabled={cancel.isPending} className="gap-2">
                 <Ban className="w-4 h-4" /> Cancel
               </Button>
             )}
+            <Button variant="outline" size="sm" className="gap-1.5 ml-auto" onClick={() => printInvoice(invoice as unknown as Record<string, unknown>)}>
+              <Printer className="w-3.5 h-3.5" /> Print
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadInvoicePdf(invoice as unknown as Record<string, unknown>)}>
+              <Download className="w-3.5 h-3.5 text-red-500" /> PDF
+            </Button>
           </div>
+
+          {/* Request Approval dialog */}
+          {showApprovalDialog && (
+            <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4" onClick={() => setShowApprovalDialog(false)}>
+              <div className="bg-background rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Request Approval</h2>
+                  <button onClick={() => setShowApprovalDialog(false)}><X className="w-4 h-4" /></button>
+                </div>
+                <p className="text-sm text-gray-500">Assign approver(s) and submit this invoice for approval before posting.</p>
+                <ProcurementApproverFields
+                  primaryApproverId={approvalForm.primaryApproverId}
+                  secondaryApproverId={approvalForm.secondaryApproverId}
+                  approverMessage={approvalForm.approverMessage}
+                  onPrimaryChange={v => setApprovalForm(f => ({ ...f, primaryApproverId: v }))}
+                  onSecondaryChange={v => setApprovalForm(f => ({ ...f, secondaryApproverId: v }))}
+                  onMessageChange={v => setApprovalForm(f => ({ ...f, approverMessage: v }))}
+                />
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button variant="outline" onClick={() => setShowApprovalDialog(false)}>Cancel</Button>
+                  <Button
+                    onClick={() => {
+                      const ids = [approvalForm.primaryApproverId, approvalForm.secondaryApproverId].filter(Boolean)
+                      requestApproval.mutate(
+                        { id: invoice.id, approver_ids: ids, approver_message: approvalForm.approverMessage || undefined },
+                        { onSuccess: () => setShowApprovalDialog(false) },
+                      )
+                    }}
+                    disabled={requestApproval.isPending}
+                    className="gap-2"
+                  >
+                    {requestApproval.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <Send className="w-4 h-4" /> Submit for Approval
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Reject dialog */}
+          {showRejectDialog && (
+            <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4" onClick={() => setShowRejectDialog(false)}>
+              <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-red-600">Reject Invoice</h2>
+                  <button onClick={() => setShowRejectDialog(false)}><X className="w-4 h-4" /></button>
+                </div>
+                <div>
+                  <Label className="text-xs">Reason for rejection (optional)</Label>
+                  <textarea
+                    className="mt-1 w-full text-sm border rounded-md px-3 py-2 bg-background min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={rejectComments}
+                    onChange={e => setRejectComments(e.target.value)}
+                    placeholder="Explain why this invoice is being rejected…"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Cancel</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      approveReject.mutate(
+                        { id: invoice.id, action: 'reject', comments: rejectComments || undefined },
+                        { onSuccess: () => setShowRejectDialog(false) },
+                      )
+                    }}
+                    disabled={approveReject.isPending}
+                    className="gap-2"
+                  >
+                    {approveReject.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <ThumbsDown className="w-4 h-4" /> Confirm Rejection
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Payment dialog */}
+          {showPaymentDialog && (
+            <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4" onClick={() => setShowPaymentDialog(false)}>
+              <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Record Payment</h2>
+                  <button onClick={() => setShowPaymentDialog(false)}><X className="w-4 h-4" /></button>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 text-sm space-y-1">
+                  <div className="flex justify-between"><span className="text-gray-500">Invoice Total</span><span className="font-medium">{formatCurrency(invoice.total)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Already Paid</span><span className="font-medium text-green-600">{formatCurrency(invoice.amount_paid ?? 0)}</span></div>
+                  <div className="flex justify-between border-t pt-1 mt-1"><span className="font-semibold">Outstanding</span><span className="font-bold text-amber-600">{formatCurrency(invoice.total - (invoice.amount_paid ?? 0))}</span></div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Payment Amount *</Label>
+                    <Input type="number" min={0.01} step="0.01" value={paymentForm.amount}
+                      onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Payment Date *</Label>
+                    <Input type="date" value={paymentForm.payment_date}
+                      onChange={e => setPaymentForm(p => ({ ...p, payment_date: e.target.value }))} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Payment Mode</Label>
+                    <select className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none"
+                      value={paymentForm.payment_mode}
+                      onChange={e => setPaymentForm(p => ({ ...p, payment_mode: e.target.value }))}>
+                      <option value="bank_transfer">Bank Transfer / NEFT</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="upi">UPI</option>
+                      <option value="cash">Cash</option>
+                      <option value="rtgs">RTGS</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Reference / UTR / Cheque No.</Label>
+                    <Input value={paymentForm.payment_reference}
+                      onChange={e => setPaymentForm(p => ({ ...p, payment_reference: e.target.value }))}
+                      placeholder="e.g. UTR12345 or CHQ001" className="mt-1" />
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button variant="cancel" className="flex-1" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
+                  <Button className="flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white"
+                    disabled={recordPayment.isPending || !paymentForm.amount || !paymentForm.payment_date}
+                    onClick={() => {
+                      recordPayment.mutate(
+                        { id: invoice.id, amount: parseFloat(paymentForm.amount), payment_date: paymentForm.payment_date, payment_reference: paymentForm.payment_reference || undefined, payment_mode: paymentForm.payment_mode },
+                        { onSuccess: () => { setShowPaymentDialog(false); onClose() } },
+                      )
+                    }}
+                  >
+                    {recordPayment.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <CreditCard className="w-4 h-4" /> Confirm Payment
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -154,8 +386,9 @@ function InvoiceDetailPanel({ invoice, onClose }: { invoice: VendorInvoice; onCl
 
 // ── Create Invoice Modal ──────────────────────────────────────────
 function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate()
   const create = useCreateVendorInvoice()
-  const { data: posData } = usePurchaseOrders({ status: 'received', size: 200 })
+  const { data: posData } = usePurchaseOrders({ status: 'sent,partial_received,received', size: 100 })
   const pos = posData?.items ?? []
 
   const [supplierId, setSupplierId] = useState('')
@@ -259,6 +492,35 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
                 )}
                 className="mt-1 text-sm"
               />
+              {/* PO / PR reference strip — shown once a PO is selected */}
+              {poId && (() => {
+                const selectedPo = pos.find((p: { id: string; po_number: string; supplier_name?: string; pr_number?: string | null; requisition_id?: string | null }) => p.id === poId)
+                if (!selectedPo) return null
+                return (
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs px-3 py-2 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
+                    <span className="text-gray-500">Links:</span>
+                    <button
+                      type="button"
+                      className="font-medium text-blue-700 dark:text-blue-400 hover:underline"
+                      onClick={() => { onClose(); navigate(`/purchase-orders/${selectedPo.id}`) }}
+                    >
+                      PO: {selectedPo.po_number}
+                    </button>
+                    {selectedPo.pr_number && selectedPo.requisition_id && (
+                      <>
+                        <span className="text-gray-300">·</span>
+                        <button
+                          type="button"
+                          className="font-medium text-indigo-700 dark:text-indigo-400 hover:underline"
+                          onClick={() => { onClose(); navigate(`/procurement/requisitions?pr=${selectedPo.requisition_id}`) }}
+                        >
+                          PR: {selectedPo.pr_number}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           </div>
 
@@ -329,6 +591,7 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
 
 // ── Main Page ─────────────────────────────────────────────────────
 export default function VendorInvoicesAPPage() {
+  const [viewMode, setViewMode] = useState<'all' | 'pending_my_approval'>('all')
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState('invoice_date')
@@ -336,8 +599,10 @@ export default function VendorInvoicesAPPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [selected, setSelected] = useState<VendorInvoice | null>(null)
 
-  const params: Record<string, unknown> = {}
-  if (statusFilter) params.status = statusFilter
+  const params: Record<string, unknown> =
+    viewMode === 'pending_my_approval'
+      ? { pending_my_approval: true }
+      : (statusFilter ? { status: statusFilter } : {})
   const { data, isLoading } = useVendorInvoices(params)
   const items: VendorInvoice[] = data?.items ?? []
 
@@ -387,6 +652,32 @@ export default function VendorInvoicesAPPage() {
         </Button>
       </div>
 
+      {/* View toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setViewMode('all')}
+          className={`text-sm px-4 py-1.5 rounded-full font-medium border transition-all ${
+            viewMode === 'all'
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+          }`}
+        >
+          All Invoices
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('pending_my_approval')}
+          className={`text-sm px-4 py-1.5 rounded-full font-medium border transition-all gap-2 inline-flex items-center ${
+            viewMode === 'pending_my_approval'
+              ? 'bg-amber-600 text-white border-amber-600'
+              : 'border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400'
+          }`}
+        >
+          <Clock className="w-3.5 h-3.5" /> Pending My Approval
+        </button>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
@@ -419,12 +710,14 @@ export default function VendorInvoicesAPPage() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
             leading={
-              <Select
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={selectOptionsWithBlank('All Statuses', STATUSES.filter(Boolean).map(s => ({ value: s, label: STATUS_BADGE[s]?.label ?? s })))}
-                className="w-36 text-sm"
-              />
+              viewMode === 'all' ? (
+                <Select
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  options={selectOptionsWithBlank('All Statuses', STATUSES.filter(Boolean).map(s => ({ value: s, label: STATUS_BADGE[s]?.label ?? s })))}
+                  className="w-36 text-sm"
+                />
+              ) : undefined
             }
           />
         </div>

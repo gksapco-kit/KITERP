@@ -668,6 +668,11 @@ const allSections: NavSection[] = [
       { to: '/categories', icon: FolderTree, label: 'Categories' },
       { to: '/product-groups', icon: Layers, label: 'Product Groups' },
       { to: '/inventory', icon: Warehouse, label: 'Inventory', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/inventory/stock-counts', icon: ClipboardList, label: 'Stock Count & Audit', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/inventory/expiry', icon: CalendarDays, label: 'Expiry Dashboard', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/inventory/reservations', icon: Lock, label: 'Reservations', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/inventory/transfer-orders', icon: ArrowRightLeft, label: 'Transfer Orders', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/inventory/reports', icon: BarChart3, label: 'Inventory Reports', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/inventory/settings', icon: Settings, label: 'Inventory Config', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/plants', icon: Factory, label: 'Plants', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/storage-locations', icon: Boxes, label: 'Storage Locations', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
@@ -802,10 +807,17 @@ const allSections: NavSection[] = [
     items: [
       { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders', requiresPermission: 'procurement.view', groupLabel: 'Purchasing', groupColor: 'blue' },
       { to: '/procurement/requisitions', icon: FileText, label: 'Purchase Requisitions', requiresPermission: 'procurement.view' },
+      { to: '/procurement/rfq-quotations', icon: FileCheck, label: 'RFQ & Quotations', requiresPermission: 'procurement.view' },
+      { to: '/procurement/suppliers', icon: Users, label: 'Supplier Management', requiresPermission: 'procurement.view' },
       { to: '/procurement/sourcing', icon: Database, label: 'Sourcing Setup', requiresPermission: 'procurement.view' },
+      { to: '/procurement/grn', icon: Truck, label: 'Goods Receipt (GRN)', requiresPermission: 'procurement.view', groupLabel: 'Goods & Returns', groupColor: 'emerald' },
+      { to: '/procurement/purchase-returns', icon: RotateCcw, label: 'Purchase Returns', requiresPermission: 'procurement.view' },
       { to: '/procurement/configure', icon: SlidersHorizontal, label: 'Configure', requiresPermission: 'procurement.view' },
+      { to: '/procurement/workflow', icon: GitBranch, label: 'Approval Workflow', requiresPermission: 'procurement.manage' },
       { to: '/procurement/special', icon: FileCheck, label: 'Special Procurement', requiresPermission: 'procurement.view' },
       { to: '/procurement/vendor-invoices', icon: Banknote, label: 'Vendor Invoices (AP)', requiresPermission: 'procurement.view', groupLabel: 'Accounts Payable', groupColor: 'amber' },
+      { to: '/procurement/analytics', icon: BarChart3, label: 'Spend Analytics', requiresPermission: 'procurement.view', groupLabel: 'Insights & Controls', groupColor: 'violet' },
+      { to: '/procurement/budget-controls', icon: ShieldCheck, label: 'Budget Controls', requiresPermission: 'procurement.manage' },
     ],
   },
   {
@@ -1249,12 +1261,23 @@ const pageTitles: Record<string, string> = {
   '/inventory/material-valuation': 'Material Valuation',
   '/procurement/special': 'Special Procurement',
   '/procurement/configure': 'Configure',
+  '/procurement/workflow': 'Approval Workflow',
+  '/procurement/rfq-quotations': 'RFQ & Quotations',
+  '/procurement/grn': 'Goods Receipt Notes',
+  '/procurement/purchase-returns': 'Purchase Returns',
+  '/procurement/analytics': 'Spend Analytics',
+  '/procurement/budget-controls': 'Budget Controls',
   '/production': 'Production Orders',
   '/production/schedule': 'Production Schedule',
   '/production/work-centers': 'Work Centers & Routing',
   '/production/mrp': 'Material Requirements (MRP)',
   '/production/analytics': 'Production Analytics',
   '/inventory': 'Inventory',
+  '/inventory/stock-counts': 'Stock Count & Audit',
+  '/inventory/expiry': 'Expiry Dashboard',
+  '/inventory/reservations': 'Reservations',
+  '/inventory/transfer-orders': 'Transfer Orders',
+  '/inventory/reports': 'Inventory Reports',
   '/inventory/settings': 'Inventory Config',
   '/plants': 'Plants',
   '/storage-locations': 'Storage Locations',
@@ -1622,6 +1645,9 @@ export default function DashboardLayout() {
       vendorApi.updateStore(id, { is_open }),
     onSuccess: () => { void refetchStores() },
   })
+
+  const [confirmToggle, setConfirmToggle] = useState<{ id: string; name: string; targetIsOpen: boolean } | null>(null)
+  const [confirmInput, setConfirmInput] = useState('')
 
   const openStorePicker = () => {
     setStorePickerOpen((v) => {
@@ -2803,7 +2829,8 @@ export default function DashboardLayout() {
                       title={isOpen ? 'Mark as Closed (hides from website)' : 'Mark as Open'}
                       onClick={(e) => {
                         e.stopPropagation()
-                        toggleStoreOpenMutation.mutate({ id: s.id, is_open: !isOpen })
+                        setConfirmToggle({ id: s.id, name: s.name, targetIsOpen: !isOpen })
+                        setConfirmInput('')
                       }}
                       disabled={toggleStoreOpenMutation.isPending}
                       className={cn(
@@ -2870,6 +2897,90 @@ export default function DashboardLayout() {
           </Link>
         </div>
             </div>
+
+            {/* ── Open / Closed confirmation dialog ── */}
+            {confirmToggle && (() => {
+              const keyword = confirmToggle.targetIsOpen ? 'open' : 'close'
+              const matched = confirmInput.trim().toLowerCase() === keyword
+              return (
+                <>
+                  <div
+                    className="fixed inset-0 z-[101] bg-black/40"
+                    onClick={() => setConfirmToggle(null)}
+                  />
+                  <div
+                    className="fixed left-1/2 top-1/2 z-[102] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-5 shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Confirm status change</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
+                          You are about to mark <span className="font-medium text-foreground">{confirmToggle.name}</span> as{' '}
+                          <span className={cn('font-semibold', confirmToggle.targetIsOpen ? 'text-emerald-600' : 'text-rose-600')}>
+                            {confirmToggle.targetIsOpen ? 'Open' : 'Closed'}
+                          </span>.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Cancel"
+                        onClick={() => setConfirmToggle(null)}
+                        className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="mb-1.5 text-xs text-muted-foreground">
+                      Type <span className="font-mono font-bold text-foreground">{keyword}</span> to confirm
+                    </p>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={confirmInput}
+                      onChange={(e) => setConfirmInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && matched) {
+                          toggleStoreOpenMutation.mutate({ id: confirmToggle.id, is_open: confirmToggle.targetIsOpen })
+                          setConfirmToggle(null)
+                          setConfirmInput('')
+                        }
+                        if (e.key === 'Escape') setConfirmToggle(null)
+                      }}
+                      placeholder={keyword}
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+                    />
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmToggle(null)}
+                        className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!matched || toggleStoreOpenMutation.isPending}
+                        onClick={() => {
+                          toggleStoreOpenMutation.mutate({ id: confirmToggle.id, is_open: confirmToggle.targetIsOpen })
+                          setConfirmToggle(null)
+                          setConfirmInput('')
+                        }}
+                        className={cn(
+                          'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                          confirmToggle.targetIsOpen
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40'
+                            : 'bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40',
+                          (!matched || toggleStoreOpenMutation.isPending) && 'cursor-not-allowed',
+                        )}
+                      >
+                        {confirmToggle.targetIsOpen ? 'Mark as Open' : 'Mark as Closed'}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )
+            })()}
           </>,
           document.body,
         )

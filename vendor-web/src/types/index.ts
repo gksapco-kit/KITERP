@@ -204,8 +204,11 @@ export interface Product {
   price: number
   compare_at_price?: number
   cost_price?: number
-  /** Inventory valuation: moving_average (MAP) | standard_price */
-  valuation_method?: 'moving_average' | 'standard_price'
+  /** Purchase / COGM costing method */
+  valuation_method?: 'moving_average' | 'fixed' | 'standard'
+  cost_price_fixed?: number
+  cost_source?: string
+  cost_updated_at?: string
   currency: string
   discount_percentage?: number
   discount_amount?: number
@@ -357,6 +360,11 @@ export interface ProductVariant {
   price: number
   compare_at_price?: number
   cost_price?: number
+  cost_price_fixed?: number
+  /** NULL = inherit parent product's costing method */
+  valuation_method?: 'moving_average' | 'fixed' | 'standard' | null
+  cost_source?: string
+  cost_updated_at?: string
   currency: string
   discount_percentage?: number
   discount_amount?: number
@@ -406,8 +414,17 @@ export interface ServicePlan {
   name: string
   description?: string
   price?: number
+  compare_at_price?: number
+  cost_price?: number
   uom: string
+  uom_quantity?: number
   price_type: string
+  plan_price_type?: string
+  price_min?: number
+  price_max?: number
+  currency?: string
+  discount_percentage?: number
+  discount_amount?: number
   subscription_interval?: string
   subscription_trial_days?: number
   subscription_setup_fee?: number
@@ -467,6 +484,12 @@ export interface Service {
   discount_start_date?: string
   discount_end_date?: string
   offer_label?: string
+  // Purchase / COGM costing
+  purchase_price?: number
+  purchase_price_fixed?: number
+  valuation_method?: 'moving_average' | 'fixed' | 'standard'
+  cost_source?: string
+  cost_updated_at?: string
   // Tax
   is_taxable: boolean
   tax_rate?: number
@@ -1111,6 +1134,8 @@ export interface Supplier {
   notes?: string
   gstin?: string
   pan_number?: string
+  cin?: string
+  company_name?: string | null
   opening_balance?: number
   is_active: boolean
   // Bank Details
@@ -1121,6 +1146,110 @@ export interface Supplier {
   ifsc_code?: string | null
   created_at: string
   updated_at?: string
+}
+
+// ── Supplier Management (Phase 1) ───────────────────────────────
+
+export interface SupplierCategory {
+  id: string
+  vendor_id: string
+  name: string
+  code?: string | null
+  parent_id?: string | null
+  description?: string | null
+  is_active: boolean
+  created_at?: string
+}
+
+export interface SupplierContact {
+  id: string
+  supplier_id: string
+  name: string
+  designation?: string | null
+  department?: string | null
+  email?: string | null
+  phone?: string | null
+  mobile?: string | null
+  is_primary: boolean
+  notes?: string | null
+  created_at?: string
+}
+
+export interface SupplierAddress {
+  id: string
+  supplier_id: string
+  address_type: string
+  line1: string
+  line2?: string | null
+  city?: string | null
+  state?: string | null
+  pincode?: string | null
+  country: string
+  gstin?: string | null
+  is_default: boolean
+}
+
+export interface SupplierDocument {
+  id: string
+  supplier_id: string
+  document_type: string
+  document_number?: string | null
+  file_url?: string | null
+  file_name?: string | null
+  issue_date?: string | null
+  expiry_date?: string | null
+  issuing_authority?: string | null
+  status: string
+  verified_by?: string | null
+  verified_at?: string | null
+  rejection_reason?: string | null
+  notes?: string | null
+  created_at?: string
+}
+
+export interface OnboardingChecklistItem {
+  item: string
+  passed: boolean
+  notes?: string | null
+}
+
+export interface SupplierOnboarding {
+  id: string
+  supplier_id: string
+  status: string
+  qualification_score?: number | null
+  payment_terms?: string | null
+  credit_limit?: number | null
+  currency: string
+  checklist: OnboardingChecklistItem[]
+  reviewed_by?: string | null
+  reviewed_at?: string | null
+  rejection_reason?: string | null
+  approved_at?: string | null
+  re_evaluation_due?: string | null
+  audit_log: Record<string, unknown>[]
+  created_at?: string
+  updated_at?: string
+}
+
+export interface SupplierPerformance {
+  id: string
+  supplier_id: string
+  period_type: string
+  period_start: string
+  period_end: string
+  po_count: number
+  on_time_delivery_pct?: number | null
+  quality_acceptance_pct?: number | null
+  price_variance_pct?: number | null
+  response_time_days?: number | null
+  overall_score?: number | null
+  weight_delivery: number
+  weight_quality: number
+  weight_price: number
+  weight_response: number
+  comments?: string | null
+  computed_at?: string | null
 }
 
 // ── Purchase Order ──────────────────────────────────────────────
@@ -1134,9 +1263,16 @@ export interface PurchaseOrderItem {
   variant_name?: string
   variant_sku?: string
   variant_barcode?: string
+  description?: string | null
+  quantity?: number
   quantity_ordered: number
   quantity_received: number
   unit_cost: number
+  unit_of_measure?: string
+  item_category?: string | null
+  tax_code?: string | null
+  hsn_code?: string | null
+  account_assignment?: string | null
   total_cost: number
   plant_id?: string | null
   storage_location_id?: string | null
@@ -1152,6 +1288,18 @@ export interface PurchaseOrderReceipt {
   items: { item_id: string; product_id: string; variant_id?: string | null; quantity_received: number }[]
 }
 
+export interface POApprovalStep {
+  id: string
+  purchase_order_id: string
+  level: number
+  approver_id?: string | null
+  approver_name?: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  comments?: string | null
+  actioned_at?: string | null
+  created_at?: string | null
+}
+
 export interface PurchaseOrder {
   id: string
   vendor_id: string
@@ -1162,7 +1310,12 @@ export interface PurchaseOrder {
   order_date?: string
   expected_delivery_date?: string
   notes?: string
+  currency?: string
+  payment_terms?: string | null
   subtotal: number
+  cgst_amount?: number
+  sgst_amount?: number
+  igst_amount?: number
   tax_amount: number
   total: number
   created_by?: string
@@ -1170,8 +1323,16 @@ export interface PurchaseOrder {
   updated_at?: string
   received_at?: string
   closed_at?: string
+  // Approval workflow
+  approval_status?: 'not_required' | 'pending' | 'approved' | 'rejected'
+  approved_by?: string | null
+  approved_at?: string | null
+  approver_message?: string | null
+  approvals?: POApprovalStep[]
   items: PurchaseOrderItem[]
   receipts: PurchaseOrderReceipt[]
+  requisition_id?: string | null
+  pr_number?: string | null
 }
 
 // ── Procurement: Sourcing ────────────────────────────────────────
@@ -1355,6 +1516,8 @@ export interface VendorInvoice {
   paid_at?: string | null
   supplier_name?: string
   po_number?: string | null
+  pr_number?: string | null
+  requisition_id?: string | null
   items: VendorInvoiceItem[]
   created_at: string
   updated_at?: string
@@ -1433,7 +1596,7 @@ export interface MaterialValuation {
   product_id: string
   variant_id?: string | null
   plant_id?: string | null
-  valuation_method: 'moving_average' | 'standard_price'
+  valuation_method: 'moving_average' | 'fixed' | 'standard'
   total_stock: number
   total_value: number
   moving_avg_price: number
@@ -1490,6 +1653,7 @@ export interface SubcontractingOrder {
   status: 'open' | 'components_issued' | 'in_progress' | 'received' | 'closed' | 'cancelled'
   components: SubcontractingComponent[]
   finished_product_id?: string | null
+  finished_product_name?: string | null
   finished_variant_id?: string | null
   qty_expected: number
   qty_received: number
@@ -1518,6 +1682,213 @@ export interface ConsignmentStock {
   updated_at?: string | null
   supplier_name?: string
   product_name?: string
+}
+
+// ── Procurement: RFQ ────────────────────────────────────────────
+export interface RFQItem {
+  id: string
+  rfq_id: string
+  line_number: number
+  item_type: 'product' | 'service' | 'other'
+  product_id?: string | null
+  variant_id?: string | null
+  description?: string | null
+  quantity: number
+  unit_of_measure: string
+  target_price?: number | null
+  needed_by_date?: string | null
+  technical_specs?: string | null
+  notes?: string | null
+  pr_item_id?: string | null
+  product_name?: string
+}
+
+export interface RFQSupplier {
+  id: string
+  rfq_id: string
+  supplier_id: string
+  supplier_name?: string
+  invite_status: 'invited' | 'acknowledged' | 'bid_submitted' | 'declined' | 'no_response'
+  invited_at?: string | null
+  acknowledged_at?: string | null
+}
+
+export interface RFQ {
+  id: string
+  vendor_id: string
+  rfq_number: string
+  title?: string | null
+  status: 'draft' | 'issued' | 'bids_closed' | 'awarded' | 'cancelled'
+  sourcing_type: 'rfq' | 'rfi' | 'spot'
+  requisition_id?: string | null
+  department?: string | null
+  currency: string
+  payment_terms?: string | null
+  delivery_terms?: string | null
+  bid_submission_deadline?: string | null
+  delivery_required_by?: string | null
+  instructions_to_suppliers?: string | null
+  internal_notes?: string | null
+  items: RFQItem[]
+  suppliers: RFQSupplier[]
+  audit_log?: Array<{ action: string; at: string }>
+  created_at: string
+  updated_at?: string
+}
+
+// ── Procurement: Supplier Quotation ─────────────────────────────
+export interface SupplierQuotationItem {
+  id: string
+  quotation_id: string
+  rfq_item_id?: string | null
+  line_number: number
+  product_id?: string | null
+  variant_id?: string | null
+  description?: string | null
+  quantity: number
+  unit_of_measure: string
+  unit_price: number
+  discount_pct: number
+  cgst_rate: number
+  sgst_rate: number
+  igst_rate: number
+  net_unit_price: number
+  line_total: number
+  lead_time_days?: number | null
+  notes?: string | null
+  product_name?: string
+}
+
+export interface SupplierQuotation {
+  id: string
+  vendor_id: string
+  quotation_number: string
+  rfq_id?: string | null
+  rfq_number?: string | null
+  supplier_id: string
+  supplier_name?: string
+  status: 'draft' | 'submitted' | 'under_review' | 'accepted' | 'rejected' | 'expired'
+  quote_type: 'rfq_response' | 'spot_quote' | 'proforma'
+  quote_date?: string | null
+  valid_until?: string | null
+  currency: string
+  delivery_lead_time_days?: number | null
+  payment_terms?: string | null
+  delivery_terms?: string | null
+  subtotal: number
+  tax_amount: number
+  total: number
+  notes?: string | null
+  items: SupplierQuotationItem[]
+  created_at: string
+  updated_at?: string
+}
+
+// ── Procurement: GRN ─────────────────────────────────────────────
+export interface GRNQCInspection {
+  id: string
+  grn_line_id: string
+  result: 'passed' | 'failed' | 'partial_pass' | 'hold'
+  accepted_qty: number
+  rejected_qty: number
+  inspected_qty: number
+  defect_code?: string | null
+  defect_description?: string | null
+  notes?: string | null
+}
+
+export interface GRNLine {
+  id: string
+  grn_id: string
+  po_item_id: string
+  line_number: number
+  product_id?: string | null
+  variant_id?: string | null
+  product_name?: string
+  description?: string | null
+  batch_number?: string | null
+  ordered_qty?: number | null
+  received_qty: number
+  accepted_qty?: number | null
+  rejected_qty?: number | null
+  pending_qc_qty?: number | null
+  unit_of_measure: string
+  unit_price?: number | null
+  qc_status: 'not_required' | 'pending' | 'passed' | 'failed' | 'partial_pass' | 'hold'
+  qc_inspection?: GRNQCInspection | null
+  notes?: string | null
+}
+
+export interface GoodsReceiptNote {
+  id: string
+  vendor_id: string
+  grn_number: string
+  purchase_order_id: string
+  po_number?: string | null
+  status: 'draft' | 'posted' | 'qc_pending' | 'qc_done' | 'closed' | 'reversed'
+  posting_date?: string | null
+  document_date?: string | null
+  supplier_delivery_number?: string | null
+  supplier_invoice_reference?: string | null
+  requires_qc: boolean
+  qc_completed_at?: string | null
+  total_ordered_qty: number
+  total_received_qty: number
+  total_accepted_qty: number
+  total_rejected_qty: number
+  notes?: string | null
+  lines: GRNLine[]
+  audit_log?: Array<{ action: string; at: string }>
+  created_at: string
+  updated_at?: string
+}
+
+// ── Procurement: Purchase Return ─────────────────────────────────
+export interface PurchaseReturnLine {
+  id: string
+  return_id: string
+  po_item_id: string
+  grn_line_id?: string | null
+  line_number: number
+  product_id?: string | null
+  variant_id?: string | null
+  product_name?: string
+  description?: string | null
+  batch_number?: string | null
+  return_qty: number
+  unit_of_measure: string
+  unit_price: number
+  cgst_rate: number
+  sgst_rate: number
+  igst_rate: number
+  subtotal: number
+  tax_amount: number
+  total: number
+  reason?: string | null
+}
+
+export interface PurchaseReturn {
+  id: string
+  vendor_id: string
+  return_number: string
+  status: 'draft' | 'approved' | 'goods_dispatched' | 'supplier_confirmed' | 'closed' | 'cancelled'
+  purchase_order_id: string
+  grn_id?: string | null
+  supplier_id: string
+  supplier_name?: string
+  return_date: string
+  return_reason: 'quality_rejection' | 'wrong_item' | 'excess_delivery' | 'damaged' | 'other'
+  currency: string
+  supplier_return_authorization?: string | null
+  debit_note_reference?: string | null
+  dispatched_via?: string | null
+  dispatch_date?: string | null
+  tracking_number?: string | null
+  notes?: string | null
+  lines: PurchaseReturnLine[]
+  audit_log?: Array<{ action: string; at: string }>
+  created_at: string
+  updated_at?: string
 }
 
 // ── Invoice Template ────────────────────────────────────────────

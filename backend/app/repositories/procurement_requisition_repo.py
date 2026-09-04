@@ -12,6 +12,7 @@ from app.models.procurement_requisition import (
     PurchaseRequisitionApproval,
 )
 from app.models.vendor_user import VendorUser
+from app.utils.procurement_utils import next_doc_number
 
 
 class PurchaseRequisitionRepository(BaseRepository[PurchaseRequisition]):
@@ -75,13 +76,7 @@ class PurchaseRequisitionRepository(BaseRepository[PurchaseRequisition]):
         return list(result.scalars().all()), total
 
     async def get_next_pr_number(self, vendor_id: UUID) -> str:
-        result = await self.db.execute(
-            select(sqlfunc.count())
-            .select_from(PurchaseRequisition)
-            .where(PurchaseRequisition.vendor_id == vendor_id)
-        )
-        count = result.scalar_one()
-        return f"PR-{str(count + 1).zfill(6)}"
+        return await next_doc_number(self.db, vendor_id, "PR", width=6)
 
     async def list_pending_for_approver(
         self,

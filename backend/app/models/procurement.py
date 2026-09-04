@@ -84,11 +84,24 @@ class PurchaseOrder(Base):
     payment_terms = Column(String(50), nullable=True)   # e.g. "Net 30", "2/10 Net 30"
     delivery_terms = Column(String(50), nullable=True)  # Incoterms: EXW, FOB, CIF, DDP …
 
+    # Org dimensions for approver-matrix resolution (proc015)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("fin_company.id", ondelete="SET NULL"), nullable=True)
+    branch_id  = Column(UUID(as_uuid=True), ForeignKey("store.id",       ondelete="SET NULL"), nullable=True)
+    plant_id   = Column(UUID(as_uuid=True), ForeignKey("plant.id",       ondelete="SET NULL"), nullable=True)
+
     # Link back to the originating Purchase Requisition
     requisition_id = Column(UUID(as_uuid=True), ForeignKey("purchase_requisition.id", ondelete="SET NULL"), nullable=True)
 
     # Change / approval history
     audit_log = Column(JSONB, nullable=False, default=list)
+
+    # Approval workflow
+    approval_status = Column(String(30), nullable=False, server_default="not_required")
+    # not_required | pending | approved | rejected
+    approved_by = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    approval_required_above = Column(Numeric(14, 2), nullable=True)
+    approver_message = Column(Text, nullable=True)
 
     created_by = Column(UUID(as_uuid=True), ForeignKey("user.id"))
 
@@ -100,7 +113,10 @@ class PurchaseOrder(Base):
     supplier = relationship("Supplier", back_populates="purchase_orders", lazy="selectin")
     items = relationship("PurchaseOrderItem", back_populates="purchase_order", lazy="selectin", cascade="all, delete-orphan")
     receipts = relationship("PurchaseOrderReceipt", back_populates="purchase_order", lazy="noload", cascade="all, delete-orphan")
-    requisition = relationship("PurchaseRequisition", foreign_keys=[requisition_id], lazy="noload")
+    requisition = relationship("PurchaseRequisition", foreign_keys=[requisition_id], lazy="selectin")
+    approvals = relationship("PurchaseOrderApproval", back_populates="purchase_order",
+                             lazy="selectin", cascade="all, delete-orphan",
+                             order_by="PurchaseOrderApproval.level")
 
     __table_args__ = (
         Index("ix_po_vendor", "vendor_id"),
@@ -115,7 +131,9 @@ class PurchaseOrderItem(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     purchase_order_id = Column(UUID(as_uuid=True), ForeignKey("purchase_order.id", ondelete="CASCADE"), nullable=False)
-    product_id = Column(UUID(as_uuid=True), ForeignKey("product.id", ondelete="RESTRICT"), nullable=False)
+    # Exactly one of product_id / service_id must be set (enforced by DB CHECK ck_poi_product_or_service)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("product.id", ondelete="RESTRICT"), nullable=True)
+    service_id = Column(UUID(as_uuid=True), ForeignKey("service.id", ondelete="RESTRICT"), nullable=True)
     variant_id = Column(UUID(as_uuid=True), ForeignKey("product_variant.id", ondelete="SET NULL"))
 
     quantity_ordered = Column(Numeric(12, 4), nullable=False)
@@ -134,9 +152,13 @@ class PurchaseOrderItem(Base):
     item_category = Column(String(20), default="standard")
     # standard | subcontract | consignment | service | third_party
 
+    # Denormalised from product.material_type at save time (proc016)
+    material_type = Column(String(30), nullable=True)
+
     # Account assignment
     account_assignment = Column(String(20), nullable=True)
     # cost_center | project | asset | gl_account | none
+    account_assignment_value = Column(String(100), nullable=True)
 
     # GST / Tax per line
     hsn_code = Column(String(10), nullable=True)
@@ -152,6 +174,7 @@ class PurchaseOrderItem(Base):
 
     purchase_order = relationship("PurchaseOrder", back_populates="items")
     product = relationship("Product", lazy="selectin")
+    service = relationship("Service", lazy="selectin")
     variant = relationship("ProductVariant", foreign_keys=[variant_id], lazy="selectin")
     delivery_schedules = relationship(
         "PurchaseOrderDeliverySchedule",
@@ -218,4 +241,34 @@ class PurchaseOrderDeliverySchedule(Base):
     __table_args__ = (
         Index("ix_pods_item", "po_item_id"),
         Index("ix_pods_date", "delivery_date"),
+    )
+
+
+class PurchaseOrderApproval(Base):
+    """Multi-level approval step for a Purchase Order."""
+    __tablename__ = "purchase_order_approval"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    purchase_order_id = Column(UUID(as_uuid=True), ForeignKey("purchase_order.id", ondelete="CASCADE"), nullable=False)
+
+    level = Column(Integer, nullable=False, default=1)
+    approver_id = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(20), nullable=False, default="pending")
+    # pending | approved | rejected
+
+    # NULL = manually assigned; non-null = auto-assigned by approver matrix (proc017)
+    source_rule_id = Column(UUID(as_uuid=True),
+                            ForeignKey("procurement_approver_rule.id", ondelete="SET NULL"),
+                            nullable=True)
+
+    comments = Column(Text, nullable=True)
+    actioned_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    purchase_order = relationship("PurchaseOrder", back_populates="approvals")
+    approver = relationship("VendorUser", foreign_keys=[approver_id], lazy="selectin")
+
+    __table_args__ = (
+        Index("ix_po_approval_po", "purchase_order_id"),
+        Index("ix_po_approval_approver", "approver_id", "status"),
     )

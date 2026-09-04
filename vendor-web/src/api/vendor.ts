@@ -2,6 +2,100 @@ import apiClient from './client'
 import { clampPageSize } from '@/lib/pageSize'
 import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, InvoiceTemplate, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType, PurchasingInfoRecord, SourceList, PurchaseRequisition, VendorInvoice, GoodsBatch, GoodsMovementDocument, MaterialValuation, ServiceEntrySheet, RestaurantOutlet, RestaurantMenuOut, RestaurantMenuCategoryOut, RestaurantMenuZoneLinkOut } from '@/types'
 
+// ── Procurement budget rule type ─────────────────────────────────
+export interface BudgetRule {
+  max_amount: number
+  require_approval_level: string   // 'none' | 'manager' | 'cfo' | 'board'
+  department?: string | null
+  category?: string | null
+}
+
+// ── Approver matrix types ────────────────────────────────────────
+export interface ApproverRule {
+  id: string
+  vendor_id: string
+  doc_type: 'PR' | 'PO' | 'INVOICE'
+  company_id: string | null
+  company_name: string | null
+  branch_id: string | null
+  branch_name: string | null
+  plant_id: string | null
+  plant_name: string | null
+  material_type: string | null
+  min_amount: number | null
+  max_amount: number | null
+  level: number
+  approver_id: string | null
+  approver_name: string | null
+  approver_role_id: string | null
+  approver_role_name: string | null
+  lock_chain: boolean
+  is_active: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ApproverRuleIn {
+  doc_type: 'PR' | 'PO' | 'INVOICE'
+  company_id?: string | null
+  branch_id?: string | null
+  plant_id?: string | null
+  material_type?: string | null
+  min_amount?: number | null
+  max_amount?: number | null
+  level: number
+  approver_id?: string | null
+  approver_role_id?: string | null
+  lock_chain?: boolean
+  is_active?: boolean
+}
+
+export interface ApproverRulePreviewIn {
+  doc_type: 'PR' | 'PO' | 'INVOICE'
+  company_id?: string | null
+  branch_id?: string | null
+  plant_id?: string | null
+  material_types?: string[]
+  amount?: number
+}
+
+export interface ApproverResolutionPreview {
+  matched: boolean
+  lock_chain: boolean
+  steps: Array<{
+    level: number
+    approver_id: string
+    approver_name: string
+    source_rule_id: string
+  }>
+}
+
+// ── Procurement analytics aggregate type ─────────────────────────
+export interface ProcurementAnalytics {
+  kpis: {
+    total_po_value: number
+    total_po_count: number
+    fulfilled_pos: number
+    open_ap_value: number
+    open_invoice_count: number
+    grn_count: number
+    return_value: number
+    return_count: number
+    total_suppliers: number
+    active_suppliers: number
+  }
+  top_suppliers: Array<{
+    supplier_id: string | null
+    name: string
+    spend: number
+    invoice_count: number
+    paid_count: number
+  }>
+  ap_aging: Array<{ bucket: string; count: number; amount: number }>
+  monthly_trend: Array<{ month: string; value: number }>
+  recent_pos: unknown[]
+}
+
 // ── Restaurant extra types ────────────────────────────────────────
 export interface ReservationItem {
   id: string
@@ -767,6 +861,67 @@ export const vendorApi = {
 
   updateMyVendor: async (data: Partial<Vendor>): Promise<Vendor> => {
     const response = await apiClient.put('/vendors/me', data)
+    return response.data
+  },
+
+  getFieldConfig: async (): Promise<{ config: Record<string, Record<string, string>> }> => {
+    const response = await apiClient.get('/vendors/me/settings/field-config')
+    return response.data
+  },
+
+  updateFieldConfig: async (config: Record<string, Record<string, string>>): Promise<{ config: Record<string, Record<string, string>> }> => {
+    const response = await apiClient.put('/vendors/me/settings/field-config', { config })
+    return response.data
+  },
+
+  getBudgetRules: async (): Promise<{ rules: BudgetRule[] }> => {
+    const response = await apiClient.get('/vendors/me/settings/budget-rules')
+    return response.data
+  },
+
+  updateBudgetRules: async (rules: BudgetRule[]): Promise<{ rules: BudgetRule[] }> => {
+    const response = await apiClient.put('/vendors/me/settings/budget-rules', { rules })
+    return response.data
+  },
+
+  checkBudget: async (data: { total_amount: number; department?: string; category?: string }): Promise<{
+    required_level: string
+    matched_rule: BudgetRule | null
+    is_within_auto_approve: boolean
+    message: string
+  }> => {
+    const response = await apiClient.post('/vendors/me/procurement/budget-check', data)
+    return response.data
+  },
+
+  getProcurementAnalytics: async (): Promise<ProcurementAnalytics> => {
+    const response = await apiClient.get('/vendors/me/procurement/analytics')
+    return response.data
+  },
+
+  // ── Approver Matrix ──────────────────────────────────────────────
+  listApproverRules: async (docType?: string): Promise<{ rules: ApproverRule[] }> => {
+    const params = docType ? `?doc_type=${docType}` : ''
+    const response = await apiClient.get(`/vendors/me/procurement/approver-rules${params}`)
+    return response.data
+  },
+
+  createApproverRule: async (data: ApproverRuleIn): Promise<ApproverRule> => {
+    const response = await apiClient.post('/vendors/me/procurement/approver-rules', data)
+    return response.data
+  },
+
+  updateApproverRule: async (id: string, data: ApproverRuleIn): Promise<ApproverRule> => {
+    const response = await apiClient.put(`/vendors/me/procurement/approver-rules/${id}`, data)
+    return response.data
+  },
+
+  deleteApproverRule: async (id: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/procurement/approver-rules/${id}`)
+  },
+
+  previewApproverResolution: async (data: ApproverRulePreviewIn): Promise<ApproverResolutionPreview> => {
+    const response = await apiClient.post('/vendors/me/procurement/approver-rules/preview', data)
     return response.data
   },
 
@@ -2550,6 +2705,150 @@ export const vendorApi = {
     await apiClient.delete(`/vendors/me/suppliers/${id}`)
   },
 
+  deactivateSupplier: async (id: string): Promise<Supplier> => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${id}/deactivate`)
+    return response.data
+  },
+
+  reactivateSupplier: async (id: string): Promise<Supplier> => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${id}/reactivate`)
+    return response.data
+  },
+
+  // ── Supplier Categories ───────────────────────────────────────
+  listSupplierCategories: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/supplier-categories', { params })
+    return response.data
+  },
+  createSupplierCategory: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/supplier-categories', data)
+    return response.data
+  },
+  updateSupplierCategory: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/supplier-categories/${id}`, data)
+    return response.data
+  },
+  deleteSupplierCategory: async (id: string) => {
+    await apiClient.delete(`/vendors/me/supplier-categories/${id}`)
+  },
+  assignSupplierCategories: async (supplierId: string, categoryIds: string[]) => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${supplierId}/categories`, { category_ids: categoryIds })
+    return response.data
+  },
+  getSupplierCategories: async (supplierId: string) => {
+    const response = await apiClient.get(`/vendors/me/suppliers/${supplierId}/categories`)
+    return response.data
+  },
+
+  // ── Supplier Contacts ─────────────────────────────────────────
+  listSupplierContacts: async (supplierId: string) => {
+    const response = await apiClient.get(`/vendors/me/suppliers/${supplierId}/contacts`)
+    return response.data
+  },
+  createSupplierContact: async (supplierId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${supplierId}/contacts`, data)
+    return response.data
+  },
+  updateSupplierContact: async (supplierId: string, contactId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/suppliers/${supplierId}/contacts/${contactId}`, data)
+    return response.data
+  },
+  deleteSupplierContact: async (supplierId: string, contactId: string) => {
+    await apiClient.delete(`/vendors/me/suppliers/${supplierId}/contacts/${contactId}`)
+  },
+
+  // ── Supplier Addresses ────────────────────────────────────────
+  listSupplierAddresses: async (supplierId: string) => {
+    const response = await apiClient.get(`/vendors/me/suppliers/${supplierId}/addresses`)
+    return response.data
+  },
+  createSupplierAddress: async (supplierId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${supplierId}/addresses`, data)
+    return response.data
+  },
+  updateSupplierAddress: async (supplierId: string, addrId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/suppliers/${supplierId}/addresses/${addrId}`, data)
+    return response.data
+  },
+  deleteSupplierAddress: async (supplierId: string, addrId: string) => {
+    await apiClient.delete(`/vendors/me/suppliers/${supplierId}/addresses/${addrId}`)
+  },
+
+  // ── Supplier Documents ────────────────────────────────────────
+  listSupplierDocuments: async (supplierId: string, params?: Record<string, unknown>) => {
+    const response = await apiClient.get(`/vendors/me/suppliers/${supplierId}/documents`, { params })
+    return response.data
+  },
+  createSupplierDocument: async (supplierId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${supplierId}/documents`, data)
+    return response.data
+  },
+  updateSupplierDocument: async (supplierId: string, docId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/suppliers/${supplierId}/documents/${docId}`, data)
+    return response.data
+  },
+  verifySupplierDocument: async (supplierId: string, docId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${supplierId}/documents/${docId}/verify`, data)
+    return response.data
+  },
+  deleteSupplierDocument: async (supplierId: string, docId: string) => {
+    await apiClient.delete(`/vendors/me/suppliers/${supplierId}/documents/${docId}`)
+  },
+  uploadSupplierDocumentFile: async (supplierId: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await apiClient.post(`/uploads/suppliers/${supplierId}/documents`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data as {
+      file_url: string
+      original_name: string
+      content_type: string
+      is_image: boolean
+      size: number
+    }
+  },
+
+  // ── Supplier Onboarding ───────────────────────────────────────
+  getSupplierOnboarding: async (supplierId: string) => {
+    const response = await apiClient.get(`/vendors/me/suppliers/${supplierId}/onboarding`)
+    return response.data
+  },
+  createSupplierOnboarding: async (supplierId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${supplierId}/onboarding`, data)
+    return response.data
+  },
+  updateSupplierOnboarding: async (supplierId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.put(`/vendors/me/suppliers/${supplierId}/onboarding`, data)
+    return response.data
+  },
+  submitSupplierOnboarding: async (supplierId: string) => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${supplierId}/onboarding/submit`)
+    return response.data
+  },
+  reviewSupplierOnboarding: async (supplierId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${supplierId}/onboarding/review`, data)
+    return response.data
+  },
+  startReviewSupplierOnboarding: async (supplierId: string) => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${supplierId}/onboarding/start-review`)
+    return response.data
+  },
+
+  // ── Supplier Performance ──────────────────────────────────────
+  listSupplierPerformance: async (supplierId: string, params?: Record<string, unknown>) => {
+    const response = await apiClient.get(`/vendors/me/suppliers/${supplierId}/performance`, { params })
+    return response.data
+  },
+  createSupplierPerformance: async (supplierId: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/suppliers/${supplierId}/performance`, data)
+    return response.data
+  },
+  getSupplierPerformanceSummary: async (supplierId: string) => {
+    const response = await apiClient.get(`/vendors/me/suppliers/${supplierId}/performance/summary`)
+    return response.data
+  },
+
   // ── Purchase Orders ───────────────────────────────────────────
   listPurchaseOrders: async (params?: Record<string, unknown>): Promise<PaginatedResponse<PurchaseOrder>> => {
     const response = await apiClient.get('/vendors/me/purchase-orders', { params })
@@ -2588,6 +2887,16 @@ export const vendorApi = {
 
   cancelPurchaseOrder: async (id: string): Promise<PurchaseOrder> => {
     const response = await apiClient.post(`/vendors/me/purchase-orders/${id}/cancel`)
+    return response.data
+  },
+
+  requestPOApproval: async (id: string, approverIds: string[]): Promise<{ detail: string; approval_status: string }> => {
+    const response = await apiClient.post(`/vendors/me/purchase-orders/${id}/request-approval`, { approver_ids: approverIds })
+    return response.data
+  },
+
+  approvePO: async (id: string, action: 'approve' | 'reject', comments?: string): Promise<PurchaseOrder> => {
+    const response = await apiClient.post(`/vendors/me/purchase-orders/${id}/approve`, { action, comments })
     return response.data
   },
 
@@ -2665,6 +2974,16 @@ export const vendorApi = {
     return response.data
   },
 
+  routePRToRFQ: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/procurement/requisitions/${id}/route-to-rfq`)
+    return response.data
+  },
+
+  convertPRToPO: async (id: string, data: { supplier_id: string; item_ids: string[]; expected_delivery_date?: string; notes?: string }) => {
+    const response = await apiClient.post(`/vendors/me/procurement/requisitions/${id}/convert-to-po`, data)
+    return response.data
+  },
+
   // ── Procurement: Vendor Invoices (AP) ────────────────────────
   listVendorInvoices: async (params?: Record<string, unknown>) => {
     const response = await apiClient.get('/vendors/me/procurement/vendor-invoices', { params })
@@ -2688,6 +3007,26 @@ export const vendorApi = {
   },
   cancelVendorInvoice: async (id: string) => {
     const response = await apiClient.post(`/vendors/me/procurement/vendor-invoices/${id}/cancel`)
+    return response.data
+  },
+
+  recordInvoicePayment: async (id: string, data: {
+    amount: number
+    payment_date: string
+    payment_reference?: string
+    payment_mode?: string
+  }) => {
+    const response = await apiClient.post(`/vendors/me/procurement/vendor-invoices/${id}/record-payment`, data)
+    return response.data
+  },
+
+  requestInvoiceApproval: async (id: string, data: { approver_ids?: string[]; approver_message?: string }) => {
+    const response = await apiClient.post(`/vendors/me/procurement/vendor-invoices/${id}/request-approval`, data)
+    return response.data
+  },
+
+  approveOrRejectInvoice: async (id: string, data: { action: 'approve' | 'reject'; comments?: string }) => {
+    const response = await apiClient.post(`/vendors/me/procurement/vendor-invoices/${id}/approve`, data)
     return response.data
   },
 
@@ -2804,6 +3143,11 @@ export const vendorApi = {
     return response.data
   },
 
+  getInventoryMovementDetail: async (movementId: string) => {
+    const response = await apiClient.get(`/vendors/me/inventory/history/${movementId}`)
+    return response.data
+  },
+
   inventorySummary: async (params?: Record<string, unknown>) => {
     const response = await apiClient.get('/vendors/me/inventory/summary', { params })
     return response.data
@@ -2811,6 +3155,134 @@ export const vendorApi = {
 
   inventoryLowStock: async (params?: Record<string, unknown>) => {
     const response = await apiClient.get('/vendors/me/inventory/low-stock', { params })
+    return response.data
+  },
+
+  inventoryReorderAlerts: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reorder-alerts', { params })
+    return response.data
+  },
+
+  inventoryExpiryAlerts: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/expiry-alerts', { params })
+    return response.data
+  },
+
+  inventoryWriteOff: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/inventory/write-off', data)
+    return response.data
+  },
+
+  // ── Stock Transfer Orders ─────────────────────────────────────────────────
+  listTransferOrders: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/transfer-orders', { params })
+    return response.data
+  },
+
+  createTransferOrder: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/inventory/transfer-orders', data)
+    return response.data
+  },
+
+  getTransferOrder: async (id: string) => {
+    const response = await apiClient.get(`/vendors/me/inventory/transfer-orders/${id}`)
+    return response.data
+  },
+
+  submitTransferOrder: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/inventory/transfer-orders/${id}/submit`)
+    return response.data
+  },
+
+  dispatchTransferOrder: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/inventory/transfer-orders/${id}/dispatch`)
+    return response.data
+  },
+
+  receiveTransferOrder: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.post(`/vendors/me/inventory/transfer-orders/${id}/receive`, data)
+    return response.data
+  },
+
+  cancelTransferOrder: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/inventory/transfer-orders/${id}/cancel`)
+    return response.data
+  },
+
+  // ── Inventory Reports ─────────────────────────────────────────────────────
+  inventoryReportStockValue: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/stock-value', { params })
+    return response.data
+  },
+
+  inventoryReportABC: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/abc-analysis', { params })
+    return response.data
+  },
+
+  inventoryReportStockAging: async () => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/stock-aging')
+    return response.data
+  },
+
+  inventoryReportSlowMovers: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/slow-movers', { params })
+    return response.data
+  },
+
+  inventoryReportFIFO: async () => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/fifo-valuation')
+    return response.data
+  },
+
+  // ── Stock Counts (Inventory Counting & Audit) ──────────────────
+  listStockCounts: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/stock-counts', { params: clampPageSize(params) })
+    return response.data
+  },
+
+  createStockCount: async (data: Record<string, unknown>) => {
+    const response = await apiClient.post('/vendors/me/inventory/stock-counts', data)
+    return response.data
+  },
+
+  getStockCount: async (id: string) => {
+    const response = await apiClient.get(`/vendors/me/inventory/stock-counts/${id}`)
+    return response.data
+  },
+
+  updateStockCount: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.patch(`/vendors/me/inventory/stock-counts/${id}`, data)
+    return response.data
+  },
+
+  startStockCount: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/inventory/stock-counts/${id}/start`)
+    return response.data
+  },
+
+  updateStockCountLine: async (countId: string, lineId: string, data: { counted_qty: number; notes?: string }) => {
+    const response = await apiClient.put(`/vendors/me/inventory/stock-counts/${countId}/lines/${lineId}`, data)
+    return response.data
+  },
+
+  submitStockCountForReview: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/inventory/stock-counts/${id}/review`)
+    return response.data
+  },
+
+  postStockCount: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/inventory/stock-counts/${id}/post`)
+    return response.data
+  },
+
+  cancelStockCount: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/inventory/stock-counts/${id}/cancel`)
+    return response.data
+  },
+
+  getStockCountVarianceReport: async (id: string) => {
+    const response = await apiClient.get(`/vendors/me/inventory/stock-counts/${id}/variance-report`)
     return response.data
   },
 
@@ -3903,6 +4375,90 @@ export const vendorApi = {
       params,
     })
     return r.data as TableDataRows
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // Procurement: RFQ & Supplier Quotations
+  // ════════════════════════════════════════════════════════════════
+  listRFQs: async (params?: Record<string, unknown>) =>
+    (await apiClient.get('/vendors/me/procurement/rfqs', { params })).data,
+  createRFQ: async (data: Record<string, unknown>) =>
+    (await apiClient.post('/vendors/me/procurement/rfqs', data)).data,
+  getRFQ: async (rfqId: string) =>
+    (await apiClient.get(`/vendors/me/procurement/rfqs/${rfqId}`)).data,
+  updateRFQ: async (rfqId: string, data: Record<string, unknown>) =>
+    (await apiClient.put(`/vendors/me/procurement/rfqs/${rfqId}`, data)).data,
+  issueRFQ: async (rfqId: string) =>
+    (await apiClient.post(`/vendors/me/procurement/rfqs/${rfqId}/issue`)).data,
+  closeRFQBids: async (rfqId: string, data?: Record<string, unknown>) =>
+    (await apiClient.post(`/vendors/me/procurement/rfqs/${rfqId}/close-bids`, data ?? {})).data,
+  cancelRFQ: async (rfqId: string) =>
+    (await apiClient.post(`/vendors/me/procurement/rfqs/${rfqId}/cancel`)).data,
+  awardRFQ: async (rfqId: string, data: Record<string, unknown>) =>
+    (await apiClient.post(`/vendors/me/procurement/rfqs/${rfqId}/award`, data)).data,
+  getRFQComparison: async (rfqId: string) =>
+    (await apiClient.get(`/vendors/me/procurement/rfqs/${rfqId}/comparison`)).data,
+  addRFQSuppliers: async (rfqId: string, data: Record<string, unknown>) =>
+    (await apiClient.post(`/vendors/me/procurement/rfqs/${rfqId}/suppliers`, data)).data,
+
+  listQuotations: async (params?: Record<string, unknown>) =>
+    (await apiClient.get('/vendors/me/procurement/quotations', { params })).data,
+  createQuotation: async (data: Record<string, unknown>) =>
+    (await apiClient.post('/vendors/me/procurement/quotations', data)).data,
+  getQuotation: async (sqId: string) =>
+    (await apiClient.get(`/vendors/me/procurement/quotations/${sqId}`)).data,
+  updateQuotation: async (sqId: string, data: Record<string, unknown>) =>
+    (await apiClient.put(`/vendors/me/procurement/quotations/${sqId}`, data)).data,
+  submitQuotation: async (sqId: string) =>
+    (await apiClient.post(`/vendors/me/procurement/quotations/${sqId}/submit`)).data,
+  acceptQuotation: async (sqId: string, data?: Record<string, unknown>) =>
+    (await apiClient.post(`/vendors/me/procurement/quotations/${sqId}/accept`, data ?? {})).data,
+  rejectQuotation: async (sqId: string, data?: Record<string, unknown>) =>
+    (await apiClient.post(`/vendors/me/procurement/quotations/${sqId}/reject`, data ?? {})).data,
+
+  // ════════════════════════════════════════════════════════════════
+  // Procurement: Goods Receipt Note (GRN)
+  // ════════════════════════════════════════════════════════════════
+  listGRNs: async (params?: Record<string, unknown>) =>
+    (await apiClient.get('/vendors/me/procurement/grns', { params })).data,
+  createGRN: async (data: Record<string, unknown>) =>
+    (await apiClient.post('/vendors/me/procurement/grns', data)).data,
+  getGRN: async (grnId: string) =>
+    (await apiClient.get(`/vendors/me/procurement/grns/${grnId}`)).data,
+  postGRN: async (grnId: string) =>
+    (await apiClient.post(`/vendors/me/procurement/grns/${grnId}/post`)).data,
+  closeGRNQC: async (grnId: string) =>
+    (await apiClient.post(`/vendors/me/procurement/grns/${grnId}/close-qc`)).data,
+  closeGRN: async (grnId: string) =>
+    (await apiClient.post(`/vendors/me/procurement/grns/${grnId}/close`)).data,
+  reverseGRN: async (grnId: string, data: Record<string, unknown>) =>
+    (await apiClient.post(`/vendors/me/procurement/grns/${grnId}/reverse`, data)).data,
+  recordGRNQC: async (grnId: string, lineId: string, data: Record<string, unknown>) =>
+    (await apiClient.post(`/vendors/me/procurement/grns/${grnId}/qc/${lineId}`, data)).data,
+
+  // ════════════════════════════════════════════════════════════════
+  // Procurement: Purchase Returns
+  // ════════════════════════════════════════════════════════════════
+  listPurchaseReturns: async (params?: Record<string, unknown>) =>
+    (await apiClient.get('/vendors/me/procurement/purchase-returns', { params })).data,
+  createPurchaseReturn: async (data: Record<string, unknown>) =>
+    (await apiClient.post('/vendors/me/procurement/purchase-returns', data)).data,
+  getPurchaseReturn: async (id: string) =>
+    (await apiClient.get(`/vendors/me/procurement/purchase-returns/${id}`)).data,
+  updatePurchaseReturn: async (id: string, data: Record<string, unknown>) =>
+    (await apiClient.put(`/vendors/me/procurement/purchase-returns/${id}`, data)).data,
+  approvePurchaseReturn: async (id: string, data?: Record<string, unknown>) =>
+    (await apiClient.post(`/vendors/me/procurement/purchase-returns/${id}/approve`, data ?? {})).data,
+  dispatchPurchaseReturn: async (id: string, data?: Record<string, unknown>) =>
+    (await apiClient.post(`/vendors/me/procurement/purchase-returns/${id}/dispatch`, data ?? {})).data,
+  confirmPurchaseReturn: async (id: string) =>
+    (await apiClient.post(`/vendors/me/procurement/purchase-returns/${id}/confirm`)).data,
+  closePurchaseReturn: async (id: string) =>
+    (await apiClient.post(`/vendors/me/procurement/purchase-returns/${id}/close`)).data,
+  cancelPurchaseReturn: async (id: string) =>
+    (await apiClient.post(`/vendors/me/procurement/purchase-returns/${id}/cancel`)).data,
+  deletePurchaseReturn: async (id: string) => {
+    await apiClient.delete(`/vendors/me/procurement/purchase-returns/${id}`)
   },
 }
 

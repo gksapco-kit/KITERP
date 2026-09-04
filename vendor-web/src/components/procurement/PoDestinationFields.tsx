@@ -66,12 +66,18 @@ export function PoDestinationFields({
   onChange,
   className,
   compact = false,
+  showBusinessUnit = true,
+  showBranchPlant = true,
+  showStorageLocation = true,
 }: {
   value: PoDestinationValue
   onChange: (next: PoDestinationValue) => void
   className?: string
   /** Tighter spacing for dense receive rows. */
   compact?: boolean
+  showBusinessUnit?: boolean
+  showBranchPlant?: boolean
+  showStorageLocation?: boolean
 }) {
   const plantId = value.scope.kind === 'plant' ? value.scope.id : ''
   const branchId = value.scope.kind === 'branch' ? value.scope.id : ''
@@ -102,73 +108,83 @@ export function PoDestinationFields({
   const gap = compact ? 'gap-2' : 'gap-3'
   const labelClass = compact ? 'text-xs' : 'text-xs'
 
+  const showTopRow = showBusinessUnit || showStorageLocation
+
   return (
     <div className={cn('space-y-2.5', className)}>
-      <div className={cn('grid grid-cols-1 sm:grid-cols-2 sm:items-start', gap)}>
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex h-5 items-center">
-            <Label className={labelClass}>Business Unit</Label>
-          </div>
-          <BusinessUnitSelect
-            value={value.storeId}
-            onChange={(id) =>
-              onChange({
-                storeId: id,
-                scope: { kind: '' },
-                storageLocationId: '',
-              })
-            }
-            autoSelectDefault={false}
-            className="w-full min-w-0"
-            triggerClassName="h-9"
-          />
-        </div>
+      {showTopRow && (
+        <div className={cn('grid grid-cols-1 sm:grid-cols-2 sm:items-start', gap)}>
+          {showBusinessUnit && (
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex h-5 items-center">
+                <Label className={labelClass}>Business Unit</Label>
+              </div>
+              <BusinessUnitSelect
+                value={value.storeId}
+                onChange={(id) =>
+                  onChange({
+                    storeId: id,
+                    scope: { kind: '' },
+                    storageLocationId: '',
+                  })
+                }
+                autoSelectDefault={false}
+                className="w-full min-w-0"
+                triggerClassName="h-9"
+              />
+            </div>
+          )}
 
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex h-5 items-center">
-            <Label className={labelClass}>Storage Location</Label>
-          </div>
-          <Select
-            value={value.storageLocationId}
-            onChange={(id) => onChange({ ...value, storageLocationId: id })}
-            options={selectOptionsWithBlank(
-              !value.scope.kind
-                ? 'Select Branch or Plant first…'
-                : locationsLoading
-                  ? 'Loading…'
-                  : locationOptions.length
-                    ? 'Select location…'
-                    : 'No locations found',
-              locationOptions,
-            )}
-            placeholder={
-              !value.scope.kind
-                ? 'Select Branch or Plant first…'
-                : locationsLoading
-                  ? 'Loading…'
-                  : 'Select location…'
-            }
-            disabled={!value.scope.kind || locationsLoading}
-            aria-label="Storage location"
-            className="w-full min-w-0"
-            triggerClassName="h-9"
-          />
+          {showStorageLocation && (
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex h-5 items-center">
+                <Label className={labelClass}>Storage Location</Label>
+              </div>
+              <Select
+                value={value.storageLocationId}
+                onChange={(id) => onChange({ ...value, storageLocationId: id })}
+                options={selectOptionsWithBlank(
+                  !value.scope.kind
+                    ? 'Select Branch or Plant first…'
+                    : locationsLoading
+                      ? 'Loading…'
+                      : locationOptions.length
+                        ? 'Select location…'
+                        : 'No locations found',
+                  locationOptions,
+                )}
+                placeholder={
+                  !value.scope.kind
+                    ? 'Select Branch or Plant first…'
+                    : locationsLoading
+                      ? 'Loading…'
+                      : 'Select location…'
+                }
+                disabled={!value.scope.kind || locationsLoading}
+                aria-label="Storage location"
+                className="w-full min-w-0"
+                triggerClassName="h-9"
+              />
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      <BranchPlantSelect
-        businessUnitId={value.storeId || null}
-        value={value.scope}
-        onChange={(next) =>
-          onChange({
-            ...value,
-            scope: next,
-            storageLocationId: '',
-          })
-        }
-        allowAll={false}
-        className="w-full"
-      />
+      {showBranchPlant && (
+        <BranchPlantSelect
+          businessUnitId={value.storeId || null}
+          value={value.scope}
+          onChange={(next) =>
+            onChange({
+              ...value,
+              scope: next,
+              storageLocationId: '',
+            })
+          }
+          allowAll={false}
+          className="w-full"
+        />
+      )}
     </div>
   )
 }

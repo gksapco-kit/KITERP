@@ -64,12 +64,13 @@ function ValuationEditModal({
               onChange={v => setMethod(v as typeof method)}
               options={[
                 { value: 'moving_average', label: 'Moving Average (MAP)' },
-                { value: 'standard_price', label: 'Standard Price' },
+                { value: 'fixed',          label: 'Fixed Price' },
+                { value: 'standard',       label: 'Standard (CO cost estimate)' },
               ]}
               className="mt-1 text-sm"
             />
           </div>
-          {method === 'standard_price' && (
+          {method === 'fixed' && (
             <div>
               <Label className="text-xs">Standard Price</Label>
               <Input
@@ -128,7 +129,8 @@ export default function MaterialValuationPage() {
 
   const totalValue = valuations.reduce((s, v) => s + v.total_value, 0)
   const mapCount = valuations.filter(v => v.valuation_method === 'moving_average').length
-  const stdCount = valuations.filter(v => v.valuation_method === 'standard_price').length
+  const fixedCount = valuations.filter(v => v.valuation_method === 'fixed').length
+  const stdCount = valuations.filter(v => v.valuation_method === 'standard').length
 
   return (
     <div className="space-y-6">
@@ -169,7 +171,13 @@ export default function MaterialValuationPage() {
         </Card>
         <Card className="py-3 px-4">
           <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-            <Scale className="w-3.5 h-3.5" /> Standard Price
+            <DollarSign className="w-3.5 h-3.5" /> Fixed
+          </div>
+          <p className="text-2xl font-bold text-orange-600">{fixedCount}</p>
+        </Card>
+        <Card className="py-3 px-4">
+          <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+            <Scale className="w-3.5 h-3.5" /> Standard
           </div>
           <p className="text-2xl font-bold text-amber-600">{stdCount}</p>
         </Card>
@@ -244,10 +252,12 @@ export default function MaterialValuationPage() {
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         v.valuation_method === 'moving_average'
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                          : v.valuation_method === 'fixed'
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
                           : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                       }`}
                     >
-                      {v.valuation_method === 'moving_average' ? 'MAP' : 'Std'}
+                      {v.valuation_method === 'moving_average' ? 'MAP' : v.valuation_method === 'fixed' ? 'Fixed' : 'Std'}
                     </span>
                   </td>
                   <td className="px-3 py-2 text-sm font-semibold">{v.total_stock}</td>

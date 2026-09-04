@@ -156,6 +156,7 @@ class ServicePlanCreate(BaseModel):
     description: Optional[str] = None
     price: Optional[float] = None
     uom: Optional[str] = "per_session"
+    uom_quantity: Optional[float] = 1
     price_type: Optional[str] = "per_cycle"
     service_frequency: Optional[str] = "once"
     service_mode: Optional[str] = "in_store"
@@ -170,6 +171,8 @@ class ServicePlanCreate(BaseModel):
     max_quantity_per_order: Optional[int] = Field(None, ge=1)
     min_quantity_per_order: Optional[int] = Field(None, ge=1)
     # Pricing overrides
+    compare_at_price: Optional[float] = None
+    cost_price: Optional[float] = None
     plan_price_type: Optional[str] = None
     price_min: Optional[float] = None
     price_max: Optional[float] = None
@@ -208,6 +211,7 @@ class ServicePlanUpdate(BaseModel):
     description: Optional[str] = None
     price: Optional[float] = None
     uom: Optional[str] = None
+    uom_quantity: Optional[float] = None
     price_type: Optional[str] = None
     service_frequency: Optional[str] = None
     service_mode: Optional[str] = None
@@ -221,6 +225,8 @@ class ServicePlanUpdate(BaseModel):
     service_capacity: Optional[int] = None
     max_quantity_per_order: Optional[int] = Field(None, ge=1)
     min_quantity_per_order: Optional[int] = Field(None, ge=1)
+    compare_at_price: Optional[float] = None
+    cost_price: Optional[float] = None
     plan_price_type: Optional[str] = None
     price_min: Optional[float] = None
     price_max: Optional[float] = None
@@ -257,6 +263,7 @@ class ServicePlanResponse(BaseModel):
     description: Optional[str] = None
     price: Optional[float] = None
     uom: str = "per_session"
+    uom_quantity: Optional[float] = 1
     price_type: str = "per_cycle"
     service_frequency: Optional[str] = "once"
     service_mode: Optional[str] = "in_store"
@@ -270,6 +277,8 @@ class ServicePlanResponse(BaseModel):
     service_capacity: int = 1
     max_quantity_per_order: Optional[int] = None
     min_quantity_per_order: Optional[int] = None
+    compare_at_price: Optional[float] = None
+    cost_price: Optional[float] = None
     plan_price_type: Optional[str] = None
     price_min: Optional[float] = None
     price_max: Optional[float] = None
@@ -331,6 +340,15 @@ class ServiceCreate(BaseModel):
     allow_quote_request: bool = False
     quote_request_label: Optional[str] = Field("Quote Requests", max_length=100)
     quote_form_config: Optional[list] = []
+
+    # Purchase / COGM costing
+    purchase_price: Optional[float] = None
+    purchase_price_fixed: Optional[float] = None
+    valuation_method: Optional[str] = Field(
+        "fixed",
+        pattern="^(moving_average|fixed|standard)$",
+    )
+    cost_source: Optional[str] = None
 
     # Tax
     is_taxable: bool = True
@@ -435,6 +453,15 @@ class ServiceUpdate(BaseModel):
     quote_request_label: Optional[str] = Field(None, max_length=100)
     quote_form_config: Optional[list] = None
 
+    # Purchase / COGM costing
+    purchase_price: Optional[float] = None
+    purchase_price_fixed: Optional[float] = None
+    valuation_method: Optional[str] = Field(
+        None,
+        pattern="^(moving_average|fixed|standard)$",
+    )
+    cost_source: Optional[str] = None
+
     # Tax
     is_taxable: Optional[bool] = None
     tax_rate: Optional[float] = Field(None, ge=0, le=100)
@@ -537,6 +564,13 @@ class ServiceResponse(BaseModel):
     discount_start_date: Optional[str] = None
     discount_end_date: Optional[str] = None
     offer_label: Optional[str] = None
+
+    # Purchase / COGM costing
+    purchase_price: Optional[float] = None
+    purchase_price_fixed: Optional[float] = None
+    valuation_method: str = "fixed"
+    cost_source: Optional[str] = None
+    cost_updated_at: Optional[str] = None
 
     # Tax
     is_taxable: bool = True

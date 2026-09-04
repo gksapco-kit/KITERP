@@ -118,6 +118,8 @@ const variantRowSchema = z.object({
   price: z.coerce.number().min(0).default(0),
   compare_at_price: optNum,
   cost_price: optNum,
+  cost_price_fixed: optNum,
+  valuation_method: z.enum(['moving_average', 'fixed', 'standard']).default('moving_average'),
   currency: z.string().default('INR'),
   discount_percentage: z.coerce.number().min(0).max(100).optional().or(z.literal('').transform(() => undefined)),
   discount_amount: optNum,
@@ -195,7 +197,8 @@ const schema = z.object({
   price: z.coerce.number().min(0, 'Price must be 0 or higher').default(0),
   compare_at_price: optNum,
   cost_price: optNum,
-  valuation_method: z.enum(['moving_average', 'standard_price']).default('moving_average'),
+  valuation_method: z.enum(['moving_average', 'fixed', 'standard']).default('moving_average'),
+  cost_price_fixed: optNum,
   currency: z.string().default('INR'),
   discount_percentage: z.coerce.number().min(0).max(100).optional().or(z.literal('').transform(() => undefined)),
   discount_amount: optNum,
@@ -1341,7 +1344,22 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
                       <DisplayField label="Compare at Price" value={product.compare_at_price ? `${symbol}${product.compare_at_price.toLocaleString()}` : null} />
                     </>
                   )}
-                  <DisplayField label="Purchased Price / Cost" value={product.cost_price ? `${symbol}${product.cost_price.toLocaleString()}` : null} />
+                  <DisplayField
+                    label="Purchased Price / Cost"
+                    value={product.cost_price ? `${symbol}${product.cost_price.toLocaleString()}` : null}
+                  />
+                  {(product as any).valuation_method && (
+                    <DisplayField
+                      label="Costing Method"
+                      value={
+                        (product as any).valuation_method === 'fixed'
+                          ? `Fixed${(product as any).cost_price_fixed != null ? ` (${symbol}${Number((product as any).cost_price_fixed).toLocaleString()})` : ''}`
+                          : (product as any).valuation_method === 'standard'
+                          ? 'Standard (CO estimate)'
+                          : 'Moving Average'
+                      }
+                    />
+                  )}
                   <DisplayField label="Currency" value={product.currency} />
                 </div>
                 {(product.is_on_sale || product.discount_percentage || product.discount_amount) && (
@@ -2977,8 +2995,11 @@ export default function ProductForm() {
       uom_quantity: product.uom_quantity ?? undefined,
       price: product.price, compare_at_price: product.compare_at_price ?? undefined,
       cost_price: product.cost_price ?? undefined,
-      valuation_method: (product as { valuation_method?: 'moving_average' | 'standard_price' }).valuation_method === 'standard_price'
-        ? 'standard_price'
+      cost_price_fixed: (product as any).cost_price_fixed ?? undefined,
+      valuation_method: (['moving_average', 'fixed', 'standard'] as const).includes(
+        (product as any).valuation_method
+      )
+        ? (product as any).valuation_method
         : 'moving_average',
       currency: product.currency || 'INR',
       discount_percentage: product.discount_percentage ?? undefined,
@@ -3053,6 +3074,9 @@ export default function ProductForm() {
         price: v.price,
         compare_at_price: v.compare_at_price ?? undefined,
         cost_price: v.cost_price ?? undefined,
+        cost_price_fixed: (v as any).cost_price_fixed ?? undefined,
+        // Resolve inheritance at load time: variant value → parent product → default
+        valuation_method: (v as any).valuation_method ?? (product as any).valuation_method ?? 'moving_average',
         currency: v.currency || 'INR',
         discount_percentage: v.discount_percentage ?? undefined,
         discount_amount: v.discount_amount ?? undefined,
@@ -3685,6 +3709,8 @@ export default function ProductForm() {
     price: Number(getValues('price')) || 0,
     compare_at_price: undefined,
     cost_price: undefined,
+    cost_price_fixed: undefined,
+    valuation_method: 'moving_average' as const,
     currency: getValues('currency') || 'INR',
     discount_percentage: undefined,
     discount_amount: undefined,
@@ -4290,6 +4316,7 @@ export default function ProductForm() {
                 </div>
               </div>
 
+
             <div className="flex flex-col gap-2 sm:gap-2.5">
             {variantFields.length === 0 ? (
               <p className="rounded-lg bg-muted/25 py-4 text-center text-xs text-gray-500 sm:text-sm">
@@ -4698,6 +4725,58 @@ export default function ProductForm() {
                                 />
                               </FormField>
                             </div>
+                            {/* ── Per-variant Purchase / COGM Costing ─────────────────────────── */}
+                            {!isBundleType && !isRawMaterial && !isSemiFinished && (() => {
+                              const vMethod = (watch(`variants.${index}.valuation_method` as any) as string) || 'moving_average'
+                              return (
+                                <div className="mt-2 border border-dashed border-gray-200 rounded-lg p-2.5 space-y-2 bg-gray-50/40">
+                                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Purchase / COGM Costing</p>
+                                  <div className="flex flex-wrap gap-2 items-end">
+                                    <div className="flex-1 min-w-[140px]">
+                                      <p className="text-[10px] text-gray-400 mb-0.5">Costing Method</p>
+                                      <Controller
+                                        name={`variants.${index}.valuation_method` as any}
+                                        control={control}
+                                        render={({ field }) => (
+                                          <Select
+                                            value={String(field.value ?? 'moving_average')}
+                                            onChange={field.onChange}
+                                            options={[
+                                              { value: 'moving_average', label: 'Moving Average (auto from receipts)' },
+                                              { value: 'fixed',          label: 'Fixed (manually maintained)' },
+                                              { value: 'standard',       label: 'Standard (from CO cost estimate)' },
+                                            ]}
+                                            className={cn(selectCls, 'w-full text-xs')}
+                                          />
+                                        )}
+                                      />
+                                    </div>
+                                    {vMethod === 'fixed' ? (
+                                      <div className="flex-1 min-w-[120px]">
+                                        <p className="text-[10px] text-gray-400 mb-0.5">Fixed Purchase Cost</p>
+                                        <Input
+                                          type="number" step="0.01" min="0" className="w-full"
+                                          {...register(`variants.${index}.cost_price_fixed` as any)}
+                                          placeholder="Manually entered"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-col justify-center px-2 py-1.5 bg-white rounded text-xs border border-gray-100 min-w-[110px]">
+                                        <span className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Effective Cost</span>
+                                        <span className="font-semibold text-gray-700">
+                                          {watch(`variants.${index}.cost_price` as any) != null
+                                            ? `${currSym}${Number(watch(`variants.${index}.cost_price` as any)).toLocaleString()}`
+                                            : 'Not yet resolved'}
+                                        </span>
+                                        {watch(`variants.${index}.cost_source` as any) && (
+                                          <span className="text-[10px] text-gray-400 mt-0.5">{watch(`variants.${index}.cost_source` as any)}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })()}
                             {!pricingLocked && (autoDiscPct > 0 || profit != null) && (
                               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                 {autoDiscPct > 0 && (
@@ -5108,7 +5187,49 @@ export default function ProductForm() {
                           }}
                           placeholder="Original / MRP" />
                       </FormField>
-                      <FormField label="Purchased Price / Cost"><Input type="number" step="0.01" min="0" {...register('cost_price')} placeholder="Your cost" /></FormField>
+                      {/* ── Costing block (bundle — no variants, so product-level) ────── */}
+                      <div className="col-span-full border border-dashed border-gray-200 rounded-lg p-2.5 space-y-2 bg-gray-50/40">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Purchase / COGM Costing</p>
+                        <div className="flex flex-wrap gap-2 items-end">
+                          <div className="flex-1 min-w-[140px]">
+                            <p className="text-[10px] text-gray-400 mb-0.5">Costing Method</p>
+                            <Controller
+                              name="valuation_method"
+                              control={control}
+                              render={({ field }) => (
+                                <Select
+                                  value={String(field.value ?? 'moving_average')}
+                                  onChange={field.onChange}
+                                  options={[
+                                    { value: 'moving_average', label: 'Moving Average (auto from receipts)' },
+                                    { value: 'fixed',          label: 'Fixed (manually maintained)' },
+                                    { value: 'standard',       label: 'Standard (from CO cost estimate)' },
+                                  ]}
+                                  className={selectCls}
+                                />
+                              )}
+                            />
+                          </div>
+                          {watch('valuation_method') === 'fixed' ? (
+                            <div className="flex-1 min-w-[120px]">
+                              <p className="text-[10px] text-gray-400 mb-0.5">Fixed Purchase Cost</p>
+                              <Input type="number" step="0.01" min="0" {...register('cost_price_fixed')} placeholder="Manually entered" />
+                            </div>
+                          ) : (
+                            <div className="flex flex-col justify-center px-2 py-1.5 bg-white rounded text-xs border border-gray-100 min-w-[110px]">
+                              <span className="text-[10px] text-gray-400 uppercase font-medium mb-0.5">Effective Cost</span>
+                              <span className="font-semibold text-gray-700">
+                                {watch('cost_price') != null
+                                  ? `₹${Number(watch('cost_price')).toLocaleString()}`
+                                  : 'Not yet resolved'}
+                              </span>
+                              {(watch as any)('cost_source') && (
+                                <span className="text-[10px] text-gray-400 mt-0.5">{(watch as any)('cost_source')}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       <FormField label="Currency">
                         <Controller
                           name="currency"
@@ -5221,109 +5342,110 @@ export default function ProductForm() {
             </div>
             )}
 
-            {/* Inventory — hidden for digital and bundle */}
-            {!isDigitalType && !isBundleType && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <Boxes className="w-4 h-4 text-indigo-500" />
-                  Inventory
-                  <span className="text-xs font-normal text-gray-400">(product-level; set per variant in Variants section)</span>
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex flex-wrap gap-6">
-                    <Controller name="track_inventory" control={control} render={({ field }) => (
-                      <Toggle label="Track Inventory" checked={field.value} onChange={field.onChange} />
-                    )} />
-                    <Controller name="allow_backorders" control={control} render={({ field }) => (
-                      <Toggle label="Allow Backorders" checked={field.value} onChange={field.onChange} />
-                    )} />
-                    <Controller name="batch_managed" control={control} render={({ field }) => (
-                      <Toggle label="Batch managed" checked={!!field.value} onChange={field.onChange} />
-                    )} />
-                    <Controller name="serial_managed" control={control} render={({ field }) => (
-                      <Toggle label="Serial managed" checked={!!field.value} onChange={field.onChange} />
-                    )} />
-                    <Controller name="requires_cold_chain" control={control} render={({ field }) => (
-                      <Toggle label="Cold chain" checked={!!field.value} onChange={field.onChange} />
-                    )} />
-                    <Controller name="qc_required_on_receipt" control={control} render={({ field }) => (
-                      <Toggle label="QC on receipt" checked={!!field.value} onChange={field.onChange} />
-                    )} />
-                    <Controller name="qc_required_on_production" control={control} render={({ field }) => (
-                      <Toggle label="QC on production" checked={!!field.value} onChange={field.onChange} />
-                    )} />
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <FormField label="Quantity">
-                      <Input
-                        type="number"
-                        min="0"
-                        {...register('quantity', {
-                          onChange: (e) => {
-                            register('quantity').onChange(e)
-                            const qty = Number(e.target.value) || 0
-                            const next = deriveStockStatusFromQty({
-                              quantity: qty,
-                              currentStatus: getValues('stock_status'),
-                              trackInventory: getValues('track_inventory'),
-                              allowBackorders: getValues('allow_backorders'),
-                              lowStockThreshold: getValues('low_stock_threshold'),
-                            })
-                            if (next !== getValues('stock_status')) {
-                              setValue('stock_status', next, { shouldDirty: true })
-                            }
-                          },
-                        })}
-                        placeholder="0"
-                      />
-                    </FormField>
-                    <FormField label="Low Stock Alert (qty)"><Input type="number" min="0" {...register('low_stock_threshold')} placeholder="5" /></FormField>
-                    <FormField label="Reorder Point"><Input type="number" min="0" {...register('reorder_point')} placeholder="e.g. 10" /></FormField>
-                    <FormField label="Reorder Qty"><Input type="number" min="0" {...register('reorder_quantity')} placeholder="e.g. 50" /></FormField>
-                    <FormField label="Shelf life (days)"><Input type="number" min="0" {...register('shelf_life_days')} placeholder="e.g. 365" /></FormField>
-                    <FormField label="Retest (days)"><Input type="number" min="0" {...register('retest_days')} placeholder="e.g. 180" /></FormField>
-                    <FormField label="GTIN"><Input {...register('gtin')} placeholder="e.g. 00012345600012" /></FormField>
-                    <FormField label="NDC"><Input {...register('ndc')} placeholder="e.g. 0123-4567-89" /></FormField>
-                  </div>
-                  <FormField label="Storage condition (pharma)">
-                    <Controller
-                      name="storage_condition"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          value={field.value ?? ''}
-                          onChange={field.onChange}
-                          options={[
-                            { value: '', label: '— None —' },
-                            { value: 'ambient', label: 'Ambient' },
-                            { value: 'controlled_room', label: 'CRT (controlled room temp)' },
-                            { value: 'refrigerated', label: 'Refrigerated (2–8 °C)' },
-                            { value: 'frozen', label: 'Frozen' },
-                          ]}
-                          className={selectCls}
-                        />
-                      )}
-                    />
-                  </FormField>
-                  <FormField label="Stock Status">
-                    <Controller
-                      name="stock_status"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          value={String(field.value ?? '')}
-                          onChange={field.onChange}
-                          options={STOCK_STATUS_OPTIONS}
-                          className={selectCls}
-                        />
-                      )}
-                    />
-                  </FormField>
-                </div>
-              </div>
-            )}
           </div>
         </Section>}
+
+        {/* 5c-ii. Inventory — product-level defaults; not applicable to digital or bundle */}
+        {!isDigitalType && !isBundleType && (
+          <Section title="Inventory" icon={Boxes} open={activeTab === 'variants'} onToggle={() => toggle('variants')} sectionId="inventory">
+            <div className={formEditLayout.sectionBody}>
+              <p className="text-xs text-gray-400">
+                Product-level defaults — each variant can override quantity, low stock and reorder settings above.
+              </p>
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-6">
+                  <Controller name="track_inventory" control={control} render={({ field }) => (
+                    <Toggle label="Track Inventory" checked={field.value} onChange={field.onChange} />
+                  )} />
+                  <Controller name="allow_backorders" control={control} render={({ field }) => (
+                    <Toggle label="Allow Backorders" checked={field.value} onChange={field.onChange} />
+                  )} />
+                  <Controller name="batch_managed" control={control} render={({ field }) => (
+                    <Toggle label="Batch managed" checked={!!field.value} onChange={field.onChange} />
+                  )} />
+                  <Controller name="serial_managed" control={control} render={({ field }) => (
+                    <Toggle label="Serial managed" checked={!!field.value} onChange={field.onChange} />
+                  )} />
+                  <Controller name="requires_cold_chain" control={control} render={({ field }) => (
+                    <Toggle label="Cold chain" checked={!!field.value} onChange={field.onChange} />
+                  )} />
+                  <Controller name="qc_required_on_receipt" control={control} render={({ field }) => (
+                    <Toggle label="QC on receipt" checked={!!field.value} onChange={field.onChange} />
+                  )} />
+                  <Controller name="qc_required_on_production" control={control} render={({ field }) => (
+                    <Toggle label="QC on production" checked={!!field.value} onChange={field.onChange} />
+                  )} />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <FormField label="Quantity">
+                    <Input
+                      type="number"
+                      min="0"
+                      {...register('quantity', {
+                        onChange: (e) => {
+                          register('quantity').onChange(e)
+                          const qty = Number(e.target.value) || 0
+                          const next = deriveStockStatusFromQty({
+                            quantity: qty,
+                            currentStatus: getValues('stock_status'),
+                            trackInventory: getValues('track_inventory'),
+                            allowBackorders: getValues('allow_backorders'),
+                            lowStockThreshold: getValues('low_stock_threshold'),
+                          })
+                          if (next !== getValues('stock_status')) {
+                            setValue('stock_status', next, { shouldDirty: true })
+                          }
+                        },
+                      })}
+                      placeholder="0"
+                    />
+                  </FormField>
+                  <FormField label="Low Stock Alert (qty)"><Input type="number" min="0" {...register('low_stock_threshold')} placeholder="5" /></FormField>
+                  <FormField label="Reorder Point"><Input type="number" min="0" {...register('reorder_point')} placeholder="e.g. 10" /></FormField>
+                  <FormField label="Reorder Qty"><Input type="number" min="0" {...register('reorder_quantity')} placeholder="e.g. 50" /></FormField>
+                  <FormField label="Shelf life (days)"><Input type="number" min="0" {...register('shelf_life_days')} placeholder="e.g. 365" /></FormField>
+                  <FormField label="Retest (days)"><Input type="number" min="0" {...register('retest_days')} placeholder="e.g. 180" /></FormField>
+                  <FormField label="GTIN"><Input {...register('gtin')} placeholder="e.g. 00012345600012" /></FormField>
+                  <FormField label="NDC"><Input {...register('ndc')} placeholder="e.g. 0123-4567-89" /></FormField>
+                </div>
+                <FormField label="Storage condition (pharma)">
+                  <Controller
+                    name="storage_condition"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        options={[
+                          { value: '', label: '— None —' },
+                          { value: 'ambient', label: 'Ambient' },
+                          { value: 'controlled_room', label: 'CRT (controlled room temp)' },
+                          { value: 'refrigerated', label: 'Refrigerated (2–8 °C)' },
+                          { value: 'frozen', label: 'Frozen' },
+                        ]}
+                        className={selectCls}
+                      />
+                    )}
+                  />
+                </FormField>
+                <FormField label="Stock Status">
+                  <Controller
+                    name="stock_status"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={String(field.value ?? '')}
+                        onChange={field.onChange}
+                        options={STOCK_STATUS_OPTIONS}
+                        className={selectCls}
+                      />
+                    )}
+                  />
+                </FormField>
+              </div>
+            </div>
+          </Section>
+        )}
 
         {/* 5d. Advanced Pricing Rules — party, location, scheduled, quantity, channel */}
         <Section title="Advanced Pricing" icon={DollarSign} open={activeTab === 'pricing-rules'} onToggle={() => toggle('pricing-rules')} sectionId="pricing-rules">

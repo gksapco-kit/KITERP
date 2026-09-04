@@ -16,7 +16,7 @@ from decimal import Decimal
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_vendor_user, require_permission, get_db
+from app.api.deps import get_current_vendor_user, require_permission, require_any_permission, get_db
 from app.models.vendor_user import VendorUser
 from app.repositories.finance.finance_repo import (
     FinCOARepo, FinJournalRepo, FinARRepo, FinAPRepo, FinBankRepo,
@@ -2258,7 +2258,7 @@ async def dispose_asset(
 
 @router.get("/tax/codes")
 async def list_tax_codes(
-    vu: VendorUser = Depends(require_permission("finance.tax.manage")),
+    vu: VendorUser = Depends(require_any_permission("finance.tax.view", "finance.tax.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     codes = await FinTaxRepo(db).list_tax_codes(vu.vendor_id)

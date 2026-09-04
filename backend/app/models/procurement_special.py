@@ -88,6 +88,7 @@ class SubcontractingOrder(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     supplier = relationship("Supplier", lazy="noload")
+    finished_product = relationship("Product", foreign_keys=[finished_product_id], lazy="noload")
 
     __table_args__ = (
         Index("ix_sc_vendor", "vendor_id"),

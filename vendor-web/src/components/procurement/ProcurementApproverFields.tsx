@@ -2,6 +2,8 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useTeamMembers } from '@/hooks/useVendor'
+import { useProcurementFieldConfig } from '@/hooks/useProcurementFieldConfig'
+import type { DocType } from '@/lib/procurementFieldCatalog'
 
 interface Props {
   primaryApproverId: string
@@ -10,6 +12,8 @@ interface Props {
   onPrimaryChange: (id: string) => void
   onSecondaryChange: (id: string) => void
   onMessageChange: (value: string) => void
+  /** WF_PR | WF_PO | WF_INVOICE — drives field visibility from Approval Workflow config */
+  docType?: DocType
   inline?: boolean
   compact?: boolean
   className?: string
@@ -24,12 +28,28 @@ export function ProcurementApproverFields({
   onPrimaryChange,
   onSecondaryChange,
   onMessageChange,
+  docType,
   inline = false,
   compact = false,
   className,
 }: Props) {
   const { data: teamData, isLoading } = useTeamMembers({ size: 200 })
   const members = (teamData?.items ?? []).filter(m => m.is_active)
+  const { getStatus } = useProcurementFieldConfig()
+
+  // When a docType is provided, honour the Approval Workflow field config.
+  // Undefined docType means the component is used in a context where all fields
+  // should always be shown (e.g. inside a settings page itself).
+  const fieldStatus = (key: string) =>
+    docType ? getStatus(docType, key) : 'optional'
+
+  const showPrimary   = fieldStatus('approver') !== 'suppress'
+  const showSecondary = fieldStatus('secondary_approver') !== 'suppress'
+  const showMessage   = fieldStatus(docType === 'WF_PR' ? 'approval_message' : 'approver_message') !== 'suppress'
+
+  const primaryRequired   = fieldStatus('approver') === 'mandatory'
+  const secondaryRequired = fieldStatus('secondary_approver') === 'mandatory'
+  const messageRequired   = fieldStatus(docType === 'WF_PR' ? 'approval_message' : 'approver_message') === 'mandatory'
 
   const teamOptions = members.map(m => ({
     value: m.id,
@@ -41,9 +61,11 @@ export function ProcurementApproverFields({
   const secondaryOptions = teamOptions.filter(o => o.value !== primaryApproverId)
   const labelClass = inline || compact ? 'text-[11px] leading-tight text-gray-500' : 'text-xs'
 
-  const primaryField = (
+  const primaryField = showPrimary ? (
     <div>
-      <Label className={labelClass}>Primary Approver</Label>
+      <Label className={labelClass}>
+        Primary Approver{primaryRequired && <span className="text-rose-500 ml-0.5">*</span>}
+      </Label>
       <Select
         value={primaryApproverId}
         onChange={onPrimaryChange}
@@ -55,13 +77,16 @@ export function ProcurementApproverFields({
         disabled={isLoading}
         className={inline || compact ? fieldClass : 'mt-1'}
         aria-label="Primary approver"
+        aria-required={primaryRequired}
       />
     </div>
-  )
+  ) : null
 
-  const secondaryField = (
+  const secondaryField = showSecondary ? (
     <div>
-      <Label className={labelClass}>Secondary Approver</Label>
+      <Label className={labelClass}>
+        Secondary Approver{secondaryRequired && <span className="text-rose-500 ml-0.5">*</span>}
+      </Label>
       <Select
         value={secondaryApproverId}
         onChange={onSecondaryChange}
@@ -73,19 +98,23 @@ export function ProcurementApproverFields({
         disabled={isLoading || !primaryApproverId}
         className={inline || compact ? fieldClass : 'mt-1'}
         aria-label="Secondary approver"
+        aria-required={secondaryRequired}
       />
     </div>
-  )
+  ) : null
 
-  const messageField = (
+  const messageField = showMessage ? (
     <div>
-      <Label className={labelClass}>Message for Approver</Label>
+      <Label className={labelClass}>
+        Message for Approver{messageRequired && <span className="text-rose-500 ml-0.5">*</span>}
+      </Label>
       {inline || compact ? (
         <Input
           value={approverMessage}
           onChange={e => onMessageChange(e.target.value)}
           placeholder="Context for approver…"
           className={fieldClass}
+          required={messageRequired}
         />
       ) : (
         <textarea
@@ -93,17 +122,21 @@ export function ProcurementApproverFields({
           value={approverMessage}
           onChange={e => onMessageChange(e.target.value)}
           placeholder="Context, justification, or urgency notes for the approver…"
+          required={messageRequired}
         />
       )}
     </div>
-  )
+  ) : null
+
+  // If all fields are suppressed there's nothing to show
+  if (!showPrimary && !showSecondary && !showMessage) return null
 
   if (inline) {
     return (
       <>
-        <div className="col-span-12 sm:col-span-6 lg:col-span-3">{primaryField}</div>
-        <div className="col-span-12 sm:col-span-6 lg:col-span-3">{secondaryField}</div>
-        <div className="col-span-12 sm:col-span-6 lg:col-span-3">{messageField}</div>
+        {showPrimary   && <div className="col-span-12 sm:col-span-6 lg:col-span-3">{primaryField}</div>}
+        {showSecondary && <div className="col-span-12 sm:col-span-6 lg:col-span-3">{secondaryField}</div>}
+        {showMessage   && <div className="col-span-12 sm:col-span-6 lg:col-span-3">{messageField}</div>}
       </>
     )
   }

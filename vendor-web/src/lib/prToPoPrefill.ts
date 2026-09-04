@@ -1,6 +1,25 @@
 /** Prefill CreatePOModal when converting an approved Purchase Requisition. */
 export const PO_FROM_PR_KEY = 'po_from_pr_prefill'
 
+/**
+ * Prefill key for creating a PR/PO directly from an inventory reorder/low-stock alert.
+ * Stored in sessionStorage; consumed and cleared by the target page on mount.
+ */
+export const PR_FROM_INVENTORY_KEY = 'pr_from_inventory_prefill'
+export const PO_FROM_INVENTORY_KEY = 'po_from_inventory_prefill'
+
+export interface InventoryAlertPrefill {
+  productId: string
+  variantId?: string
+  productName: string
+  sku?: string
+  /** Quantity to request — e.g. reorder_quantity or (threshold - current) */
+  quantity: number
+  storeId?: string
+  /** Source: 'reorder' or 'low_stock' */
+  source: 'reorder' | 'low_stock'
+}
+
 export interface PrToPoPrefill {
   requisitionId: string
   prNumber: string

@@ -64,6 +64,12 @@ class ProductVariantCreate(BaseModel):
     price: float = Field(..., ge=0)
     compare_at_price: Optional[float] = None
     cost_price: Optional[float] = None
+    cost_price_fixed: Optional[float] = None
+    # NULL = inherit parent product's method; set to override for this SKU
+    valuation_method: Optional[str] = Field(
+        None,
+        pattern="^(moving_average|fixed|standard)$",
+    )
     currency: Optional[str] = "INR"
     discount_percentage: Optional[float] = Field(None, ge=0, le=100)
     discount_amount: Optional[float] = None
@@ -119,6 +125,11 @@ class ProductVariantResponse(BaseModel):
     price: float
     compare_at_price: Optional[float] = None
     cost_price: Optional[float] = None
+    cost_price_fixed: Optional[float] = None
+    # NULL = inherits parent product's method
+    valuation_method: Optional[str] = None
+    cost_source: Optional[str] = None
+    cost_updated_at: Optional[str] = None
     currency: str = "INR"
     discount_percentage: Optional[float] = None
     discount_amount: Optional[float] = None
@@ -204,7 +215,12 @@ class ProductCreate(BaseModel):
     price: float = Field(0, ge=0)
     compare_at_price: Optional[float] = None
     cost_price: Optional[float] = None
-    valuation_method: Optional[str] = Field("moving_average", pattern="^(moving_average|standard_price)$")
+    cost_price_fixed: Optional[float] = None
+    valuation_method: Optional[str] = Field(
+        "moving_average",
+        pattern="^(moving_average|fixed|standard)$",
+    )
+    cost_source: Optional[str] = None
     currency: str = "INR"
     discount_percentage: Optional[float] = Field(None, ge=0, le=100)
     discount_amount: Optional[float] = None
@@ -337,7 +353,12 @@ class ProductUpdate(BaseModel):
     price: Optional[float] = None
     compare_at_price: Optional[float] = None
     cost_price: Optional[float] = None
-    valuation_method: Optional[str] = Field(None, pattern="^(moving_average|standard_price)$")
+    cost_price_fixed: Optional[float] = None
+    valuation_method: Optional[str] = Field(
+        None,
+        pattern="^(moving_average|fixed|standard)$",
+    )
+    cost_source: Optional[str] = None
     currency: Optional[str] = None
     discount_percentage: Optional[float] = Field(None, ge=0, le=100)
     discount_amount: Optional[float] = None
@@ -472,7 +493,10 @@ class ProductResponse(BaseModel):
     price: float
     compare_at_price: Optional[float] = None
     cost_price: Optional[float] = None
+    cost_price_fixed: Optional[float] = None
     valuation_method: str = "moving_average"
+    cost_source: Optional[str] = None
+    cost_updated_at: Optional[str] = None
     currency: str = "INR"
     discount_percentage: Optional[float] = None
     discount_amount: Optional[float] = None

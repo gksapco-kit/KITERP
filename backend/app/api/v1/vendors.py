@@ -1126,3 +1126,98 @@ async def verify_domain_deactivation_otp(
     ))
     await db.commit()
     return updated
+
+
+# ══════════════════════════════════════════════════════════════════
+#  VENDOR FIELD CONFIG  (procurement form field settings)
+# ══════════════════════════════════════════════════════════════════
+
+from pydantic import BaseModel as _BM
+
+
+class FieldConfigPayload(_BM):
+    config: dict
+
+
+@router.get("/me/settings/field-config")
+async def get_field_config(
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """Return the saved procurement field configuration for this vendor."""
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    cfg = (vendor.settings or {}).get("procurement_field_config", {"PR": {}, "PO": {}})
+    return {"config": cfg}
+
+
+@router.put("/me/settings/field-config")
+async def update_field_config(
+    data: FieldConfigPayload,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """Persist procurement field configuration for this vendor."""
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    # Merge into existing settings to avoid clobbering unrelated keys
+    existing = dict(vendor.settings or {})
+    existing["procurement_field_config"] = data.config
+    vendor.settings = existing
+    db.add(vendor)
+    await db.commit()
+    return {"config": data.config}
+
+
+# ── Procurement Budget Rules ───────────────────────────────────────
+# Stored in vendor.settings["procurement_budget_rules"]
+# Shape: { rules: [ { max_amount, require_approval_level, department?, category? } ] }
+
+from pydantic import BaseModel as _BM2
+from typing import List as _List, Optional as _Opt2
+
+class BudgetRule(_BM2):
+    max_amount: float                    # auto-approve up to this amount
+    require_approval_level: str          # "none" | "manager" | "cfo" | "board"
+    department: _Opt2[str] = None        # restrict to department (null = all)
+    category: _Opt2[str] = None          # restrict to category (null = all)
+
+class BudgetRulesPayload(_BM2):
+    rules: _List[BudgetRule]
+
+
+@router.get("/me/settings/budget-rules")
+async def get_budget_rules(
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+):
+    """Return the saved procurement budget rules for this vendor."""
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    rules = (vendor.settings or {}).get("procurement_budget_rules", {"rules": []})
+    return rules
+
+
+@router.put("/me/settings/budget-rules")
+async def update_budget_rules(
+    data: BudgetRulesPayload,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """Persist procurement budget rules for this vendor."""
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    existing = dict(vendor.settings or {})
+    existing["procurement_budget_rules"] = {"rules": [r.model_dump() for r in data.rules]}
+    vendor.settings = existing
+    db.add(vendor)
+    await db.commit()
+    return {"rules": [r.model_dump() for r in data.rules]}

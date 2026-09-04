@@ -36,6 +36,7 @@ export const vendorKeys = {
   inventorySummary: (params?: Record<string, unknown>) => [...vendorKeys.all, 'inventory-summary', params] as const,
   inventoryHistory: (params?: Record<string, unknown>) => [...vendorKeys.all, 'inventory-history', params] as const,
   inventoryLowStock: (params?: Record<string, unknown>) => [...vendorKeys.all, 'inventory-low-stock', params] as const,
+  inventoryReorderAlerts: (params?: Record<string, unknown>) => [...vendorKeys.all, 'inventory-reorder-alerts', params] as const,
   suppliers: (params?: Record<string, unknown>) => [...vendorKeys.all, 'suppliers', params] as const,
   supplier: (id: string) => [...vendorKeys.all, 'supplier', id] as const,
   purchaseOrders: (params?: Record<string, unknown>) => [...vendorKeys.all, 'purchase-orders', params] as const,
@@ -101,6 +102,16 @@ export const vendorKeys = {
   serviceEntrySheets: (params?: Record<string, unknown>) => [...vendorKeys.all, 'service-entry-sheets', params] as const,
   subcontractingOrders: (params?: Record<string, unknown>) => [...vendorKeys.all, 'subcontracting-orders', params] as const,
   consignmentStock: (params?: Record<string, unknown>) => [...vendorKeys.all, 'consignment-stock', params] as const,
+  // Phase 1: new procurement domains
+  rfqs: (params?: Record<string, unknown>) => [...vendorKeys.all, 'rfqs', params] as const,
+  rfq: (id: string) => [...vendorKeys.all, 'rfq', id] as const,
+  rfqComparison: (id: string) => [...vendorKeys.all, 'rfq-comparison', id] as const,
+  quotations: (params?: Record<string, unknown>) => [...vendorKeys.all, 'quotations', params] as const,
+  quotation: (id: string) => [...vendorKeys.all, 'quotation', id] as const,
+  grns: (params?: Record<string, unknown>) => [...vendorKeys.all, 'grns', params] as const,
+  grn: (id: string) => [...vendorKeys.all, 'grn', id] as const,
+  purchaseReturns: (params?: Record<string, unknown>) => [...vendorKeys.all, 'purchase-returns', params] as const,
+  purchaseReturn: (id: string) => [...vendorKeys.all, 'purchase-return', id] as const,
 }
 
 export function useMyVendor() {
@@ -1327,11 +1338,45 @@ export function useDeleteSupplier() {
   })
 }
 
+export function useDeactivateSupplier() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deactivateSupplier(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'suppliers'] })
+      qc.invalidateQueries({ queryKey: ['suppliers'] })
+      toast.success('Supplier deactivated')
+    },
+    onError: apiError('Could not deactivate supplier'),
+  })
+}
+
+export function useReactivateSupplier() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.reactivateSupplier(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'suppliers'] })
+      qc.invalidateQueries({ queryKey: ['suppliers'] })
+      toast.success('Supplier reactivated')
+    },
+    onError: apiError('Could not reactivate supplier'),
+  })
+}
+
 // ── Purchase Orders ─────────────────────────────────────────────
 export function usePurchaseOrders(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: vendorKeys.purchaseOrders(params),
     queryFn: () => vendorApi.listPurchaseOrders(params),
+  })
+}
+
+export function usePendingPOApprovalCount() {
+  return useQuery({
+    queryKey: ['vendor', 'purchase-orders', 'pending-my-approval-count'],
+    queryFn: () => vendorApi.listPurchaseOrders({ pending_my_approval: true, size: 1 }),
+    select: (data: any) => (data?.total ?? 0) as number,
   })
 }
 
@@ -1422,6 +1467,35 @@ export function useCancelPO() {
       toast.success('Purchase order cancelled')
     },
     onError: apiError('Could not cancel purchase order — items may have already been received'),
+  })
+}
+
+export function useRequestPOApproval() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, approverIds }: { id: string; approverIds?: string[] }) =>
+      vendorApi.requestPOApproval(id, approverIds ?? []),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'purchase-order'] })
+      toast.success('PO submitted for approval')
+    },
+    onError: apiError('Could not submit PO for approval'),
+  })
+}
+
+export function useApprovePO() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, action, comments }: { id: string; action: 'approve' | 'reject'; comments?: string }) =>
+      vendorApi.approvePO(id, action, comments),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'purchase-order'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders', 'pending-my-approval-count'] })
+      toast.success(vars.action === 'approve' ? 'PO approved' : 'PO rejected')
+    },
+    onError: apiError('Could not process approval action'),
   })
 }
 
@@ -1535,6 +1609,61 @@ export function useCancelRequisition() {
   })
 }
 
+export function useBudgetRules() {
+  return useQuery({
+    queryKey: ['vendor', 'budget-rules'],
+    queryFn: () => vendorApi.getBudgetRules(),
+    staleTime: 60_000,
+  })
+}
+
+export function useCheckBudget() {
+  return useMutation({
+    mutationFn: (data: { total_amount: number; department?: string; category?: string }) =>
+      vendorApi.checkBudget(data),
+  })
+}
+
+export function useProcurementAnalytics() {
+  return useQuery({
+    queryKey: ['vendor', 'procurement-analytics'],
+    queryFn: () => vendorApi.getProcurementAnalytics(),
+    staleTime: 2 * 60_000, // refresh every 2 minutes
+  })
+}
+
+export function useRoutePRToRFQ() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.routePRToRFQ(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'rfqs'] })
+      toast.success('RFQ created from PR')
+    },
+    onError: apiError('Could not route PR to RFQ'),
+  })
+}
+
+export function useConvertPRToPO() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { id: string; supplier_id: string; item_ids: string[]; expected_delivery_date?: string; notes?: string }) =>
+      vendorApi.convertPRToPO(payload.id, {
+        supplier_id: payload.supplier_id,
+        item_ids: payload.item_ids,
+        expected_delivery_date: payload.expected_delivery_date,
+        notes: payload.notes,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
+      toast.success('Purchase Order created from PR')
+    },
+    onError: apiError('Could not convert PR to PO'),
+  })
+}
+
 // ── Procurement: Vendor Invoices (AP) ────────────────────────────
 export function useVendorInvoices(params?: Record<string, unknown>) {
   return useQuery({ queryKey: vendorKeys.vendorInvoices(params), queryFn: () => vendorApi.listVendorInvoices(params) })
@@ -1544,7 +1673,7 @@ export function useCreateVendorInvoice() {
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createVendorInvoice(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Vendor invoice created') },
-    onError: apiError('Could not create vendor invoice — check for duplicate invoice number'),
+    onError: apiError('Could not create vendor invoice'),
   })
 }
 export function useUpdateVendorInvoice() {
@@ -1577,6 +1706,53 @@ export function useCancelVendorInvoice() {
     mutationFn: (id: string) => vendorApi.cancelVendorInvoice(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Invoice cancelled') },
     onError: apiError('Could not cancel invoice — paid invoices cannot be cancelled'),
+  })
+}
+
+export function useRecordInvoicePayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { id: string; amount: number; payment_date: string; payment_reference?: string; payment_mode?: string }) =>
+      vendorApi.recordInvoicePayment(payload.id, {
+        amount: payload.amount,
+        payment_date: payload.payment_date,
+        payment_reference: payload.payment_reference,
+        payment_mode: payload.payment_mode,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] })
+      toast.success('Payment recorded')
+    },
+    onError: apiError('Could not record payment'),
+  })
+}
+
+export function useRequestInvoiceApproval() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { id: string; approver_ids?: string[]; approver_message?: string }) =>
+      vendorApi.requestInvoiceApproval(payload.id, {
+        approver_ids: payload.approver_ids,
+        approver_message: payload.approver_message,
+      }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Invoice submitted for approval') },
+    onError: apiError('Could not submit invoice for approval'),
+  })
+}
+
+export function useApproveOrRejectInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { id: string; action: 'approve' | 'reject'; comments?: string }) =>
+      vendorApi.approveOrRejectInvoice(payload.id, {
+        action: payload.action,
+        comments: payload.comments,
+      }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] })
+      toast.success(vars.action === 'approve' ? 'Invoice approved' : 'Invoice rejected')
+    },
+    onError: apiError('Could not process approval action'),
   })
 }
 
@@ -1719,6 +1895,249 @@ export function useWithdrawConsignmentStock() {
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.withdrawConsignmentStock(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'consignment-stock'] }); toast.success('Withdrawal recorded') },
     onError: apiError('Could not record withdrawal'),
+  })
+}
+
+// ── Procurement: RFQ & Supplier Quotations ────────────────────────
+export function useRFQs(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.rfqs(params), queryFn: () => vendorApi.listRFQs(params) })
+}
+export function useRFQ(rfqId: string) {
+  return useQuery({ queryKey: vendorKeys.rfq(rfqId), queryFn: () => vendorApi.getRFQ(rfqId), enabled: !!rfqId })
+}
+export function useRFQComparison(rfqId: string, enabled: boolean) {
+  return useQuery({ queryKey: vendorKeys.rfqComparison(rfqId), queryFn: () => vendorApi.getRFQComparison(rfqId), enabled })
+}
+export function useCreateRFQ() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createRFQ(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.rfqs() }); toast.success('RFQ created') },
+    onError: apiError('Could not create RFQ'),
+  })
+}
+export function useUpdateRFQ(rfqId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.updateRFQ(rfqId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.rfq(rfqId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.rfqs() })
+    },
+    onError: apiError('Could not update RFQ'),
+  })
+}
+export function useIssueRFQ(rfqId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vendorApi.issueRFQ(rfqId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.rfq(rfqId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.rfqs() })
+      toast.success('RFQ issued to suppliers')
+    },
+    onError: apiError('Could not issue RFQ'),
+  })
+}
+export function useAddRFQSuppliers(rfqId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.addRFQSuppliers(rfqId, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.rfq(rfqId) }); toast.success('Suppliers added') },
+    onError: apiError('Could not add suppliers'),
+  })
+}
+export function useQuotations(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.quotations(params), queryFn: () => vendorApi.listQuotations(params) })
+}
+export function useQuotation(sqId: string) {
+  return useQuery({ queryKey: vendorKeys.quotation(sqId), queryFn: () => vendorApi.getQuotation(sqId), enabled: !!sqId })
+}
+export function useCreateQuotation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createQuotation(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.quotations() }); toast.success('Quotation created') },
+    onError: apiError('Could not create quotation'),
+  })
+}
+export function useUpdateQuotation(sqId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.updateQuotation(sqId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.quotation(sqId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.quotations() })
+      toast.success('Quotation updated')
+    },
+    onError: apiError('Could not update quotation'),
+  })
+}
+export function useSubmitQuotation(sqId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vendorApi.submitQuotation(sqId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.quotation(sqId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.quotations() })
+      toast.success('Quotation submitted')
+    },
+    onError: apiError('Could not submit quotation'),
+  })
+}
+
+// ── Procurement: GRN ──────────────────────────────────────────────
+export function useGRNs(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.grns(params), queryFn: () => vendorApi.listGRNs(params) })
+}
+export function useGRN(grnId: string) {
+  return useQuery({ queryKey: vendorKeys.grn(grnId), queryFn: () => vendorApi.getGRN(grnId), enabled: !!grnId })
+}
+export function useCreateGRN() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createGRN(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.grns() }); toast.success('GRN created') },
+    onError: apiError('Could not create GRN'),
+  })
+}
+export function usePostGRN(grnId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vendorApi.postGRN(grnId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.grn(grnId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.grns() })
+      toast.success('GRN posted — inventory updated')
+    },
+    onError: apiError('Could not post GRN'),
+  })
+}
+export function useCloseGRNQC(grnId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vendorApi.closeGRNQC(grnId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.grn(grnId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.grns() })
+      toast.success('QC closed')
+    },
+    onError: apiError('Could not close QC'),
+  })
+}
+export function useCloseGRN(grnId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vendorApi.closeGRN(grnId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.grn(grnId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.grns() })
+      toast.success('GRN closed')
+    },
+    onError: apiError('Could not close GRN'),
+  })
+}
+export function useReverseGRN(grnId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.reverseGRN(grnId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.grn(grnId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.grns() })
+      toast.success('GRN reversed — inventory adjusted')
+    },
+    onError: apiError('Could not reverse GRN'),
+  })
+}
+export function useRecordGRNQC(grnId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ lineId, data }: { lineId: string; data: Record<string, unknown> }) =>
+      vendorApi.recordGRNQC(grnId, lineId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.grn(grnId) })
+      toast.success('QC result recorded')
+    },
+    onError: apiError('Could not record QC result'),
+  })
+}
+
+// ── Procurement: Purchase Returns ─────────────────────────────────
+export function usePurchaseReturns(params?: Record<string, unknown>) {
+  return useQuery({ queryKey: vendorKeys.purchaseReturns(params), queryFn: () => vendorApi.listPurchaseReturns(params) })
+}
+export function usePurchaseReturn(returnId: string) {
+  return useQuery({
+    queryKey: vendorKeys.purchaseReturn(returnId),
+    queryFn: () => vendorApi.getPurchaseReturn(returnId),
+    enabled: !!returnId,
+  })
+}
+export function useCreatePurchaseReturn() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createPurchaseReturn(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() }); toast.success('Purchase return created') },
+    onError: apiError('Could not create purchase return'),
+  })
+}
+export function useUpdatePurchaseReturn(returnId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.updatePurchaseReturn(returnId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturn(returnId) })
+      toast.success('Return updated')
+    },
+    onError: apiError('Could not update return'),
+  })
+}
+export function useApprovePurchaseReturn(returnId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vendorApi.approvePurchaseReturn(returnId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturn(returnId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() })
+      toast.success('Return approved')
+    },
+    onError: apiError('Could not approve return'),
+  })
+}
+export function useDispatchPurchaseReturn(returnId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data?: Record<string, unknown>) => vendorApi.dispatchPurchaseReturn(returnId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturn(returnId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() })
+      toast.success('Goods dispatched to supplier')
+    },
+    onError: apiError('Could not mark dispatch'),
+  })
+}
+export function useClosePurchaseReturn(returnId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vendorApi.closePurchaseReturn(returnId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturn(returnId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() })
+      toast.success('Return closed')
+    },
+    onError: apiError('Could not close return'),
+  })
+}
+export function useCancelPurchaseReturn(returnId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vendorApi.cancelPurchaseReturn(returnId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturn(returnId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() })
+      toast.success('Return cancelled')
+    },
+    onError: apiError('Could not cancel return'),
   })
 }
 

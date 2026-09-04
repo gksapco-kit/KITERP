@@ -406,7 +406,7 @@ export function ServicePlansEditor({
                       {/* Pricing — price fields on one row; order + tax on the next */}
                       <div className="space-y-1">
                         <div className={cn(
-                          'grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8',
+                          'grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-10',
                           variantFormUi.grid,
                           'items-start [&>*]:min-w-0 [&_label]:min-w-0 [&_label]:max-w-full [&_label]:truncate [&_input[type=number]]:tabular-nums',
                         )}>
@@ -423,6 +423,25 @@ export function ServicePlansEditor({
                                 syncPlanPrices(idx, parseFloat(e.target.value || '0'), pCompare)
                               }}
                               placeholder="499"
+                            />
+                          </FormField>
+                          <FormField label="Qty">
+                            <Input
+                              type="number"
+                              step="any"
+                              min="0"
+                              className="w-full min-w-0"
+                              value={plan.uom_quantity}
+                              onChange={e => updatePlan(idx, { uom_quantity: e.target.value })}
+                              placeholder="1"
+                            />
+                          </FormField>
+                          <FormField label="UOM">
+                            <Select
+                              value={plan.uom}
+                              onChange={(v) => updatePlan(idx, { uom: v })}
+                              className={cn(selectCls, 'h-8 min-h-8 w-full min-w-0 sm:h-9')}
+                              options={UOM_SELECT_OPTIONS}
                             />
                           </FormField>
                           <FormField label="Compare-at (MRP)" className={cn(pricingLocked && 'opacity-50')}>
@@ -538,18 +557,10 @@ export function ServicePlansEditor({
                         </div>
 
                         <div className={cn(
-                          'grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8',
+                          'grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7',
                           variantFormUi.grid,
                           'items-start [&>*]:min-w-0 [&_label]:min-w-0 [&_label]:max-w-full [&_label]:truncate [&_input[type=number]]:tabular-nums',
                         )}>
-                          <FormField label="Billing Unit">
-                            <Select
-                              value={plan.uom}
-                              onChange={(v) => updatePlan(idx, { uom: v })}
-                              className={cn(selectCls, 'h-8 min-h-8 w-full min-w-0 sm:h-9')}
-                              options={UOM_SELECT_OPTIONS}
-                            />
-                          </FormField>
                           <FormField label={`Time / ${uomLbl.replace(/\s*\(.*\)/, '')}`}>
                             <Input
                               type="number"

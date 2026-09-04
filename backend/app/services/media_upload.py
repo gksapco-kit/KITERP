@@ -253,6 +253,30 @@ async def save_hr_document(file: UploadFile, emp_id: str) -> dict:
     }
 
 
+ALLOWED_DOC_TYPES_SUPPLIER = ALLOWED_DOC_TYPES_HR
+MAX_DOC_SIZE_SUPPLIER = MAX_DOC_SIZE_HR
+
+
+async def save_supplier_document(file: UploadFile, vendor_id: UUID, supplier_id: UUID) -> dict:
+    """Persist a supplier compliance document (image / PDF / Word)."""
+    ct = file.content_type or ""
+    if ct not in ALLOWED_DOC_TYPES_SUPPLIER:
+        raise HTTPException(status_code=400, detail="Only images, PDFs and Word documents are allowed.")
+    contents = await file.read()
+    if len(contents) > MAX_DOC_SIZE_SUPPLIER:
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB).")
+    url = await get_file_service().upload_file(
+        file, f"suppliers/{vendor_id}/{supplier_id}", content=contents
+    )
+    return {
+        "file_url": url,
+        "original_name": file.filename or "document",
+        "content_type": ct,
+        "is_image": ct in ALLOWED_IMAGE_TYPES,
+        "size": len(contents),
+    }
+
+
 ALLOWED_DOC_TYPES_CRM = ALLOWED_IMAGE_TYPES | {
     "application/pdf",
     "application/msword",

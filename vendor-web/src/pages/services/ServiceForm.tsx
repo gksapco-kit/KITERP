@@ -127,6 +127,10 @@ const schema = z.object({
   discount_end_date: optStr,
   offer_label: optStr,
   is_on_sale: z.boolean().default(false),
+  // Purchase / COGM costing
+  purchase_price: optNum,
+  purchase_price_fixed: optNum,
+  valuation_method: z.enum(['moving_average', 'fixed', 'standard']).default('fixed'),
   // Tax
   is_taxable: z.boolean().default(true),
   tax_rate: z.coerce.number().min(0).max(100).optional().or(z.literal('').transform(() => undefined)),
@@ -904,6 +908,12 @@ export default function ServiceForm() {
       price_type: service.price_type || 'fixed',
       price: service.price ?? undefined, price_min: service.price_min ?? undefined, price_max: service.price_max ?? undefined,
       currency: service.currency || 'INR',
+      // Costing
+      purchase_price: (service as any).purchase_price ?? undefined,
+      purchase_price_fixed: (service as any).purchase_price_fixed ?? undefined,
+      valuation_method: (['moving_average', 'fixed', 'standard'] as const).includes(
+        (service as any).valuation_method
+      ) ? (service as any).valuation_method : 'fixed',
       discount_percentage: service.discount_percentage ?? undefined,
       discount_amount: service.discount_amount ?? undefined,
       discount_start_date: service.discount_start_date?.split('T')[0] || '',
@@ -985,6 +995,7 @@ export default function ServiceForm() {
         service_capacity: p.service_capacity != null ? String(p.service_capacity) : '1',
         max_quantity_per_order: p.max_quantity_per_order != null ? String(p.max_quantity_per_order) : '',
         min_quantity_per_order: p.min_quantity_per_order != null ? String(p.min_quantity_per_order) : '',
+        uom_quantity: p.uom_quantity != null ? String(p.uom_quantity) : '1',
         plan_price_type: p.plan_price_type || 'fixed',
         price_min: p.price_min != null ? String(p.price_min) : '',
         price_max: p.price_max != null ? String(p.price_max) : '',
@@ -1102,6 +1113,7 @@ export default function ServiceForm() {
           description: p.description || undefined,
           price: p.price ? parseFloat(p.price) : undefined,
           uom: p.uom,
+          uom_quantity: p.uom_quantity ? parseFloat(p.uom_quantity) : 1,
           price_type: isRecurring ? p.price_type : 'per_unit',
           service_frequency: p.service_frequency,
           service_mode: p.service_mode,
@@ -1330,6 +1342,7 @@ export default function ServiceForm() {
     { key: 'subscription',      label: 'Plans',             icon: Repeat, hint: 'Plan tiers, billing cycle, and trial setup.' },
     { key: 'serviceBom',        label: 'Service BOM',       icon: Factory, visible: isEdit, hint: 'Materials and products consumed per service delivery.' },
     { key: 'resources',         label: 'Resources',         icon: Users, visible: isEdit, hint: 'Staff, equipment, and facilities required to perform the service.' },
+    { key: 'costing',           label: 'Costing',           icon: Receipt, hint: 'Purchase / COGM cost method and price.' },
     { key: 'visibility',        label: 'Visibility',        icon: Eye, hint: 'Status, visibility, and featured flags.' },
     { key: 'storefrontOptions', label: 'Business Front',    icon: Globe, hint: 'Booking rules, quotes, and customer options.' },
     { key: 'seo',               label: 'SEO',               icon: Search, hint: 'Search and social preview metadata.' },
@@ -1522,6 +1535,18 @@ export default function ServiceForm() {
                 <DisplayField label="Discount Amt" value={service.discount_amount ? `${sym}${service.discount_amount}` : undefined} />
                 <DisplayField label="Offer Label" value={service.offer_label} />
                 <DisplayField label="Tax" value={service.is_taxable ? `${service.tax_rate ?? 0}% GST${service.sac_code ? ` (SAC: ${service.sac_code})` : ''}` : 'Not taxable'} />
+                {service.valuation_method && (
+                  <>
+                    <DisplayField label="Costing Method" value={
+                      service.valuation_method === 'moving_average' ? 'Moving Average' :
+                      service.valuation_method === 'fixed' ? 'Fixed' : 'Standard (BOM)'
+                    } />
+                    {service.valuation_method === 'fixed'
+                      ? <DisplayField label="Fixed Purchase Price" value={service.purchase_price_fixed != null ? `${sym}${service.purchase_price_fixed.toLocaleString()}` : undefined} />
+                      : <DisplayField label="Effective Purchase Price" value={service.purchase_price != null ? `${sym}${service.purchase_price.toLocaleString()}` : 'Not resolved'} />
+                    }
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -2400,6 +2425,67 @@ export default function ServiceForm() {
           />
         )}
         {/* Pricing, Tax, Booking, Availability, and Lifecycle are now inside each plan card */}
+
+        {/* Purchase / COGM Costing */}
+        <Section title="Purchase / COGM Costing" icon={Receipt} open={activeTab === 'costing'} onToggle={() => toggle('costing')} sectionId="costing">
+          <div className={formEditLayout.sectionBody}>
+            <p className="text-xs text-gray-500 mb-3">
+              Set how the purchase cost of this service is determined. This feeds into COGM, profitability reports, and service BOM costing.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField label="Costing Method">
+                <Controller
+                  name="valuation_method"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={String(field.value ?? 'fixed')}
+                      onChange={field.onChange}
+                      options={[
+                        { value: 'moving_average', label: 'Moving Average (avg of service PO receipts)' },
+                        { value: 'fixed',          label: 'Fixed (manually maintained)' },
+                        { value: 'standard',       label: 'Standard (from BOM + resource cost)' },
+                      ]}
+                      className={formSelectClass}
+                    />
+                  )}
+                />
+              </FormField>
+              {watch('valuation_method') === 'fixed' ? (
+                <FormField label="Fixed Purchase Price">
+                  <Controller
+                    name="purchase_price_fixed"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={field.value ?? ''}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                        placeholder="Manually maintained cost"
+                      />
+                    )}
+                  />
+                </FormField>
+              ) : (
+                <div className="flex flex-col justify-center px-3 py-2 bg-gray-50 rounded text-sm text-gray-600 border border-gray-200">
+                  <span className="text-xs font-medium text-gray-400 uppercase mb-0.5">Effective Purchase Price</span>
+                  <span className="font-semibold text-gray-800">
+                    {watch('purchase_price') != null
+                      ? `₹${Number(watch('purchase_price')).toLocaleString()}`
+                      : 'Not yet resolved'}
+                  </span>
+                  <span className="text-xs text-gray-400 mt-0.5">
+                    {watch('valuation_method') === 'moving_average'
+                      ? 'Computed from service PO receipts'
+                      : 'Computed from BOM materials + resources'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </Section>
 
         {/* 8. Business unit availability */}
         <Section title="Business Unit Availability" icon={Store} open={activeTab === 'visibility'} onToggle={() => toggle('visibility')} sectionId="visibility-bu">

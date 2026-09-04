@@ -29,8 +29,11 @@ class MatchStatus(str, Enum):
 
 class VendorInvoiceItemCreate(BaseModel):
     po_item_id: Optional[str] = None
-    product_id: str
+    product_id: Optional[str] = None
     variant_id: Optional[str] = None
+    line_number: Optional[int] = None
+    description: Optional[str] = Field(None, max_length=500)
+    uom: Optional[str] = Field(None, max_length=20)
     invoiced_qty: float = Field(..., gt=0)
     unit_price: float = Field(..., ge=0)
     hsn_code: Optional[str] = Field(None, max_length=10)
@@ -40,15 +43,26 @@ class VendorInvoiceItemCreate(BaseModel):
     igst_rate: Optional[float] = Field(0, ge=0)
     notes: Optional[str] = None
 
+    @field_validator("product_id", "variant_id", "po_item_id", mode="before")
+    @classmethod
+    def blank_to_none(cls, v):
+        if v is None:
+            return None
+        s = str(v).strip()
+        return s or None
+
 
 class VendorInvoiceItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
     invoice_id: str
+    line_number: int = 1
     po_item_id: Optional[str] = None
-    product_id: str
+    product_id: Optional[str] = None
     variant_id: Optional[str] = None
+    description: Optional[str] = None
+    uom: Optional[str] = None
     ordered_qty: float = 0
     received_qty: float = 0
     invoiced_qty: float
@@ -70,12 +84,12 @@ class VendorInvoiceItemResponse(BaseModel):
     match_status: str = "unmatched"
     notes: Optional[str] = None
 
-    @field_validator("id", "invoice_id", "product_id", mode="before")
+    @field_validator("id", "invoice_id", mode="before")
     @classmethod
     def coerce_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v
 
-    @field_validator("po_item_id", "variant_id", mode="before")
+    @field_validator("po_item_id", "product_id", "variant_id", mode="before")
     @classmethod
     def coerce_optional_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v

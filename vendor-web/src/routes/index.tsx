@@ -33,6 +33,11 @@ import CategoriesPage from '@/pages/categories/index'
 import ProductGroupsPage from '@/pages/productGroups/index'
 import ProductGroupDetailPage from '@/pages/productGroups/ProductGroupDetail'
 import Inventory from '@/pages/inventory/index'
+import StockCountPage from '@/pages/inventory/StockCount'
+import ExpiryDashboardPage from '@/pages/inventory/ExpiryDashboard'
+import ReservationsPage from '@/pages/inventory/Reservations'
+import TransferOrdersPage from '@/pages/inventory/TransferOrders'
+import InventoryReportsPage from '@/pages/inventory/InventoryReports'
 import StorageLocationsPage from '@/pages/inventory/StorageLocations'
 import PlantsPage from '@/pages/inventory/Plants'
 import InventorySettingsPage from '@/pages/inventory/InventorySettings'
@@ -77,13 +82,22 @@ import MasterDataNew    from '@/pages/master-data/MasterDataNew'
 import PurchaseOrdersPage from '@/pages/purchase-orders/index'
 import PurchaseOrderDetail from '@/pages/purchase-orders/PurchaseOrderDetail'
 import POTemplatesPage from '@/pages/purchase-orders/POTemplates'
+import CreatePurchaseOrderPage from '@/pages/purchase-orders/CreatePurchaseOrderPage'
 import PurchaseRequisitionsPage from '@/pages/procurement/PurchaseRequisitions'
+import CreatePurchaseRequisitionPage from '@/pages/procurement/CreatePurchaseRequisitionPage'
+import SupplierManagementPage from '@/pages/procurement/SupplierManagement'
 import SourcingSetupPage from '@/pages/procurement/SourcingSetup'
 import VendorInvoicesAPPage from '@/pages/procurement/VendorInvoicesAP'
 import GoodsManagementPage from '@/pages/procurement/GoodsManagement'
 import MaterialValuationPage from '@/pages/inventory/MaterialValuation'
 import SpecialProcurementPage from '@/pages/procurement/SpecialProcurement'
 import ProcurementFieldConfigPage from '@/pages/procurement/FieldConfig'
+import ApprovalWorkflowPage from '@/pages/procurement/ApprovalWorkflow'
+import RFQQuotationsPage from '@/pages/procurement/RFQQuotations'
+import GoodsReceiptNotePage from '@/pages/procurement/GoodsReceiptNote'
+import PurchaseReturnsPage from '@/pages/procurement/PurchaseReturns'
+import SpendAnalyticsPage from '@/pages/procurement/SpendAnalytics'
+import BudgetControlsPage from '@/pages/procurement/BudgetControls'
 import CreditDebitMemos from '@/pages/finance/CreditDebitMemos'
 import ProductionOrdersPage from '@/pages/production/index'
 import ProductionOrderDetailPage from '@/pages/production/OrderDetail'
@@ -380,16 +394,25 @@ export const router = createBrowserRouter([
       { path: 'master-data', element: <MasterDataReport /> },
       { path: 'master-data/new', element: <MasterDataNew /> },
       { path: 'suppliers', element: <Navigate to="/master-data" replace /> },
+      { path: 'procurement/suppliers', element: <SupplierManagementPage /> },
       { path: 'purchase-orders', element: <PurchaseOrdersPage /> },
+      { path: 'purchase-orders/new', element: <CreatePurchaseOrderPage /> },
       { path: 'purchase-orders/templates', element: <POTemplatesPage /> },
       { path: 'purchase-orders/:id', element: <PurchaseOrderDetail /> },
       { path: 'procurement/requisitions', element: <PurchaseRequisitionsPage /> },
+      { path: 'procurement/requisitions/new', element: <CreatePurchaseRequisitionPage /> },
       { path: 'procurement/sourcing', element: <SourcingSetupPage /> },
       { path: 'procurement/vendor-invoices', element: <VendorInvoicesAPPage /> },
       { path: 'procurement/goods', element: <GoodsManagementPage /> },
       { path: 'inventory/material-valuation', element: <MaterialValuationPage /> },
       { path: 'procurement/special', element: <SpecialProcurementPage /> },
       { path: 'procurement/configure', element: <ProcurementFieldConfigPage /> },
+      { path: 'procurement/workflow', element: <ApprovalWorkflowPage /> },
+      { path: 'procurement/rfq-quotations', element: <RFQQuotationsPage /> },
+      { path: 'procurement/grn', element: <GoodsReceiptNotePage /> },
+      { path: 'procurement/purchase-returns', element: <PurchaseReturnsPage /> },
+      { path: 'procurement/analytics', element: <SpendAnalyticsPage /> },
+      { path: 'procurement/budget-controls', element: <BudgetControlsPage /> },
       { path: 'production', element: <ProductionOrdersPage /> },
       { path: 'production/orders/:orderId', element: <ProductionOrderDetailPage /> },
       { path: 'production/schedule', element: <ProductionSchedulePage /> },
@@ -427,6 +450,11 @@ export const router = createBrowserRouter([
       { path: 'pharma/track-trace', element: <PharmaTrackTracePage /> },
       { path: 'pharma/reports', element: <PharmaReportingManagerPage /> },
       { path: 'inventory', element: <Inventory /> },
+      { path: 'inventory/stock-counts', element: <StockCountPage /> },
+      { path: 'inventory/expiry', element: <ExpiryDashboardPage /> },
+      { path: 'inventory/reservations', element: <ReservationsPage /> },
+      { path: 'inventory/transfer-orders', element: <TransferOrdersPage /> },
+      { path: 'inventory/reports', element: <InventoryReportsPage /> },
       { path: 'inventory/settings', element: <InventorySettingsPage /> },
       { path: 'storage-locations', element: <StorageLocationsPage /> },
       { path: 'plants', element: <PlantsPage /> },

@@ -26,8 +26,20 @@ from app.schemas.procurement_requisition import (
     ApproveRejectRequest, ConvertPRToPORequest,
 )
 from app.repositories.procurement_requisition_repo import PurchaseRequisitionRepository
+from app.models.procurement_rfq import RequestForQuotation, RequestForQuotationItem
+from app.utils.procurement_utils import next_doc_number, append_audit_log
+from app.models.vendor import Vendor
 
 router = APIRouter(dependencies=[Depends(require_permission("procurement.view"))])
+
+
+def _check_pr_requester(pr, vendor_user: VendorUser) -> None:
+    """Raise 403 if the user is not the PR requester (submit is self-service)."""
+    if pr.requested_by and str(pr.requested_by) != str(vendor_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the requester may submit this purchase requisition",
+        )
 
 
 def _normalize_uom(uom: str | None) -> str:
@@ -435,6 +447,7 @@ async def create_requisition(
     vendor_id: UUID = Depends(get_current_vendor_id),
     vendor_user: VendorUser = Depends(get_current_vendor_user),
     db: AsyncSession = Depends(get_db),
+    _: VendorUser = Depends(require_permission("procurement.manage")),
 ):
     repo = PurchaseRequisitionRepository(db)
     pr_number = await repo.get_next_pr_number(vendor_id)
@@ -481,6 +494,7 @@ async def update_requisition(
     data: PurchaseRequisitionUpdate,
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
+    _: VendorUser = Depends(require_permission("procurement.manage")),
 ):
     repo = PurchaseRequisitionRepository(db)
     pr = await repo.get_by_vendor_and_id(vendor_id, pr_id)
@@ -525,8 +539,16 @@ async def update_requisition(
 async def submit_requisition(
     pr_id: UUID,
     vendor_id: UUID = Depends(get_current_vendor_id),
+    vendor_user: VendorUser = Depends(get_current_vendor_user),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.services.procurement_approver_matrix import (
+        resolve_approvers as _resolve,
+        get_material_types_for_pr as _mt_pr,
+    )
+    from app.models.procurement_requisition import PurchaseRequisitionApproval as _PRA
+    from decimal import Decimal as _D
+
     repo = PurchaseRequisitionRepository(db)
     pr = await repo.get_by_vendor_and_id(vendor_id, pr_id)
     if not pr:
@@ -534,17 +556,62 @@ async def submit_requisition(
     if pr.status != "draft":
         raise HTTPException(status_code=400, detail="Only draft requisitions can be submitted")
 
+    _check_pr_requester(pr, vendor_user)
     now = datetime.now(timezone.utc)
+
+    pr_total = _D(str(sum(
+        float(item.quantity or 0) * float(item.estimated_price or 0)
+        for item in (pr.items or [])
+    )))
+    material_types = await _mt_pr(db, pr_id)
+
+    # ── Wipe existing pending approvals before re-resolving ──────────
+    existing_result = await db.execute(
+        select(_PRA).where(_PRA.requisition_id == pr_id)
+    )
+    for apv in existing_result.scalars().all():
+        await db.delete(apv)
+    await db.flush()
+
+    # ── Try approver matrix ──────────────────────────────────────────
+    chain = await _resolve(
+        db,
+        vendor_id       = vendor_id,
+        doc_type        = "PR",
+        company_id      = pr.company_id,
+        branch_id       = pr.store_id,   # store_id acts as branch
+        plant_id        = pr.plant_id,
+        material_types  = material_types,
+        amount          = pr_total,
+        creator_vendor_user_id = vendor_user.id,
+    )
+
+    if chain.matched:
+        for step in chain.steps:
+            db.add(_PRA(
+                requisition_id = pr_id,
+                level          = step.level,
+                approver_id    = step.approver_id,
+                source_rule_id = step.source_rule_id,
+                status         = "pending",
+            ))
+        await db.flush()
+
+    # Reload approvals to check whether we have pending steps
+    await db.refresh(pr)
     has_pending_approval = any(a.status == "pending" for a in (pr.approvals or []))
+
     if has_pending_approval:
         pr.status = "submitted"
         pr.submitted_at = now
         pr.audit_log = (pr.audit_log or []) + [{
             "action": "submitted",
+            "matrix_matched": chain.matched,
+            "lock_chain": chain.lock_chain,
             "at": now.isoformat(),
         }]
     else:
-        # No approvers — do not enter the approval queue
+        # No approvers resolved — open directly
         pr.status = "open"
         pr.submitted_at = now
         pr.approved_at = None
@@ -568,6 +635,7 @@ async def approve_or_reject_requisition(
     vendor_id: UUID = Depends(get_current_vendor_id),
     vendor_user: VendorUser = Depends(get_current_vendor_user),
     db: AsyncSession = Depends(get_db),
+    _: VendorUser = Depends(require_permission("procurement.requisition.approve")),
 ):
     repo = PurchaseRequisitionRepository(db)
     pr = await repo.get_by_vendor_and_id(vendor_id, pr_id)
@@ -620,6 +688,7 @@ async def approve_or_reject_requisition(
 async def cancel_requisition(
     pr_id: UUID,
     vendor_id: UUID = Depends(get_current_vendor_id),
+    vendor_user: VendorUser = Depends(get_current_vendor_user),
     db: AsyncSession = Depends(get_db),
 ):
     repo = PurchaseRequisitionRepository(db)
@@ -630,7 +699,255 @@ async def cancel_requisition(
         raise HTTPException(status_code=400, detail=f"Cannot cancel a {pr.status} requisition")
 
     pr.status = "cancelled"
-    pr.audit_log = (pr.audit_log or []) + [{"action": "cancelled", "at": datetime.now(timezone.utc).isoformat()}]
+    pr.audit_log = (pr.audit_log or []) + [{
+        "action": "cancelled",
+        "by": str(vendor_user.id),
+        "at": datetime.now(timezone.utc).isoformat(),
+    }]
     await db.commit()
     pr = await repo.get_by_vendor_and_id(vendor_id, pr.id)
     return JSONResponse(content=_pr_to_dict(pr))
+
+
+# ─────────────────────────────────────────────────────────────────
+# Route PR to RFQ (Phase 2 hardening)
+# ─────────────────────────────────────────────────────────────────
+
+@router.post("/requisitions/{pr_id}/route-to-rfq", status_code=201)
+async def route_pr_to_rfq(
+    pr_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    vendor_user: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+    _: VendorUser = Depends(require_permission("procurement.manage")),
+):
+    """
+    Convert an approved PR into a draft RFQ.
+
+    Creates an RFQ header + one line per PR item that has not already been
+    ordered.  PR status transitions to "rfq_created" (does NOT yet become
+    "converted" — that happens when the resulting PO is raised from the RFQ).
+    """
+    repo = PurchaseRequisitionRepository(db)
+    pr = await repo.get_by_vendor_and_id(vendor_id, pr_id)
+    if not pr:
+        raise HTTPException(status_code=404, detail="Purchase requisition not found")
+    if pr.status not in ("approved", "open"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only 'approved' or 'open' PRs can be routed to RFQ (current: {pr.status})",
+        )
+
+    rfq_number = await next_doc_number(db, vendor_id, "RFQ", width=6)
+    rfq = RequestForQuotation(
+        vendor_id=vendor_id,
+        rfq_number=rfq_number,
+        title=f"RFQ from {pr.pr_number}",
+        requisition_id=pr.id,
+        department=pr.department,
+        currency="INR",
+        created_by=vendor_user.id,
+    )
+    for i, item in enumerate(pr.items or [], start=1):
+        unordered = float(item.quantity) - float(item.quantity_ordered or 0)
+        if unordered <= 0:
+            continue
+        rfq.items.append(RequestForQuotationItem(
+            line_number=i,
+            item_type=item.item_type or "product",
+            product_id=item.product_id,
+            variant_id=item.variant_id,
+            pr_item_id=item.id,
+            description=item.description,
+            quantity=unordered,
+            unit_of_measure=item.unit_of_measure or "piece",
+            needed_by_date=item.needed_by_date,
+        ))
+
+    if not rfq.items:
+        raise HTTPException(status_code=400, detail="All PR items are already fully ordered")
+
+    append_audit_log(rfq, "created_from_pr", vendor_user.id, pr_id=str(pr.id))
+    db.add(rfq)
+
+    # Mark the PR as having an RFQ in flight
+    pr.audit_log = (pr.audit_log or []) + [{
+        "action": "routed_to_rfq",
+        "rfq_number": rfq_number,
+        "by": str(vendor_user.id),
+        "at": datetime.now(timezone.utc).isoformat(),
+    }]
+
+    await db.commit()
+    await db.refresh(rfq)
+    return JSONResponse(content={
+        "rfq_id": str(rfq.id),
+        "rfq_number": rfq.rfq_number,
+        "pr_id": str(pr_id),
+        "pr_number": pr.pr_number,
+        "item_count": len(rfq.items),
+    }, status_code=201)
+
+
+@router.post("/requisitions/{pr_id}/convert-to-po", status_code=201)
+async def convert_pr_to_po(
+    pr_id: UUID,
+    data: ConvertPRToPORequest,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    vendor_user: VendorUser = Depends(get_current_vendor_user),
+    db: AsyncSession = Depends(get_db),
+    _: VendorUser = Depends(require_permission("procurement.manage")),
+):
+    """
+    Convert an approved PR directly into a draft Purchase Order.
+
+    Only the requested PR item IDs (data.item_ids) are included.
+    Each converted item updates quantity_ordered on the PR item.
+    PR status transitions to 'converted' when all items are fully ordered.
+    """
+    repo = PurchaseRequisitionRepository(db)
+    pr = await repo.get_by_vendor_and_id(vendor_id, pr_id)
+    if not pr:
+        raise HTTPException(status_code=404, detail="Purchase requisition not found")
+    # The service accepts these statuses for conversion; rfq_created is not one of them
+    if pr.status not in ("approved", "open", "partially_converted"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only approved or open PRs can be converted to a PO (current: {pr.status})",
+        )
+
+    # Build a lookup of the requested PR items and validate them
+    requested_item_ids = {UUID(i) for i in data.item_ids}
+    selected_items = [item for item in (pr.items or []) if item.id in requested_item_ids]
+    if not selected_items:
+        raise HTTPException(status_code=400, detail="None of the supplied item_ids match this PR")
+
+    from app.services.procurement_service import PurchaseOrderService
+    svc = PurchaseOrderService(db)
+
+    po_items = []
+    for item in selected_items:
+        remaining = float(item.quantity) - float(item.quantity_ordered or 0)
+        if remaining <= 0:
+            continue
+        # PurchaseOrderService.create requires product_id — skip items without one
+        if not item.product_id:
+            continue
+        po_items.append({
+            "product_id": str(item.product_id),
+            "variant_id": str(item.variant_id) if item.variant_id else None,
+            "description": item.description,
+            "quantity": remaining,
+            "unit_cost": float(item.estimated_price or 0),  # correct field name on PRItem
+            "unit_of_measure": item.unit_of_measure or "piece",
+        })
+
+    if not po_items:
+        raise HTTPException(status_code=400, detail="All selected items are already fully ordered")
+
+    # Pass pr_item_ids so the service's _mark_requisition_converted marks exactly the right lines.
+    # The service commits internally and handles all PR status + audit bookkeeping.
+    payload = {
+        "supplier_id": data.supplier_id,
+        "items": po_items,
+        "pr_item_ids": [str(i) for i in requested_item_ids],
+        "expected_delivery_date": str(data.expected_delivery_date) if data.expected_delivery_date else None,
+        "notes": data.notes or f"Created from PR {pr.pr_number}",
+        "requisition_id": str(pr.id),
+    }
+    po = await svc.create(vendor_id, payload, created_by=vendor_user.id)
+
+    # Refresh to get the updated po.items count (service already committed)
+    await db.refresh(po)
+    return JSONResponse(content={
+        "po_id": str(po.id),
+        "po_number": po.po_number,
+        "pr_id": str(pr_id),
+        "pr_number": pr.pr_number,
+        "item_count": len(po.items),
+    }, status_code=201)
+
+
+# ── Budget validation ─────────────────────────────────────────────
+
+from pydantic import BaseModel as _BM3
+
+
+class BudgetCheckRequest(_BM3):
+    total_amount: float
+    department: Optional[str] = None
+    category: Optional[str] = None
+
+
+@router.post("/budget-check")
+async def check_budget(
+    data: BudgetCheckRequest,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Evaluate a proposed PR/PO total against configured budget rules.
+    Returns:
+        - required_level: "none" | "manager" | "director" | "cfo" | "board"
+        - matched_rule: the rule that matched (or null)
+        - is_within_auto_approve: bool
+    """
+    vendor = await db.get(Vendor, vendor_id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    rules = (vendor.settings or {}).get("procurement_budget_rules", {}).get("rules", [])
+
+    LEVEL_ORDER = ["none", "manager", "director", "cfo", "board"]
+
+    def level_rank(lvl: str) -> int:
+        try:
+            return LEVEL_ORDER.index(lvl)
+        except ValueError:
+            return 1  # treat unknown as "manager"
+
+    # Filter rules that apply to this dept/category
+    applicable: list[dict] = []
+    for rule in rules:
+        rule_dept = rule.get("department")
+        rule_cat = rule.get("category")
+        if rule_dept and data.department and rule_dept.lower() != data.department.lower():
+            continue
+        if rule_cat and data.category and rule_cat.lower() != data.category.lower():
+            continue
+        applicable.append(rule)
+
+    if not applicable:
+        # No rules configured at all — no budget controls active
+        return JSONResponse(content={
+            "required_level": "none",
+            "matched_rule": None,
+            "is_within_auto_approve": True,
+            "message": "No budget rules configured — no approval threshold applies",
+        })
+
+    # Find the tightest rule whose threshold covers the amount
+    matched = None
+    for rule in applicable:
+        if data.total_amount <= rule.get("max_amount", 0):
+            if matched is None or rule.get("max_amount", 0) < matched.get("max_amount", 0):
+                matched = rule
+
+    if not matched:
+        # Amount exceeds every configured threshold — escalate to the highest required level
+        highest = max(applicable, key=lambda r: level_rank(r.get("require_approval_level", "manager")))
+        level = highest.get("require_approval_level", "board")
+        return JSONResponse(content={
+            "required_level": level,
+            "matched_rule": highest,
+            "is_within_auto_approve": False,
+            "message": f"Amount exceeds all configured thresholds — requires {level} approval",
+        })
+
+    level = matched.get("require_approval_level", "manager")
+    return JSONResponse(content={
+        "required_level": level,
+        "matched_rule": matched,
+        "is_within_auto_approve": level == "none",
+        "message": f"Matches rule: up to {matched.get('max_amount', 0):,.0f} → {level}",
+    })

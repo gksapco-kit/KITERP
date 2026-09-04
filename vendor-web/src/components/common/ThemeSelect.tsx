@@ -249,7 +249,7 @@ function buildMenuSections(options: ThemeSelectOption[]) {
 export function ThemeSelect({
   value,
   onChange,
-  options,
+  options: optionsProp,
   placeholder = 'Select…',
   disabled = false,
   id,
@@ -266,6 +266,7 @@ export function ThemeSelect({
   showSelectedHint = true,
   'aria-label': ariaLabel,
 }: ThemeSelectProps) {
+  const options: ThemeSelectOption[] = optionsProp ?? []
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [highlightIndex, setHighlightIndex] = useState(-1)

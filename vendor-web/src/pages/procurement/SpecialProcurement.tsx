@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ResizableTable } from '@/components/table/ResizableTable'
@@ -14,29 +15,88 @@ import {
   useSubmitServiceEntrySheet, useApproveServiceEntrySheet,
   useSubcontractingOrders, useCreateSubcontractingOrder, useUpdateSubcontractingOrder,
   useConsignmentStock, useCreateConsignmentStock, useUpdateConsignmentStock, useWithdrawConsignmentStock,
-  usePurchaseOrders,
+  usePurchaseOrders, useProducts,
 } from '@/hooks/useVendor'
 import { ProcurementSupplierField } from '@/components/procurement/ProcurementSupplierField'
 import { ProcurementProductField } from '@/components/procurement/ProcurementProductField'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
+import { UOM_OPTIONS } from '@/lib/uomOptions'
 import { toast } from 'sonner'
-import type { ServiceEntrySheet, SubcontractingOrder, ConsignmentStock } from '@/types'
+import type { ServiceEntrySheet, SubcontractingOrder, SubcontractingComponent, ConsignmentStock, PurchaseOrder } from '@/types'
 import {
   Loader2, Plus, X, FileCheck, CheckCircle, XCircle, Send,
   GitBranch, Package2, Boxes, ChevronDown, ChevronUp,
-  Pencil, ArrowDownToLine,
+  Pencil, ArrowDownToLine, Trash2,
 } from 'lucide-react'
+
+const UOM_SELECT_OPTIONS = UOM_OPTIONS.map(u => ({ value: u.value, label: u.label }))
+
+/** Statuses that can still be linked from SES / subcontracting / consignment. */
+const LINKABLE_PO_STATUSES = new Set([
+  'draft', 'sent', 'ordered', 'partial_received', 'received',
+])
+
+function poHasCategory(po: PurchaseOrder, category: string) {
+  return (po.items || []).some(
+    i => (i.item_category || 'standard').toLowerCase() === category,
+  )
+}
+
+function linkablePurchaseOrders(
+  pos: PurchaseOrder[],
+  opts?: { supplierId?: string; preferCategory?: string },
+) {
+  let list = pos.filter(p => LINKABLE_PO_STATUSES.has(p.status))
+  if (opts?.supplierId) {
+    list = list.filter(p => p.supplier_id === opts.supplierId)
+  }
+  if (opts?.preferCategory) {
+    const cat = opts.preferCategory
+    list = [...list].sort((a, b) => Number(poHasCategory(b, cat)) - Number(poHasCategory(a, cat)))
+  }
+  return list
+}
+
+function poSelectOptions(pos: PurchaseOrder[]) {
+  return pos.map(p => ({
+    value: p.id,
+    label: p.po_number,
+    hint: [p.supplier_name, p.status?.replace(/_/g, ' ')].filter(Boolean).join(' · ') || undefined,
+  }))
+}
+
+function useLinkablePurchaseOrders(supplierId?: string, preferCategory?: string) {
+  // Page size must stay within the PO list API max (`le=200`). size=200 used to 422 and empty the dropdown.
+  const { data: posData, isLoading, isError } = usePurchaseOrders({ size: 100 })
+  const all = (posData?.items ?? []) as PurchaseOrder[]
+  const pos = useMemo(
+    () => linkablePurchaseOrders(all, { supplierId: supplierId || undefined, preferCategory }),
+    [all, supplierId, preferCategory],
+  )
+  return { pos, all, isLoading, isError }
+}
+
+function PoEmptyHint({
+  isLoading, isError, hasSupplier, count,
+}: { isLoading: boolean; isError: boolean; hasSupplier: boolean; count: number }) {
+  if (isLoading || count > 0) return null
+  const text = isError
+    ? 'Could not load purchase orders.'
+    : hasSupplier
+      ? 'No open POs for this supplier.'
+      : 'No open purchase orders found.'
+  return <p className="mt-1 text-[11px] text-gray-400">{text}</p>
+}
 
 // ─── Consignment Stock modals ─────────────────────────────────────
 
 function CreateConsignmentModal({ onClose }: { onClose: () => void }) {
   const create = useCreateConsignmentStock()
-  const { data: posData } = usePurchaseOrders({ size: 200 })
-  const pos = posData?.items ?? []
   const [supplierId, setSupplierId] = useState('')
   const [productId, setProductId] = useState('')
   const [poId, setPoId] = useState('')
+  const { pos, all, isLoading: posLoading, isError: posError } = useLinkablePurchaseOrders(supplierId, 'consignment')
   const [qty, setQty] = useState('')
   const [unitPrice, setUnitPrice] = useState('')
   const [currency, setCurrency] = useState('INR')
@@ -72,7 +132,14 @@ function CreateConsignmentModal({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <ProcurementSupplierField
               value={supplierId}
-              onChange={setSupplierId}
+              onChange={id => {
+                setSupplierId(id)
+                setPoId(prev => {
+                  if (!prev) return prev
+                  const po = all.find(p => p.id === prev)
+                  return po && po.supplier_id === id ? prev : ''
+                })
+              }}
               label="Supplier *"
               required
               returnTo="procurement/special"
@@ -89,13 +156,18 @@ function CreateConsignmentModal({ onClose }: { onClose: () => void }) {
               <Label className="text-xs">Purchase Order Reference</Label>
               <Select
                 value={poId}
-                onChange={setPoId}
-                options={selectOptionsWithBlank(
-                  '— Optional PO —',
-                  pos.map((p: { id: string; po_number: string }) => ({ value: p.id, label: p.po_number })),
-                )}
+                onChange={id => {
+                  setPoId(id)
+                  if (id) {
+                    const po = all.find(p => p.id === id)
+                    if (po) setSupplierId(po.supplier_id)
+                  }
+                }}
+                options={selectOptionsWithBlank('— Optional PO —', poSelectOptions(pos))}
                 className="mt-1 text-sm"
+                searchable
               />
+              <PoEmptyHint isLoading={posLoading} isError={posError} hasSupplier={!!supplierId} count={pos.length} />
             </div>
             <div>
               <Label className="text-xs">Qty Available *</Label>
@@ -286,11 +358,9 @@ const SC_BADGE: Record<string, { bg: string; text: string; label: string }> = {
 // ─── Create SES Modal ─────────────────────────────────────────────
 function CreateSESModal({ onClose }: { onClose: () => void }) {
   const create = useCreateServiceEntrySheet()
-  const { data: posData } = usePurchaseOrders({ size: 200 })
-  const pos = posData?.items ?? []
-
   const [supplierId, setSupplierId] = useState('')
   const [poId, setPoId] = useState('')
+  const { pos, all, isLoading: posLoading, isError: posError } = useLinkablePurchaseOrders(supplierId, 'service')
   const [description, setDescription] = useState('')
   const [totalAmount, setTotalAmount] = useState('')
   const [currency, setCurrency] = useState('INR')
@@ -328,7 +398,14 @@ function CreateSESModal({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <ProcurementSupplierField
               value={supplierId}
-              onChange={setSupplierId}
+              onChange={id => {
+                setSupplierId(id)
+                setPoId(prev => {
+                  if (!prev) return prev
+                  const po = all.find(p => p.id === prev)
+                  return po && po.supplier_id === id ? prev : ''
+                })
+              }}
               label="Supplier"
               required
               returnTo="procurement/special"
@@ -338,13 +415,18 @@ function CreateSESModal({ onClose }: { onClose: () => void }) {
               <Label className="text-xs">Link to PO (optional)</Label>
               <Select
                 value={poId}
-                onChange={setPoId}
-                options={selectOptionsWithBlank(
-                  '— No PO —',
-                  pos.map((p: { id: string; po_number: string }) => ({ value: p.id, label: p.po_number })),
-                )}
+                onChange={id => {
+                  setPoId(id)
+                  if (id) {
+                    const po = all.find(p => p.id === id)
+                    if (po) setSupplierId(po.supplier_id)
+                  }
+                }}
+                options={selectOptionsWithBlank('— No PO —', poSelectOptions(pos))}
                 className="mt-1 text-sm"
+                searchable
               />
+              <PoEmptyHint isLoading={posLoading} isError={posError} hasSupplier={!!supplierId} count={pos.length} />
             </div>
             <div className="col-span-2">
               <Label className="text-xs">Service Description</Label>
@@ -452,111 +534,252 @@ function SESDetailPanel({ ses, onClose }: { ses: ServiceEntrySheet; onClose: () 
 }
 
 // ─── Create Subcontracting Order Modal ────────────────────────────
+
+type DraftComponent = {
+  product_id: string
+  qty_required: string
+  uom: string
+}
+
+const emptyComponent = (): DraftComponent => ({ product_id: '', qty_required: '', uom: 'piece' })
+
 function CreateSubcontractingModal({ onClose }: { onClose: () => void }) {
   const create = useCreateSubcontractingOrder()
-  const { data: posData } = usePurchaseOrders({ size: 200 })
-  const pos = posData?.items ?? []
+  const { data: productsData } = useProducts({ size: 500, status: 'active' })
+  const products = productsData?.items ?? []
 
   const [poId, setPoId] = useState('')
   const [supplierId, setSupplierId] = useState('')
+  const { pos, all, isLoading: posLoading, isError: posError } = useLinkablePurchaseOrders(supplierId, 'subcontract')
   const [ref, setRef] = useState('')
+  const [finishedProductId, setFinishedProductId] = useState('')
   const [qtyExpected, setQtyExpected] = useState('')
   const [notes, setNotes] = useState('')
-  // Single component row for simplicity
-  const [compQtyRequired, setCompQtyRequired] = useState('')
-  const [compUom, setCompUom] = useState('EA')
+  const [components, setComponents] = useState<DraftComponent[]>([emptyComponent()])
 
   useEscapeToClose(onClose, true)
 
+  const updateComponent = useCallback((i: number, patch: Partial<DraftComponent>) => {
+    setComponents(prev => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c))
+  }, [])
+
+  const addComponent = () => setComponents(prev => [...prev, emptyComponent()])
+
+  const removeComponent = (i: number) => {
+    if (components.length === 1) return
+    setComponents(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  const handlePoChange = (id: string) => {
+    setPoId(id)
+    if (id) {
+      const po = all.find(p => p.id === id)
+      if (po && !supplierId) setSupplierId(po.supplier_id)
+    }
+  }
+
+  const handleSupplierChange = (id: string) => {
+    setSupplierId(id)
+    if (poId) {
+      const po = all.find(p => p.id === poId)
+      if (po && po.supplier_id !== id) setPoId('')
+    }
+  }
+
   const handleSave = () => {
+    if (!supplierId) { toast.error('Select a subcontractor'); return }
     if (!poId) { toast.error('Select a linked Purchase Order'); return }
-    if (!supplierId) { toast.error('Select a supplier'); return }
     if (!ref.trim()) { toast.error('Enter a reference number'); return }
-    if (!compQtyRequired || Number(compQtyRequired) <= 0) { toast.error('Enter component quantity required'); return }
+
+    const validComponents: SubcontractingComponent[] = []
+    for (let i = 0; i < components.length; i++) {
+      const c = components[i]
+      if (!c.product_id) { toast.error(`Component ${i + 1}: select a product`); return }
+      const qty = Number(c.qty_required)
+      if (!c.qty_required || qty <= 0) { toast.error(`Component ${i + 1}: enter a quantity greater than 0`); return }
+      if (!c.uom) { toast.error(`Component ${i + 1}: select a unit of measure`); return }
+      validComponents.push({ product_id: c.product_id, qty_required: qty, qty_issued: 0, uom: c.uom })
+    }
 
     create.mutate({
       purchase_order_id: poId,
       supplier_id: supplierId,
       ref: ref.trim(),
+      finished_product_id: finishedProductId || undefined,
       qty_expected: qtyExpected ? Number(qtyExpected) : 0,
       notes: notes || undefined,
-      components: [{
-        qty_required: Number(compQtyRequired),
-        qty_issued: 0,
-        uom: compUom,
-      }],
+      components: validComponents,
     }, { onSuccess: onClose })
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <Card className="w-full max-w-xl shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <Card
+        className="w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <h2 className="font-semibold flex items-center gap-2">
             <GitBranch className="w-4 h-4 text-violet-600" /> New Subcontracting Order
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
-        <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <Label className="text-xs">Linked Purchase Order *</Label>
-              <Select
-                value={poId}
-                onChange={setPoId}
-                options={selectOptionsWithBlank(
-                  '— Select PO —',
-                  pos.map((p: { id: string; po_number: string }) => ({ value: p.id, label: p.po_number })),
-                )}
-                className="mt-1 text-sm"
-              />
-            </div>
-            <ProcurementSupplierField
-              value={supplierId}
-              onChange={setSupplierId}
-              label="Subcontractor (Supplier) *"
-              required
-              returnTo="procurement/special"
-              className="col-span-2"
+
+        <CardContent className="p-6 space-y-4 overflow-y-auto flex-1">
+          {/* Supplier + PO */}
+          <ProcurementSupplierField
+            value={supplierId}
+            onChange={handleSupplierChange}
+            label="Subcontractor (Supplier) *"
+            required
+            returnTo="procurement/special"
+          />
+          <div>
+            <Label className="text-xs">Linked Purchase Order *</Label>
+            <Select
+              value={poId}
+              onChange={handlePoChange}
+              options={selectOptionsWithBlank('— Select PO —', poSelectOptions(pos))}
+              className="mt-1 text-sm"
+              searchable
             />
-            <div>
-              <Label className="text-xs">Reference No. *</Label>
-              <Input value={ref} onChange={e => setRef(e.target.value)} placeholder="e.g. SC-2026-001" className="mt-1" maxLength={30} />
+            <PoEmptyHint isLoading={posLoading} isError={posError} hasSupplier={!!supplierId} count={pos.length} />
+          </div>
+
+          {/* Reference */}
+          <div>
+            <Label className="text-xs">Reference No. *</Label>
+            <Input
+              value={ref}
+              onChange={e => setRef(e.target.value)}
+              placeholder="e.g. SC-2026-001"
+              className="mt-1"
+              maxLength={30}
+            />
+          </div>
+
+          {/* Components to Issue */}
+          <div className="border rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-gray-800">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                <Package2 className="w-3.5 h-3.5" /> Components to Issue *
+              </p>
+              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={addComponent}>
+                <Plus className="w-3 h-3" /> Add Row
+              </Button>
             </div>
-            <div>
-              <Label className="text-xs">Qty Expected Back</Label>
-              <Input type="number" min={0} step={0.001} value={qtyExpected} onChange={e => setQtyExpected(e.target.value)} className="mt-1" placeholder="0" />
+            <div className="p-3 space-y-2">
+              {components.map((c, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-5">
+                    {i === 0 && <Label className="text-xs mb-1 block">Component / Material *</Label>}
+                    <Select
+                      value={c.product_id}
+                      onChange={id => {
+                        const prod = products.find(p => p.id === id)
+                        updateComponent(i, {
+                          product_id: id,
+                          uom: (prod as { uom?: string })?.uom || c.uom,
+                        })
+                      }}
+                      options={selectOptionsWithBlank(
+                        'Select product…',
+                        products.map(p => ({ value: p.id, label: p.name })),
+                      )}
+                      searchable
+                      className="text-sm"
+                      aria-label="Component product"
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    {i === 0 && <Label className="text-xs mb-1 block">Qty Required *</Label>}
+                    <Input
+                      type="number"
+                      min={0.001}
+                      step={0.001}
+                      value={c.qty_required}
+                      onChange={e => updateComponent(i, { qty_required: e.target.value })}
+                      placeholder="0"
+                      aria-label="Qty required"
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    {i === 0 && <Label className="text-xs mb-1 block">UOM</Label>}
+                    <Select
+                      value={c.uom}
+                      onChange={v => updateComponent(i, { uom: v })}
+                      options={UOM_SELECT_OPTIONS}
+                      searchable
+                      aria-label="Unit of measure"
+                    />
+                  </div>
+                  <div className="col-span-1 flex items-end justify-end pb-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-gray-400 hover:text-red-500"
+                      onClick={() => removeComponent(i)}
+                      disabled={components.length === 1}
+                      aria-label="Remove component"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="border rounded-lg p-3 space-y-3">
-            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Components to Issue</p>
+          {/* Finished Goods Expected */}
+          <div className="border rounded-lg p-3 space-y-3 bg-violet-50/40 dark:bg-violet-950/20 border-violet-200 dark:border-violet-800">
+            <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 uppercase tracking-wide">
+              Finished Good Expected Back
+            </p>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Qty Required *</Label>
-                <Input type="number" min={0} step={0.001} value={compQtyRequired} onChange={e => setCompQtyRequired(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs">Unit of Measure</Label>
-                <Input value={compUom} onChange={e => setCompUom(e.target.value.toUpperCase())} maxLength={10} className="mt-1" placeholder="EA" />
+              <ProcurementProductField
+                value={finishedProductId}
+                onChange={setFinishedProductId}
+                label="Finished Product"
+                className="col-span-2"
+              />
+              <div className="col-span-2">
+                <Label className="text-xs">Qty Expected Back</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.001}
+                  value={qtyExpected}
+                  onChange={e => setQtyExpected(e.target.value)}
+                  className="mt-1"
+                  placeholder="0"
+                />
               </div>
             </div>
-            <p className="text-xs text-gray-400">You can add more components after creation by updating the order.</p>
           </div>
 
+          {/* Notes */}
           <div>
             <Label className="text-xs">Notes</Label>
-            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional notes" className="mt-1" />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={create.isPending} className="gap-2">
-              {create.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Create Order
-            </Button>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Additional notes…"
+              className="mt-1 text-sm resize-none"
+              rows={2}
+            />
           </div>
         </CardContent>
+
+        <div className="flex justify-end gap-2 px-6 py-4 border-t shrink-0">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={create.isPending} className="gap-2">
+            {create.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            Create Order
+          </Button>
+        </div>
       </Card>
     </div>
   )
@@ -565,11 +788,26 @@ function CreateSubcontractingModal({ onClose }: { onClose: () => void }) {
 // ─── Subcontracting Detail Panel ──────────────────────────────────
 function SubcontractingDetailPanel({ sc, onClose }: { sc: SubcontractingOrder; onClose: () => void }) {
   const update = useUpdateSubcontractingOrder()
+  const { data: productsData } = useProducts({ size: 500, status: 'active' })
+  const products = productsData?.items ?? []
+
   const [status, setStatus] = useState(sc.status)
   const [qtyReceived, setQtyReceived] = useState(String(sc.qty_received))
   const [notes, setNotes] = useState(sc.notes ?? '')
   const [showComponents, setShowComponents] = useState(true)
+  const [editingComponents, setEditingComponents] = useState(false)
+  const [draftComponents, setDraftComponents] = useState<DraftComponent[]>(() =>
+    sc.components.length
+      ? sc.components.map(c => ({
+          product_id: c.product_id ?? '',
+          qty_required: String(c.qty_required),
+          uom: c.uom ?? 'piece',
+        }))
+      : [emptyComponent()],
+  )
+
   const badge = SC_BADGE[sc.status] ?? SC_BADGE.open
+  const isClosed = sc.status === 'closed' || sc.status === 'cancelled'
 
   const statusOptions = [
     { value: 'open', label: 'Open' },
@@ -580,15 +818,38 @@ function SubcontractingDetailPanel({ sc, onClose }: { sc: SubcontractingOrder; o
     { value: 'cancelled', label: 'Cancelled' },
   ]
 
+  const updateDraftComponent = useCallback((i: number, patch: Partial<DraftComponent>) => {
+    setDraftComponents(prev => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c))
+  }, [])
+
   const handleSave = () => {
-    update.mutate({
-      id: sc.id,
-      data: {
-        status,
-        qty_received: qtyReceived ? Number(qtyReceived) : 0,
-        notes: notes || undefined,
-      },
-    }, { onSuccess: onClose })
+    const payload: { status?: string; qty_received?: number; notes?: string; components?: SubcontractingComponent[] } = {
+      status,
+      qty_received: qtyReceived ? Number(qtyReceived) : 0,
+      notes: notes || undefined,
+    }
+
+    if (editingComponents) {
+      const validComponents: SubcontractingComponent[] = []
+      for (let i = 0; i < draftComponents.length; i++) {
+        const c = draftComponents[i]
+        if (!c.product_id) { toast.error(`Component ${i + 1}: select a product`); return }
+        const qty = Number(c.qty_required)
+        if (!c.qty_required || qty <= 0) { toast.error(`Component ${i + 1}: enter qty > 0`); return }
+        if (!c.uom) { toast.error(`Component ${i + 1}: select a UOM`); return }
+        // Preserve qty_issued from the original component if it exists
+        const orig = sc.components[i]
+        validComponents.push({
+          product_id: c.product_id,
+          qty_required: qty,
+          qty_issued: orig?.qty_issued ?? 0,
+          uom: c.uom,
+        })
+      }
+      payload.components = validComponents
+    }
+
+    update.mutate({ id: sc.id, data: payload }, { onSuccess: onClose })
   }
 
   return (
@@ -604,50 +865,148 @@ function SubcontractingDetailPanel({ sc, onClose }: { sc: SubcontractingOrder; o
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
           </div>
         </div>
+
         <div className="p-6 space-y-5">
+          {/* Summary info */}
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><p className="text-gray-500">PO Reference</p><p className="font-medium text-blue-600">{sc.po_number || sc.purchase_order_id.slice(0, 12)}</p></div>
-            <div><p className="text-gray-500">Qty Expected</p><p className="font-semibold">{sc.qty_expected}</p></div>
-            <div><p className="text-gray-500">Qty Received</p><p className="font-semibold text-green-600">{sc.qty_received}</p></div>
-            <div><p className="text-gray-500">Created</p><p className="font-medium">{sc.created_at ? formatDate(sc.created_at) : '—'}</p></div>
+            <div>
+              <p className="text-gray-500">PO Reference</p>
+              <p className="font-medium text-blue-600">{sc.po_number || sc.purchase_order_id.slice(0, 12)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Created</p>
+              <p className="font-medium">{sc.created_at ? formatDate(sc.created_at) : '—'}</p>
+            </div>
+            {sc.finished_product_name && (
+              <div className="col-span-2">
+                <p className="text-gray-500">Finished Good</p>
+                <p className="font-medium">{sc.finished_product_name}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-gray-500">Qty Expected</p>
+              <p className="font-semibold">{sc.qty_expected || '—'}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Qty Received</p>
+              <p className="font-semibold text-green-600">{sc.qty_received || '—'}</p>
+            </div>
           </div>
 
           {/* Components */}
-          {sc.components?.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
+          <div className="border rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-gray-800">
               <button
-                className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-gray-800 text-sm font-medium"
+                className="flex items-center gap-1.5 text-sm font-medium"
                 onClick={() => setShowComponents(v => !v)}
               >
-                <span className="flex items-center gap-1.5"><Package2 className="w-3.5 h-3.5" /> Components ({sc.components.length})</span>
-                {showComponents ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                <Package2 className="w-3.5 h-3.5" />
+                Components ({sc.components.length})
+                {showComponents ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
               </button>
-              {showComponents && (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-t">
-                      {['Product', 'Qty Required', 'Qty Issued', 'UOM'].map(h => (
-                        <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sc.components.map((c, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{c.product_name || c.product_id || '—'}</td>
-                        <td className="px-3 py-2 font-semibold">{c.qty_required}</td>
-                        <td className="px-3 py-2 text-teal-600">{c.qty_issued ?? 0}</td>
-                        <td className="px-3 py-2 text-gray-500">{c.uom || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {!isClosed && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-xs"
+                  onClick={() => { setEditingComponents(v => !v); setShowComponents(true) }}
+                >
+                  <Pencil className="w-3 h-3" />
+                  {editingComponents ? 'Cancel Edit' : 'Edit'}
+                </Button>
               )}
             </div>
-          )}
 
-          {/* Update form */}
-          {sc.status !== 'closed' && sc.status !== 'cancelled' && (
+            {showComponents && !editingComponents && (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-t">
+                    {['Product', 'Qty Required', 'Qty Issued', 'UOM'].map(h => (
+                      <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sc.components.length === 0 ? (
+                    <tr><td colSpan={4} className="px-3 py-4 text-center text-xs text-gray-400">No components recorded</td></tr>
+                  ) : sc.components.map((c, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{c.product_name || c.product_id || '—'}</td>
+                      <td className="px-3 py-2 font-semibold">{c.qty_required}</td>
+                      <td className="px-3 py-2 text-teal-600">{c.qty_issued ?? 0}</td>
+                      <td className="px-3 py-2 text-gray-500">{c.uom || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {showComponents && editingComponents && (
+              <div className="p-3 space-y-2">
+                {draftComponents.map((c, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-5">
+                      {i === 0 && <Label className="text-xs mb-1 block">Product *</Label>}
+                      <Select
+                        value={c.product_id}
+                        onChange={id => {
+                          const prod = products.find(p => p.id === id)
+                          updateDraftComponent(i, {
+                            product_id: id,
+                            uom: (prod as { uom?: string })?.uom || c.uom,
+                          })
+                        }}
+                        options={selectOptionsWithBlank(
+                          'Select product…',
+                          products.map(p => ({ value: p.id, label: p.name })),
+                        )}
+                        searchable
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      {i === 0 && <Label className="text-xs mb-1 block">Qty Required *</Label>}
+                      <Input
+                        type="number" min={0.001} step={0.001}
+                        value={c.qty_required}
+                        onChange={e => updateDraftComponent(i, { qty_required: e.target.value })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      {i === 0 && <Label className="text-xs mb-1 block">UOM</Label>}
+                      <Select
+                        value={c.uom}
+                        onChange={v => updateDraftComponent(i, { uom: v })}
+                        options={UOM_SELECT_OPTIONS}
+                        searchable
+                      />
+                    </div>
+                    <div className="col-span-1 flex items-end justify-end pb-0.5">
+                      <Button
+                        variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500"
+                        onClick={() => {
+                          if (draftComponents.length > 1) setDraftComponents(prev => prev.filter((_, idx) => idx !== i))
+                        }}
+                        disabled={draftComponents.length === 1}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  variant="outline" size="sm" className="gap-1 text-xs mt-1"
+                  onClick={() => setDraftComponents(prev => [...prev, emptyComponent()])}
+                >
+                  <Plus className="w-3 h-3" /> Add Component
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Update form — status, qty received, notes */}
+          {!isClosed && (
             <div className="space-y-3 border-t pt-4">
               <h3 className="font-medium text-sm">Update Order</h3>
               <div className="grid grid-cols-2 gap-3">
@@ -661,7 +1020,13 @@ function SubcontractingDetailPanel({ sc, onClose }: { sc: SubcontractingOrder; o
                 </div>
                 <div className="col-span-2">
                   <Label className="text-xs">Notes</Label>
-                  <Input value={notes} onChange={e => setNotes(e.target.value)} className="mt-1" placeholder="Add notes…" />
+                  <Textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    className="mt-1 text-sm resize-none"
+                    placeholder="Add notes…"
+                    rows={2}
+                  />
                 </div>
               </div>
               <div className="flex justify-end">
@@ -672,7 +1037,10 @@ function SubcontractingDetailPanel({ sc, onClose }: { sc: SubcontractingOrder; o
               </div>
             </div>
           )}
-          {sc.notes && <div className="bg-gray-50 dark:bg-gray-800 rounded p-3 text-sm">{sc.notes}</div>}
+
+          {isClosed && sc.notes && (
+            <div className="bg-gray-50 dark:bg-gray-800 rounded p-3 text-sm">{sc.notes}</div>
+          )}
         </div>
       </div>
     </div>

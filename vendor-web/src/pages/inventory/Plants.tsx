@@ -31,15 +31,15 @@ import { askConfirm } from '@/components/common/ConfirmProvider'
 export default function PlantsPage() {
   const { data: storesData, isLoading: storesLoading } = useStores()
   const stores = storesData?.stores ?? []
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
+  // 'all' means show plants across every business unit; null defers initial load
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>('all')
 
   useEffect(() => {
-    if (!selectedStoreId && stores.length > 0) {
-      setSelectedStoreId(stores.find(s => s.is_default)?.id ?? stores[0].id)
-    }
-  }, [stores, selectedStoreId])
+    // No auto-selection needed — we default to "All"
+  }, [])
 
-  const { data, isLoading } = usePlants(selectedStoreId)
+  // Pass null when "all" is selected so the hook fetches across all business units
+  const { data, isLoading } = usePlants(selectedStoreId === 'all' ? null : selectedStoreId)
   const plants = data?.plants ?? []
 
   const createPlant = useCreatePlant()
@@ -56,6 +56,8 @@ export default function PlantsPage() {
   const [code, setCode] = useState('')
   const [description, setDescription] = useState('')
   const [sortOrder, setSortOrder] = useState(0)
+  // store_id used in the create form (pre-filled from filter, editable when "All" is selected)
+  const [formStoreId, setFormStoreId] = useState<string>('')
 
   const resetForm = () => {
     setShowForm(false)
@@ -64,10 +66,13 @@ export default function PlantsPage() {
     setCode('')
     setDescription('')
     setSortOrder(0)
+    setFormStoreId('')
   }
 
   const openCreate = () => {
     resetForm()
+    // Pre-fill the form's BU from the current filter (if a specific one is selected)
+    setFormStoreId(selectedStoreId !== 'all' && selectedStoreId ? selectedStoreId : (stores.find(s => s.is_default)?.id ?? stores[0]?.id ?? ''))
     setShowForm(true)
   }
 
@@ -77,12 +82,13 @@ export default function PlantsPage() {
     setCode(plant.code || '')
     setDescription(plant.description || '')
     setSortOrder(plant.sort_order || 0)
+    setFormStoreId(plant.store_id)
     setShowForm(true)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !selectedStoreId) return
+    if (!name.trim() || !formStoreId) return
 
     const payload: Record<string, unknown> = {
       name: name.trim(),
@@ -94,11 +100,12 @@ export default function PlantsPage() {
     if (editing) {
       updatePlant.mutate({ id: editing.id, data: payload }, { onSuccess: resetForm })
     } else {
-      createPlant.mutate({ ...payload, store_id: selectedStoreId }, { onSuccess: resetForm })
+      createPlant.mutate({ ...payload, store_id: formStoreId }, { onSuccess: resetForm })
     }
   }
 
-  const selectedStore = stores.find(s => s.id === selectedStoreId)
+  const selectedStore = selectedStoreId !== 'all' ? stores.find(s => s.id === selectedStoreId) : null
+  const storeNameMap = Object.fromEntries(stores.map(s => [s.id, s.name]))
 
   return (
     <div className="space-y-4">
@@ -112,7 +119,7 @@ export default function PlantsPage() {
             Define manufacturing or distribution plants per business unit. Storage locations are organised within each plant.
           </p>
         </div>
-        <Button onClick={openCreate} disabled={!selectedStoreId} className="gap-2">
+        <Button onClick={openCreate} className="gap-2">
           <Plus className="w-4 h-4" /> Add Plant
         </Button>
       </div>
@@ -130,17 +137,20 @@ export default function PlantsPage() {
                 <p className="text-sm text-gray-400">No business units yet.</p>
               ) : (
                 <Select
-                  value={selectedStoreId || ''}
-                  onChange={setSelectedStoreId}
-                  options={stores.map(s => ({
-                    value: s.id,
-                    label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
-                  }))}
+                  value={selectedStoreId ?? 'all'}
+                  onChange={(v) => setSelectedStoreId(v === 'all' ? 'all' : v)}
+                  options={[
+                    { value: 'all', label: 'All Business Units' },
+                    ...stores.map(s => ({
+                      value: s.id,
+                      label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
+                    })),
+                  ]}
                   aria-label="Store"
                 />
               )}
             </div>
-            {selectedStore && (
+            {selectedStore && selectedStoreId !== 'all' && (
               <p className="text-xs text-gray-400 pb-2">
                 Plants below belong to <span className="font-medium text-gray-600">{selectedStore.name}</span>
               </p>
@@ -151,14 +161,18 @@ export default function PlantsPage() {
 
       <Card>
         <CardContent className="p-0">
-          {!selectedStoreId ? (
-            <p className="text-sm text-gray-400 text-center py-12">Select a business unit to manage plants.</p>
-          ) : isLoading ? (
+          {isLoading ? (
             <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>
           ) : (
-            <ResizableTable tableId="plants" defaultWidths={[280, 100, 200, 90, 120]}>
+            <ResizableTable
+              tableId="plants"
+              defaultWidths={selectedStoreId === 'all' ? [200, 280, 100, 200, 90, 120] : [280, 100, 200, 90, 120]}
+            >
               <thead>
                 <tr className="border-b bg-gray-50/80 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  {selectedStoreId === 'all' && (
+                    <th className="px-4 py-3"><TableColumnLabel>Business Unit</TableColumnLabel></th>
+                  )}
                   <th className="px-4 py-3"><TableColumnLabel>Plant</TableColumnLabel></th>
                   <th className="px-4 py-3"><TableColumnLabel>Code</TableColumnLabel></th>
                   <th className="px-4 py-3"><TableColumnLabel>Description</TableColumnLabel></th>
@@ -169,13 +183,21 @@ export default function PlantsPage() {
               <tbody className="divide-y">
                 {plants.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={selectedStoreId === 'all' ? 6 : 5} className="px-4 py-12 text-center text-sm text-gray-400">
                       No plants yet. Add a plant (e.g. Main Plant, North Warehouse, Assembly Unit).
                     </td>
                   </tr>
                 ) : (
                   plants.map(plant => (
                     <tr key={plant.id} className="hover:bg-gray-50">
+                      {selectedStoreId === 'all' && (
+                        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                          <span className="flex items-center gap-1.5">
+                            <Store className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            {storeNameMap[plant.store_id] ?? '—'}
+                          </span>
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <Factory className="w-4 h-4 text-indigo-500 shrink-0" />
@@ -259,6 +281,19 @@ export default function PlantsPage() {
             />
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
               <ModalBody className="space-y-4">
+                {!editing && (
+                  <div className="space-y-1.5">
+                    <Label>Business Unit *</Label>
+                    <Select
+                      value={formStoreId}
+                      onChange={setFormStoreId}
+                      options={stores.map(s => ({
+                        value: s.id,
+                        label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
+                      }))}
+                    />
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label>Name *</Label>
                   <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Main Plant, Assembly Unit, North Warehouse" required />

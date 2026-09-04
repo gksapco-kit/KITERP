@@ -3,30 +3,8 @@ import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, selectOptionsWithBlank } from '@/components/ui/select'
-import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
-import { modalWidthMd } from '@/lib/modalUi'
-import {
-  PoDestinationFields,
-  emptyPoDestination,
-  poDestinationFromLine,
-  poDestinationToPayload,
-  type PoDestinationValue,
-} from '@/components/procurement/PoDestinationFields'
-import {
-  usePurchaseOrders, useCreatePurchaseOrder, useSuppliers, useProducts, useServices,
-  useCreateSupplier, useUpdatePurchaseOrder, useRequisitions,
-} from '@/hooks/useVendor'
-import { useVendorStore } from '@/stores/vendorStore'
-import { useQuery } from '@tanstack/react-query'
-import { vendorApi } from '@/api/vendor'
-import { cn, formatDate, formatCurrency } from '@/lib/utils'
-import { dedupeSuppliers, findExistingSupplier } from '@/lib/supplierUtils'
-import { PhoneInput } from '@/components/ui/PhoneInput'
 import { ResizableTable } from '@/components/table/ResizableTable'
-import type { Product, Service, PurchaseOrder, PurchaseRequisition } from '@/types'
+import type { PurchaseOrder } from '@/types'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { TablePagination } from '@/components/table/TablePagination'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
@@ -36,15 +14,15 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
 import { toast } from 'sonner'
+import { Loader2, Plus, Palette, ScanLine, Package, ClipboardList, ShieldCheck } from 'lucide-react'
+import { PO_FROM_PR_KEY, PO_FROM_INVENTORY_KEY } from '@/lib/prToPoPrefill'
 import {
-  Loader2, Plus, X, ClipboardList, Trash2, Palette,
-  ScanLine, Package, AlertCircle, UserPlus, Building2, ExternalLink,
-} from 'lucide-react'
-import { PO_FROM_PR_KEY, buildPrToPoPrefill, type PrToPoPrefill } from '@/lib/prToPoPrefill'
-import { useGuardedClose } from '@/hooks/useGuardedClose'
-import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+  usePurchaseOrders, usePendingPOApprovalCount, useUpdatePurchaseOrder,
+} from '@/hooks/useVendor'
+import { vendorApi } from '@/api/vendor'
+import { formatDate, formatCurrency } from '@/lib/utils'
 
-// Supplier created on the full-page form is stored here so CreatePOModal can auto-select it
+// sessionStorage key for pending supplier pre-select
 const PO_PENDING_SUPPLIER_KEY = 'po_pending_supplier'
 
 const statusBadge: Record<string, { bg: string; text: string; label: string }> = {
@@ -57,13 +35,15 @@ const statusBadge: Record<string, { bg: string; text: string; label: string }> =
   cancelled: { bg: 'bg-red-50 dark:bg-red-950/50', text: 'text-red-700 dark:text-red-300', label: 'Cancelled' },
 }
 
-// Prefill data set by barcode scan to pass into CreatePOModal
+// Prefill data set by barcode scan or inventory alert to pass into CreatePOModal
 interface BarcodePrefill {
   productId: string
   variantId?: string
   productName: string
   variantName?: string
   unitCost?: number
+  /** Pre-fill the quantity field (e.g. from reorder_quantity or shortage) */
+  prefillQty?: number
 }
 
 export default function PurchaseOrdersPage() {
@@ -71,45 +51,29 @@ export default function PurchaseOrdersPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [statusFilter, setStatusFilter] = useState('')
-  const [showCreate, setShowCreate] = useState(false)
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showScanner, setShowScanner] = useState(false)
   const [scanLoading, setScanLoading] = useState(false)
-  const [barcodePrefill, setBarcodePrefill] = useState<BarcodePrefill | undefined>()
-  // Supplier pre-select: pick up supplier created on the full-page master data form
-  const [pendingSupplier, setPendingSupplier] = useState<{ id: string; name: string } | undefined>()
-  const [prPrefill, setPrPrefill] = useState<PrToPoPrefill | undefined>()
 
-  // On mount: check if we returned from the supplier creation page or PR convert
+  // On mount: redirect to /purchase-orders/new if sessionStorage prefill keys are present
   useEffect(() => {
-    try {
-      const rawPr = sessionStorage.getItem(PO_FROM_PR_KEY)
-      if (rawPr) {
-        const parsed = JSON.parse(rawPr) as PrToPoPrefill
-        sessionStorage.removeItem(PO_FROM_PR_KEY)
-        if (parsed?.requisitionId && parsed.items?.length) {
-          setPrPrefill(parsed)
-          setShowCreate(true)
-        }
-      }
-    } catch { /* ignore */ }
-
-    try {
-      const raw = sessionStorage.getItem(PO_PENDING_SUPPLIER_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        sessionStorage.removeItem(PO_PENDING_SUPPLIER_KEY)
-        if (parsed?.id) {
-          setPendingSupplier(parsed)
-          setShowCreate(true)
-        }
-      }
-    } catch { /* ignore */ }
+    const hasPr = !!sessionStorage.getItem(PO_FROM_PR_KEY)
+    const hasInv = !!sessionStorage.getItem(PO_FROM_INVENTORY_KEY)
+    const hasSupplier = !!sessionStorage.getItem(PO_PENDING_SUPPLIER_KEY)
+    if (hasPr || hasInv || hasSupplier) {
+      navigate('/purchase-orders/new', { replace: false })
+    }
   }, [])
 
-  const params: Record<string, unknown> = { page, size: pageSize }
-  if (statusFilter) params.status = statusFilter
+  const [viewMode, setViewMode] = useState<'all' | 'pending_my_approval'>('all')
+  const { data: pendingCountData } = usePendingPOApprovalCount()
+  const pendingCount = pendingCountData ?? 0
+
+  const params: Record<string, unknown> =
+    viewMode === 'pending_my_approval'
+      ? { pending_my_approval: true, page, size: pageSize }
+      : { page, size: pageSize, ...(statusFilter ? { status: statusFilter } : {}) }
 
   const { data, isLoading } = usePurchaseOrders(params)
   const updatePO = useUpdatePurchaseOrder()
@@ -166,8 +130,9 @@ export default function PurchaseOrdersPage() {
         variantName: v?.name,
         unitCost: v?.cost_price ?? p.cost_price ?? v?.price ?? p.price,
       }
-      setBarcodePrefill(prefill)
-      setShowCreate(true)
+      // Store prefill in sessionStorage; CreatePurchaseOrderPage reads it on mount
+      sessionStorage.setItem('po_barcode_prefill', JSON.stringify(prefill))
+      navigate('/purchase-orders/new')
       toast.success(`Found: ${v ? `${p.name} — ${v.name}` : p.name}. Opening new PO…`)
     } catch (err: any) {
       if (err?.response?.status === 404) {
@@ -178,10 +143,10 @@ export default function PurchaseOrdersPage() {
     } finally {
       setScanLoading(false)
     }
-  }, [scanLoading])
+  }, [scanLoading, navigate])
 
-  // Hardware scanner listener (keyboard-wedge) — active when no modal is open
-  useBarcodeScanner({ enabled: !showScanner && !showCreate, onScan: handleBarcodeScan })
+  // Hardware scanner listener (keyboard-wedge) — active when scanner modal is closed
+  useBarcodeScanner({ enabled: !showScanner, onScan: handleBarcodeScan })
 
   return (
     <div className="space-y-3 p-3 md:p-4">
@@ -199,13 +164,48 @@ export default function PurchaseOrdersPage() {
               : <ScanLine className="h-3.5 w-3.5" />}
             Scan
           </Button>
-          <Button className="h-8 gap-1.5 px-3 text-sm" onClick={() => { setBarcodePrefill(undefined); setShowCreate(true) }}>
+          <Button className="h-8 gap-1.5 px-3 text-sm" onClick={() => navigate('/purchase-orders/new')}>
             <Plus className="h-3.5 w-3.5" /> New Purchase Order
           </Button>
         </div>
       </div>
 
-      {/* Status filter pills */}
+      {/* View mode tabs */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => { setViewMode('all'); setPage(1) }}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+            viewMode === 'all'
+              ? 'bg-primary text-white border-primary'
+              : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800'
+          }`}
+        >
+          All POs
+        </button>
+        <button
+          type="button"
+          onClick={() => { setViewMode('pending_my_approval'); setPage(1) }}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+            viewMode === 'pending_my_approval'
+              ? 'bg-primary text-white border-primary'
+              : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800'
+          }`}
+        >
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Pending My Approval
+          {pendingCount > 0 && (
+            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+              viewMode === 'pending_my_approval' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+            }`}>
+              {pendingCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Status filter pills — only shown in "All" view */}
+      {viewMode === 'all' && (
       <div className="flex gap-2 flex-wrap">
         {statuses.map((s) => {
           const badge = s ? statusBadge[s] : null
@@ -224,6 +224,7 @@ export default function PurchaseOrdersPage() {
           )
         })}
       </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-16">
@@ -232,8 +233,17 @@ export default function PurchaseOrdersPage() {
       ) : displayOrders.length === 0 ? (
         <div className="text-center py-16">
           <ClipboardList className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-500">No purchase orders found.</p>
-          <p className="text-sm text-gray-400 mt-1">Scan a barcode or click "New Purchase Order" to create one.</p>
+          {viewMode === 'pending_my_approval' ? (
+            <>
+              <p className="text-gray-500">No purchase orders awaiting your approval.</p>
+              <p className="text-sm text-gray-400 mt-1">POs assigned to you for approval will appear here.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-gray-500">No purchase orders found.</p>
+              <p className="text-sm text-gray-400 mt-1">Scan a barcode or click "New Purchase Order" to create one.</p>
+            </>
+          )}
         </div>
       ) : (
         <>
@@ -365,652 +375,6 @@ export default function PurchaseOrdersPage() {
         title="Scan Product Barcode"
       />
 
-      {showCreate && (
-        <CreatePOModal
-          barcodePrefill={barcodePrefill}
-          pendingSupplier={pendingSupplier}
-          prPrefill={prPrefill}
-          onClose={() => {
-            setShowCreate(false)
-            setBarcodePrefill(undefined)
-            setPendingSupplier(undefined)
-            setPrPrefill(undefined)
-          }}
-        />
-      )}
     </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────
-
-interface ItemRow {
-  product_id: string
-  variant_id: string
-  quantity: string
-  unit_cost: string
-  item_note: string
-  pr_item_id?: string
-}
-
-interface CatalogItem {
-  id: string
-  name: string
-  sku?: string
-  cost_price?: number
-  price?: number
-  type: 'product' | 'service'
-  variants?: { id: string; name: string; sku?: string; barcode?: string; cost_price?: number; price?: number }[]
-}
-
-// ─────────────────────────────────────────────────────────────────
-// CreatePOModal
-// ─────────────────────────────────────────────────────────────────
-
-function CreatePOModal({
-  barcodePrefill,
-  pendingSupplier,
-  prPrefill,
-  onClose,
-}: {
-  barcodePrefill?: BarcodePrefill
-  pendingSupplier?: { id: string; name: string }
-  prPrefill?: PrToPoPrefill
-  onClose: () => void
-}) {
-  const createMut = useCreatePurchaseOrder()
-  const createSupplierMut = useCreateSupplier()
-  const { data: suppliersData, refetch: refetchSuppliers } = useSuppliers({ is_active: true })
-  const { data: productsData } = useProducts({ size: 500, status: 'active' })
-  const { data: servicesData } = useServices({ size: 500, status: 'active' })
-  const { data: requisitionsData } = useRequisitions({ size: 100 })
-  const navigate = useNavigate()
-  const selectedStore = useVendorStore((s) => s.selectedStore)
-  const selectedBranch = useVendorStore((s) => s.selectedBranch)
-
-  const convertiblePrs = useMemo(() => {
-    const items = (requisitionsData?.items ?? []) as PurchaseRequisition[]
-    return items.filter((r) => ['open', 'approved', 'partially_converted'].includes(r.status))
-  }, [requisitionsData?.items])
-
-  const [linkedRequisitionId, setLinkedRequisitionId] = useState(prPrefill?.requisitionId || '')
-  const [linkedPrNumber, setLinkedPrNumber] = useState(prPrefill?.prNumber || '')
-  const [supplierId, setSupplierId] = useState(prPrefill?.supplierId || pendingSupplier?.id || '')
-  const [expectedDate, setExpectedDate] = useState(prPrefill?.expectedDate || '')
-  const [notes, setNotes] = useState(prPrefill?.notes || '')
-  const [dest, setDest] = useState<PoDestinationValue>(() => {
-    const first = prPrefill?.items?.[0]
-    const storeId = prPrefill?.storeId || selectedStore?.id || ''
-    if (first?.plantId || first?.storageLocationId || prPrefill?.storeId) {
-      return poDestinationFromLine(
-        { plant_id: first?.plantId, storage_location_id: first?.storageLocationId },
-        storeId,
-      )
-    }
-    return {
-      ...emptyPoDestination(storeId),
-      scope: selectedBranch?.id
-        ? { kind: 'branch', id: selectedBranch.id }
-        : { kind: '' },
-    }
-  })
-
-  // Quick-create supplier mini-panel state
-  const [showQuickSupplier, setShowQuickSupplier] = useState(false)
-  const [qsName, setQsName]   = useState('')
-  const [qsPhone, setQsPhone] = useState('')
-  const [qsEmail, setQsEmail] = useState('')
-
-  // Auto-select supplier if returned from full-page creation form
-  useEffect(() => {
-    if (pendingSupplier?.id) setSupplierId(pendingSupplier.id)
-  }, [pendingSupplier?.id])
-
-  // Keep form in sync if header BU / branch changes while modal is open
-  useEffect(() => {
-    if (selectedStore?.id && !dest.storeId) {
-      setDest((prev) => ({ ...prev, storeId: selectedStore.id }))
-    }
-  }, [selectedStore?.id, dest.storeId])
-
-  useEffect(() => {
-    if (selectedBranch?.id && !dest.scope.kind) {
-      setDest((prev) => ({ ...prev, scope: { kind: 'branch', id: selectedBranch.id } }))
-    }
-  }, [selectedBranch?.id, dest.scope.kind])
-
-  const handleQuickCreateSupplier = async () => {
-    if (!qsName.trim()) return
-    const supplierList = dedupeSuppliers(suppliersData?.items ?? [])
-    const existing = findExistingSupplier(supplierList, {
-      name: qsName,
-      phone: qsPhone || undefined,
-      email: qsEmail || undefined,
-    })
-    if (existing) {
-      setSupplierId(existing.id)
-      setShowQuickSupplier(false)
-      setQsName(''); setQsPhone(''); setQsEmail('')
-      toast.info(`"${existing.name}" already exists — selected existing supplier`)
-      return
-    }
-    try {
-      const created: any = await createSupplierMut.mutateAsync({
-        name: qsName.trim(),
-        phone: qsPhone || undefined,
-        email: qsEmail || undefined,
-      })
-      await refetchSuppliers()
-      setSupplierId(created.id)
-      setShowQuickSupplier(false)
-      setQsName(''); setQsPhone(''); setQsEmail('')
-    } catch { /* handled by hook */ }
-  }
-  const [items, setItems] = useState<ItemRow[]>(() => {
-    if (prPrefill?.items?.length) {
-      return prPrefill.items.map((i) => ({
-        product_id: i.productId,
-        variant_id: i.variantId || '',
-        quantity: String(Math.max(1, Math.round(i.quantity))),
-        unit_cost: String(i.unitCost ?? 0),
-        item_note: i.note || '',
-        pr_item_id: i.prItemId,
-      }))
-    }
-    if (barcodePrefill) {
-      return [{
-        product_id: barcodePrefill.productId,
-        variant_id: barcodePrefill.variantId || '',
-        quantity: '1',
-        unit_cost: barcodePrefill.unitCost != null ? String(barcodePrefill.unitCost) : '',
-        item_note: '',
-      }]
-    }
-    return [{ product_id: '', variant_id: '', quantity: '', unit_cost: '', item_note: '' }]
-  })
-
-  const applyRequisition = useCallback((pr: PurchaseRequisition) => {
-    const prefill = buildPrToPoPrefill(pr)
-    if (!prefill) {
-      toast.error('No convertible product/service lines on this requisition')
-      return
-    }
-    setLinkedRequisitionId(prefill.requisitionId)
-    setLinkedPrNumber(prefill.prNumber)
-    if (prefill.supplierId) setSupplierId(prefill.supplierId)
-    if (prefill.expectedDate) setExpectedDate(prefill.expectedDate)
-    if (prefill.notes) setNotes(prefill.notes)
-    setItems(prefill.items.map((i) => ({
-      product_id: i.productId,
-      variant_id: i.variantId || '',
-      quantity: String(Math.max(1, Math.round(i.quantity))),
-      unit_cost: String(i.unitCost ?? 0),
-      item_note: i.note || '',
-      pr_item_id: i.prItemId,
-    })))
-    const first = prefill.items[0]
-    setDest(poDestinationFromLine(
-      { plant_id: first?.plantId, storage_location_id: first?.storageLocationId },
-      prefill.storeId || selectedStore?.id || '',
-    ))
-    toast.success(`Loaded lines from ${prefill.prNumber}`)
-  }, [selectedStore?.id])
-
-  const handleRequisitionChange = async (prId: string) => {
-    if (!prId) {
-      setLinkedRequisitionId('')
-      setLinkedPrNumber('')
-      setItems((prev) => prev.map(({ pr_item_id: _id, ...rest }) => rest))
-      return
-    }
-    const listed = convertiblePrs.find((r) => r.id === prId)
-    try {
-      const full = await vendorApi.getRequisition(prId) as PurchaseRequisition
-      applyRequisition(full?.id ? full : (listed as PurchaseRequisition))
-    } catch {
-      if (listed) applyRequisition(listed)
-      else toast.error('Could not load requisition details')
-    }
-  }
-
-  // Full product details (with variants) keyed by product_id
-  const [productDetails, setProductDetails] = useState<Record<string, CatalogItem>>({})
-
-  const products: CatalogItem[] = (productsData?.items || []).map((p: Product) => ({
-    id: p.id,
-    name: p.name,
-    sku: p.sku,
-    cost_price: p.cost_price,
-    price: p.price,
-    type: 'product' as const,
-  }))
-  const services: CatalogItem[] = (servicesData?.items || []).map((s: Service) => ({
-    id: s.id,
-    name: s.name,
-    cost_price: s.price,
-    price: s.price,
-    type: 'service' as const,
-  }))
-  const catalogItems = [...products, ...services]
-  const catalogMap = new Map(catalogItems.map((c) => [c.id, c]))
-
-  // Fetch full product details (with variants) when a product is first selected
-  const fetchProductDetails = useCallback(async (productId: string) => {
-    if (!productId || productDetails[productId]) return
-    try {
-      const full = await vendorApi.getProduct(productId)
-      const variants = (full.variants || []).map((v: any) => ({
-        id: v.id,
-        name: v.name,
-        sku: v.sku,
-        barcode: v.barcode,
-        cost_price: v.cost_price,
-        price: v.price,
-      }))
-      setProductDetails(prev => ({
-        ...prev,
-        [productId]: { ...prev[productId], id: productId, name: full.name, variants },
-      }))
-    } catch {
-      // silently ignore — variant selector just won't appear
-    }
-  }, [productDetails])
-
-  // Load product details for prefill / linked PR products
-  useEffect(() => {
-    if (barcodePrefill?.productId) {
-      fetchProductDetails(barcodePrefill.productId)
-    }
-    for (const item of items) {
-      if (item.product_id) fetchProductDetails(item.product_id)
-    }
-  }, [barcodePrefill?.productId, items, fetchProductDetails])
-
-  const addItem = () => setItems([...items, { product_id: '', variant_id: '', quantity: '', unit_cost: '', item_note: '' }])
-  const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx))
-
-  const updateItem = (idx: number, field: keyof ItemRow, value: string) => {
-    const updated = [...items]
-    const prev = updated[idx]
-    updated[idx] = { ...prev, [field]: value }
-
-    if (field === 'product_id' && value !== prev.product_id) {
-      // Clear variant when product changes; seed cost only on a real user product change
-      updated[idx].variant_id = ''
-      // Keep PR-prefilled unit cost unless it was empty / zero
-      const keepPrCost = Boolean(prev.pr_item_id) && parseFloat(prev.unit_cost) > 0
-      if (!keepPrCost) {
-        const c = catalogMap.get(value)
-        if (c?.cost_price) updated[idx].unit_cost = String(c.cost_price)
-        else if (c?.price) updated[idx].unit_cost = String(c.price)
-      }
-      if (value) fetchProductDetails(value)
-    }
-
-    if (field === 'variant_id' && value && value !== prev.variant_id) {
-      const keepPrCost = Boolean(prev.pr_item_id) && parseFloat(prev.unit_cost) > 0
-      if (!keepPrCost) {
-        const details = productDetails[updated[idx].product_id]
-        const variant = details?.variants?.find(v => v.id === value)
-        if (variant?.cost_price) updated[idx].unit_cost = String(variant.cost_price)
-        else if (variant?.price) updated[idx].unit_cost = String(variant.price)
-      }
-    }
-
-    setItems(updated)
-  }
-
-  const subtotal = items.reduce((sum, i) => sum + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_cost) || 0), 0)
-  const canSubmit = supplierId && items.every(i => i.product_id && parseInt(i.quantity) > 0 && parseFloat(i.unit_cost) >= 0)
-
-  const isDirty = !!(
-    supplierId ||
-    notes.trim() ||
-    expectedDate ||
-    items.some(i => i.product_id || i.item_note?.trim())
-  )
-
-  // registerEscape=false: ModalOverlay already registers Escape using handleClose below
-  const { handleClose, confirmOpen, cancelConfirm, forceClose } = useGuardedClose(onClose, isDirty, false)
-
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!canSubmit) return
-    try {
-      const prItemIds = items.map(i => i.pr_item_id).filter(Boolean) as string[]
-      const po = await createMut.mutateAsync({
-        supplier_id: supplierId,
-        items: items.map(i => ({
-          product_id: i.product_id,
-          variant_id: i.variant_id || undefined,
-          quantity: parseInt(i.quantity),
-          unit_cost: parseFloat(i.unit_cost),
-          description: i.item_note || undefined,
-          ...poDestinationToPayload(dest),
-        })),
-        expected_delivery_date: expectedDate || undefined,
-        notes: notes || undefined,
-        requisition_id: linkedRequisitionId || prPrefill?.requisitionId || undefined,
-        pr_item_ids: prItemIds.length ? prItemIds : undefined,
-      })
-      onClose()
-      navigate(`/purchase-orders/${po.id}`)
-    } catch {
-      // handled by hook
-    }
-  }, [canSubmit, supplierId, items, expectedDate, notes, dest, createMut, onClose, navigate, linkedRequisitionId, prPrefill?.requisitionId])
-
-  return (
-    <ModalOverlay onClose={handleClose} className="z-[100] bg-black/60 p-3">
-      <ModalPanel className={cn(modalWidthMd, 'max-h-[calc(100dvh-1.5rem)] !rounded-lg')}>
-        <ModalHeader
-          title={linkedRequisitionId || prPrefill ? 'Create PO from Requisition' : 'New Purchase Order'}
-          subtitle={
-            linkedPrNumber || prPrefill ? (
-              <p className="mt-0.5 flex items-center gap-1 text-xs text-violet-600">
-                <ClipboardList className="h-3.5 w-3.5" />
-                From {linkedPrNumber || prPrefill?.prNumber} — edit lines, then save as draft PO
-              </p>
-            ) : barcodePrefill ? (
-              <p className="mt-0.5 flex items-center gap-1 text-xs text-blue-600">
-                <ScanLine className="h-3.5 w-3.5" />
-                Pre-filled from barcode: {barcodePrefill.variantName
-                  ? `${barcodePrefill.productName} — ${barcodePrefill.variantName}`
-                  : barcodePrefill.productName}
-              </p>
-            ) : undefined
-          }
-          onClose={handleClose}
-          className="border-0 px-4 py-3 [&>div>h2]:text-base"
-        />
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-4 px-4 pb-3 pt-0">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Purchase Requisition (optional)</Label>
-            <Select
-              value={linkedRequisitionId}
-              onChange={handleRequisitionChange}
-              options={selectOptionsWithBlank(
-                'No PR reference',
-                [
-                  // Keep current linked PR visible even if list hasn't loaded it yet
-                  ...(linkedRequisitionId && !convertiblePrs.some((r) => r.id === linkedRequisitionId)
-                    ? [{ value: linkedRequisitionId, label: linkedPrNumber || linkedRequisitionId }]
-                    : []),
-                  ...convertiblePrs.map((r) => ({
-                    value: r.id,
-                    label: `${r.pr_number}${r.title ? ` — ${r.title}` : ''} (${r.status === 'partially_converted' ? 'Partial' : r.status === 'open' ? 'Open' : 'Approved'})`,
-                  })),
-                ],
-              )}
-              placeholder="Link a requisition…"
-              aria-label="Purchase Requisition"
-              className="w-full min-w-0"
-              triggerClassName="h-9"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Choose an approved PR to load its lines and link this PO. You can also start from Procurement → Purchase Requisitions → Convert / Create PO.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex h-5 items-center justify-between gap-2">
-                <Label className="text-xs">Supplier *</Label>
-                <button
-                  type="button"
-                  onClick={() => setShowQuickSupplier(v => !v)}
-                  className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80"
-                >
-                  <UserPlus className="h-3 w-3" /> New Supplier
-                </button>
-              </div>
-              <Select
-                value={supplierId}
-                onChange={setSupplierId}
-                options={selectOptionsWithBlank('Select supplier...', dedupeSuppliers(suppliersData?.items ?? []).map((s) => ({ value: s.id, label: s.name })))}
-                placeholder="Select supplier..."
-                aria-label="Supplier"
-                className="w-full min-w-0"
-                triggerClassName="h-9"
-              />
-
-              {/* Quick-create supplier inline panel */}
-              {showQuickSupplier && (
-                <div className="mt-1 space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
-                  <div className="mb-0.5 flex items-center justify-between">
-                    <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
-                      <Building2 className="h-3.5 w-3.5" /> Quick Create Supplier
-                    </p>
-                    <button type="button" aria-label="Close" onClick={() => setShowQuickSupplier(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Input
-                      className="h-8 text-sm bg-white"
-                      placeholder="Supplier name *"
-                      value={qsName}
-                      onChange={e => setQsName(e.target.value)}
-                    />
-                    <PhoneInput value={qsPhone} onChange={setQsPhone} defaultCountryIso="IN" />
-                    <Input
-                      className="h-8 text-sm bg-white"
-                      placeholder="Email (optional)"
-                      value={qsEmail}
-                      onChange={e => setQsEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Save current state hint and navigate to full form
-                        navigate('/master-data/new?returnTo=purchase-orders&kind=supplier')
-                      }}
-                      className="flex items-center gap-1 text-xs text-primary hover:text-primary hover:underline"
-                    >
-                      <ExternalLink className="w-3 h-3" /> Full Details
-                    </button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-7 text-xs gap-1 bg-primary hover:bg-primary/90"
-                      disabled={!qsName.trim() || createSupplierMut.isPending}
-                      onClick={handleQuickCreateSupplier}
-                    >
-                      {createSupplierMut.isPending
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <Plus className="w-3 h-3" />}
-                      Create & Select
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex h-5 items-center">
-                <Label htmlFor="po-expected-delivery" className="text-xs">Expected Delivery</Label>
-              </div>
-              <Input
-                id="po-expected-delivery"
-                type="date"
-                className="h-9 w-full min-w-0"
-                value={expectedDate}
-                onChange={(e) => setExpectedDate(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <PoDestinationFields value={dest} onChange={setDest} />
-
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs">Items *</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addItem} className="h-7 gap-1 px-2 text-xs">
-                <Plus className="h-3.5 w-3.5" /> Add Item
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              {items.map((item, idx) => {
-                const selectedProductDetails = productDetails[item.product_id]
-                const variants = selectedProductDetails?.variants || []
-                const isProduct = catalogMap.get(item.product_id)?.type === 'product'
-                const hasVariants = isProduct && variants.length > 0
-
-                const selectedVariant = variants.find(v => v.id === item.variant_id)
-                const lineTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)
-
-                return (
-                  <div key={idx} className="border rounded-lg p-3 space-y-2.5 bg-gray-50/50">
-                    {/* Row 1: product selector + remove button */}
-                    <div className="flex gap-2 items-start">
-                      <Select
-                        value={item.product_id}
-                        onChange={(v) => updateItem(idx, 'product_id', v)}
-                        options={[
-                          { value: '', label: 'Product / Service...' },
-                          ...products.map((p) => ({
-                            value: p.id,
-                            label: `${p.name}${p.sku ? ` (${p.sku})` : ''}`,
-                            group: 'Products',
-                          })),
-                          ...services.map((s) => ({
-                            value: s.id,
-                            label: s.name,
-                            group: 'Services',
-                          })),
-                        ]}
-                        placeholder="Product / Service..."
-                        aria-label="Product or service"
-                        className="flex-1"
-                        triggerClassName="h-8 text-sm"
-                      />
-                      {items.length > 1 && (
-                        <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-400 hover:text-red-600 shrink-0" onClick={() => removeItem(idx)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* Row 2: variant selector (when applicable) */}
-                    {hasVariants && (
-                      <div className="flex gap-2 items-center">
-                        <span className="text-xs text-gray-500 shrink-0 w-14">Variant</span>
-                        <Select
-                          value={item.variant_id}
-                          onChange={(v) => updateItem(idx, 'variant_id', v)}
-                          options={selectOptionsWithBlank('— All / Product-level —', variants.map((v) => ({
-                            value: v.id,
-                            label: `${v.name}${v.sku ? ` · ${v.sku}` : ''}${v.barcode ? ` · ${v.barcode}` : ''}`,
-                          })))}
-                          placeholder="— All / Product-level —"
-                          aria-label="Variant"
-                          className="flex-1"
-                          triggerClassName="h-8 text-sm"
-                        />
-                        {selectedVariant?.barcode && (
-                          <span className="text-xs text-gray-400 font-mono shrink-0 hidden sm:block">{selectedVariant.barcode}</span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Loading indicator for variants */}
-                    {isProduct && item.product_id && !selectedProductDetails && (
-                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Loading variants…
-                      </div>
-                    )}
-
-                    {/* Row 3: qty + unit cost + line total */}
-                    <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
-                      <div className="space-y-0.5">
-                        <span className="text-xs text-gray-400 uppercase tracking-wide">Qty</span>
-                        <Input
-                          type="number"
-                          min={1}
-                          className="h-8 text-sm"
-                          placeholder="0"
-                          value={item.quantity}
-                          onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-0.5">
-                        <span className="text-xs text-gray-400 uppercase tracking-wide">Unit Cost (₹)</span>
-                        <Input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          className="h-8 text-sm"
-                          placeholder="0.00"
-                          value={item.unit_cost}
-                          onChange={(e) => updateItem(idx, 'unit_cost', e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-0.5 text-right">
-                        <span className="text-xs text-gray-400 uppercase tracking-wide">Total</span>
-                        <div className="h-8 flex items-center justify-end text-sm font-semibold text-gray-700 tabular-nums min-w-[80px]">
-                          {formatCurrency(lineTotal)}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Row 4: per-item note */}
-                    <div>
-                      <Input
-                        className="h-7 text-xs text-gray-600 bg-white placeholder:text-gray-300"
-                        placeholder="Item note (optional)..."
-                        value={item.item_note}
-                        onChange={(e) => updateItem(idx, 'item_note', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="text-right text-sm font-medium text-gray-700">
-              Subtotal: {formatCurrency(subtotal)}
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">Notes</Label>
-            <textarea
-              className="flex min-h-[3.5rem] w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Internal notes..."
-            />
-          </div>
-          </ModalBody>
-          <ModalFooter className="justify-end gap-2 px-4 py-3">
-            <Button type="button" variant="outline" className="h-8 rounded-md px-3 text-sm" onClick={handleClose}>
-              Close
-            </Button>
-            <Button type="submit" className="h-8 rounded-md px-3 text-sm" disabled={createMut.isPending || !canSubmit}>
-              {createMut.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-              Create Draft PO
-            </Button>
-          </ModalFooter>
-        </form>
-      </ModalPanel>
-      <ConfirmDialog
-        open={confirmOpen}
-        title="Discard changes?"
-        description="You have unsaved input. Close anyway and lose your changes?"
-        confirmLabel="Discard & Close"
-        cancelLabel="Keep editing"
-        variant="warning"
-        onCancel={cancelConfirm}
-        onConfirm={forceClose}
-      />
-    </ModalOverlay>
   )
 }

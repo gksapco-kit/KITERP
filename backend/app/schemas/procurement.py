@@ -158,7 +158,9 @@ class SupplierListResponse(BaseModel):
 # ── Purchase Order Item Schemas ──────────────────────────────────
 
 class PurchaseOrderItemCreate(BaseModel):
-    product_id: str
+    # Exactly one of product_id / service_id must be supplied
+    product_id: Optional[str] = None
+    service_id: Optional[str] = None
     variant_id: Optional[str] = None
     quantity: int = Field(..., gt=0)
     unit_cost: float = Field(..., ge=0)
@@ -166,6 +168,20 @@ class PurchaseOrderItemCreate(BaseModel):
     storage_location_id: Optional[str] = None
     description: Optional[str] = None
     notes: Optional[str] = None
+    unit_of_measure: Optional[str] = None        # e.g. PCS, KG, L, BOX
+    item_category: Optional[str] = None           # standard | service | subcontract | consignment | third_party
+    tax_code: Optional[str] = None                # e.g. GST18, IGST12
+    hsn_code: Optional[str] = None               # HS / HSN code
+    account_assignment: Optional[str] = None      # cost_center | project | asset | gl_account | none
+    account_assignment_value: Optional[str] = None  # the actual cost centre / WBS / asset / GL number
+
+    @field_validator("product_id", mode="after")
+    @classmethod
+    def require_product_or_service(cls, v, info):
+        service_id = info.data.get("service_id")
+        if not v and not service_id:
+            raise ValueError("Either product_id or service_id must be provided")
+        return v
 
 
 class PurchaseOrderItemResponse(BaseModel):
@@ -173,10 +189,12 @@ class PurchaseOrderItemResponse(BaseModel):
 
     id: str
     purchase_order_id: str
-    product_id: str
+    product_id: Optional[str] = None
+    service_id: Optional[str] = None
     variant_id: Optional[str] = None
     product_name: Optional[str] = None
     product_sku: Optional[str] = None
+    service_name: Optional[str] = None
     variant_name: Optional[str] = None
     variant_sku: Optional[str] = None
     variant_barcode: Optional[str] = None
@@ -187,13 +205,25 @@ class PurchaseOrderItemResponse(BaseModel):
     plant_id: Optional[str] = None
     storage_location_id: Optional[str] = None
     notes: Optional[str] = None
+    unit_of_measure: Optional[str] = None
+    item_category: Optional[str] = None
+    tax_code: Optional[str] = None
+    hsn_code: Optional[str] = None
+    account_assignment: Optional[str] = None
+    account_assignment_value: Optional[str] = None
+    cgst_rate: float = 0
+    sgst_rate: float = 0
+    igst_rate: float = 0
+    cgst_amount: float = 0
+    sgst_amount: float = 0
+    igst_amount: float = 0
 
-    @field_validator("id", "purchase_order_id", "product_id", mode="before")
+    @field_validator("id", "purchase_order_id", mode="before")
     @classmethod
     def coerce_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v
 
-    @field_validator("variant_id", "plant_id", "storage_location_id", mode="before")
+    @field_validator("product_id", "service_id", "variant_id", "plant_id", "storage_location_id", mode="before")
     @classmethod
     def coerce_optional_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v
@@ -207,20 +237,35 @@ class PurchaseOrderItemResponse(BaseModel):
 
 # ── Purchase Order Schemas ───────────────────────────────────────
 
+class POApproverAssign(BaseModel):
+    approver_id: str
+    level: int = Field(1, ge=1, le=5)
+
+
 class PurchaseOrderCreate(BaseModel):
     supplier_id: str
     items: List[PurchaseOrderItemCreate] = Field(..., min_length=1)
     expected_delivery_date: Optional[date] = None
+    order_date: Optional[date] = None            # defaults to today in service
     notes: Optional[str] = None
+    currency: Optional[str] = None              # defaults to INR
+    payment_terms: Optional[str] = None         # e.g. Net 30
     requisition_id: Optional[str] = None
     pr_item_ids: Optional[List[str]] = None
+    approvers: List[POApproverAssign] = Field(default_factory=list)
+    approver_message: Optional[str] = None
 
 
 class PurchaseOrderUpdate(BaseModel):
     supplier_id: Optional[str] = None
     items: Optional[List[PurchaseOrderItemCreate]] = None
     expected_delivery_date: Optional[date] = None
+    order_date: Optional[date] = None
     notes: Optional[str] = None
+    currency: Optional[str] = None
+    payment_terms: Optional[str] = None
+    approvers: Optional[List[POApproverAssign]] = None
+    approver_message: Optional[str] = None
 
 
 class ReceiveItemEntry(BaseModel):
@@ -284,7 +329,12 @@ class PurchaseOrderResponse(BaseModel):
     order_date: Optional[str] = None
     expected_delivery_date: Optional[str] = None
     notes: Optional[str] = None
+    currency: str = 'INR'
+    payment_terms: Optional[str] = None
     subtotal: float = 0
+    cgst_amount: float = 0
+    sgst_amount: float = 0
+    igst_amount: float = 0
     tax_amount: float = 0
     total: float = 0
     created_by: Optional[str] = None

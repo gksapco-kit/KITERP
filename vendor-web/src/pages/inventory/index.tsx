@@ -4,7 +4,8 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useVendorStore } from '@/stores/vendorStore'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { TablePagination } from '@/components/table/TablePagination'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { PR_FROM_INVENTORY_KEY, PO_FROM_INVENTORY_KEY, type InventoryAlertPrefill } from '@/lib/prToPoPrefill'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,14 +25,17 @@ import {
   useSuppliers,
   usePurchaseOrders,
   useStores,
+  vendorKeys,
 } from '@/hooks/useVendor'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatDateTime } from '@/lib/utils'
 import { StorageLocationSelect } from '@/components/inventory/StorageLocationSelect'
 import {
   Loader2, Package, ArrowDownCircle, ArrowUpCircle, RefreshCw,
   AlertTriangle, X, History, BarChart3,
   Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Store, ScanLine,
-  ChevronDown, ChevronRight as ChevronRightIcon, Layers,
+  ChevronDown, ChevronRight as ChevronRightIcon, Layers, ShoppingCart,
+  FileText, User, MapPin, ArrowRight, ExternalLink,
+  ClipboardList, FilePlus2,
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
@@ -43,7 +47,7 @@ import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { toast } from 'sonner'
 import { showBarcodeNotFound } from '@/components/scanner/BarcodeNotFoundToast'
 
-type Tab = 'summary' | 'history' | 'low-stock'
+type Tab = 'summary' | 'history' | 'low-stock' | 'reorder'
 type ModalType = 'stock-in' | 'stock-out' | 'adjust' | null
 
 interface ModalState {
@@ -55,16 +59,23 @@ interface ModalState {
 }
 
 const movementBadge: Record<string, { bg: string; text: string; label: string }> = {
-  stock_in: { bg: 'bg-green-50', text: 'text-green-700', label: 'Stock In' },
-  stock_out: { bg: 'bg-red-50', text: 'text-red-700', label: 'Stock Out' },
-  adjustment: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Adjustment' },
-  sale: { bg: 'bg-accent', text: 'text-primary', label: 'Sale' },
-  return: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Return' },
-  sale_return: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Sale Return' },
-  deduct: { bg: 'bg-red-50', text: 'text-red-700', label: 'Deduct' },
+  stock_in:        { bg: 'bg-green-50',  text: 'text-green-700',  label: 'Stock In' },
+  stock_out:       { bg: 'bg-red-50',    text: 'text-red-700',    label: 'Stock Out' },
+  adjustment:      { bg: 'bg-blue-50',   text: 'text-blue-700',   label: 'Adjustment' },
+  sale:            { bg: 'bg-accent',    text: 'text-primary',    label: 'Sale' },
+  return:          { bg: 'bg-amber-50',  text: 'text-amber-700',  label: 'Return' },
+  sale_return:     { bg: 'bg-amber-50',  text: 'text-amber-700',  label: 'Sale Return' },
+  deduct:          { bg: 'bg-red-50',    text: 'text-red-700',    label: 'Deduct' },
+  purchase:        { bg: 'bg-green-50',  text: 'text-green-700',  label: 'Purchase Receipt' },
+  purchase_return: { bg: 'bg-orange-50', text: 'text-orange-700', label: 'Purchase Return' },
+  transfer:        { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Transfer' },
+  stock_count:     { bg: 'bg-sky-50',    text: 'text-sky-700',    label: 'Stock Count' },
+  initial:         { bg: 'bg-gray-100',  text: 'text-gray-700',   label: 'Initial' },
+  write_off:       { bg: 'bg-rose-50',   text: 'text-rose-700',   label: 'Write-Off' },
 }
 
 export default function Inventory() {
+  const navigate = useNavigate()
   const { selectedStore } = useVendorStore()
   const [tab, setTab] = useState<Tab>('summary')
   const [modal, setModal] = useState<ModalState>({ type: null })
@@ -99,6 +110,10 @@ export default function Inventory() {
     ...(selectedStoreId !== 'all' ? { store_id: selectedStoreId } : {}),
   })
   const { data: lowStock, isLoading: lowStockLoading } = useInventoryLowStock(summaryStoreParam)
+  const { data: reorderData, isLoading: reorderLoading } = useQuery({
+    queryKey: vendorKeys.inventoryReorderAlerts(summaryStoreParam),
+    queryFn: () => vendorApi.inventoryReorderAlerts(summaryStoreParam),
+  })
 
   const handleViewHistory = useCallback((productId: string) => {
     setHistoryProductFilter(productId)
@@ -135,6 +150,7 @@ export default function Inventory() {
     { key: 'summary', label: 'Stock Overview', icon: BarChart3 },
     { key: 'history', label: 'Movement History', icon: History },
     { key: 'low-stock', label: `Low Stock${lowStock?.total ? ` (${lowStock.total})` : ''}`, icon: AlertTriangle },
+    { key: 'reorder', label: `Reorder Needed${reorderData?.total ? ` (${reorderData.total})` : ''}`, icon: ShoppingCart },
   ]
 
   return (
@@ -241,7 +257,7 @@ export default function Inventory() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="flex -mb-px space-x-6">
+        <nav className="flex -mb-px gap-1">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -290,6 +306,29 @@ export default function Inventory() {
           selectedStoreId={selectedStoreId}
           onAction={(pid, pname) => setModal({ type: 'stock-in', productId: pid, productName: pname })}
           onViewHistory={handleViewHistory}
+          onCreatePR={(prefill) => {
+            sessionStorage.setItem(PR_FROM_INVENTORY_KEY, JSON.stringify(prefill))
+            navigate('/procurement/requisitions')
+          }}
+          onCreatePO={(prefill) => {
+            sessionStorage.setItem(PO_FROM_INVENTORY_KEY, JSON.stringify(prefill))
+            navigate('/purchase-orders')
+          }}
+        />
+      )}
+      {tab === 'reorder' && (
+        <ReorderTab
+          data={reorderData}
+          loading={reorderLoading}
+          onAction={(pid, pname) => setModal({ type: 'stock-in', productId: pid, productName: pname })}
+          onCreatePR={(prefill) => {
+            sessionStorage.setItem(PR_FROM_INVENTORY_KEY, JSON.stringify(prefill))
+            navigate('/procurement/requisitions')
+          }}
+          onCreatePO={(prefill) => {
+            sessionStorage.setItem(PO_FROM_INVENTORY_KEY, JSON.stringify(prefill))
+            navigate('/purchase-orders')
+          }}
         />
       )}
 
@@ -1168,7 +1207,216 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
   )
 }
 
-type HistRow = { id: string; product_id: string; movement_type: string; quantity: number; quantity_before: number; quantity_after: number; reason?: string; created_at: string }
+type HistRow = {
+  id: string
+  document_number: string | null
+  document_line_no: number
+  product_id: string
+  product_name: string | null
+  product_sku: string | null
+  variant_id: string | null
+  variant_name: string | null
+  movement_type: string
+  quantity: number
+  quantity_before: number
+  quantity_after: number
+  reason?: string
+  reference_type: string | null
+  reference_id: string | null
+  reference_label: string | null
+  store_id: string | null
+  store_name: string | null
+  to_store_id: string | null
+  to_store_name: string | null
+  storage_location_id: string | null
+  storage_location_name: string | null
+  to_storage_location_id: string | null
+  to_storage_location_name: string | null
+  performed_by: string | null
+  performed_by_name: string | null
+  performed_by_email: string | null
+  extra_data: Record<string, unknown>
+  created_at: string
+}
+
+// ── Movement Detail Drawer ─────────────────────────────────────────
+
+function MovementDetailDrawer({ movementId, onClose }: { movementId: string; onClose: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['inventory-movement-detail', movementId],
+    queryFn: () => vendorApi.getInventoryMovementDetail(movementId),
+    enabled: !!movementId,
+  })
+
+  const m = data as HistRow & { document_siblings?: HistRow[] }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div
+        className="relative z-10 w-full sm:max-w-xl bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center gap-3">
+            <FileText className="w-5 h-5 text-gray-400" />
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Goods Movement Document</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {isLoading ? '—' : m?.document_number || 'No document number'}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+        ) : !m ? (
+          <p className="text-center py-12 text-gray-500">Movement not found</p>
+        ) : (
+          <div className="p-6 space-y-6">
+            {/* Audit header */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-1">Type</p>
+                {(() => {
+                  const badge = movementBadge[m.movement_type] || { bg: 'bg-gray-50', text: 'text-gray-700', label: m.movement_type }
+                  return (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
+                      {badge.label}
+                    </span>
+                  )
+                })()}
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-1">Date &amp; Time</p>
+                <p className="text-sm text-gray-900">{formatDateTime(m.created_at)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-1">Posted by</p>
+                <div className="flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-gray-400" />
+                  <span className="text-sm text-gray-900">{m.performed_by_name || 'System'}</span>
+                </div>
+                {m.performed_by_email && (
+                  <p className="text-xs text-gray-400 mt-0.5">{m.performed_by_email}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-1">Line</p>
+                <p className="text-sm text-gray-900">{m.document_line_no}</p>
+              </div>
+            </div>
+
+            {/* Quantities */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-3">Stock Movement</p>
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <p className="text-xs text-gray-400">Before</p>
+                  <p className="text-xl font-semibold text-gray-700">{m.quantity_before}</p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                <div className="text-center">
+                  <p className="text-xs text-gray-400">Change</p>
+                  <p className={`text-xl font-semibold ${m.quantity >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {m.quantity >= 0 ? '+' : ''}{m.quantity}
+                  </p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                <div className="text-center">
+                  <p className="text-xs text-gray-400">After</p>
+                  <p className="text-xl font-semibold text-gray-900">{m.quantity_after}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Product */}
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase mb-2">Product</p>
+              <p className="text-sm font-medium text-gray-900">{m.product_name || m.product_id}</p>
+              {m.product_sku && <p className="text-xs text-gray-400">SKU: {m.product_sku}</p>}
+              {m.variant_name && <p className="text-xs text-gray-500 mt-0.5">Variant: {m.variant_name}</p>}
+            </div>
+
+            {/* Location */}
+            {(m.store_name || m.storage_location_name || m.to_store_name) && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-2">Location</p>
+                <div className="flex items-center gap-2 flex-wrap text-sm text-gray-700">
+                  <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                  <span>{m.store_name || '—'}</span>
+                  {m.storage_location_name && <span className="text-gray-400">/ {m.storage_location_name}</span>}
+                  {m.to_store_name && (
+                    <>
+                      <ArrowRight className="w-3.5 h-3.5 text-gray-400" />
+                      <span>{m.to_store_name}</span>
+                      {m.to_storage_location_name && <span className="text-gray-400">/ {m.to_storage_location_name}</span>}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Reference */}
+            {(m.reference_type || m.reason) && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-2">Reference</p>
+                {m.reference_label && (
+                  <p className="text-sm text-blue-700 font-medium flex items-center gap-1">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    {m.reference_label}
+                  </p>
+                )}
+                {m.reason && <p className="text-sm text-gray-600 mt-1">{m.reason}</p>}
+              </div>
+            )}
+
+            {/* Extra data */}
+            {m.extra_data && Object.keys(m.extra_data).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-2">Additional Info</p>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                  {Object.entries(m.extra_data).map(([k, v]) => (
+                    <div key={k} className="flex gap-2 text-xs">
+                      <span className="text-gray-500 min-w-[120px] capitalize">{k.replace(/_/g, ' ')}</span>
+                      <span className="text-gray-800 break-all">{String(v)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sibling lines */}
+            {m.document_siblings && m.document_siblings.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-2">
+                  Other lines in {m.document_number}
+                </p>
+                <div className="divide-y border rounded-lg overflow-hidden">
+                  {m.document_siblings.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                      <span className="text-gray-600">
+                        Line {s.document_line_no} &mdash; {s.product_name || s.product_id}
+                      </span>
+                      <span className={`font-medium ${s.quantity >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {s.quantity >= 0 ? '+' : ''}{s.quantity}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function HistoryTab({ data, loading, page, setPage, pageSize, setPageSize, productFilter, onClearFilter }: {
   data: { items: HistRow[]; total: number; pages: number } | undefined
@@ -1183,6 +1431,7 @@ function HistoryTab({ data, loading, page, setPage, pageSize, setPageSize, produ
   const [q, setQ] = useState('')
   const [sk, setSk] = useState('created_at')
   const [sd, setSd] = useState<SortDir>('desc')
+  const [selectedMovement, setSelectedMovement] = useState<string | null>(null)
 
   const rows = useMemo(() => {
     if (!data?.items?.length) return []
@@ -1193,15 +1442,25 @@ function HistoryTab({ data, loading, page, setPage, pageSize, setPageSize, produ
     return processRows(
       items,
       q,
-      (m) => [m.movement_type, m.reason || '', m.product_id, String(m.quantity)],
+      (m) => [
+        m.movement_type,
+        m.reason || '',
+        m.product_id,
+        m.product_name || '',
+        m.performed_by_name || '',
+        m.document_number || '',
+        String(m.quantity),
+      ],
       sk,
       sd,
       {
+        document_number: (m) => m.document_number || '',
         movement_type: (m) => m.movement_type,
         quantity: (m) => m.quantity,
         quantity_before: (m) => m.quantity_before,
         quantity_after: (m) => m.quantity_after,
         reason: (m) => m.reason || '',
+        performed_by_name: (m) => m.performed_by_name || '',
         created_at: (m) => m.created_at,
       },
     )
@@ -1217,6 +1476,9 @@ function HistoryTab({ data, loading, page, setPage, pageSize, setPageSize, produ
 
   return (
     <>
+      {selectedMovement && (
+        <MovementDetailDrawer movementId={selectedMovement} onClose={() => setSelectedMovement(null)} />
+      )}
       {productFilter && (
         <div className="flex items-center gap-2 px-1 py-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
@@ -1232,52 +1494,78 @@ function HistoryTab({ data, loading, page, setPage, pageSize, setPageSize, produ
           <TableToolbar
             search={q}
             onSearchChange={setQ}
-            searchPlaceholder="Filter type, reason, product id…"
+            searchPlaceholder="Filter by doc#, type, reason, user…"
             sortOptions={[
               { value: 'created_at', label: 'Date' },
+              { value: 'document_number', label: 'Document #' },
               { value: 'movement_type', label: 'Type' },
               { value: 'quantity', label: 'Qty' },
               { value: 'quantity_before', label: 'Before' },
               { value: 'quantity_after', label: 'After' },
               { value: 'reason', label: 'Reason' },
+              { value: 'performed_by_name', label: 'User' },
             ]}
             sortKey={sk}
             sortDir={sd}
             onSortKeyChange={setSk}
             onSortDirChange={setSd}
-            hint={productFilter ? 'Showing history for one product.' : 'Applies to current page of history.'}
+            hint={productFilter ? 'Showing history for one product.' : 'Click a row to view full audit detail.'}
             className="rounded-t-xl"
           />
-          <ResizableTable tableId="inventory-movements" defaultWidths={[110, 80, 80, 80, 140, 180, 120]}>
+          <ResizableTable tableId="inventory-movements" defaultWidths={[130, 110, 80, 80, 80, 140, 150, 150]}>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Qty</TableColumnLabel></th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Before</TableColumnLabel></th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>After</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Location</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Reason</TableColumnLabel></th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Document #</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Type</TableColumnLabel></th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Qty</TableColumnLabel></th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Before</TableColumnLabel></th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>After</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Location</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Posted by</TableColumnLabel></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Date &amp; Time</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {rows.length === 0 ? (
-                <tr><td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">No rows match your filter.</td></tr>
+                <tr><td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-500">No rows match your filter.</td></tr>
               ) : rows.map((m) => {
                 const badge = movementBadge[m.movement_type] || { bg: 'bg-gray-50', text: 'text-gray-700', label: m.movement_type }
                 return (
-                  <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-3">
+                  <tr
+                    key={m.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setSelectedMovement(m.id)}
+                  >
+                    <td className="px-4 py-3">
+                      {m.document_number ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-mono font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                          <FileText className="w-3 h-3" />
+                          {m.document_number}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>
                         {badge.label}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-sm text-right font-medium">{m.quantity}</td>
-                    <td className="px-6 py-3 text-sm text-right text-gray-500">{m.quantity_before}</td>
-                    <td className="px-6 py-3 text-sm text-right font-medium">{m.quantity_after}</td>
-                    <td className="px-6 py-3 text-sm text-gray-600 max-w-[140px] truncate">{m.storage_location_name || '—'}</td>
-                    <td className="px-6 py-3 text-sm text-gray-600 max-w-xs truncate">{m.reason || '-'}</td>
-                    <td className="px-6 py-3 text-sm text-gray-500">{formatDate(m.created_at)}</td>
+                    <td className="px-4 py-3 text-sm text-right font-medium">{m.quantity}</td>
+                    <td className="px-4 py-3 text-sm text-right text-gray-500">{m.quantity_before}</td>
+                    <td className="px-4 py-3 text-sm text-right font-medium">{m.quantity_after}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[140px] truncate">
+                      {m.storage_location_name || m.store_name || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[150px] truncate">
+                      {m.performed_by_name ? (
+                        <span className="flex items-center gap-1">
+                          <User className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          {m.performed_by_name}
+                        </span>
+                      ) : <span className="text-gray-400">System</span>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDateTime(m.created_at)}</td>
                   </tr>
                 )
               })}
@@ -1302,14 +1590,138 @@ function HistoryTab({ data, loading, page, setPage, pageSize, setPageSize, produ
   )
 }
 
-type LowItem = { product_id: string; product_name: string; sku?: string; current_quantity: number; low_stock_threshold: number }
+type LowItem = { product_id: string; product_name: string; sku?: string; current_quantity: number; low_stock_threshold: number; reorder_point?: number | null; reorder_quantity?: number | null; needs_reorder?: boolean }
 
-function LowStockTab({ data, loading, selectedStoreId, onAction, onViewHistory }: {
+// ── Reorder Needed Tab ────────────────────────────────────────────────────────
+type ReorderItem = {
+  product_id: string
+  variant_id?: string | null
+  product_name: string
+  sku?: string
+  current_quantity: number
+  reorder_point: number
+  reorder_quantity?: number | null
+  low_stock_threshold: number
+}
+
+function ReorderTab({ data, loading, onAction, onCreatePR, onCreatePO }: {
+  data: { items: ReorderItem[]; total: number } | undefined
+  loading: boolean
+  onAction: (pid: string, pname: string) => void
+  onCreatePR: (prefill: InventoryAlertPrefill) => void
+  onCreatePO: (prefill: InventoryAlertPrefill) => void
+}) {
+  const items: ReorderItem[] = data?.items ?? []
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center py-16 gap-2 text-center">
+        <CheckCircle2 className="h-10 w-10 text-green-400 opacity-60" />
+        <p className="font-medium text-muted-foreground">All stock levels are above reorder points</p>
+        <p className="text-sm text-muted-foreground">
+          Set <strong>Reorder Point</strong> on a product to see reorder alerts here.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="text-sm text-muted-foreground">
+        <ShoppingCart className="inline h-4 w-4 mr-1 text-amber-500" />
+        <strong>{items.length}</strong> item{items.length !== 1 ? 's' : ''} at or below reorder point — consider raising a purchase order or requisition.
+      </div>
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40">
+              <th className="py-2 px-3 text-left font-medium text-muted-foreground text-xs">Product</th>
+              <th className="py-2 px-3 text-center font-medium text-muted-foreground text-xs">On Hand</th>
+              <th className="py-2 px-3 text-center font-medium text-muted-foreground text-xs">Reorder Point</th>
+              <th className="py-2 px-3 text-center font-medium text-muted-foreground text-xs">Suggested Qty</th>
+              <th className="py-2 px-3 text-right font-medium text-muted-foreground text-xs">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => {
+              const suggestedQty = item.reorder_quantity ?? Math.max(1, item.reorder_point - item.current_quantity)
+              const prefill: InventoryAlertPrefill = {
+                productId: item.product_id,
+                variantId: item.variant_id ?? undefined,
+                productName: item.product_name,
+                sku: item.sku,
+                quantity: suggestedQty,
+                source: 'reorder',
+              }
+              return (
+                <tr key={item.variant_id ?? item.product_id} className="border-b last:border-0 hover:bg-muted/30">
+                  <td className="py-2 px-3">
+                    <div className="font-medium">{item.product_name}</div>
+                    {item.sku && <div className="text-xs text-muted-foreground font-mono">{item.sku}</div>}
+                  </td>
+                  <td className="py-2 px-3 text-center">
+                    <span className={`font-semibold text-sm ${item.current_quantity === 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                      {item.current_quantity}
+                    </span>
+                  </td>
+                  <td className="py-2 px-3 text-center text-sm text-muted-foreground">{item.reorder_point}</td>
+                  <td className="py-2 px-3 text-center">
+                    {item.reorder_quantity ? (
+                      <span className="text-sm font-medium text-blue-600">{item.reorder_quantity}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => onCreatePR(prefill)}
+                        title="Create Purchase Requisition"
+                        className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 underline underline-offset-2"
+                      >
+                        <ClipboardList className="h-3.5 w-3.5" />PR
+                      </button>
+                      <button
+                        onClick={() => onCreatePO(prefill)}
+                        title="Create Purchase Order"
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 underline underline-offset-2"
+                      >
+                        <FilePlus2 className="h-3.5 w-3.5" />PO
+                      </button>
+                      <button
+                        onClick={() => onAction(item.product_id, item.product_name)}
+                        className="text-xs text-primary underline underline-offset-2 hover:opacity-80"
+                      >
+                        Stock In
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function LowStockTab({ data, loading, selectedStoreId, onAction, onViewHistory, onCreatePR, onCreatePO }: {
   data: { items: LowItem[]; total: number } | undefined
   loading: boolean
   selectedStoreId: string
   onAction: (pid: string, pname: string) => void
   onViewHistory: (pid: string) => void
+  onCreatePR: (prefill: InventoryAlertPrefill) => void
+  onCreatePO: (prefill: InventoryAlertPrefill) => void
 }) {
   const qc = useQueryClient()
   const updateProduct = useUpdateProduct()
@@ -1495,9 +1907,37 @@ function LowStockTab({ data, loading, selectedStoreId, onAction, onViewHistory }
                   </InlineEditCell>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <div className="flex gap-1 justify-end">
+                  <div className="flex gap-1 justify-end flex-wrap">
                     <Button variant="ghost" size="sm" className="text-gray-500 text-xs" onClick={() => onViewHistory(item.product_id)}>
                       <History className="w-3 h-3 mr-1" />History
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs text-violet-600 border-violet-200 hover:bg-violet-50"
+                      onClick={() => onCreatePR({
+                        productId: item.product_id,
+                        productName: item.product_name,
+                        sku: item.sku,
+                        quantity: Math.max(1, item.shortage ?? 1),
+                        source: 'low_stock',
+                      })}
+                    >
+                      <ClipboardList className="w-3 h-3 mr-1" />PR
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
+                      onClick={() => onCreatePO({
+                        productId: item.product_id,
+                        productName: item.product_name,
+                        sku: item.sku,
+                        quantity: Math.max(1, item.shortage ?? 1),
+                        source: 'low_stock',
+                      })}
+                    >
+                      <FilePlus2 className="w-3 h-3 mr-1" />PO
                     </Button>
                     <Button size="sm" onClick={() => onAction(item.product_id, item.product_name)}>
                       <ArrowDownCircle className="w-4 h-4 mr-1" />Restock

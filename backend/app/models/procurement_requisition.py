@@ -33,7 +33,11 @@ class PurchaseRequisition(Base):
     priority = Column(String(20), default="medium")  # low | medium | high | urgent
     requisition_type = Column(String(20), default="product")  # product | service | asset | consumption | other
 
-    # Business unit & sourcing context
+    # Org dimensions for approver-matrix resolution (proc015)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("fin_company.id", ondelete="SET NULL"), nullable=True)
+    plant_id   = Column(UUID(as_uuid=True), ForeignKey("plant.id",       ondelete="SET NULL"), nullable=True)
+
+    # Business unit & sourcing context (store_id acts as branch_id)
     store_id = Column(UUID(as_uuid=True), ForeignKey("store.id", ondelete="SET NULL"), nullable=True)
     procurement_source = Column(String(20), default="supplier")  # supplier | internal
     bu_scope = Column(String(20), nullable=True)  # within_bu | cross_bu (internal only)
@@ -102,6 +106,9 @@ class PurchaseRequisitionItem(Base):
 
     estimated_price = Column(Numeric(12, 2), default=0)
 
+    # Denormalised from product.material_type at save time (proc016)
+    material_type = Column(String(30), nullable=True)
+
     # Preferred supplier (optional)
     suggested_supplier_id = Column(UUID(as_uuid=True), ForeignKey("supplier.id", ondelete="SET NULL"), nullable=True)
 
@@ -142,6 +149,12 @@ class PurchaseRequisitionApproval(Base):
     approver_id = Column(UUID(as_uuid=True), ForeignKey("vendor_user.id", ondelete="SET NULL"), nullable=True)
 
     status = Column(String(20), nullable=False, default="pending")
+
+    # NULL = manually assigned; non-null = auto-assigned by approver matrix (proc017)
+    source_rule_id = Column(UUID(as_uuid=True),
+                            ForeignKey("procurement_approver_rule.id", ondelete="SET NULL"),
+                            nullable=True)
+
     comments = Column(Text, nullable=True)
 
     actioned_at = Column(DateTime(timezone=True), nullable=True)

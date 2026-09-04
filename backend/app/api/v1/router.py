@@ -51,7 +51,14 @@ from app.api.v1 import (
     vendor_procurement_invoice,
     vendor_procurement_goods,
     vendor_procurement_special,
+    vendor_procurement_supplier,
+    vendor_procurement_rfq,
+    vendor_procurement_grn,
+    vendor_procurement_return,
     vendor_business_partners,
+    vendor_inventory_count,
+    vendor_stock_transfers,
+    vendor_inventory_reports,
     vendor_pharma,
     vendor_pharma_reports,
     vendor_product_groups,
@@ -105,6 +112,9 @@ api_router.include_router(vendor_reviews.router, prefix="/vendors/me/reviews", t
 api_router.include_router(vendor_team.router, prefix="/vendors/me/team", tags=["Vendor Team"])
 api_router.include_router(vendor_roles.router, prefix="/vendors/me/roles", tags=["Vendor Roles"])
 api_router.include_router(vendor_inventory.router, prefix="/vendors/me/inventory", tags=["Vendor Inventory"])
+api_router.include_router(vendor_inventory_count.router, prefix="/vendors/me/inventory", tags=["Inventory Counting & Audit"])
+api_router.include_router(vendor_stock_transfers.router, prefix="/vendors/me/inventory", tags=["Stock Transfer Orders"])
+api_router.include_router(vendor_inventory_reports.router, prefix="/vendors/me/inventory", tags=["Inventory Reports"])
 api_router.include_router(vendor_storage_locations.router, prefix="/vendors/me/storage-locations", tags=["Storage Locations"])
 api_router.include_router(vendor_plants.router, prefix="/vendors/me/plants", tags=["Plants"])
 api_router.include_router(vendor_business_partners.router, prefix="/vendors/me/business-partners", tags=["Business Partners"])
@@ -114,6 +124,10 @@ api_router.include_router(vendor_procurement_requisition.router, prefix="/vendor
 api_router.include_router(vendor_procurement_invoice.router, prefix="/vendors/me/procurement", tags=["Vendor Invoices (AP)"])
 api_router.include_router(vendor_procurement_goods.router, prefix="/vendors/me/procurement", tags=["Goods Management"])
 api_router.include_router(vendor_procurement_special.router, prefix="/vendors/me/procurement", tags=["Special Procurement"])
+api_router.include_router(vendor_procurement_supplier.router, prefix="/vendors/me", tags=["Supplier Management"])
+api_router.include_router(vendor_procurement_rfq.router, prefix="/vendors/me/procurement", tags=["RFQ & Supplier Quotations"])
+api_router.include_router(vendor_procurement_grn.router, prefix="/vendors/me/procurement", tags=["GRN - Goods Receipt"])
+api_router.include_router(vendor_procurement_return.router, prefix="/vendors/me/procurement", tags=["Purchase Returns"])
 api_router.include_router(vendor_pos.router, prefix="/vendors/me/pos", tags=["Vendor POS"])
 api_router.include_router(vendor_restaurant.router, prefix="/vendors/me/restaurant", tags=["Restaurant"])
 api_router.include_router(vendor_restaurants.router, prefix="/vendors/me", tags=["Restaurant Outlets"])

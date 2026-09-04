@@ -78,7 +78,7 @@ function FieldCell({
 }) {
   return (
     <div className={className}>
-      <Label className="text-[11px] leading-tight text-gray-500">{label}</Label>
+      <Label className="text-[10px] font-semibold uppercase tracking-wide leading-tight text-gray-400 select-none">{label}</Label>
       <div className="mt-0.5">{children}</div>
     </div>
   )
@@ -365,7 +365,7 @@ export function ProcurementLineItemForm({
 
   const inputClass = 'text-xs h-8 py-0 px-2.5'
   const selectorClass = 'min-w-0 [&_label]:text-[11px] [&_label]:leading-tight [&_label]:text-gray-500 [&_select]:h-8 [&_select]:text-xs [&_select]:py-0 [&_select]:px-2.5 [&_input]:h-8 [&_input]:text-xs [&_input]:py-0 [&_input]:px-2.5'
-  const rowGrid = 'grid grid-cols-4 gap-x-3 gap-y-2.5'
+  const rowGrid = 'grid grid-cols-4 gap-x-3 gap-y-2'
 
   const variantField = (
     <FieldCell label="Variant">
@@ -419,8 +419,8 @@ export function ProcurementLineItemForm({
   )
 
   return (
-    <div className="border rounded-md bg-gray-50 dark:bg-gray-800/50 overflow-hidden">
-      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-900/50 border-b">
+    <div className="overflow-hidden">
+      <div className="flex items-center gap-1.5 px-4 py-2.5 bg-white dark:bg-gray-900/50">
         <button
           type="button"
           onClick={onToggleExpand}
@@ -447,7 +447,7 @@ export function ProcurementLineItemForm({
       </div>
 
       {expanded && (
-        <div className="p-3 space-y-2.5 bg-white dark:bg-gray-900/30">
+        <div className="border-t border-gray-100 px-4 py-3 space-y-2.5 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/20">
           {/* Row 1: line meta */}
           <div className={rowGrid}>
             <FieldCell label="Requisition Type">

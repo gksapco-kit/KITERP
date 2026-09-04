@@ -12,16 +12,18 @@ import { Label } from '@/components/ui/label'
 import {
   usePurchaseOrder, useSendPO, useReceivePOItems, useClosePO, useCancelPO,
   useUpdatePurchaseOrder, useSuppliers, useProducts,
+  useRequestPOApproval, useApprovePO, useTeamMembers, useMyMembership,
 } from '@/hooks/useVendor'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { formatDate, formatDateTime, formatCurrency } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
-import type { PurchaseOrderItem as POItem } from '@/types'
+import type { PurchaseOrderItem as POItem, POApprovalStep } from '@/types'
 import {
   Loader2, ArrowLeft, Send, PackageCheck, CheckCircle2, XCircle,
   X, ClipboardList, Truck, Calendar, FileText, History,
   Download, Copy, MessageCircle, Mail, Share2, Printer, Palette, MessageSquare,
   ChevronDown, ChevronRight, Edit2, Trash2, Plus, Save, RotateCcw, ScanLine,
+  ShieldCheck, ThumbsUp, ThumbsDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
@@ -62,9 +64,26 @@ export default function PurchaseOrderDetail() {
   const closeMut = useClosePO()
   const cancelMut = useCancelPO()
   const updateMut = useUpdatePurchaseOrder()
+  const requestApprovalMut = useRequestPOApproval()
+  const approveMut = useApprovePO()
   const { data: poTemplateSettings } = usePOTemplateSettings()
   const { data: suppliersData } = useSuppliers({ size: 200 })
   const suppliers = suppliersData?.items ?? []
+  const { data: teamData } = useTeamMembers({ size: 100 })
+  const { data: myMembership } = useMyMembership()
+  const teamMembers = (teamData?.items ?? [])
+    .filter((m: any) => m.is_active)
+    .map((m: any) => ({
+      id: m.id as string,
+      name: (m.user?.full_name || m.role_name || 'Team member') as string,
+      email: (m.user?.email || '') as string,
+    }))
+
+  const [showRequestApproval, setShowRequestApproval] = useState(false)
+  const [approvalApproverIds, setApprovalApproverIds] = useState<string[]>([])
+  const [showApproveReject, setShowApproveReject] = useState(false)
+  const [approveAction, setApproveAction] = useState<'approve' | 'reject'>('approve')
+  const [approveComments, setApproveComments] = useState('')
 
   const [showReceive, setShowReceive] = useState(false)
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
@@ -227,9 +246,18 @@ export default function PurchaseOrderDetail() {
   }
 
   const badge = statusConfig[po.status] || statusConfig.draft
-  const actionLoading = sendMut.isPending || closeMut.isPending || cancelMut.isPending || updateMut.isPending
+  const actionLoading = sendMut.isPending || closeMut.isPending || cancelMut.isPending || updateMut.isPending || requestApprovalMut.isPending || approveMut.isPending
   const isDraft = po.status === 'draft'
+  const approvalPending = po.approval_status === 'pending'
+  const approvalApproved = po.approval_status === 'approved'
   const canReceive = po.status === 'sent' || po.status === 'ordered' || po.status === 'partial_received'
+
+  // Approval chain helpers
+  const sortedApprovals: POApprovalStep[] = [...(po.approvals ?? [])].sort((a, b) => a.level - b.level)
+  const pendingStep = sortedApprovals.find(a => a.status === 'pending')
+  const canActAsApprover = approvalPending
+    && !!pendingStep
+    && (!pendingStep.approver_id || pendingStep.approver_id === myMembership?.id)
 
   const poMessage = () => buildShareMessage({
     type: 'po',
@@ -333,9 +361,35 @@ export default function PurchaseOrderDetail() {
                   </Button>
                 </>
               )}
-              <Button variant="outline" className="gap-2" disabled={actionLoading} onClick={() => sendMut.mutate(po.id)}>
-                <Send className="w-4 h-4" /> Send to Supplier
-              </Button>
+              {!approvalPending && !approvalApproved && (
+                <Button variant="outline" className="gap-2" disabled={actionLoading} onClick={() => setShowRequestApproval(true)}>
+                  <ShieldCheck className="w-4 h-4" /> Request Approval
+                </Button>
+              )}
+              {approvalPending && (
+                <>
+                  <span className="text-xs font-medium text-amber-600 border border-amber-300 bg-amber-50 rounded-md px-2 py-1">
+                    Pending Approval {pendingStep?.approver_name ? `· ${pendingStep.approver_name}` : ''}
+                  </span>
+                  {canActAsApprover && (
+                    <>
+                      <Button variant="outline" className="gap-2 text-green-700 border-green-300" disabled={actionLoading}
+                        onClick={() => { setApproveAction('approve'); setApproveComments(''); setShowApproveReject(true) }}>
+                        <ThumbsUp className="w-4 h-4" /> Approve
+                      </Button>
+                      <Button variant="outline" className="gap-2 text-red-600 border-red-300" disabled={actionLoading}
+                        onClick={() => { setApproveAction('reject'); setApproveComments(''); setShowApproveReject(true) }}>
+                        <ThumbsDown className="w-4 h-4" /> Reject
+                      </Button>
+                    </>
+                  )}
+                </>
+              )}
+              {(approvalApproved || po.approval_status === 'not_required' || !po.approval_status) && (
+                <Button variant="outline" className="gap-2" disabled={actionLoading} onClick={() => sendMut.mutate(po.id)}>
+                  <Send className="w-4 h-4" /> Send to Supplier
+                </Button>
+              )}
               <Button variant="cancel" className="gap-2 text-red-600 hover:text-red-700" disabled={actionLoading}
                 onClick={async () => { if (await askConfirm('Cancel this purchase order?')) cancelMut.mutate(po.id) }}>
                 <XCircle className="w-4 h-4" />Cancel</Button>
@@ -419,7 +473,23 @@ export default function PurchaseOrderDetail() {
           <InfoCard icon={Truck} label="Supplier" value={po.supplier_name || '-'} />
           <InfoCard icon={Calendar} label="Order Date" value={formatDate(po.order_date)} />
           <InfoCard icon={Calendar} label="Expected Delivery" value={formatDate(po.expected_delivery_date)} />
-          <InfoCard icon={FileText} label="Total" value={formatCurrency(po.total)} />
+          <InfoCard icon={FileText} label="Total" value={formatCurrency(po.total, po.currency || 'INR')} />
+        </div>
+      )}
+
+      {/* Currency / payment terms pills — shown whenever data exists */}
+      {!editingHeader && (po.currency && po.currency !== 'INR' || po.payment_terms) && (
+        <div className="flex flex-wrap gap-3">
+          {po.currency && po.currency !== 'INR' && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+              Currency: {po.currency}
+            </span>
+          )}
+          {po.payment_terms && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600">
+              Terms: {po.payment_terms}
+            </span>
+          )}
         </div>
       )}
 
@@ -427,6 +497,69 @@ export default function PurchaseOrderDetail() {
         <Card>
           <CardContent className="px-4 py-2.5">
             <p className="text-sm text-gray-600"><span className="font-medium">Notes:</span> {po.notes}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Approver message */}
+      {po.approver_message && (
+        <Card>
+          <CardContent className="px-4 py-2.5">
+            <div className="rounded-md border border-blue-100 bg-blue-50/70 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-800">Message for approver</p>
+              <p className="mt-1 whitespace-pre-wrap text-xs text-blue-950">{po.approver_message}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Approval chain */}
+      {sortedApprovals.length > 0 && (
+        <Card>
+          <CardHeader className="border-b px-4 py-2.5">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <ShieldCheck className="w-4 h-4" /> Approval Chain
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 py-3">
+            <div className="space-y-2">
+              {sortedApprovals.map((step) => {
+                const isCurrentStep = step.status === 'pending' && step.level === pendingStep?.level
+                const stepColor =
+                  step.status === 'approved' ? 'text-green-600' :
+                  step.status === 'rejected' ? 'text-red-600' :
+                  isCurrentStep ? 'text-amber-600' : 'text-gray-400'
+                const dotColor =
+                  step.status === 'approved' ? 'bg-green-500' :
+                  step.status === 'rejected' ? 'bg-red-500' :
+                  isCurrentStep ? 'bg-amber-400' : 'bg-gray-200'
+                return (
+                  <div key={step.id} className="flex items-start gap-3">
+                    <div className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${dotColor}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 text-sm">
+                        <span className="font-medium text-gray-500">Level {step.level}</span>
+                        <span className="text-gray-300">·</span>
+                        <span className={`font-semibold ${stepColor}`}>{step.approver_name || '—'}</span>
+                        {isCurrentStep && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Current</span>}
+                        <span className={`ml-auto text-xs capitalize ${stepColor}`}>{step.status}</span>
+                      </div>
+                      {step.comments && (
+                        <p className="mt-0.5 text-xs text-gray-500 italic">"{step.comments}"</p>
+                      )}
+                      {step.actioned_at && (
+                        <p className="mt-0.5 text-[10px] text-gray-400">{formatDateTime(step.actioned_at)}</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {approvalPending && !canActAsApprover && pendingStep && (
+              <p className="mt-3 text-xs text-amber-700">
+                Awaiting <span className="font-semibold">{pendingStep.approver_name || 'designated approver'}</span> (Level {pendingStep.level})
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -495,12 +628,13 @@ export default function PurchaseOrderDetail() {
             />
           )}
 
-          <ResizableTable tableId="po-lines-v2" defaultWidths={[200, 100, 110, 70, 70, 70, 90, 90, isDraft ? 44 : 0]}>
+          <ResizableTable tableId="po-lines-v2" defaultWidths={[200, 100, 110, 55, 70, 70, 70, 90, 90, isDraft ? 44 : 0]}>
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Product</TableColumnLabel></th>
                 <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Variant</TableColumnLabel></th>
                 <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Barcode / SKU</TableColumnLabel></th>
+                <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>UoM</TableColumnLabel></th>
                 <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Ordered</TableColumnLabel></th>
                 <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Received</TableColumnLabel></th>
                 <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Remaining</TableColumnLabel></th>
@@ -547,6 +681,9 @@ export default function PurchaseOrderDetail() {
                         )}
                         {!displayBarcode && !displaySku && <span className="text-gray-300">—</span>}
                       </td>
+                      <td className="px-3 py-2 text-center text-xs text-gray-500">
+                        {item.unit_of_measure || <span className="text-gray-300">PCS</span>}
+                      </td>
                       <td className="px-3 py-2 text-right text-sm tabular-nums">{item.quantity_ordered}</td>
                       <td className="px-3 py-2 text-right text-sm tabular-nums">
                         <span className={item.quantity_received >= item.quantity_ordered ? 'text-green-600 font-medium' : ''}>
@@ -556,8 +693,8 @@ export default function PurchaseOrderDetail() {
                       <td className="px-3 py-2 text-right text-sm tabular-nums">
                         <span className={remaining > 0 ? 'text-amber-600 font-medium' : 'text-gray-400'}>{remaining}</span>
                       </td>
-                      <td className="px-3 py-2 text-right text-sm tabular-nums whitespace-nowrap">{formatCurrency(item.unit_cost)}</td>
-                      <td className="px-3 py-2 text-right text-sm font-medium tabular-nums whitespace-nowrap">{formatCurrency(item.total_cost)}</td>
+                      <td className="px-3 py-2 text-right text-sm tabular-nums whitespace-nowrap">{formatCurrency(item.unit_cost, po.currency || 'INR')}</td>
+                      <td className="px-3 py-2 text-right text-sm font-medium tabular-nums whitespace-nowrap">{formatCurrency(item.total_cost, po.currency || 'INR')}</td>
                       {isDraft && (
                         <td className="px-2 py-2 text-right">
                           <button
@@ -574,7 +711,7 @@ export default function PurchaseOrderDetail() {
                     {/* Expanded panel */}
                     {isExpanded && (
                       <tr key={`${item.id}-expanded`}>
-                        <td colSpan={isDraft ? 9 : 8} className="border-b bg-blue-50/30 px-0 py-0">
+                        <td colSpan={isDraft ? 10 : 9} className="border-b bg-blue-50/30 px-0 py-0">
                           <ItemExpandPanel
                             item={item}
                             po={po}
@@ -601,8 +738,20 @@ export default function PurchaseOrderDetail() {
             </tbody>
             <tfoot>
               <tr className="border-t bg-gray-50">
-                <td colSpan={7} className="px-3 py-2 text-right text-sm font-semibold text-gray-700">Subtotal</td>
-                <td className="px-3 py-2 text-right text-sm font-bold tabular-nums whitespace-nowrap">{formatCurrency(po.subtotal)}</td>
+                <td colSpan={9} className="px-3 py-1.5 text-right text-sm text-gray-600">Subtotal</td>
+                <td className="px-3 py-1.5 text-right text-sm tabular-nums whitespace-nowrap">{formatCurrency(po.subtotal, po.currency || 'INR')}</td>
+                {isDraft && <td className="px-2 py-1.5" />}
+              </tr>
+              {Number(po.tax_amount) > 0 && (
+                <tr className="bg-gray-50">
+                  <td colSpan={9} className="px-3 py-1.5 text-right text-sm text-gray-600">Tax</td>
+                  <td className="px-3 py-1.5 text-right text-sm tabular-nums whitespace-nowrap">{formatCurrency(po.tax_amount, po.currency || 'INR')}</td>
+                  {isDraft && <td className="px-2 py-1.5" />}
+                </tr>
+              )}
+              <tr className="border-t bg-gray-50">
+                <td colSpan={9} className="px-3 py-2 text-right text-sm font-semibold text-gray-700">Total</td>
+                <td className="px-3 py-2 text-right text-sm font-bold tabular-nums whitespace-nowrap">{formatCurrency(po.total, po.currency || 'INR')}</td>
                 {isDraft && <td className="px-2 py-2" />}
               </tr>
             </tfoot>
@@ -665,6 +814,98 @@ export default function PurchaseOrderDetail() {
         onScan={handleBarcodeScan}
         title="Scan to Add Item to PO"
       />
+
+      {/* ── Request Approval Dialog ─────────────────────── */}
+      {showRequestApproval && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Request PO Approval</h2>
+              <button onClick={() => setShowRequestApproval(false)}><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Select approvers in order. Leave unchanged to use the current approval chain.
+            </p>
+            {/* Existing approver chain hint */}
+            {sortedApprovals.length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Current chain: {sortedApprovals.map(a => a.approver_name || '—').join(' → ')}
+              </div>
+            )}
+            <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-2">
+              {teamMembers.length === 0 && <p className="text-sm text-gray-400 p-2">No team members found</p>}
+              {teamMembers.map((m) => (
+                <label key={m.id} className="flex items-center gap-2 cursor-pointer text-sm p-1 hover:bg-accent rounded">
+                  <input
+                    type="checkbox"
+                    checked={approvalApproverIds.includes(m.id)}
+                    onChange={e => {
+                      setApprovalApproverIds(prev =>
+                        e.target.checked ? [...prev, m.id] : prev.filter(x => x !== m.id)
+                      )
+                    }}
+                  />
+                  <span className="font-medium">{m.name}</span>
+                  {m.email && <span className="text-muted-foreground text-xs">{m.email}</span>}
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="cancel" className="flex-1" onClick={() => setShowRequestApproval(false)}>Cancel</Button>
+              <Button className="flex-1 gap-2"
+                disabled={requestApprovalMut.isPending}
+                onClick={() => {
+                  requestApprovalMut.mutate(
+                    { id: po.id, approverIds: approvalApproverIds },
+                    { onSuccess: () => { setShowRequestApproval(false); setApprovalApproverIds([]) } },
+                  )
+                }}
+              >
+                {requestApprovalMut.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                <ShieldCheck className="w-4 h-4" /> Submit for Approval
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Approve / Reject Dialog ─────────────────────── */}
+      {showApproveReject && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">{approveAction === 'approve' ? 'Approve' : 'Reject'} Purchase Order</h2>
+              <button onClick={() => setShowApproveReject(false)}><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Comments {approveAction === 'reject' && <span className="text-red-500">*</span>}</Label>
+              <textarea
+                className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={approveComments}
+                onChange={e => setApproveComments(e.target.value)}
+                placeholder={approveAction === 'reject' ? 'Reason for rejection...' : 'Optional comments...'}
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="cancel" className="flex-1" onClick={() => setShowApproveReject(false)}>Cancel</Button>
+              <Button
+                className={`flex-1 gap-2 ${approveAction === 'reject' ? 'bg-red-600 hover:bg-red-700 text-white' : ''}`}
+                disabled={approveMut.isPending || (approveAction === 'reject' && !approveComments.trim())}
+                onClick={() => {
+                  approveMut.mutate(
+                    { id: po.id, action: approveAction, comments: approveComments || undefined },
+                    { onSuccess: () => setShowApproveReject(false) },
+                  )
+                }}
+              >
+                {approveMut.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                {approveAction === 'approve' ? <ThumbsUp className="w-4 h-4" /> : <ThumbsDown className="w-4 h-4" />}
+                {approveAction === 'approve' ? 'Approve PO' : 'Reject PO'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -961,6 +1202,42 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
           )}
         </div>
       </div>
+
+      {/* Line-level procurement metadata */}
+      {(item.unit_of_measure || item.item_category || item.tax_code || item.account_assignment || item.notes) && (
+        <div className="flex flex-wrap gap-2">
+          {item.unit_of_measure && item.unit_of_measure !== 'PCS' && (
+            <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-600">
+              UoM: {item.unit_of_measure}
+            </span>
+          )}
+          {item.item_category && item.item_category !== 'standard' && (
+            <span className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
+              {{
+                service: 'Service',
+                subcontract: 'Subcontract',
+                consignment: 'Consignment',
+                third_party: 'Third Party',
+              }[item.item_category] ?? item.item_category}
+            </span>
+          )}
+          {item.tax_code && (
+            <span className="inline-flex items-center rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
+              Tax: {item.tax_code}
+            </span>
+          )}
+          {item.account_assignment && item.account_assignment !== 'none' && (
+            <span className="inline-flex items-center rounded-full border border-violet-100 bg-violet-50 px-2 py-0.5 text-[11px] text-violet-700">
+              Acct: {item.account_assignment.replace('_', ' ')}
+            </span>
+          )}
+          {item.notes && (
+            <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-500 italic">
+              {item.notes}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Draft: Edit item */}
       {isDraft && (

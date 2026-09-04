@@ -25,6 +25,9 @@ class Product(Base):
     short_description = Column(String(500))
     brand = Column(String(255))
     product_type = Column(String(30), default="physical")
+    # Mapped from DB column added by mrp003_product_material_type
+    # e.g. finished | raw_material | semi_finished | trading | services
+    material_type = Column(String(30), nullable=True, server_default="finished")
 
     # ── Categorization ────────────────────────────────────────────
     category = Column(String(100))
@@ -40,9 +43,17 @@ class Product(Base):
     # ── Pricing & Discounts ───────────────────────────────────────
     price = Column(Numeric(12, 2), nullable=False)
     compare_at_price = Column(Numeric(12, 2))
+    # Effective / cached purchase cost — auto-maintained by cost_resolution service.
+    # moving_average: refreshed on every receipt; fixed: equals cost_price_fixed;
+    # standard: equals active CoProductCostVersion.rolled_up_unit_cost.
     cost_price = Column(Numeric(12, 2))
-    # Inventory valuation price control: moving_average (MAP) | standard_price
+    # Manually maintained purchase cost (used only when valuation_method = 'fixed').
+    cost_price_fixed = Column(Numeric(12, 2))
+    # Costing method: moving_average | fixed | standard
     valuation_method = Column(String(20), nullable=False, default="moving_average")
+    # Source description written by cost_resolution.refresh_cached_cost()
+    cost_source = Column(String(60))
+    cost_updated_at = Column(DateTime(timezone=True))
     currency = Column(String(3), default="INR")
     discount_percentage = Column(Numeric(5, 2))
     discount_amount = Column(Numeric(12, 2))
@@ -202,7 +213,12 @@ class ProductVariant(Base):
     price_type = Column(String(20), default="per_unit")  # per_unit | per_cycle | not_applicable
     price = Column(Numeric(12, 2), nullable=False)
     compare_at_price = Column(Numeric(12, 2))
-    cost_price = Column(Numeric(12, 2))
+    cost_price = Column(Numeric(12, 2))         # effective / cached cost (resolver-maintained)
+    cost_price_fixed = Column(Numeric(12, 2))   # manual value when method = 'fixed'
+    # NULL = inherit parent product's valuation_method; set to override per-SKU
+    valuation_method = Column(String(20), nullable=True)
+    cost_source = Column(String(60))
+    cost_updated_at = Column(DateTime(timezone=True))
     currency = Column(String(3), default="INR")
     discount_percentage = Column(Numeric(5, 2))
     discount_amount = Column(Numeric(12, 2))

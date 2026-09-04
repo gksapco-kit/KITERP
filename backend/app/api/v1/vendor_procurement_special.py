@@ -22,6 +22,7 @@ from app.schemas.procurement_special import (
     ConsignmentStockCreate, ConsignmentStockUpdate, ConsignmentWithdraw,
     ServiceEntrySheetCreate, ServiceEntrySheetUpdate,
 )
+from app.models.procurement import PurchaseOrder, Supplier
 from app.repositories.procurement_special_repo import (
     MaterialValuationRepository, SubcontractingOrderRepository,
     ConsignmentStockRepository, ServiceEntrySheetRepository,
@@ -146,17 +147,37 @@ async def update_material_valuation(
 
 # ── Subcontracting Orders ─────────────────────────────────────────
 
+def _sc_load_options():
+    return (
+        selectinload(SubcontractingOrder.supplier),
+        selectinload(SubcontractingOrder.finished_product),
+    )
+
+
 def _sc_to_dict(s: SubcontractingOrder) -> dict:
+    # Enrich stored components with product_name where available
+    name_map: dict = getattr(s, "_product_name_map", {})
+    components = []
+    for c in (s.components or []):
+        row = dict(c)
+        if not row.get("product_name") and name_map:
+            pid = row.get("product_id")
+            if pid:
+                row["product_name"] = name_map.get(pid)
+        components.append(row)
+
     return {
         "id": str(s.id),
         "vendor_id": str(s.vendor_id),
         "purchase_order_id": str(s.purchase_order_id),
         "supplier_id": str(s.supplier_id),
+        "supplier_name": s.supplier.name if s.supplier else None,
         "plant_id": str(s.plant_id) if s.plant_id else None,
         "ref": s.ref,
         "status": s.status,
-        "components": s.components or [],
+        "components": components,
         "finished_product_id": str(s.finished_product_id) if s.finished_product_id else None,
+        "finished_product_name": s.finished_product.name if s.finished_product else None,
         "finished_variant_id": str(s.finished_variant_id) if s.finished_variant_id else None,
         "qty_expected": float(s.qty_expected) if s.qty_expected is not None else 0,
         "qty_received": float(s.qty_received) if s.qty_received is not None else 0,
@@ -164,6 +185,32 @@ def _sc_to_dict(s: SubcontractingOrder) -> dict:
         "created_at": s.created_at.isoformat() if s.created_at else None,
         "updated_at": s.updated_at.isoformat() if s.updated_at else None,
     }
+
+
+async def _enrich_sc_product_names(db: AsyncSession, orders: list[SubcontractingOrder]) -> None:
+    """Attach a transient _product_name_map to each order for component name resolution."""
+    all_pids: set[UUID] = set()
+    for sc in orders:
+        for c in (sc.components or []):
+            pid = c.get("product_id")
+            if pid:
+                try:
+                    all_pids.add(UUID(pid))
+                except ValueError:
+                    pass
+        if sc.finished_product_id:
+            all_pids.add(sc.finished_product_id)
+
+    name_map: dict[str, str] = {}
+    if all_pids:
+        result = await db.execute(
+            select(Product.id, Product.name).where(Product.id.in_(all_pids))
+        )
+        for row in result.all():
+            name_map[str(row.id)] = row.name
+
+    for sc in orders:
+        sc._product_name_map = name_map  # type: ignore[attr-defined]
 
 
 @router.get("/subcontracting")
@@ -177,8 +224,18 @@ async def list_subcontracting_orders(
     repo = SubcontractingOrderRepository(db)
     skip = (page - 1) * size
     orders, total = await repo.list_by_vendor(vendor_id, status=status, skip=skip, limit=size)
+
+    result2 = await db.execute(
+        select(SubcontractingOrder)
+        .options(*_sc_load_options())
+        .where(SubcontractingOrder.id.in_([o.id for o in orders]))
+        .order_by(SubcontractingOrder.created_at.desc())
+    )
+    loaded = list(result2.scalars().all())
+    await _enrich_sc_product_names(db, loaded)
+
     return JSONResponse(content={
-        "items": [_sc_to_dict(s) for s in orders],
+        "items": [_sc_to_dict(s) for s in loaded],
         "total": total,
         "page": page,
         "size": size,
@@ -192,10 +249,15 @@ async def get_subcontracting_order(
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = SubcontractingOrderRepository(db)
-    sc = await repo.get_by_vendor_and_id(vendor_id, sc_id)
+    result = await db.execute(
+        select(SubcontractingOrder)
+        .options(*_sc_load_options())
+        .where(SubcontractingOrder.vendor_id == vendor_id, SubcontractingOrder.id == sc_id)
+    )
+    sc = result.scalar_one_or_none()
     if not sc:
         raise HTTPException(status_code=404, detail="Subcontracting order not found")
+    await _enrich_sc_product_names(db, [sc])
     return JSONResponse(content=_sc_to_dict(sc))
 
 
@@ -205,13 +267,43 @@ async def create_subcontracting_order(
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
+    # Verify the PO belongs to this vendor
+    po_result = await db.execute(
+        select(PurchaseOrder).where(
+            PurchaseOrder.id == UUID(data.purchase_order_id),
+            PurchaseOrder.vendor_id == vendor_id,
+        )
+    )
+    if not po_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+
+    # Verify the supplier belongs to this vendor
+    sup_result = await db.execute(
+        select(Supplier).where(
+            Supplier.id == UUID(data.supplier_id),
+            Supplier.vendor_id == vendor_id,
+        )
+    )
+    if not sup_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    # Soft uniqueness check on ref per vendor
+    dup = await db.execute(
+        select(SubcontractingOrder).where(
+            SubcontractingOrder.vendor_id == vendor_id,
+            SubcontractingOrder.ref == data.ref,
+        )
+    )
+    if dup.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"Reference '{data.ref}' already exists for another subcontracting order")
+
     sc = SubcontractingOrder(
         vendor_id=vendor_id,
         purchase_order_id=UUID(data.purchase_order_id),
         supplier_id=UUID(data.supplier_id),
         plant_id=UUID(data.plant_id) if data.plant_id else None,
         ref=data.ref,
-        components=data.components,
+        components=[c.model_dump() for c in data.components],
         finished_product_id=UUID(data.finished_product_id) if data.finished_product_id else None,
         finished_variant_id=UUID(data.finished_variant_id) if data.finished_variant_id else None,
         qty_expected=data.qty_expected or 0,
@@ -219,7 +311,14 @@ async def create_subcontracting_order(
     )
     db.add(sc)
     await db.commit()
-    await db.refresh(sc)
+
+    result = await db.execute(
+        select(SubcontractingOrder)
+        .options(*_sc_load_options())
+        .where(SubcontractingOrder.id == sc.id)
+    )
+    sc = result.scalar_one()
+    await _enrich_sc_product_names(db, [sc])
     return JSONResponse(content=_sc_to_dict(sc), status_code=201)
 
 
@@ -230,18 +329,33 @@ async def update_subcontracting_order(
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = SubcontractingOrderRepository(db)
-    sc = await repo.get_by_vendor_and_id(vendor_id, sc_id)
+    result = await db.execute(
+        select(SubcontractingOrder)
+        .options(*_sc_load_options())
+        .where(SubcontractingOrder.vendor_id == vendor_id, SubcontractingOrder.id == sc_id)
+    )
+    sc = result.scalar_one_or_none()
     if not sc:
         raise HTTPException(status_code=404, detail="Subcontracting order not found")
 
-    for field in ["status", "components", "qty_received", "notes"]:
-        val = getattr(data, field, None)
-        if val is not None:
-            setattr(sc, field, val)
+    if data.status is not None:
+        sc.status = data.status
+    if data.components is not None:
+        sc.components = [c.model_dump() for c in data.components]
+    if data.qty_received is not None:
+        sc.qty_received = data.qty_received
+    if data.notes is not None:
+        sc.notes = data.notes
 
     await db.commit()
-    await db.refresh(sc)
+
+    result2 = await db.execute(
+        select(SubcontractingOrder)
+        .options(*_sc_load_options())
+        .where(SubcontractingOrder.id == sc_id)
+    )
+    sc = result2.scalar_one()
+    await _enrich_sc_product_names(db, [sc])
     return JSONResponse(content=_sc_to_dict(sc))
 
 

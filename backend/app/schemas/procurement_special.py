@@ -83,21 +83,39 @@ class MaterialValuationListResponse(BaseModel):
 
 # ── Subcontracting Order ──────────────────────────────────────────
 
+class SubcontractingComponent(BaseModel):
+    product_id: str = Field(..., description="UUID of the material to issue")
+    variant_id: Optional[str] = None
+    qty_required: float = Field(..., gt=0, description="Quantity to issue to the subcontractor")
+    qty_issued: float = Field(0, ge=0)
+    uom: str = Field(..., min_length=1, max_length=20)
+    batch_number: Optional[str] = None
+
+
 class SubcontractingOrderCreate(BaseModel):
     purchase_order_id: str
     supplier_id: str
     plant_id: Optional[str] = None
     ref: str = Field(..., min_length=1, max_length=30)
-    components: List[dict] = Field(..., min_length=1)
+    components: List[SubcontractingComponent] = Field(..., min_length=1)
     finished_product_id: Optional[str] = None
     finished_variant_id: Optional[str] = None
     qty_expected: Optional[float] = Field(0, ge=0)
     notes: Optional[str] = None
 
 
+class SubcontractingComponentUpdate(BaseModel):
+    product_id: Optional[str] = None
+    variant_id: Optional[str] = None
+    qty_required: Optional[float] = Field(None, gt=0)
+    qty_issued: Optional[float] = Field(None, ge=0)
+    uom: Optional[str] = Field(None, min_length=1, max_length=20)
+    batch_number: Optional[str] = None
+
+
 class SubcontractingOrderUpdate(BaseModel):
     status: Optional[str] = None
-    components: Optional[List[dict]] = None
+    components: Optional[List[SubcontractingComponent]] = None
     qty_received: Optional[float] = None
     notes: Optional[str] = None
 

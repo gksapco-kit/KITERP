@@ -29,7 +29,8 @@ import { useNavigate } from 'react-router-dom'
 import { mediaUrl, cn, isLikelyImageFile } from '@/lib/utils'
 import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
 import { productTypeLabel } from '@/components/catalog/CatalogListFilters'
-import { SERVICE_TYPE_OPTIONS } from '@/pages/services/serviceCatalogConstants'
+import { SERVICE_TYPE_OPTIONS, SERVICE_MODE_OPTIONS } from '@/pages/services/serviceCatalogConstants'
+import { uomLabel } from '@/lib/uomOptions'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { remoteImageToFile } from '@/components/common/MediaUploadPickerModal'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
@@ -693,6 +694,12 @@ function serviceTypeLabel(type: string | undefined) {
     ?? value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
+function serviceModeLabel(mode: string | undefined) {
+  const value = mode || 'in_store'
+  return SERVICE_MODE_OPTIONS.find(o => o.value === value)?.label
+    ?? value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
 function CatalogueDrawer({
  categoryId, onClose }: { categoryId: string; onClose: () => void }) {
   useEscapeToClose(onClose)
@@ -732,10 +739,24 @@ function CatalogueDrawer({
                         <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center shrink-0"><Package className="w-5 h-5 text-gray-300" /></div>
                       )}
                       <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-green-50 px-1.5 py-px text-[10px] font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                            Product
+                          </span>
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-blue-50 px-1.5 py-px text-[10px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                            {productTypeLabel(p.product_type)}
+                          </span>
+                          {p.uom && (
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-1.5 py-px text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                              {p.uom_quantity && p.uom_quantity !== 1 ? `${p.uom_quantity} × ` : ''}{uomLabel(p.uom)}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm font-medium truncate">{p.name}</p>
                         <p className="text-xs text-gray-500 truncate">
-                          {productTypeLabel(p.product_type)}
-                          <span className="text-gray-300"> · </span>
+                          {p.material_code && (
+                            <span className="font-mono">{p.material_code} · </span>
+                          )}
                           {catalogueCountLabel(p.variant_count, 'variant')}
                         </p>
                       </div>
@@ -762,10 +783,27 @@ function CatalogueDrawer({
                         <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center shrink-0"><Wrench className="w-5 h-5 text-gray-300" /></div>
                       )}
                       <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-1.5 py-px text-[10px] font-semibold text-primary">
+                            Service
+                          </span>
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-purple-50 px-1.5 py-px text-[10px] font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                            {serviceTypeLabel(s.service_type)}
+                          </span>
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-orange-50 px-1.5 py-px text-[10px] font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                            {serviceModeLabel(s.service_mode)}
+                          </span>
+                          {s.uom && (
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-1.5 py-px text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                              {uomLabel(s.uom)}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm font-medium truncate">{s.name}</p>
                         <p className="text-xs text-gray-500 truncate">
-                          {serviceTypeLabel(s.service_type)}
-                          <span className="text-gray-300"> · </span>
+                          {s.material_code && (
+                            <span className="font-mono">{s.material_code} · </span>
+                          )}
                           {catalogueCountLabel(s.plan_count, 'plan')}
                         </p>
                       </div>

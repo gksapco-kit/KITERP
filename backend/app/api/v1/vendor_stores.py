@@ -15,7 +15,10 @@ from app.models.storage_location import StorageLocation
 from app.models.vendor import Vendor
 from app.models.vendor_user import VendorUser
 from app.models.vendor_product import Product
-from app.api.deps import get_current_vendor_id, require_permission
+from app.models.inventory import InventoryMovement
+from app.api.deps import get_current_vendor_id, get_current_active_user, require_permission
+from app.models.user import User
+from app.services.store_inventory_service import sync_product_quantity_from_stores
 from app.utils.store_codes import (
     allocate_default_business_store_code,
     allocate_unique_branch_code,
@@ -482,7 +485,8 @@ async def set_store_inventory(
         select(StoreInventory).where(
             StoreInventory.store_id == store_id,
             StoreInventory.product_id == product_id,
-            StoreInventory.variant_id == None,
+            StoreInventory.variant_id.is_(None),
+            StoreInventory.storage_location_id.is_(None),
         )
     )
     inv = result.scalar_one_or_none()
@@ -527,9 +531,11 @@ async def set_store_inventory(
 @router.post("/stores/transfer")
 async def transfer_stock(
     data: StockTransferCreate,
+    current_user: User = Depends(get_current_active_user),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
+    import uuid as _uuid
     from_id = UUID(data.from_store_id)
     to_id = UUID(data.to_store_id)
     prod_id = UUID(data.product_id)
@@ -544,25 +550,45 @@ async def transfer_stock(
         if not s:
             raise HTTPException(status_code=404, detail=f"Store {sid} not found")
 
-    # get source inventory
+    # get source inventory — use proper NULL-safe comparison so we match exactly
+    # one row per (store, product, variant=None, storage_location=None).
+    # The unique index uses COALESCE so NULL variant and NULL location each match
+    # only a single row; scalar_one_or_none is safe after this fix.
     q = select(StoreInventory).where(
         StoreInventory.store_id == from_id,
         StoreInventory.product_id == prod_id,
-        StoreInventory.variant_id == var_id,
     )
+    if var_id:
+        q = q.where(StoreInventory.variant_id == var_id)
+    else:
+        q = q.where(StoreInventory.variant_id.is_(None))
+    # Scope to rows without a specific bin (store-level transfer only)
+    q = q.where(StoreInventory.storage_location_id.is_(None))
+    q = q.with_for_update()
+
     from_inv = (await db.execute(q)).scalar_one_or_none()
-    if not from_inv or from_inv.quantity < data.quantity:
-        raise HTTPException(status_code=400, detail=f"Insufficient stock. Available: {from_inv.quantity if from_inv else 0}")
+    available = from_inv.quantity if from_inv else 0
+    if available < data.quantity:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient stock at source store. Available: {available}",
+        )
 
     # deduct from source
     from_inv.quantity -= data.quantity
+    qty_after_from = from_inv.quantity
 
     # add to destination
     q2 = select(StoreInventory).where(
         StoreInventory.store_id == to_id,
         StoreInventory.product_id == prod_id,
-        StoreInventory.variant_id == var_id,
     )
+    if var_id:
+        q2 = q2.where(StoreInventory.variant_id == var_id)
+    else:
+        q2 = q2.where(StoreInventory.variant_id.is_(None))
+    q2 = q2.where(StoreInventory.storage_location_id.is_(None))
+
     to_inv = (await db.execute(q2)).scalar_one_or_none()
     if to_inv:
         to_inv.quantity += data.quantity
@@ -576,11 +602,52 @@ async def transfer_stock(
         )
         db.add(to_inv)
 
+    # Write movement ledger entries (one out, one in) for audit trail
+    reason = data.reason or f"Store transfer {data.from_store_id[:8]}→{data.to_store_id[:8]}"
+    movement_out = InventoryMovement(
+        id=_uuid.uuid4(),
+        vendor_id=vendor_id,
+        product_id=prod_id,
+        variant_id=var_id,
+        movement_type="transfer",
+        quantity=-data.quantity,
+        quantity_before=available,
+        quantity_after=qty_after_from,
+        reason=reason,
+        reference_type="store_transfer",
+        store_id=from_id,
+        to_store_id=to_id,
+        performed_by=current_user.id,
+        extra_data={"direction": "out", "from_store_id": str(from_id), "to_store_id": str(to_id)},
+    )
+    db.add(movement_out)
+
+    movement_in = InventoryMovement(
+        id=_uuid.uuid4(),
+        vendor_id=vendor_id,
+        product_id=prod_id,
+        variant_id=var_id,
+        movement_type="transfer",
+        quantity=data.quantity,
+        quantity_before=to_inv.quantity - data.quantity if to_inv and to_inv.quantity > data.quantity else 0,
+        quantity_after=to_inv.quantity,
+        reason=reason,
+        reference_type="store_transfer",
+        store_id=to_id,
+        to_store_id=from_id,
+        performed_by=current_user.id,
+        extra_data={"direction": "in", "from_store_id": str(from_id), "to_store_id": str(to_id)},
+    )
+    db.add(movement_in)
+
+    # Sync product-level rollup quantity after changing two store rows
+    await sync_product_quantity_from_stores(db, vendor_id, prod_id, var_id)
+
     await db.commit()
     return {
         "message": "Stock transferred successfully",
         "transferred_qty": data.quantity,
-        "from_store_remaining": from_inv.quantity,
+        "from_store_remaining": qty_after_from,
     }
 
 

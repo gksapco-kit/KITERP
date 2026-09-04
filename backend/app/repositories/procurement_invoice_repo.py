@@ -135,7 +135,7 @@ class VendorInvoiceRepository(BaseRepository[VendorInvoice]):
                 item.match_status = "blocked_price"
                 any_blocked = True
 
-        # Roll up to header
+        # Roll up to header match_status
         all_statuses = {i.match_status for i in invoice.items}
         if all_statuses == {"matched"}:
             invoice.match_status = "matched"
@@ -145,5 +145,13 @@ class VendorInvoiceRepository(BaseRepository[VendorInvoice]):
             invoice.match_status = "unmatched"
         else:
             invoice.match_status = "partial"
+
+        # Mirror match result into invoice status
+        if invoice.match_status == "matched":
+            invoice.status = "matched"
+        elif invoice.match_status in ("blocked_qty", "blocked_price"):
+            invoice.status = "blocked"
+        elif invoice.match_status == "partial":
+            invoice.status = "partial_match"
 
         return invoice

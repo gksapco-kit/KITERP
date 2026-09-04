@@ -18,16 +18,20 @@ from app.api.deps import (
     get_current_vendor_id,
     preferred_vendor_id_from_request,
     resolve_dashboard_vendor,
+    require_permission,
 )
 from app.models.user import User
 from app.models.vendor_product import Product, ProductImage, ProductVariant
 from app.models.vendor_service import Service
+from app.models.procurement import Supplier
+from app.models.vendor_user import VendorUser
 from app.services.vendor_service import VendorService
 from app.repositories.product_repo import ProductRepository
 from app.repositories.service_repo import ServiceRepository
 from app.services.media_upload import (
     save_media_file,
     save_hr_document,
+    save_supplier_document,
     save_crm_document,
     delete_stored_file,
     detect_media_type,
@@ -1305,6 +1309,26 @@ async def upload_hr_document_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     return JSONResponse(content=await save_hr_document(file, emp_id))
+
+
+# -- Supplier Document Upload --
+
+
+@router.post("/suppliers/{supplier_id}/documents")
+async def upload_supplier_document_endpoint(
+    supplier_id: UUID,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_active_user),
+    _perm: VendorUser = Depends(require_permission("procurement.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    vendor_id = await _get_vendor_id(user, db)
+    sup_check = await db.execute(
+        select(Supplier).where(Supplier.id == supplier_id, Supplier.vendor_id == vendor_id)
+    )
+    if not sup_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    return JSONResponse(content=await save_supplier_document(file, vendor_id, supplier_id))
 
 
 # -- Expense receipt upload (no application size cap) --

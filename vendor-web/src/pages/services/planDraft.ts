@@ -14,6 +14,7 @@ export interface PlanDraft {
   color?: string
   price: string
   uom: string
+  uom_quantity: string
   price_type: string
   subscription_interval: string
   subscription_trial_days: string
@@ -71,6 +72,7 @@ export function newPlan(i: number): PlanDraft {
     color: VARIANT_ACCENT_PALETTE[i % VARIANT_ACCENT_PALETTE.length],
     price: '',
     uom: 'per_session',
+    uom_quantity: '1',
     price_type: 'per_cycle',
     subscription_interval: 'monthly',
     subscription_trial_days: '',

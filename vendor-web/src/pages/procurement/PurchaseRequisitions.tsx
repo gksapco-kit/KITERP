@@ -16,6 +16,7 @@ import type { CostCenter } from '@/types/finance'
 import {
   useRequisitions, useRequisition, useCreateRequisition, useUpdateRequisition, useSubmitRequisition,
   useApproveRequisition, useCancelRequisition, useMyMembership, useStores, useCreatePurchaseOrder,
+  useConvertPRToPO,
 } from '@/hooks/useVendor'
 import { ProcurementLineItemForm } from '@/components/procurement/ProcurementLineItemForm'
 import { ProcurementApproverFields } from '@/components/procurement/ProcurementApproverFields'
@@ -37,7 +38,7 @@ import { toast } from 'sonner'
 import type { PurchaseRequisition, PurchaseRequisitionItem } from '@/types'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { PO_FROM_PR_KEY, buildPrToPoPrefill, buildPoCreatePayloadFromPr } from '@/lib/prToPoPrefill'
+import { PO_FROM_PR_KEY, PR_FROM_INVENTORY_KEY, buildPrToPoPrefill, buildPoCreatePayloadFromPr, type InventoryAlertPrefill } from '@/lib/prToPoPrefill'
 import { uomLabel } from '@/lib/uomOptions'
 import { vendorApi } from '@/api/vendor'
 import {
@@ -104,7 +105,7 @@ async function startCreateEditablePo(
     toast.error('Could not prepare purchase order form')
     return
   }
-  navigate('/purchase-orders')
+  navigate('/purchase-orders/new')
 }
 
 const APPROVAL_STATUS_BADGE: Record<string, string> = {
@@ -155,13 +156,18 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
   const approvePR = useApproveRequisition()
   const cancelPR = useCancelRequisition()
   const createPO = useCreatePurchaseOrder()
+  const convertMut = useConvertPRToPO()
   const { data: myMembership, isLoading: membershipLoading } = useMyMembership()
   const [approvalRemarks, setApprovalRemarks] = useState('')
   const converting = canConvertPrToPo(pr)
 
   const handleDirectConvert = async () => {
-    const payload = buildPoCreatePayloadFromPr(pr)
-    if (!payload) {
+    const prefill = buildPrToPoPrefill(pr)
+    if (!prefill?.items.length) {
+      toast.error('No convertible product lines on this requisition')
+      return
+    }
+    if (!prefill.supplierId) {
       toast.error('Add a supplier on the PR, or use Create PO to pick one')
       return
     }
@@ -173,13 +179,23 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
       variant: 'warning',
     })
     if (!ok) return
-    createPO.mutate(payload, {
-      onSuccess: (po: { id?: string }) => {
-        onClose()
-        if (po?.id) navigate(`/purchase-orders/${po.id}`)
-        else navigate('/purchase-orders')
+    // Use the backend convert-to-po endpoint which atomically marks PR items as ordered
+    convertMut.mutate(
+      {
+        id: pr.id,
+        supplier_id: prefill.supplierId,
+        item_ids: prefill.items.map((i) => i.prItemId),
+        expected_delivery_date: prefill.expectedDate,
+        notes: prefill.notes,
       },
-    })
+      {
+        onSuccess: (result: { po_id?: string }) => {
+          onClose()
+          if (result?.po_id) navigate(`/purchase-orders/${result.po_id}`)
+          else navigate('/purchase-orders')
+        },
+      },
+    )
   }
 
   const handleCreateEditablePo = async () => {
@@ -500,13 +516,13 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
             )}
             {converting && (
               <>
-                <Button size="sm" className="h-8 gap-1" disabled={createPO.isPending} onClick={handleDirectConvert}>
-                  {createPO.isPending
+                <Button size="sm" className="h-8 gap-1" disabled={convertMut.isPending || createPO.isPending} onClick={handleDirectConvert}>
+                  {convertMut.isPending
                     ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     : <ArrowRightLeft className="w-3.5 h-3.5" />}
                   Convert to PO
                 </Button>
-                <Button size="sm" variant="outline" className="h-8 gap-1" disabled={createPO.isPending} onClick={handleCreateEditablePo}>
+                <Button size="sm" variant="outline" className="h-8 gap-1" disabled={convertMut.isPending || createPO.isPending} onClick={handleCreateEditablePo}>
                   <FilePlus className="w-3.5 h-3.5" /> Create PO
                 </Button>
               </>
@@ -533,10 +549,10 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
                 <Button
                   size="sm"
                   className="h-8 gap-1"
-                  disabled={createPO.isPending}
+                  disabled={convertMut.isPending || createPO.isPending}
                   onClick={handleDirectConvert}
                 >
-                  {createPO.isPending
+                  {convertMut.isPending
                     ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     : <ArrowRightLeft className="w-3.5 h-3.5" />}
                   Convert to PO
@@ -545,7 +561,7 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
                   size="sm"
                   variant="outline"
                   className="h-8 gap-1"
-                  disabled={createPO.isPending}
+                  disabled={convertMut.isPending || createPO.isPending}
                   onClick={handleCreateEditablePo}
                 >
                   <FilePlus className="w-3.5 h-3.5" /> Create PO
@@ -599,7 +615,7 @@ function prToItemRows(pr: PurchaseRequisition): ItemRow[] {
   })
 }
 
-function PRFormModal({ editingPR, onClose }: { editingPR?: PurchaseRequisition | null; onClose: () => void }) {
+function PRFormModal({ editingPR, inventoryPrefill, onClose }: { editingPR?: PurchaseRequisition | null; inventoryPrefill?: InventoryAlertPrefill | null; onClose: () => void }) {
   const createPR = useCreateRequisition()
   const updatePR = useUpdateRequisition()
   const submitPR = useSubmitRequisition()
@@ -632,9 +648,33 @@ function PRFormModal({ editingPR, onClose }: { editingPR?: PurchaseRequisition |
   const [primaryApproverId, setPrimaryApproverId] = useState('')
   const [secondaryApproverId, setSecondaryApproverId] = useState('')
   const [approverMessage, setApproverMessage] = useState('')
-  const [items, setItems] = useState<ItemRow[]>([emptyItem()])
+  const [items, setItems] = useState<ItemRow[]>(() => {
+    // Pre-populate from inventory alert when opening from reorder/low-stock tabs
+    if (!editingPR && inventoryPrefill) {
+      return [{
+        ...emptyItem('product'),
+        reference_id: inventoryPrefill.productId,
+        variant_id: inventoryPrefill.variantId || '',
+        quantity: inventoryPrefill.quantity,
+        description: inventoryPrefill.productName,
+      }]
+    }
+    return [emptyItem()]
+  })
   const [expandedItems, setExpandedItems] = useState<Set<number>>(() => new Set([0]))
   const [formLoaded, setFormLoaded] = useState(!editingPR)
+
+  // Apply inventory prefill title on mount
+  useEffect(() => {
+    if (!inventoryPrefill || editingPR) return
+    const sourceLabel = inventoryPrefill.source === 'reorder' ? 'Reorder alert' : 'Low stock alert'
+    setTitle(`${sourceLabel}: ${inventoryPrefill.productName}`)
+    if (inventoryPrefill.storeId) {
+      setStoreId(inventoryPrefill.storeId)
+      setFromStoreId(inventoryPrefill.storeId)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!sourcePR || formLoaded) return
@@ -1026,8 +1066,17 @@ export default function PurchaseRequisitionsPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showForm, setShowForm] = useState(false)
   const [editingPR, setEditingPR] = useState<PurchaseRequisition | null>(null)
+  const [inventoryPrefill, setInventoryPrefill] = useState<InventoryAlertPrefill | null>(null)
   const [selectedPR, setSelectedPR] = useState<PurchaseRequisition | null>(null)
   const [convertingId, setConvertingId] = useState<string | null>(null)
+
+  // Redirect to the full-screen creation page when navigated here from an inventory alert
+  useEffect(() => {
+    const raw = sessionStorage.getItem(PR_FROM_INVENTORY_KEY)
+    if (!raw) return
+    // Do NOT remove the key — let CreatePurchaseRequisitionPage consume it
+    navigate('/procurement/requisitions/new', { replace: false })
+  }, [])
 
   const handleDirectConvert = async (pr: PurchaseRequisition) => {
     const payload = buildPoCreatePayloadFromPr(pr)
@@ -1067,8 +1116,7 @@ export default function PurchaseRequisitionsPage() {
   }
 
   const openCreateForm = () => {
-    setEditingPR(null)
-    setShowForm(true)
+    navigate('/procurement/requisitions/new')
   }
 
   const openEditForm = (pr: PurchaseRequisition) => {
@@ -1136,7 +1184,8 @@ export default function PurchaseRequisitionsPage() {
       {showForm && (
         <PRFormModal
           editingPR={editingPR}
-          onClose={() => { setShowForm(false); setEditingPR(null) }}
+          inventoryPrefill={inventoryPrefill}
+          onClose={() => { setShowForm(false); setEditingPR(null); setInventoryPrefill(null) }}
         />
       )}
       {selectedPR && (

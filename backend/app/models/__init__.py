@@ -20,6 +20,9 @@ from app.models.order import (
 from app.models.payment import Payment
 from app.models.review import Review
 from app.models.inventory import InventoryMovement
+from app.models.inventory_count import StockCount, StockCountLine
+from app.models.stock_transfer_order import StockTransferOrder, StockTransferOrderLine
+from app.models.stock_cost_layer import StockCostLayer
 from app.models.vendor_app_build import VendorAppBuild
 from app.models.pos import POSSession, POSTransaction
 from app.models.restaurant import (
@@ -43,14 +46,27 @@ from app.models.vendor_category import VendorCategory
 from app.models.product_group import ProductGroup, ProductGroupItem
 from app.models.procurement import (
     Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderReceipt,
-    PurchaseOrderDeliverySchedule,
+    PurchaseOrderDeliverySchedule, PurchaseOrderApproval,
+)
+from app.models.procurement_sequence import DocumentSequence
+from app.models.procurement_supplier import (
+    SupplierCategory, SupplierCategoryLink,
+    SupplierContact, SupplierAddress,
+    SupplierDocument, SupplierOnboarding, SupplierPerformance,
+)
+from app.models.procurement_rfq import RequestForQuotation, RequestForQuotationItem, RFQSupplier
+from app.models.procurement_quotation import SupplierQuotation, SupplierQuotationItem
+from app.models.procurement_grn import (
+    GoodsReceiptNote, GRNLine, GRNQCInspection, GRNReversal, GRNReversalLine,
 )
 from app.models.procurement_sourcing import PurchasingInfoRecord, SourceList
 from app.models.procurement_requisition import (
     PurchaseRequisition, PurchaseRequisitionItem, PurchaseRequisitionApproval,
 )
-from app.models.procurement_invoice import VendorInvoice, VendorInvoiceItem
+from app.models.procurement_invoice import VendorInvoice, VendorInvoiceItem, VendorInvoicePayment, VendorInvoiceApproval
+from app.models.procurement_approver_rule import ProcurementApproverRule
 from app.models.procurement_goods import GoodsBatch, GoodsMovementDocument
+from app.models.procurement_return import PurchaseReturn, PurchaseReturnLine
 from app.models.pharma import (
     PharmaBatchNumberModel,
     PharmaBatchSequence, BatchTransaction, PharmaMbr, PharmaBpr,
@@ -202,6 +218,11 @@ __all__ = [
     "Payment",
     "Review",
     "InventoryMovement",
+    "StockCount",
+    "StockCountLine",
+    "StockTransferOrder",
+    "StockTransferOrderLine",
+    "StockCostLayer",
     "VendorAppBuild",
     "POSSession",
     "POSTransaction",
@@ -233,6 +254,29 @@ __all__ = [
     "PurchaseOrderItem",
     "PurchaseOrderReceipt",
     "PurchaseOrderDeliverySchedule",
+    "PurchaseOrderApproval",
+    "DocumentSequence",
+    # Supplier management (Phase 1)
+    "SupplierCategory",
+    "SupplierCategoryLink",
+    "SupplierContact",
+    "SupplierAddress",
+    "SupplierDocument",
+    "SupplierOnboarding",
+    "SupplierPerformance",
+    # GRN (Phase 7)
+    "GoodsReceiptNote",
+    "GRNLine",
+    "GRNQCInspection",
+    "GRNReversal",
+    "GRNReversalLine",
+    # RFQ (Phase 3)
+    "RequestForQuotation",
+    "RequestForQuotationItem",
+    "RFQSupplier",
+    # Supplier Quotation (Phase 4)
+    "SupplierQuotation",
+    "SupplierQuotationItem",
     # Sourcing
     "PurchasingInfoRecord",
     "SourceList",
@@ -243,9 +287,16 @@ __all__ = [
     # Vendor Invoice
     "VendorInvoice",
     "VendorInvoiceItem",
+    "VendorInvoicePayment",
+    "VendorInvoiceApproval",
+    # Approver matrix
+    "ProcurementApproverRule",
     # Goods
     "GoodsBatch",
     "GoodsMovementDocument",
+    # Purchase Returns (Phase 9)
+    "PurchaseReturn",
+    "PurchaseReturnLine",
     "PharmaBatchNumberModel",
     "PharmaBatchSequence",
     "BatchTransaction",

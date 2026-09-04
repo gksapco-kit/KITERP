@@ -39,6 +39,16 @@ class Service(Base):
     price_min = Column(Numeric(12, 2))
     price_max = Column(Numeric(12, 2))
     currency = Column(String(3), default="INR")
+
+    # ── Purchase / COGM costing ───────────────────────────────────
+    # Effective purchase price (auto-maintained by cost_resolution service).
+    purchase_price = Column(Numeric(12, 2))
+    # Manual price — used only when valuation_method = 'fixed'.
+    purchase_price_fixed = Column(Numeric(12, 2))
+    # Costing method: moving_average | fixed | standard (default 'fixed' for services)
+    valuation_method = Column(String(20), nullable=False, default="fixed")
+    cost_source = Column(String(60))
+    cost_updated_at = Column(DateTime(timezone=True))
     discount_percentage = Column(Numeric(5, 2))
     discount_amount = Column(Numeric(12, 2))
     discount_start_date = Column(DateTime(timezone=True))
@@ -184,6 +194,7 @@ class ServicePlan(Base):
     description = Column(Text)
     price = Column(Numeric(12, 2))
     uom = Column(String(30), default="per_session")
+    uom_quantity = Column(Numeric(12, 3), default=1)
     price_type = Column(String(20), default="per_cycle")
     service_frequency = Column(String(20), default="once")
     service_mode = Column(String(30), default="in_store")
@@ -204,6 +215,8 @@ class ServicePlan(Base):
 
     # Pricing overrides
     plan_price_type = Column(String(20))
+    compare_at_price = Column(Numeric(12, 2))   # MRP / market reference price
+    cost_price = Column(Numeric(12, 2))          # plan-level purchase cost
     price_min = Column(Numeric(12, 2))
     price_max = Column(Numeric(12, 2))
     currency = Column(String(3), default="INR")
