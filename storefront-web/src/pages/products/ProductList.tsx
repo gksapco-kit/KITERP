@@ -290,11 +290,12 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
       items.sort((a, b) => (new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()))
     } else if (sortBy === 'oldest') {
       items.sort((a, b) => (new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()))
-    } else if (sortBy === 'rating') {
+    } else if (sortBy === 'rating' || sortBy === 'rating_asc') {
       items.sort((a, b) => {
         const ratingDiff = (b.avg_rating || 0) - (a.avg_rating || 0)
-        if (ratingDiff !== 0) return ratingDiff
-        return (b.review_count || 0) - (a.review_count || 0)
+        if (ratingDiff !== 0) return sortBy === 'rating_asc' ? -ratingDiff : ratingDiff
+        const countDiff = (b.review_count || 0) - (a.review_count || 0)
+        return sortBy === 'rating_asc' ? -countDiff : countDiff
       })
     } else if (sortBy === 'name') {
       items.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { numeric: true }))
@@ -455,11 +456,15 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className={selectContentCls}>
-                    <SelectItem value="default">Relevance</SelectItem>
-                    <SelectItem value="price_low">Price: Low to High</SelectItem>
-                    <SelectItem value="price_high">Price: High to Low</SelectItem>
-                    <SelectItem value="newest">Newest Arrivals</SelectItem>
-                    <SelectItem value="rating">Avg. Customer Review</SelectItem>
+                    <SelectItem value="default">Featured: Relevance</SelectItem>
+                    <SelectItem value="price_low">Price: Low to high</SelectItem>
+                    <SelectItem value="price_high">Price: High to low</SelectItem>
+                    <SelectItem value="name">Name: A to Z</SelectItem>
+                    <SelectItem value="name_desc">Name: Z to A</SelectItem>
+                    <SelectItem value="newest">Newest arrivals</SelectItem>
+                    <SelectItem value="oldest">Oldest first</SelectItem>
+                    <SelectItem value="rating">Highest rated</SelectItem>
+                    <SelectItem value="rating_asc">Lowest rated</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -563,17 +568,21 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
               <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Refine</span>
-                  <div className="min-w-0 w-full sm:w-[11rem]">
+                  <div className="min-w-0 w-full sm:w-[13rem]">
                     <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(1) }}>
-                      <SelectTrigger className={selectTriggerCls} aria-label="Catalog sort (relevance, price, newest)">
+                      <SelectTrigger className={selectTriggerCls} aria-label="Catalog sort (relevance, price, name, newest)">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className={selectContentCls}>
                         <SelectItem value="default">Featured: Relevance</SelectItem>
                         <SelectItem value="price_low">Price: Low to high</SelectItem>
                         <SelectItem value="price_high">Price: High to low</SelectItem>
+                        <SelectItem value="name">Name: A to Z</SelectItem>
+                        <SelectItem value="name_desc">Name: Z to A</SelectItem>
                         <SelectItem value="newest">Newest arrivals</SelectItem>
+                        <SelectItem value="oldest">Oldest first</SelectItem>
                         <SelectItem value="rating">Highest rated</SelectItem>
+                        <SelectItem value="rating_asc">Lowest rated</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

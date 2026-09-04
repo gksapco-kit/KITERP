@@ -45,6 +45,7 @@ import {
   visualStepperCell,
   visualStepperValue,
 } from '@/components/websites/designBarVisualUi'
+import { hasMediaClip } from '@storefront/lib/mediaClip'
 
 const FOCAL_STEP = 5
 const HEIGHT_STEP = 40
@@ -161,6 +162,39 @@ function HeightStepper({ value, onCommit }: { value: number; onCommit: (n: numbe
   )
 }
 
+const ABOUT_IMAGE_HEIGHT_STEP = 20
+const ABOUT_IMAGE_HEIGHT_DEFAULT = 240
+
+function AboutImageHeightStepper({
+  value,
+  onCommit,
+}: {
+  value: number | null
+  onCommit: (n: number | null) => void
+}) {
+  const hasValue = value != null && Number.isFinite(value) && value >= 80
+  const current = hasValue ? value : ABOUT_IMAGE_HEIGHT_DEFAULT
+  const bump = (d: number) => onCommit(Math.max(80, Math.min(800, current + d)))
+  return (
+    <div className={cn(visualPanel, 'relative')} title="Image height — shown when clip shape is None. Click the value for Auto.">
+      <button type="button" className={visualStepperCell} onClick={() => bump(-ABOUT_IMAGE_HEIGHT_STEP)} aria-label="Decrease height">
+        <Minus className="h-2.5 w-2.5" />
+      </button>
+      <button
+        type="button"
+        className={cn(visualStepperValue, 'min-w-[2.25rem]')}
+        title="Use automatic height (image's own size)"
+        onClick={() => onCommit(null)}
+      >
+        {hasValue ? current : 'Auto'}
+      </button>
+      <button type="button" className={visualStepperCell} onClick={() => bump(ABOUT_IMAGE_HEIGHT_STEP)} aria-label="Increase height">
+        <Plus className="h-2.5 w-2.5" />
+      </button>
+    </div>
+  )
+}
+
 function ZoomStepper({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
   const current = Number.isFinite(value) ? value : 100
   const bump = (d: number) => onCommit(Math.max(25, Math.min(400, current + d)))
@@ -250,8 +284,16 @@ export function SectionImageControls({
     && blockType === 'about_split'
     && blockProps.layout === 'shaped'
     && imageField === 'image_url'
+  const showAboutImageHeight = !primarySlot
+    && blockType === 'about_split'
+    && imageField === 'image_url'
+    && !hasMediaClip(blockProps.media_clip)
   const shapedWidth = Number.isFinite(Number(blockProps.shaped_width)) && Number(blockProps.shaped_width) > 0
     ? Number(blockProps.shaped_width) : 70
+  const aboutImageHeight = (() => {
+    const raw = Number(blockProps.shaped_height)
+    return Number.isFinite(raw) && raw >= 80 ? raw : null
+  })()
 
   const applyPatch = (patch: Record<string, unknown>) => {
     if (resolvedSlots.length > 1) {
@@ -324,6 +366,12 @@ export function SectionImageControls({
           <WidthStepper
             value={shapedWidth}
             onCommit={n => onUpdate({ shaped_width: n })}
+          />
+        ) : null}
+        {showAboutImageHeight ? (
+          <AboutImageHeightStepper
+            value={aboutImageHeight}
+            onCommit={n => onUpdate({ shaped_height: n })}
           />
         ) : null}
       </div>

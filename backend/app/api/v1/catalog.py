@@ -1414,7 +1414,7 @@ async def list_products(
     max_price: Optional[float] = Query(None, ge=0),
     sort: Optional[str] = Query(
         None,
-        description="default, price_low, price_high, newest, oldest, rating, name, name_desc",
+        description="default, price_low, price_high, newest, oldest, rating, rating_asc, name, name_desc",
     ),
     branch: Optional[str] = Query(None, description="Business unit code or id"),
     store_id: Optional[str] = Query(None, description="Business unit id"),
@@ -1678,7 +1678,7 @@ async def list_services(
     max_price: Optional[float] = Query(None, ge=0),
     sort: Optional[str] = Query(
         None,
-        description="default, price_low, price_high, newest, oldest, rating, name, name_desc",
+        description="default, price_low, price_high, newest, oldest, rating, rating_asc, name, name_desc",
     ),
     branch: Optional[str] = Query(None, description="Business unit code or id"),
     store_id: Optional[str] = Query(None, description="Business unit id"),

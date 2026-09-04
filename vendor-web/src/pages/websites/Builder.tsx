@@ -10023,8 +10023,13 @@ function PropsEditor({
                   pushSectionSpacing({ section_scale: n }, false)
                 }}
               />
-              {block.block_type === 'about_split' && (block.props as Record<string, unknown>).layout === 'shaped' ? (
+              {block.block_type === 'about_split' && (
+                ((block.props as Record<string, unknown>).layout === 'shaped')
+                || !(block.props as Record<string, unknown>).media_clip
+                || (block.props as Record<string, unknown>).media_clip === 'none'
+              ) ? (
                 <div className="space-y-2 border-t border-border/50 pt-2">
+                  {(block.props as Record<string, unknown>).layout === 'shaped' ? (
                   <SectionSpacingField
                     label="Image width"
                     value={Number.isFinite(Number((block.props as Record<string, unknown>).shaped_width))
@@ -10038,12 +10043,29 @@ function PropsEditor({
                     onPreview={n => onPreview({ shaped_width: n })}
                     onCommit={n => onUpdate({ shaped_width: n })}
                   />
+                  ) : null}
+                  {!(block.props as Record<string, unknown>).media_clip
+                    || (block.props as Record<string, unknown>).media_clip === 'none' ? (
                   <SectionSpacingField
                     label="Image height"
                     value={Number.isFinite(Number((block.props as Record<string, unknown>).shaped_height))
-                      && Number((block.props as Record<string, unknown>).shaped_height) >= 100
+                      && Number((block.props as Record<string, unknown>).shaped_height) >= 80
+                      ? Number((block.props as Record<string, unknown>).shaped_height) : 240}
+                    min={80}
+                    max={800}
+                    step={20}
+                    unit="px"
+                    hint="Height of the photo when clip shape is None. Leave unset to hug the image."
+                    onPreview={n => onPreview({ shaped_height: n })}
+                    onCommit={n => onUpdate({ shaped_height: n })}
+                  />
+                  ) : (block.props as Record<string, unknown>).layout === 'shaped' ? (
+                  <SectionSpacingField
+                    label="Image height"
+                    value={Number.isFinite(Number((block.props as Record<string, unknown>).shaped_height))
+                      && Number((block.props as Record<string, unknown>).shaped_height) >= 80
                       ? Number((block.props as Record<string, unknown>).shaped_height) : 320}
-                    min={100}
+                    min={80}
                     max={800}
                     step={20}
                     unit="px"
@@ -10051,6 +10073,7 @@ function PropsEditor({
                     onPreview={n => onPreview({ shaped_height: n })}
                     onCommit={n => onUpdate({ shaped_height: n })}
                   />
+                  ) : null}
                 </div>
               ) : null}
 

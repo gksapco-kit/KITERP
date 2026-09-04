@@ -38,6 +38,18 @@ def _service_sort_clauses(sort: Optional[str]) -> tuple[ColumnElement, ...]:
             .scalar_subquery()
         )
         return (avg_rating.desc(), Service.created_at.desc())
+    if key == "rating_asc":
+        avg_rating_asc = (
+            select(func.coalesce(func.avg(Review.rating), 0.0))
+            .where(
+                Review.service_id == Service.id,
+                Review.review_type == "service",
+                Review.is_visible.is_(True),
+            )
+            .correlate(Service)
+            .scalar_subquery()
+        )
+        return (avg_rating_asc.asc(), Service.created_at.desc())
     if key in ("default", "featured"):
         return (Service.is_featured.desc(), Service.created_at.desc())
     return (Service.created_at.desc(),)

@@ -59,6 +59,18 @@ def _product_sort_clauses(sort: Optional[str], *, deleted_only: bool = False) ->
             .scalar_subquery()
         )
         return (avg_rating.desc(), Product.created_at.desc())
+    if key == "rating_asc":
+        avg_rating_asc = (
+            select(func.coalesce(func.avg(Review.rating), 0.0))
+            .where(
+                Review.product_id == Product.id,
+                Review.review_type == "product",
+                Review.is_visible.is_(True),
+            )
+            .correlate(Product)
+            .scalar_subquery()
+        )
+        return (avg_rating_asc.asc(), Product.created_at.desc())
     if key in ("default", "featured"):
         return (Product.is_featured.desc(), Product.created_at.desc())
     return (Product.created_at.desc(),)

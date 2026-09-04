@@ -126,21 +126,27 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
     const raw = Number(props.shaped_width)
     return Number.isFinite(raw) && raw >= 30 && raw <= 100 ? raw : 70
   })()
-  // shaped_height: explicit pixel height — overrides the default aspect ratio
+  // shaped_height: explicit pixel height — used when clip is None, or to override shaped aspect
   const shapedHeightPx = (() => {
     const raw = Number(props.shaped_height)
-    return Number.isFinite(raw) && raw >= 100 && raw <= 800 ? raw : null
+    return Number.isFinite(raw) && raw >= 80 && raw <= 800 ? raw : null
   })()
+  const clipNone = !clipped
+  const explicitHeightPx = (clipNone || isShaped) ? shapedHeightPx : null
 
   const renderMediaBlock = (variant: 'default' | 'inline' | 'shaped' = 'default') => {
     if (!showMedia) return null
     const inline = variant === 'inline'
     const shaped = variant === 'shaped'
     const circleClip = mediaClipNeedsSquareBox(mediaClip)
+    const natural = clipNone && !explicitHeightPx && !circleClip
+    const fixedH = Boolean(explicitHeightPx) && !circleClip
     const frameClass = inline
       ? cn(
           'about-split-image-frame about-split-image-frame--inline shadow-lg overflow-hidden',
           circleClip ? 'rounded-full absolute inset-0 h-full w-full' : 'rounded-2xl',
+          natural && 'about-split-image-frame--natural',
+          fixedH && 'about-split-image-frame--fixed-h h-full',
         )
       : shaped
         ? 'about-split-image-frame about-split-image-frame--shaped w-full h-full'
@@ -148,14 +154,23 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
             'about-split-image-frame',
             !clipped && 'rounded-2xl',
             circleClip && 'rounded-full absolute inset-0 h-full w-full',
+            natural && 'about-split-image-frame--natural',
+            fixedH && 'about-split-image-frame--fixed-h h-full',
           )
     const mediaAspectClass = circleClip
       ? 'w-full max-w-[min(100%,420px)] aspect-square mx-auto'
       : inline
-        ? 'aspect-[4/5] max-h-[420px] w-full'
+        ? cn('w-full', !natural && !fixedH && 'aspect-[4/5] max-h-[420px]')
         : shaped
           ? 'w-full h-full'
-          : 'w-full aspect-[4/5] max-h-[min(72vh,560px)]'
+          : cn(
+              'w-full',
+              natural && 'about-split-image-media--natural',
+              !natural && !fixedH && 'aspect-[4/5] max-h-[min(72vh,560px)]',
+            )
+    const mediaSizeStyle = fixedH && !shaped
+      ? { height: `${explicitHeightPx}px` }
+      : undefined
 
     if (isVideo) {
       if (isDirectVideo && videoUrl) {
@@ -164,12 +179,13 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
             src={videoUrl}
             controls
             className={cn(mediaAspectClass, 'rounded-2xl object-cover shadow-lg bg-black')}
+            style={mediaSizeStyle}
           />
         )
       }
       if (embedUrl) {
         return (
-          <div className={cn(mediaAspectClass, 'rounded-2xl overflow-hidden shadow-lg bg-black')}>
+          <div className={cn(mediaAspectClass, 'rounded-2xl overflow-hidden shadow-lg bg-black')} style={mediaSizeStyle}>
             <iframe
               src={embedUrl}
               title={title ?? 'About video'}
@@ -183,7 +199,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
       return (
         <div
           className={cn(mediaAspectClass, 'rounded-2xl flex items-center justify-center')}
-          style={{ backgroundColor: `${style.primary_color}15` }}
+          style={{ backgroundColor: `${style.primary_color}15`, ...mediaSizeStyle }}
         >
           <span className={cn('text-sm', isDark ? 'text-white/50' : 'text-gray-400')}>
             Add a video URL
@@ -194,7 +210,11 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
 
     if (imageUrl) {
       return (
-        <MediaClipFrame clip={mediaClip} className={cn(mediaAspectClass, 'overflow-hidden', shaped || inline ? 'shadow-lg' : 'shadow-lg')}>
+        <MediaClipFrame
+          clip={mediaClip}
+          className={cn(mediaAspectClass, 'overflow-hidden', 'shadow-lg')}
+          style={mediaSizeStyle}
+        >
           <div className={frameClass}>
             <BuilderSectionImage
               blockId={blockId}
@@ -202,7 +222,12 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
               blockProps={props}
               src={imageUrl}
               alt={title ?? 'About'}
-              className={`w-full h-full object-cover ${!clipped && !inline && !shaped ? 'rounded-2xl' : ''}`}
+              frameClassName={natural ? 'w-full h-auto' : undefined}
+              className={cn(
+                'w-full object-cover',
+                natural ? 'h-auto' : 'h-full',
+                !clipped && !inline && !shaped && 'rounded-2xl',
+              )}
             />
           </div>
         </MediaClipFrame>
@@ -212,7 +237,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
     return (
       <div
         className={cn(mediaAspectClass, 'rounded-2xl flex items-center justify-center')}
-        style={{ backgroundColor: `${style.primary_color}10` }}
+        style={{ backgroundColor: `${style.primary_color}10`, ...mediaSizeStyle }}
       >
         <span className={cn(isDark ? 'text-white/40' : 'text-gray-400')}>About Image</span>
       </div>
@@ -265,7 +290,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   )
 
   const imageCaption = (showQuote || showSignature) ? (
-    <div className="about-split-image-caption">
+    <div className={cn('about-split-image-caption', clipNone && 'about-split-image-caption--tight')}>
       {showQuote && (
         <BuilderTextField
           fieldKey="quote"
@@ -275,10 +300,9 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
           as="blockquote"
           multiline
           className={cn(
-            'border-l-2 pl-4 italic leading-relaxed',
-            isDark || useBackgroundMedia ? 'border-white/30 text-white/90' : 'text-gray-700',
+            'italic leading-relaxed',
+            isDark || useBackgroundMedia ? 'text-white/90' : 'text-gray-700',
           )}
-          style={{ borderLeftColor: style.primary_color }}
           placeholder="Add a short quote"
         />
       )}
@@ -381,7 +405,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   if (isStacked) {
     const imageOnTop = imagePosition !== 'bottom'
     const stackedInner = (
-      <div className="about-split-block py-8 sm:py-12 space-y-8">
+      <div className="about-split-block space-y-6">
         {imageOnTop && showMedia && (
           <div className="about-split-image-col min-w-0 max-w-4xl mx-auto w-full">
             {positionedImageStack('default')}
@@ -415,7 +439,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   if (isShaped) {
     return (
       <BuilderSectionSurface surface={surface} maxWidth="max-w-4xl">
-        <div className="about-split-block about-split-shaped py-8 sm:py-12 text-center">
+        <div className="about-split-block about-split-shaped text-center">
           <BuilderContentGroup
             blockId={blockId}
             blockProps={props}
@@ -444,10 +468,13 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
             )}
             {showMedia && (
               <div
-                className="about-split-shaped-media my-6 sm:my-8 mx-auto"
+                className={cn(
+                  'about-split-shaped-media mx-auto',
+                  clipNone ? 'my-3' : 'my-6 sm:my-8',
+                )}
                 style={{
                   width: `${shapedWidthPct}%`,
-                  aspectRatio: shapedHeightPx ? undefined : shapedLayout.aspectRatio,
+                  aspectRatio: (!clipNone && !shapedHeightPx) ? shapedLayout.aspectRatio : undefined,
                   height: shapedHeightPx ? `${shapedHeightPx}px` : undefined,
                 }}
               >
@@ -477,7 +504,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   if (isStatement) {
     return (
       <BuilderSectionSurface surface={surface} maxWidth="max-w-4xl">
-        <div className="about-split-block py-8 sm:py-12">
+        <div className="about-split-block">
           {textBlock}
           {imageCaption}
         </div>
@@ -488,7 +515,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   if (isColumns) {
     return (
       <BuilderSectionSurface surface={surface} maxWidth="max-w-6xl">
-        <div className="about-split-block py-8 sm:py-12">
+        <div className="about-split-block">
           <div className="about-split-grid grid gap-8 lg:grid-cols-2 lg:gap-12 items-start">
             <div className="about-split-text-col min-w-0">
               {showSubtitle && (
@@ -563,7 +590,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
     )
 
     const inlineContent = (
-      <div className="about-split-block py-8 sm:py-12">
+      <div className="about-split-block">
         <div className="about-split-grid grid gap-8">
           <BuilderContentGroup
             blockId={blockId}
@@ -620,7 +647,7 @@ export default function AboutSplitBlock({ site, style, props, liveItems, blockId
   }
 
   const splitInner = (
-    <div className="about-split-block py-8 sm:py-12">
+    <div className="about-split-block">
       <div
         className={cn(
           'about-split-grid about-split-grid--pinned grid gap-8 lg:gap-12 items-start',
