@@ -19,6 +19,8 @@ from app.schemas.procurement_invoice import (
 )
 from app.repositories.procurement_invoice_repo import VendorInvoiceRepository
 from app.services.finance.posting import post_event
+from app.services.procurement_service import _load_tax_codes, _split_line_tax
+from app.utils.gst_utils import is_intra_state, gstin_state_code
 
 log = logging.getLogger(__name__)
 
@@ -144,24 +146,49 @@ def _payment_to_dict(p: VendorInvoicePayment) -> dict:
     }
 
 
-def _compute_line_amounts(item_data, item_obj: VendorInvoiceItem) -> VendorInvoiceItem:
-    """Calculate tax amounts and totals for a single invoice line."""
+def _compute_line_amounts(
+    item_data,
+    item_obj: VendorInvoiceItem,
+    tax_master: dict[str, tuple[str, float]] | None = None,
+    intra_state: bool = False,
+) -> VendorInvoiceItem:
+    """
+    Calculate tax amounts and totals for a single invoice line.
+
+    When *tax_master* is supplied and the line carries a tax_code that resolves in
+    the master, the CGST/SGST/IGST split is derived from the master (same engine
+    as POs) and the client-supplied rates are ignored.  This guarantees the
+    invoice matches the correct GST bucket for the transaction direction.
+
+    When no tax_master is provided (e.g. legacy paths) the client-supplied rates
+    are used as-is for backward compatibility.
+    """
     qty = Decimal(str(item_data.invoiced_qty))
     price = Decimal(str(item_data.unit_price))
     subtotal = qty * price
+    line_total = float(subtotal)
 
-    cgst_rate = Decimal(str(item_data.cgst_rate or 0)) / 100
-    sgst_rate = Decimal(str(item_data.sgst_rate or 0)) / 100
-    igst_rate = Decimal(str(item_data.igst_rate or 0)) / 100
+    if tax_master is not None and item_data.tax_code:
+        split = _split_line_tax(line_total, item_data.tax_code, tax_master, intra_state=intra_state)
+        cgst_amt = Decimal(str(split["cgst_amount"]))
+        sgst_amt = Decimal(str(split["sgst_amount"]))
+        igst_amt = Decimal(str(split["igst_amount"]))
+        item_obj.cgst_rate = split["cgst_rate"]
+        item_obj.sgst_rate = split["sgst_rate"]
+        item_obj.igst_rate = split["igst_rate"]
+    else:
+        cgst_rate = Decimal(str(item_data.cgst_rate or 0)) / 100
+        sgst_rate = Decimal(str(item_data.sgst_rate or 0)) / 100
+        igst_rate = Decimal(str(item_data.igst_rate or 0)) / 100
+        cgst_amt = subtotal * cgst_rate
+        sgst_amt = subtotal * sgst_rate
+        igst_amt = subtotal * igst_rate
+        item_obj.cgst_rate = item_data.cgst_rate or 0
+        item_obj.sgst_rate = item_data.sgst_rate or 0
+        item_obj.igst_rate = item_data.igst_rate or 0
 
-    cgst_amt = subtotal * cgst_rate
-    sgst_amt = subtotal * sgst_rate
-    igst_amt = subtotal * igst_rate
     tax_total = cgst_amt + sgst_amt + igst_amt
 
-    item_obj.cgst_rate = item_data.cgst_rate or 0
-    item_obj.sgst_rate = item_data.sgst_rate or 0
-    item_obj.igst_rate = item_data.igst_rate or 0
     item_obj.cgst_amount = cgst_amt
     item_obj.sgst_amount = sgst_amt
     item_obj.igst_amount = igst_amt
@@ -260,6 +287,25 @@ async def create_vendor_invoice(
     if existing:
         raise HTTPException(status_code=400, detail="Invoice number already exists")
 
+    # Resolve place-of-supply so we can derive the correct CGST/SGST vs IGST split
+    # using the same engine as the PO service.
+    from app.models.procurement_supplier import Supplier as SupplierModel
+    from app.models.vendor import Vendor as VendorModel
+
+    supplier_row = await db.get(SupplierModel, UUID(data.supplier_id))
+    vendor_row = await db.get(VendorModel, vendor_id)
+    supplier_gstin: str | None = getattr(supplier_row, "gstin", None) if supplier_row else None
+    vendor_gstin: str | None = getattr(vendor_row, "gstin", None) if vendor_row else None
+    vendor_state: str | None = getattr(vendor_row, "state", None) if vendor_row else None
+    intra = is_intra_state(
+        supplier_gstin=supplier_gstin,
+        recipient_gstin=vendor_gstin,
+        recipient_state_name=vendor_state if not vendor_gstin else None,
+    )
+    place_of_supply = gstin_state_code(supplier_gstin)
+
+    tax_master = await _load_tax_codes(db, vendor_id)
+
     inv = VendorInvoice(
         vendor_id=vendor_id,
         supplier_id=UUID(data.supplier_id),
@@ -274,6 +320,8 @@ async def create_vendor_invoice(
         notes=data.notes,
         posted_by=vendor_user.id,
     )
+    if place_of_supply and hasattr(inv, "place_of_supply"):
+        inv.place_of_supply = place_of_supply
 
     subtotal_total = Decimal(0)
     cgst_total = Decimal(0)
@@ -299,7 +347,7 @@ async def create_vendor_invoice(
             tax_code=item_data.tax_code,
             notes=item_data.notes,
         )
-        _compute_line_amounts(item_data, item_obj)
+        _compute_line_amounts(item_data, item_obj, tax_master=tax_master, intra_state=intra)
         inv.items.append(item_obj)
 
         subtotal_total += item_obj.subtotal

@@ -254,6 +254,11 @@ class PurchaseOrderCreate(BaseModel):
     pr_item_ids: Optional[List[str]] = None
     approvers: List[POApproverAssign] = Field(default_factory=list)
     approver_message: Optional[str] = None
+    # Org dimensions the approver matrix routes on. All optional — the service
+    # falls back to the creator's store and the vendor's default company.
+    branch_id: Optional[str] = None             # store.id — business unit or branch
+    plant_id: Optional[str] = None
+    company_id: Optional[str] = None            # derived from branch_id when omitted
 
 
 class PurchaseOrderUpdate(BaseModel):
@@ -266,6 +271,9 @@ class PurchaseOrderUpdate(BaseModel):
     payment_terms: Optional[str] = None
     approvers: Optional[List[POApproverAssign]] = None
     approver_message: Optional[str] = None
+    branch_id: Optional[str] = None
+    plant_id: Optional[str] = None
+    company_id: Optional[str] = None
 
 
 class ReceiveItemEntry(BaseModel):
@@ -331,6 +339,10 @@ class PurchaseOrderResponse(BaseModel):
     notes: Optional[str] = None
     currency: str = 'INR'
     payment_terms: Optional[str] = None
+    place_of_supply: Optional[str] = None
+    company_id: Optional[str] = None
+    branch_id: Optional[str] = None
+    plant_id: Optional[str] = None
     subtotal: float = 0
     cgst_amount: float = 0
     sgst_amount: float = 0
@@ -350,7 +362,7 @@ class PurchaseOrderResponse(BaseModel):
     def coerce_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v
 
-    @field_validator("created_by", mode="before")
+    @field_validator("created_by", "company_id", "branch_id", "plant_id", mode="before")
     @classmethod
     def coerce_optional_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v

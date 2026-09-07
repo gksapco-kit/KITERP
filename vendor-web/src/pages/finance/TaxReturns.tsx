@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
-import { useTaxReturns, useCreateTaxReturn, useComputeTaxReturn, useFileTaxReturn, useTaxCodes, useCreateTaxCode } from '@/hooks/useFinance'
-import { Plus, Calculator, Send } from 'lucide-react'
+import {
+  useTaxReturns, useCreateTaxReturn, useComputeTaxReturn, useFileTaxReturn,
+  useTaxCodes, useCreateTaxCode, useUpdateTaxCode, useDeleteTaxCode,
+} from '@/hooks/useFinance'
+import { Plus, Calculator, Send, Pencil, Trash2, EyeOff, Eye } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-600',
@@ -20,12 +23,24 @@ const inputCls =
   'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 const labelCls = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
 
-export default function TaxReturns() {
-  const [tab, setTab] = useState<'returns' | 'codes'>('returns')
+const TAX_TYPE_OPTIONS = ['GST', 'CGST', 'SGST', 'IGST', 'TDS', 'TCS', 'Income'].map(t => ({
+  value: t,
+  label: t === 'GST' ? 'GST (auto-split CGST+SGST / IGST by state)' : t,
+}))
+
+type CodeForm = { code: string; name: string; tax_type: string; rate: string }
+
+interface Props {
+  defaultTab?: 'returns' | 'codes'
+}
+
+export default function TaxReturns({ defaultTab = 'returns' }: Props) {
+  const [tab, setTab] = useState<'returns' | 'codes'>(defaultTab)
   const [showNew, setShowNew] = useState(false)
   const [returnForm, setReturnForm] = useState({ return_type: 'GSTR1', period_start: '', period_end: '', due_date: '', notes: '' })
-  const [showNewCode, setShowNewCode] = useState(false)
-  const [codeForm, setCodeForm] = useState({ code: '', name: '', tax_type: 'CGST', rate: '' })
+  const [showCodeModal, setShowCodeModal] = useState(false)
+  const [editingCodeId, setEditingCodeId] = useState<string | null>(null)
+  const [codeForm, setCodeForm] = useState<CodeForm>({ code: '', name: '', tax_type: 'CGST', rate: '' })
 
   const { data: returns = [], isLoading } = useTaxReturns()
   const { data: codes = [] } = useTaxCodes()
@@ -33,15 +48,57 @@ export default function TaxReturns() {
   const computeMut = useComputeTaxReturn()
   const fileMut = useFileTaxReturn()
   const createCodeMut = useCreateTaxCode()
+  const updateCodeMut = useUpdateTaxCode()
+  const deleteCodeMut = useDeleteTaxCode()
 
   const closeNew = () => setShowNew(false)
-  const closeNewCode = () => setShowNewCode(false)
+  const closeCodeModal = () => {
+    setShowCodeModal(false)
+    setEditingCodeId(null)
+  }
+
+  const openNewCode = () => {
+    setEditingCodeId(null)
+    setCodeForm({ code: '', name: '', tax_type: 'CGST', rate: '' })
+    setShowCodeModal(true)
+  }
+
+  const openEditCode = (c: any) => {
+    setEditingCodeId(c.id)
+    setCodeForm({
+      code: c.code || '',
+      name: c.name || '',
+      tax_type: c.tax_type || 'CGST',
+      rate: c.rate != null ? String(c.rate) : '',
+    })
+    setShowCodeModal(true)
+  }
+
+  const saveCode = () => {
+    const payload = { ...codeForm, rate: Number(codeForm.rate) }
+    if (editingCodeId) {
+      updateCodeMut.mutate({ id: editingCodeId, data: payload }, { onSuccess: closeCodeModal })
+    } else {
+      createCodeMut.mutate(payload, { onSuccess: closeCodeModal })
+    }
+  }
+
+  const toggleActive = (c: any) => {
+    updateCodeMut.mutate({ id: c.id, data: { is_active: !c.is_active } })
+  }
+
+  const removeCode = (c: any) => {
+    if (!window.confirm(`Delete tax code “${c.code}”? Prefer Hide if it was used on POs or invoices.`)) return
+    deleteCodeMut.mutate(c.id)
+  }
+
+  const codeSaving = createCodeMut.isPending || updateCodeMut.isPending
 
   return (
     <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="min-w-0 text-xs text-muted-foreground">
-          GST/TDS returns and tax codes
+          {tab === 'codes' ? 'GST / TDS tax codes used in Purchase Orders and invoices' : 'GST/TDS returns and tax codes'}
         </p>
         <div className="flex shrink-0 gap-1.5">
           {tab === 'returns' && (
@@ -56,7 +113,7 @@ export default function TaxReturns() {
           {tab === 'codes' && (
             <button
               type="button"
-              onClick={() => setShowNewCode(true)}
+              onClick={openNewCode}
               className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
             >
               <Plus className="h-3.5 w-3.5" /> New Tax Code
@@ -138,21 +195,55 @@ export default function TaxReturns() {
           <table className="w-full text-sm">
             <thead className="border-b bg-gray-50">
               <tr>
-                {['Code', 'Name', 'Type', 'Rate %', 'Status'].map(h => (
+                {['Code', 'Name', 'Type', 'Rate %', 'Status', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {(codes as any[]).length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">No tax codes configured.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No tax codes configured.</td></tr>
               ) : (codes as any[]).map((c: any) => (
-                <tr key={c.id} className="hover:bg-gray-50">
+                <tr key={c.id} className={`hover:bg-gray-50 ${!c.is_active ? 'opacity-60' : ''}`}>
                   <td className="px-4 py-2 font-mono font-semibold text-gray-700">{c.code}</td>
                   <td className="px-4 py-2 text-gray-800">{c.name}</td>
                   <td className="px-4 py-2 text-gray-500">{c.tax_type}</td>
                   <td className="px-4 py-2 text-right font-mono">{c.rate}%</td>
-                  <td className="px-4 py-2"><span className={`rounded-full px-2 py-0.5 text-xs ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{c.is_active ? 'Active' : 'Inactive'}</span></td>
+                  <td className="px-4 py-2">
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {c.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => openEditCode(c)}
+                        title="Edit"
+                        className="p-1 text-gray-500 hover:text-primary"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleActive(c)}
+                        disabled={updateCodeMut.isPending}
+                        title={c.is_active ? 'Hide from PO/invoice dropdowns' : 'Show in dropdowns'}
+                        className="p-1 text-gray-500 hover:text-amber-700 disabled:opacity-50"
+                      >
+                        {c.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeCode(c)}
+                        disabled={deleteCodeMut.isPending}
+                        title="Delete"
+                        className="p-1 text-gray-500 hover:text-red-600 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -211,26 +302,26 @@ export default function TaxReturns() {
         </ModalOverlay>
       )}
 
-      {showNewCode && (
-        <ModalOverlay onClose={closeNewCode} className="z-[100] bg-black/60 p-3">
+      {showCodeModal && (
+        <ModalOverlay onClose={closeCodeModal} className="z-[100] bg-black/60 p-3">
           <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
             <ModalHeader
-              title="New Tax Code"
-              onClose={closeNewCode}
+              title={editingCodeId ? 'Edit Tax Code' : 'New Tax Code'}
+              onClose={closeCodeModal}
               className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
             />
             <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: 'Code', key: 'code' },
-                  { label: 'Name', key: 'name' },
-                  { label: 'Rate %', key: 'rate', type: 'number' },
+                  { label: 'Code', key: 'code' as const },
+                  { label: 'Name', key: 'name' as const },
+                  { label: 'Rate %', key: 'rate' as const, type: 'number' },
                 ].map(({ label, key, type }) => (
                   <div key={key}>
                     <Label className={labelCls}>{label}</Label>
                     <input
                       type={type || 'text'}
-                      value={(codeForm as any)[key]}
+                      value={codeForm[key]}
                       onChange={e => setCodeForm(f => ({ ...f, [key]: e.target.value }))}
                       className={inputCls}
                     />
@@ -241,20 +332,20 @@ export default function TaxReturns() {
                   <Select
                     value={codeForm.tax_type}
                     onChange={v => setCodeForm(f => ({ ...f, tax_type: v }))}
-                    options={['CGST', 'SGST', 'IGST', 'TDS', 'TCS', 'Income'].map(t => ({ value: t, label: t }))}
+                    options={TAX_TYPE_OPTIONS}
                   />
                 </div>
               </div>
             </ModalBody>
             <ModalFooter className="border-0 px-4 py-2.5">
-              <button type="button" onClick={closeNewCode} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
+              <button type="button" onClick={closeCodeModal} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
               <button
                 type="button"
-                onClick={() => createCodeMut.mutate({ ...codeForm, rate: Number(codeForm.rate) }, { onSuccess: closeNewCode })}
-                disabled={createCodeMut.isPending}
+                onClick={saveCode}
+                disabled={codeSaving}
                 className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
               >
-                {createCodeMut.isPending ? 'Saving…' : 'Create'}
+                {codeSaving ? 'Saving…' : editingCodeId ? 'Save' : 'Create'}
               </button>
             </ModalFooter>
           </ModalPanel>

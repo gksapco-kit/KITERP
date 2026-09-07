@@ -146,11 +146,12 @@ async def _post_grn_inventory(
                     line.product_id, line.variant_id,
                     qty_int * sign, sloc_id,
                 )
-            except ValueError as e:
+            except (ValueError, HTTPException) as e:
+                detail = e.detail if isinstance(e, HTTPException) else str(e)
                 _log.warning(
                     "GRN %s line %s: StoreInventory delta failed (%s) — "
                     "InventoryMovement will still be written",
-                    grn.grn_number, line.id, e,
+                    grn.grn_number, line.id, detail,
                 )
 
         movement = await inv_svc.record_movement_no_commit(
@@ -195,11 +196,11 @@ async def _post_grn_inventory(
         if product and line.product_id:
             unit_price = float(line.unit_price or 0) or (float(po_item.unit_cost) if po_item and po_item.unit_cost else 0)
             if unit_price > 0:
-                from app.services.procurement_service import ProcurementService
+                from app.services.procurement_service import PurchaseOrderService
                 from app.services.fifo_cost_service import FifoCostService
                 from app.services.cost_resolution import refresh_product_cost
 
-                proc_svc = ProcurementService(db)
+                proc_svc = PurchaseOrderService(db)
                 await proc_svc._upsert_material_valuation(
                     vendor_id=vendor_id,
                     product_id=line.product_id,
@@ -589,6 +590,12 @@ async def record_qc_result(
     line.rejected_qty = qc.rejected_qty
     line.pending_qc_qty = Decimal(0)
     line.qc_status = data.result
+
+    # Roll up to header so summary cards reflect the current state during QC.
+    # Uses the in-session line objects — flush first so the updated line is included.
+    await db.flush()
+    grn.total_accepted_qty = sum(Decimal(str(ln.accepted_qty or 0)) for ln in (grn.lines or []))
+    grn.total_rejected_qty = sum(Decimal(str(ln.rejected_qty or 0)) for ln in (grn.lines or []))
 
     await db.commit()
     await db.refresh(line)

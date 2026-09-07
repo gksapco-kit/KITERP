@@ -134,9 +134,12 @@ class VendorService:
         )
         self.db.add(default_store)
 
-        from app.services.finance.coa_seeder import get_or_create_default_fin_company
+        from app.services.finance.coa_seeder import (
+            get_or_create_default_fin_company, seed_default_tax_codes,
+        )
 
         await get_or_create_default_fin_company(self.db, vendor.id)
+        await seed_default_tax_codes(self.db, vendor.id)
 
         auto_approved = apply_auto_approval_to_vendor_if_enabled(vendor)
 

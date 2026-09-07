@@ -1,13 +1,20 @@
 import { MutationCache, QueryClient, type QueryKey } from '@tanstack/react-query'
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
-import { isAxiosAuthError } from '@/lib/errorMessages'
+import { isAxiosAuthError, extractApiError } from '@/lib/errorMessages'
 import { getAccessToken } from '@/lib/authTokenStorage'
+import { toast } from 'sonner'
 
 export type AppMutationMeta = {
   /** Skip auto-refresh for non-data mutations (OTP, login, etc.) */
   skipAutoRefresh?: boolean
   /** Extra query keys to invalidate on success */
   invalidateKeys?: QueryKey[]
+  /**
+   * Label for the global fallback error toast.
+   * Set to false to suppress the global toast (when the mutation has its own onError).
+   * Defaults to 'Action failed' when omitted.
+   */
+  errorContext?: string | false
 }
 
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete'])
@@ -94,6 +101,15 @@ export function createAppQueryClient() {
         }
 
         scheduleActiveQueryRefresh()
+      },
+      onError: (error, _variables, _context, mutation) => {
+        // Skip when the mutation already handles its own error (has an onError callback).
+        if (mutation.options.onError) return
+        const meta = (mutation.meta ?? {}) as AppMutationMeta
+        if (meta.errorContext === false) return
+        // Never toast auth errors — the axios interceptor handles redirect/refresh.
+        if (isAxiosAuthError(error)) return
+        toast.error(extractApiError(error, meta.errorContext ?? 'Action failed'))
       },
     }),
   })

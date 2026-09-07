@@ -4194,7 +4194,12 @@ export default function ProductForm() {
                           <Select
                             value=""
                             onChange={() => {}}
-                            options={selectOptionsWithBlank(`Select ${f.name}`, (f.options || []).map(o => ({ value: o, label: o })))}
+                            options={selectOptionsWithBlank(
+                              `Select ${f.name}`,
+                              (f.options || [])
+                                .filter((o): o is string => typeof o === 'string' && o.trim() !== '')
+                                .map(o => ({ value: o, label: o })),
+                            )}
                             className={cn(selectCls, 'h-9 text-sm')}
                           />
                         ) : f.type === 'boolean' ? (

@@ -119,6 +119,7 @@ class PurchaseReturnLine(Base):
     unit_price = Column(Numeric(14, 4), nullable=False, default=0)
 
     # Tax
+    tax_code = Column(String(20), nullable=True)
     cgst_rate = Column(Numeric(6, 2), default=0)
     sgst_rate = Column(Numeric(6, 2), default=0)
     igst_rate = Column(Numeric(6, 2), default=0)

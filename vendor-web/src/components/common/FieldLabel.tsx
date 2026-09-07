@@ -52,7 +52,7 @@ export function TableColumnLabel({
       dbField={dbField}
       dbNote={dbNote}
       className={cn(
-        'text-xs font-medium uppercase tracking-wide text-gray-500 font-normal leading-snug',
+        'block w-full text-xs font-medium uppercase tracking-wide text-gray-500 font-normal leading-snug',
         className,
       )}
     >

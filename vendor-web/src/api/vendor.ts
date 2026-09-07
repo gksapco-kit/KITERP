@@ -899,6 +899,52 @@ export const vendorApi = {
     return response.data
   },
 
+  // ── Procurement Report Analytics (11 advanced reports) ───────────
+  procurementAnalyticsOverview: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/overview', { params })
+    return response.data
+  },
+  procurementAnalyticsSpend: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/spend', { params })
+    return response.data
+  },
+  procurementAnalyticsSpendTrend: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/spend-trend', { params })
+    return response.data
+  },
+  procurementAnalyticsCycleTime: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/cycle-time', { params })
+    return response.data
+  },
+  procurementAnalyticsApprovalTurnaround: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/approval-turnaround', { params })
+    return response.data
+  },
+  procurementAnalyticsSupplierScorecard: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/supplier-scorecard', { params })
+    return response.data
+  },
+  procurementAnalyticsSourcingFunnel: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/sourcing-funnel', { params })
+    return response.data
+  },
+  procurementAnalyticsPriceVariance: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/price-variance', { params })
+    return response.data
+  },
+  procurementAnalyticsMatchExceptions: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/match-exceptions', { params })
+    return response.data
+  },
+  procurementAnalyticsGSTInputCredit: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/gst-input-credit', { params })
+    return response.data
+  },
+  procurementAnalyticsReturns: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/procurement/reports/analytics/returns', { params })
+    return response.data
+  },
+
   // ── Approver Matrix ──────────────────────────────────────────────
   listApproverRules: async (docType?: string): Promise<{ rules: ApproverRule[] }> => {
     const params = docType ? `?doc_type=${docType}` : ''
@@ -3232,6 +3278,48 @@ export const vendorApi = {
 
   inventoryReportFIFO: async () => {
     const response = await apiClient.get('/vendors/me/inventory/reports/fifo-valuation')
+    return response.data
+  },
+
+  // ── Inventory Analytics (10 advanced reports) ─────────────────
+  inventoryAnalyticsOverview: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/analytics/overview', { params })
+    return response.data
+  },
+  inventoryAnalyticsTurnover: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/analytics/turnover', { params })
+    return response.data
+  },
+  inventoryAnalyticsMovementTrend: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/analytics/movement-trend', { params })
+    return response.data
+  },
+  inventoryAnalyticsStockHealth: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/analytics/stock-health', { params })
+    return response.data
+  },
+  inventoryAnalyticsExpiryRisk: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/analytics/expiry-risk', { params })
+    return response.data
+  },
+  inventoryAnalyticsShrinkage: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/analytics/shrinkage', { params })
+    return response.data
+  },
+  inventoryAnalyticsCountAccuracy: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/analytics/count-accuracy', { params })
+    return response.data
+  },
+  inventoryAnalyticsValuationComparison: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/analytics/valuation-comparison', { params })
+    return response.data
+  },
+  inventoryAnalyticsInTransit: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/analytics/in-transit', { params })
+    return response.data
+  },
+  inventoryAnalyticsATP: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/vendors/me/inventory/reports/analytics/atp', { params })
     return response.data
   },
 

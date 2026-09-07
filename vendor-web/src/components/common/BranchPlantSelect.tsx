@@ -24,6 +24,9 @@ interface BranchPlantSelectProps {
   /** Adds an "All …" option on the value selector (value ""). */
   allowAll?: boolean
   className?: string
+  triggerClassName?: string
+  labelClassName?: string
+  labelHeightClassName?: string
   disabled?: boolean
   id?: string
 }
@@ -39,6 +42,9 @@ export function BranchPlantSelect({
   onChange,
   allowAll = true,
   className,
+  triggerClassName,
+  labelClassName = 'text-xs',
+  labelHeightClassName = 'h-5',
   disabled,
   id,
 }: BranchPlantSelectProps) {
@@ -61,9 +67,11 @@ export function BranchPlantSelect({
   }
 
   return (
-    <div className={cn('flex flex-wrap items-end gap-3', className)}>
-      <div className="min-w-[9rem] space-y-1.5">
-        <Label className="text-xs text-muted-foreground">{BRANCH_PLANT_LABEL}</Label>
+    <div className={cn('flex flex-wrap items-start gap-3', className)}>
+      <div className="min-w-0 max-w-[11rem] flex-1 space-y-1.5">
+        <div className={cn('flex items-center', labelHeightClassName)}>
+          <Label className={labelClassName}>{BRANCH_PLANT_LABEL}</Label>
+        </div>
         <ThemeSelect
           id={id ? `${id}-kind` : undefined}
           value={kind}
@@ -72,10 +80,13 @@ export function BranchPlantSelect({
           placeholder="Choose…"
           disabled={disabled}
           aria-label={BRANCH_PLANT_LABEL}
+          triggerClassName={triggerClassName}
         />
       </div>
-      <div className="min-w-[14rem] flex-1 space-y-1.5">
-        <Label className="text-xs text-muted-foreground">{valueLabel}</Label>
+      <div className="min-w-0 flex-[1.4] space-y-1.5">
+        <div className={cn('flex items-center', labelHeightClassName)}>
+          <Label className={labelClassName}>{valueLabel}</Label>
+        </div>
         {!kind ? (
           <ThemeSelect
             id={id ? `${id}-value` : undefined}
@@ -85,6 +96,7 @@ export function BranchPlantSelect({
             placeholder="Select type first…"
             disabled
             aria-label={`${BRANCH_PLANT_LABEL} value`}
+            triggerClassName={triggerClassName}
           />
         ) : kind === 'branch' ? (
           <BranchSelect
@@ -94,6 +106,7 @@ export function BranchPlantSelect({
             onChange={setValueId}
             allowAll={allowAll}
             disabled={disabled}
+            triggerClassName={triggerClassName}
           />
         ) : (
           <PlantSelect
@@ -103,6 +116,7 @@ export function BranchPlantSelect({
             storeId={businessUnitId || null}
             allowAll={allowAll}
             disabled={disabled}
+            triggerClassName={triggerClassName}
           />
         )}
       </div>

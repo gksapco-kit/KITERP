@@ -38,6 +38,7 @@ import ExpiryDashboardPage from '@/pages/inventory/ExpiryDashboard'
 import ReservationsPage from '@/pages/inventory/Reservations'
 import TransferOrdersPage from '@/pages/inventory/TransferOrders'
 import InventoryReportsPage from '@/pages/inventory/InventoryReports'
+import InventoryAnalyticsPage from '@/pages/inventory/analytics/index'
 import StorageLocationsPage from '@/pages/inventory/StorageLocations'
 import PlantsPage from '@/pages/inventory/Plants'
 import InventorySettingsPage from '@/pages/inventory/InventorySettings'
@@ -97,6 +98,7 @@ import RFQQuotationsPage from '@/pages/procurement/RFQQuotations'
 import GoodsReceiptNotePage from '@/pages/procurement/GoodsReceiptNote'
 import PurchaseReturnsPage from '@/pages/procurement/PurchaseReturns'
 import SpendAnalyticsPage from '@/pages/procurement/SpendAnalytics'
+import ProcurementReportsPage from '@/pages/procurement/reports'
 import BudgetControlsPage from '@/pages/procurement/BudgetControls'
 import CreditDebitMemos from '@/pages/finance/CreditDebitMemos'
 import ProductionOrdersPage from '@/pages/production/index'
@@ -412,6 +414,7 @@ export const router = createBrowserRouter([
       { path: 'procurement/grn', element: <GoodsReceiptNotePage /> },
       { path: 'procurement/purchase-returns', element: <PurchaseReturnsPage /> },
       { path: 'procurement/analytics', element: <SpendAnalyticsPage /> },
+      { path: 'procurement/reports', element: <ProcurementReportsPage /> },
       { path: 'procurement/budget-controls', element: <BudgetControlsPage /> },
       { path: 'production', element: <ProductionOrdersPage /> },
       { path: 'production/orders/:orderId', element: <ProductionOrderDetailPage /> },
@@ -455,6 +458,7 @@ export const router = createBrowserRouter([
       { path: 'inventory/reservations', element: <ReservationsPage /> },
       { path: 'inventory/transfer-orders', element: <TransferOrdersPage /> },
       { path: 'inventory/reports', element: <InventoryReportsPage /> },
+      { path: 'inventory/analytics', element: <InventoryAnalyticsPage /> },
       { path: 'inventory/settings', element: <InventorySettingsPage /> },
       { path: 'storage-locations', element: <StorageLocationsPage /> },
       { path: 'plants', element: <PlantsPage /> },
@@ -626,6 +630,7 @@ export const router = createBrowserRouter([
       { path: 'finance/assets/depreciation-schedule',   element: <FinanceAssetDepreciationSchedule /> },
       { path: 'finance/assets/gl-reconciliation',       element: <FinanceAssetGlReconciliation /> },
       { path: 'finance/tax',                    element: <FinanceTax /> },
+      { path: 'finance/tax-codes',              element: <FinanceTax defaultTab="codes" /> },
       { path: 'finance/reports/pnl',            element: <FinancePnL /> },
       { path: 'finance/reports/balance-sheet',  element: <FinanceBalanceSheet /> },
       { path: 'finance/reports/cash-flow',      element: <FinanceCashFlow /> },

@@ -49,6 +49,8 @@ from app.utils.procurement_utils import (
 )
 from app.services.finance.posting import post_event
 from app.models.vendor_user import VendorUser
+from app.services.procurement_service import _load_tax_codes, _split_line_tax
+from app.utils.gst_utils import is_intra_state, gstin_state_code
 
 _log = _logging.getLogger(__name__)
 
@@ -71,9 +73,7 @@ class ReturnLineIn(BaseModel):
     unit_of_measure: str = "piece"
     return_qty: Decimal
     unit_price: Decimal
-    cgst_rate: Decimal = Decimal("0")
-    sgst_rate: Decimal = Decimal("0")
-    igst_rate: Decimal = Decimal("0")
+    tax_code: Optional[str] = None
     plant_id: Optional[str] = None
     storage_location_id: Optional[str] = None
     reason: Optional[str] = None
@@ -110,16 +110,31 @@ class DispatchRequest(BaseModel):
 
 # ── helpers ───────────────────────────────────────────────────────
 
-def _compute_line_totals(line: PurchaseReturnLine) -> None:
+def _compute_line_totals(
+    line: PurchaseReturnLine,
+    tax_master: dict | None = None,
+    intra_state: bool = False,
+) -> None:
     subtotal = Decimal(str(line.return_qty)) * Decimal(str(line.unit_price))
-    cgst = subtotal * Decimal(str(line.cgst_rate)) / 100
-    sgst = subtotal * Decimal(str(line.sgst_rate)) / 100
-    igst = subtotal * Decimal(str(line.igst_rate)) / 100
     line.subtotal = subtotal
-    line.cgst_amount = cgst
-    line.sgst_amount = sgst
-    line.igst_amount = igst
-    line.tax_total = cgst + sgst + igst
+
+    if tax_master is not None and line.tax_code:
+        split = _split_line_tax(float(subtotal), line.tax_code, tax_master, intra_state=intra_state)
+        line.cgst_rate = split["cgst_rate"]
+        line.sgst_rate = split["sgst_rate"]
+        line.igst_rate = split["igst_rate"]
+        line.cgst_amount = Decimal(str(split["cgst_amount"]))
+        line.sgst_amount = Decimal(str(split["sgst_amount"]))
+        line.igst_amount = Decimal(str(split["igst_amount"]))
+    else:
+        line.cgst_rate = line.cgst_rate or 0
+        line.sgst_rate = line.sgst_rate or 0
+        line.igst_rate = line.igst_rate or 0
+        line.cgst_amount = subtotal * Decimal(str(line.cgst_rate)) / 100
+        line.sgst_amount = subtotal * Decimal(str(line.sgst_rate)) / 100
+        line.igst_amount = subtotal * Decimal(str(line.igst_rate)) / 100
+
+    line.tax_total = line.cgst_amount + line.sgst_amount + line.igst_amount
     line.total = subtotal + line.tax_total
 
 
@@ -146,6 +161,7 @@ def _line_to_dict(l: PurchaseReturnLine) -> dict:
         "unit_of_measure": l.unit_of_measure,
         "return_qty": str(l.return_qty),
         "unit_price": str(l.unit_price),
+        "tax_code": l.tax_code,
         "cgst_rate": str(l.cgst_rate),
         "sgst_rate": str(l.sgst_rate),
         "igst_rate": str(l.igst_rate),
@@ -263,6 +279,23 @@ async def create_purchase_return(
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
 
+    # Determine GST direction from the PO's stored place_of_supply (supplier state code).
+    # We compare it against the vendor's own GSTIN to decide intra vs inter-state.
+    # Reading from the PO rather than recomputing from the supplier's current GSTIN ensures
+    # the return uses the same tax treatment as the original purchase.
+    from app.models.vendor import Vendor as VendorModel
+    vendor_row = await db.get(VendorModel, vendor_id)
+    vendor_gstin: str | None = getattr(vendor_row, "gstin", None)
+    vendor_state: str | None = getattr(vendor_row, "state", None)
+    supplier_state_code: str | None = getattr(po, "place_of_supply", None)
+    intra_state = is_intra_state(
+        supplier_gstin=f"{supplier_state_code}AAAAA0000A1Z5" if supplier_state_code else None,
+        recipient_gstin=vendor_gstin,
+        recipient_state_name=vendor_state if not vendor_gstin else None,
+    ) if supplier_state_code else False
+
+    tax_master = await _load_tax_codes(db, vendor_id)
+
     return_number = await next_doc_number(db, vendor_id, "PRET")
 
     ret = PurchaseReturn(
@@ -295,14 +328,12 @@ async def create_purchase_return(
             unit_of_measure=ld.unit_of_measure,
             return_qty=ld.return_qty,
             unit_price=ld.unit_price,
-            cgst_rate=ld.cgst_rate,
-            sgst_rate=ld.sgst_rate,
-            igst_rate=ld.igst_rate,
+            tax_code=ld.tax_code or None,
             plant_id=UUID(ld.plant_id) if ld.plant_id else None,
             storage_location_id=UUID(ld.storage_location_id) if ld.storage_location_id else None,
             reason=ld.reason,
         )
-        _compute_line_totals(line)
+        _compute_line_totals(line, tax_master=tax_master, intra_state=intra_state)
         ret.lines.append(line)
 
     _compute_return_totals(ret)
@@ -401,6 +432,23 @@ async def update_purchase_return(
         ret.notes = data.notes
 
     if data.lines is not None:
+        # Resolve GST direction from the linked PO's stored place_of_supply.
+        po_result = await db.execute(
+            select(PurchaseOrder).where(PurchaseOrder.id == ret.purchase_order_id)
+        )
+        po = po_result.scalar_one_or_none()
+        from app.models.vendor import Vendor as VendorModel
+        vendor_row = await db.get(VendorModel, vendor_id)
+        vendor_gstin: str | None = getattr(vendor_row, "gstin", None)
+        vendor_state: str | None = getattr(vendor_row, "state", None)
+        supplier_state_code: str | None = getattr(po, "place_of_supply", None) if po else None
+        intra_state = is_intra_state(
+            supplier_gstin=f"{supplier_state_code}AAAAA0000A1Z5" if supplier_state_code else None,
+            recipient_gstin=vendor_gstin,
+            recipient_state_name=vendor_state if not vendor_gstin else None,
+        ) if supplier_state_code else False
+        tax_master = await _load_tax_codes(db, vendor_id)
+
         for existing_line in list(ret.lines):
             await db.delete(existing_line)
         ret.lines = []
@@ -418,14 +466,12 @@ async def update_purchase_return(
                 unit_of_measure=ld.unit_of_measure,
                 return_qty=ld.return_qty,
                 unit_price=ld.unit_price,
-                cgst_rate=ld.cgst_rate,
-                sgst_rate=ld.sgst_rate,
-                igst_rate=ld.igst_rate,
+                tax_code=ld.tax_code or None,
                 plant_id=UUID(ld.plant_id) if ld.plant_id else None,
                 storage_location_id=UUID(ld.storage_location_id) if ld.storage_location_id else None,
                 reason=ld.reason,
             )
-            _compute_line_totals(line)
+            _compute_line_totals(line, tax_master=tax_master, intra_state=intra_state)
             ret.lines.append(line)
         _compute_return_totals(ret)
 

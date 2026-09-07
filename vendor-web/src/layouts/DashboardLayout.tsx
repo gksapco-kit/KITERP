@@ -197,6 +197,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   CANONICAL_SIDEBAR_SECTION_IDS,
+  SIDEBAR_NAV_PLACEMENTS_VERSION,
   ensurePinnedNavItemsInSection,
   loadSectionIds,
   saveSectionIds,
@@ -663,6 +664,7 @@ const allSections: NavSection[] = [
     title: 'Inventory Management',
     icon: Warehouse,
     items: [
+      { to: '/inventory/analytics', icon: TrendingUp, label: 'Inventory Report Analytics', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/products', icon: Package, label: 'Products', requiresOffering: ['products', 'both'], requiresPermission: 'products.view' },
       { to: '/services', icon: Wrench, label: 'Services', requiresOffering: ['services', 'both'], requiresPermission: 'services.view' },
       { to: '/categories', icon: FolderTree, label: 'Categories' },
@@ -805,6 +807,7 @@ const allSections: NavSection[] = [
     title: 'Procurement Management',
     icon: Truck,
     items: [
+      { to: '/procurement/reports', icon: BarChart3, label: 'Procurement Report Analytics', requiresPermission: 'procurement.view' },
       { to: '/purchase-orders', icon: ClipboardList, label: 'Purchase Orders', requiresPermission: 'procurement.view', groupLabel: 'Purchasing', groupColor: 'blue' },
       { to: '/procurement/requisitions', icon: FileText, label: 'Purchase Requisitions', requiresPermission: 'procurement.view' },
       { to: '/procurement/rfq-quotations', icon: FileCheck, label: 'RFQ & Quotations', requiresPermission: 'procurement.view' },
@@ -868,6 +871,7 @@ const allSections: NavSection[] = [
       { to: '/finance/approvals', icon: ClipboardCheck, label: 'Approvals', requiresPermission: 'finance.controls.approve', requiresFinanceMode: 'advanced', groupLabel: 'Governance', groupColor: 'blue' },
       { to: '/finance/audit', icon: ShieldCheck, label: 'Audit Log', requiresPermission: 'finance.audit.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/tax', icon: CircleDollarSign, label: 'Tax Returns', requiresPermission: 'finance.tax.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/tax-codes', icon: CircleDollarSign, label: 'Tax Codes', requiresPermission: 'finance.tax.view' },
     ],
   },
   {
@@ -1266,6 +1270,7 @@ const pageTitles: Record<string, string> = {
   '/procurement/grn': 'Goods Receipt Notes',
   '/procurement/purchase-returns': 'Purchase Returns',
   '/procurement/analytics': 'Spend Analytics',
+  '/procurement/reports': 'Procurement Report Analytics',
   '/procurement/budget-controls': 'Budget Controls',
   '/production': 'Production Orders',
   '/production/schedule': 'Production Schedule',
@@ -1278,6 +1283,7 @@ const pageTitles: Record<string, string> = {
   '/inventory/reservations': 'Reservations',
   '/inventory/transfer-orders': 'Transfer Orders',
   '/inventory/reports': 'Inventory Reports',
+  '/inventory/analytics': 'Inventory Report Analytics',
   '/inventory/settings': 'Inventory Config',
   '/plants': 'Plants',
   '/storage-locations': 'Storage Locations',
@@ -2219,7 +2225,7 @@ export default function DashboardLayout() {
         displaySections,
       ),
     )
-  }, [displaySections, navOrderScope])
+  }, [displaySections, navOrderScope, SIDEBAR_NAV_PLACEMENTS_VERSION])
 
   useEffect(() => {
     if (!navOrderScope || !Object.keys(itemPlacements).length) return

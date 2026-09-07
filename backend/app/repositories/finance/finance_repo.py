@@ -1296,11 +1296,71 @@ class FinTaxRepo:
         )
         return list(r.scalars().all())
 
+    async def get_tax_code(self, tc_id: UUID, vendor_id: UUID) -> Optional[FinTaxCode]:
+        r = await self.db.execute(
+            select(FinTaxCode).where(
+                FinTaxCode.id == tc_id, FinTaxCode.vendor_id == vendor_id)
+        )
+        return r.scalar_one_or_none()
+
+    @staticmethod
+    def _validate_tax_code_value(code: str | None) -> str:
+        """
+        Normalise and validate a tax code string.
+
+        Rules:
+        - Must be non-empty after stripping.
+        - No embedded spaces or percent signs (those belong in the name, not the code).
+        - Max 20 characters (matches column width).
+        """
+        from fastapi import HTTPException
+        if not code or not str(code).strip():
+            raise HTTPException(400, "Tax code must not be blank")
+        cleaned = str(code).strip()
+        if " " in cleaned:
+            raise HTTPException(400, "Tax code must not contain spaces — use the name field for descriptions")
+        if "%" in cleaned:
+            raise HTTPException(400, "Tax code must not contain '%' — store the rate in the rate field")
+        if len(cleaned) > 20:
+            raise HTTPException(400, "Tax code must not exceed 20 characters")
+        return cleaned
+
+    async def _assert_code_unique(self, vendor_id: UUID, code: str, exclude_id: UUID | None = None) -> None:
+        from fastapi import HTTPException
+        q = select(FinTaxCode.id).where(
+            FinTaxCode.vendor_id == vendor_id,
+            func.upper(FinTaxCode.code) == code.upper(),
+        )
+        if exclude_id:
+            q = q.where(FinTaxCode.id != exclude_id)
+        existing = await self.db.execute(q.limit(1))
+        if existing.scalar_one_or_none():
+            raise HTTPException(409, f"A tax code with code '{code.upper()}' already exists for this vendor")
+
     async def create_tax_code(self, vendor_id: UUID, data: dict) -> FinTaxCode:
-        tc = FinTaxCode(id=uuid.uuid4(), vendor_id=vendor_id, **data)
+        code = self._validate_tax_code_value(data.get("code"))
+        await self._assert_code_unique(vendor_id, code)
+        payload = {**data, "code": code}
+        tc = FinTaxCode(id=uuid.uuid4(), vendor_id=vendor_id, **payload)
         self.db.add(tc)
         await self.db.flush()
         return tc
+
+    _TAX_CODE_UPDATABLE = {"code", "name", "tax_type", "rate", "gl_account_id", "is_active"}
+
+    async def update_tax_code(self, tc: FinTaxCode, data: dict) -> FinTaxCode:
+        if "code" in data:
+            data["code"] = self._validate_tax_code_value(data["code"])
+            await self._assert_code_unique(tc.vendor_id, data["code"], exclude_id=tc.id)
+        for k, v in data.items():
+            if k in self._TAX_CODE_UPDATABLE:
+                setattr(tc, k, v)
+        await self.db.flush()
+        return tc
+
+    async def delete_tax_code(self, tc: FinTaxCode) -> None:
+        await self.db.delete(tc)
+        await self.db.flush()
 
     async def list_returns(self, vendor_id: UUID, return_type: str = None) -> list[FinTaxReturn]:
         q = select(FinTaxReturn).where(FinTaxReturn.vendor_id == vendor_id)
@@ -1330,7 +1390,7 @@ class FinTaxRepo:
 
     async def compute_gstr1(self, vendor_id: UUID, period_start: date,
                             period_end: date) -> dict:
-        """Build GSTR-1 JSON from existing invoices."""
+        """Build GSTR-1 JSON from invoices raised within the given period."""
         r = await self.db.execute(
             select(Invoice).where(
                 Invoice.vendor_id == vendor_id,
@@ -1338,16 +1398,18 @@ class FinTaxRepo:
                 Invoice.status.notin_(["draft", "void", "cancelled"]),
             )
         )
-        invoices = r.scalars().all()
+        all_invoices = r.scalars().all()
         b2b = []
         b2c_large = []
         b2c_small = []
-        for inv in invoices:
+        period_invoices = []
+        for inv in all_invoices:
             if not inv.created_at:
                 continue
             inv_date = inv.created_at.date()
             if not (period_start <= inv_date <= period_end):
                 continue
+            period_invoices.append(inv)
             row = {
                 "invoice_number": inv.invoice_number,
                 "invoice_date": str(inv_date),
@@ -1370,16 +1432,19 @@ class FinTaxRepo:
             "b2b": b2b,
             "b2cl": b2c_large,
             "b2cs": b2c_small,
-            "total_invoices": len(invoices),
-            "total_taxable": sum(float(i.taxable_amount or 0) for i in invoices),
-            "total_tax": sum(float(getattr(i, "total_tax_amount", i.tax_amount) or 0) for i in invoices),
+            "total_invoices": len(period_invoices),
+            "total_taxable": sum(float(i.taxable_amount or 0) for i in period_invoices),
+            "total_tax": sum(float(getattr(i, "total_tax_amount", i.tax_amount) or 0) for i in period_invoices),
         }
 
     async def compute_gstr3b(self, vendor_id: UUID, period_start: date,
                              period_end: date) -> dict:
+        from app.models.procurement_invoice import VendorInvoice as ProcurementVendorInvoice
+
         gstr1 = await self.compute_gstr1(vendor_id, period_start, period_end)
         total_outward_tax = gstr1["total_tax"]
-        # Inward supplies (ITC) from vendor bills
+
+        # ITC from Finance AP bills
         r = await self.db.execute(
             select(func.coalesce(func.sum(FinVendorBill.tax_amount), 0))
             .where(
@@ -1389,11 +1454,28 @@ class FinTaxRepo:
                 FinVendorBill.status != "void",
             )
         )
-        itc = float(r.scalar() or 0)
+        fin_itc = float(r.scalar() or 0)
+
+        # ITC from Procurement AP invoices (posted only — avoids double-counting if
+        # a procurement invoice is also linked to a Finance bill via journal entry)
+        r2 = await self.db.execute(
+            select(func.coalesce(func.sum(ProcurementVendorInvoice.tax_amount), 0))
+            .where(
+                ProcurementVendorInvoice.vendor_id == vendor_id,
+                ProcurementVendorInvoice.invoice_date >= period_start,
+                ProcurementVendorInvoice.invoice_date <= period_end,
+                ProcurementVendorInvoice.status == "posted",
+            )
+        )
+        proc_itc = float(r2.scalar() or 0)
+
+        itc = fin_itc + proc_itc
         return {
             "period": f"{period_start} to {period_end}",
             "outward_tax_liability": total_outward_tax,
             "inward_itc": itc,
+            "inward_itc_fin_bills": fin_itc,
+            "inward_itc_procurement": proc_itc,
             "net_payable": max(0, total_outward_tax - itc),
             "total_taxable_turnover": gstr1["total_taxable"],
         }

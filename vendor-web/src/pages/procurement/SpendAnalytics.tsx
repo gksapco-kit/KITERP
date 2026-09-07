@@ -38,14 +38,16 @@ function KPICard({ label, value, sub, icon: Icon, color = 'text-gray-700' }: {
   color?: string
 }) {
   return (
-    <Card className="p-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs text-gray-500 font-medium">{label}</p>
-          <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
-          {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    <Card className="h-full p-4">
+      <div className="flex h-full items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-gray-500 truncate">{label}</p>
+          <p className={`mt-1 text-xl font-bold tabular-nums leading-tight truncate ${color}`}>{value}</p>
+          <p className="mt-0.5 text-xs text-gray-400 truncate">{sub ?? '\u00A0'}</p>
         </div>
-        <div className={`p-2 rounded-lg bg-gray-50 ${color}`}><Icon className="w-5 h-5" /></div>
+        <div className={`shrink-0 p-2 rounded-lg bg-gray-50 ${color}`}>
+          <Icon className="w-5 h-5" />
+        </div>
       </div>
     </Card>
   )
@@ -133,17 +135,29 @@ export default function SpendAnalyticsPage() {
           <CardTitle className="text-sm font-semibold">Monthly PO Value (last 6 months)</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end gap-2 h-24">
-            {monthly_trend.map(({ month, value }) => (
-              <div key={month} className="flex-1 flex flex-col items-center gap-1">
-                <div className="text-xs text-gray-400 font-mono">{value > 0 ? `₹${Math.round(value / 1000)}k` : '—'}</div>
-                <div
-                  className="w-full bg-blue-500 rounded-t transition-all"
-                  style={{ height: `${Math.max(4, (value / maxTrend) * 64)}px` }}
-                />
-                <div className="text-[10px] text-gray-500">{month.slice(5)}/{month.slice(2, 4)}</div>
-              </div>
-            ))}
+          <div className="flex items-stretch gap-2">
+            {monthly_trend.map(({ month, value }) => {
+              const barPct = value > 0 ? Math.max(6, (value / maxTrend) * 100) : 0
+              return (
+                <div key={month} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+                  <div className="flex h-4 w-full items-end justify-center">
+                    <span className="text-xs font-mono tabular-nums text-gray-400">
+                      {value > 0 ? `₹${Math.round(value / 1000)}k` : '—'}
+                    </span>
+                  </div>
+                  <div className="flex h-28 w-full items-end justify-center">
+                    <div
+                      className={`w-full max-w-[3rem] rounded-t transition-all ${value > 0 ? 'bg-blue-500' : 'bg-blue-200'}`}
+                      style={{ height: value > 0 ? `${barPct}%` : '3px' }}
+                      title={formatCurrency(value)}
+                    />
+                  </div>
+                  <div className="h-4 text-[10px] leading-4 text-gray-500 tabular-nums">
+                    {month.slice(5)}/{month.slice(2, 4)}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </CardContent>
       </Card>

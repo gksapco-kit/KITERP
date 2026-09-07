@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, Fragment } from 'react'
+import { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,7 @@ import {
   emptyPoDestination,
   poDestinationFromLine,
   poDestinationToPayload,
+  poDestinationToHeaderPayload,
   type PoDestinationValue,
 } from '@/components/procurement/PoDestinationFields'
 import { ProcurementApproverFields } from '@/components/procurement/ProcurementApproverFields'
@@ -18,13 +19,13 @@ import {
 import { useTaxCodes } from '@/hooks/useFinance'
 import { useVendorStore } from '@/stores/vendorStore'
 import { vendorApi } from '@/api/vendor'
-import { formatCurrency } from '@/lib/utils'
-import { buildTaxCodeMap, resolveLineTax, type TaxCode } from '@/lib/procurementTax'
+import { formatCurrency, cn } from '@/lib/utils'
+import { buildTaxCodeMap, resolveLineTax, isIntraState, taxSplitLabel, type TaxCode } from '@/lib/procurementTax'
 import { dedupeSuppliers, findExistingSupplier } from '@/lib/supplierUtils'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { UOM_OPTIONS, uomLabel } from '@/lib/uomOptions'
 import { normalizeUom } from '@/lib/procurementProductContext'
-import type { Product, Service, PurchaseRequisition } from '@/types'
+import type { Product, Service, PurchaseRequisition, Supplier } from '@/types'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { useGuardedClose } from '@/hooks/useGuardedClose'
 import { useProcurementFieldConfig } from '@/hooks/useProcurementFieldConfig'
@@ -33,7 +34,7 @@ import { toast } from 'sonner'
 import {
   ArrowLeft, Loader2, Plus, X, Trash2,
   UserPlus, Building2, ExternalLink,
-  Landmark, FileText,
+  FileText, Phone, Mail, MapPin, Hash,
 } from 'lucide-react'
 
 const PO_FROM_PR_KEY = 'po_from_pr'
@@ -55,11 +56,61 @@ const ACCT_ASSIGN_META: Record<string, { label: string; placeholder: string }> =
   asset:       { label: 'Asset Number / Category', placeholder: 'e.g. AST-00123' },
   gl_account:  { label: 'GL Account', placeholder: 'e.g. 6100-0001' },
 }
+
+function supplierAddressLine(s?: Supplier | null): string | null {
+  const a = s?.address
+  if (!a) return null
+  const parts = [a.street, a.city, a.state, a.postal_code].filter(Boolean)
+  return parts.length ? parts.join(', ') : null
+}
+
+function supplierOptionHint(s: Supplier): string | undefined {
+  const parts = [
+    s.gstin ? `GSTIN ${s.gstin}` : null,
+    s.address?.city || s.address?.state || null,
+    s.phone || null,
+  ].filter(Boolean) as string[]
+  return parts.length ? parts.join(' · ') : undefined
+}
+
+function SupplierDetailsStrip({ supplier }: { supplier: Supplier }) {
+  const address = supplierAddressLine(supplier)
+  const bits: { icon: typeof Hash; label: string; value: string }[] = []
+  if (supplier.gstin) bits.push({ icon: Hash, label: 'GSTIN', value: supplier.gstin })
+  if (supplier.pan_number) bits.push({ icon: Hash, label: 'PAN', value: supplier.pan_number })
+  if (supplier.contact_name) bits.push({ icon: UserPlus, label: 'Contact', value: supplier.contact_name })
+  if (supplier.phone) bits.push({ icon: Phone, label: 'Phone', value: supplier.phone })
+  if (supplier.email) bits.push({ icon: Mail, label: 'Email', value: supplier.email })
+  if (address) bits.push({ icon: MapPin, label: 'Address', value: address })
+  if (!bits.length && !supplier.company_name) return null
+  return (
+    <div className="rounded-md border border-gray-200 bg-gray-50/80 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+        <Building2 className="h-3 w-3" />
+        {supplier.company_name || supplier.name}
+        {supplier.company_name && supplier.company_name !== supplier.name && (
+          <span className="font-normal normal-case tracking-normal text-gray-400">({supplier.name})</span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+        {bits.map(b => (
+          <div key={b.label} className="flex min-w-0 items-start gap-1.5 text-xs text-gray-700 dark:text-gray-300">
+            <b.icon className="mt-0.5 h-3 w-3 shrink-0 text-gray-400" />
+            <span className="min-w-0">
+              <span className="text-gray-400">{b.label}: </span>
+              <span className="break-words font-medium">{b.value}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 interface CatalogItem {
   id: string; name: string; sku?: string; cost_price?: number; price?: number
-  uom?: string
+  uom?: string; hsn_code?: string | null
   type: 'product' | 'service'
-  variants?: { id: string; name: string; sku?: string; barcode?: string; cost_price?: number; price?: number; uom?: string }[]
+  variants?: { id: string; name: string; sku?: string; barcode?: string; cost_price?: number; price?: number; uom?: string; hsn_code?: string | null }[]
 }
 interface BarcodePrefill {
   productId: string; variantId?: string; productName: string
@@ -68,13 +119,81 @@ interface BarcodePrefill {
 interface InventoryAlertPrefill { productId: string; variantId?: string; productName: string; quantity: number }
 
 // ─── Fiori-style field label ───────────────────────────────────────────────────
-function FL({ children, required }: { children: React.ReactNode; required?: boolean }) {
+function FL({ children, required }: { children: ReactNode; required?: boolean }) {
   return (
-    <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 select-none">
+    <p className="text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
       {children}{required && <span className="ml-0.5 text-red-500">*</span>}
     </p>
   )
 }
+
+/** Keeps header field labels at a fixed height so inputs line up across the grid. */
+function HeaderField({
+  label,
+  required,
+  action,
+  children,
+  className,
+}: {
+  label: ReactNode
+  required?: boolean
+  action?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('min-w-0 space-y-1.5', className)}>
+      <div className="flex h-4 items-center justify-between gap-2">
+        <FL required={required}>{label}</FL>
+        {action}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function LineField({
+  label,
+  required,
+  children,
+  className,
+}: {
+  label: string
+  required?: boolean
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`min-w-0 ${className ?? ''}`}>
+      <FL required={required}>{label}</FL>
+      <div className="mt-1">{children}</div>
+    </div>
+  )
+}
+
+/** Compact money for tight chips / footers (avoids overflow on large values). */
+function moneyCompact(n: number, currency = 'INR') {
+  const abs = Math.abs(n)
+  const sign = n < 0 ? '-' : ''
+  const sym = currency === 'INR' ? '₹' : `${currency} `
+  if (abs >= 1e7) return `${sign}${sym}${(abs / 1e7).toFixed(2)} Cr`
+  if (abs >= 1e5) return `${sign}${sym}${(abs / 1e5).toFixed(2)} L`
+  return formatCurrency(n, currency)
+}
+
+const lineSelectTrigger =
+  'h-8 w-full min-w-0 text-xs border-gray-200 bg-white rounded-md shadow-none'
+const lineInputCls =
+  'h-8 w-full min-w-0 rounded-md border-gray-200 bg-white px-2 text-sm shadow-none focus:border-blue-400 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+
+const CATEGORY_OPTIONS = [
+  { value: '', label: '—' },
+  { value: 'standard', label: 'Goods' },
+  { value: 'service', label: 'Service' },
+  { value: 'subcontract', label: 'Subcontract' },
+  { value: 'consignment', label: 'Consignment' },
+  { value: 'third_party', label: 'Third Party' },
+]
 
 // ─── Section wrapper ───────────────────────────────────────────────────────────
 function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
@@ -102,6 +221,7 @@ export default function CreatePurchaseOrderPage() {
   const { data: requisitionsData } = useRequisitions({ size: 100 })
   const selectedStore = useVendorStore(s => s.selectedStore)
   const selectedBranch = useVendorStore(s => s.selectedBranch)
+  const vendorGstin = useVendorStore(s => s.vendor?.gstin)
 
   const { getStatus } = useProcurementFieldConfig()
   const show   = useCallback((k: string) => getStatus('PO', k)    !== 'suppress', [getStatus])
@@ -188,9 +308,11 @@ export default function CreatePurchaseOrderPage() {
           id: productId,
           name: full.name,
           uom: full.uom,
+          hsn_code: (full as any).hsn_code ?? null,
           variants: (full.variants || []).map((v: any) => ({
             id: v.id, name: v.name, sku: v.sku, barcode: v.barcode,
             cost_price: v.cost_price, price: v.price, uom: v.uom,
+            hsn_code: v.hsn_code ?? null,
           })),
         },
       }))
@@ -308,17 +430,44 @@ export default function CreatePurchaseOrderPage() {
     } catch { /**/ }
   }
 
-  const { data: taxCodesData } = useTaxCodes()
+  const { data: taxCodesData, error: taxCodesError } = useTaxCodes()
   const taxCodeMap = useMemo(() => buildTaxCodeMap(taxCodesData as TaxCode[] | undefined), [taxCodesData])
   const activeTaxCodes = useMemo(
     () => ((taxCodesData as TaxCode[] | undefined) ?? []).filter(c => c.is_active !== false),
     [taxCodesData],
   )
+  const taxCodesUnavailable = !!taxCodesError
+
+  // Determine intra/inter-state for GST split preview (mirrors backend _split_line_tax logic)
+  const suppliers = useMemo(
+    () => dedupeSuppliers(suppliersData?.items ?? []) as Supplier[],
+    [suppliersData],
+  )
+  const selectedSupplier = useMemo(
+    () => (supplierId ? suppliers.find(s => s.id === supplierId) ?? null : null),
+    [supplierId, suppliers],
+  )
+  const selectedSupplierGstin = selectedSupplier?.gstin
+  const intraState = useMemo(
+    () => isIntraState(selectedSupplierGstin, vendorGstin),
+    [selectedSupplierGstin, vendorGstin],
+  )
+  const supplierOptions = useMemo(
+    () => selectOptionsWithBlank(
+      'Select supplier...',
+      suppliers.map(s => ({
+        value: s.id,
+        label: s.name,
+        hint: supplierOptionHint(s),
+      })),
+    ),
+    [suppliers],
+  )
 
   const subtotal = items.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_cost) || 0), 0)
   const taxTotal = items.reduce((s, i) => {
     const lineTotal = (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_cost) || 0)
-    return s + resolveLineTax(lineTotal, i.tax_code, taxCodeMap).amount
+    return s + resolveLineTax(lineTotal, i.tax_code, taxCodeMap, intraState).amount
   }, 0)
   const grandTotal = subtotal + taxTotal
 
@@ -351,19 +500,26 @@ export default function CreatePurchaseOrderPage() {
       const prItemIds = items.map(i => i.pr_item_id).filter(Boolean) as string[]
       const approvers = primaryApproverId ? [{ approver_id: primaryApproverId, level: 1 }, ...(secondaryApproverId ? [{ approver_id: secondaryApproverId, level: 2 }] : [])] : []
       const destPayload = poDestinationToPayload(dest)
+      const headerDest = poDestinationToHeaderPayload(dest)
       const po = await createMut.mutateAsync({
         supplier_id: supplierId,
-        items: items.map(i => ({
-          product_id: i.product_id, variant_id: i.variant_id || undefined, quantity: parseInt(i.quantity), unit_cost: parseFloat(i.unit_cost),
-          description: show('item_text') ? (i.item_note || undefined) : undefined,
-          unit_of_measure: show('unit') ? (i.unit_of_measure || undefined) : undefined,
-          item_category: show('item_category') ? (i.item_category || undefined) : undefined,
-          tax_code: show('tax_code') ? (i.tax_code || undefined) : undefined,
-          account_assignment: show('account_assignment_category') ? (i.account_assignment || undefined) : undefined,
-          account_assignment_value: show('account_assignment_category') ? (i.account_assignment_value?.trim() || undefined) : undefined,
-          plant_id: show('plant') ? destPayload.plant_id : undefined,
-          storage_location_id: show('storage_location') ? destPayload.storage_location_id : undefined,
-        })),
+        items: items.map(i => {
+          const pd = productDetails[i.product_id]
+          const variant = i.variant_id ? pd?.variants?.find(v => v.id === i.variant_id) : null
+          const hsn_code = variant?.hsn_code || pd?.hsn_code || undefined
+          return {
+            product_id: i.product_id, variant_id: i.variant_id || undefined, quantity: parseInt(i.quantity), unit_cost: parseFloat(i.unit_cost),
+            description: show('item_text') ? (i.item_note || undefined) : undefined,
+            unit_of_measure: show('unit') ? (i.unit_of_measure || undefined) : undefined,
+            item_category: show('item_category') ? (i.item_category || undefined) : undefined,
+            tax_code: show('tax_code') ? (i.tax_code || undefined) : undefined,
+            hsn_code: hsn_code || undefined,
+            account_assignment: show('account_assignment_category') ? (i.account_assignment || undefined) : undefined,
+            account_assignment_value: show('account_assignment_category') ? (i.account_assignment_value?.trim() || undefined) : undefined,
+            plant_id: show('plant') ? destPayload.plant_id : undefined,
+            storage_location_id: show('storage_location') ? destPayload.storage_location_id : undefined,
+          }
+        }),
         expected_delivery_date: show('delivery_date') ? (expectedDate || undefined) : undefined,
         notes: show('header_text') ? (notes || undefined) : undefined,
         currency: show('currency') ? (currency || undefined) : undefined,
@@ -371,6 +527,10 @@ export default function CreatePurchaseOrderPage() {
         requisition_id: linkedRequisitionId || prPrefill?.requisitionId || undefined,
         pr_item_ids: prItemIds.length ? prItemIds : undefined,
         approvers, approver_message: approverMessage.trim() || undefined,
+        // Header org dimensions drive approver-matrix routing, so the branch is
+        // sent even when the picker is hidden — it comes from the user's context.
+        branch_id: headerDest.branch_id,
+        plant_id: show('plant') ? headerDest.plant_id : undefined,
       })
       navigate(`/purchase-orders/${po.id}`)
     } catch { /**/ }
@@ -429,9 +589,8 @@ export default function CreatePurchaseOrderPage() {
             <Section title="Order Details">
               <div className="p-5 space-y-4">
                 {/* Row 1: PR Ref | Supplier | Expected Delivery | Currency */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div>
-                    <FL>Purchase Requisition</FL>
+                <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <HeaderField label="Purchase Requisition">
                     <Select
                       value={linkedRequisitionId}
                       onChange={handleRequisitionChange}
@@ -442,37 +601,38 @@ export default function CreatePurchaseOrderPage() {
                       ])}
                       aria-label="Purchase Requisition"
                       className="w-full"
-                      triggerClassName="h-8 text-sm rounded-md border-gray-200"
+                      triggerClassName="h-8 w-full text-sm rounded-md border-gray-200"
                     />
-                  </div>
+                  </HeaderField>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-0.5">
-                      <FL required={req('supplier')}>Supplier</FL>
+                  <HeaderField
+                    label="Supplier"
+                    required={req('supplier')}
+                    action={
                       <button type="button" onClick={() => setShowQuickSupplier(v => !v)} className="flex items-center gap-0.5 text-[10px] font-medium text-blue-600 hover:text-blue-700">
                         <UserPlus className="h-2.5 w-2.5" /> Add
                       </button>
-                    </div>
+                    }
+                  >
                     <Select
                       value={supplierId}
                       onChange={setSupplierId}
-                      options={selectOptionsWithBlank('Select supplier...', dedupeSuppliers(suppliersData?.items ?? []).map(s => ({ value: s.id, label: s.name })))}
+                      options={supplierOptions}
                       aria-label="Supplier"
                       className="w-full"
-                      triggerClassName="h-8 text-sm rounded-md border-gray-200"
+                      triggerClassName="h-8 w-full text-sm rounded-md border-gray-200"
+                      showSelectedHint={false}
                     />
-                  </div>
+                  </HeaderField>
 
                   {show('delivery_date') && (
-                    <div>
-                      <FL required={req('delivery_date')}>Expected Delivery</FL>
+                    <HeaderField label="Expected Delivery" required={req('delivery_date')}>
                       <Input type="date" className="h-8 w-full rounded-md border-gray-200 text-sm" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} required={req('delivery_date')} />
-                    </div>
+                    </HeaderField>
                   )}
 
                   {show('currency') && (
-                    <div>
-                      <FL required={req('currency')}>Currency</FL>
+                    <HeaderField label="Currency" required={req('currency')}>
                       <Select
                         value={currency} onChange={setCurrency}
                         options={[
@@ -480,26 +640,50 @@ export default function CreatePurchaseOrderPage() {
                           { value: 'EUR', label: 'EUR — Euro' },         { value: 'GBP', label: 'GBP — British Pound' },
                           { value: 'AED', label: 'AED — UAE Dirham' },   { value: 'SGD', label: 'SGD — Singapore Dollar' },
                         ]}
-                        aria-label="Currency" className="w-full" triggerClassName="h-8 text-sm rounded-md border-gray-200"
+                        aria-label="Currency" className="w-full" triggerClassName="h-8 w-full text-sm rounded-md border-gray-200"
                       />
-                    </div>
+                    </HeaderField>
                   )}
                 </div>
 
-                {/* Row 2: Payment Terms | Notes */}
+                {selectedSupplier && <SupplierDetailsStrip supplier={selectedSupplier} />}
+
+                {supplierId && (
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    {intraState ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                        ✓ Intra-state · CGST + SGST
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                        ⇄ Inter-state · IGST
+                      </span>
+                    )}
+                    {!selectedSupplierGstin && (
+                      <span className="text-[11px] text-gray-400">(supplier GSTIN missing — defaulting to inter-state)</span>
+                    )}
+                    {selectedSupplierGstin && !vendorGstin && (
+                      <span className="text-[11px] text-gray-400">(your GSTIN missing — defaulting to inter-state)</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Row 2: Payment Terms | Notes — Notes fills the remaining columns */}
                 {(show('payment_terms') || show('header_text')) && (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
                     {show('payment_terms') && (
-                      <div>
-                        <FL required={req('payment_terms')}>Payment Terms</FL>
+                      <HeaderField label="Payment Terms" required={req('payment_terms')}>
                         <Input className="h-8 w-full rounded-md border-gray-200 text-sm" placeholder="e.g. Net 30" value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)} />
-                      </div>
+                      </HeaderField>
                     )}
                     {show('header_text') && (
-                      <div className="lg:col-span-2">
-                        <FL required={req('header_text')}>Notes / Remarks</FL>
+                      <HeaderField
+                        label="Notes / Remarks"
+                        required={req('header_text')}
+                        className={show('payment_terms') ? 'sm:col-span-1 lg:col-span-3' : 'sm:col-span-2 lg:col-span-4'}
+                      >
                         <Input className="h-8 w-full rounded-md border-gray-200 text-sm" placeholder="Internal notes…" value={notes} onChange={e => setNotes(e.target.value)} required={req('header_text')} />
-                      </div>
+                      </HeaderField>
                     )}
                   </div>
                 )}
@@ -555,257 +739,261 @@ export default function CreatePurchaseOrderPage() {
                 </Button>
               }
             >
-              {/* Table header */}
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1010px] table-fixed border-separate border-spacing-0">
-                  <thead>
-                    <tr className="bg-gray-50/80 text-left dark:bg-gray-800/60">
-                      <th className="w-9 sticky left-0 z-10 bg-gray-50/80 border-b border-r border-gray-200 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap dark:border-gray-700 dark:bg-gray-800/60">#</th>
-                      {/* No width — absorbs all remaining space so long names get room */}
-                      <th className="border-b border-gray-200 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 truncate dark:border-gray-700">Product / Service</th>
-                      <th className="w-32 border-b border-gray-200 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap dark:border-gray-700">Variant</th>
-                      <th className="w-20 border-b border-gray-200 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap dark:border-gray-700">Qty{req('quantity') ? <span className="text-red-400">*</span> : ''}</th>
-                      <th className="w-28 border-b border-gray-200 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap dark:border-gray-700">Unit Cost ({currency}){req('net_price') ? <span className="text-red-400">*</span> : ''}</th>
-                      {show('unit') && <th className="w-24 border-b border-gray-200 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap dark:border-gray-700">UoM</th>}
-                      {show('item_category') && <th className="w-28 border-b border-gray-200 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap dark:border-gray-700">Category</th>}
-                      {show('tax_code') && <th className="w-24 border-b border-gray-200 px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap dark:border-gray-700">Tax Code</th>}
-                      <th className="w-28 sticky right-9 z-10 bg-gray-50/80 border-b border-l border-gray-200 px-2 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap dark:border-gray-700 dark:bg-gray-800/60">Total</th>
-                      <th className="w-9 sticky right-0 z-10 bg-gray-50/80 border-b border-gray-200 px-2 py-2 dark:border-gray-700 dark:bg-gray-800/60" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item, idx) => {
-                      const pd = productDetails[item.product_id]
-                      const variants = pd?.variants || []
-                      const isProduct = catalogMap.get(item.product_id)?.type === 'product'
-                      const hasVariants = isProduct && variants.length > 0
-                      const loadingVariants = isProduct && !!item.product_id && !pd
-                      const lineTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)
-                      const lineTax = resolveLineTax(lineTotal, item.tax_code, taxCodeMap)
-                      const isEven = idx % 2 === 0
-                      const showSubRow = show('account_assignment_category') || show('item_text')
-                      const optionalColCount = [show('unit'), show('item_category'), show('tax_code')].filter(Boolean).length
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {items.map((item, idx) => {
+                  const pd = productDetails[item.product_id]
+                  const variants = pd?.variants || []
+                  const isProduct = catalogMap.get(item.product_id)?.type === 'product'
+                  const hasVariants = isProduct && variants.length > 0
+                  const loadingVariants = isProduct && !!item.product_id && !pd
+                  const lineTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0)
+                  const lineTax = resolveLineTax(lineTotal, item.tax_code, taxCodeMap, intraState)
+                  const showAcct = show('account_assignment_category')
+                  const showNote = show('item_text')
 
-                      return (
-                        <Fragment key={item.uid}>
-                          <tr className={isEven ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/40 dark:bg-gray-800/20'}>
-                            {/* # — sticky left */}
-                            <td className={`border-b border-r border-gray-100 px-2 py-1.5 sticky left-0 z-[1] dark:border-gray-800 ${isEven ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/40 dark:bg-gray-800/20'}`}>
-                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">{idx + 1}</span>
-                            </td>
-                            {/* Product / Service */}
-                            <td className="border-b border-gray-100 px-2 py-1.5 dark:border-gray-800 min-w-0">
-                              <Select
-                                value={item.product_id}
-                                onChange={v => updateItem(idx, 'product_id', v)}
-                                options={[
-                                  { value: '', label: 'Select product or service…' },
-                                  ...products.map(p => ({ value: p.id, label: p.name, hint: p.sku || undefined, group: 'Products' })),
-                                  ...services.map(s => ({ value: s.id, label: s.name, group: 'Services' })),
-                                ]}
-                                aria-label="Product or service"
-                                className="w-full min-w-0"
-                                showSelectedHint={false}
-                                triggerClassName="h-8 text-xs border-gray-200 bg-white rounded-md shadow-none"
-                              />
-                            </td>
-                            {/* Variant — main row */}
-                            <td className="border-b border-gray-100 px-2 py-1.5 dark:border-gray-800 min-w-0">
-                              {loadingVariants ? (
-                                <div className="flex h-8 items-center gap-1.5 text-[11px] text-gray-400">
-                                  <Loader2 className="h-3 w-3 animate-spin" /> Loading…
-                                </div>
-                              ) : hasVariants ? (
-                                <Select
-                                  value={item.variant_id}
-                                  onChange={v => updateItem(idx, 'variant_id', v)}
-                                  options={selectOptionsWithBlank('— Select variant —', variants.map(v => ({ value: v.id, label: v.name, hint: v.sku || undefined })))}
-                                  aria-label="Variant"
-                                  className="w-full min-w-0"
-                                  showSelectedHint={false}
-                                  triggerClassName={`h-8 text-xs rounded-md shadow-none ${!item.variant_id ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-white'}`}
-                                />
-                              ) : (
-                                <span className="flex h-8 items-center px-2 text-xs text-gray-300">—</span>
-                              )}
-                            </td>
-                            {/* Qty */}
-                            <td className="border-b border-gray-100 px-2 py-1.5 dark:border-gray-800">
-                              <Input type="number" min={1} step={1} className="h-8 w-full rounded-md border-gray-200 bg-white text-sm font-semibold shadow-none focus:border-blue-400 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" placeholder="0" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} required />
-                            </td>
-                            {/* Unit Cost */}
-                            <td className="border-b border-gray-100 px-2 py-1.5 dark:border-gray-800">
-                              <Input type="number" min={0} step="0.01" className="h-8 w-full rounded-md border-gray-200 bg-white text-sm font-semibold shadow-none focus:border-blue-400 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" placeholder="0.00" value={item.unit_cost} onChange={e => updateItem(idx, 'unit_cost', e.target.value)} onWheel={e => (e.target as HTMLInputElement).blur()} required />
-                            </td>
-                            {show('unit') && (
-                              <td className="border-b border-gray-100 px-2 py-1.5 dark:border-gray-800">
-                                <Select
-                                  value={item.unit_of_measure}
-                                  onChange={v => updateItem(idx, 'unit_of_measure', v)}
-                                  options={[
-                                    { value: '', label: '—' },
-                                    ...UOM_OPTIONS.map(u => ({ value: u.value, label: u.label, group: u.group })),
-                                    ...(item.unit_of_measure && !UOM_OPTIONS.some(u => u.value === item.unit_of_measure)
-                                      ? [{ value: item.unit_of_measure, label: uomLabel(item.unit_of_measure) }]
-                                      : []),
-                                  ]}
-                                  aria-label="UoM"
-                                  triggerClassName="h-8 text-xs border-gray-200 bg-white rounded-md shadow-none"
-                                />
-                              </td>
-                            )}
-                            {show('item_category') && (
-                              <td className="border-b border-gray-100 px-2 py-1.5 dark:border-gray-800">
-                                <Select value={item.item_category} onChange={v => updateItem(idx, 'item_category', v)}
-                                  options={[
-                                    { value: '', label: '—' },
-                                    { value: 'standard', label: 'Product / Goods' },
-                                    { value: 'service', label: 'Service' },
-                                    { value: 'subcontract', label: 'Subcontract' },
-                                    { value: 'consignment', label: 'Consignment' },
-                                    { value: 'third_party', label: 'Third Party' },
-                                  ]}
-                                  aria-label="Category" triggerClassName="h-8 text-xs border-gray-200 bg-white rounded-md shadow-none" />
-                              </td>
-                            )}
-                            {show('tax_code') && (
-                              <td className="border-b border-gray-100 px-2 py-1.5 dark:border-gray-800 min-w-0">
-                                <Select
-                                  value={item.tax_code}
-                                  onChange={v => updateItem(idx, 'tax_code', v)}
-                                  options={[
-                                    { value: '', label: activeTaxCodes.length ? '— No tax —' : 'No tax codes set up' },
-                                    ...activeTaxCodes.map(c => ({
-                                      value: c.code,
-                                      label: c.code,
-                                      hint: `${Number(c.rate) || 0}% ${(c.tax_type || '').toUpperCase()}`,
-                                    })),
-                                    // Keep an unrecognised saved code selectable rather than silently clearing it
-                                    ...(item.tax_code && !taxCodeMap.has(item.tax_code.trim().toUpperCase())
-                                      ? [{ value: item.tax_code, label: item.tax_code, hint: 'unknown' }]
-                                      : []),
-                                  ]}
-                                  aria-label="Tax code"
-                                  className="w-full min-w-0"
-                                  showSelectedHint={false}
-                                  triggerClassName={`h-8 text-xs rounded-md shadow-none ${
-                                    item.tax_code && !taxCodeMap.has(item.tax_code.trim().toUpperCase())
-                                      ? 'border-amber-300 bg-amber-50'
-                                      : 'border-gray-200 bg-white'
-                                  }`}
-                                />
-                              </td>
-                            )}
-                            {/* Total — sticky right */}
-                            <td className={`border-b border-l border-gray-100 px-2 py-1.5 text-right sticky right-9 z-[1] dark:border-gray-800 ${isEven ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/40 dark:bg-gray-800/20'}`}>
-                              <div className="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200">{formatCurrency(lineTotal, currency)}</div>
-                              {lineTax.amount > 0 && (
-                                <div className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
-                                  +{formatCurrency(lineTax.amount, currency)} tax
-                                </div>
-                              )}
-                            </td>
-                            {/* Delete — sticky right-0 */}
-                            <td className={`border-b border-gray-100 px-2 py-1.5 sticky right-0 z-[1] dark:border-gray-800 ${isEven ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/40 dark:bg-gray-800/20'}`}>
-                              {items.length > 1 && (
-                                <button type="button" onClick={() => removeItem(idx)} aria-label="Remove line" className="flex h-6 w-6 items-center justify-center rounded text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors">
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                          {/* ── Sub-row: account assignment + note ── */}
-                          {showSubRow && (
-                            <tr className="bg-gray-50/70 dark:bg-gray-800/30">
-                              <td className="border-b border-r border-gray-100 px-2 py-1.5 sticky left-0 z-[1] bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/30">
-                                <div className="flex justify-center">
-                                  <div className="h-4 w-3 border-b-2 border-l-2 border-gray-200 rounded-bl-md dark:border-gray-600" />
-                                </div>
-                              </td>
-                              <td
-                                className="border-b border-gray-100 px-2 py-1.5 dark:border-gray-800"
-                                colSpan={4 + optionalColCount}
-                              >
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                  return (
+                    <div key={item.uid} className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] gap-x-2 gap-y-1.5 px-3 py-2 sm:px-4">
+                      {/* Row 1: # + product/pricing + total */}
+                      <span className="row-start-1 self-end mb-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                        {idx + 1}
+                      </span>
 
-                                  {/* Account assignment category + value */}
-                                  {show('account_assignment_category') && (
-                                    <>
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400 shrink-0">
-                                          <Landmark className="h-3 w-3" /> Acct Assign
-                                        </span>
-                                        <Select
-                                          value={item.account_assignment}
-                                          onChange={v => updateItem(idx, 'account_assignment', v)}
-                                          options={[{ value: '', label: 'None' }, { value: 'cost_center', label: 'Cost Center' }, { value: 'project', label: 'Project / WBS' }, { value: 'asset', label: 'Asset' }, { value: 'gl_account', label: 'GL Account' }]}
-                                          aria-label="Acct Assign"
-                                          className="w-40"
-                                          triggerClassName="h-8 text-xs border-gray-200 bg-white rounded-md shadow-none"
-                                        />
-                                      </div>
-                                      {item.account_assignment && ACCT_ASSIGN_META[item.account_assignment] && (
-                                        <div className="flex items-center gap-2 shrink-0">
-                                          <span className="text-[10px] font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400 shrink-0">
-                                            {ACCT_ASSIGN_META[item.account_assignment].label}
-                                          </span>
-                                          <Input
-                                            className="h-8 w-44 rounded-md border-blue-200 bg-white text-xs shadow-none placeholder:text-gray-300 focus:border-blue-400"
-                                            placeholder={ACCT_ASSIGN_META[item.account_assignment].placeholder}
-                                            value={item.account_assignment_value}
-                                            onChange={e => updateItem(idx, 'account_assignment_value', e.target.value)}
-                                          />
-                                        </div>
-                                      )}
-                                    </>
-                                  )}
+                      <div className="row-start-1 grid min-w-0 grid-cols-2 gap-x-2 gap-y-1.5 sm:grid-cols-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(8rem,1fr)_5.5rem_6.5rem_minmax(9rem,0.9fr)]">
+                        <LineField label="Product / Service" required={req('material')} className="col-span-2 sm:col-span-3 lg:col-span-1">
+                          <Select
+                            value={item.product_id}
+                            onChange={v => updateItem(idx, 'product_id', v)}
+                            options={[
+                              { value: '', label: 'Select product or service…' },
+                              ...products.map(p => ({ value: p.id, label: p.name, hint: p.sku || undefined, group: 'Products' })),
+                              ...services.map(s => ({ value: s.id, label: s.name, group: 'Services' })),
+                            ]}
+                            aria-label="Product or service"
+                            className="w-full min-w-0"
+                            showSelectedHint={false}
+                            triggerClassName={lineSelectTrigger}
+                          />
+                        </LineField>
 
-                                  {/* Item note */}
-                                  {show('item_text') && (
-                                    <div className="flex flex-1 items-center gap-2 min-w-[200px]">
-                                      <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 shrink-0">
-                                        <FileText className="h-3 w-3" /> Note
-                                      </span>
-                                      <Input
-                                        className="h-8 flex-1 rounded-md border-gray-200 bg-white text-xs shadow-none placeholder:text-gray-300"
-                                        placeholder={req('item_text') ? 'Required note…' : 'Optional note…'}
-                                        value={item.item_note}
-                                        onChange={e => updateItem(idx, 'item_note', e.target.value)}
-                                        required={req('item_text')}
-                                      />
-                                    </div>
-                                  )}
-
-                                </div>
-                              </td>
-                              <td className="border-b border-l border-gray-100 sticky right-9 z-[1] bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/30" />
-                              <td className="border-b border-gray-100 sticky right-0 z-[1] bg-gray-50/70 dark:border-gray-800 dark:bg-gray-800/30" />
-                            </tr>
+                        <LineField label="Variant">
+                          {loadingVariants ? (
+                            <div className="flex h-8 items-center gap-1.5 text-[11px] text-gray-400">
+                              <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                            </div>
+                          ) : hasVariants ? (
+                            <Select
+                              value={item.variant_id}
+                              onChange={v => updateItem(idx, 'variant_id', v)}
+                              options={selectOptionsWithBlank('— Select —', variants.map(v => ({ value: v.id, label: v.name, hint: v.sku || undefined })))}
+                              aria-label="Variant"
+                              className="w-full min-w-0"
+                              showSelectedHint={false}
+                              triggerClassName={`${lineSelectTrigger} ${!item.variant_id ? 'border-amber-300 bg-amber-50' : ''}`}
+                            />
+                          ) : (
+                            <div className="flex h-8 items-center rounded-md border border-dashed border-gray-200 px-2 text-xs text-gray-400 dark:border-gray-700">—</div>
                           )}
-                        </Fragment>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                        </LineField>
+
+                        <LineField label="Qty" required={req('quantity')}>
+                          <Input
+                            type="number"
+                            min={1}
+                            step={1}
+                            className={`${lineInputCls} font-semibold`}
+                            placeholder="0"
+                            value={item.quantity}
+                            onChange={e => updateItem(idx, 'quantity', e.target.value)}
+                            onWheel={e => (e.target as HTMLInputElement).blur()}
+                            required
+                          />
+                        </LineField>
+
+                        <LineField label={`Cost (${currency})`} required={req('net_price')}>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className={`${lineInputCls} font-semibold`}
+                            placeholder="0.00"
+                            value={item.unit_cost}
+                            onChange={e => updateItem(idx, 'unit_cost', e.target.value)}
+                            onWheel={e => (e.target as HTMLInputElement).blur()}
+                            required
+                          />
+                        </LineField>
+
+                        {show('tax_code') ? (
+                          <LineField label="Tax Code" required={req('tax_code')}>
+                            <Select
+                              value={item.tax_code}
+                              onChange={v => updateItem(idx, 'tax_code', v)}
+                              options={[
+                                {
+                                  value: '',
+                                  label: taxCodesUnavailable
+                                    ? '⚠ Unavailable'
+                                    : activeTaxCodes.length
+                                      ? '— No tax —'
+                                      : 'No tax codes',
+                                },
+                                ...activeTaxCodes.map(c => ({
+                                  value: c.code,
+                                  label: `${c.code} · ${Number(c.rate) || 0}%`,
+                                  hint: taxSplitLabel(c, intraState) || (c.tax_type || '').toUpperCase(),
+                                })),
+                                ...(item.tax_code && !taxCodeMap.has(item.tax_code.trim().toUpperCase())
+                                  ? [{ value: item.tax_code, label: item.tax_code, hint: 'unknown' }]
+                                  : []),
+                              ]}
+                              aria-label="Tax code"
+                              className="w-full min-w-0"
+                              showSelectedHint={false}
+                              triggerClassName={`${lineSelectTrigger} ${
+                                taxCodesUnavailable
+                                  ? 'border-red-300 bg-red-50'
+                                  : item.tax_code && !taxCodeMap.has(item.tax_code.trim().toUpperCase())
+                                    ? 'border-amber-300 bg-amber-50'
+                                    : ''
+                              }`}
+                            />
+                          </LineField>
+                        ) : (
+                          <div className="hidden lg:block" />
+                        )}
+                      </div>
+
+                      <div className="row-start-1 row-span-2 flex w-[7.5rem] shrink-0 flex-col items-stretch gap-1 self-start pt-4 sm:w-[8.25rem]">
+                        <div
+                          className="rounded-md border border-blue-100 bg-blue-50/70 px-2 py-1.5 text-right dark:border-blue-900/40 dark:bg-blue-950/20"
+                          title={`${formatCurrency(lineTotal, currency)}${lineTax.amount > 0 ? ` (+${formatCurrency(lineTax.amount, currency)} tax)` : ''}`}
+                        >
+                          <p className="text-[9px] font-semibold uppercase tracking-wide text-blue-500/80 leading-none">Total</p>
+                          <p className="mt-0.5 text-xs font-semibold tabular-nums leading-snug text-blue-800 dark:text-blue-200 truncate">
+                            {moneyCompact(lineTotal, currency)}
+                          </p>
+                          {lineTax.amount > 0 && (
+                            <p className="text-[10px] tabular-nums leading-snug text-blue-600/70 dark:text-blue-300/70 truncate">
+                              +{moneyCompact(lineTax.amount, currency)} tax
+                            </p>
+                          )}
+                        </div>
+                        {items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeItem(idx)}
+                            aria-label="Remove line"
+                            className="ml-auto flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Row 2: UoM / Category / Acct */}
+                      <div className="col-start-2 row-start-2 grid min-w-0 grid-cols-1 gap-x-2 gap-y-1.5 sm:grid-cols-3">
+                        {show('unit') ? (
+                          <LineField label="UoM">
+                            <Select
+                              value={item.unit_of_measure}
+                              onChange={v => updateItem(idx, 'unit_of_measure', v)}
+                              options={[
+                                { value: '', label: '—' },
+                                ...UOM_OPTIONS.map(u => ({ value: u.value, label: u.label, group: u.group })),
+                                ...(item.unit_of_measure && !UOM_OPTIONS.some(u => u.value === item.unit_of_measure)
+                                  ? [{ value: item.unit_of_measure, label: uomLabel(item.unit_of_measure) }]
+                                  : []),
+                              ]}
+                              aria-label="UoM"
+                              className="w-full min-w-0"
+                              triggerClassName={lineSelectTrigger}
+                            />
+                          </LineField>
+                        ) : <div className="hidden sm:block" />}
+
+                        {show('item_category') ? (
+                          <LineField label="Category">
+                            <Select
+                              value={item.item_category}
+                              onChange={v => updateItem(idx, 'item_category', v)}
+                              options={CATEGORY_OPTIONS}
+                              aria-label="Category"
+                              className="w-full min-w-0"
+                              triggerClassName={lineSelectTrigger}
+                            />
+                          </LineField>
+                        ) : <div className="hidden sm:block" />}
+
+                        {showAcct ? (
+                          <LineField label="Acct Assign">
+                            <div className="flex min-w-0 gap-1.5">
+                              <Select
+                                value={item.account_assignment}
+                                onChange={v => updateItem(idx, 'account_assignment', v)}
+                                options={[
+                                  { value: '', label: 'None' },
+                                  { value: 'cost_center', label: 'Cost Center' },
+                                  { value: 'project', label: 'Project / WBS' },
+                                  { value: 'asset', label: 'Asset' },
+                                  { value: 'gl_account', label: 'GL Account' },
+                                ]}
+                                aria-label="Acct Assign"
+                                className="min-w-0 flex-1"
+                                triggerClassName={lineSelectTrigger}
+                              />
+                              {item.account_assignment && ACCT_ASSIGN_META[item.account_assignment] && (
+                                <Input
+                                  className="h-8 min-w-0 flex-1 rounded-md border-blue-200 bg-white text-xs shadow-none placeholder:text-gray-300 focus:border-blue-400"
+                                  placeholder={ACCT_ASSIGN_META[item.account_assignment].placeholder}
+                                  value={item.account_assignment_value}
+                                  onChange={e => updateItem(idx, 'account_assignment_value', e.target.value)}
+                                  aria-label={ACCT_ASSIGN_META[item.account_assignment].label}
+                                />
+                              )}
+                            </div>
+                          </LineField>
+                        ) : <div className="hidden sm:block" />}
+                      </div>
+
+                      {/* Row 3: Note */}
+                      {showNote ? (
+                        <div className="col-start-2 row-start-3 min-w-0">
+                          <LineField label="Note" required={req('item_text')}>
+                            <div className="relative">
+                              <FileText className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                              <Input
+                                className="h-8 w-full rounded-md border-gray-200 bg-white pl-7 text-xs shadow-none placeholder:text-gray-300"
+                                placeholder={req('item_text') ? 'Required note…' : 'Optional note…'}
+                                value={item.item_note}
+                                onChange={e => updateItem(idx, 'item_note', e.target.value)}
+                                required={req('item_text')}
+                              />
+                            </div>
+                          </LineField>
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                })}
               </div>
 
-              {/* Table footer: add item + totals */}
-              <div className="flex items-start justify-between gap-4 border-t border-gray-100 bg-gray-50/80 px-5 py-2.5 dark:border-gray-700 dark:bg-gray-800/40">
-                <button type="button" onClick={addItem} className="flex items-center gap-1 pt-1 text-[11px] font-medium text-blue-600 hover:text-blue-700">
+              {/* Footer: add item + totals */}
+              <div className="flex items-center justify-between gap-4 border-t border-gray-100 bg-gray-50/80 px-4 py-2 dark:border-gray-700 dark:bg-gray-800/40">
+                <button type="button" onClick={addItem} className="flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-700">
                   <Plus className="h-3 w-3" /> Add another line
                 </button>
-                <div className="flex flex-col items-end gap-0.5 text-sm">
-                  <div className="flex items-center justify-end gap-2">
+                <div className="flex flex-col items-end gap-0 text-sm leading-5">
+                  <div className="flex items-center justify-end gap-3">
                     <span className="text-xs font-medium text-gray-500">Subtotal</span>
-                    <span className="w-28 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(subtotal, currency)}</span>
+                    <span className="min-w-[5.5rem] text-right tabular-nums text-gray-700 dark:text-gray-300" title={formatCurrency(subtotal, currency)}>{moneyCompact(subtotal, currency)}</span>
                   </div>
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center justify-end gap-3">
                     <span className="text-xs font-medium text-gray-500">Tax</span>
-                    <span className="w-28 text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(taxTotal, currency)}</span>
+                    <span className="min-w-[5.5rem] text-right tabular-nums text-gray-700 dark:text-gray-300" title={formatCurrency(taxTotal, currency)}>{moneyCompact(taxTotal, currency)}</span>
                   </div>
-                  <div className="flex items-center justify-end gap-2 border-t border-gray-200 pt-1 dark:border-gray-700">
+                  <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-0.5 dark:border-gray-700">
                     <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Total</span>
-                    <span className="w-28 text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(grandTotal, currency)}</span>
+                    <span className="min-w-[5.5rem] text-right font-bold tabular-nums text-gray-900 dark:text-gray-100" title={formatCurrency(grandTotal, currency)}>{moneyCompact(grandTotal, currency)}</span>
                   </div>
                 </div>
               </div>

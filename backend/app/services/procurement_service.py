@@ -23,7 +23,9 @@ from app.models.procurement_special import MaterialValuation
 from app.services.inventory_service import InventoryService
 from app.services.store_inventory_service import apply_store_inventory_delta, sync_product_quantity_from_stores
 from app.services.store_resolver import get_default_store_id
+from app.services.procurement_org_context import resolve_po_org_context
 from app.utils.procurement_utils import next_doc_number
+from app.utils.gst_utils import split_gst_rate, is_intra_state, gstin_state_code
 
 log = logging.getLogger(__name__)
 
@@ -54,11 +56,19 @@ def _split_line_tax(
     line_total: float,
     tax_code: str | None,
     tax_codes: dict[str, tuple[str, float]],
+    intra_state: bool = False,
 ) -> dict[str, float]:
     """Resolve a line's tax code into per-bucket rates and amounts.
 
-    An unknown or blank code yields zeroes rather than raising, so a PO can
-    still be saved while the finance tax master is being set up.
+    For combined GST codes (tax_type == "GST"):
+      - intra_state=True  → splits evenly into CGST + SGST
+      - intra_state=False → places full rate in IGST
+
+    Explicit CGST / SGST / IGST codes are honoured as-is (single-bucket).
+    An unknown or blank code yields zeroes so a PO can be saved while the
+    finance tax master is still being configured.
+
+    Keep in sync with resolveLineTax in vendor-web/src/lib/procurementTax.ts.
     """
     zero = {
         "cgst_rate": 0.0, "sgst_rate": 0.0, "igst_rate": 0.0,
@@ -75,16 +85,31 @@ def _split_line_tax(
     if tax_type not in _ADDITIVE_TAX_TYPES or rate <= 0:
         return zero
 
-    amount = round(line_total * rate / 100.0, 2)
     result = dict(zero)
-    if tax_type == "CGST":
-        result["cgst_rate"], result["cgst_amount"] = rate, amount
+
+    if tax_type == "GST":
+        # Combined GST code — split direction determined by place of supply.
+        cgst_r, sgst_r, igst_r = split_gst_rate(rate, intra_state)
+        result["cgst_rate"] = cgst_r
+        result["sgst_rate"] = sgst_r
+        result["igst_rate"] = igst_r
+        result["cgst_amount"] = round(line_total * cgst_r / 100.0, 2)
+        result["sgst_amount"] = round(line_total * sgst_r / 100.0, 2)
+        result["igst_amount"] = round(line_total * igst_r / 100.0, 2)
+    elif tax_type == "CGST":
+        result["cgst_rate"] = rate
+        result["cgst_amount"] = round(line_total * rate / 100.0, 2)
     elif tax_type in ("SGST", "UTGST"):
-        result["sgst_rate"], result["sgst_amount"] = rate, amount
+        result["sgst_rate"] = rate
+        result["sgst_amount"] = round(line_total * rate / 100.0, 2)
     else:
-        # Plain GST/VAT/CESS/IGST are single-bucket, inter-state style.
-        result["igst_rate"], result["igst_amount"] = rate, amount
-    result["tax_amount"] = amount
+        # IGST / VAT / CESS — single inter-state bucket.
+        result["igst_rate"] = rate
+        result["igst_amount"] = round(line_total * rate / 100.0, 2)
+
+    result["tax_amount"] = round(
+        result["cgst_amount"] + result["sgst_amount"] + result["igst_amount"], 2
+    )
     return result
 
 
@@ -289,7 +314,11 @@ class PurchaseOrderService:
     # ── Create ───────────────────────────────────────────────────
 
     async def create(
-        self, vendor_id: UUID, data: dict, created_by: UUID | None = None,
+        self,
+        vendor_id: UUID,
+        data: dict,
+        created_by: UUID | None = None,
+        vendor_user_id: UUID | None = None,
     ) -> PurchaseOrder:
         supplier_svc = SupplierService(self.db)
         supplier = await supplier_svc._get(vendor_id, UUID(data["supplier_id"]))
@@ -316,6 +345,22 @@ class PurchaseOrderService:
 
         po_number = await self._next_po_number(vendor_id)
 
+        # Resolve place of supply for intra/inter-state GST determination.
+        # Fetch the vendor's GSTIN (recipient) to compare against the supplier's.
+        from app.models.vendor import Vendor as VendorModel
+        vendor_row = await self.db.get(VendorModel, vendor_id)
+        vendor_gstin: str | None = getattr(vendor_row, "gstin", None)
+        vendor_state: str | None = getattr(vendor_row, "state", None)
+
+        supplier_gstin: str | None = supplier.gstin
+        intra = is_intra_state(
+            supplier_gstin=supplier_gstin,
+            recipient_gstin=vendor_gstin,
+            recipient_state_name=vendor_state if not vendor_gstin else None,
+        )
+        # Store the supplier's state code as the place of supply on the PO
+        pos_code = gstin_state_code(supplier_gstin)
+
         tax_codes = await _load_tax_codes(self.db, vendor_id)
 
         subtotal = 0.0
@@ -326,7 +371,7 @@ class PurchaseOrderService:
             cost = item_data["unit_cost"]
             line_total = round(qty * cost, 2)
             subtotal += line_total
-            tax = _split_line_tax(line_total, item_data.get("tax_code"), tax_codes)
+            tax = _split_line_tax(line_total, item_data.get("tax_code"), tax_codes, intra_state=intra)
             cgst_total += tax["cgst_amount"]
             sgst_total += tax["sgst_amount"]
             igst_total += tax["igst_amount"]
@@ -367,6 +412,17 @@ class PurchaseOrderService:
             except (TypeError, ValueError):
                 requisition_id = None
 
+        company_id, branch_id, header_plant_id = await resolve_po_org_context(
+            self.db,
+            vendor_id,
+            branch_id=data.get("branch_id"),
+            plant_id=data.get("plant_id"),
+            company_id=data.get("company_id"),
+            line_plant_ids=[i.get("plant_id") for i in data["items"]],
+            vendor_user_id=vendor_user_id,
+            user_id=created_by,
+        )
+
         po = PurchaseOrder(
             vendor_id=vendor_id,
             supplier_id=UUID(data["supplier_id"]),
@@ -378,6 +434,10 @@ class PurchaseOrderService:
             currency=data.get("currency") or "INR",
             payment_terms=data.get("payment_terms"),
             approver_message=data.get("approver_message"),
+            place_of_supply=pos_code,
+            company_id=company_id,
+            branch_id=branch_id,
+            plant_id=header_plant_id,
             subtotal=subtotal,
             cgst_amount=round(cgst_total, 2),
             sgst_amount=round(sgst_total, 2),
@@ -491,15 +551,48 @@ class PurchaseOrderService:
 
         if data.get("expected_delivery_date") is not None:
             po.expected_delivery_date = data["expected_delivery_date"]
+        if data.get("order_date") is not None:
+            po.order_date = data["order_date"]
         if data.get("notes") is not None:
             po.notes = data["notes"]
+        if data.get("currency") is not None:
+            po.currency = data["currency"]
+        if data.get("payment_terms") is not None:
+            po.payment_terms = data["payment_terms"]
         if data.get("approver_message") is not None:
             po.approver_message = data["approver_message"]
+
+        if any(data.get(k) is not None for k in ("branch_id", "plant_id", "company_id")):
+            po.company_id, po.branch_id, po.plant_id = await resolve_po_org_context(
+                self.db,
+                vendor_id,
+                branch_id=data.get("branch_id") or po.branch_id,
+                plant_id=data.get("plant_id") or po.plant_id,
+                company_id=data.get("company_id") or po.company_id,
+                line_plant_ids=[i.get("plant_id") for i in (data.get("items") or [])],
+            )
 
         if data.get("items") is not None:
             for old_item in list(po.items):
                 await self.db.delete(old_item)
             await self.db.flush()
+
+            # Re-resolve place of supply in case supplier changed
+            from app.models.vendor import Vendor as VendorModel
+            vendor_row = await self.db.get(VendorModel, vendor_id)
+            vendor_gstin = getattr(vendor_row, "gstin", None)
+            vendor_state = getattr(vendor_row, "state", None)
+            supplier_result = await self.db.execute(
+                select(Supplier).where(Supplier.id == po.supplier_id)
+            )
+            current_supplier = supplier_result.scalar_one_or_none()
+            supplier_gstin = getattr(current_supplier, "gstin", None) if current_supplier else None
+            intra = is_intra_state(
+                supplier_gstin=supplier_gstin,
+                recipient_gstin=vendor_gstin,
+                recipient_state_name=vendor_state if not vendor_gstin else None,
+            )
+            po.place_of_supply = gstin_state_code(supplier_gstin)
 
             tax_codes = await _load_tax_codes(self.db, vendor_id)
 
@@ -511,7 +604,7 @@ class PurchaseOrderService:
                 cost = item_data["unit_cost"]
                 line_total = round(qty * cost, 2)
                 subtotal += line_total
-                tax = _split_line_tax(line_total, item_data.get("tax_code"), tax_codes)
+                tax = _split_line_tax(line_total, item_data.get("tax_code"), tax_codes, intra_state=intra)
                 cgst_total += tax["cgst_amount"]
                 sgst_total += tax["sgst_amount"]
                 igst_total += tax["igst_amount"]

@@ -1305,6 +1305,12 @@ export interface PurchaseOrder {
   vendor_id: string
   supplier_id: string
   supplier_name?: string
+  supplier_gstin?: string | null
+  supplier_pan?: string | null
+  supplier_email?: string | null
+  supplier_phone?: string | null
+  supplier_contact_name?: string | null
+  supplier_address?: string | null
   po_number: string
   status: string
   order_date?: string
@@ -1312,6 +1318,11 @@ export interface PurchaseOrder {
   notes?: string
   currency?: string
   payment_terms?: string | null
+  place_of_supply?: string | null
+  // Org dimensions the approver matrix routes on
+  company_id?: string | null
+  branch_id?: string | null
+  plant_id?: string | null
   subtotal: number
   cgst_amount?: number
   sgst_amount?: number

@@ -216,6 +216,10 @@ export const listTaxCodes = () =>
   axios.get(`${BASE}/tax/codes`).then(r => r.data)
 export const createTaxCode = (data: Record<string, unknown>) =>
   axios.post(`${BASE}/tax/codes`, data).then(r => r.data)
+export const updateTaxCode = (id: string, data: Record<string, unknown>) =>
+  axios.put(`${BASE}/tax/codes/${id}`, data).then(r => r.data)
+export const deleteTaxCode = (id: string) =>
+  axios.delete(`${BASE}/tax/codes/${id}`)
 export const listTaxReturns = (params?: Record<string, unknown>) =>
   axios.get(`${BASE}/tax/returns`, { params }).then(r => r.data)
 export const createTaxReturn = (data: Record<string, unknown>) =>

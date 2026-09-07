@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { vendorApi } from '@/api/vendor'
+import { apiError } from '@/lib/errorMessages'
+import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils'
 import type { PurchaseOrder, PurchaseOrderItem, GoodsReceiptNote, GRNLine } from '@/types'
 import {
@@ -146,8 +148,10 @@ function CreateGRNDialog({ open, onClose }: { open: boolean; onClose: () => void
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grns'] })
       queryClient.invalidateQueries({ queryKey: ['vendor', 'grns'] })
+      toast.success('GRN created')
       handleClose()
     },
+    onError: apiError('Could not create GRN'),
   })
 
   function handleClose() {
@@ -369,8 +373,10 @@ function QCDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grn', grnId] })
       queryClient.invalidateQueries({ queryKey: ['vendor', 'grn', grnId] })
+      toast.success('QC result saved')
       onClose()
     },
+    onError: apiError('Could not save QC result'),
   })
 
   const totalQty = (parseFloat(form.accepted_qty) || 0) + (parseFloat(form.rejected_qty) || 0)
@@ -472,8 +478,10 @@ function ReverseGRNDialog({
       queryClient.invalidateQueries({ queryKey: ['grn', grnId] })
       queryClient.invalidateQueries({ queryKey: ['grns'] })
       queryClient.invalidateQueries({ queryKey: ['vendor', 'grns'] })
+      toast.success('GRN reversed')
       onClose()
     },
+    onError: apiError('Could not reverse GRN'),
   })
 
   const activeLines = lines.filter(l => parseFloat(reverseQtys[l.id] || '0') > 0)
@@ -557,21 +565,27 @@ function GRNDetail({ grnId, onBack }: { grnId: string; onBack: () => void }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grn', grnId] })
       queryClient.invalidateQueries({ queryKey: ['grns'] })
+      toast.success('GRN posted')
     },
+    onError: apiError('Could not post GRN'),
   })
   const closeQCMut = useMutation({
     mutationFn: () => vendorApi.closeGRNQC(grnId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grn', grnId] })
       queryClient.invalidateQueries({ queryKey: ['grns'] })
+      toast.success('QC closed — accepted stock posted to inventory')
     },
+    onError: apiError('Could not close QC'),
   })
   const closeMut = useMutation({
     mutationFn: () => vendorApi.closeGRN(grnId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grn', grnId] })
       queryClient.invalidateQueries({ queryKey: ['grns'] })
+      toast.success('GRN closed')
     },
+    onError: apiError('Could not close GRN'),
   })
 
   if (isLoading || !grn) return <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Loading…</div>
@@ -714,13 +728,29 @@ function GRNDetail({ grnId, onBack }: { grnId: string; onBack: () => void }) {
 
         <TabsContent value="history">
           <div className="space-y-2">
-            {[...(grn.audit_log ?? [])].reverse().map((entry, i) => (
-              <div key={i} className="flex items-center gap-3 py-2 border-b text-sm">
-                <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                <span className="capitalize font-medium text-gray-700">{entry.action}</span>
-                <span className="text-gray-400">{String(entry.at ?? '').slice(0, 10)}</span>
-              </div>
-            ))}
+            {[...(grn.audit_log ?? [])].reverse().map((entry, i) => {
+              const ACTION_LABELS: Record<string, string> = {
+                created: 'Created',
+                submitted: 'Submitted',
+                approved: 'Approved',
+                rejected: 'Rejected',
+                received: 'Received',
+                qc_pending: 'QC Pending',
+                qc_closed: 'QC Closed',
+                qc_done: 'QC Done',
+                closed: 'Closed',
+                cancelled: 'Cancelled',
+                reversed: 'Reversed',
+              };
+              const label = ACTION_LABELS[entry.action] ?? entry.action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              return (
+                <div key={i} className="flex items-center gap-3 py-2 border-b text-sm">
+                  <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span className="font-medium text-gray-700">{label}</span>
+                  <span className="text-gray-400">{String(entry.at ?? '').slice(0, 10)}</span>
+                </div>
+              );
+            })}
             {!grn.audit_log?.length && <p className="text-sm text-gray-400 py-4 text-center">No history yet</p>}
           </div>
         </TabsContent>

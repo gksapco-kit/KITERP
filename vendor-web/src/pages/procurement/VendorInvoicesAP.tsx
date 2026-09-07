@@ -17,6 +17,8 @@ import {
   useMatchVendorInvoice, useCancelVendorInvoice, usePurchaseOrders, useRecordInvoicePayment,
   useRequestInvoiceApproval, useApproveOrRejectInvoice,
 } from '@/hooks/useVendor'
+import { useTaxCodes } from '@/hooks/useFinance'
+import { buildTaxCodeMap, taxSplitLabel, type TaxCode } from '@/lib/procurementTax'
 import { ProcurementApproverFields } from '@/components/procurement/ProcurementApproverFields'
 import { ProcurementSupplierField } from '@/components/procurement/ProcurementSupplierField'
 import { formatDate, formatCurrency } from '@/lib/utils'
@@ -52,12 +54,12 @@ const APPROVAL_BADGE: Record<string, { bg: string; text: string; label: string; 
   rejected:     { bg: 'bg-red-50 dark:bg-red-950/50',     text: 'text-red-700 dark:text-red-400',    label: 'Rejected' },
 }
 
-interface LineRow { description: string; qty: number; uom: string; unit_price: number; cgst_rate: number; sgst_rate: number; igst_rate: number }
-function emptyLine(): LineRow { return { description: '', qty: 1, uom: 'PCS', unit_price: 0, cgst_rate: 0, sgst_rate: 0, igst_rate: 0 } }
+interface LineRow { description: string; qty: number; uom: string; unit_price: number; tax_code: string }
+function emptyLine(): LineRow { return { description: '', qty: 1, uom: 'PCS', unit_price: 0, tax_code: '' } }
 
-function calcLineTotal(l: LineRow) {
+function calcLineTotal(l: LineRow, taxRate: number) {
   const base = l.qty * l.unit_price
-  return base + (base * (l.cgst_rate + l.sgst_rate + l.igst_rate) / 100)
+  return base + (base * taxRate / 100)
 }
 
 // ── Detail Panel ──────────────────────────────────────────────────
@@ -390,6 +392,13 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
   const create = useCreateVendorInvoice()
   const { data: posData } = usePurchaseOrders({ status: 'sent,partial_received,received', size: 100 })
   const pos = posData?.items ?? []
+  const { data: taxCodesData, error: taxCodesError } = useTaxCodes()
+  const activeTaxCodes = useMemo(
+    () => ((taxCodesData as TaxCode[] | undefined) ?? []).filter(c => c.is_active !== false),
+    [taxCodesData],
+  )
+  const taxCodeMap = useMemo(() => buildTaxCodeMap(taxCodesData as TaxCode[] | undefined), [taxCodesData])
+  const taxCodesUnavailable = !!taxCodesError
 
   const [supplierId, setSupplierId] = useState('')
   const [poId, setPoId] = useState('')
@@ -408,14 +417,14 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
   const totals = useMemo(() => {
     return lines.reduce((acc, l) => {
       const base = l.qty * l.unit_price
+      const entry = taxCodeMap.get((l.tax_code || '').trim().toUpperCase())
+      const rate = entry ? (Number(entry.rate) || 0) : 0
       return {
         subtotal: acc.subtotal + base,
-        cgst: acc.cgst + base * l.cgst_rate / 100,
-        sgst: acc.sgst + base * l.sgst_rate / 100,
-        igst: acc.igst + base * l.igst_rate / 100,
+        tax: acc.tax + base * rate / 100,
       }
-    }, { subtotal: 0, cgst: 0, sgst: 0, igst: 0 })
-  }, [lines])
+    }, { subtotal: 0, tax: 0 })
+  }, [lines, taxCodeMap])
 
   const handleSave = () => {
     if (!supplierId) { toast.error('Select a supplier'); return }
@@ -436,9 +445,7 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
         invoiced_qty: l.qty,
         uom: l.uom,
         unit_price: l.unit_price,
-        cgst_rate: l.cgst_rate,
-        sgst_rate: l.sgst_rate,
-        igst_rate: l.igst_rate,
+        tax_code: l.tax_code || undefined,
       })),
     }, { onSuccess: onClose })
   }
@@ -536,7 +543,7 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    {['Description *', 'Qty', 'UoM', 'Unit Price', 'CGST%', 'SGST%', 'IGST%', 'Line Total', ''].map(h => (
+                    {['Description *', 'Qty', 'UoM', 'Unit Price', 'Tax Code', 'Line Total', ''].map(h => (
                       <th key={h} className="px-2 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -548,10 +555,30 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
                       <td className="px-2 py-1.5"><Input type="number" min={0} value={l.qty} onChange={e => updateLine(i, 'qty', Number(e.target.value))} className="h-7 text-xs w-16" /></td>
                       <td className="px-2 py-1.5"><Input value={l.uom} onChange={e => updateLine(i, 'uom', e.target.value)} className="h-7 text-xs w-14" /></td>
                       <td className="px-2 py-1.5"><Input type="number" min={0} value={l.unit_price} onChange={e => updateLine(i, 'unit_price', Number(e.target.value))} className="h-7 text-xs w-24" /></td>
-                      <td className="px-2 py-1.5"><Input type="number" min={0} max={100} value={l.cgst_rate} onChange={e => updateLine(i, 'cgst_rate', Number(e.target.value))} className="h-7 text-xs w-14" /></td>
-                      <td className="px-2 py-1.5"><Input type="number" min={0} max={100} value={l.sgst_rate} onChange={e => updateLine(i, 'sgst_rate', Number(e.target.value))} className="h-7 text-xs w-14" /></td>
-                      <td className="px-2 py-1.5"><Input type="number" min={0} max={100} value={l.igst_rate} onChange={e => updateLine(i, 'igst_rate', Number(e.target.value))} className="h-7 text-xs w-14" /></td>
-                      <td className="px-2 py-1.5 font-medium text-xs">{formatCurrency(calcLineTotal(l))}</td>
+                      <td className="px-2 py-1.5 min-w-[160px]">
+                        <Select
+                          value={l.tax_code}
+                          onChange={v => updateLine(i, 'tax_code', v)}
+                          options={[
+                            {
+                              value: '',
+                              label: taxCodesUnavailable ? '⚠ Unavailable' : activeTaxCodes.length ? '— No tax —' : 'No tax codes',
+                            },
+                            ...activeTaxCodes.map(c => ({
+                              value: c.code,
+                              label: `${c.code} · ${Number(c.rate) || 0}%`,
+                              hint: taxSplitLabel(c, false) || (c.tax_type || '').toUpperCase(),
+                            })),
+                            ...(l.tax_code && !taxCodeMap.has(l.tax_code.trim().toUpperCase())
+                              ? [{ value: l.tax_code, label: l.tax_code, hint: 'unknown' }]
+                              : []),
+                          ]}
+                          aria-label="Tax code"
+                          className="text-xs"
+                          triggerClassName={`h-7 text-xs ${taxCodesUnavailable ? 'border-red-300 bg-red-50' : l.tax_code && !taxCodeMap.has(l.tax_code.trim().toUpperCase()) ? 'border-amber-300 bg-amber-50' : ''}`}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 font-medium text-xs">{formatCurrency(calcLineTotal(l, taxCodeMap.get((l.tax_code || '').trim().toUpperCase()) ? Number(taxCodeMap.get((l.tax_code || '').trim().toUpperCase())!.rate) || 0 : 0))}</td>
                       <td className="px-2 py-1.5">
                         {lines.length > 1 && (
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => setLines(prev => prev.filter((_, idx) => idx !== i))}>
@@ -566,8 +593,8 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="flex justify-end gap-6 text-sm mt-3 pr-2">
               <span className="text-gray-500">Subtotal: <strong>{formatCurrency(totals.subtotal)}</strong></span>
-              <span className="text-gray-500">Tax: <strong>{formatCurrency(totals.cgst + totals.sgst + totals.igst)}</strong></span>
-              <span className="font-semibold">Total: {formatCurrency(totals.subtotal + totals.cgst + totals.sgst + totals.igst)}</span>
+              <span className="text-gray-500">Tax: <strong>{formatCurrency(totals.tax)}</strong></span>
+              <span className="font-semibold">Total: {formatCurrency(totals.subtotal + totals.tax)}</span>
             </div>
           </div>
 

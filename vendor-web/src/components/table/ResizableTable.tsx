@@ -99,7 +99,7 @@ export function ResizableTable({ tableId, defaultWidths, children, className }: 
       <table
         className={cn(
           // Keep body cells inside resized column widths (headers already clip via style).
-          '[&_tbody>tr>td]:overflow-hidden [&_tbody>tr>td]:align-middle',
+          '[&_tbody>tr>td]:overflow-hidden [&_tbody>tr>td]:align-middle [&_tfoot>tr>td]:align-middle',
           className,
         )}
         style={{

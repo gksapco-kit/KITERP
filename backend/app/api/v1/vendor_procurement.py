@@ -66,18 +66,47 @@ def _approval_step_to_dict(a) -> dict:
     }
 
 
+def _supplier_address_line(address) -> str | None:
+    if not isinstance(address, dict):
+        return None
+    parts = [
+        address.get("street") or address.get("line1"),
+        address.get("city"),
+        address.get("state"),
+        address.get("postal_code") or address.get("pincode"),
+    ]
+    line = ", ".join(str(p).strip() for p in parts if p and str(p).strip())
+    return line or None
+
+
 def _po_to_dict(po, include_receipts: bool = False) -> dict:
+    supplier = po.supplier
     d = {
         "id": str(po.id),
         "vendor_id": str(po.vendor_id),
         "supplier_id": str(po.supplier_id),
-        "supplier_name": po.supplier.name if po.supplier else None,
+        "supplier_name": supplier.name if supplier else None,
+        "supplier_gstin": getattr(supplier, "gstin", None) if supplier else None,
+        "supplier_pan": getattr(supplier, "pan_number", None) if supplier else None,
+        "supplier_email": getattr(supplier, "email", None) if supplier else None,
+        "supplier_phone": getattr(supplier, "phone", None) if supplier else None,
+        "supplier_contact_name": getattr(supplier, "contact_name", None) if supplier else None,
+        "supplier_address": _supplier_address_line(getattr(supplier, "address", None)) if supplier else None,
         "po_number": po.po_number,
         "status": po.status,
         "order_date": po.order_date.isoformat() if po.order_date else None,
         "expected_delivery_date": po.expected_delivery_date.isoformat() if po.expected_delivery_date else None,
         "notes": po.notes,
+        "currency": po.currency or "INR",
+        "payment_terms": po.payment_terms,
+        "place_of_supply": po.place_of_supply,
+        "company_id": str(po.company_id) if po.company_id else None,
+        "branch_id": str(po.branch_id) if po.branch_id else None,
+        "plant_id": str(po.plant_id) if po.plant_id else None,
         "subtotal": float(po.subtotal) if po.subtotal else 0,
+        "cgst_amount": float(po.cgst_amount) if po.cgst_amount else 0,
+        "sgst_amount": float(po.sgst_amount) if po.sgst_amount else 0,
+        "igst_amount": float(po.igst_amount) if po.igst_amount else 0,
         "tax_amount": float(po.tax_amount) if po.tax_amount else 0,
         "total": float(po.total) if po.total else 0,
         "created_by": str(po.created_by) if po.created_by else None,
@@ -236,20 +265,28 @@ async def create_purchase_order(
     current_user: User = Depends(get_current_active_user),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
-    _: VendorUser = Depends(require_permission("procurement.manage")),
+    vendor_user: VendorUser = Depends(require_permission("procurement.manage")),
 ):
     svc = PurchaseOrderService(db)
     payload = {
         "supplier_id": data.supplier_id,
         "items": [i.model_dump() for i in data.items],
+        "order_date": data.order_date,
         "expected_delivery_date": data.expected_delivery_date,
         "notes": data.notes,
+        "currency": data.currency,
+        "payment_terms": data.payment_terms,
         "requisition_id": data.requisition_id,
         "pr_item_ids": data.pr_item_ids,
         "approvers": [a.model_dump() for a in (data.approvers or [])],
         "approver_message": data.approver_message,
+        "branch_id": data.branch_id,
+        "plant_id": data.plant_id,
+        "company_id": data.company_id,
     }
-    po = await svc.create(vendor_id, payload, created_by=current_user.id)
+    po = await svc.create(
+        vendor_id, payload, created_by=current_user.id, vendor_user_id=vendor_user.id,
+    )
     return JSONResponse(content=_po_to_dict(po), status_code=201)
 
 

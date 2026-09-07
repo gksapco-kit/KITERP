@@ -336,11 +336,11 @@ async def stock_in(
                     entity.cost_price = data.cost_price
                 else:
                     # For moving_average / standard: update MAP and refresh cached cost
-                    from app.services.procurement_service import ProcurementService
+                    from app.services.procurement_service import PurchaseOrderService
                     from app.services.fifo_cost_service import FifoCostService
                     from app.services.cost_resolution import refresh_product_cost
 
-                    proc_svc = ProcurementService(db)
+                    proc_svc = PurchaseOrderService(db)
                     await proc_svc._upsert_material_valuation(
                         vendor_id=vendor_id,
                         product_id=product_id,

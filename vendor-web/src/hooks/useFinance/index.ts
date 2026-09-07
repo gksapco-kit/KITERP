@@ -69,10 +69,11 @@ export const useUpdateCompany = () => {
   })
 }
 
-export const useCostCenters = (companyId?: string) =>
+export const useCostCenters = (companyId?: string, options?: { enabled?: boolean }) =>
   useQuery({
-    queryKey: ['finance', 'cost-centers', companyId],
+    queryKey: ['finance', 'cost-centers', companyId ?? 'all'],
     queryFn: () => api.listCostCenters(companyId ? { company_id: companyId } : undefined),
+    enabled: options?.enabled ?? true,
   })
 
 export const useCreateCostCenter = () => {
@@ -569,6 +570,23 @@ export const useCreateTaxCode = () => {
   const qc = useQueryClient()
   return useMutation({ mutationFn: api.createTaxCode,
     onSuccess: () => qc.invalidateQueries({ queryKey: finKeys.taxCodes }) })
+}
+
+export const useUpdateTaxCode = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      api.updateTaxCode(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: finKeys.taxCodes }),
+  })
+}
+
+export const useDeleteTaxCode = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteTaxCode(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: finKeys.taxCodes }),
+  })
 }
 
 export const useTaxReturns = (params?: Record<string, unknown>) =>

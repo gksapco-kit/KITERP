@@ -59,6 +59,8 @@ from app.api.v1 import (
     vendor_inventory_count,
     vendor_stock_transfers,
     vendor_inventory_reports,
+    vendor_inventory_analytics,
+    vendor_procurement_analytics,
     vendor_pharma,
     vendor_pharma_reports,
     vendor_product_groups,
@@ -115,6 +117,7 @@ api_router.include_router(vendor_inventory.router, prefix="/vendors/me/inventory
 api_router.include_router(vendor_inventory_count.router, prefix="/vendors/me/inventory", tags=["Inventory Counting & Audit"])
 api_router.include_router(vendor_stock_transfers.router, prefix="/vendors/me/inventory", tags=["Stock Transfer Orders"])
 api_router.include_router(vendor_inventory_reports.router, prefix="/vendors/me/inventory", tags=["Inventory Reports"])
+api_router.include_router(vendor_inventory_analytics.router, prefix="/vendors/me/inventory", tags=["Inventory Analytics"])
 api_router.include_router(vendor_storage_locations.router, prefix="/vendors/me/storage-locations", tags=["Storage Locations"])
 api_router.include_router(vendor_plants.router, prefix="/vendors/me/plants", tags=["Plants"])
 api_router.include_router(vendor_business_partners.router, prefix="/vendors/me/business-partners", tags=["Business Partners"])
@@ -128,6 +131,7 @@ api_router.include_router(vendor_procurement_supplier.router, prefix="/vendors/m
 api_router.include_router(vendor_procurement_rfq.router, prefix="/vendors/me/procurement", tags=["RFQ & Supplier Quotations"])
 api_router.include_router(vendor_procurement_grn.router, prefix="/vendors/me/procurement", tags=["GRN - Goods Receipt"])
 api_router.include_router(vendor_procurement_return.router, prefix="/vendors/me/procurement", tags=["Purchase Returns"])
+api_router.include_router(vendor_procurement_analytics.router, prefix="/vendors/me/procurement", tags=["Procurement Analytics"])
 api_router.include_router(vendor_pos.router, prefix="/vendors/me/pos", tags=["Vendor POS"])
 api_router.include_router(vendor_restaurant.router, prefix="/vendors/me/restaurant", tags=["Restaurant"])
 api_router.include_router(vendor_restaurants.router, prefix="/vendors/me", tags=["Restaurant Outlets"])

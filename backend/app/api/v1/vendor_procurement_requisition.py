@@ -825,6 +825,24 @@ async def convert_pr_to_po(
     from app.services.procurement_service import PurchaseOrderService
     svc = PurchaseOrderService(db)
 
+    # Pre-fetch HSN codes from product/variant master for all items to convert
+    product_ids = [item.product_id for item in selected_items if item.product_id]
+    product_hsn: dict[str, str | None] = {}
+    variant_hsn: dict[str, str | None] = {}
+    if product_ids:
+        prod_rows = await db.execute(
+            select(Product.id, Product.hsn_code).where(Product.id.in_(product_ids))
+        )
+        product_hsn = {str(r.id): r.hsn_code for r in prod_rows}
+        variant_ids = [item.variant_id for item in selected_items if item.variant_id]
+        if variant_ids:
+            var_rows = await db.execute(
+                select(ProductVariant.id, ProductVariant.hsn_code).where(
+                    ProductVariant.id.in_(variant_ids)
+                )
+            )
+            variant_hsn = {str(r.id): r.hsn_code for r in var_rows}
+
     po_items = []
     for item in selected_items:
         remaining = float(item.quantity) - float(item.quantity_ordered or 0)
@@ -833,13 +851,21 @@ async def convert_pr_to_po(
         # PurchaseOrderService.create requires product_id — skip items without one
         if not item.product_id:
             continue
+        pid = str(item.product_id)
+        vid = str(item.variant_id) if item.variant_id else None
+        hsn = (variant_hsn.get(vid) if vid else None) or product_hsn.get(pid) or None
         po_items.append({
-            "product_id": str(item.product_id),
-            "variant_id": str(item.variant_id) if item.variant_id else None,
+            "product_id": pid,
+            "variant_id": vid,
             "description": item.description,
             "quantity": remaining,
-            "unit_cost": float(item.estimated_price or 0),  # correct field name on PRItem
+            "unit_cost": float(item.estimated_price or 0),
             "unit_of_measure": item.unit_of_measure or "piece",
+            "hsn_code": hsn,
+            "plant_id": str(item.plant_id) if item.plant_id else None,
+            "storage_location_id": (
+                str(item.storage_location_id) if item.storage_location_id else None
+            ),
         })
 
     if not po_items:
@@ -854,8 +880,18 @@ async def convert_pr_to_po(
         "expected_delivery_date": str(data.expected_delivery_date) if data.expected_delivery_date else None,
         "notes": data.notes or f"Created from PR {pr.pr_number}",
         "requisition_id": str(pr.id),
+        # Inherit the requisition's org dimensions so the PO routes through the
+        # same approver-matrix rules the PR did. store_id is the PR's branch.
+        "branch_id": str(pr.store_id) if pr.store_id else None,
+        "plant_id": str(pr.plant_id) if pr.plant_id else None,
+        "company_id": str(pr.company_id) if pr.company_id else None,
     }
-    po = await svc.create(vendor_id, payload, created_by=vendor_user.id)
+    po = await svc.create(
+        vendor_id,
+        payload,
+        created_by=vendor_user.user_id,
+        vendor_user_id=vendor_user.id,
+    )
 
     # Refresh to get the updated po.items count (service already committed)
     await db.refresh(po)

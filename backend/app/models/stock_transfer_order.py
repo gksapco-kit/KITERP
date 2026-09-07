@@ -1,6 +1,6 @@
 # app/models/stock_transfer_order.py
 from sqlalchemy import (
-    Column, String, Text, DateTime, Integer,
+    Column, String, Text, DateTime, Integer, Boolean, Numeric,
     ForeignKey, Index, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -44,6 +44,12 @@ class StockTransferOrder(Base):
     notes = Column(Text, nullable=True)
     expected_date = Column(DateTime(timezone=True), nullable=True)
 
+    # GST inter-state determination (set at dispatch time)
+    from_state_code = Column(String(2), nullable=True)   # 2-digit GST state code of source store
+    to_state_code = Column(String(2), nullable=True)     # 2-digit GST state code of destination store
+    is_inter_state = Column(Boolean, nullable=True)      # True → IGST applies
+    igst_amount = Column(Numeric(14, 2), nullable=True, default=0)
+
     created_by = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     dispatched_by = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     received_by = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
@@ -80,6 +86,11 @@ class StockTransferOrderLine(Base):
     requested_qty = Column(Integer, nullable=False)
     dispatched_qty = Column(Integer, nullable=True)   # set on dispatch
     received_qty = Column(Integer, nullable=True)     # set on receipt (may differ from dispatched)
+
+    # GST on outward transfer (computed at dispatch for inter-state transactions)
+    taxable_value = Column(Numeric(14, 2), nullable=True)   # dispatched_qty × product cost_price
+    igst_rate = Column(Numeric(6, 2), nullable=True)        # from product.gst_rate
+    igst_amount = Column(Numeric(14, 2), nullable=True)     # taxable_value × igst_rate / 100
 
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

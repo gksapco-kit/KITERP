@@ -264,7 +264,7 @@ function CompactSelect({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {options.map(opt => (
+        {options.filter(opt => opt.value !== '').map(opt => (
           <SelectItem key={opt.value} value={opt.value} className="text-xs">
             {opt.label}
           </SelectItem>

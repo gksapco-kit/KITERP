@@ -15,9 +15,42 @@ import * as SelectPrimitive from '@radix-ui/react-select'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn, formFieldBorderClassName, formFieldFocusClassName } from '@/lib/utils'
 
+/**
+ * Radix Select.Item forbids value="". Map empty strings to a sentinel so
+ * "None / clear" rows work without crashing (callers can still use "").
+ */
+const RADIX_EMPTY_VALUE = '__radix_empty__'
+
+function toRadixSelectValue(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  return value === '' ? RADIX_EMPTY_VALUE : value
+}
+
+function fromRadixSelectValue(value: string): string {
+  return value === RADIX_EMPTY_VALUE ? '' : value
+}
+
 /** Use SelectRoot + SelectTrigger + SelectContent + SelectItem when you need
  *  the composable Radix pattern (onValueChange / SelectItem children). */
-const SelectRoot = SelectPrimitive.Root
+function SelectRoot({
+  value,
+  defaultValue,
+  onValueChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>) {
+  return (
+    <SelectPrimitive.Root
+      {...props}
+      {...(value !== undefined ? { value: toRadixSelectValue(value) } : {})}
+      {...(defaultValue !== undefined ? { defaultValue: toRadixSelectValue(defaultValue) } : {})}
+      onValueChange={
+        onValueChange
+          ? (next) => onValueChange(fromRadixSelectValue(next))
+          : undefined
+      }
+    />
+  )
+}
 
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
@@ -47,7 +80,7 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+        'relative z-[200] max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         position === 'popper' &&
           'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
         className,
@@ -71,9 +104,10 @@ SelectContent.displayName = SelectPrimitive.Content.displayName
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, value, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
+    value={toRadixSelectValue(value) ?? RADIX_EMPTY_VALUE}
     className={cn(
       'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground focus:bg-primary focus:text-primary-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
@@ -94,10 +128,13 @@ const SelectValue = SelectPrimitive.Value
 
 export { SelectRoot, SelectTrigger, SelectContent, SelectItem, SelectValue }
 
-/** Build options with a leading "all / none" row */
+/** Build options with a leading "all / none" row (ThemeSelect allows value ""). */
 export function selectOptionsWithBlank(
   blankLabel: string,
   items: { value: string; label: string; hint?: string; group?: string }[],
 ) {
-  return [{ value: '', label: blankLabel }, ...items]
+  return [
+    { value: '', label: blankLabel },
+    ...items.filter((item) => item.value !== ''),
+  ]
 }

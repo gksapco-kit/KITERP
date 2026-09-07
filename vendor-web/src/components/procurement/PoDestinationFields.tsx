@@ -32,7 +32,7 @@ export function poDestinationFromLine(
   }
 }
 
-/** Map destination UI state to receive/create API fields. */
+/** Map destination UI state to line-level receive/create API fields. */
 export function poDestinationToPayload(value: PoDestinationValue): {
   plant_id?: string
   storage_location_id?: string
@@ -40,6 +40,24 @@ export function poDestinationToPayload(value: PoDestinationValue): {
   return {
     plant_id: value.scope.kind === 'plant' && value.scope.id ? value.scope.id : undefined,
     storage_location_id: value.storageLocationId || undefined,
+  }
+}
+
+/**
+ * Map destination UI state to the document header's org dimensions.
+ *
+ * These are what the approver matrix routes on, so the branch falls back to the
+ * business unit — picking a plant rather than a branch must not leave the
+ * document unscoped.
+ */
+export function poDestinationToHeaderPayload(value: PoDestinationValue): {
+  branch_id?: string
+  plant_id?: string
+} {
+  const branchId = value.scope.kind === 'branch' && value.scope.id ? value.scope.id : value.storeId
+  return {
+    branch_id: branchId || undefined,
+    plant_id: value.scope.kind === 'plant' && value.scope.id ? value.scope.id : undefined,
   }
 }
 
@@ -105,68 +123,38 @@ export function PoDestinationFields({
     [locationsData?.locations],
   )
 
-  const gap = compact ? 'gap-2' : 'gap-3'
-  const labelClass = compact ? 'text-xs' : 'text-xs'
-
-  const showTopRow = showBusinessUnit || showStorageLocation
+  const gap = compact ? 'gap-2' : 'gap-x-4 gap-y-4'
+  const labelClass = 'text-[10px] font-semibold uppercase tracking-wide text-gray-400'
+  const controlH = compact ? 'h-9' : 'h-8'
 
   return (
-    <div className={cn('space-y-2.5', className)}>
-      {showTopRow && (
-        <div className={cn('grid grid-cols-1 sm:grid-cols-2 sm:items-start', gap)}>
-          {showBusinessUnit && (
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex h-5 items-center">
-                <Label className={labelClass}>Business Unit</Label>
-              </div>
-              <BusinessUnitSelect
-                value={value.storeId}
-                onChange={(id) =>
-                  onChange({
-                    storeId: id,
-                    scope: { kind: '' },
-                    storageLocationId: '',
-                  })
-                }
-                autoSelectDefault={false}
-                className="w-full min-w-0"
-                triggerClassName="h-9"
-              />
-            </div>
-          )}
-
-          {showStorageLocation && (
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex h-5 items-center">
-                <Label className={labelClass}>Storage Location</Label>
-              </div>
-              <Select
-                value={value.storageLocationId}
-                onChange={(id) => onChange({ ...value, storageLocationId: id })}
-                options={selectOptionsWithBlank(
-                  !value.scope.kind
-                    ? 'Select Branch or Plant first…'
-                    : locationsLoading
-                      ? 'Loading…'
-                      : locationOptions.length
-                        ? 'Select location…'
-                        : 'No locations found',
-                  locationOptions,
-                )}
-                placeholder={
-                  !value.scope.kind
-                    ? 'Select Branch or Plant first…'
-                    : locationsLoading
-                      ? 'Loading…'
-                      : 'Select location…'
-                }
-                disabled={!value.scope.kind || locationsLoading}
-                aria-label="Storage location"
-                className="w-full min-w-0"
-                triggerClassName="h-9"
-              />
-            </div>
-          )}
+    <div
+      className={cn(
+        compact
+          ? 'flex flex-wrap items-start'
+          : 'grid grid-cols-1 items-start sm:grid-cols-2 lg:grid-cols-4',
+        gap,
+        className,
+      )}
+    >
+      {showBusinessUnit && (
+        <div className={cn('min-w-0 space-y-1.5', compact && 'min-w-[10rem] flex-1')}>
+          <div className="flex h-4 items-center">
+            <Label className={labelClass}>Business Unit</Label>
+          </div>
+          <BusinessUnitSelect
+            value={value.storeId}
+            onChange={(id) =>
+              onChange({
+                storeId: id,
+                scope: { kind: '' },
+                storageLocationId: '',
+              })
+            }
+            autoSelectDefault={false}
+            className="w-full min-w-0"
+            triggerClassName={controlH}
+          />
         </div>
       )}
 
@@ -182,8 +170,47 @@ export function PoDestinationFields({
             })
           }
           allowAll={false}
-          className="w-full"
+          className={cn(
+            'min-w-0',
+            compact ? 'min-w-[16rem] flex-[1.75] flex-nowrap' : 'sm:col-span-2 lg:col-span-2',
+          )}
+          triggerClassName={controlH}
+          labelClassName={labelClass}
+          labelHeightClassName="h-4"
         />
+      )}
+
+      {showStorageLocation && (
+        <div className={cn('min-w-0 space-y-1.5', compact && 'min-w-[10rem] flex-1')}>
+          <div className="flex h-4 items-center">
+            <Label className={labelClass}>Storage Location</Label>
+          </div>
+          <Select
+            value={value.storageLocationId}
+            onChange={(id) => onChange({ ...value, storageLocationId: id })}
+            options={selectOptionsWithBlank(
+              !value.scope.kind
+                ? 'Select Branch or Plant first…'
+                : locationsLoading
+                  ? 'Loading…'
+                  : locationOptions.length
+                    ? 'Select location…'
+                    : 'No locations found',
+              locationOptions,
+            )}
+            placeholder={
+              !value.scope.kind
+                ? 'Select Branch or Plant first…'
+                : locationsLoading
+                  ? 'Loading…'
+                  : 'Select location…'
+            }
+            disabled={!value.scope.kind || locationsLoading}
+            aria-label="Storage location"
+            className="w-full min-w-0"
+            triggerClassName={`${controlH} w-full`}
+          />
+        </div>
       )}
     </div>
   )

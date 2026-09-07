@@ -9,9 +9,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.finance import (
     FinAccount, FinFiscalYear, FinFiscalYearCompany, FinPeriod, FinCompany,
-    FinAssetCategory,
+    FinAssetCategory, FinTaxCode,
 )
 from app.services.finance.fiscal_calendar import build_standard_periods
+
+
+# Default Indian GST tax codes seeded for every new vendor.
+# Uses the combined "GST" tax_type so the backend automatically applies
+# CGST+SGST (intra-state) or IGST (inter-state) based on place of supply.
+# Additional codes like IGST5/12/18 or TDS1 can be added manually.
+_DEFAULT_TAX_CODES: list[tuple[str, str, str, float]] = [
+    # (code,     name,                           tax_type, rate)
+    ("GST0",   "GST 0% (Exempt / Nil Rated)",  "GST",    0.0),
+    ("GST5",   "GST 5%",                        "GST",    5.0),
+    ("GST12",  "GST 12%",                       "GST",   12.0),
+    ("GST18",  "GST 18%",                       "GST",   18.0),
+    ("GST28",  "GST 28%",                       "GST",   28.0),
+]
 
 
 async def get_or_create_default_fin_company(db: AsyncSession, vendor_id) -> FinCompany:
@@ -269,3 +283,37 @@ async def seed_default_fiscal_year(db: AsyncSession, vendor_id) -> FinFiscalYear
     await build_standard_periods(db, vendor_id, fy)
 
     return fy
+
+
+async def seed_default_tax_codes(db: AsyncSession, vendor_id) -> list[FinTaxCode]:
+    """
+    Idempotently create the standard Indian GST tax codes for a vendor.
+
+    Skips any code whose `code` already exists for the vendor so this can be
+    called multiple times without duplication.  Returns the list of newly
+    created codes (empty when everything was already present).
+    """
+    existing_r = await db.execute(
+        select(FinTaxCode.code).where(FinTaxCode.vendor_id == vendor_id)
+    )
+    existing_codes = {row[0] for row in existing_r}
+
+    created: list[FinTaxCode] = []
+    for code, name, tax_type, rate in _DEFAULT_TAX_CODES:
+        if code in existing_codes:
+            continue
+        tc = FinTaxCode(
+            id=uuid.uuid4(),
+            vendor_id=vendor_id,
+            code=code,
+            name=name,
+            tax_type=tax_type,
+            rate=rate,
+            is_active=True,
+        )
+        db.add(tc)
+        created.append(tc)
+
+    if created:
+        await db.flush()
+    return created

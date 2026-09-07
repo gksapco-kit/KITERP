@@ -24,7 +24,8 @@ from app.repositories.finance.finance_repo import (
     FinCapitalRepo, FinControlsRepo,
 )
 from app.services.finance.coa_seeder import (
-    seed_default_coa, seed_default_fiscal_year, seed_default_asset_categories,
+    seed_default_coa, seed_default_fiscal_year,
+    seed_default_asset_categories, seed_default_tax_codes,
 )
 from app.services.finance.fiscal_calendar import (
     append_audit_period,
@@ -123,8 +124,9 @@ async def seed_coa(
     await seed_default_coa(db, vu.vendor_id)
     await seed_default_fiscal_year(db, vu.vendor_id)
     await seed_default_asset_categories(db, vu.vendor_id)
+    await seed_default_tax_codes(db, vu.vendor_id)
     await db.commit()
-    return {"message": "Default Chart of Accounts and Fiscal Year created"}
+    return {"message": "Default Chart of Accounts, Fiscal Year, and Tax Codes created"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2258,7 +2260,15 @@ async def dispose_asset(
 
 @router.get("/tax/codes")
 async def list_tax_codes(
-    vu: VendorUser = Depends(require_any_permission("finance.tax.view", "finance.tax.manage")),
+    # Procurement roles need to read tax codes to price PO/RFQ lines.
+    # "finance.tax.view" and "finance.tax.manage" are kept for backwards
+    # compatibility; "procurement.view" and "procurement.manage" are added
+    # so that a procurement officer without any finance permission can still
+    # populate the tax code dropdown without a 403.
+    vu: VendorUser = Depends(require_any_permission(
+        "finance.tax.view", "finance.tax.manage",
+        "procurement.view", "procurement.manage",
+    )),
     db: AsyncSession = Depends(get_db),
 ):
     codes = await FinTaxRepo(db).list_tax_codes(vu.vendor_id)
@@ -2274,6 +2284,37 @@ async def create_tax_code(
     tc = await FinTaxRepo(db).create_tax_code(vu.vendor_id, body)
     await db.commit()
     return _d(tc)
+
+
+@router.put("/tax/codes/{tc_id}")
+async def update_tax_code(
+    tc_id: UUID,
+    body: dict,
+    vu: VendorUser = Depends(require_permission("finance.tax.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    repo = FinTaxRepo(db)
+    tc = await repo.get_tax_code(tc_id, vu.vendor_id)
+    if not tc:
+        raise HTTPException(404, "Tax code not found")
+    tc = await repo.update_tax_code(tc, body)
+    await db.commit()
+    return _d(tc)
+
+
+@router.delete("/tax/codes/{tc_id}", status_code=204)
+async def delete_tax_code(
+    tc_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.tax.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    repo = FinTaxRepo(db)
+    tc = await repo.get_tax_code(tc_id, vu.vendor_id)
+    if not tc:
+        raise HTTPException(404, "Tax code not found")
+    await repo.delete_tax_code(tc)
+    await db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/tax/returns")

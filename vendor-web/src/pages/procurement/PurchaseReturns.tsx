@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,10 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
   SelectRoot as Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Select as TaxSelect } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { vendorApi } from '@/api/vendor'
 import { formatDate } from '@/lib/utils'
 import type { PurchaseOrder, PurchaseOrderItem, PurchaseReturn } from '@/types'
+import { useTaxCodes } from '@/hooks/useFinance'
+import { buildTaxCodeMap, taxSplitLabel, type TaxCode } from '@/lib/procurementTax'
 import {
   RotateCcw, Plus, ChevronRight, Clock, CheckCircle2, Truck, AlertCircle, Printer, Download,
 } from 'lucide-react'
@@ -54,13 +57,12 @@ interface ReturnLineEntry {
   po_item_id: string
   product_id: string
   product_name: string
+  ordered_qty: number
   received_qty: number
   unit_of_measure: string
   unit_price: number
   return_qty: string
-  cgst_rate: string
-  sgst_rate: string
-  igst_rate: string
+  tax_code: string
   reason: string
   include: boolean
 }
@@ -86,6 +88,14 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
   const [lineEntries, setLineEntries] = useState<ReturnLineEntry[]>([])
   const [lineErrors, setLineErrors] = useState<LineErrors>({})
 
+  const { data: taxCodesData, error: taxCodesError } = useTaxCodes()
+  const activeTaxCodes = useMemo(
+    () => ((taxCodesData as TaxCode[] | undefined) ?? []).filter(c => c.is_active !== false),
+    [taxCodesData],
+  )
+  const taxCodeMap = useMemo(() => buildTaxCodeMap(taxCodesData as TaxCode[] | undefined), [taxCodesData])
+  const taxCodesUnavailable = !!taxCodesError
+
   // Load received POs eligible for return
   const { data: poData } = useQuery({
     queryKey: ['return-po-picker', poSearch],
@@ -100,13 +110,12 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
       po_item_id: item.id,
       product_id: item.product_id ?? '',
       product_name: item.product_name ?? item.description ?? item.notes ?? 'Item',
+      ordered_qty: item.quantity_ordered ?? 0,
       received_qty: item.quantity_received ?? 0,
       unit_of_measure: item.unit_of_measure ?? 'piece',
       unit_price: item.unit_cost ?? 0,
       return_qty: '0',
-      cgst_rate: '0',
-      sgst_rate: '0',
-      igst_rate: '0',
+      tax_code: item.tax_code ?? '',
       reason: '',
       include: false,
     }))
@@ -152,9 +161,7 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
           unit_of_measure: e.unit_of_measure,
           return_qty: parseFloat(e.return_qty),
           unit_price: e.unit_price,
-          cgst_rate: parseFloat(e.cgst_rate) || 0,
-          sgst_rate: parseFloat(e.sgst_rate) || 0,
-          igst_rate: parseFloat(e.igst_rate) || 0,
+          tax_code: e.tax_code || undefined,
           line_number: lineNumber++,
           reason: e.reason || undefined,
         }))
@@ -241,7 +248,7 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose() }}>
-      <DialogContent className="max-w-5xl flex flex-col max-h-[92vh] p-0 gap-0">
+      <DialogContent className="w-[95vw] max-w-7xl flex flex-col max-h-[92vh] p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <DialogTitle>Create Purchase Return</DialogTitle>
         </DialogHeader>
@@ -286,10 +293,9 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
           const returnTax = activeLines.reduce((sum, e) => {
             const qty = parseFloat(e.return_qty || '0')
             const base = qty * e.unit_price
-            const cgst = (parseFloat(e.cgst_rate) || 0) / 100
-            const sgst = (parseFloat(e.sgst_rate) || 0) / 100
-            const igst = (parseFloat(e.igst_rate) || 0) / 100
-            return sum + base * (cgst + sgst + igst)
+            const entry = taxCodeMap.get((e.tax_code || '').trim().toUpperCase())
+            const rate = entry ? (Number(entry.rate) || 0) : 0
+            return sum + base * rate / 100
           }, 0)
           const returnTotal = returnSubtotal + returnTax
 
@@ -383,19 +389,17 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
                 <span className="text-xs text-gray-400">{activeLinesCount} line{activeLinesCount !== 1 ? 's' : ''} selected</span>
               </div>
               <div className="border rounded-lg overflow-x-auto">
-                <Table>
+                <Table className="table-fixed min-w-[960px]">
                   <TableHeader>
                     <TableRow className="bg-gray-50">
-                      <TableHead className="w-8"></TableHead>
-                      <TableHead>Item</TableHead>
-                      <TableHead className="w-20 text-right">Ordered</TableHead>
-                      <TableHead className="w-20 text-right">Received</TableHead>
-                      <TableHead className="w-28">Return Qty *</TableHead>
-                      <TableHead className="w-24">Unit Price</TableHead>
-                      <TableHead className="w-16">CGST%</TableHead>
-                      <TableHead className="w-16">SGST%</TableHead>
-                      <TableHead className="w-16">IGST%</TableHead>
-                      <TableHead className="w-28 text-right">Line Total</TableHead>
+                      <TableHead className="w-10 px-2"></TableHead>
+                      <TableHead className="w-[28%] px-3">Item</TableHead>
+                      <TableHead className="w-20 px-2 text-right whitespace-nowrap">Ordered</TableHead>
+                      <TableHead className="w-20 px-2 text-right whitespace-nowrap">Received</TableHead>
+                      <TableHead className="w-28 px-2 text-right whitespace-nowrap">Return Qty *</TableHead>
+                      <TableHead className="w-28 px-2 text-right whitespace-nowrap">Unit Price</TableHead>
+                      <TableHead className="w-40 px-2 whitespace-nowrap">Tax Code</TableHead>
+                      <TableHead className="w-32 px-3 text-right whitespace-nowrap">Line Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -404,8 +408,9 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
                       const hasError = !!rowError
                       const qty = parseFloat(entry.return_qty || '0')
                       const base = qty * entry.unit_price
-                      const taxPct = (parseFloat(entry.cgst_rate) || 0) + (parseFloat(entry.sgst_rate) || 0) + (parseFloat(entry.igst_rate) || 0)
-                      const lineTotal = base + base * (taxPct / 100)
+                      const tcEntry = taxCodeMap.get((entry.tax_code || '').trim().toUpperCase())
+                      const taxRate = tcEntry ? (Number(tcEntry.rate) || 0) : 0
+                      const lineTotal = base + base * (taxRate / 100)
                       return (
                         <TableRow
                           key={entry.po_item_id}
@@ -414,7 +419,7 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
                             hasError ? 'bg-red-50 border-l-4 border-l-red-400' : '',
                           ].join(' ')}
                         >
-                          <TableCell>
+                          <TableCell className="px-2">
                             <input
                               type="checkbox"
                               checked={entry.include}
@@ -423,8 +428,8 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
                               title={entry.received_qty <= 0 ? 'Cannot return — quantity not yet received' : ''}
                             />
                           </TableCell>
-                          <TableCell>
-                            <div className="text-sm font-medium">{entry.product_name}</div>
+                          <TableCell className="px-3">
+                            <div className="text-sm font-medium truncate" title={entry.product_name}>{entry.product_name}</div>
                             <div className="text-xs text-gray-400">{entry.unit_of_measure}</div>
                             {entry.received_qty <= 0 && (
                               <div className="text-[10px] text-gray-400 mt-0.5">Not received — cannot return</div>
@@ -436,16 +441,16 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="text-sm text-right text-gray-500">
-                            {entry.received_qty > 0 ? entry.received_qty.toLocaleString() : '—'}
+                          <TableCell className="px-2 text-sm text-right tabular-nums text-gray-500">
+                            {entry.ordered_qty.toLocaleString()}
                           </TableCell>
-                          <TableCell className="text-sm text-right font-medium">
+                          <TableCell className="px-2 text-sm text-right tabular-nums font-medium">
                             {entry.received_qty > 0
                               ? <span className="text-blue-600">{entry.received_qty.toLocaleString()}</span>
                               : <span className="text-gray-300">—</span>
                             }
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-2 text-right">
                             <Input
                               type="number"
                               min={0}
@@ -454,55 +459,48 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
                               onChange={e => updateLine(i, 'return_qty', e.target.value)}
                               disabled={!entry.include}
                               className={[
-                                'h-7 text-sm',
+                                'h-7 text-sm text-right tabular-nums ml-auto',
                                 hasError && qty > entry.received_qty ? 'border-red-400 focus-visible:ring-red-300' : '',
                               ].join(' ')}
                             />
                             {entry.include && entry.received_qty > 0 && (
-                              <p className="text-[10px] text-gray-400 mt-0.5">Max: {entry.received_qty}</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5 text-right">Max: {entry.received_qty}</p>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-2 text-right">
                             <Input
                               type="number"
                               min={0}
                               value={entry.unit_price}
                               onChange={e => updateLine(i, 'unit_price', parseFloat(e.target.value) || 0)}
                               disabled={!entry.include}
-                              className="h-7 text-sm"
+                              className="h-7 text-sm text-right tabular-nums ml-auto"
                             />
                           </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min={0}
-                              value={entry.cgst_rate}
-                              onChange={e => updateLine(i, 'cgst_rate', e.target.value)}
+                          <TableCell className="px-2">
+                            <TaxSelect
+                              value={entry.tax_code}
+                              onChange={v => updateLine(i, 'tax_code', v)}
+                              options={[
+                                {
+                                  value: '',
+                                  label: taxCodesUnavailable ? '⚠ Unavailable' : activeTaxCodes.length ? '— No tax —' : 'No tax codes',
+                                },
+                                ...activeTaxCodes.map(c => ({
+                                  value: c.code,
+                                  label: `${c.code} · ${Number(c.rate) || 0}%`,
+                                  hint: taxSplitLabel(c, false) || (c.tax_type || '').toUpperCase(),
+                                })),
+                                ...(entry.tax_code && !taxCodeMap.has(entry.tax_code.trim().toUpperCase())
+                                  ? [{ value: entry.tax_code, label: entry.tax_code, hint: 'unknown' }]
+                                  : []),
+                              ]}
                               disabled={!entry.include}
-                              className="h-7 text-sm"
+                              aria-label="Tax code"
+                              triggerClassName={`h-7 text-xs ${!entry.include ? 'opacity-50' : ''} ${taxCodesUnavailable ? 'border-red-300 bg-red-50' : entry.tax_code && !taxCodeMap.has(entry.tax_code.trim().toUpperCase()) ? 'border-amber-300 bg-amber-50' : ''}`}
                             />
                           </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min={0}
-                              value={entry.sgst_rate}
-                              onChange={e => updateLine(i, 'sgst_rate', e.target.value)}
-                              disabled={!entry.include}
-                              className="h-7 text-sm"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min={0}
-                              value={entry.igst_rate}
-                              onChange={e => updateLine(i, 'igst_rate', e.target.value)}
-                              disabled={!entry.include}
-                              className="h-7 text-sm"
-                            />
-                          </TableCell>
-                          <TableCell className="text-sm text-right font-medium tabular-nums">
+                          <TableCell className="px-3 text-sm text-right font-medium tabular-nums whitespace-nowrap">
                             {entry.include && qty > 0
                               ? <span className="text-gray-800">{form.currency} {lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               : <span className="text-gray-300">—</span>

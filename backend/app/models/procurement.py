@@ -80,6 +80,12 @@ class PurchaseOrder(Base):
     tax_amount = Column(Numeric(14, 2), default=0)
     total = Column(Numeric(14, 2), nullable=False, default=0)
 
+    # GST place of supply (state name or 2-digit state code derived from supplier GSTIN)
+    # "intra" when supplier and recipient are in the same state (use CGST+SGST),
+    # "inter" for cross-state (use IGST). Stored at creation time so tax split
+    # doesn't change if the supplier later edits their GSTIN/address.
+    place_of_supply = Column(String(2), nullable=True)   # 2-digit GST state code, e.g. "29"
+
     # Terms
     payment_terms = Column(String(50), nullable=True)   # e.g. "Net 30", "2/10 Net 30"
     delivery_terms = Column(String(50), nullable=True)  # Incoterms: EXW, FOB, CIF, DDP …

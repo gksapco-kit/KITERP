@@ -29,6 +29,7 @@ from app.models.store import Store, StoreInventory
 from app.models.vendor_product import Product, ProductVariant
 from app.models.inventory import InventoryMovement
 from app.models.stock_transfer_order import StockTransferOrder, StockTransferOrderLine
+from app.utils.gst_utils import state_code_from_name
 from app.services.store_inventory_service import (
     get_store_inventory_row,
     apply_store_inventory_delta,
@@ -112,6 +113,10 @@ async def _enrich_lines(db: AsyncSession, lines: list[StockTransferOrderLine]) -
             "dispatched_qty": l.dispatched_qty,
             "received_qty": l.received_qty,
             "notes": l.notes,
+            # GST fields (populated at dispatch for inter-state transfers)
+            "taxable_value": float(l.taxable_value) if l.taxable_value else None,
+            "igst_rate": float(l.igst_rate) if l.igst_rate else None,
+            "igst_amount": float(l.igst_amount) if l.igst_amount else None,
         })
     return out
 
@@ -134,6 +139,11 @@ def _order_to_dict(o: StockTransferOrder, lines_data: list | None = None) -> dic
         "dispatched_at": o.dispatched_at.isoformat() if o.dispatched_at else None,
         "received_at": o.received_at.isoformat() if o.received_at else None,
         "created_at": o.created_at.isoformat() if o.created_at else None,
+        # GST summary
+        "from_state_code": o.from_state_code,
+        "to_state_code": o.to_state_code,
+        "is_inter_state": o.is_inter_state,
+        "igst_amount": float(o.igst_amount) if o.igst_amount else 0,
     }
     if lines_data is not None:
         d["lines"] = lines_data
@@ -315,6 +325,27 @@ async def dispatch_transfer_order(
     now = datetime.now(tz=timezone.utc)
     reason = f"Transfer order {o.reference_number}"
 
+    # ── GST: determine intra/inter-state at dispatch time ────────────────────
+    from_store_row = await db.get(Store, o.from_store_id)
+    to_store_row   = await db.get(Store, o.to_store_id)
+
+    from_state_name = ((from_store_row.address or {}).get("state") if from_store_row else None)
+    to_state_name   = ((to_store_row.address or {}).get("state")   if to_store_row   else None)
+
+    from_state_code = state_code_from_name(from_state_name)
+    to_state_code   = state_code_from_name(to_state_name)
+
+    # True only when both codes are known AND they differ
+    is_inter = bool(
+        from_state_code and to_state_code and from_state_code != to_state_code
+    )
+
+    o.from_state_code = from_state_code
+    o.to_state_code   = to_state_code
+    o.is_inter_state  = is_inter
+
+    total_igst = 0.0
+
     for line in o.lines:
         inv = await get_store_inventory_row(
             db, o.from_store_id, line.product_id, line.variant_id,
@@ -330,6 +361,26 @@ async def dispatch_transfer_order(
         # Deduct from source
         inv.quantity -= line.requested_qty
         line.dispatched_qty = line.requested_qty
+
+        # ── IGST on inter-state transfer ──────────────────────────────────
+        if is_inter:
+            product_row = await db.get(Product, line.product_id)
+            gst_rate = float(
+                (product_row.gst_rate or product_row.tax_rate or 0) if product_row else 0
+            )
+            # Use cost_price as the taxable value base
+            cost_price = float(product_row.cost_price or 0) if product_row else 0
+            taxable = round(line.requested_qty * cost_price, 2)
+            igst_amt = round(taxable * gst_rate / 100.0, 2) if gst_rate else 0.0
+        else:
+            gst_rate = 0.0
+            taxable = 0.0
+            igst_amt = 0.0
+
+        line.taxable_value = taxable
+        line.igst_rate     = gst_rate
+        line.igst_amount   = igst_amt
+        total_igst += igst_amt
 
         # Movement ledger (out from source)
         db.add(InventoryMovement(
@@ -349,17 +400,27 @@ async def dispatch_transfer_order(
             storage_location_id=o.from_storage_location_id,
             to_storage_location_id=o.to_storage_location_id,
             performed_by=current_user.id,
-            extra_data={"direction": "out", "transfer_order_ref": o.reference_number},
+            extra_data={
+                "direction": "out",
+                "transfer_order_ref": o.reference_number,
+                "is_inter_state": is_inter,
+                "igst_amount": igst_amt if is_inter else None,
+            },
         ))
 
         # Sync product rollup
         await sync_product_quantity_from_stores(db, vendor_id, line.product_id, line.variant_id)
 
-    o.status = "dispatched"
+    o.igst_amount  = round(total_igst, 2)
+    o.status       = "dispatched"
     o.dispatched_by = current_user.id
     o.dispatched_at = now
     await db.commit()
-    return JSONResponse(content={"message": "Transfer order dispatched — stock is in transit", "status": o.status})
+
+    msg = "Transfer order dispatched — stock is in transit"
+    if is_inter and total_igst > 0:
+        msg += f" (inter-state — IGST ₹{total_igst:.2f} applicable)"
+    return JSONResponse(content={"message": msg, "status": o.status, "igst_amount": total_igst, "is_inter_state": is_inter})
 
 
 # ── POST /transfer-orders/{id}/receive ───────────────────────────────────────

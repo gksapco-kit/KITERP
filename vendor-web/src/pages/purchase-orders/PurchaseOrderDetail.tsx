@@ -15,7 +15,7 @@ import {
   useRequestPOApproval, useApprovePO, useTeamMembers, useMyMembership,
 } from '@/hooks/useVendor'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
-import { formatDate, formatDateTime, formatCurrency } from '@/lib/utils'
+import { formatDate, formatDateTime, formatCurrency, cn } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import type { PurchaseOrderItem as POItem, POApprovalStep } from '@/types'
 import {
@@ -285,9 +285,8 @@ export default function PurchaseOrderDetail() {
       // Alias backend field names to what templates expect
       grand_total: raw.grand_total ?? raw.total,
       total_tax: raw.total_tax ?? raw.tax_amount,
-      // Provide CGST/SGST split when only total tax is available (50/50 split assumed for intra-state)
-      cgst_amount: raw.cgst_amount ?? (raw.tax_amount ? Number(raw.tax_amount) / 2 : 0),
-      sgst_amount: raw.sgst_amount ?? (raw.tax_amount ? Number(raw.tax_amount) / 2 : 0),
+      cgst_amount: raw.cgst_amount ?? 0,
+      sgst_amount: raw.sgst_amount ?? 0,
       igst_amount: raw.igst_amount ?? 0,
     }
   }
@@ -340,7 +339,12 @@ export default function PurchaseOrderDetail() {
               <h1 className="text-2xl font-bold text-gray-900">{po.po_number}</h1>
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
             </div>
-            <p className="text-sm text-gray-500 mt-1">Supplier: <span className="font-medium text-gray-700">{po.supplier_name}</span></p>
+            <p className="text-sm text-gray-500 mt-1">
+              Supplier: <span className="font-medium text-gray-700">{po.supplier_name}</span>
+              {po.supplier_gstin && (
+                <span className="ml-2 text-xs text-gray-400">GSTIN {po.supplier_gstin}</span>
+              )}
+            </p>
           </div>
         </div>
 
@@ -392,7 +396,7 @@ export default function PurchaseOrderDetail() {
               )}
               <Button variant="cancel" className="gap-2 text-red-600 hover:text-red-700" disabled={actionLoading}
                 onClick={async () => { if (await askConfirm('Cancel this purchase order?')) cancelMut.mutate(po.id) }}>
-                <XCircle className="w-4 h-4" />Cancel</Button>
+                <XCircle className="w-4 h-4" /> Cancel PO</Button>
             </>
           )}
           {canReceive && (
@@ -403,7 +407,7 @@ export default function PurchaseOrderDetail() {
               {po.status === 'sent' && (
                 <Button variant="cancel" className="gap-2 text-red-600 hover:text-red-700" disabled={actionLoading}
                   onClick={async () => { if (await askConfirm('Cancel this purchase order?')) cancelMut.mutate(po.id) }}>
-                  <XCircle className="w-4 h-4" />Cancel</Button>
+                  <XCircle className="w-4 h-4" /> Cancel PO</Button>
               )}
             </>
           )}
@@ -442,9 +446,18 @@ export default function PurchaseOrderDetail() {
                   onChange={v => setHeaderDraft(d => ({ ...d, supplier_id: v }))}
                   options={selectOptionsWithBlank(
                     '— Select supplier —',
-                    suppliers.map(s => ({ value: s.id, label: s.name })),
+                    suppliers.map(s => ({
+                      value: s.id,
+                      label: s.name,
+                      hint: [
+                        s.gstin ? `GSTIN ${s.gstin}` : null,
+                        s.address?.city || s.address?.state || null,
+                        s.phone || null,
+                      ].filter(Boolean).join(' · ') || undefined,
+                    })),
                   )}
                   className={selectClass}
+                  showSelectedHint={false}
                 />
               </div>
               <div className="space-y-1">
@@ -469,11 +482,39 @@ export default function PurchaseOrderDetail() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <InfoCard icon={Truck} label="Supplier" value={po.supplier_name || '-'} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border bg-white px-3 py-2.5 sm:col-span-2">
+            <div className="mb-1 flex items-center gap-1.5 text-gray-500">
+              <Truck className="h-3.5 w-3.5" />
+              <span className="text-[11px] font-medium">Supplier</span>
+            </div>
+            <p className="text-sm font-semibold text-gray-900">{po.supplier_name || '-'}</p>
+            {(po.supplier_gstin || po.supplier_pan || po.supplier_contact_name || po.supplier_phone || po.supplier_email || po.supplier_address) && (
+              <div className="mt-1.5 space-y-0.5 border-t border-gray-100 pt-1.5">
+                {po.supplier_gstin && (
+                  <p className="text-xs text-gray-600"><span className="text-gray-400">GSTIN:</span> {po.supplier_gstin}</p>
+                )}
+                {po.supplier_pan && (
+                  <p className="text-xs text-gray-600"><span className="text-gray-400">PAN:</span> {po.supplier_pan}</p>
+                )}
+                {po.supplier_contact_name && (
+                  <p className="text-xs text-gray-600"><span className="text-gray-400">Contact:</span> {po.supplier_contact_name}</p>
+                )}
+                {po.supplier_phone && (
+                  <p className="text-xs text-gray-600"><span className="text-gray-400">Phone:</span> {po.supplier_phone}</p>
+                )}
+                {po.supplier_email && (
+                  <p className="text-xs text-gray-600"><span className="text-gray-400">Email:</span> {po.supplier_email}</p>
+                )}
+                {po.supplier_address && (
+                  <p className="text-xs text-gray-600"><span className="text-gray-400">Address:</span> {po.supplier_address}</p>
+                )}
+              </div>
+            )}
+          </div>
           <InfoCard icon={Calendar} label="Order Date" value={formatDate(po.order_date)} />
           <InfoCard icon={Calendar} label="Expected Delivery" value={formatDate(po.expected_delivery_date)} />
-          <InfoCard icon={FileText} label="Total" value={formatCurrency(po.total, po.currency || 'INR')} />
+          <InfoCard icon={FileText} label="Total" value={formatCurrency(po.total, po.currency || 'INR')} className="sm:col-span-2 lg:col-span-1" />
         </div>
       )}
 
@@ -569,7 +610,7 @@ export default function PurchaseOrderDetail() {
         <CardHeader className="flex flex-row flex-wrap items-center gap-2 space-y-0 border-b p-3 sm:px-4 sm:py-2.5">
           <CardTitle className="shrink-0 text-base">Items ({po.items.length})</CardTitle>
           <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-            <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Sort</span>
+            <span className="inline-flex h-8 shrink-0 items-center text-[11px] font-medium leading-none text-muted-foreground">Sort</span>
             <ThemeSelect
               value={itemSortKey}
               onChange={setItemSortKey}
@@ -628,7 +669,12 @@ export default function PurchaseOrderDetail() {
             />
           )}
 
-          <ResizableTable tableId="po-lines-v2" defaultWidths={[200, 100, 110, 55, 70, 70, 70, 90, 90, isDraft ? 44 : 0]}>
+          <ResizableTable
+            tableId="po-lines-v3"
+            defaultWidths={isDraft
+              ? [200, 110, 120, 56, 84, 92, 100, 108, 108, 44]
+              : [200, 110, 120, 56, 84, 92, 100, 108, 108]}
+          >
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Product</TableColumnLabel></th>
@@ -738,20 +784,20 @@ export default function PurchaseOrderDetail() {
             </tbody>
             <tfoot>
               <tr className="border-t bg-gray-50">
-                <td colSpan={9} className="px-3 py-1.5 text-right text-sm text-gray-600">Subtotal</td>
-                <td className="px-3 py-1.5 text-right text-sm tabular-nums whitespace-nowrap">{formatCurrency(po.subtotal, po.currency || 'INR')}</td>
-                {isDraft && <td className="px-2 py-1.5" />}
+                <td colSpan={8} className="px-3 py-2 text-right text-sm leading-5 text-gray-600">Subtotal</td>
+                <td className="px-3 py-2 text-right text-sm leading-5 tabular-nums whitespace-nowrap">{formatCurrency(po.subtotal, po.currency || 'INR')}</td>
+                {isDraft && <td className="px-2 py-2" />}
               </tr>
               {Number(po.tax_amount) > 0 && (
                 <tr className="bg-gray-50">
-                  <td colSpan={9} className="px-3 py-1.5 text-right text-sm text-gray-600">Tax</td>
-                  <td className="px-3 py-1.5 text-right text-sm tabular-nums whitespace-nowrap">{formatCurrency(po.tax_amount, po.currency || 'INR')}</td>
-                  {isDraft && <td className="px-2 py-1.5" />}
+                  <td colSpan={8} className="px-3 py-2 text-right text-sm leading-5 text-gray-600">Tax</td>
+                  <td className="px-3 py-2 text-right text-sm leading-5 tabular-nums whitespace-nowrap">{formatCurrency(po.tax_amount, po.currency || 'INR')}</td>
+                  {isDraft && <td className="px-2 py-2" />}
                 </tr>
               )}
               <tr className="border-t bg-gray-50">
-                <td colSpan={9} className="px-3 py-2 text-right text-sm font-semibold text-gray-700">Total</td>
-                <td className="px-3 py-2 text-right text-sm font-bold tabular-nums whitespace-nowrap">{formatCurrency(po.total, po.currency || 'INR')}</td>
+                <td colSpan={8} className="px-3 py-2 text-right text-sm font-semibold leading-5 text-gray-700">Total</td>
+                <td className="px-3 py-2 text-right text-sm font-bold leading-5 tabular-nums whitespace-nowrap">{formatCurrency(po.total, po.currency || 'INR')}</td>
                 {isDraft && <td className="px-2 py-2" />}
               </tr>
             </tfoot>
@@ -912,9 +958,9 @@ export default function PurchaseOrderDetail() {
 
 // ── InfoCard ──────────────────────────────────────────────────────
 
-function InfoCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+function InfoCard({ icon: Icon, label, value, className }: { icon: React.ElementType; label: string; value: string; className?: string }) {
   return (
-    <div className="rounded-lg border bg-white px-3 py-2.5" onClick={e => e.stopPropagation()}>
+    <div className={cn('rounded-lg border bg-white px-3 py-2.5', className)} onClick={e => e.stopPropagation()}>
       <div className="mb-0.5 flex items-center gap-1.5 text-gray-500">
         <Icon className="h-3.5 w-3.5" />
         <span className="text-[11px] font-medium">{label}</span>

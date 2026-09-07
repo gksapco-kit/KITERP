@@ -10,6 +10,9 @@ const LS_SECTION_VERSION = 'kiterp.vendor.sidebar.section-order-version'
  */
 export const SIDEBAR_SECTION_ORDER_VERSION = 4
 
+/** Bump when a pinned item must move inside a module (saved placements otherwise keep the old slot). */
+export const SIDEBAR_NAV_PLACEMENTS_VERSION = 1
+
 /** Canonical module order — must match `allSections` in DashboardLayout.tsx. */
 export const CANONICAL_SIDEBAR_SECTION_IDS = [
   'my-kit',
@@ -44,6 +47,8 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/blog': 'website-management',
   '/queries': 'my-kit',
   '/purchase-orders': 'procurement',
+  '/procurement/reports': 'procurement',
+  '/inventory/analytics': 'inventory',
   '/procurement/goods': 'inventory',
   '/rental/dashboard': 'rental',
   '/rental/assets': 'rental',
@@ -84,6 +89,8 @@ const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
 const NAV_PINNED_INSERT_BEFORE: Record<string, string> = {
   '/queries': '/relationship-manager',
   '/purchase-orders': '/procurement/requisitions',
+  '/procurement/reports': '/purchase-orders',
+  '/inventory/analytics': '/products',
 }
 
 export type NavOrderScope = {
@@ -412,6 +419,22 @@ export function reconcileNavPlacements(
     ]
   }
 
+  // Inventory Analytics always sits first under Inventory Management, above Products.
+  // (Saved placements often left it at section end, nested under a leftover group heading.)
+  if (validTos.has('/inventory/analytics') && out.inventory) {
+    for (const sid of Object.keys(out)) {
+      out[sid] = out[sid].filter((t) => t !== '/inventory/analytics')
+    }
+    const list = out.inventory
+    const productsIdx = list.indexOf('/products')
+    const insertAt = productsIdx >= 0 ? productsIdx : 0
+    out.inventory = [
+      ...list.slice(0, insertAt),
+      '/inventory/analytics',
+      ...list.slice(insertAt),
+    ]
+  }
+
   // Sales Management routes keep canonical grouped order.
   const salesManagementOrder = [
     '/sales/manager',
@@ -565,6 +588,12 @@ export function ensurePinnedNavItemsInSection<T extends { to: string }>(
     if (sectionId !== homeId) continue
     const item = catalog.get(to)
     if (!item || next.some((i) => i.to === to)) continue
+    const before = NAV_PINNED_INSERT_BEFORE[to]
+    const beforeIdx = before ? next.findIndex((i) => i.to === before) : -1
+    if (beforeIdx >= 0) {
+      next = [...next.slice(0, beforeIdx), item, ...next.slice(beforeIdx)]
+      continue
+    }
     const after = NAV_PINNED_INSERT_AFTER[to]
     const afterIdx = after ? next.findIndex((i) => i.to === after) : -1
     if (afterIdx >= 0) {
