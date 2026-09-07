@@ -46,7 +46,7 @@ function makeGrid(seed: number, count: number): MosaicCell[] {
   return cells
 }
 
-const DESKTOP_COLS = 11
+const DESKTOP_COLS = 13
 const DESKTOP_ROWS = 5
 const MOBILE_COLS = 6
 const MOBILE_ROWS = 5
@@ -54,8 +54,8 @@ const MOBILE_ROWS = 5
 const HL_STEP = 0.45
 const DESKTOP_GRID = makeGrid(0, DESKTOP_COLS * DESKTOP_ROWS)
 const MOBILE_GRID = makeGrid(2, MOBILE_COLS * MOBILE_ROWS)
-const DESKTOP_AVATAR_INDICES = DESKTOP_GRID.map((c, i) => (c.kind === 'avatar' ? i : -1)).filter((i) => i >= 0)
-const MOBILE_AVATAR_INDICES = MOBILE_GRID.map((c, i) => (c.kind === 'avatar' ? i : -1)).filter((i) => i >= 0)
+const DESKTOP_CELL_INDICES = DESKTOP_GRID.map((_, i) => i)
+const MOBILE_CELL_INDICES = MOBILE_GRID.map((_, i) => i)
 const DESKTOP_CYCLE_S = DESKTOP_GRID.length * HL_STEP
 const MOBILE_CYCLE_S = MOBILE_GRID.length * HL_STEP
 const DESKTOP_CYCLE = `${DESKTOP_CYCLE_S.toFixed(2)}s`
@@ -193,7 +193,7 @@ function MosaicCellView({
     `kiterp-morph-v${morphVariant % 3}`,
   ].join(' ')
 
-  if (cell.kind === 'shape') {
+  if (cell.kind === 'shape' && !vendor) {
     return (
       <div
         className={`${classes} kiterp-mosaic-shape--soft${isBrand ? ' kiterp-mosaic-shape--brand' : ''}`}
@@ -223,7 +223,7 @@ function MosaicCellView({
         title={`Visit ${name}`}
         aria-label={`Visit ${name} storefront`}
       >
-        {hasPhoto ? <StoreTilePhoto vendor={vendor} /> : <span className="kiterp-mosaic-store-initials">{vendorInitials(name)}</span>}
+        {hasPhoto ? <StoreTilePhoto key={vendor.slug} vendor={vendor} /> : <span className="kiterp-mosaic-store-initials">{vendorInitials(name)}</span>}
       </Link>
     )
   }
@@ -260,13 +260,13 @@ function MosaicGrid({
     <div className={className}>
       {cells.map((cell, i) => {
         const isBrand = brandSet.has(i)
-        const vendor = cell.kind === 'avatar' ? vendorMap.get(i) : undefined
+        const vendor = vendorMap.get(i)
         return (
           <div
-            key={`${i}-${vendor?.slug ?? 'shape'}`}
+            key={i}
             className="kiterp-mosaic-cell aspect-square"
             style={{
-              ['--mosaic-delay' as string]: `${(i * 0.08).toFixed(2)}s`,
+              ['--mosaic-delay' as string]: `${((i % DESKTOP_COLS) * 0.04).toFixed(2)}s`,
               ['--mosaic-morph-delay' as string]: `${(delays[i] * 0.35).toFixed(2)}s`,
               ['--mosaic-hl' as string]: `${delays[i]}s`,
               ['--mosaic-cycle' as string]: cycle,
@@ -330,8 +330,8 @@ export function CommunityMosaicSection({
   }, [vendorsProp.length])
 
   const vendors = vendorsProp.length > 0 ? vendorsProp : localVendors
-  const desktopVendorMap = useRotatingVendorMap(vendors, DESKTOP_AVATAR_INDICES)
-  const mobileVendorMap = useRotatingVendorMap(vendors, MOBILE_AVATAR_INDICES)
+  const desktopVendorMap = useRotatingVendorMap(vendors, DESKTOP_CELL_INDICES)
+  const mobileVendorMap = useRotatingVendorMap(vendors, MOBILE_CELL_INDICES)
   const storeCount = vendors.length
 
   return (
@@ -353,7 +353,7 @@ export function CommunityMosaicSection({
             delays={DESKTOP_DELAYS}
             brandIndices={MOSAIC_BRAND_DESKTOP}
             vendorMap={desktopVendorMap}
-            className="hidden lg:grid grid-cols-11 gap-3 kiterp-mosaic-fullmask"
+            className="hidden lg:grid gap-3 kiterp-mosaic-fullmask"
           />
           <MosaicGrid
             cells={MOBILE_GRID}

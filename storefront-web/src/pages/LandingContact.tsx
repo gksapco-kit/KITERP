@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, Loader2, Mail, MapPin, Phone, Send } from 'luc
 import { toast } from 'sonner'
 import { apiClient } from '@/api/client'
 import { LandingHeader } from '@/components/landing/LandingHeader'
+import { KiterpHighlight } from '@/components/landing/KiterpHighlight'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import {
@@ -139,7 +140,7 @@ export default function LandingContact() {
 
             <p className="kiterp-contact-eyebrow">KIT ERP</p>
             <h1 className="font-kiterp-script kiterp-contact-title">
-              Let&apos;s <span className="kiterp-highlight">talk.</span>
+              Let&apos;s <KiterpHighlight>talk.</KiterpHighlight>
             </h1>
             <p className="kiterp-contact-lead">
               Questions about the platform, pricing, or getting started? Share your details — they land on the leads page so the team can follow up.

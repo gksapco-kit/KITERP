@@ -4,6 +4,7 @@ import { ArrowLeft, Building2, CheckCircle2, Loader2, Plus, UserRound } from 'lu
 import { toast } from 'sonner'
 import { apiClient } from '@/api/client'
 import { LandingHeader } from '@/components/landing/LandingHeader'
+import { KiterpHighlight } from '@/components/landing/KiterpHighlight'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import {
@@ -149,7 +150,7 @@ export default function LandingLead() {
 
             <p className="kiterp-contact-eyebrow">KIT ERP</p>
             <h1 className="font-kiterp-script kiterp-contact-title">
-              Add a new <span className="kiterp-highlight">lead.</span>
+              Add a new <KiterpHighlight>lead.</KiterpHighlight>
             </h1>
             <p className="kiterp-contact-lead">
               Tell us about you or your business. Every field here maps onto the CRM leads list so the team can follow up on pricing, demos, and getting started.
