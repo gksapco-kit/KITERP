@@ -127,7 +127,7 @@ export function TableToolbar({
 
   return (
     <div className="min-w-0 max-w-full overflow-hidden border-b border-border/60 bg-muted/25">
-      <div className={cn('flex min-w-0 max-w-full flex-wrap items-center gap-1.5 px-3 py-2 sm:gap-2', className)}>
+      <div className={cn('flex min-w-0 max-w-full flex-wrap items-center gap-1.5 px-2 py-2 sm:gap-2 sm:px-3', className)}>
         {(leading || moreOptionsButton) && (
           <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
             {leading}

@@ -88,7 +88,7 @@ export default function AuthLayout() {
             <span className="text-base font-bold text-slate-900">KIT ERP</span>
           </a>
         </header>
-        <div className="flex flex-1 items-center justify-center p-8">
+        <div className="flex flex-1 items-center justify-center px-4 py-6 sm:p-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <div className={narrowLoginColumn ? 'w-full max-w-[min(100%,21.9075rem)]' : 'w-full max-w-md'}>
             <Outlet />
           </div>

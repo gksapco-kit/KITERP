@@ -95,7 +95,7 @@ export function ResizableTable({ tableId, defaultWidths, children, className }: 
   })
 
   return (
-    <div className="overflow-x-auto">
+    <div className="vendor-scroll-x">
       <table
         className={cn(
           // Keep body cells inside resized column widths (headers already clip via style).

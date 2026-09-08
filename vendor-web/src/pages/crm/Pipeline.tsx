@@ -344,7 +344,7 @@ export default function PipelinePage() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 gap-2.5 overflow-x-auto pb-1">
+        <div className="vendor-scroll-x flex min-h-0 flex-1 gap-2.5 pb-1">
           {kanban?.columns?.map(col => {
             const colTotal = col.deals.reduce((s, d) => s + (d.amount || 0), 0)
             return (

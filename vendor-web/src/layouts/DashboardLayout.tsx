@@ -1920,6 +1920,16 @@ export default function DashboardLayout() {
 
   const closeMobileSidebar = useCallback(() => setSidebarOpen(false), [])
 
+  /* Lock background scroll while the mobile drawer is open */
+  useEffect(() => {
+    if (!sidebarOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [sidebarOpen])
+
   useEscapeToClose(closeMobileSidebar, sidebarOpen)
   useEscapeToClose(() => setRailFlyoutSectionId(null), !!railFlyoutSectionId)
   useEscapeToClose(() => setStorePickerOpen(false), storePickerOpen)
@@ -4073,7 +4083,7 @@ export default function DashboardLayout() {
   if (isVendorAdminEmbed()) {
     return (
       <div className="min-h-screen overflow-x-clip bg-background font-sans text-foreground">
-        <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 sm:p-6 lg:p-8 bg-background font-sans text-sm">
+        <main className="vendor-main-pad min-w-0 overflow-x-clip [overscroll-behavior-y:none] bg-background font-sans text-sm">
           <RestaurantScopeBanner />
           <FieldMappingProvider>
             <Outlet />
@@ -4201,7 +4211,7 @@ export default function DashboardLayout() {
           )}
           aria-hidden={kiterpModalOpen || undefined}
         >
-          <div className="flex h-14 w-full min-w-0 items-center gap-1.5 px-2 sm:gap-2 sm:px-3">
+          <div className="flex min-h-14 w-full min-w-0 items-center gap-1.5 px-2 sm:gap-2 sm:px-3 pt-[env(safe-area-inset-top,0px)]">
             {/* Title — flexes on mobile so the toolbar never overflows */}
             <div className="flex h-9 min-w-0 flex-1 items-center gap-1 sm:h-8 lg:max-w-[14rem] lg:flex-none lg:shrink-0 lg:gap-1.5">
               <button
@@ -4655,7 +4665,7 @@ export default function DashboardLayout() {
         />
 
         {/* Page content — hide outlet for uninstalled apps so page never flashes */}
-        <main className="min-w-0 overflow-x-clip [overscroll-behavior-y:none] p-4 sm:p-6 lg:p-8 bg-background font-sans text-sm">
+        <main className="vendor-main-pad min-w-0 overflow-x-clip [overscroll-behavior-y:none] bg-background font-sans text-sm">
           <RestaurantScopeBanner />
           {blockedRouteSectionId ? (
             <Navigate to="/" replace />

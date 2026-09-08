@@ -921,7 +921,7 @@ export default function POS() {
   )
 
   return (
-    <div className="flex flex-col gap-2 h-[calc(100vh-6rem)]">
+    <div className="flex flex-col gap-2 h-[calc(100dvh-6rem)] max-lg:h-auto max-lg:min-h-[calc(100dvh-7rem)]">
       {tableFromUrl && restaurantTableLabel && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm shrink-0">
           <span className="flex items-center gap-2 text-amber-950 font-medium">
@@ -941,11 +941,11 @@ export default function POS() {
           </div>
         </div>
       )}
-      <div className="flex gap-3 flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0">
       {/* ── Left: Catalog ── */}
-      <div className="flex-[6] min-w-0 flex flex-col space-y-2 overflow-hidden">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold flex items-center gap-2">
+      <div className="flex-[6] min-w-0 flex flex-col space-y-2 overflow-hidden max-lg:min-h-[min(55vh,28rem)]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-lg font-bold flex flex-wrap items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-blue-600" /> POS Billing
             {lockedStoreName && (
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
@@ -953,7 +953,7 @@ export default function POS() {
               </span>
             )}
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {loyaltyProgram?.is_active && (
               <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 font-medium">
                 <Award className="w-3 h-3" /> Loyalty Active
@@ -1044,12 +1044,12 @@ export default function POS() {
         )}
 
         {/* Search + suggestion dropdown + barcode scan + view toggle */}
-        <div className="flex gap-2 items-center">
-          <div ref={searchContainerRef} className="relative flex-1">
+        <div className="flex flex-wrap gap-2 items-center">
+          <div ref={searchContainerRef} className="relative min-w-0 flex-1 basis-[12rem]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
             <Input
               ref={scanInputRef}
-              placeholder="Search by name, SKU, barcode, HSN, category, tag…"
+              placeholder="Search name, SKU, barcode…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value)
@@ -1433,7 +1433,7 @@ export default function POS() {
       </div>
 
       {/* ── Right: Cart ── */}
-      <div className="flex-[4] min-w-[340px] flex flex-col bg-white rounded-xl border overflow-hidden">
+      <div className="flex-[4] min-w-0 lg:min-w-[340px] flex flex-col bg-white rounded-xl border overflow-hidden max-lg:min-h-[min(50vh,26rem)]">
         <div className={`px-4 py-2.5 border-b flex items-center gap-2 ${
           txnMode === 'return' ? 'bg-red-50' : 'bg-gray-50'
         }`}>
@@ -1444,8 +1444,8 @@ export default function POS() {
           </span>
         </div>
 
-        {/* Customer + salesperson (side by side) */}
-        <div className="px-3 py-2 border-b bg-gray-50/50 flex gap-3 items-start">
+        {/* Customer + salesperson (side by side on desktop; stacked on phones) */}
+        <div className="px-3 py-2 border-b bg-gray-50/50 flex flex-col sm:flex-row gap-3 items-stretch sm:items-start">
           <div className="flex-1 min-w-0 space-y-1.5">
             {selectedCustomer ? (
               <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
@@ -2163,7 +2163,7 @@ function PaymentModal({
 
           <div>
             <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">{isRefund ? 'Refund Method' : 'Payment Method'}</Label>
-            <div className={`grid gap-2 ${paymentMethods.length > 4 ? 'grid-cols-3 sm:grid-cols-5' : 'grid-cols-4'}`}>
+            <div className={`grid gap-2 ${paymentMethods.length > 4 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
               {paymentMethods.map(m => (
                 <button key={m.key} onClick={() => setMethod(m.key)}
                   className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-colors ${

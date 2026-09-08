@@ -3207,3 +3207,53 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
 [data-page-canvas][data-preview-bp='mobile'] .builder-block [data-overlay-canvas][data-overlay-mobile='true'] {
   overflow: hidden;
 }
+
+/* ── Vendor app: mobile-safe page chrome (layout only; no behavior changes) ── */
+@layer utilities {
+  .vendor-main-pad {
+    /* Top is handled by sticky header safe-area; pad sides/bottom for notches */
+    padding-top: 0.75rem;
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  }
+  @media (min-width: 640px) {
+    .vendor-main-pad {
+      padding-top: 1rem;
+      padding-right: max(1rem, env(safe-area-inset-right, 0px));
+      padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+      padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    }
+  }
+  @media (min-width: 768px) {
+    .vendor-main-pad {
+      padding-top: 1.5rem;
+      padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+      padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+      padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+    }
+  }
+  @media (min-width: 1024px) {
+    .vendor-main-pad {
+      padding-top: 2rem;
+      padding-right: max(2rem, env(safe-area-inset-right, 0px));
+      padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+      padding-left: max(2rem, env(safe-area-inset-left, 0px));
+    }
+  }
+
+  /* Horizontal table/scroll regions: smooth touch pan without breaking desktop */
+  .vendor-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    max-width: 100%;
+  }
+}
+
+/* Prevent wide fixed-min children from forcing page-level horizontal scroll on phones */
+@media (max-width: 1023px) {
+  .min-h-screen {
+    max-width: 100vw;
+  }
+}
