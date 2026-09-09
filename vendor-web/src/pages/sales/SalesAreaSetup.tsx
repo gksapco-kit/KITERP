@@ -169,12 +169,12 @@ function DivisionsTab() {
                     <td className="px-4 py-3"><div className="flex items-center gap-1.5">{d.is_default ? <DefaultBadge /> : <StatusPill active={d.is_active} />}</div></td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(d)}><Pencil className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(d)}><Pencil className="w-4 h-4 text-green-600" /></Button>
                         <Button
                           variant="ghost" size="sm" className="text-red-500"
                           onClick={async () => { if (await askConfirm(`Delete sales division "${d.name}"?`)) deleteMut.mutate(d.id) }}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                       </div>
                     </td>
@@ -309,12 +309,12 @@ function DistributionChannelsTab() {
                     <td className="px-4 py-3"><div className="flex items-center gap-1.5">{c.is_default ? <DefaultBadge /> : <StatusPill active={c.is_active} />}</div></td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(c)}><Pencil className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(c)}><Pencil className="w-4 h-4 text-green-600" /></Button>
                         <Button
                           variant="ghost" size="sm" className="text-red-500"
                           onClick={async () => { if (await askConfirm(`Delete distribution channel "${c.name}"?`)) deleteMut.mutate(c.id) }}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                       </div>
                     </td>
@@ -465,12 +465,12 @@ function DeliveryChannelsTab() {
                     <td className="px-4 py-3"><div className="flex items-center gap-1.5">{c.is_default ? <DefaultBadge /> : <StatusPill active={c.is_active} />}</div></td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(c)}><Pencil className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(c)}><Pencil className="w-4 h-4 text-green-600" /></Button>
                         <Button
                           variant="ghost" size="sm" className="text-red-500"
                           onClick={async () => { if (await askConfirm(`Delete delivery channel "${c.name}"?`)) deleteMut.mutate(c.id) }}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                       </div>
                     </td>
@@ -688,7 +688,7 @@ function SalesAreasTab() {
                           aria-label="Delete sales area"
                           onClick={async () => { if (await askConfirm('Delete this sales area?')) deleteMut.mutate(a.id) }}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                       </td>
                     </tr>

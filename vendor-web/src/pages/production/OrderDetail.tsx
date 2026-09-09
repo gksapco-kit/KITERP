@@ -335,7 +335,7 @@ export default function ProductionOrderDetailPage() {
                 title="Delete"
                 className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition-colors"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4 text-red-600" />
               </button>
             </div>
           </div>
@@ -432,7 +432,7 @@ export default function ProductionOrderDetailPage() {
                         onClick={() => { setEditStatus(order.status); setEditProgress(order.progress) }}
                         className="flex items-center gap-1.5 border border-gray-200 dark:border-border px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-muted transition-colors"
                       >
-                        <Edit2 className="w-3 h-3" /> Edit Status / Progress
+                        <Edit2 className="w-3 h-3 text-green-600" /> Edit Status / Progress
                       </button>
                     </div>
                   </div>
@@ -647,7 +647,7 @@ export default function ProductionOrderDetailPage() {
                         onClick={() => openAssigneeEdit(order)}
                         className="flex items-center gap-1 text-xs text-primary hover:bg-accent px-2 py-1 rounded-lg transition-colors"
                       >
-                        <Edit2 className="w-3 h-3" /> Edit
+                        <Edit2 className="w-3 h-3 text-green-600" /> Edit
                       </button>
                     )}
                   </div>
@@ -774,7 +774,7 @@ export default function ProductionOrderDetailPage() {
                         onClick={() => openNotesEdit(order)}
                         className="flex items-center gap-1 text-xs text-primary hover:bg-accent px-2 py-1 rounded-lg transition-colors"
                       >
-                        <Edit2 className="w-3 h-3" /> {order.notes ? 'Edit' : 'Add Note'}
+                        <Edit2 className="w-3 h-3 text-green-600" /> {order.notes ? 'Edit' : 'Add Note'}
                       </button>
                     )}
                   </div>

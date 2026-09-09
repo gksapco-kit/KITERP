@@ -757,7 +757,7 @@ export default function GoodsManagementPage() {
                         </td>
                         <td className="px-3 py-2">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingBatch(b)}>
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Pencil className="w-3.5 h-3.5 text-green-600" />
                           </Button>
                         </td>
                       </tr>

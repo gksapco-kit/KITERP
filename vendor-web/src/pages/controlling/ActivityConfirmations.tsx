@@ -220,7 +220,7 @@ export default function ActivityConfirmationsPage() {
                 <td className="px-4 py-3">
                   {c.status === 'posted' && (
                     <button onClick={() => handleDelete(c.id)} className="text-red-400 hover:text-red-600">
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
                   )}
                 </td>

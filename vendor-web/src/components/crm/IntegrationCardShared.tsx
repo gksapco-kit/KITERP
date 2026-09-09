@@ -291,7 +291,7 @@ export function IntegrationDeleteIconButton({ onClick, title = 'Remove integrati
       title={title}
       onClick={onClick}
     >
-      <Trash2 className="h-3.5 w-3.5" />
+      <Trash2 className="h-3.5 w-3.5 text-red-600" />
     </Button>
   )
 }

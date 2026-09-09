@@ -128,7 +128,7 @@ function CyclesTab() {
                           <>
                             <button onClick={() => setEditing(c)}
                               className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
-                              <Pencil className="w-4 h-4" />
+                              <Pencil className="w-4 h-4 text-green-600" />
                             </button>
                             <button onClick={async () => { if (await askConfirm('Launch this cycle? Reviews will be created for all employees.')) launch.mutate(c.id) }}
                               className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Launch">
@@ -145,7 +145,7 @@ function CyclesTab() {
                         {c.status === 'draft' && (
                           <button onClick={async () => { if (await askConfirm('Delete this draft cycle?')) del.mutate(c.id) }}
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4 text-red-600" />
                           </button>
                         )}
                       </div>
@@ -400,7 +400,7 @@ function GoalsTab() {
                     <div className="flex items-center gap-1">
                       <button onClick={() => setEditing(g)}
                         className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                        <Pencil className="w-4 h-4" />
+                        <Pencil className="w-4 h-4 text-green-600" />
                       </button>
                       <button onClick={async () => { if (await askConfirm('Delete this goal?')) del.mutate(g.id) }}
                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">

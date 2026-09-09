@@ -243,7 +243,7 @@ export default function CostAllocationsPage() {
                           <SendHorizonal className="w-3 h-3" /> Post
                         </button>
                         <button onClick={() => handleDelete(a.id)} className="text-red-400 hover:text-red-600">
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5 text-red-600" />
                         </button>
                       </>
                     )}

@@ -725,7 +725,7 @@ function CreateSubcontractingModal({ onClose }: { onClose: () => void }) {
                       disabled={components.length === 1}
                       aria-label="Remove component"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5 text-red-600" />
                     </Button>
                   </div>
                 </div>
@@ -1308,7 +1308,7 @@ export default function SpecialProcurementPage() {
                             title="Edit record"
                             onClick={() => setEditingCS(c)}
                           >
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Pencil className="w-3.5 h-3.5 text-green-600" />
                           </Button>
                         </div>
                       </td>

@@ -179,7 +179,7 @@ export default function ExpensesPage() {
                           className="p-1.5 text-gray-400 hover:text-red-600 rounded"
                           title="Delete"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
                       </div>
                     </td>

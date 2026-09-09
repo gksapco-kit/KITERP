@@ -529,7 +529,7 @@ export default function BlogManagerPage() {
                   className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
                   title="Edit post"
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Pencil className="h-4 w-4 text-green-600" />
                 </button>
                 {deleteConfirmId === post.id ? (
                   <div className="flex items-center gap-1">
@@ -552,7 +552,7 @@ export default function BlogManagerPage() {
                     className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                     title="Delete post"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4 text-red-600" />
                   </button>
                 )}
               </div>

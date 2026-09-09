@@ -947,14 +947,14 @@ function StoreCard({
               {isSelected ? <><Check className="mr-0.5 h-2 w-2" />Clear</> : 'Use'}
             </Button>
           ) : null}
-          <Button size="sm" variant="ghost" className="h-5 w-5 shrink-0 p-0" onClick={onEdit} title="Edit"><Edit2 className="h-2.5 w-2.5" /></Button>
+          <Button size="sm" variant="ghost" className="h-5 w-5 shrink-0 p-0" onClick={onEdit} title="Edit"><Edit2 className="h-2.5 w-2.5 text-green-600" /></Button>
           {!store.is_default && (
             <Button size="sm" variant="ghost" className="h-5 w-5 shrink-0 p-0" onClick={onSetDefault} title="Set default"><StarOff className="h-2.5 w-2.5" /></Button>
           )}
           <Button size="sm" variant="ghost"
             className="h-5 w-5 shrink-0 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
             onClick={onDelete} title="Delete" disabled={store.is_default}
-          ><Trash2 className="h-2.5 w-2.5" /></Button>
+          ><Trash2 className="h-2.5 w-2.5 text-red-600" /></Button>
         </div>
       </CardContent>
     </Card>
@@ -1039,7 +1039,7 @@ export function BranchesPanel({ businessUnit }: { businessUnit: StoreRecord }) {
                   )}
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit"
                     onClick={() => { setEditingBranch(b); setModal('edit') }}>
-                    <Edit2 className="h-3.5 w-3.5" />
+                    <Edit2 className="h-3.5 w-3.5 text-green-600" />
                   </Button>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
                     title="Delete" disabled={b.is_default}
@@ -1047,7 +1047,7 @@ export function BranchesPanel({ businessUnit }: { businessUnit: StoreRecord }) {
                       const msg = `Delete branch "${b.name}"? This cannot be undone.`
                       if (await askConfirm(msg)) deleteMutation.mutate(b.id)
                     }}>
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5 text-red-600" />
                   </Button>
                 </div>
               </div>

@@ -187,7 +187,7 @@ export default function FieldRuleConfig() {
                   }}
                   className="p-1.5 text-gray-400 hover:text-red-600 rounded"
                 >
-                  {delMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {delMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-red-600" />}
                 </button>
               </div>
             </li>

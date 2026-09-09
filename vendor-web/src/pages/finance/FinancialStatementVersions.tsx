@@ -128,10 +128,10 @@ function NodeTree({
           <span className="text-xs text-muted-foreground/50">ord {n.sort_order}</span>
           <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={() => onEdit(n)} className="p-1 hover:text-primary text-muted-foreground">
-              <Pencil className="w-3.5 h-3.5" />
+              <Pencil className="w-3.5 h-3.5 text-green-600" />
             </button>
             <button onClick={() => onDelete(n)} className="p-1 hover:text-red-500 text-muted-foreground">
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5 text-red-600" />
             </button>
           </div>
         </div>

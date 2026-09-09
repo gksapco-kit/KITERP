@@ -294,7 +294,7 @@ export function TemplateForm({
       headerActions={
         <Button type="button" variant="outline" size="sm" className="lg:hidden"
           onClick={() => setMobilePreview(p => !p)}>
-          <Eye className="w-4 h-4 mr-1" /> {mobilePreview ? 'Edit' : 'Preview'}
+          <Eye className="w-4 h-4 mr-1 text-green-600" /> {mobilePreview ? 'Edit' : 'Preview'}
         </Button>
       }
       footer={
@@ -624,10 +624,10 @@ export default function CampaignTemplatesPanel({
                     {t.description && <p className="text-xs text-gray-400 line-clamp-2">{t.description}</p>}
                     <div className="flex flex-wrap gap-1 pt-2 border-t">
                       <Button variant="ghost" size="sm" title="Preview" onClick={() => setPreview(t)}>
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-4 h-4 text-green-600" />
                       </Button>
                       <Button variant="ghost" size="sm" title="Edit" onClick={() => setEdit(t)}>
-                        <Edit3 className="w-4 h-4" />
+                        <Edit3 className="w-4 h-4 text-green-600" />
                       </Button>
                       <Button variant="ghost" size="sm" title={t.is_active ? 'Deactivate' : 'Activate'} onClick={() => toggleActive(t)}>
                         {t.is_active ? <PowerOff className="w-4 h-4 text-amber-600" /> : <Power className="w-4 h-4 text-emerald-600" />}

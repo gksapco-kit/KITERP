@@ -409,10 +409,10 @@ export default function PayeesPage() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1 justify-end">
                     <button type="button" onClick={() => openEdit(p)} className={TABLE_ICON_BTN} aria-label="Edit payee">
-                      <Edit2 className="h-4 w-4" />
+                      <Edit2 className="h-4 w-4 text-green-600" />
                     </button>
                     <button type="button" onClick={() => handleDelete(p.id)} className={`${TABLE_ICON_BTN} hover:text-red-500 dark:hover:text-red-400`} aria-label="Delete payee">
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 text-red-600" />
                     </button>
                   </div>
                 </td>

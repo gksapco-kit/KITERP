@@ -191,7 +191,7 @@ function LocationRow({ loc, level, onEdit, onAddSub, onDelete, patchField, isSav
               <Plus className="w-4 h-4 text-green-500" />
             </Button>
             <Button variant="ghost" size="sm" onClick={() => onEdit(loc)}>
-              <Pencil className="w-4 h-4" />
+              <Pencil className="w-4 h-4 text-green-600" />
             </Button>
             <Button
               variant="ghost"
@@ -199,7 +199,7 @@ function LocationRow({ loc, level, onEdit, onAddSub, onDelete, patchField, isSav
               className="text-red-500"
               onClick={async () => { if (await askConfirm(`Delete "${loc.name}" and all sub-locations?`)) onDelete(loc.id) }}
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-4 h-4 text-red-600" />
             </Button>
           </div>
         </td>

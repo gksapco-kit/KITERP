@@ -456,7 +456,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
                 {!isDefault(f.key) && (
                   <button type="button" onClick={() => removeField(f.key)}
                     className="p-1 hover:bg-red-50 rounded text-gray-300 hover:text-red-500 transition-colors shrink-0">
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
                   </button>
                 )}
               </>
@@ -1459,7 +1459,7 @@ export default function ServiceForm() {
               {!service.is_visible && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 font-medium">Hidden</span>}
             </div>
             <Button onClick={() => setViewMode(false)} size="sm" className="h-8 gap-1.5 shrink-0">
-              <Edit2 className="w-3.5 h-3.5" />Edit Service
+              <Edit2 className="w-3.5 h-3.5 text-green-600" />Edit Service
             </Button>
           </div>
         </div>
@@ -2614,7 +2614,7 @@ export default function ServiceForm() {
                         title="Remove package"
                         aria-label="Remove package"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 text-red-600" />
                       </button>
                     </div>
                     <Input

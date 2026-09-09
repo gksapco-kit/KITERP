@@ -71,13 +71,13 @@ export default function MyExpensesPage() {
                         {(c.status === 'draft' || c.status === 'rejected') && (
                           <button onClick={() => setEditing(c)}
                             className="p-1.5 text-gray-400 hover:text-blue-600" title="Edit">
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="w-4 h-4 text-green-600" />
                           </button>
                         )}
                         {c.status === 'draft' && (
                           <button onClick={() => del.mutate(c.id)}
                             className="p-1.5 text-gray-400 hover:text-red-600" title="Delete">
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4 text-red-600" />
                           </button>
                         )}
                       </div>

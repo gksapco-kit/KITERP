@@ -416,7 +416,7 @@ export default function RentalAssetsTab({
                       <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         <StatusBadge status={a.status} />
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground opacity-70 hover:opacity-100" onClick={() => onEdit(a)} title="Edit asset">
-                          <Pencil className="h-3.5 w-3.5" />
+                          <Pencil className="h-3.5 w-3.5 text-green-600" />
                         </Button>
                       </div>
                     </div>
@@ -537,7 +537,7 @@ export default function RentalAssetsTab({
                     onClick={(e) => { e.stopPropagation(); onEdit(a) }}
                     title="Edit asset"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className="h-3.5 w-3.5 text-green-600" />
                   </Button>
                 )}
               </div>
@@ -689,7 +689,7 @@ export default function RentalAssetsTab({
                           onClick={() => onEdit(a)}
                           title="Edit asset"
                         >
-                          <Pencil className="h-3.5 w-3.5" />
+                          <Pencil className="h-3.5 w-3.5 text-green-600" />
                         </Button>
                       </td>
                     </tr>

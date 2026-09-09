@@ -745,7 +745,7 @@ export default function RentalBookingDetailPage() {
               actions={
                 <>
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => startEditRegistration()}>
-                    <Pencil className="mr-1 h-3 w-3" />
+                    <Pencil className="mr-1 h-3 w-3 text-green-600" />
                     Edit
                   </Button>
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => startEditRegistration({ blank: true })}>
@@ -828,7 +828,7 @@ export default function RentalBookingDetailPage() {
                         className="h-7 px-2 text-xs"
                         onClick={() => startEditRegistration({ from: row })}
                       >
-                        <Pencil className="mr-1 h-3 w-3" />
+                        <Pencil className="mr-1 h-3 w-3 text-green-600" />
                         Edit
                       </Button>
                     </>

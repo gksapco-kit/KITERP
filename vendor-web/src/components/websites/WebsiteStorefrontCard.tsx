@@ -191,7 +191,7 @@ export function WebsiteStorefrontCard({
               {previewing ? (
                 <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin" />
               ) : (
-                <Eye className="h-2.5 w-2.5 shrink-0" />
+                <Eye className="h-2.5 w-2.5 shrink-0 text-green-600" />
               )}
               <span className="truncate">{previewing ? 'Opening…' : 'Preview'}</span>
             </Button>

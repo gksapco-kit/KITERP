@@ -297,11 +297,11 @@ function TemplatesTab() {
                     <div className="flex items-center gap-1">
                       <button onClick={() => setEditing(t)}
                         className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
-                        <Pencil className="w-4 h-4" />
+                        <Pencil className="w-4 h-4 text-green-600" />
                       </button>
                       <button onClick={async () => { if (await askConfirm('Delete this template?')) deleteTpl.mutate(t.id) }}
                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 text-red-600" />
                       </button>
                     </div>
                   </td>
@@ -442,7 +442,7 @@ function TemplateModal({
                     placeholder="Assignee role" className="col-span-2 px-2 py-1.5 border rounded text-sm" />
                   <button type="button" onClick={() => removeItem(idx)}
                     className="col-span-1 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4 text-red-600" />
                   </button>
                 </div>
               ))}

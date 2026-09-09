@@ -848,7 +848,7 @@ function JEDrawer({
                             onClick={() => removeLine(ln._key)}
                             className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 font-medium"
                           >
-                            <Trash2 className="w-3 h-3" /> Remove line
+                            <Trash2 className="w-3 h-3 text-red-600" /> Remove line
                           </button>
                         </div>
                       </div>
@@ -1281,7 +1281,7 @@ export default function JournalEntries() {
                     {e.status === 'draft' && (
                       <>
                         <button onClick={() => { setEditId(e.id); setShowNew(false) }} title="Edit"
-                          className="p-1 text-gray-400 hover:text-primary"><Pencil className="w-4 h-4" /></button>
+                          className="p-1 text-gray-400 hover:text-primary"><Pencil className="w-4 h-4 text-green-600" /></button>
                         <button onClick={() => handlePost(e.id)} title="Post"
                           className="p-1 text-green-600 hover:text-green-800"><CheckCircle className="w-4 h-4" /></button>
                       </>

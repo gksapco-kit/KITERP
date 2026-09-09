@@ -279,7 +279,7 @@ export function ServiceResourcesEditor({ serviceId, serviceName, defaultDuration
                   </td>
                   <td className="px-3 py-2">
                     <button type="button" onClick={() => removeRow(idx)} className="text-gray-400 hover:text-red-500">
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
                   </td>
                 </tr>

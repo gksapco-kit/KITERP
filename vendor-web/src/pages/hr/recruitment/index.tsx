@@ -731,7 +731,7 @@ function CommonMeetingUrlBar() {
                 setEditing(true)
               }}
             >
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-3.5 w-3.5 text-green-600" />
             </Button>
             {saved && isHttpUrl(saved) ? (
               <a
@@ -956,11 +956,11 @@ function JobsTab() {
                         </Link>
                         <button onClick={() => setEditing(job)}
                           className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary" title="Edit">
-                          <Pencil className="w-4 h-4" />
+                          <Pencil className="w-4 h-4 text-green-600" />
                         </button>
                         <button onClick={async () => { if (await askConfirm('Delete this job?')) deleteJob.mutate(job.id) }}
                           className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Delete">
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
                       </div>
                     </td>
@@ -1189,7 +1189,7 @@ function CandidatesTab() {
                           className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                           title="Edit"
                         >
-                          <Pencil className="w-4 h-4" />
+                          <Pencil className="w-4 h-4 text-green-600" />
                         </button>
                         <button
                           type="button"
@@ -1197,7 +1197,7 @@ function CandidatesTab() {
                           className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           title="Delete"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
                       </div>
                     </td>
@@ -1369,7 +1369,7 @@ function InterviewsTab() {
                             onClick={() => startEditLink(iv)}
                             className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="h-3.5 w-3.5 text-green-600" />
                           </button>
                         </div>
                       ) : (

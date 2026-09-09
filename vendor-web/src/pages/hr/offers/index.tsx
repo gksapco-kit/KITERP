@@ -219,7 +219,7 @@ function CreateOfferModal({
           <div className="flex shrink-0 justify-end px-4 pb-1">
             <button type="button" onClick={() => setShowPreview(v => !v)}
               className={`flex h-7 items-center gap-1 rounded-md border px-2 text-[11px] ${showPreview ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-border hover:bg-muted'}`}>
-              <Eye className="h-3.5 w-3.5" /> Preview
+              <Eye className="h-3.5 w-3.5 text-green-600" /> Preview
             </button>
           </div>
         )}
@@ -479,7 +479,7 @@ export default function OffersPage() {
                             <button
                               onClick={async () => { if (await askConfirm('Delete this offer letter?')) deleteOffer.mutate(offer.id) }}
                               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4 text-red-600" />
                             </button>
                           </>
                         )}

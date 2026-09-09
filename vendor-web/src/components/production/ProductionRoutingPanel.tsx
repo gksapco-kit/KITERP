@@ -220,7 +220,7 @@ export function ProductionRoutingPanel({ orderId }: ProductionRoutingPanelProps)
                         className="text-muted-foreground hover:text-red-600 transition-colors"
                         title="Remove operation"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 text-red-600" />
                       </button>
                     </td>
                   </tr>

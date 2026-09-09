@@ -816,7 +816,7 @@ export default function InvoiceDetail() {
         <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {canEditInvoice ? (
             <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3" onClick={startEditing}>
-              <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+              <Pencil className="w-3.5 h-3.5 mr-1.5 text-green-600" /> Edit
             </Button>
           ) : null}
           <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3"
@@ -1142,7 +1142,7 @@ export default function InvoiceDetail() {
                       className="h-9 text-red-500 hover:text-red-700 hover:bg-red-50"
                       onClick={() => removeItem(idx)}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 text-red-600" />
                     </Button>
                   </div>
                 </div>

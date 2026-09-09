@@ -353,7 +353,7 @@ export default function PurchaseOrderDetail() {
             <>
               {!editingHeader ? (
                 <Button variant="outline" className="gap-2" onClick={startEditHeader}>
-                  <Edit2 className="w-4 h-4" /> Edit PO
+                  <Edit2 className="w-4 h-4 text-green-600" /> Edit PO
                 </Button>
               ) : (
                 <>
@@ -748,7 +748,7 @@ export default function PurchaseOrderDetail() {
                             className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600"
                             title="Remove item"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
                           </button>
                         </td>
                       )}

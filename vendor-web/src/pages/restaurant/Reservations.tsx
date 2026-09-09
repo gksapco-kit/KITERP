@@ -255,7 +255,7 @@ function ReservationRow({
                   Edit details
                 </Button>
                 <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500" disabled={isPending} onClick={onDelete}>
-                  <Trash2 className="w-3 h-3 mr-1" /> Delete
+                  <Trash2 className="w-3 h-3 mr-1 text-red-600" /> Delete
                 </Button>
               </div>
             </>

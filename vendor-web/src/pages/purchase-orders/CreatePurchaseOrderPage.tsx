@@ -885,7 +885,7 @@ export default function CreatePurchaseOrderPage() {
                             aria-label="Remove line"
                             className="ml-auto flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3.5 w-3.5 text-red-600" />
                           </button>
                         )}
                       </div>

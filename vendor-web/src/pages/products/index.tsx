@@ -163,11 +163,11 @@ function MoreMenu({
     >
       <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
         onClick={() => { onView(); setOpen(false) }}>
-        <Eye className="w-4 h-4 text-blue-500" /> View
+        <Eye className="w-4 h-4 text-green-600" /> View
       </button>
       <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
         onClick={() => { onEdit(); setOpen(false) }}>
-        <Pencil className="w-4 h-4 text-gray-500" /> Edit
+        <Pencil className="w-4 h-4 text-green-600" /> Edit
       </button>
       <div className="border-t my-1" />
       <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -204,7 +204,7 @@ function MoreMenu({
       ) : (
         <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
           onClick={() => setConfirmDelete(true)}>
-          <Trash2 className="w-4 h-4" /> Delete
+          <Trash2 className="w-4 h-4 text-red-600" /> Delete
         </button>
       )}
     </div>,
@@ -975,7 +975,7 @@ export default function Products() {
                           title="Delete permanently"
                           onClick={() => setProductDeleteConfirm({ id: product.id, name: product.name, permanent: true })}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                       </div>
                     ) : (
@@ -987,7 +987,7 @@ export default function Products() {
                           title="View product"
                           onClick={() => navigate(`/products/${product.id}`)}
                         >
-                          <Eye className="w-4 h-4 text-blue-500" />
+                          <Eye className="w-4 h-4 text-green-600" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -996,7 +996,7 @@ export default function Products() {
                           title="Edit product"
                           onClick={() => navigate(`/products/${product.id}?edit=true`)}
                         >
-                          <Pencil className="w-4 h-4 text-gray-500" />
+                          <Pencil className="w-4 h-4 text-green-600" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -1005,7 +1005,7 @@ export default function Products() {
                           title="Move to trash"
                           onClick={() => setProductDeleteConfirm({ id: product.id, name: product.name })}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
                         <MoreMenu
                           product={product}
@@ -1278,7 +1278,7 @@ export default function Products() {
                             navigate(`/products/${row.productId}`)
                           }}
                         >
-                          <Eye className="w-3.5 h-3.5 text-blue-500" />
+                          <Eye className="w-3.5 h-3.5 text-green-600" />
                         </Button>
                         <Button
                           variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0"
@@ -1288,7 +1288,7 @@ export default function Products() {
                             navigate(`/products/${row.productId}?edit=true`)
                           }}
                         >
-                          <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                          <Pencil className="w-3.5 h-3.5 text-green-600" />
                         </Button>
                         <Button
                           variant="ghost" size="sm"
@@ -1296,7 +1296,7 @@ export default function Products() {
                           title="Move to trash"
                           onClick={() => setProductDeleteConfirm({ id: row.productId, name: row.productName })}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5 text-red-600" />
                         </Button>
                       </div>
                     </td>

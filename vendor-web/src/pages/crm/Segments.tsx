@@ -97,7 +97,7 @@ function SegmentForm({ seg, onClose }: { seg?: Segment; onClose: () => void }) {
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-gray-600">Preview matches</p>
               <Button type="button" variant="outline" size="sm" onClick={runPreview} disabled={previewing}>
-                {previewing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5 mr-1" />}
+                {previewing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5 mr-1 text-green-600" />}
                 Preview
               </Button>
             </div>
@@ -171,7 +171,7 @@ export default function SegmentsPage() {
                 </p>
                 <div className="flex gap-1 mt-3 pt-3 border-t">
                   <Button variant="ghost" size="sm" onClick={() => setEdit(s)} title="Edit">
-                    <Edit3 className="w-4 h-4" />
+                    <Edit3 className="w-4 h-4 text-green-600" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => refresh(s.id)} title="Refresh count">
                     <RefreshCw className="w-4 h-4" />

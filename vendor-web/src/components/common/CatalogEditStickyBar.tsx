@@ -132,7 +132,7 @@ export function CatalogEditStickyBar({
         className="gap-1.5 border-red-500/35 text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/15"
         onClick={() => setConfirmDelete(true)}
       >
-        <Trash2 className="h-3.5 w-3.5" />
+        <Trash2 className="h-3.5 w-3.5 text-red-600" />
         Delete
       </Button>
     )
@@ -198,7 +198,7 @@ export function CatalogEditStickyBar({
                   className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/15"
                   onClick={() => setConfirmDelete(true)}
                 >
-                  <Trash2 className="h-4 w-4" /> Delete
+                  <Trash2 className="h-4 w-4 text-red-600" /> Delete
                 </button>
               )}
             </>

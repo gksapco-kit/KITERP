@@ -660,10 +660,10 @@ function CategoryDetailPanel({
           <Plus className="w-3.5 h-3.5" /> Add subcategory
         </Button>
         <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-3 text-xs" onClick={() => onViewCatalogue(cat.id)}>
-          <Eye className="w-3.5 h-3.5" /> Catalogue
+          <Eye className="w-3.5 h-3.5 text-green-600" /> Catalogue
         </Button>
         <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-3 text-xs" onClick={() => onEdit(cat)}>
-          <Pencil className="w-3.5 h-3.5" /> Edit
+          <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
         </Button>
         <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-3 text-xs" onClick={() => shareCategory(cat, 'copy')}>
           <Copy className="w-3.5 h-3.5" /> Copy
@@ -675,7 +675,7 @@ function CategoryDetailPanel({
           className="h-8 gap-1 px-3 text-xs text-red-600 hover:text-red-700"
           onClick={async () => { if (await askConfirm(`Delete "${cat.name}" and all subcategories?`)) onDelete(cat.id) }}
         >
-          <Trash2 className="w-3.5 h-3.5" /> Delete
+          <Trash2 className="w-3.5 h-3.5 text-red-600" /> Delete
         </Button>
       </div>
     </div>

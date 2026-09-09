@@ -538,7 +538,7 @@ export default function ProjectsPage() {
                             className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                             title="Delete project"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3.5 w-3.5 text-red-600" />
                           </button>
                         </td>
                       )}

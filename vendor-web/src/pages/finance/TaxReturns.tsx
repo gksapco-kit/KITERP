@@ -222,7 +222,7 @@ export default function TaxReturns({ defaultTab = 'returns' }: Props) {
                         title="Edit"
                         className="p-1 text-gray-500 hover:text-primary"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-4 w-4 text-green-600" />
                       </button>
                       <button
                         type="button"
@@ -240,7 +240,7 @@ export default function TaxReturns({ defaultTab = 'returns' }: Props) {
                         title="Delete"
                         className="p-1 text-gray-500 hover:text-red-600 disabled:opacity-50"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-red-600" />
                       </button>
                     </div>
                   </td>

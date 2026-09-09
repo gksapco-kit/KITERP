@@ -184,7 +184,7 @@ export default function RestaurantsPage() {
 
                   <div className="flex items-center gap-1.5 pt-1 border-t border-border/60" onClick={e => e.stopPropagation()}>
                     <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => openEdit(r)}>
-                      <Edit2 className="w-3 h-3 mr-1" />Edit
+                      <Edit2 className="w-3 h-3 mr-1 text-green-600" />Edit
                     </Button>
                     {!r.is_default && (
                       <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setDefaultMutation.mutate(r.id)}>
@@ -193,7 +193,7 @@ export default function RestaurantsPage() {
                     )}
                     {!r.is_default && (
                       <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-destructive hover:text-destructive ml-auto" onClick={() => setDeleteTarget(r)}>
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3 h-3 text-red-600" />
                       </Button>
                     )}
                   </div>

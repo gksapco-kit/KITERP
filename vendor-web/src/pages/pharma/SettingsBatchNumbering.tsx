@@ -517,7 +517,7 @@ export default function PharmaSettingsBatchNumberingPage() {
                     className="h-7 gap-1 px-2.5 text-xs"
                     onClick={() => openEdit(editingModel)}
                   >
-                    <Pencil className="h-3 w-3" />
+                    <Pencil className="h-3 w-3 text-green-600" />
                     Edit
                   </Button>
                 ) : null}
@@ -839,7 +839,7 @@ export default function PharmaSettingsBatchNumberingPage() {
                             openEdit(m)
                           }}
                         >
-                          <Pencil className="h-3.5 w-3.5" />
+                          <Pencil className="h-3.5 w-3.5 text-green-600" />
                         </button>
                         {canManage ? (
                           <button
@@ -852,7 +852,7 @@ export default function PharmaSettingsBatchNumberingPage() {
                               deleteModel(m.id)
                             }}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3.5 w-3.5 text-red-600" />
                           </button>
                         ) : null}
                       </div>

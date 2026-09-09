@@ -191,7 +191,7 @@ export default function BudgetControlsPage() {
                     onClick={() => removeRule(i)}
                     className="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
                   </button>
                 </CardContent>
               </Card>

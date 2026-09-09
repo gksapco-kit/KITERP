@@ -357,7 +357,7 @@ function TrashImageCard({
               disabled={busy}
               onClick={() => onPermanentDelete(item)}
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-3 w-3 text-red-600" />
               Delete
             </Button>
           </div>
@@ -1157,7 +1157,7 @@ export default function AssetImagesPage() {
                   disabled={actionBusy || selectedCount === 0}
                   onClick={() => void moveSelectedToTrash()}
                 >
-                  {actionBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  {actionBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 text-red-600" />}
                   Delete{selectedCount > 0 ? ` (${selectedCount})` : ''}
                 </Button>
               ) : (
@@ -1181,7 +1181,7 @@ export default function AssetImagesPage() {
                     disabled={actionBusy || selectedCount === 0}
                     onClick={() => void permanentlyDeleteUrls([...selectedUrls])}
                   >
-                    {actionBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    {actionBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 text-red-600" />}
                     Delete forever{selectedCount > 0 ? ` (${selectedCount})` : ''}
                   </Button>
                 </>

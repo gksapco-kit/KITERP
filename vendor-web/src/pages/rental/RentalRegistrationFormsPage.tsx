@@ -285,7 +285,7 @@ export default function RentalRegistrationFormsPage() {
           <div className="flex flex-wrap items-center gap-2">
             {draft.id && (
               <Button variant="outline" onClick={() => remove.mutate(draft.id!)} disabled={remove.isPending}>
-                <Trash2 className="mr-1.5 h-4 w-4" /> Delete
+                <Trash2 className="mr-1.5 h-4 w-4 text-red-600" /> Delete
               </Button>
             )}
             <Button variant="outline" onClick={() => setPicking(true)}>

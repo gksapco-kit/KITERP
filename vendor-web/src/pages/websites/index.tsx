@@ -1087,7 +1087,7 @@ function DeleteSiteConfirmModal({
               disabled={deleting}
               onClick={() => void onConfirm()}
             >
-              {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2 text-red-600" />}
               Move to Recently deleted
             </Button>
           </div>
@@ -1828,7 +1828,7 @@ function SiteCard({
               {previewing ? (
                 <Loader2 className="w-3 h-3 mr-1 animate-spin" />
               ) : (
-                <Eye className="w-3 h-3 mr-1" />
+                <Eye className="w-3 h-3 mr-1 text-green-600" />
               )}
               {previewing ? 'Opening…' : 'Preview'}
             </Button>
@@ -2011,7 +2011,7 @@ export default function WebsitesPage() {
             onClick={() => setRecentlyDeletedOpen(true)}
             className="border-primary/30 text-primary hover:bg-accent hover:border-primary/60"
           >
-            <Trash2 className="w-4 h-4 mr-2" /> Recently Deleted
+            <Trash2 className="w-4 h-4 mr-2 text-red-600" /> Recently Deleted
           </Button>
           <Button
             variant="outline"

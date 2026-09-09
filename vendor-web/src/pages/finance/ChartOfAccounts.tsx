@@ -176,14 +176,14 @@ function AccountRow({
             className="p-1 text-muted-foreground hover:text-primary rounded"
             title="View details"
           >
-            <Eye className="w-3.5 h-3.5" />
+            <Eye className="w-3.5 h-3.5 text-green-600" />
           </button>
           <button
             onClick={e => { e.stopPropagation(); onEdit(acc) }}
             className="p-1 text-muted-foreground hover:text-primary rounded"
             title="Edit"
           >
-            <Pencil className="w-3.5 h-3.5" />
+            <Pencil className="w-3.5 h-3.5 text-green-600" />
           </button>
         </div>
       </div>
@@ -329,7 +329,7 @@ function AccountDetailDrawer({
                 onClick={() => { onEdit(account); onClose() }}
                 className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background text-xs font-medium text-foreground hover:bg-muted/60"
               >
-                <Pencil className="w-3.5 h-3.5 text-muted-foreground" /> Edit
+                <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
               </button>
               <button
                 type="button"
@@ -913,7 +913,7 @@ function ConfigPanel({
                               onClick={() => removeSubtype(cfg.type, idx)}
                               className="p-1 text-muted-foreground/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5 text-red-600" />
                             </button>
                           </div>
                         ))}

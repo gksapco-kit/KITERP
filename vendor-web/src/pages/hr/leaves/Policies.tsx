@@ -137,7 +137,7 @@ export default function LeavePoliciesPage() {
                   <td className="py-3 px-4"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.is_paid ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{p.is_paid ? 'Paid' : 'Unpaid'}</span></td>
                   <td className="py-3 px-4"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{p.is_active ? 'Active' : 'Inactive'}</span></td>
                   <td className="py-3 px-4 text-right">
-                    <button onClick={() => setModal({ open: true, policy: p })} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => setModal({ open: true, policy: p })} className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
                   </td>
                 </tr>
               ))}

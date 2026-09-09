@@ -430,7 +430,7 @@ function ContactView({
             Close
           </Button>
           <Button type="button" className="h-8 rounded-md px-3 text-sm" onClick={onEdit}>
-            <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
+            <Pencil className="mr-1.5 h-3.5 w-3.5 text-green-600" /> Edit
           </Button>
         </>
       }

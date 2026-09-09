@@ -372,7 +372,7 @@ export function AddressBook({ layout = "list", showPhone = true }: AddressBookPr
               )}
               <div className="mt-3 flex gap-2">
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                  <Pencil className="h-3 w-3" />
+                  <Pencil className="h-3 w-3 text-green-600" />
                   Edit
                 </Button>
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">

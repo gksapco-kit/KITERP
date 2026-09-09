@@ -736,7 +736,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
                         : <Save className="h-4 w-4" />}
                     </button>
                     <button type="button" onClick={() => removeDraft(draft.id)} className="rounded p-1 text-muted-foreground hover:text-red-500" title="Remove">
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 text-red-600" />
                     </button>
                   </div>
                 </div>
@@ -927,7 +927,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
                     onClick={() => startEditSavedRule(rule)}
                     title="Edit rule"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className="h-3.5 w-3.5 text-green-600" />
                   </button>
                   <button
                     type="button"
@@ -943,7 +943,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
                     onClick={() => deleteMutation.mutate(rule.id)}
                     title="Remove rule"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5 text-red-600" />
                   </button>
                 </div>
               </div>

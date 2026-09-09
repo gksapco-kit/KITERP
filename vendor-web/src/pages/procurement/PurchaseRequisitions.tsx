@@ -454,7 +454,7 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
               />
               {onEdit && canEdit && (
                 <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
-                  <Pencil className="w-3.5 h-3.5" /> Edit
+                  <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
                 </Button>
               )}
               <Button size="sm" onClick={handleApprove} disabled={approvePR.isPending} className="h-8 gap-1 bg-green-600 px-3 hover:bg-green-700">
@@ -475,7 +475,7 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
             </p>
             {onEdit && canEdit && (
               <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
-                <Pencil className="w-3.5 h-3.5" /> Edit
+                <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
               </Button>
             )}
             <Button variant="outline" size="sm" className="h-8" onClick={onClose}>Close</Button>
@@ -490,7 +490,7 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
           <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t px-3 py-2">
             {onEdit && (
               <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
-                <Pencil className="w-3.5 h-3.5" /> Edit
+                <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
               </Button>
             )}
             <Button size="sm" onClick={() => submitPR.mutate(pr.id, {
@@ -511,7 +511,7 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
           <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t px-3 py-2">
             {onEdit && canEdit && (
               <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
-                <Pencil className="w-3.5 h-3.5" /> Edit
+                <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
               </Button>
             )}
             {converting && (
@@ -535,7 +535,7 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
           <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t px-3 py-2">
             {onEdit && canEdit && (
               <Button variant="outline" size="sm" onClick={() => onEdit(pr)} className="h-8 gap-1">
-                <Pencil className="w-3.5 h-3.5" /> Edit
+                <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
               </Button>
             )}
             <Button variant="destructive" size="sm" className="h-8" onClick={handleCancelPr}>Cancel</Button>

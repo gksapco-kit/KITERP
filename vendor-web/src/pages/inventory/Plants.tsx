@@ -248,7 +248,7 @@ export default function PlantsPage() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openEdit(plant)}>
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="w-4 h-4 text-green-600" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -259,7 +259,7 @@ export default function PlantsPage() {
                                 deletePlant.mutate(plant.id)
                             }}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4 text-red-600" />
                           </Button>
                         </div>
                       </td>

@@ -708,7 +708,7 @@ export default function PharmaWholesaleLicensePage() {
                               onClick={() => startEdit(row)}
                               aria-label="Edit license"
                             >
-                              <Pencil className="h-3.5 w-3.5" />
+                              <Pencil className="h-3.5 w-3.5 text-green-600" />
                             </Button>
                             <Button
                               size="sm"

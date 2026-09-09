@@ -655,7 +655,7 @@ export default function BookingDetail() {
                                 onClick={() => viewBookingDocument(doc.id as BookingDocTypeId, bookingInfo)}
                                 title="Preview"
                                 className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:border-gray-300 transition-colors">
-                                <Eye className="w-3.5 h-3.5" /> View
+                                <Eye className="w-3.5 h-3.5 text-green-600" /> View
                               </button>
                               <button
                                 onClick={() => printBookingDocument(doc.id as BookingDocTypeId, bookingInfo)}

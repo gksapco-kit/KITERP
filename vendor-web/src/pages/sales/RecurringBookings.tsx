@@ -99,7 +99,7 @@ function PresetEditor({
             className="shrink-0 rounded-md p-1 text-destructive hover:bg-destructive/10"
             title="Remove"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-3.5 w-3.5 text-red-600" />
           </button>
         </div>
       ))}
@@ -508,7 +508,7 @@ export default function SalesRecurringBookingsPage() {
                           onClick={e => { e.stopPropagation(); setModal({ mode: 'edit', plan }) }}
                           className="rounded p-1 hover:bg-muted"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-4 w-4 text-green-600" />
                         </button>
                         <button
                           type="button"
@@ -519,7 +519,7 @@ export default function SalesRecurringBookingsPage() {
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 text-red-600" />
                         </button>
                       </div>
                     </td>

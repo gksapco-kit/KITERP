@@ -60,8 +60,8 @@ export default function TemplatesPage() {
                 </div>
                 <p className="text-xs text-gray-500 line-clamp-2">{t.subject}</p>
                 <div className="flex gap-1 mt-3 pt-3 border-t">
-                  <Button variant="ghost" size="sm" onClick={() => setPreview(t)}><Eye className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => setEdit(t)}><Edit3 className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => setPreview(t)}><Eye className="w-4 h-4 text-green-600" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => setEdit(t)}><Edit3 className="w-4 h-4 text-green-600" /></Button>
                   <Button variant="ghost" size="sm" onClick={() => remove(t.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
                 </div>
               </CardContent>

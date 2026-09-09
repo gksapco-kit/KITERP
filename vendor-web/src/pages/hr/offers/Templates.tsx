@@ -407,7 +407,7 @@ export default function OfferTemplatesPage() {
                 <Star className="w-3.5 h-3.5" /> Default
               </Button>
               <Button type="button" variant="outline" size="sm" onClick={handleDelete} className="h-9 gap-1.5 text-xs text-red-600 hidden sm:inline-flex">
-                <Trash2 className="w-3.5 h-3.5" /> Delete
+                <Trash2 className="w-3.5 h-3.5 text-red-600" /> Delete
               </Button>
             </>
           )}
@@ -715,7 +715,7 @@ export default function OfferTemplatesPage() {
                       <Star className="w-3.5 h-3.5" /> Set default
                     </Button>
                     <Button type="button" variant="outline" size="sm" onClick={handleDelete} className="h-8 text-xs gap-1 text-red-600 border-red-200 hover:bg-red-50">
-                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                      <Trash2 className="w-3.5 h-3.5 text-red-600" /> Delete
                     </Button>
                   </div>
                 </div>

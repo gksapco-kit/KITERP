@@ -81,12 +81,12 @@ export default function ProgramDetailPage() {
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <button onClick={() => setEditing(c)} className="p-1.5 text-gray-400 hover:text-blue-600">
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-4 h-4 text-green-600" />
                     </button>
                     <button
                       onClick={async () => { if (await askConfirm(`Delete course "${c.title}"?`)) del.mutate(c.id) }}
                       className="p-1.5 text-gray-400 hover:text-red-600">
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
                   </div>
                 </div>

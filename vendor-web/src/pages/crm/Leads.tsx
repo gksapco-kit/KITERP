@@ -757,7 +757,7 @@ export default function LeadsPage() {
             variant={showDeleted ? 'default' : 'outline'}
             onClick={() => { setShowDeleted((v) => !v); setPage(1); setStatus('') }}
           >
-            <Trash2 className="w-4 h-4 mr-2" />
+            <Trash2 className="w-4 h-4 mr-2 text-red-600" />
             {showDeleted ? 'Back to leads' : 'Deleted leads'}
             {!showDeleted && trashCount > 0 ? (
               <span className="ml-2 rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-800">{trashCount}</span>
@@ -769,7 +769,7 @@ export default function LeadsPage() {
               className="border-red-300 text-red-700 hover:bg-red-50"
               onClick={() => setPendingPurgeAll(true)}
             >
-              <Trash2 className="w-4 h-4 mr-2" />
+              <Trash2 className="w-4 h-4 mr-2 text-red-600" />
               Delete all
             </Button>
           ) : null}
@@ -812,7 +812,7 @@ export default function LeadsPage() {
             className="border-red-300 text-red-700 hover:bg-red-100"
             onClick={() => setPendingBulkDelete(true)}
           >
-            <Trash2 className="w-4 h-4 mr-1.5" />
+            <Trash2 className="w-4 h-4 mr-1.5 text-red-600" />
             {showDeleted ? 'Delete selected permanently' : 'Delete selected'}
           </Button>
         </div>
@@ -1032,7 +1032,7 @@ export default function LeadsPage() {
                   })
                 }}
               >
-                {removeLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                {removeLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2 text-red-600" />}
                 Move to trash
               </Button>
             </>
@@ -1091,7 +1091,7 @@ export default function LeadsPage() {
                   if (fail) toast.error(`Could not delete ${fail} lead${fail === 1 ? '' : 's'}`)
                 }}
               >
-                {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2 text-red-600" />}
                 {showDeleted ? 'Delete permanently' : 'Move to trash'}
               </Button>
             </>
@@ -1129,7 +1129,7 @@ export default function LeadsPage() {
                   })
                 }}
               >
-                {purgeLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                {purgeLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2 text-red-600" />}
                 Delete permanently
               </Button>
             </>
@@ -1164,7 +1164,7 @@ export default function LeadsPage() {
                   })
                 }}
               >
-                {purgeTrashed.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                {purgeTrashed.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2 text-red-600" />}
                 Delete all
               </Button>
             </>

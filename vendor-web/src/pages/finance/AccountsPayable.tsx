@@ -350,7 +350,7 @@ export default function AccountsPayable() {
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-1">
                       <button onClick={() => setDetailBillId(b.id)} title="View Details" className="p-1 text-gray-500 hover:text-gray-800">
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-4 h-4 text-green-600" />
                       </button>
                       {b.status === 'draft' && (
                         <button onClick={() => postBillMut.mutate(b.id)} title="Post Bill"
@@ -537,7 +537,7 @@ export default function AccountsPayable() {
                           className="self-start p-1 text-muted-foreground hover:text-red-600"
                           aria-label="Remove line"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5 text-red-600" />
                         </button>
                       </div>
                     ))}

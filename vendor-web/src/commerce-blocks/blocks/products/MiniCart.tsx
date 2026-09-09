@@ -57,7 +57,7 @@ export function MiniCart({
                 className="text-muted-foreground hover:text-destructive"
                 aria-label="Remove"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-4 w-4 text-red-600" />
               </button>
             </div>
             <div className="text-xs text-muted-foreground">{i.category}</div>

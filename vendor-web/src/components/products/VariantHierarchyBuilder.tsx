@@ -309,7 +309,7 @@ function GroupCard({
           onClick={onDelete}
           disabled={disabled}
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3.5 w-3.5 text-red-600" />
         </button>
       </div>
 
@@ -410,7 +410,7 @@ function OptionRow({
             onClick={() => onDelete(option.id)}
             disabled={disabled}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-3.5 w-3.5 text-red-600" />
           </button>
         </span>
       </div>

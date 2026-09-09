@@ -566,7 +566,7 @@ export default function CampaignsPage() {
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="sm" onClick={() => setEdit(c)} title="Edit">
-                        <Edit3 className="w-4 h-4" />
+                        <Edit3 className="w-4 h-4 text-green-600" />
                       </Button>
                       {(() => {
                         const isActive = c.status === 'active' || c.status === 'running'

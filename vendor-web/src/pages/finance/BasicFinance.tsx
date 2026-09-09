@@ -475,7 +475,7 @@ export default function BasicFinancePage() {
                       className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
                       title="Edit"
                     >
-                      <Pencil className="w-3.5 h-3.5" />
+                      <Pencil className="w-3.5 h-3.5 text-green-600" />
                     </button>
                     <button
                       onClick={async () => {
@@ -484,7 +484,7 @@ export default function BasicFinancePage() {
                       className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
                       title="Delete"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5 text-red-600" />
                     </button>
                   </div>
                 </div>

@@ -629,7 +629,7 @@ export default function QuotationsPage() {
                               onClick={() => navigate(`/orders/${row.order!.id}`)}
                               className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600"
                             >
-                              <Eye className="w-4 h-4" />
+                              <Eye className="w-4 h-4 text-green-600" />
                             </button>
                             {row.status === 'quote_requested' && (
                               <>
@@ -671,7 +671,7 @@ export default function QuotationsPage() {
                               onClick={() => navigate(`/quotations/${row.estimate!.id}`)}
                               className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600"
                             >
-                              <Eye className="w-4 h-4" />
+                              <Eye className="w-4 h-4 text-green-600" />
                             </button>
                             <button
                               type="button"

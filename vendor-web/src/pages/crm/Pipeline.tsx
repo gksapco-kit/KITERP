@@ -221,7 +221,7 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
               <div key={r.id} className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
                 <Input className="h-8" value={r.key} onChange={e => setCustom(prev => prev.map(x => x.id === r.id ? { ...x, key: e.target.value } : x))} placeholder="Field name" />
                 <Input className="h-8" value={r.value} onChange={e => setCustom(prev => prev.map(x => x.id === r.id ? { ...x, value: e.target.value } : x))} placeholder="Value" />
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Remove" onClick={() => setCustom(prev => prev.filter(x => x.id !== r.id))}><Trash2 className="w-3.5 h-3.5" /></Button>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Remove" onClick={() => setCustom(prev => prev.filter(x => x.id !== r.id))}><Trash2 className="w-3.5 h-3.5 text-red-600" /></Button>
               </div>
             ))}
           </div>

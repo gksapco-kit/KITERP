@@ -704,7 +704,7 @@ export default function RentalAssetUnitsPanel({
                         })}
                         title="Edit unit"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-3.5 w-3.5 text-green-600" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -714,7 +714,7 @@ export default function RentalAssetUnitsPanel({
                         onClick={() => deleteUnit.mutate(u.id)}
                         title="Delete unit"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.5 w-3.5 text-red-600" />
                       </Button>
                     </div>
                   )}

@@ -789,7 +789,7 @@ export default function NotificationSettingsPage() {
                             Replace
                           </button>
                           <button type="button" onClick={handleClearLocal} className="text-red-400 hover:text-red-600">
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
                           </button>
                         </div>
                       )}
@@ -942,7 +942,7 @@ export default function NotificationSettingsPage() {
                           {prefs.schedule_mode === 'quiet' ? `Silence period ${idx + 1}` : `Window ${idx + 1}`}
                         </p>
                         <button type="button" onClick={() => removeSlot(slot.id)} className="text-red-400 hover:text-red-600">
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5 text-red-600" />
                         </button>
                       </div>
 

@@ -104,7 +104,7 @@ function MoreMenu({ service, onDeleteRequest }: {
     >
       <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
         onClick={() => { navigate(`/services/${service.id}`); setOpen(false) }}>
-        <Pencil className="w-4 h-4 text-gray-400" /> Edit
+        <Pencil className="w-4 h-4 text-green-600" /> Edit
       </button>
       <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
         onClick={() => { shareService(service, 'copy'); setOpen(false) }}>
@@ -125,7 +125,7 @@ function MoreMenu({ service, onDeleteRequest }: {
       <div className="border-t my-1" />
       <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
         onClick={() => { setOpen(false); onDeleteRequest() }}>
-        <Trash2 className="w-4 h-4" /> Delete
+        <Trash2 className="w-4 h-4 text-red-600" /> Delete
       </button>
     </div>,
     document.body,
@@ -668,11 +668,11 @@ export default function Services() {
                         <div className="flex gap-1 justify-end items-center">
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="View service"
                             onClick={() => navigate(`/services/${service.id}?mode=view`)}>
-                            <Eye className="w-4 h-4 text-blue-500" />
+                            <Eye className="w-4 h-4 text-green-600" />
                           </Button>
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Full edit"
                             onClick={() => navigate(`/services/${service.id}`)}>
-                            <Pencil className="w-4 h-4 text-gray-500" />
+                            <Pencil className="w-4 h-4 text-green-600" />
                           </Button>
                           <MoreMenu
                             service={service}

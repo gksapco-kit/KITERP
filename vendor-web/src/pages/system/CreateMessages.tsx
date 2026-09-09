@@ -793,10 +793,10 @@ export default function CreateMessagesPage() {
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditEmail(eventKey, r)}>
-                                <Pencil className="w-3.5 h-3.5" />
+                                <Pencil className="w-3.5 h-3.5 text-green-600" />
                               </Button>
                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteEmail(eventKey, r)}>
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3.5 h-3.5 text-red-600" />
                               </Button>
                             </div>
                           </div>
@@ -838,10 +838,10 @@ export default function CreateMessagesPage() {
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditPhone(eventKey, r)}>
-                                <Pencil className="w-3.5 h-3.5" />
+                                <Pencil className="w-3.5 h-3.5 text-green-600" />
                               </Button>
                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeletePhone(eventKey, r)}>
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3.5 h-3.5 text-red-600" />
                               </Button>
                             </div>
                           </div>
@@ -918,13 +918,13 @@ export default function CreateMessagesPage() {
                                       audience: 'vendor',
                                     })}
                                   >
-                                    <Eye className="w-3.5 h-3.5" />
+                                    <Eye className="w-3.5 h-3.5 text-green-600" />
                                   </Button>
                                   <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditTemplate(eventKey, t, 'vendor')}>
-                                    <Pencil className="w-3.5 h-3.5" />
+                                    <Pencil className="w-3.5 h-3.5 text-green-600" />
                                   </Button>
                                   <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteTemplate(eventKey, t, 'vendor')}>
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
                                   </Button>
                                 </div>
                               </div>
@@ -1003,13 +1003,13 @@ export default function CreateMessagesPage() {
                                       audience: 'customer',
                                     })}
                                   >
-                                    <Eye className="w-3.5 h-3.5" />
+                                    <Eye className="w-3.5 h-3.5 text-green-600" />
                                   </Button>
                                   <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditTemplate(eventKey, t, 'customer')}>
-                                    <Pencil className="w-3.5 h-3.5" />
+                                    <Pencil className="w-3.5 h-3.5 text-green-600" />
                                   </Button>
                                   <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => requestDeleteTemplate(eventKey, t, 'customer')}>
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
                                   </Button>
                                 </div>
                               </div>

@@ -148,7 +148,7 @@ function TaskCard({
                 className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 title="Delete task"
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="h-3 w-3 text-red-600" />
               </button>
             )}
           </div>
@@ -638,7 +638,7 @@ export default function ProjectDetailPage() {
             )}
             {!editing && canManage && (
               <Button variant="outline" size="sm" onClick={startEdit}>
-                <Pencil className="w-4 h-4 mr-1" /> Edit
+                <Pencil className="w-4 h-4 mr-1 text-green-600" /> Edit
               </Button>
             )}
           </div>
@@ -1148,7 +1148,7 @@ function PlanningTab({ projectId }: { projectId: string }) {
                           type="button"
                           className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"
                           onClick={() => { setEditingLine(cl.id); setLineEdit({ amount_planned: cl.amount_planned }) }}
-                        ><Pencil className="w-3 h-3" /></button>
+                        ><Pencil className="w-3 h-3 text-green-600" /></button>
                       )}
                     </td>
                   </tr>

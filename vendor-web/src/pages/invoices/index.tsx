@@ -440,7 +440,7 @@ export default function InvoicesPage() {
                           className={TABLE_ICON_BTN}
                           aria-label="View invoice"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-4 h-4 text-green-600" />
                         </button>
                         <button
                           type="button"

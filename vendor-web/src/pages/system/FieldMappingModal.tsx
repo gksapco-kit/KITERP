@@ -232,7 +232,7 @@ export default function FieldMappingModal({ open, onClose, initial, mode }: Prop
               {deleteMut.isPending ? (
                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                <Trash2 className="mr-1 h-3.5 w-3.5 text-red-600" />
               )}
               Remove
             </Button>

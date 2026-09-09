@@ -306,10 +306,10 @@ function ContactsTab({ supplier }: { supplier: Supplier }) {
             </div>
             <div className="flex gap-1 shrink-0">
               <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-400 hover:text-gray-600" onClick={() => openEdit(c)}>
-                <Pencil className="w-3.5 h-3.5" />
+                <Pencil className="w-3.5 h-3.5 text-green-600" />
               </Button>
               <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => setDeleteId(c.id)}>
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3.5 h-3.5 text-red-600" />
               </Button>
             </div>
           </div>
@@ -480,7 +480,7 @@ function DocumentsTab({ supplier }: { supplier: Supplier }) {
                   )}
                   <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400 hover:text-red-600"
                     onClick={() => setDeleteDocId(d.id)}>
-                    <Trash2 className="w-3 h-3" />
+                    <Trash2 className="w-3 h-3 text-red-600" />
                   </Button>
                 </div>
               </TableCell>
@@ -702,7 +702,7 @@ function OnboardingTab({ supplier }: { supplier: Supplier }) {
         <div className="flex flex-wrap gap-2">
           {ob.status === 'draft' && (
             <>
-              <Button size="sm" variant="outline" onClick={openEdit}><Pencil className="w-3 h-3 mr-1" />Edit</Button>
+              <Button size="sm" variant="outline" onClick={openEdit}><Pencil className="w-3 h-3 mr-1 text-green-600" />Edit</Button>
               <Button size="sm" onClick={() => submitMut.mutate()} disabled={submitMut.isPending}>
                 Submit for Review
               </Button>
@@ -728,7 +728,7 @@ function OnboardingTab({ supplier }: { supplier: Supplier }) {
           )}
           {ob.status === 'approved' && (
             <>
-              <Button size="sm" variant="outline" onClick={openEdit}><Pencil className="w-3 h-3 mr-1" />Edit</Button>
+              <Button size="sm" variant="outline" onClick={openEdit}><Pencil className="w-3 h-3 mr-1 text-green-600" />Edit</Button>
               <Button size="sm" variant="outline" className="text-orange-500 border-orange-300"
                 onClick={() => { setReviewAction('put_on_hold'); setShowReview(true) }}>
                 Put On Hold
@@ -1226,10 +1226,10 @@ function AddressesTab({ supplier }: { supplier: Supplier }) {
             </div>
             <div className="flex gap-1 shrink-0">
               <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-400 hover:text-gray-600" onClick={() => openEdit(a)}>
-                <Pencil className="w-3.5 h-3.5" />
+                <Pencil className="w-3.5 h-3.5 text-green-600" />
               </Button>
               <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => setDeleteAddrId(a.id)}>
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3.5 h-3.5 text-red-600" />
               </Button>
             </div>
           </div>

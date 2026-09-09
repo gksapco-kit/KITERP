@@ -172,10 +172,10 @@ function TableEditRow({ table, zones, vendorSlug, onDelete }: {
           </span>
           <div className="flex shrink-0 items-center gap-0.5">
             <button type="button" className="p-1 text-muted-foreground hover:text-primary" onClick={() => setEditing(true)} title="Edit">
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-3.5 w-3.5 text-green-600" />
             </button>
             <button type="button" className="p-1 text-muted-foreground hover:text-red-500" onClick={onDelete} title="Delete">
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-3.5 w-3.5 text-red-600" />
             </button>
           </div>
         </div>
@@ -423,7 +423,7 @@ export default function RestaurantSetupPage() {
                     }}
                     title="Delete zone"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5 text-red-600" />
                   </button>
                 </li>
               ))}
@@ -538,7 +538,7 @@ export default function RestaurantSetupPage() {
           </div>
           {rid && hasSavedTimer && !timerEditing && (
             <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={startTimerEdit}>
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-3.5 w-3.5 text-green-600" />
               Edit
             </Button>
           )}

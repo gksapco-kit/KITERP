@@ -959,7 +959,7 @@ export default function CreditDebitMemos() {
                               title="View"
                               onClick={() => setSelectedTxn(m)}
                             >
-                              <Eye className="w-4 h-4 text-gray-500" />
+                              <Eye className="w-4 h-4 text-green-600" />
                             </Button>
                             <Button
                               type="button"
@@ -970,7 +970,7 @@ export default function CreditDebitMemos() {
                               disabled={voided || memoRowBusyId === m.id}
                               onClick={() => { void loadMemoForEdit(m.id) }}
                             >
-                              {memoRowBusyId === m.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-4 h-4 text-gray-600" />}
+                              {memoRowBusyId === m.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-4 h-4 text-green-600" />}
                             </Button>
                             <Button
                               type="button"
@@ -1619,7 +1619,7 @@ export default function CreditDebitMemos() {
                       <td className="py-2 pr-1 text-right font-medium tabular-nums text-slate-800">{formatCurrency(lineRowTotal(item))}</td>
                       <td className="py-1.5">
                         <button type="button" onClick={() => removeFromCart(idx)} className="p-1 text-slate-400 hover:text-red-600 rounded">
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5 text-red-600" />
                         </button>
                       </td>
                     </tr>
@@ -2164,7 +2164,7 @@ function MemoDetail({ txn, onBack, onEdit, onVoid, voidingId }: {
             onClick={() => onEdit(id)}
             disabled={voided || detailLoading}
           >
-            <Pencil className="w-4 h-4" /> Edit
+            <Pencil className="w-4 h-4 text-green-600" /> Edit
           </Button>
           <Button
             type="button"

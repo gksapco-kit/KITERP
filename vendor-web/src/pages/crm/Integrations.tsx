@@ -518,7 +518,7 @@ function DeleteIntegrationModal({
             disabled={!canDelete}
             onClick={handleDelete}
           >
-            {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2 text-red-600" />}
             Delete
           </Button>
         </div>

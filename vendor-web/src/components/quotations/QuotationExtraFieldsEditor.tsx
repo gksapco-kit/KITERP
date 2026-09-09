@@ -222,7 +222,7 @@ export function QuotationExtraFieldsEditor({
                     className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 shrink-0"
                     aria-label="Remove field"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4 text-red-600" />
                   </button>
                 </div>
 

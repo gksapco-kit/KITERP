@@ -167,7 +167,7 @@ export default function KnowledgeBasePage() {
                   <td className="px-6 py-4 text-xs text-gray-500 hidden xl:table-cell">{formatDate(a.updated_at)}</td>
                   <td className="px-6 py-4 text-right">
                     <Button variant="ghost" size="sm" onClick={() => setEdit(a)}>
-                      <Edit3 className="w-4 h-4" />
+                      <Edit3 className="w-4 h-4 text-green-600" />
                     </Button>
                   </td>
                 </tr>

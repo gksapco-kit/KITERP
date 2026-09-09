@@ -411,10 +411,10 @@ export default function SourcingSetupPage() {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingPIR(r); setShowPIRForm(true) }}>
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Pencil className="w-3.5 h-3.5 text-green-600" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => deletePIR.mutate(r.id)}>
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
                           </Button>
                         </div>
                       </td>
@@ -486,10 +486,10 @@ export default function SourcingSetupPage() {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingSL(s); setShowSLForm(true) }}>
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Pencil className="w-3.5 h-3.5 text-green-600" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => deleteSL.mutate(s.id)}>
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
                           </Button>
                         </div>
                       </td>

@@ -201,7 +201,7 @@ export function WorkCenterManagerModal({ onClose }: WorkCenterManagerModalProps)
                             className="text-muted-foreground hover:text-foreground transition-colors"
                             title="Rename"
                           >
-                            {isEditing ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+                            {isEditing ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5 text-green-600" />}
                           </button>
                           <button
                             onClick={() => deleteWc.mutate(wc.id)}
@@ -209,7 +209,7 @@ export function WorkCenterManagerModal({ onClose }: WorkCenterManagerModalProps)
                             className="text-muted-foreground hover:text-red-600 transition-colors"
                             title="Delete"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
                           </button>
                         </div>
                       </td>

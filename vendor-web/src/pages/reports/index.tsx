@@ -1452,7 +1452,7 @@ export default function ReportsPage() {
                       {/* Delete */}
                       <button onClick={() => removeContact(contact.id)} title="Remove contact"
                         className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 text-red-600" />
                       </button>
                       {/* Expand */}
                       <button onClick={() => setExpandedContact(isExpanded ? null : contact.id)}

@@ -205,7 +205,7 @@ function FamilyMembersSection({ emp, editing, onSave }: { emp: any; editing: boo
               <span className="text-xs font-medium text-gray-500">Member {i + 1}</span>
               {editing && (
                 <button type="button" onClick={() => removeMember(i)} className="text-red-400 hover:text-red-600">
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
                 </button>
               )}
             </div>
@@ -818,7 +818,7 @@ function DocumentsTab({ empId }: { empId: string }) {
                     <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">View</a>
                   )}
                   <button onClick={() => deleteDoc(doc.id)} className="p-1 text-gray-300 hover:text-red-500">
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
                   </button>
                 </div>
               </div>
@@ -2177,7 +2177,7 @@ export default function EmployeeDetailPage() {
                 onClick={() => setEditing(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50 transition-colors"
               >
-                <Pencil className="w-3.5 h-3.5" /> Edit profile
+                <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit profile
               </button>
             )}
           </div>

@@ -134,7 +134,7 @@ function ProfitCentersTab() {
                     <td className="px-3 py-2">
                       <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
                         onClick={() => deleteMut.mutate(pc.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.5 w-3.5 text-red-600" />
                       </Button>
                     </td>
                   </tr>
@@ -246,7 +246,7 @@ function SegmentsTab() {
                     <td className="px-3 py-2">
                       <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
                         onClick={() => deleteMut.mutate(seg.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.5 w-3.5 text-red-600" />
                       </Button>
                     </td>
                   </tr>

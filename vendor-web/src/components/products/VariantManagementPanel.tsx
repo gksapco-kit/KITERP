@@ -169,7 +169,7 @@ export function VariantManagementPanel({
             <PowerOff className="h-3 w-3" /> Deactivate
           </Button>
           <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => setConfirmDeleteOpen(true)}>
-            <Trash2 className="h-3 w-3" /> Delete
+            <Trash2 className="h-3 w-3 text-red-600" /> Delete
           </Button>
         </div>
       )}

@@ -1225,7 +1225,7 @@ export default function RestaurantMenuPage() {
                 aria-label={`Edit ${cat.name}`}
                 title="Edit category"
               >
-                <Pencil className="h-3 w-3" />
+                <Pencil className="h-3 w-3 text-green-600" />
               </button>
             )
           )}
@@ -1236,7 +1236,7 @@ export default function RestaurantMenuPage() {
               className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               aria-label="Delete category"
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-3 w-3 text-red-600" />
             </button>
           )}
         </div>
@@ -1488,7 +1488,7 @@ export default function RestaurantMenuPage() {
                 className="h-7 gap-1 px-2 text-[10px]"
                 onClick={() => setGuestUrlsEditing(true)}
               >
-                <Pencil className="h-3 w-3" /> Edit zones
+                <Pencil className="h-3 w-3 text-green-600" /> Edit zones
               </Button>
             )}
             <Button
@@ -1497,7 +1497,7 @@ export default function RestaurantMenuPage() {
               className="h-7 px-2 text-[10px] text-destructive hover:text-destructive"
               onClick={() => handleDeleteMenu(selectedMenu.id)}
             >
-              <Trash2 className="h-3 w-3" /> Delete menu
+              <Trash2 className="h-3 w-3 text-red-600" /> Delete menu
             </Button>
           </div>
         </div>
@@ -1574,7 +1574,7 @@ export default function RestaurantMenuPage() {
                 className="h-7 gap-1 px-2 text-[10px]"
                 onClick={toggleEditAllCategories}
               >
-                <Pencil className="h-3 w-3" />
+                <Pencil className="h-3 w-3 text-green-600" />
                 {editAllCategories ? 'Done editing' : 'Edit all categories'}
               </Button>
               <DropBtn
@@ -1675,7 +1675,7 @@ export default function RestaurantMenuPage() {
                   className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                   aria-label="Delete menu"
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className="h-3 w-3 text-red-600" />
                 </button>
               </li>
             ))}

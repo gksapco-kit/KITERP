@@ -132,7 +132,7 @@ export function VariantGeneratorButton({ productId }: Props) {
           onClick={() => deleteInvalidMutation.mutate()}
           title="Remove previously generated variants that no longer match the current attributes/options/rules"
         >
-          {deleteInvalidMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+          {deleteInvalidMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 text-red-600" />}
           Delete invalid variants
         </Button>
       </div>

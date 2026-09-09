@@ -329,7 +329,7 @@ export default function TicketsPage() {
                   <td className="px-6 py-4 text-xs text-gray-500 hidden xl:table-cell">{formatDateTime(t.updated_at)}</td>
                   <td className="px-6 py-4 text-right">
                     <Button variant="ghost" size="sm" onClick={() => navigate(`/crm/tickets/${t.id}`)}>
-                      <Eye className="w-4 h-4" />
+                      <Eye className="w-4 h-4 text-green-600" />
                     </Button>
                   </td>
                 </tr>

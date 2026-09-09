@@ -449,7 +449,7 @@ export default function SalesFitnessClassesPage() {
                           onClick={e => { e.stopPropagation(); setModal({ mode: 'edit', cls }) }}
                           className="rounded p-1 hover:bg-muted"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-4 w-4 text-green-600" />
                         </button>
                         <button
                           type="button"
@@ -460,7 +460,7 @@ export default function SalesFitnessClassesPage() {
                           }}
                           className="rounded p-1 hover:bg-muted text-destructive"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 text-red-600" />
                         </button>
                       </div>
                     </td>

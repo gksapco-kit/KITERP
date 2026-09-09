@@ -34,7 +34,7 @@ function SplitRuleCard({ rule, onDelete }: { rule: SplitRule; onDelete: (id: str
           <span>{rule.name}</span>
           <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
             onClick={() => onDelete(rule.id)}>
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-3.5 w-3.5 text-red-600" />
           </Button>
         </CardTitle>
       </CardHeader>

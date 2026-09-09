@@ -162,7 +162,7 @@ function PoliciesTab() {
                                 className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                                 title="Edit"
                               >
-                                <Pencil className="h-3.5 w-3.5" />
+                                <Pencil className="h-3.5 w-3.5 text-green-600" />
                               </button>
                               <button
                                 type="button"
@@ -186,7 +186,7 @@ function PoliciesTab() {
                             className="rounded-lg p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600"
                             title="Delete"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3.5 w-3.5 text-red-600" />
                           </button>
                         </div>
                       </td>
@@ -432,7 +432,7 @@ function CertificationsTab() {
                             onClick={() => setEditing(c)}
                             className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="h-3.5 w-3.5 text-green-600" />
                           </button>
                           <button
                             type="button"

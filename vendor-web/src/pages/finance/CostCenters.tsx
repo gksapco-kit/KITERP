@@ -724,7 +724,7 @@ function CCRow({
           className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           title="Edit"
         >
-          <Pencil className="w-3.5 h-3.5" />
+          <Pencil className="w-3.5 h-3.5 text-green-600" />
         </button>
         <button
           type="button"
@@ -748,14 +748,14 @@ function CCRow({
               onClick={() => onEdit(cc)}
               className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-muted text-foreground"
             >
-              <Pencil className="w-3.5 h-3.5" /> Edit
+              <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
             </button>
             <button
               type="button"
               onClick={() => onDelete(cc)}
               className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-red-500/10 text-red-600 dark:text-red-400"
             >
-              <Trash2 className="w-3.5 h-3.5" /> Deactivate
+              <Trash2 className="w-3.5 h-3.5 text-red-600" /> Deactivate
             </button>
           </div>
         )}

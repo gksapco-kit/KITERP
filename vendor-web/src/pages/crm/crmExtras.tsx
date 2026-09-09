@@ -598,7 +598,7 @@ export function useCrmExtras(customFieldsJson?: Record<string, unknown> | null) 
             </a>
             <button type="button" aria-label="Remove document" onClick={() => removeDoc(d.id)}
               className="text-gray-400 hover:text-red-500">
-              <Trash2 className="w-3 h-3" />
+              <Trash2 className="w-3 h-3 text-red-600" />
             </button>
           </li>
         ))}
@@ -645,7 +645,7 @@ export function useCrmExtras(customFieldsJson?: Record<string, unknown> | null) 
                 <button type="button" title="Remove" aria-label="Remove photo"
                   onClick={() => removePhoto(p.id)}
                   className="rounded p-0.5 text-white hover:bg-white/20">
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5 text-red-600" />
                 </button>
               </div>
             </div>
@@ -694,7 +694,7 @@ export function useCrmExtras(customFieldsJson?: Record<string, unknown> | null) 
               <Input value={f.key} onChange={(e) => updateField(f.id, { key: e.target.value })} placeholder="Field name" className="flex-1 h-8 text-xs" />
               <Input value={f.value} onChange={(e) => updateField(f.id, { value: e.target.value })} placeholder="Value" className="flex-1 h-8 text-xs" />
               <Button type="button" variant="cancel" size="icon" className="h-8 w-8 shrink-0" aria-label="Remove field" onClick={() => removeField(f.id)}>
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className="w-3 h-3 text-red-600" />
               </Button>
             </div>
           ))}
@@ -713,7 +713,7 @@ export function useCrmExtras(customFieldsJson?: Record<string, unknown> | null) 
               />
               <Input value={r.note} onChange={(e) => updateReminder(r.id, { note: e.target.value })} placeholder="Remind me to…" className="flex-1 h-8 text-xs min-w-0" />
               <Button type="button" variant="cancel" size="icon" className="h-8 w-8 shrink-0" aria-label="Remove reminder" onClick={() => removeReminder(r.id)}>
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className="w-3 h-3 text-red-600" />
               </Button>
             </div>
           ))}
@@ -733,7 +733,7 @@ export function useCrmExtras(customFieldsJson?: Record<string, unknown> | null) 
                 />
                 <Input value={s.title} onChange={(e) => updateSchedule(s.id, { title: e.target.value })} placeholder="Meeting, call, demo…" className="flex-1 h-8 text-xs min-w-0" />
                 <Button type="button" variant="cancel" size="icon" className="h-8 w-8 shrink-0" aria-label="Remove schedule" onClick={() => removeSchedule(s.id)}>
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3 h-3 text-red-600" />
                 </Button>
               </div>
               <Input value={s.note} onChange={(e) => updateSchedule(s.id, { note: e.target.value })} placeholder="Notes (optional)" className="h-8 text-xs" />

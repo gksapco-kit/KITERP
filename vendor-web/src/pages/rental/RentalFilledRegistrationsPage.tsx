@@ -543,7 +543,7 @@ export default function RentalFilledRegistrationsPage() {
                             title={showDiscarded ? 'Edit on booking' : 'Edit on booking'}
                             onClick={() => openEdit(row)}
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="h-3.5 w-3.5 text-green-600" />
                           </Button>
                         ) : null}
                       </div>
@@ -587,7 +587,7 @@ export default function RentalFilledRegistrationsPage() {
                         className="h-7 text-xs"
                         onClick={() => openEdit(selectedRow)}
                       >
-                        <Pencil className="mr-1 h-3 w-3" />
+                        <Pencil className="mr-1 h-3 w-3 text-green-600" />
                         Edit
                       </Button>
                     ) : null}

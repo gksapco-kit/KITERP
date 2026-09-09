@@ -150,7 +150,7 @@ function ModifierGroupRow({ productId, group, onDelete }: { productId: string; g
           Required
         </label>
         <button type="button" onClick={onDelete} className="p-1 text-gray-400 hover:text-red-500">
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-4 h-4 text-red-600" />
         </button>
       </div>
 
@@ -238,7 +238,7 @@ function OptionRow({ productId, groupId, option, onDelete }: { productId: string
           </span>
           <button type="button" className="text-xs text-gray-400 hover:text-primary" onClick={() => setEditing(true)}>Edit</button>
           <button type="button" className="p-0.5 text-gray-400 hover:text-red-500" onClick={onDelete}>
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-3 h-3 text-red-600" />
           </button>
         </>
       )}

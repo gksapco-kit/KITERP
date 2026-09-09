@@ -245,7 +245,7 @@ function GroupTreeNode({
             <Boxes className="w-3.5 h-3.5" />
           </Button>
           <Button size="icon-sm" variant="ghost" className="h-7 w-7" title="Edit" onClick={() => onEdit(group)}>
-            <Pencil className="w-3.5 h-3.5" />
+            <Pencil className="w-3.5 h-3.5 text-green-600" />
           </Button>
           <Button size="icon-sm" variant="ghost" className="h-7 w-7" title="Delete" onClick={(e) => onDelete(e, group)}>
             <Trash2 className="w-3.5 h-3.5 text-red-500" />
@@ -596,7 +596,7 @@ function ManageItemsSheet({ groupId, onClose }: { groupId: string; onClose: () =
                     disabled={bulkRemoving}
                     onClick={handleRemoveSelected}
                   >
-                    {bulkRemoving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    {bulkRemoving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 text-red-600" />}
                     Remove ({selectedMemberIds.size})
                   </Button>
                 )}

@@ -186,7 +186,7 @@ function ConditionRow({
       </span>
       {!isTerminal && (
         <button onClick={() => remove()} disabled={isPending} className="text-muted-foreground hover:text-destructive">
-          {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+          {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 text-red-600" />}
         </button>
       )}
     </div>

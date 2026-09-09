@@ -208,7 +208,7 @@ function PartnerCard({
               className="p-1 text-muted-foreground hover:text-foreground rounded"
               title="Edit"
             >
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-3.5 w-3.5 text-green-600" />
             </button>
             {partner.role !== 'buyer' && (
               <button
@@ -217,7 +217,7 @@ function PartnerCard({
                 className="p-1 text-muted-foreground hover:text-destructive rounded"
                 title="Remove"
               >
-                {removing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                {removing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 text-red-600" />}
               </button>
             )}
           </div>

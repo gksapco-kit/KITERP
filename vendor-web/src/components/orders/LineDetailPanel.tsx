@@ -127,7 +127,7 @@ function OverviewTab({
             </div>
           ) : (
             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setEditing(true)}>
-              <Pencil className="h-3 w-3" /> Edit
+              <Pencil className="h-3 w-3 text-green-600" /> Edit
             </Button>
           )}
         </div>
@@ -257,7 +257,7 @@ function PricingTab({ line, orderId, editable }: { line: OrderLine; orderId: str
             </div>
           ) : (
             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setEditing(true)}>
-              <Pencil className="h-3 w-3" /> Edit
+              <Pencil className="h-3 w-3 text-green-600" /> Edit
             </Button>
           )}
         </div>
@@ -419,10 +419,10 @@ function ScheduleTab({ line, orderId, editable }: { line: OrderLine; orderId: st
                 </div>
                 {editable && (
                   <div className="flex gap-1 shrink-0">
-                    <button className="p-1 text-muted-foreground hover:text-foreground rounded" onClick={() => setEditingId(s.id)}><Pencil className="h-3.5 w-3.5" /></button>
+                    <button className="p-1 text-muted-foreground hover:text-foreground rounded" onClick={() => setEditingId(s.id)}><Pencil className="h-3.5 w-3.5 text-green-600" /></button>
                     <button className="p-1 text-muted-foreground hover:text-destructive rounded" disabled={deleteSchedule.isPending}
                       onClick={() => deleteSchedule.mutate({ lineId: line.id, scheduleId: s.id }, { onSuccess: () => toast.success('Schedule removed') })}>
-                      {deleteSchedule.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      {deleteSchedule.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 text-red-600" />}
                     </button>
                   </div>
                 )}
@@ -509,7 +509,7 @@ function WarehouseTab({ line, orderId, editable }: { line: OrderLine; orderId: s
               </Button>
             </div>
           ) : (
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setEditing(true)}><Pencil className="h-3 w-3" /> Edit</Button>
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setEditing(true)}><Pencil className="h-3 w-3 text-green-600" /> Edit</Button>
           )}
         </div>
       )}
@@ -579,7 +579,7 @@ function CostTab({ line, orderId, editable }: { line: OrderLine; orderId: string
               </Button>
             </div>
           ) : (
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setEditing(true)}><Pencil className="h-3 w-3" /> Edit</Button>
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setEditing(true)}><Pencil className="h-3 w-3 text-green-600" /> Edit</Button>
           )}
         </div>
       )}
@@ -632,7 +632,7 @@ function NotesTab({ line, orderId, editable }: { line: OrderLine; orderId: strin
               </Button>
             </div>
           ) : (
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setEditing(true)}><Pencil className="h-3 w-3" /> Edit</Button>
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setEditing(true)}><Pencil className="h-3 w-3 text-green-600" /> Edit</Button>
           )}
         </div>
       )}
@@ -717,7 +717,7 @@ export function LineDetailPanel({ order, line, onClose }: LineDetailPanelProps) 
               disabled={deleteLineHook.isPending}
               title="Remove line"
             >
-              {deleteLineHook.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {deleteLineHook.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-red-600" />}
             </button>
           )}
           <button className="p-1.5 text-muted-foreground hover:text-foreground rounded" onClick={onClose}><X className="h-4 w-4" /></button>

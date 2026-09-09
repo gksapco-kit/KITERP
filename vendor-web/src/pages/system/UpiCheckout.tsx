@@ -6,7 +6,7 @@ export default function UpiCheckoutPage() {
   const vendor = useVendorStore((s) => s.vendor)
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-5 p-4 sm:p-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 lg:-mt-2 lg:-mb-4">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
           <QrCode className="h-5 w-5" strokeWidth={2} />

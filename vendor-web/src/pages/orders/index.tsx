@@ -504,7 +504,7 @@ export default function Orders() {
                       >
                         <BarChart3 className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon-sm" className={TABLE_ICON_BTN}><Eye className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon-sm" className={TABLE_ICON_BTN}><Eye className="h-4 w-4 text-green-600" /></Button>
                     </div>
                   </td>
                 </tr>

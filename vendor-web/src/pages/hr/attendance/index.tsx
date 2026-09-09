@@ -1015,7 +1015,7 @@ export default function AttendancePage() {
                         <div className="flex items-center gap-1">
                           <button onClick={() => setEditRecord(r)} title="Edit"
                             className="p-1.5 rounded-md hover:bg-primary/10 text-primary">
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Pencil className="w-3.5 h-3.5 text-green-600" />
                           </button>
                           {approvalStatus === 'pending' && <QuickApproval record={r} />}
                         </div>

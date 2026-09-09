@@ -337,7 +337,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
                     onClick={handleRemovePage}
                     title={`Delete page ${selectedPage}`}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
                     <span className="hidden md:inline">Delete</span>
                   </Button>
                 </div>

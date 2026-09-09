@@ -873,7 +873,7 @@ function AssetDetailDrawer({ assetId, storeNameById, onClose, onEdit, onDispose 
                 onClick={() => onEdit(asset)}
                 className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50"
               >
-                <Pencil className="w-3.5 h-3.5" /> Edit
+                <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
               </button>
               {(asset as any).status === 'active' && (
                 <>
@@ -1071,11 +1071,11 @@ export default function FixedAssets() {
                     <div className="flex items-center justify-end gap-0.5">
                       <button onClick={() => setDetailAssetId(a.id)} title="View Details"
                         className="p-0.5 text-gray-500 hover:text-gray-800 shrink-0">
-                        <Eye className="w-3.5 h-3.5" />
+                        <Eye className="w-3.5 h-3.5 text-green-600" />
                       </button>
                       <button onClick={() => openEdit(a)} title="Edit"
                         className="p-0.5 text-gray-500 hover:text-gray-800 shrink-0">
-                        <Pencil className="w-3.5 h-3.5" />
+                        <Pencil className="w-3.5 h-3.5 text-green-600" />
                       </button>
                       {a.status === 'active' && (
                         <>
@@ -1116,7 +1116,7 @@ export default function FixedAssets() {
                 title="Edit category"
                 className="absolute top-3 right-3 p-1 text-gray-400 hover:text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <Pencil className="w-3.5 h-3.5" />
+                <Pencil className="w-3.5 h-3.5 text-green-600" />
               </button>
               <p className="font-semibold text-gray-800 pr-6">{c.name}</p>
               <p className="text-xs text-gray-500 mt-1 capitalize">{c.depreciation_method?.replace('_', ' ')} · {c.useful_life_years} years</p>

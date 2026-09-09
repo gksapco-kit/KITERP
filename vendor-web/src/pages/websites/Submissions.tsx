@@ -132,7 +132,7 @@ function SubmissionRow({ sub, onDelete, isDeleting }: {
               disabled={isDeleting}
               className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
             >
-              {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3 text-red-600" />}
               Delete
             </button>
           </div>

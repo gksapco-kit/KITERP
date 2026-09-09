@@ -747,7 +747,7 @@ function MasterDataDrawer({
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={onEdit}>
-              <Pencil className="w-3.5 h-3.5" /> Edit
+              <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
             </Button>
             <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
                 <X className="w-5 h-5" />
@@ -1093,12 +1093,12 @@ function MasterDataDrawer({
               <div className={`flex gap-2 pt-2 border-t ${record.kind === 'customer' ? 'justify-end' : ''}`}>
                 <button onClick={() => setConfirmSoftDel(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 bg-white text-red-600 text-xs font-medium hover:bg-red-50 transition-colors flex-1 justify-center">
-                  <Trash2 className="w-3.5 h-3.5" /> Deactivate
+                  <Trash2 className="w-3.5 h-3.5 text-red-600" /> Deactivate
                 </button>
                 {record.kind === 'supplier' && (
                   <button onClick={() => setConfirmHardDel(true)}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-600 bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors flex-1 justify-center">
-                    <Trash className="w-3.5 h-3.5" /> Delete Permanently
+                    <Trash className="w-3.5 h-3.5 text-red-600" /> Delete Permanently
                   </button>
                 )}
               </div>
@@ -2136,19 +2136,19 @@ export default function MasterDataReport() {
                             <td key="actions" className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button onClick={() => openDrawer(r)} title="View details"
-                                  className="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-primary/10 transition-colors">
+                                  className="p-1.5 rounded-lg text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors">
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                   </svg>
                                 </button>
                                 <button onClick={() => openEdit(r)} title="Edit"
-                                  className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-primary/10 hover:text-primary">
-                                  <Pencil className="h-3.5 w-3.5" />
+                                  className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-50 hover:text-green-700">
+                                  <Pencil className="h-3.5 w-3.5 text-green-600" />
                                 </button>
                                 <button onClick={(e) => handleDelete(r, e)} title="Delete permanently"
-                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  className="p-1.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors">
+                                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
                                 </button>
                               </div>
                             </td>

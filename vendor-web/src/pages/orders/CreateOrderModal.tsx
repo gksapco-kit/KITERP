@@ -300,7 +300,7 @@ export function CreateOrderModal({ onClose, onCreated }: Props) {
                           }}
                           aria-label="Remove item"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5 text-red-600" />
                         </button>
                       </div>
                     </div>

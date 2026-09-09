@@ -131,7 +131,7 @@ export default function ProductGroupDetailPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil className="w-4 h-4" /> Edit
+              <Pencil className="w-4 h-4 text-green-600" /> Edit
             </Button>
             <Button variant="ghost" size="icon-sm" onClick={handleDelete} aria-label="Delete">
               <Trash2 className="w-4 h-4 text-destructive" />

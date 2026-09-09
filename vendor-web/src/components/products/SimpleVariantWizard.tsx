@@ -895,7 +895,7 @@ function SimpleOptionsStep({
                       onClick={() => deleteAttribute.mutate(attr.id)}
                       title="Remove this option"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3.5 w-3.5 text-red-600" />
                     </button>
                   </div>
                 </div>

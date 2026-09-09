@@ -3894,7 +3894,7 @@ function POSInvoiceSettingsModal({
                               }}
                               className="text-xs text-blue-600 hover:underline flex items-center gap-0.5"
                             >
-                              <Eye className="w-3 h-3" /> Preview
+                              <Eye className="w-3 h-3 text-green-600" /> Preview
                             </button>
                           </div>
                         </div>

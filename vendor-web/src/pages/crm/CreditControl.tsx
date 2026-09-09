@@ -318,7 +318,7 @@ export default function CreditControlPage() {
                   </td>
                   <td className="px-6 py-4 text-right space-x-1">
                     <Button variant="ghost" size="sm" onClick={() => setEditing(row)}>
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-4 h-4 text-green-600" />
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => remove(row)} disabled={del.isPending}>
                       <Trash2 className="w-4 h-4 text-red-500" />

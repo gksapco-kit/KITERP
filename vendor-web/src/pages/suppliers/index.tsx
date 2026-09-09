@@ -273,10 +273,10 @@ export default function SuppliersPage() {
                     <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1 justify-end">
                         <Button variant="ghost" size="sm" title="View details" onClick={() => setViewing(s)}>
-                          <Eye className="w-4 h-4 text-blue-500" />
+                          <Eye className="w-4 h-4 text-green-600" />
                         </Button>
                         <Button variant="ghost" size="sm" title="Edit" onClick={() => setModal({ mode: 'edit', supplier: s })}>
-                          <Pencil className="w-4 h-4" />
+                          <Pencil className="w-4 h-4 text-green-600" />
                         </Button>
                         {s.is_active && (
                           <Button
@@ -286,7 +286,7 @@ export default function SuppliersPage() {
                             className="text-red-600 hover:text-red-700"
                             onClick={async () => { if (await askConfirm('Deactivate this supplier?')) deleteMut.mutate(s.id) }}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4 text-red-600" />
                           </Button>
                         )}
                       </div>
@@ -600,7 +600,7 @@ function SupplierViewDrawer({
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onEdit(supplier)}>
-              <Pencil className="w-3.5 h-3.5" /> Edit
+              <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
             </Button>
             <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
                 <X className="w-5 h-5" />
@@ -845,13 +845,13 @@ function SupplierViewDrawer({
                   onClick={() => setConfirmSoftDel(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 bg-white text-red-600 text-xs font-medium hover:bg-red-50 transition-colors flex-1 justify-center"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Deactivate
+                  <Trash2 className="w-3.5 h-3.5 text-red-600" /> Deactivate
                 </button>
                 <button
                   onClick={() => setConfirmHardDel(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-600 bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors flex-1 justify-center"
                 >
-                  <Trash className="w-3.5 h-3.5" /> Delete Permanently
+                  <Trash className="w-3.5 h-3.5 text-red-600" /> Delete Permanently
                 </button>
               </div>
             </div>

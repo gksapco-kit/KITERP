@@ -908,7 +908,7 @@ function QuoteFormConfigurator({ fields, onChange }: {
                 {!isDefault(f.key) && (
                   <button type="button" onClick={() => removeField(f.key)}
                     className="p-1 hover:bg-red-50 rounded text-gray-300 hover:text-red-500 transition-colors shrink-0">
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
                   </button>
                 )}
               </>
@@ -1154,7 +1154,7 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
               'bg-gray-100 text-gray-700'
             }`}>{product.status}</span>
           </div>
-          <Button onClick={onEdit} size="sm" className="h-8 gap-1.5 shrink-0"><Pencil className="w-3.5 h-3.5" />Edit Product</Button>
+          <Button onClick={onEdit} size="sm" className="h-8 gap-1.5 shrink-0"><Pencil className="w-3.5 h-3.5 text-green-600" />Edit Product</Button>
         </div>
       </div>
 
@@ -1601,7 +1601,7 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
                               title="Edit variant"
                               onClick={() => v.id && onEditVariant(v.id)}
                             >
-                              <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                              <Pencil className="w-3.5 h-3.5 text-green-600" />
                             </Button>
                             <Button
                               type="button"
@@ -1611,7 +1611,7 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
                               title="Delete variant"
                               onClick={() => v.id && setConfirmDeleteVariantId(v.id)}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5 text-red-600" />
                             </Button>
                           </div>
                         )}
@@ -4464,7 +4464,7 @@ export default function ProductForm() {
                           </div>
                         ) : (
                           <Button type="button" variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0" title="Delete variant" onClick={(e) => { e.preventDefault(); setConfirmDeleteVariant(index) }}>
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
                           </Button>
                         )}
                       </div>
@@ -5543,7 +5543,7 @@ export default function ProductForm() {
                                 <td className="px-3 py-2 text-right">
                                   <button type="button" onClick={async () => { if (await askConfirm('Delete this price rule?')) deletePriceRule.mutate({ productId: id!, ruleId: rule.id }) }}
                                     className="text-red-500 hover:text-red-700 p-1">
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
                                   </button>
                                 </td>
                               </tr>
@@ -6157,7 +6157,7 @@ export default function ProductForm() {
                               )}
                             </div>
                             <button type="button" onClick={() => removeMerchMapping(row._idx)} className="mt-5 p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded transition-colors">
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4 text-red-600" />
                             </button>
                           </div>
 

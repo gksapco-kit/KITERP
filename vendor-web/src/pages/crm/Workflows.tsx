@@ -221,7 +221,7 @@ export default function WorkflowsPage() {
                   {w.last_run_at ? `Last run ${formatDateTime(w.last_run_at)}` : 'Never run'}
                 </p>
                 <div className="flex gap-1 mt-3 pt-3 border-t">
-                  <Button variant="ghost" size="sm" onClick={() => setEdit(w)}><Edit3 className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => setEdit(w)}><Edit3 className="w-4 h-4 text-green-600" /></Button>
                   <Button variant="ghost" size="sm" onClick={() => remove(w.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
                 </div>
               </CardContent>

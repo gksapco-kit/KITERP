@@ -924,7 +924,7 @@ export function MediaStudioPanel({
                       title="Click to rename"
                     >
                       <span className="truncate">{selectedMediaObj.filename}</span>
-                      <Pencil className="h-3 w-3 shrink-0 text-primary/70 opacity-0 transition-opacity group-hover/name:opacity-100" />
+                      <Pencil className="h-3 w-3 shrink-0 text-primary/70 opacity-0 transition-opacity group-hover/name:opacity-100 text-green-600" />
                     </button>
                   )}
                 </div>
@@ -1238,7 +1238,7 @@ export function MediaStudioPanel({
                 >
                   {deleteMedia.isPending
                     ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <Trash2 className="h-4 w-4" />}
+                    : <Trash2 className="h-4 w-4 text-red-600" />}
                 </button>
               </div>
             </div>

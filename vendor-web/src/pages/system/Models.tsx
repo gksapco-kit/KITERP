@@ -422,7 +422,7 @@ function ModelCard({
                               className="rounded p-1 text-violet-600 hover:bg-violet-50 hover:text-violet-800"
                             >
                               {col.user_mapping ? (
-                                <Pencil className="h-3.5 w-3.5" />
+                                <Pencil className="h-3.5 w-3.5 text-green-600" />
                               ) : (
                                 <Plus className="h-3.5 w-3.5" />
                               )}

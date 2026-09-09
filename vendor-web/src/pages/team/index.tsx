@@ -576,7 +576,7 @@ export default function TeamPage() {
                                 className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
                                 title="Edit role"
                               >
-                                <Pencil className="w-4 h-4" />
+                                <Pencil className="w-4 h-4 text-green-600" />
                               </button>
                               <button
                                 type="button"
@@ -584,7 +584,7 @@ export default function TeamPage() {
                                 className="p-1.5 rounded hover:bg-red-50 text-red-500"
                                 title="Delete permanently"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4 text-red-600" />
                               </button>
                             </>
                           )}
@@ -1211,7 +1211,7 @@ function MemberDetailDrawer({
               onClick={onRemove}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors border border-red-100"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-4 h-4 text-red-600" />
               Delete
             </button>
           )}

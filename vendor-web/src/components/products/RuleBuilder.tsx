@@ -95,7 +95,7 @@ function ConditionGroupEditor({
           )}
           {onRemove && (
             <button type="button" onClick={onRemove} className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500" title="Remove group">
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-3.5 w-3.5 text-red-600" />
             </button>
           )}
         </div>
@@ -198,7 +198,7 @@ function ConditionLeafRow({
         </>
       )}
       <button type="button" onClick={onRemove} className="ml-auto rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500" title="Remove condition">
-        <Trash2 className="h-3.5 w-3.5" />
+        <Trash2 className="h-3.5 w-3.5 text-red-600" />
       </button>
     </div>
   )
@@ -286,7 +286,7 @@ function ActionRow({
       )}
 
       <button type="button" onClick={onRemove} className="ml-auto rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-500" title="Remove action">
-        <Trash2 className="h-3.5 w-3.5" />
+        <Trash2 className="h-3.5 w-3.5 text-red-600" />
       </button>
     </div>
   )
@@ -703,7 +703,7 @@ export function RuleBuilder({ productId }: Props) {
                     onClick={() => deleteMutation.mutate(rule.id)}
                     title="Delete rule"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5 text-red-600" />
                   </button>
                 </div>
               </div>

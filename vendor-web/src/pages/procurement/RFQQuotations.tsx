@@ -607,7 +607,7 @@ function CreateRFQDialog({ open, onClose }: { open: boolean; onClose: () => void
                       onClick={() => removeItem(i)}
                       disabled={items.length === 1}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5 text-red-600" />
                     </Button>
                   </div>
                 </div>

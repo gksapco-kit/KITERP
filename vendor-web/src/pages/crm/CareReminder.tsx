@@ -708,7 +708,7 @@ function ReminderCard({ r, expanded, onToggleView, onMarkSent, onCancel, onMarkR
                   {r.channel === 'notification' ? 'Send notification' : 'Mark as Sent'}
                 </Button>
                 <Button size="sm" variant="outline" onClick={onEdit} className="gap-1.5 text-xs">
-                  <Pencil className="w-3.5 h-3.5" /> Edit
+                  <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
                 </Button>
                 <Button size="sm" variant="cancel" onClick={onCancel} className="gap-1.5 text-xs text-red-500 hover:text-red-600">
                   <X className="w-3.5 h-3.5" /> Cancel
@@ -726,7 +726,7 @@ function ReminderCard({ r, expanded, onToggleView, onMarkSent, onCancel, onMarkR
               </Button>
             )}
             <Button size="sm" variant="ghost" onClick={onDelete} className="gap-1.5 text-xs text-gray-400 hover:text-red-500 ml-auto">
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5 text-red-600" />
             </Button>
           </div>
         </div>

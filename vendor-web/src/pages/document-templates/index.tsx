@@ -1048,7 +1048,7 @@ export default function DocumentTemplatesPage() {
                     <h3 className="mb-1 text-sm font-bold text-foreground">{tmpl.label}</h3>
                     <p className="text-xs leading-relaxed text-muted-foreground">{tmpl.desc}</p>
                     <div className="mt-3 flex items-center gap-1 text-xs font-medium text-primary transition-all group-hover:gap-2">
-                      <Eye className="h-3.5 w-3.5" /> Configure & Preview
+                      <Eye className="h-3.5 w-3.5 text-green-600" /> Configure & Preview
                     </div>
                   </button>
                 )
@@ -1073,7 +1073,7 @@ export default function DocumentTemplatesPage() {
                     <h3 className="mb-1 text-sm font-bold text-foreground">{tmpl.label}</h3>
                     <p className="text-xs leading-relaxed text-muted-foreground">{tmpl.desc}</p>
                     <div className="mt-3 flex items-center gap-1 text-xs font-medium text-primary transition-all group-hover:gap-2">
-                      <Eye className="h-3.5 w-3.5" /> Configure & Preview
+                      <Eye className="h-3.5 w-3.5 text-green-600" /> Configure & Preview
                     </div>
                   </button>
                 )

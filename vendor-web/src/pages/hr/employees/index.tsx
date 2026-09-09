@@ -146,7 +146,7 @@ function FamilyMemberRow({
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-medium text-muted-foreground">Member {index + 1}</span>
         <button type="button" onClick={onRemove} className="text-red-400 hover:text-red-600 p-0.5">
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-3.5 h-3.5 text-red-600" />
         </button>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -881,7 +881,7 @@ function AddEmployeeModal({
                           onClick={() => removeDocument(i)}
                           className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
                       </div>
                     ))}

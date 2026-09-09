@@ -534,7 +534,7 @@ export default function Customers() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/customers/${c.id}`)}>
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-4 h-4 text-green-600" />
                       </Button>
                     </td>
                   </tr>

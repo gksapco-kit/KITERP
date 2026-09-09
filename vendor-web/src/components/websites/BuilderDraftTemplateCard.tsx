@@ -519,7 +519,7 @@ export function BuilderDraftTemplateCard({
               }}
               className={templateCardAssignPillClass}
             >
-              <Eye className="h-3 w-3 shrink-0" />
+              <Eye className="h-3 w-3 shrink-0 text-green-600" />
               Preview
             </button>
           ) : null}
@@ -569,7 +569,7 @@ export function BuilderDraftTemplateCard({
               }}
               className={templateCardAssignPillClass}
             >
-              <Eye className="h-3 w-3 shrink-0" />
+              <Eye className="h-3 w-3 shrink-0 text-green-600" />
               Preview
             </button>
           ) : null}

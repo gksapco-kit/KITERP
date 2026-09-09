@@ -278,7 +278,7 @@ export default function MaterialValuationPage() {
                       className="h-7 w-7"
                       onClick={() => setEditingVal(v)}
                     >
-                      <Pencil className="w-3.5 h-3.5" />
+                      <Pencil className="w-3.5 h-3.5 text-green-600" />
                     </Button>
                   </td>
                 </tr>

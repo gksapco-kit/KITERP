@@ -90,7 +90,7 @@ export default function HolidaysPage() {
                       </div>
                     </div>
                     <button onClick={async () => { if (await askConfirm(`Remove "${h.name}"?`)) deleteHoliday.mutate(h.id) }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
                   </div>
                 ))}

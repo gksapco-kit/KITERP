@@ -164,7 +164,7 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
         : 'Select a business unit to edit its UPI.'
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <p className="text-xs text-muted-foreground sm:max-w-md">{editingHint}</p>
         <UpiCheckoutModeToggle
@@ -199,7 +199,7 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
         </p>
       )}
 
-      <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
+      <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
         <div className="flex items-center gap-2">
           <QrCode className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">UPI checkout (QR + proof)</h3>

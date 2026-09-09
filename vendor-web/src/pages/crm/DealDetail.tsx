@@ -212,7 +212,7 @@ export function DealDetail({ dealId, onClose }: { dealId: string; onClose: () =>
       maxW="max-w-3xl"
       headerActions={
         <Button type="button" size="sm" variant={editing ? 'default' : 'outline'} onClick={() => setEditing(e => !e)}>
-          {editing ? <><Check className="w-4 h-4 mr-1" /> Done</> : <><Pencil className="w-4 h-4 mr-1" /> Edit</>}
+          {editing ? <><Check className="w-4 h-4 mr-1" /> Done</> : <><Pencil className="w-4 h-4 mr-1 text-green-600" /> Edit</>}
         </Button>
       }
       footer={
@@ -834,7 +834,7 @@ function Checklist({ cf, patchCustom, canEdit }: { cf: Record<string, unknown>; 
                         <span key={a.url} className="inline-flex items-center gap-1 rounded-full border bg-gray-50 px-2 py-0.5 text-[11px] text-gray-700">
                           <Paperclip className="w-3 h-3 text-gray-500" />
                           <a href={mediaUrl(a.url)} target="_blank" rel="noopener noreferrer" className="pointer-events-auto max-w-[140px] truncate text-blue-600 hover:underline">{a.filename}</a>
-                          <button type="button" onClick={() => removeAttachment(idx, a.url)} className="text-gray-400 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
+                          <button type="button" onClick={() => removeAttachment(idx, a.url)} className="text-gray-400 hover:text-red-500"><Trash2 className="w-3 h-3 text-red-600" /></button>
                         </span>
                       ))}
                     </div>
@@ -863,7 +863,7 @@ function Checklist({ cf, patchCustom, canEdit }: { cf: Record<string, unknown>; 
                     {uploadingIdx === idx ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
                   </button>
                   <button type="button" title="Delete" onClick={() => remove(idx)} className="text-gray-500 hover:text-red-600">
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4 text-red-600" />
                   </button>
                 </div>
               </div>
@@ -1065,7 +1065,7 @@ function Attachments({ dealId: _dealId, cf, patchCustom, canEdit }: { dealId: st
               <FileText className="w-4 h-4 text-gray-400 shrink-0" />
               <a href={mediaUrl(d.url)} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 truncate text-sm text-blue-600 hover:underline">{d.filename}</a>
               {canEdit && (
-                <button type="button" onClick={() => removeDoc(d.url)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                <button type="button" onClick={() => removeDoc(d.url)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4 text-red-600" /></button>
               )}
             </li>
           ))}
@@ -1081,7 +1081,7 @@ function Attachments({ dealId: _dealId, cf, patchCustom, canEdit }: { dealId: st
               {canEdit && (
                 <button type="button" onClick={() => removePhoto(p.url)}
                   className="absolute top-0.5 right-0.5 rounded-full bg-black/60 p-1 text-white opacity-0 group-hover:opacity-100">
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3 h-3 text-red-600" />
                 </button>
               )}
             </div>

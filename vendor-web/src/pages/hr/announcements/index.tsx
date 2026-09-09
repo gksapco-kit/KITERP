@@ -73,12 +73,12 @@ export default function AnnouncementsPage() {
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <button type="button" onClick={() => setEditing(a)} className="p-1.5 text-muted-foreground hover:text-primary">
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-4 w-4 text-green-600" />
                     </button>
                     <button type="button"
                       onClick={async () => { if (await askConfirm(`Delete announcement "${a.title}"?`)) del.mutate(a.id) }}
                       className="p-1.5 text-muted-foreground hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 text-red-600" />
                     </button>
                   </div>
                 </div>

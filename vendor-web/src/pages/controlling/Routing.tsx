@@ -238,7 +238,7 @@ function WorkCentersPanel({ companyId }: { companyId: string }) {
                 <td className="px-4 py-2 text-right tabular-nums text-gray-500">{(+wc.capacity_hours_per_period).toFixed(1)}</td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => edit(wc)} className="p-1 text-gray-400 hover:text-primary rounded"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => edit(wc)} className="p-1 text-gray-400 hover:text-primary rounded"><Pencil className="w-3.5 h-3.5 text-green-600" /></button>
                     <button onClick={() => del(wc.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </td>
@@ -466,7 +466,7 @@ function RoutingOperationsEditor({ routing, companyId }: { routing: Routing; com
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex gap-1 justify-end">
-                    <button onClick={() => editOp(op)} className="p-1 text-gray-400 hover:text-primary rounded"><Pencil className="w-3 h-3" /></button>
+                    <button onClick={() => editOp(op)} className="p-1 text-gray-400 hover:text-primary rounded"><Pencil className="w-3 h-3 text-green-600" /></button>
                     <button onClick={() => delOp2(op.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3 h-3" /></button>
                   </div>
                 </td>
@@ -693,7 +693,7 @@ export default function RoutingPage() {
                     <td className="px-4 py-2 text-right text-gray-600 font-medium">{r.operations.length}</td>
                     <td className="px-4 py-2">
                       <div className="flex gap-1 justify-end">
-                        <button onClick={() => editRouting(r)} className="p-1 text-gray-400 hover:text-primary rounded"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => editRouting(r)} className="p-1 text-gray-400 hover:text-primary rounded"><Pencil className="w-3.5 h-3.5 text-green-600" /></button>
                         <button onClick={() => delRouting(r.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
