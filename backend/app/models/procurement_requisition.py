@@ -112,6 +112,9 @@ class PurchaseRequisitionItem(Base):
     # Preferred supplier (optional)
     suggested_supplier_id = Column(UUID(as_uuid=True), ForeignKey("supplier.id", ondelete="SET NULL"), nullable=True)
 
+    # Tax — FI tax code selected at PR time; carried into the PO on conversion
+    tax_code = Column(String(20), nullable=True)
+
     # Conversion tracking
     quantity_ordered = Column(Numeric(12, 4), default=0)
     purchase_order_id = Column(UUID(as_uuid=True), ForeignKey("purchase_order.id", ondelete="SET NULL"), nullable=True)

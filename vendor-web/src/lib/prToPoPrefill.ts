@@ -30,12 +30,15 @@ export interface PrToPoPrefill {
   items: Array<{
     prItemId: string
     productId: string
+    /** True when the catalog item is a service (productId holds the service UUID). */
+    isService?: boolean
     variantId?: string
     quantity: number
     unitCost: number
     note?: string
     plantId?: string
     storageLocationId?: string
+    neededByDate?: string
   }>
 }
 
@@ -93,12 +96,14 @@ export function buildPrToPoPrefill(pr: PrLike): PrToPoPrefill | null {
     items: convertible.map((it) => ({
       prItemId: it.id,
       productId: (it.product_id || it.service_id) as string,
+      isService: !it.product_id && Boolean(it.service_id),
       variantId: it.variant_id || undefined,
       quantity: Number(it.quantity) || 1,
       unitCost: toMoney(it.estimated_price),
       note: it.notes || it.description || undefined,
       plantId: it.plant_id || undefined,
       storageLocationId: it.storage_location_id || undefined,
+      neededByDate: it.needed_by_date || undefined,
     })),
   }
 }
@@ -116,8 +121,9 @@ export function buildPoCreatePayloadFromPr(pr: PrLike): Record<string, unknown> 
     requisition_id: prefill.requisitionId,
     pr_item_ids: prefill.items.map((i) => i.prItemId),
     items: prefill.items.map((i) => ({
-      product_id: i.productId,
-      variant_id: i.variantId || undefined,
+      product_id: i.isService ? undefined : i.productId,
+      service_id: i.isService ? i.productId : undefined,
+      variant_id: i.isService ? undefined : (i.variantId || undefined),
       quantity: Math.max(1, Math.round(i.quantity)),
       unit_cost: i.unitCost,
       description: i.note || undefined,

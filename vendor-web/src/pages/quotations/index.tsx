@@ -17,6 +17,7 @@ import { TablePagination } from '@/components/table/TablePagination'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { CreateInvoiceModal } from '@/pages/invoices/index'
+import { SALES_DOC_COPY_FROM_KEY, salesInvoiceToCopyPrefill } from '@/lib/copyDocument'
 import { printInvoice, DEFAULT_QUOTATION_SETTINGS } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 import type { Order } from '@/types'
@@ -175,7 +176,7 @@ export default function QuotationsPage() {
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showCreate, setShowCreate] = useState(false)
-  const [createPrefill, setCreatePrefill] = useState<ReturnType<typeof buildEstimatePrefill> | undefined>()
+  const [createPrefill, setCreatePrefill] = useState<ReturnType<typeof buildEstimatePrefill> | ReturnType<typeof salesInvoiceToCopyPrefill> | undefined>()
   const [actingId, setActingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -185,6 +186,20 @@ export default function QuotationsPage() {
     }, 300)
     return () => clearTimeout(t)
   }, [searchInput])
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(SALES_DOC_COPY_FROM_KEY)
+    if (!raw) return
+    sessionStorage.removeItem(SALES_DOC_COPY_FROM_KEY)
+    try {
+      const parsed = JSON.parse(raw) as { id?: string }
+      if (!parsed?.id) return
+      vendorApi.getInvoice(parsed.id).then(inv => {
+        setCreatePrefill(salesInvoiceToCopyPrefill(inv as Record<string, unknown>))
+        setShowCreate(true)
+      }).catch(() => toast.error('Could not copy that quotation'))
+    } catch { /* ignore */ }
+  }, [])
 
   const { data: ordersData, isLoading: ordersLoading } = useOrders({
     page: 1,

@@ -59,6 +59,30 @@ export interface ApproverRulePreviewIn {
   amount?: number
 }
 
+// ── Procurement document number ranges ──────────────────────────────────────
+export interface ProcNumberRange {
+  id: string | null
+  vendor_id: string
+  store_id: string | null
+  prefix: string
+  label: string
+  number_from: number
+  number_to: number
+  last_value: number
+  width: number
+  preview: string
+  updated_at: string | null
+}
+
+export interface ProcNumberRangeIn {
+  store_id?: string | null
+  prefix: string
+  number_from: number
+  number_to: number
+  last_value: number
+  width: number
+}
+
 export interface ApproverResolutionPreview {
   matched: boolean
   lock_chain: boolean
@@ -969,6 +993,22 @@ export const vendorApi = {
   previewApproverResolution: async (data: ApproverRulePreviewIn): Promise<ApproverResolutionPreview> => {
     const response = await apiClient.post('/vendors/me/procurement/approver-rules/preview', data)
     return response.data
+  },
+
+  listProcNumberRanges: async (storeId?: string | null): Promise<ProcNumberRange[]> => {
+    const params: Record<string, string> = {}
+    if (storeId) params.store_id = storeId
+    const response = await apiClient.get('/vendors/me/procurement/number-ranges', { params })
+    return response.data
+  },
+
+  upsertProcNumberRange: async (data: ProcNumberRangeIn): Promise<ProcNumberRange> => {
+    const response = await apiClient.post('/vendors/me/procurement/number-ranges', data)
+    return response.data
+  },
+
+  deleteProcNumberRange: async (id: string): Promise<void> => {
+    await apiClient.delete(`/vendors/me/procurement/number-ranges/${id}`)
   },
 
   generateBusinessDescription: async (data: {
@@ -2541,6 +2581,12 @@ export const vendorApi = {
     const response = await apiClient.get(`/vendors/me/invoices/${id}`)
     return response.data
   },
+  lookupSalesInvoice: async (number: string, invoiceType?: string) => {
+    const response = await apiClient.get('/vendors/me/invoices/lookup', {
+      params: { number, invoice_type: invoiceType || undefined },
+    })
+    return response.data
+  },
   updateInvoice: async (id: string, data: Record<string, unknown>) => {
     const response = await apiClient.put(`/vendors/me/invoices/${id}`, data)
     return response.data
@@ -2911,6 +2957,11 @@ export const vendorApi = {
     return response.data
   },
 
+  lookupPurchaseOrder: async (number: string): Promise<PurchaseOrder> => {
+    const response = await apiClient.get('/vendors/me/purchase-orders/lookup', { params: { number } })
+    return response.data
+  },
+
   updatePurchaseOrder: async (id: string, data: Record<string, unknown>): Promise<PurchaseOrder> => {
     const response = await apiClient.put(`/vendors/me/purchase-orders/${id}`, data)
     return response.data
@@ -2989,6 +3040,10 @@ export const vendorApi = {
     const response = await apiClient.get(`/vendors/me/procurement/requisitions/${id}`)
     return response.data
   },
+  lookupRequisition: async (number: string) => {
+    const response = await apiClient.get('/vendors/me/procurement/requisitions/lookup', { params: { number } })
+    return response.data
+  },
   getProcurementProductContext: async (
     productId: string,
     params?: { variant_id?: string; store_id?: string; plant_id?: string },
@@ -3033,6 +3088,14 @@ export const vendorApi = {
   // ── Procurement: Vendor Invoices (AP) ────────────────────────
   listVendorInvoices: async (params?: Record<string, unknown>) => {
     const response = await apiClient.get('/vendors/me/procurement/vendor-invoices', { params })
+    return response.data
+  },
+  getVendorInvoice: async (id: string) => {
+    const response = await apiClient.get(`/vendors/me/procurement/vendor-invoices/${id}`)
+    return response.data
+  },
+  lookupVendorInvoice: async (number: string) => {
+    const response = await apiClient.get('/vendors/me/procurement/vendor-invoices/lookup', { params: { number } })
     return response.data
   },
   createVendorInvoice: async (data: Record<string, unknown>) => {

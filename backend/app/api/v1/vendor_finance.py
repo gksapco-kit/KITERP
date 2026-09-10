@@ -13,7 +13,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response, Body
 from decimal import Decimal
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_vendor_user, require_permission, require_any_permission, get_db
@@ -3844,6 +3844,265 @@ async def ledger_trial_balance(
         ]
     except ValueError as e:
         raise HTTPException(404, str(e))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PAYMENT TERMS
+# ─────────────────────────────────────────────────────────────────────────────
+
+from app.services.finance import payment_terms as _pt
+
+# ── Pydantic schemas ──────────────────────────────────────────────────────────
+
+class PaymentTermStageIn(BaseModel):
+    sort_order: Optional[int] = None
+    label: Optional[str] = None
+    share_pct: Decimal
+    due_days: int = 0
+    due_on_day: Optional[int] = None
+
+
+class PaymentTermDiscountIn(BaseModel):
+    within_days: int
+    discount_pct: Decimal
+
+
+class PaymentTermCreate(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+    usage: str = "both"               # both | buying | selling
+    starts_from: str = "invoice_date" # invoice_date | posting_date | delivery_date | goods_receipt_date
+    start_offset_days: int = 0
+    start_on_day: Optional[int] = None
+    start_shift_months: int = 0
+    round_to_month_end: bool = False
+    grace_days: int = 0
+    is_default: bool = False
+    stages: list[PaymentTermStageIn]
+    discounts: list[PaymentTermDiscountIn] = []
+
+
+class PaymentTermUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    usage: Optional[str] = None
+    starts_from: Optional[str] = None
+    start_offset_days: Optional[int] = None
+    start_on_day: Optional[int] = None
+    start_shift_months: Optional[int] = None
+    round_to_month_end: Optional[bool] = None
+    grace_days: Optional[int] = None
+    is_default: Optional[bool] = None
+    stages: Optional[list[PaymentTermStageIn]] = None
+    discounts: Optional[list[PaymentTermDiscountIn]] = None
+
+
+class PaymentTermStageOut(BaseModel):
+    id: UUID
+    sort_order: int
+    label: Optional[str]
+    share_pct: str
+    due_days: int
+    due_on_day: Optional[int]
+
+    @field_validator("share_pct", mode="before")
+    @classmethod
+    def _share_pct_str(cls, v: Any) -> str:
+        return str(v)
+
+    class Config:
+        from_attributes = True
+
+
+class PaymentTermDiscountOut(BaseModel):
+    id: UUID
+    within_days: int
+    discount_pct: str
+
+    @field_validator("discount_pct", mode="before")
+    @classmethod
+    def _discount_pct_str(cls, v: Any) -> str:
+        return str(v)
+
+    class Config:
+        from_attributes = True
+
+
+class PaymentTermOut(BaseModel):
+    id: UUID
+    code: str
+    name: str
+    description: Optional[str]
+    usage: str
+    starts_from: str
+    start_offset_days: int
+    start_on_day: Optional[int]
+    start_shift_months: int
+    round_to_month_end: bool
+    grace_days: int
+    is_active: bool
+    is_default: bool
+    stages: list[PaymentTermStageOut]
+    discounts: list[PaymentTermDiscountOut]
+
+    class Config:
+        from_attributes = True
+
+
+class PaymentTermOption(BaseModel):
+    """Slim representation for foreign-module dropdowns."""
+    id: UUID
+    code: str
+    name: str
+    usage: str
+
+    class Config:
+        from_attributes = True
+
+
+class PreviewRequest(BaseModel):
+    amount: Decimal
+    invoice_date: date
+    posting_date: Optional[date] = None
+    received_date: Optional[date] = None
+    delivery_date: Optional[date] = None
+    goods_receipt_date: Optional[date] = None
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
+
+@router.get("/payment-terms/options")
+async def list_payment_term_options(
+    usage: Optional[str] = None,
+    vu: VendorUser = Depends(require_any_permission(
+        "finance.view", "procurement.view", "procurement.manage",
+        "orders.view", "crm.view",
+    )),
+    db: AsyncSession = Depends(get_db),
+):
+    """Slim list for dropdowns in any module."""
+    terms = await _pt.list_payment_terms(db, vu.vendor_id, usage=usage, active_only=True)
+    return [PaymentTermOption.model_validate(t) for t in terms]
+
+
+@router.get("/payment-terms")
+async def list_payment_terms(
+    usage: Optional[str] = None,
+    active_only: bool = True,
+    vu: VendorUser = Depends(require_permission("finance.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    terms = await _pt.list_payment_terms(db, vu.vendor_id, usage=usage, active_only=active_only)
+    return [PaymentTermOut.model_validate(t) for t in terms]
+
+
+@router.post("/payment-terms", status_code=201)
+async def create_payment_term(
+    body: PaymentTermCreate,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        term = await _pt.create_payment_term(db, vu.vendor_id, body.model_dump())
+        await db.commit()
+        return PaymentTermOut.model_validate(term)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
+@router.put("/payment-terms/{term_id}")
+async def update_payment_term(
+    term_id: UUID,
+    body: PaymentTermUpdate,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        data = {k: v for k, v in body.model_dump().items() if v is not None}
+        term = await _pt.update_payment_term(db, term_id, vu.vendor_id, data)
+        await db.commit()
+        return PaymentTermOut.model_validate(term)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.patch("/payment-terms/{term_id}/toggle-active", status_code=200)
+async def toggle_payment_term_active(
+    term_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        term = await _pt.toggle_active(db, term_id, vu.vendor_id)
+        await db.commit()
+        return {"id": str(term.id), "is_active": term.is_active}
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.delete("/payment-terms/{term_id}", status_code=204)
+async def delete_payment_term(
+    term_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await _pt.delete_payment_term(db, term_id, vu.vendor_id)
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/payment-terms/{term_id}/preview")
+async def preview_payment_term(
+    term_id: UUID,
+    body: PreviewRequest,
+    vu: VendorUser = Depends(require_any_permission(
+        "finance.view", "procurement.view", "orders.view",
+    )),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Preview the payment schedule that would result from applying this term
+    to a given amount and invoice date.  Used by the editor live preview and
+    by document forms to show the due date hint.
+    """
+    try:
+        term = await _pt.get_payment_term(db, term_id, vu.vendor_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+    anchors = {
+        k: v for k, v in body.model_dump().items()
+        if k not in ("amount", "invoice_date") and v is not None
+    }
+    schedule = _pt.build_schedule(term, body.amount, body.invoice_date, **anchors)
+
+    return {
+        "due_date": schedule.due_date.isoformat(),
+        "summary":  schedule.summary,
+        "stages": [
+            {
+                "label":     s.label,
+                "sort_order": s.sort_order,
+                "share_pct": str(s.share_pct),
+                "amount":    str(s.amount),
+                "due_date":  s.due_date.isoformat(),
+            }
+            for s in schedule.stages
+        ],
+        "discounts": [
+            {
+                "pay_by":       d.pay_by.isoformat(),
+                "discount_pct": str(d.discount_pct),
+                "saving":       str(d.saving),
+                "net_amount":   str(d.net_amount),
+            }
+            for d in schedule.discounts
+        ],
+    }
 
 
 

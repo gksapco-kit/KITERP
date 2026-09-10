@@ -376,7 +376,8 @@ class PurchaseOrderService:
             sgst_total += tax["sgst_amount"]
             igst_total += tax["igst_amount"]
             po_items.append(PurchaseOrderItem(
-                product_id=UUID(item_data["product_id"]),
+                product_id=UUID(item_data["product_id"]) if item_data.get("product_id") else None,
+                service_id=UUID(item_data["service_id"]) if item_data.get("service_id") else None,
                 variant_id=UUID(item_data["variant_id"]) if item_data.get("variant_id") else None,
                 quantity_ordered=qty,
                 unit_cost=cost,
@@ -388,7 +389,9 @@ class PurchaseOrderService:
                 ),
                 notes=item_data.get("notes") or item_data.get("description"),
                 unit_of_measure=item_data.get("unit_of_measure") or "PCS",
-                item_category=item_data.get("item_category") or "standard",
+                item_category=item_data.get("item_category") or (
+                    "service" if item_data.get("service_id") else "standard"
+                ),
                 tax_code=item_data.get("tax_code"),
                 hsn_code=item_data.get("hsn_code"),
                 account_assignment=item_data.get("account_assignment"),
@@ -449,7 +452,37 @@ class PurchaseOrderService:
             items=po_items,
         )
         self.db.add(po)
-        await self.db.flush()
+        try:
+            await self.db.flush()
+        except IntegrityError as exc:
+            await self.db.rollback()
+            orig = exc.orig if getattr(exc, "orig", None) else exc
+            err = str(orig).lower()
+            if "uq_po_vendor_number" in err or "po_number" in err:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"PO number {po_number} is already in use. "
+                        "The document sequence may have been out of sync — please try again."
+                    ),
+                ) from exc
+            if "unique" in err or "uniqueviolation" in err:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A record with this information already exists",
+                ) from exc
+            if "foreign key" in err or "foreignkeyviolation" in err:
+                import re as _re
+                col = _re.search(r'column "(\w+)"', str(orig))
+                field = col.group(1).replace("_", " ") if col else "a referenced field"
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid value for {field} — the referenced record does not exist",
+                ) from exc
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A database conflict occurred — please try again",
+            ) from exc
 
         # Attach approvers if provided at creation time
         for apv in sorted(data.get("approvers") or [], key=lambda a: a.get("level", 1)):
@@ -610,7 +643,8 @@ class PurchaseOrderService:
                 igst_total += tax["igst_amount"]
                 new_items.append(PurchaseOrderItem(
                     purchase_order_id=po.id,
-                    product_id=UUID(item_data["product_id"]),
+                    product_id=UUID(item_data["product_id"]) if item_data.get("product_id") else None,
+                    service_id=UUID(item_data["service_id"]) if item_data.get("service_id") else None,
                     variant_id=UUID(item_data["variant_id"]) if item_data.get("variant_id") else None,
                     quantity_ordered=qty,
                     unit_cost=cost,
@@ -622,7 +656,9 @@ class PurchaseOrderService:
                     ),
                     notes=item_data.get("notes") or item_data.get("description"),
                     unit_of_measure=item_data.get("unit_of_measure") or "PCS",
-                    item_category=item_data.get("item_category") or "standard",
+                    item_category=item_data.get("item_category") or (
+                        "service" if item_data.get("service_id") else "standard"
+                    ),
                     tax_code=item_data.get("tax_code"),
                     hsn_code=item_data.get("hsn_code"),
                     account_assignment=item_data.get("account_assignment"),
@@ -1073,6 +1109,10 @@ class PurchaseOrderService:
     # ── Cancel ───────────────────────────────────────────────────
 
     async def cancel(self, vendor_id: UUID, po_id: UUID) -> PurchaseOrder:
+        from app.models.procurement_requisition import (
+            PurchaseRequisition, PurchaseRequisitionItem,
+        )
+
         po = await self._get(vendor_id, po_id)
         if po.status not in ("draft", "sent"):
             raise HTTPException(
@@ -1080,6 +1120,43 @@ class PurchaseOrderService:
                 detail="Only draft or sent purchase orders can be cancelled",
             )
         po.status = "cancelled"
+        now = datetime.now(timezone.utc)
+
+        # Release PR lines that were tied to this PO so the requisition can be
+        # re-converted against a new PO.
+        if po.requisition_id:
+            pr_result = await self.db.execute(
+                select(PurchaseRequisition)
+                .options(selectinload(PurchaseRequisition.items))
+                .where(
+                    PurchaseRequisition.id == po.requisition_id,
+                    PurchaseRequisition.vendor_id == vendor_id,
+                )
+            )
+            pr = pr_result.scalar_one_or_none()
+            if pr and pr.status in ("converted", "partially_converted"):
+                for item in pr.items or []:
+                    if item.purchase_order_id == po_id:
+                        item.is_converted = False
+                        item.quantity_ordered = 0
+                        item.purchase_order_id = None
+
+                # Determine whether any lines are still tied to other live POs
+                still_converted = [
+                    i for i in (pr.items or []) if i.is_converted
+                ]
+                if still_converted:
+                    pr.status = "partially_converted"
+                else:
+                    # All lines released — return to the state before conversion
+                    pr.status = "approved" if pr.approved_at else "open"
+
+                pr.audit_log = (pr.audit_log or []) + [{
+                    "action": "released_from_cancelled_po",
+                    "purchase_order_id": str(po_id),
+                    "at": now.isoformat(),
+                }]
+
         await self.db.commit()
         return await self._get(vendor_id, po_id)
 
@@ -1181,6 +1258,15 @@ class PurchaseOrderService:
 
     async def get(self, vendor_id: UUID, po_id: UUID) -> PurchaseOrder:
         return await self._get(vendor_id, po_id, load_receipts=True)
+
+    async def get_by_number(self, vendor_id: UUID, number: str) -> PurchaseOrder:
+        from app.utils.doc_lookup import lookup_id_by_number, lookup_http_error
+        po_id, status = await lookup_id_by_number(
+            self.db, PurchaseOrder, PurchaseOrder.po_number, vendor_id, number,
+        )
+        if not po_id:
+            raise lookup_http_error(status, "purchase order")
+        return await self._get(vendor_id, po_id, load_receipts=False)
 
     async def _get(
         self, vendor_id: UUID, po_id: UUID, load_receipts: bool = False,

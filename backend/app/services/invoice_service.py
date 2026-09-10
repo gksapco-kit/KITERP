@@ -466,6 +466,22 @@ class InvoiceService:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_number(
+        self, vendor_id: UUID, number: str, invoice_type: str | None = None,
+    ) -> Invoice | None:
+        from app.utils.doc_lookup import lookup_id_by_number, lookup_http_error
+        extra = [Invoice.invoice_type == invoice_type] if invoice_type else []
+        invoice_id, status = await lookup_id_by_number(
+            self.db, Invoice, Invoice.invoice_number, vendor_id, number, extra_filters=extra,
+        )
+        if not invoice_id and invoice_type:
+            invoice_id, status = await lookup_id_by_number(
+                self.db, Invoice, Invoice.invoice_number, vendor_id, number,
+            )
+        if not invoice_id:
+            raise lookup_http_error(status, "invoice")
+        return await self.get_invoice(invoice_id, vendor_id)
+
     async def get_by_order_id(self, order_id: UUID, vendor_id: UUID) -> Invoice | None:
         result = await self.db.execute(
             select(Invoice).where(

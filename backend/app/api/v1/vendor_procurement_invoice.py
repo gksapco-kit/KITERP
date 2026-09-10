@@ -260,6 +260,25 @@ async def list_vendor_invoices(
     })
 
 
+@router.get("/vendor-invoices/lookup")
+async def lookup_vendor_invoice(
+    number: str = Query(..., min_length=1),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.utils.doc_lookup import lookup_id_by_number, lookup_http_error
+    repo = VendorInvoiceRepository(db)
+    invoice_id, status = await lookup_id_by_number(
+        db, VendorInvoice, VendorInvoice.invoice_number, vendor_id, number,
+    )
+    if not invoice_id:
+        raise lookup_http_error(status, "vendor invoice")
+    inv = await repo.get_by_vendor_and_id(vendor_id, invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Vendor invoice not found")
+    return JSONResponse(content=_invoice_to_dict(inv))
+
+
 @router.get("/vendor-invoices/{invoice_id}")
 async def get_vendor_invoice(
     invoice_id: UUID,

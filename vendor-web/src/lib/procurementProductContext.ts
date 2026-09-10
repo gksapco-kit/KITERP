@@ -54,8 +54,9 @@ export interface ProcurementProductContext {
   material_code?: string | null
   sku?: string | null
   uom: string
-  cost_price: number
+  cost_price: number | null
   hsn_code?: string | null
+  barcode?: string | null
   gst_rate?: number | null
   is_taxable: boolean
   store_scope: string

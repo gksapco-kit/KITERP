@@ -1166,6 +1166,57 @@ export const useLedgerTrialBalance = (ledgerId: string | null, fiscalYearId?: st
     enabled: !!ledgerId,
   })
 
+// ── Payment Terms ──────────────────────────────────────────────────────────────
+
+export const usePaymentTerms = (params?: { usage?: string; active_only?: boolean }) =>
+  useQuery({
+    queryKey: ['finance', 'payment-terms', params],
+    queryFn: () => api.listPaymentTerms(params),
+  })
+
+export const usePaymentTermOptions = (usage?: string) =>
+  useQuery({
+    queryKey: ['finance', 'payment-term-options', usage ?? 'all'],
+    queryFn: () => api.listPaymentTermOptions(usage),
+  })
+
+export const useCreatePaymentTerm = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createPaymentTerm,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'payment-terms'] }),
+  })
+}
+
+export const useUpdatePaymentTerm = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof api.updatePaymentTerm>[1] }) =>
+      api.updatePaymentTerm(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'payment-terms'] }),
+  })
+}
+
+export const useTogglePaymentTermActive = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.togglePaymentTermActive(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'payment-terms'] }),
+  })
+}
+
+export const useDeletePaymentTerm = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deletePaymentTerm(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'payment-terms'] }),
+  })
+}
+
+export const usePreviewPaymentTerm = () =>
+  useMutation({ mutationFn: ({ id, data }: { id: string; data: Parameters<typeof api.previewPaymentTerm>[1] }) =>
+    api.previewPaymentTerm(id, data) })
+
 
 
 

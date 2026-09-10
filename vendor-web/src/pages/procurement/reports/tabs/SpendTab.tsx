@@ -49,7 +49,7 @@ export function SpendTab({
   const groupBy = filters.group_by || 'supplier'
   const params = filtersToParams(filters, { group_by: groupBy, limit: 500 })
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['vendor', 'proc-analytics-spend', params, refreshKey],
     queryFn: () => vendorApi.procurementAnalyticsSpend(params),
   })
@@ -70,6 +70,12 @@ export function SpendTab({
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-center justify-between">
+          <span>Failed to load spend data. Please try again.</span>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}><RefreshCw className="h-3.5 w-3.5 mr-1" />Retry</Button>
+        </div>
+      )}
       <div className="flex items-center gap-2 flex-wrap">
         <Select
           value={groupBy}

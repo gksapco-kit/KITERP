@@ -29,7 +29,7 @@ const TAX_TILES = [
 
 export function GSTInputCreditTab({ filters, refreshKey = 0 }: { filters: ProcurementReportFilters; refreshKey?: number }) {
   const params = filtersToParams(filters, { limit: 500 })
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['vendor', 'proc-analytics-gst-input-credit', params, refreshKey],
     queryFn: () => vendorApi.procurementAnalyticsGSTInputCredit(params),
   })
@@ -61,6 +61,12 @@ export function GSTInputCreditTab({ filters, refreshKey = 0 }: { filters: Procur
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-center justify-between">
+          <span>Failed to load GST input credit data. Please try again.</span>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}><RefreshCw className="h-3.5 w-3.5 mr-1" />Retry</Button>
+        </div>
+      )}
       {/* Tax type summary tiles — static Tailwind classes */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {TAX_TILES.map(t => (

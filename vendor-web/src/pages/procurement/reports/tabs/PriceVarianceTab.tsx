@@ -22,7 +22,7 @@ interface VarianceItem {
 
 export function PriceVarianceTab({ filters, refreshKey = 0 }: { filters: ProcurementReportFilters; refreshKey?: number }) {
   const params = filtersToParams(filters, { limit: 500 })
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['vendor', 'proc-analytics-price-variance', params, refreshKey],
     queryFn: () => vendorApi.procurementAnalyticsPriceVariance(params),
   })
@@ -45,6 +45,12 @@ export function PriceVarianceTab({ filters, refreshKey = 0 }: { filters: Procure
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-center justify-between">
+          <span>Failed to load price variance data. Please try again.</span>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}><RefreshCw className="h-3.5 w-3.5 mr-1" />Retry</Button>
+        </div>
+      )}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="rounded-xl border bg-red-50 dark:bg-red-950/20 px-4 py-2 flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 text-red-500" />

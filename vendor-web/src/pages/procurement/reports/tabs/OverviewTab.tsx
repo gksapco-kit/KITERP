@@ -371,12 +371,12 @@ export function OverviewTab({
 
   // Snapshot queries for report-card grid
   const snapParams = filtersToParams(filters, { limit: 100 })
-  const { data: spendSnap }     = useQuery({ queryKey: ['vendor', 'proc-analytics-spend', snapParams],     queryFn: () => vendorApi.procurementAnalyticsSpend(snapParams) })
-  const { data: scorecardSnap } = useQuery({ queryKey: ['vendor', 'proc-analytics-supplier-scorecard', snapParams], queryFn: () => vendorApi.procurementAnalyticsSupplierScorecard(snapParams) })
-  const { data: funnelSnap }    = useQuery({ queryKey: ['vendor', 'proc-analytics-sourcing-funnel', snapParams],    queryFn: () => vendorApi.procurementAnalyticsSourcingFunnel(snapParams) })
-  const { data: ppvSnap }       = useQuery({ queryKey: ['vendor', 'proc-analytics-price-variance', snapParams],     queryFn: () => vendorApi.procurementAnalyticsPriceVariance(snapParams) })
-  const { data: matchSnap }     = useQuery({ queryKey: ['vendor', 'proc-analytics-match-exceptions', snapParams],   queryFn: () => vendorApi.procurementAnalyticsMatchExceptions(snapParams) })
-  const { data: returnsSnap }   = useQuery({ queryKey: ['vendor', 'proc-analytics-returns', snapParams],             queryFn: () => vendorApi.procurementAnalyticsReturns(snapParams) })
+  const { data: spendSnap }     = useQuery({ queryKey: ['vendor', 'proc-analytics-spend', snapParams, refreshKey],     queryFn: () => vendorApi.procurementAnalyticsSpend(snapParams) })
+  const { data: scorecardSnap } = useQuery({ queryKey: ['vendor', 'proc-analytics-supplier-scorecard', snapParams, refreshKey], queryFn: () => vendorApi.procurementAnalyticsSupplierScorecard(snapParams) })
+  const { data: funnelSnap }    = useQuery({ queryKey: ['vendor', 'proc-analytics-sourcing-funnel', snapParams, refreshKey],    queryFn: () => vendorApi.procurementAnalyticsSourcingFunnel(snapParams) })
+  const { data: ppvSnap }       = useQuery({ queryKey: ['vendor', 'proc-analytics-price-variance', snapParams, refreshKey],     queryFn: () => vendorApi.procurementAnalyticsPriceVariance(snapParams) })
+  const { data: matchSnap }     = useQuery({ queryKey: ['vendor', 'proc-analytics-match-exceptions', snapParams, refreshKey],   queryFn: () => vendorApi.procurementAnalyticsMatchExceptions(snapParams) })
+  const { data: returnsSnap }   = useQuery({ queryKey: ['vendor', 'proc-analytics-returns', snapParams, refreshKey],             queryFn: () => vendorApi.procurementAnalyticsReturns(snapParams) })
 
   const snapByReportId: Record<string, unknown> = {
     spend:     spendSnap,
@@ -398,7 +398,18 @@ export function OverviewTab({
   }
 
   if (error || !data) {
-    return <div className="rounded-xl border border-border bg-card p-10 text-center text-gray-500">Failed to load overview. Please try again.</div>
+    return (
+      <div className="rounded-xl border border-border bg-card p-10 text-center space-y-3">
+        <p className="text-gray-500">Failed to load overview. Please try again.</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-accent"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Retry
+        </button>
+      </div>
+    )
   }
 
   const kpis = (data as { kpis: OverviewKpis }).kpis

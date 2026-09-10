@@ -39,6 +39,8 @@ def _po_item_to_dict(item) -> dict:
     if item.product:
         d["product_name"] = item.product.name
         d["product_sku"] = item.product.sku
+    if getattr(item, "service", None):
+        d["service_name"] = item.service.name
     if item.variant:
         d["variant_name"] = item.variant.name
         d["variant_sku"] = item.variant.sku
@@ -317,6 +319,17 @@ async def list_purchase_orders(
         "size": size,
         "pages": math.ceil(total / size) if total > 0 else 0,
     })
+
+
+@router.get("/purchase-orders/lookup")
+async def lookup_purchase_order(
+    number: str = Query(..., min_length=1),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = PurchaseOrderService(db)
+    po = await svc.get_by_number(vendor_id, number)
+    return JSONResponse(content=_po_to_dict(po))
 
 
 @router.get("/purchase-orders/{po_id}")
@@ -1083,3 +1096,171 @@ async def preview_approver_resolution(
         "lock_chain": chain.lock_chain,
         "steps":      steps_out,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PROCUREMENT DOCUMENT NUMBER RANGES (per-vendor / per-business-unit)
+# ─────────────────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel as _BM, Field as _F
+from typing import Literal as _Lit
+from app.models.procurement_sequence import DocumentSequence as _DocSeq
+
+_PROC_PREFIXES: list[str] = ["PR", "PO", "RFQ", "SQ", "GRN", "GRNR", "PRET"]
+
+_PREFIX_LABELS: dict[str, str] = {
+    "PR":   "Purchase Requisition",
+    "PO":   "Purchase Order",
+    "RFQ":  "Request for Quotation",
+    "SQ":   "Supplier Quotation",
+    "GRN":  "Goods Receipt Note",
+    "GRNR": "GRN Reversal",
+    "PRET": "Purchase Return",
+}
+
+_PREFIX_WIDTHS: dict[str, int] = {
+    "PR": 6, "PO": 4, "RFQ": 6, "SQ": 6,
+    "GRN": 6, "GRNR": 5, "PRET": 6,
+}
+
+
+class ProcNumberRangeIn(_BM):
+    store_id:    Optional[str] = None
+    prefix:      str
+    number_from: int           = _F(default=1, ge=1)
+    number_to:   int           = _F(default=999999, ge=1)
+    last_value:  int           = _F(default=0, ge=0)
+    width:       int           = _F(default=6, ge=1, le=12)
+
+
+class ProcNumberRangeOut(ProcNumberRangeIn):
+    id:         str
+    vendor_id:  str
+    label:      str
+    preview:    str
+    updated_at: Optional[str] = None
+
+
+def _seq_to_dict(s: "_DocSeq") -> dict:
+    pad   = max(1, min(s.width or 6, 12))
+    nxt   = (s.last_value or 0) + 1
+    pfx   = s.prefix or ""
+    label = _PREFIX_LABELS.get(pfx, pfx)
+    preview = f"{pfx}-{str(nxt).zfill(pad)}"
+    return {
+        "id":          str(s.id),
+        "vendor_id":   str(s.vendor_id),
+        "store_id":    str(s.store_id) if s.store_id else None,
+        "prefix":      pfx,
+        "label":       label,
+        "number_from": s.number_from if s.number_from is not None else 1,
+        "number_to":   s.number_to   if s.number_to   is not None else 999999,
+        "last_value":  s.last_value  or 0,
+        "width":       s.width       or 6,
+        "preview":     preview,
+        "updated_at":  s.updated_at.isoformat() if s.updated_at else None,
+    }
+
+
+@router.get("/procurement/number-ranges")
+async def list_proc_number_ranges(
+    store_id: Optional[str] = Query(None, description="Filter by business unit. Omit for all."),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _: VendorUser = Depends(require_permission("procurement.view")),
+):
+    """List document number sequences, optionally scoped to one business unit."""
+    q = select(_DocSeq).where(_DocSeq.vendor_id == vendor_id)
+    if store_id:
+        q = q.where(_DocSeq.store_id == UUID(store_id))
+    else:
+        q = q.where(_DocSeq.store_id.is_(None))
+    rows = (await db.execute(q.order_by(_DocSeq.prefix))).scalars().all()
+
+    # Return a record for every known prefix so the UI always shows a full table
+    by_prefix = {r.prefix: r for r in rows}
+    result = []
+    for pfx in _PROC_PREFIXES:
+        if pfx in by_prefix:
+            result.append(_seq_to_dict(by_prefix[pfx]))
+        else:
+            # Virtual placeholder so the UI can render an "edit" row
+            pad = _PREFIX_WIDTHS.get(pfx, 6)
+            result.append({
+                "id":          None,
+                "vendor_id":   str(vendor_id),
+                "store_id":    store_id,
+                "prefix":      pfx,
+                "label":       _PREFIX_LABELS.get(pfx, pfx),
+                "number_from": 1,
+                "number_to":   999999,
+                "last_value":  0,
+                "width":       pad,
+                "preview":     f"{pfx}-{str(1).zfill(pad)}",
+                "updated_at":  None,
+            })
+    return result
+
+
+@router.post("/procurement/number-ranges", status_code=201)
+async def upsert_proc_number_range(
+    data: ProcNumberRangeIn,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _: VendorUser = Depends(require_permission("procurement.manage")),
+):
+    """Create or update a document sequence for a given prefix and optional business unit."""
+    if data.prefix not in _PROC_PREFIXES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown prefix '{data.prefix}'. Allowed: {', '.join(_PROC_PREFIXES)}",
+        )
+    if data.number_to <= data.number_from:
+        raise HTTPException(status_code=400, detail="number_to must be greater than number_from")
+    if data.last_value > data.number_to:
+        raise HTTPException(status_code=400, detail="last_value cannot exceed number_to")
+
+    sid = UUID(data.store_id) if data.store_id else None
+
+    q = select(_DocSeq).where(
+        _DocSeq.vendor_id == vendor_id,
+        _DocSeq.prefix    == data.prefix,
+    )
+    q = q.where(_DocSeq.store_id == sid) if sid else q.where(_DocSeq.store_id.is_(None))
+    seq: "_DocSeq | None" = (await db.execute(q)).scalar_one_or_none()
+
+    if seq is None:
+        seq = _DocSeq(
+            vendor_id   = vendor_id,
+            store_id    = sid,
+            prefix      = data.prefix,
+            number_from = data.number_from,
+            number_to   = data.number_to,
+            last_value  = data.last_value,
+            width       = data.width,
+        )
+        db.add(seq)
+    else:
+        seq.number_from = data.number_from
+        seq.number_to   = data.number_to
+        seq.last_value  = data.last_value
+        seq.width       = data.width
+
+    await db.commit()
+    await db.refresh(seq)
+    return _seq_to_dict(seq)
+
+
+@router.delete("/procurement/number-ranges/{seq_id}", status_code=204)
+async def delete_proc_number_range(
+    seq_id: UUID,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+    _: VendorUser = Depends(require_permission("procurement.manage")),
+):
+    """Delete a document sequence row (safe to do for BU-specific overrides)."""
+    seq: "_DocSeq | None" = await db.get(_DocSeq, seq_id)
+    if not seq or seq.vendor_id != vendor_id:
+        raise HTTPException(status_code=404, detail="Number range not found")
+    await db.delete(seq)
+    await db.commit()

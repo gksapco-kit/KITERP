@@ -31,7 +31,7 @@ export function SpendTrendTab({
   const bucket = filters.bucket || 'month'
   const params = filtersToParams(filters, { bucket })
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['vendor', 'proc-analytics-spend-trend', params, refreshKey],
     queryFn: () => vendorApi.procurementAnalyticsSpendTrend(params),
   })
@@ -71,6 +71,12 @@ export function SpendTrendTab({
         </div>
       </div>
 
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-center justify-between">
+          <span>Failed to load trend data. Please try again.</span>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}><RefreshCw className="h-3.5 w-3.5 mr-1" />Retry</Button>
+        </div>
+      )}
       {isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : series.length === 0 ? (

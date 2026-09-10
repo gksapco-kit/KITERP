@@ -48,6 +48,7 @@ class PRItemCreate(BaseModel):
     storage_location_id: Optional[str] = None
     estimated_price: Optional[float] = Field(0, ge=0)
     suggested_supplier_id: Optional[str] = None
+    tax_code: Optional[str] = Field(None, max_length=20)
     notes: Optional[str] = None
 
 
@@ -79,6 +80,7 @@ class PRItemResponse(BaseModel):
     quantity_ordered: float = 0
     purchase_order_id: Optional[str] = None
     is_converted: bool = False
+    tax_code: Optional[str] = None
     notes: Optional[str] = None
 
     @field_validator("id", "requisition_id", mode="before")

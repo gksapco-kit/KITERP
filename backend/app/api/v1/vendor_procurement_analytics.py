@@ -2,9 +2,11 @@
 Procurement Report Analytics API
 Prefix: /vendors/me/procurement/reports/analytics
 All aggregation logic lives in procurement_analytics_service.py.
-"""
-from __future__ import annotations
 
+NOTE: Do not add `from __future__ import annotations` here.
+Pydantic 2.13 + FastAPI Depends classes fail to resolve postponed
+Optional[date]/Optional[UUID] ForwardRefs (class-not-fully-defined → 500).
+"""
 from datetime import date
 from typing import Optional
 from uuid import UUID

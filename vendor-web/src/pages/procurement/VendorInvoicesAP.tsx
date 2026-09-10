@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,8 +24,12 @@ import { ProcurementSupplierField } from '@/components/procurement/ProcurementSu
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { VendorInvoice } from '@/types'
-import { Loader2, Plus, X, FileText, CheckCircle2, Ban, ArrowRight, Banknote, Printer, Download, CreditCard, Send, ThumbsUp, ThumbsDown, Clock } from 'lucide-react'
+import { Loader2, Plus, X, FileText, CheckCircle2, Ban, ArrowRight, Banknote, Printer, Download, CreditCard, Send, ThumbsUp, ThumbsDown, Clock, CopyPlus } from 'lucide-react'
 import { printInvoice, downloadInvoicePdf } from '@/lib/procurementPrintUtils'
+import { vendorInvoiceToCopyLines } from '@/lib/copyDocument'
+import { CopyFromDocumentField } from '@/components/procurement/CopyFromDocumentField'
+import { vendorApi } from '@/api/vendor'
+import { extractApiError } from '@/lib/errorMessages'
 
 const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   draft:         { bg: 'bg-gray-100 dark:bg-gray-800',      text: 'text-gray-700 dark:text-gray-300',    label: 'Draft' },
@@ -63,7 +67,7 @@ function calcLineTotal(l: LineRow, taxRate: number) {
 }
 
 // ── Detail Panel ──────────────────────────────────────────────────
-function InvoiceDetailPanel({ invoice, onClose }: { invoice: VendorInvoice; onClose: () => void }) {
+function InvoiceDetailPanel({ invoice, onClose, onCopyDocument }: { invoice: VendorInvoice; onClose: () => void; onCopyDocument?: () => void }) {
   const navigate = useNavigate()
   const post = usePostVendorInvoice()
   const match = useMatchVendorInvoice()
@@ -107,6 +111,11 @@ function InvoiceDetailPanel({ invoice, onClose }: { invoice: VendorInvoice; onCl
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${matchBadge}`}>{invoice.match_status.replace(/_/g, ' ')}</span>
             {approvalStatus !== 'not_required' && (
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${approvalBadge.bg} ${approvalBadge.text}`}>{approvalBadge.label}</span>
+            )}
+            {onCopyDocument && (
+              <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onCopyDocument}>
+                <CopyPlus className="w-3.5 h-3.5" /> Copy
+              </Button>
             )}
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
           </div>
@@ -387,7 +396,7 @@ function InvoiceDetailPanel({ invoice, onClose }: { invoice: VendorInvoice; onCl
 }
 
 // ── Create Invoice Modal ──────────────────────────────────────────
-function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
+function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFrom?: VendorInvoice | null }) {
   const navigate = useNavigate()
   const create = useCreateVendorInvoice()
   const { data: posData } = usePurchaseOrders({ status: 'sent,partial_received,received', size: 100 })
@@ -408,6 +417,36 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
   const [currency, setCurrency] = useState('INR')
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<LineRow[]>([emptyLine()])
+  const [copiedFromNumber, setCopiedFromNumber] = useState<string | null>(null)
+  const [copyLoading, setCopyLoading] = useState(false)
+
+  const applyCopiedInvoice = (invoice: VendorInvoice) => {
+    setSupplierId(invoice.supplier_id || '')
+    setPoId(invoice.purchase_order_id || '')
+    setInvoiceNumber('')
+    setCurrency(invoice.currency || 'INR')
+    setNotes(invoice.notes || '')
+    setLines(vendorInvoiceToCopyLines(invoice))
+    setCopiedFromNumber(invoice.invoice_number)
+    toast.success(`Copied from ${invoice.invoice_number}. Enter a new invoice number before saving.`)
+  }
+
+  useEffect(() => {
+    if (copyFrom) applyCopiedInvoice(copyFrom)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleCopyFromNumber = async (number: string) => {
+    setCopyLoading(true)
+    try {
+      const invoice = await vendorApi.lookupVendorInvoice(number) as VendorInvoice
+      applyCopiedInvoice(invoice)
+    } catch (err) {
+      toast.error(extractApiError(err, 'No vendor invoice found with that number'))
+    } finally {
+      setCopyLoading(false)
+    }
+  }
 
   useEscapeToClose(onClose, true)
 
@@ -455,11 +494,17 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white dark:bg-gray-900 z-10">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Banknote className="w-5 h-5 text-amber-600" /> New Vendor Invoice (AP)
+            <Banknote className="w-5 h-5 text-amber-600" /> {copiedFromNumber ? `Copy of ${copiedFromNumber}` : 'New Vendor Invoice (AP)'}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
         <CardContent className="p-6 space-y-5">
+          <CopyFromDocumentField
+            placeholder="Enter vendor invoice number"
+            onCopy={handleCopyFromNumber}
+            loading={copyLoading}
+            copiedFrom={copiedFromNumber}
+          />
           <div className="grid grid-cols-3 gap-4">
             <ProcurementSupplierField
               value={supplierId}
@@ -624,6 +669,7 @@ export default function VendorInvoicesAPPage() {
   const [sortKey, setSortKey] = useState('invoice_date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showCreate, setShowCreate] = useState(false)
+  const [copyFromInvoice, setCopyFromInvoice] = useState<VendorInvoice | null>(null)
   const [selected, setSelected] = useState<VendorInvoice | null>(null)
 
   const params: Record<string, unknown> =
@@ -666,15 +712,30 @@ export default function VendorInvoicesAPPage() {
 
   return (
     <div className="space-y-6">
-      {showCreate && <CreateInvoiceModal onClose={() => setShowCreate(false)} />}
-      {selected && <InvoiceDetailPanel invoice={selected} onClose={() => setSelected(null)} />}
+      {showCreate && (
+        <CreateInvoiceModal
+          copyFrom={copyFromInvoice}
+          onClose={() => { setShowCreate(false); setCopyFromInvoice(null) }}
+        />
+      )}
+      {selected && (
+        <InvoiceDetailPanel
+          invoice={selected}
+          onClose={() => setSelected(null)}
+          onCopyDocument={() => {
+            setCopyFromInvoice(selected)
+            setSelected(null)
+            setShowCreate(true)
+          }}
+        />
+      )}
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Vendor Invoices (AP)</h1>
           <p className="text-sm text-gray-500 mt-0.5">AP bills from suppliers — post, match, and track payment</p>
         </div>
-        <Button className="gap-2" onClick={() => setShowCreate(true)}>
+        <Button className="gap-2" onClick={() => { setCopyFromInvoice(null); setShowCreate(true) }}>
           <Plus className="w-4 h-4" /> New Invoice
         </Button>
       </div>

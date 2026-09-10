@@ -22,7 +22,7 @@ import {
   GripVertical, SlidersHorizontal, Database, Table2, Search, ExternalLink,
   PanelLeftClose, PanelLeft, Settings2, Hash, QrCode, Pill, FlaskConical, Microscope,
   ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin, Quote, X,
-  ThermometerSnowflake, Network, CalendarCheck2, CalendarDays, RotateCcw,
+  ThermometerSnowflake, Network, CalendarCheck2, CalendarDays, RotateCcw, CalendarClock,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
 import { isVendorAdminEmbed } from '@/lib/adminEmbed'
@@ -816,6 +816,7 @@ const allSections: NavSection[] = [
       { to: '/procurement/grn', icon: Truck, label: 'Goods Receipt (GRN)', requiresPermission: 'procurement.view', groupLabel: 'Goods & Returns', groupColor: 'emerald' },
       { to: '/procurement/purchase-returns', icon: RotateCcw, label: 'Purchase Returns', requiresPermission: 'procurement.view' },
       { to: '/procurement/configure', icon: SlidersHorizontal, label: 'Configure', requiresPermission: 'procurement.view' },
+      { to: '/procurement/number-ranges', icon: Hash, label: 'Number Ranges', requiresPermission: 'procurement.manage' },
       { to: '/procurement/workflow', icon: GitBranch, label: 'Approval Workflow', requiresPermission: 'procurement.manage' },
       { to: '/procurement/special', icon: FileCheck, label: 'Special Procurement', requiresPermission: 'procurement.view' },
       { to: '/procurement/vendor-invoices', icon: Banknote, label: 'Vendor Invoices (AP)', requiresPermission: 'procurement.view', groupLabel: 'Accounts Payable', groupColor: 'amber' },
@@ -845,6 +846,7 @@ const allSections: NavSection[] = [
       { to: '/finance/parallel-ledgers', icon: BookMarked, label: 'Parallel Ledgers / Multi-GAAP', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/periods', icon: Lock, label: 'Posting Periods', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/field-rules', icon: ListChecks, label: 'GL Field Rules', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/payment-terms', icon: CalendarClock, label: 'Payment Terms', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       // ── Accounts Receivable
       { to: '/finance/ar', icon: ArrowLeftRight, label: 'Accounts Receivable', requiresPermission: 'finance.ar.manage', requiresFinanceMode: 'advanced', groupLabel: 'Accounts Receivable', groupColor: 'emerald' },
       { to: '/finance/open-items', icon: ListChecks, label: 'Open-Item Clearing', requiresPermission: 'finance.ar.manage', requiresFinanceMode: 'advanced' },
@@ -1272,6 +1274,7 @@ const pageTitles: Record<string, string> = {
   '/procurement/analytics': 'Spend Analytics',
   '/procurement/reports': 'Procurement Report Analytics',
   '/procurement/budget-controls': 'Budget Controls',
+  '/procurement/number-ranges': 'Number Ranges',
   '/production': 'Production Orders',
   '/production/schedule': 'Production Schedule',
   '/production/work-centers': 'Work Centers & Routing',

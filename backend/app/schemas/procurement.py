@@ -1,5 +1,5 @@
 # app/schemas/procurement.py
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import Optional, List
 from datetime import date, datetime
 from uuid import UUID
@@ -175,13 +175,13 @@ class PurchaseOrderItemCreate(BaseModel):
     account_assignment: Optional[str] = None      # cost_center | project | asset | gl_account | none
     account_assignment_value: Optional[str] = None  # the actual cost centre / WBS / asset / GL number
 
-    @field_validator("product_id", mode="after")
-    @classmethod
-    def require_product_or_service(cls, v, info):
-        service_id = info.data.get("service_id")
-        if not v and not service_id:
+    @model_validator(mode="after")
+    def require_product_or_service(self):
+        if not self.product_id and not self.service_id:
             raise ValueError("Either product_id or service_id must be provided")
-        return v
+        if self.product_id and self.service_id:
+            raise ValueError("Provide only one of product_id or service_id")
+        return self
 
 
 class PurchaseOrderItemResponse(BaseModel):

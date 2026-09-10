@@ -109,7 +109,7 @@ function detectRangeKey(from?: string, to?: string): RangeKey {
 export default function ProcurementReportsPage() {
   const [tab, setTab] = useState<TabKey>('overview')
   const [filters, setFilters] = useProcurementReportFilters()
-  const [rangeKey, setRangeKey] = useState<RangeKey>(() => detectRangeKey(filters.date_from, filters.date_to))
+  const [rangeKey, setRangeKey] = useState<RangeKey>(() => detectRangeKey(filters.date_from, filters.date_to) || '30d')
   const [customFrom, setCustomFrom] = useState(filters.date_from || '')
   const [customTo, setCustomTo] = useState(filters.date_to || '')
   const [exporting, setExporting] = useState(false)

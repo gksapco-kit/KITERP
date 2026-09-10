@@ -103,6 +103,7 @@ export default function PurchaseOrdersPage() {
       {
         po_number: (po) => po.po_number,
         supplier_name: (po) => po.supplier_name || '',
+        created_from: (po) => po.pr_number || 'Fresh order',
         status: (po) => po.status,
         total: (po) => po.total,
         order_date: (po) => po.order_date || '',
@@ -259,6 +260,7 @@ export default function PurchaseOrdersPage() {
                   { value: 'created_at', label: 'Created' },
                   { value: 'po_number', label: 'PO #' },
                   { value: 'supplier_name', label: 'Supplier' },
+                  { value: 'created_from', label: 'Created from' },
                   { value: 'status', label: 'Status' },
                   { value: 'total', label: 'Total' },
                   { value: 'item_count', label: 'Items' },
@@ -269,11 +271,12 @@ export default function PurchaseOrdersPage() {
                 onSortKeyChange={setSortKey}
                 onSortDirChange={setSortDir}
               />
-              <ResizableTable tableId="purchase-orders" defaultWidths={[110, 160, 100, 100, 200, 110, 110]}>
+              <ResizableTable tableId="purchase-orders" defaultWidths={[110, 160, 130, 100, 100, 200, 110, 110]}>
                 <thead>
                   <tr className="border-b bg-gray-50">
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>PO #</TableColumnLabel></th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Supplier</TableColumnLabel></th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Created from</TableColumnLabel></th>
                     <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
                     <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Total</TableColumnLabel></th>
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Items / Variants</TableColumnLabel></th>
@@ -299,6 +302,24 @@ export default function PurchaseOrdersPage() {
                       >
                         <td className="px-6 py-4 text-sm font-medium text-blue-600">{po.po_number}</td>
                         <td className="px-6 py-4 text-sm text-gray-900">{po.supplier_name || '-'}</td>
+                        <td className="px-6 py-4 text-sm">
+                          {po.pr_number && po.requisition_id ? (
+                            <button
+                              type="button"
+                              className="font-medium text-indigo-600 hover:underline"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigate(`/procurement/requisitions?pr=${po.requisition_id}`)
+                              }}
+                            >
+                              PR: {po.pr_number}
+                            </button>
+                          ) : po.pr_number ? (
+                            <span className="font-medium text-indigo-700">PR: {po.pr_number}</span>
+                          ) : (
+                            <span className="text-xs text-gray-500">Fresh order</span>
+                          )}
+                        </td>
                         <td className="px-6 py-4 text-center">
                           <InlineEditCell
                             type="select"

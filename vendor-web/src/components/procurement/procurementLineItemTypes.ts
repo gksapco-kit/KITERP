@@ -73,6 +73,7 @@ export interface ItemRow {
   service_period_to: string
   asset_tag: string
   account_assignment: string
+  tax_code: string
 }
 
 export function emptyItem(type: RequisitionType = 'product'): ItemRow {
@@ -94,6 +95,7 @@ export function emptyItem(type: RequisitionType = 'product'): ItemRow {
     service_period_to: '',
     asset_tag: '',
     account_assignment: '',
+    tax_code: '',
   }
 }
 
@@ -107,6 +109,82 @@ export function isItemValid(item: ItemRow): boolean {
   if (type === 'service') return !!item.reference_id
   if (type === 'asset') return !!item.description.trim()
   return !!item.description.trim()
+}
+
+/** Short label for toasts when the catalog name is not loaded yet. */
+export function lineItemDisplayName(item: ItemRow, lineNumber: number): string {
+  const desc = item.description.trim()
+  if (desc) return desc
+  return `${itemTypeLabel(item.item_type)} · line ${lineNumber}`
+}
+
+export type LineValidationIssue = {
+  lineIndex: number
+  field: keyof ItemRow
+  fieldLabel: string
+  message: string
+}
+
+function completionIssue(item: ItemRow, lineNumber: number): LineValidationIssue | null {
+  const type = item.item_type
+  const prefix = `Line ${lineNumber}`
+  if (type === 'product' || type === 'consumption') {
+    if (item.reference_id) return null
+    return {
+      lineIndex: lineNumber - 1,
+      field: 'reference_id',
+      fieldLabel: 'Product',
+      message: `${prefix}: select a Product — the Product field is required`,
+    }
+  }
+  if (type === 'service') {
+    if (item.reference_id) return null
+    return {
+      lineIndex: lineNumber - 1,
+      field: 'reference_id',
+      fieldLabel: 'Service',
+      message: `${prefix}: select a Service — the Service field is required`,
+    }
+  }
+  if (item.description.trim()) return null
+  return {
+    lineIndex: lineNumber - 1,
+    field: 'description',
+    fieldLabel: 'Description',
+    message: `${prefix}: enter a Description — required for ${itemTypeLabel(type)} lines`,
+  }
+}
+
+function costCenterIssue(item: ItemRow, lineNumber: number): LineValidationIssue | null {
+  if (item.cost_center_id) return null
+  const name = lineItemDisplayName(item, lineNumber)
+  return {
+    lineIndex: lineNumber - 1,
+    field: 'cost_center_id',
+    fieldLabel: 'Department',
+    message: `Line ${lineNumber} (${name}): select Department (cost center) — required on each line to submit`,
+  }
+}
+
+/** First field-level issue blocking PR submit (completion, then cost center). */
+export function findFirstPrSubmitLineIssue(items: ItemRow[]): LineValidationIssue | null {
+  for (let i = 0; i < items.length; i++) {
+    const issue = completionIssue(items[i], i + 1)
+    if (issue) return issue
+  }
+  const missingCc = items
+    .map((it, i) => (!it.cost_center_id ? i + 1 : null))
+    .filter((n): n is number => n != null)
+  if (missingCc.length) {
+    const first = costCenterIssue(items[missingCc[0] - 1], missingCc[0])!
+    if (missingCc.length === 1) return first
+    const others = missingCc.slice(1).join(', ')
+    return {
+      ...first,
+      message: `${first.message}. Also missing on line${missingCc.length > 2 ? 's' : ''} ${others}`,
+    }
+  }
+  return null
 }
 
 export function buildItemNotes(item: ItemRow): string | undefined {

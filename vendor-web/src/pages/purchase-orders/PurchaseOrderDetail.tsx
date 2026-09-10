@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  usePurchaseOrder, useSendPO, useReceivePOItems, useClosePO, useCancelPO,
+  usePurchaseOrder, useSendPO, useCreateGRN, useClosePO, useCancelPO,
   useUpdatePurchaseOrder, useSuppliers, useProducts,
   useRequestPOApproval, useApprovePO, useTeamMembers, useMyMembership,
 } from '@/hooks/useVendor'
@@ -21,9 +21,9 @@ import type { PurchaseOrderItem as POItem, POApprovalStep } from '@/types'
 import {
   Loader2, ArrowLeft, Send, PackageCheck, CheckCircle2, XCircle,
   X, ClipboardList, Truck, Calendar, FileText, History,
-  Download, Copy, MessageCircle, Mail, Share2, Printer, Palette, MessageSquare,
+  Download, Copy, CopyPlus, MessageCircle, Mail, Share2, Printer, Palette, MessageSquare,
   ChevronDown, ChevronRight, Edit2, Trash2, Plus, Save, RotateCcw, ScanLine,
-  ShieldCheck, ThumbsUp, ThumbsDown,
+  ShieldCheck, ThumbsUp, ThumbsDown, Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
@@ -35,6 +35,7 @@ import { usePOTemplateSettings } from '@/hooks/useVendor'
 import { printPO, generatePOHtml, DEFAULT_PO_SETTINGS } from '@/lib/poTemplates'
 import type { POTemplateSettings } from '@/lib/poTemplates'
 import { fetchAsDataUrl, resolveMediaUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
+import { PO_COPY_FROM_ID_KEY } from '@/lib/copyDocument'
 import {
   PoDestinationFields,
   poDestinationFromLine,
@@ -86,6 +87,9 @@ export default function PurchaseOrderDetail() {
   const [approveComments, setApproveComments] = useState('')
 
   const [showReceive, setShowReceive] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [previewHtml, setPreviewHtml] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
   const [editingHeader, setEditingHeader] = useState(false)
   const [headerDraft, setHeaderDraft] = useState({ supplier_id: '', expected_delivery_date: '', notes: '' })
@@ -271,6 +275,15 @@ export default function PurchaseOrderDetail() {
   })
 
   const handleCopy = () => { navigator.clipboard.writeText(poMessage()); toast.success('PO details copied!') }
+  const handleCopyDocument = () => {
+    try {
+      sessionStorage.setItem(PO_COPY_FROM_ID_KEY, po.id)
+    } catch {
+      toast.error('Could not prepare a copy of this purchase order')
+      return
+    }
+    navigate('/purchase-orders/new')
+  }
   const handleWhatsApp = () => shareViaWhatsApp(poMessage(), (po as any).supplier_phone)
   const handleSms = () => shareViaSms(poMessage(), (po as any).supplier_phone)
   const handleEmail = () => {
@@ -297,6 +310,37 @@ export default function PurchaseOrderDetail() {
   })
 
   const handlePrint = async () => printPO(buildPODataForTemplate(), mergedTemplateSettings())
+  const handlePreview = async () => {
+    setShowPreview(true)
+    setPreviewLoading(true)
+    setPreviewHtml('')
+    try {
+      const settings = mergedTemplateSettings()
+      const poData = buildPODataForTemplate()
+      const rawLogo = (settings.logo_url || (poData.vendor_logo_url as string | undefined)) || ''
+      const rawSig = settings.signature_url || ''
+      const [logoDataUrl, sigDataUrl] = await Promise.all([
+        rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
+        rawSig ? fetchAsDataUrl(rawSig) : Promise.resolve(''),
+      ])
+      const enriched: POTemplateSettings = {
+        ...settings,
+        logo_url: logoDataUrl || undefined,
+        signature_url: sigDataUrl || undefined,
+      }
+      const html = generatePOHtml(
+        { ...poData, vendor_logo_url: logoDataUrl || resolveMediaUrl(rawLogo) },
+        enriched,
+        '',
+      )
+      setPreviewHtml(html)
+    } catch {
+      toast.error('Could not generate document preview')
+      setShowPreview(false)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
   const handleDownload = async () => {
     const settings = mergedTemplateSettings()
     const poData = buildPODataForTemplate()
@@ -421,9 +465,13 @@ export default function PurchaseOrderDetail() {
 
       {/* Share toolbar */}
       <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePreview}>
+          <Eye className="w-3.5 h-3.5 text-blue-500" /> Preview
+        </Button>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}><Printer className="w-3.5 h-3.5" /> Print</Button>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={handleDownload}><Download className="w-3.5 h-3.5 text-red-500" /> Download PDF</Button>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleCopy}><Copy className="w-3.5 h-3.5" /> Copy</Button>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleCopyDocument}><CopyPlus className="w-3.5 h-3.5" /> Copy document</Button>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleCopy}><Copy className="w-3.5 h-3.5" /> Copy text</Button>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={handleWhatsApp}><MessageCircle className="w-3.5 h-3.5 text-green-600" /> WhatsApp</Button>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={handleSms}><MessageSquare className="w-3.5 h-3.5 text-amber-600" /> SMS</Button>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={handleEmail}><Mail className="w-3.5 h-3.5 text-blue-600" /> Email</Button>
@@ -854,6 +902,18 @@ export default function PurchaseOrderDetail() {
 
       {showReceive && <ReceiveModal po_id={po.id} items={po.items} onClose={() => setShowReceive(false)} />}
 
+      {/* ── Document Preview ─────────────────────────────── */}
+      {showPreview && (
+        <PODocumentPreviewModal
+          poNumber={po.po_number}
+          html={previewHtml}
+          loading={previewLoading}
+          onClose={() => setShowPreview(false)}
+          onPrint={handlePrint}
+          onDownload={handleDownload}
+        />
+      )}
+
       <BarcodeScannerModal
         open={showScanner}
         onClose={() => setShowScanner(false)}
@@ -1137,7 +1197,7 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
   const [editCost, setEditCost] = useState(String(item.unit_cost))
 
   // Receive state
-  const receiveMut = useReceivePOItems()
+  const receiveMut = useCreateGRN()
   const [receiveQty, setReceiveQty] = useState('')
   const [receiveCostPrice, setReceiveCostPrice] = useState('')
   const [receiveSellingPrice, setReceiveSellingPrice] = useState('')
@@ -1167,39 +1227,32 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
     if (qty > remaining) { toast.error(`Max receivable: ${remaining}`); return }
     const dest = poDestinationToPayload(receiveDest)
 
-    try {
-      // Record in PO receipt (lot metadata used for batch-managed / QI products)
-      await receiveMut.mutateAsync({
-        id: item.purchase_order_id,
-        data: {
-          items: [{
-            item_id: item.id,
-            quantity: qty,
-            batch_number: receiveBatch || undefined,
-            supplier_batch_number: receiveExternalBatch || undefined,
-            manufacturing_date: receiveManufacture || undefined,
-            expiry_date: receiveExpiry || undefined,
-            track_id: receiveTrackId || undefined,
-            reference: receiveReference || undefined,
-            ...dest,
-          }],
-          notes: receiveNotes || undefined,
-        },
-      })
+    // Build a note that preserves track_id / reference since GRN lines have no dedicated columns for them
+    const extraNotes = [
+      receiveTrackId && `Track: ${receiveTrackId}`,
+      receiveReference && `Ref: ${receiveReference}`,
+      receiveNotes,
+    ].filter(Boolean).join(' · ') || undefined
 
-      // Also stock-in via inventory API with full metadata
-      await vendorApi.inventoryStockIn({
-        product_id: item.product_id,
-        variant_id: item.variant_id || undefined,
-        quantity: qty,
+    try {
+      await receiveMut.mutateAsync({
         purchase_order_id: item.purchase_order_id,
-        batch_number: receiveBatch || undefined,
-        cost_price: receiveCostPrice ? parseFloat(receiveCostPrice) : undefined,
-        selling_price: receiveSellingPrice ? parseFloat(receiveSellingPrice) : undefined,
-        expiration_date: receiveExpiry || undefined,
-        manufacture_date: receiveManufacture || undefined,
-        best_before_date: receiveBestBefore || undefined,
-        reason: `Received via PO`,
+        requires_qc: false,
+        notes: receiveNotes || undefined,
+        lines: [{
+          po_item_id: item.id,
+          product_id: item.product_id,
+          variant_id: item.variant_id || undefined,
+          received_qty: qty,
+          unit_of_measure: item.unit_of_measure || 'piece',
+          unit_price: receiveCostPrice ? parseFloat(receiveCostPrice) : (item.unit_cost || undefined),
+          batch_number: receiveBatch || undefined,
+          supplier_batch_number: receiveExternalBatch || undefined,
+          manufacturing_date: receiveManufacture || undefined,
+          expiry_date: receiveExpiry || undefined,
+          notes: extraNotes,
+          ...dest,
+        }],
       })
       toast.success(`Received ${qty} units`)
       setReceiveQty('')
@@ -1413,6 +1466,116 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
   )
 }
 
+// ── Document preview modal ────────────────────────────────────────
+
+function PODocumentPreviewModal({
+  poNumber,
+  html,
+  loading,
+  onClose,
+  onPrint,
+  onDownload,
+}: {
+  poNumber: string
+  html: string
+  loading: boolean
+  onClose: () => void
+  onPrint: () => void
+  onDownload: () => void
+}) {
+  useEscapeToClose(true, onClose)
+
+  const openInNewTab = () => {
+    if (!html) return
+    const w = window.open('', '_blank')
+    if (w) {
+      w.document.write(html)
+      w.document.close()
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-3 sm:p-6">
+      <div className="bg-background rounded-xl shadow-2xl w-full max-w-4xl h-[min(92dvh,900px)] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b bg-gray-50 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Eye className="w-4 h-4 text-blue-500 shrink-0" />
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-gray-900 truncate">Document Preview</h2>
+              <p className="text-xs text-muted-foreground truncate">{poNumber}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 hidden sm:inline-flex"
+              disabled={!html || loading}
+              onClick={openInNewTab}
+            >
+              Open
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              disabled={loading}
+              onClick={onPrint}
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Print</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              disabled={loading}
+              onClick={onDownload}
+            >
+              <Download className="w-3.5 h-3.5 text-red-500" />
+              <span className="hidden sm:inline">PDF</span>
+            </Button>
+            <button
+              type="button"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-muted"
+              onClick={onClose}
+              aria-label="Close preview"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-auto bg-slate-100 p-3 sm:p-5">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-2 h-full min-h-[280px] text-gray-400">
+              <Loader2 className="w-7 h-7 animate-spin" />
+              <span className="text-sm">Loading document…</span>
+            </div>
+          ) : !html ? (
+            <div className="flex flex-col items-center justify-center gap-2 h-full min-h-[280px] text-gray-400">
+              <FileText className="w-9 h-9" />
+              <span className="text-sm">Preview unavailable</span>
+            </div>
+          ) : (
+            <div className="bg-white shadow-md rounded-sm mx-auto w-full max-w-[820px] ring-1 ring-black/5 overflow-hidden">
+              <iframe
+                srcDoc={html}
+                title={`Purchase Order ${poNumber}`}
+                className="w-full border-0 block bg-white"
+                style={{ height: '1100px' }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── ReceiveModal (bulk) ───────────────────────────────────────────
 
 type ReceiveLineDraft = {
@@ -1443,7 +1606,7 @@ function ReceiveModal({
   items: POItem[]
   onClose: () => void
 }) {
-  const receiveMut = useReceivePOItems()
+  const receiveMut = useCreateGRN()
   const receivableItems = items.filter(i => i.quantity_received < i.quantity_ordered)
   const [lines, setLines] = useState<Record<string, ReceiveLineDraft>>(
     Object.fromEntries(receivableItems.map(i => [i.id, emptyReceiveLine(i)]))
@@ -1457,7 +1620,7 @@ function ReceiveModal({
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    const payload: Record<string, unknown>[] = []
+    const grnLines: Record<string, unknown>[] = []
     for (const item of receivableItems) {
       const line = lines[item.id] || emptyReceiveLine(item)
       const qty = parseFloat(line.quantity)
@@ -1467,21 +1630,28 @@ function ReceiveModal({
         toast.error(`${item.product_name || 'Item'}: max receivable is ${remaining}`)
         return
       }
-      payload.push({
-        item_id: item.id,
-        quantity: qty,
+      const extraNotes = [
+        line.track_id.trim() && `Track: ${line.track_id.trim()}`,
+        line.reference.trim() && `Ref: ${line.reference.trim()}`,
+      ].filter(Boolean).join(' · ') || undefined
+      grnLines.push({
+        po_item_id: item.id,
+        product_id: item.product_id,
+        variant_id: item.variant_id || undefined,
+        received_qty: qty,
+        unit_of_measure: item.unit_of_measure || 'piece',
+        unit_price: item.unit_cost || undefined,
         batch_number: line.batch_number.trim() || undefined,
         supplier_batch_number: line.supplier_batch_number.trim() || undefined,
         manufacturing_date: line.manufacturing_date || undefined,
         expiry_date: line.expiry_date || undefined,
-        track_id: line.track_id.trim() || undefined,
-        reference: line.reference.trim() || undefined,
+        notes: extraNotes,
         ...poDestinationToPayload(line.dest),
       })
     }
-    if (!payload.length) return
+    if (!grnLines.length) return
     try {
-      await receiveMut.mutateAsync({ id: po_id, data: { items: payload, notes: notes || undefined } })
+      await receiveMut.mutateAsync({ purchase_order_id: po_id, requires_qc: false, notes: notes || undefined, lines: grnLines })
       onClose()
     } catch { /* handled */ }
   }, [lines, notes, po_id, receiveMut, onClose, receivableItems])
@@ -1498,114 +1668,119 @@ function ReceiveModal({
   }
 
   return (
-    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 overflow-y-auto" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
+    <div data-kiterp-modal className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-3xl mx-4 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        {/* Fixed header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <h2 className="text-lg font-semibold">Receive Items</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          <p className="text-xs text-gray-500">
-            Enter quantity for each line. Destination uses the same Business Unit / Branch·Plant / Storage Location inputs as PO create — defaults from the PO line when set.
-          </p>
-          <div className="space-y-3">
-            {receivableItems.map((item) => {
-              const remaining = item.quantity_ordered - item.quantity_received
-              const line = lines[item.id] || emptyReceiveLine(item)
-              return (
-                <div key={item.id} className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{item.product_name || item.product_id}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Product ID <span className="font-mono text-foreground/80">{item.product_id}</span>
-                        {item.product_sku ? <> · SKU <span className="font-mono">{item.product_sku}</span></> : null}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Ordered: {item.quantity_ordered} · Received: {item.quantity_received} ·{' '}
-                        <span className="text-amber-600 font-medium">Remaining: {remaining}</span>
-                      </p>
+        {/* Scrollable body + pinned footer inside a flex form */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
+            <p className="text-xs text-gray-500">
+              Enter quantity for each line. Destination uses the same Business Unit / Branch·Plant / Storage Location inputs as PO create — defaults from the PO line when set.
+            </p>
+            <div className="space-y-3">
+              {receivableItems.map((item) => {
+                const remaining = item.quantity_ordered - item.quantity_received
+                const line = lines[item.id] || emptyReceiveLine(item)
+                return (
+                  <div key={item.id} className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{item.product_name || item.product_id}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Product ID <span className="font-mono text-foreground/80">{item.product_id}</span>
+                          {item.product_sku ? <> · SKU <span className="font-mono">{item.product_sku}</span></> : null}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Ordered: {item.quantity_ordered} · Received: {item.quantity_received} ·{' '}
+                          <span className="text-amber-600 font-medium">Remaining: {remaining}</span>
+                        </p>
+                      </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Inbound quantity <span className="text-red-500">*</span></Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={remaining}
+                          step="any"
+                          placeholder="Inbound qty"
+                          value={line.quantity}
+                          onChange={e => patchLine(item.id, { quantity: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Expiry date</Label>
+                        <Input
+                          type="date"
+                          value={line.expiry_date}
+                          onChange={e => patchLine(item.id, { expiry_date: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Manufacture date</Label>
+                        <Input
+                          type="date"
+                          value={line.manufacturing_date}
+                          onChange={e => patchLine(item.id, { manufacturing_date: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Batch / lot #</Label>
+                        <Input
+                          value={line.batch_number}
+                          onChange={e => patchLine(item.id, { batch_number: e.target.value })}
+                          placeholder="Internal lot"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">External batch ID</Label>
+                        <Input
+                          value={line.supplier_batch_number}
+                          onChange={e => patchLine(item.id, { supplier_batch_number: e.target.value })}
+                          placeholder="Supplier lot"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Track ID</Label>
+                        <Input
+                          value={line.track_id}
+                          onChange={e => patchLine(item.id, { track_id: e.target.value })}
+                          placeholder="Track / SSCC"
+                        />
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label className="text-xs">Reference</Label>
+                        <Input
+                          value={line.reference}
+                          onChange={e => patchLine(item.id, { reference: e.target.value })}
+                          placeholder="Challan / invoice line / container"
+                        />
+                      </div>
+                    </div>
+                    <PoDestinationFields
+                      value={line.dest}
+                      onChange={(dest) => patchLine(item.id, { dest })}
+                      compact
+                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Inbound quantity <span className="text-red-500">*</span></Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={remaining}
-                        step="any"
-                        placeholder="Inbound qty"
-                        value={line.quantity}
-                        onChange={e => patchLine(item.id, { quantity: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Expiry date</Label>
-                      <Input
-                        type="date"
-                        value={line.expiry_date}
-                        onChange={e => patchLine(item.id, { expiry_date: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Manufacture date</Label>
-                      <Input
-                        type="date"
-                        value={line.manufacturing_date}
-                        onChange={e => patchLine(item.id, { manufacturing_date: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Batch / lot #</Label>
-                      <Input
-                        value={line.batch_number}
-                        onChange={e => patchLine(item.id, { batch_number: e.target.value })}
-                        placeholder="Internal lot"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">External batch ID</Label>
-                      <Input
-                        value={line.supplier_batch_number}
-                        onChange={e => patchLine(item.id, { supplier_batch_number: e.target.value })}
-                        placeholder="Supplier lot"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Track ID</Label>
-                      <Input
-                        value={line.track_id}
-                        onChange={e => patchLine(item.id, { track_id: e.target.value })}
-                        placeholder="Track / SSCC"
-                      />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <Label className="text-xs">Reference</Label>
-                      <Input
-                        value={line.reference}
-                        onChange={e => patchLine(item.id, { reference: e.target.value })}
-                        placeholder="Challan / invoice line / container"
-                      />
-                    </div>
-                  </div>
-                  <PoDestinationFields
-                    value={line.dest}
-                    onChange={(dest) => patchLine(item.id, { dest })}
-                    compact
-                  />
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Receipt Notes</Label>
+              <textarea
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none"
+                value={notes} onChange={e => setNotes(e.target.value)}
+                placeholder="e.g. Invoice #, delivery challan ref..." />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Receipt Notes</Label>
-            <textarea
-              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none"
-              value={notes} onChange={e => setNotes(e.target.value)}
-              placeholder="e.g. Invoice #, delivery challan ref..." />
-          </div>
-          <div className="flex gap-3 pt-2">
+          {/* Fixed footer */}
+          <div className="flex gap-3 px-6 py-4 border-t border-border shrink-0">
             <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1 gap-2" disabled={receiveMut.isPending || !hasAny}>
               {receiveMut.isPending && <Loader2 className="w-4 h-4 animate-spin" />}

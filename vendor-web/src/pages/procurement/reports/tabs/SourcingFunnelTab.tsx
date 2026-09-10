@@ -16,7 +16,7 @@ interface FunnelStage { stage: string; count: number }
 
 export function SourcingFunnelTab({ filters, refreshKey = 0 }: { filters: ProcurementReportFilters; refreshKey?: number }) {
   const params = filtersToParams(filters)
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['vendor', 'proc-analytics-sourcing-funnel', params, refreshKey],
     queryFn: () => vendorApi.procurementAnalyticsSourcingFunnel(params),
   })
@@ -37,6 +37,12 @@ export function SourcingFunnelTab({ filters, refreshKey = 0 }: { filters: Procur
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-center justify-between">
+          <span>Failed to load sourcing funnel data. Please try again.</span>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}><RefreshCw className="h-3.5 w-3.5 mr-1" />Retry</Button>
+        </div>
+      )}
       <div className="flex justify-end">
         <Button variant="ghost" size="icon" onClick={() => refetch()}><RefreshCw className="h-4 w-4" /></Button>
       </div>

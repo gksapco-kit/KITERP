@@ -280,7 +280,6 @@ async def create_purchase_return(
         raise HTTPException(status_code=404, detail="Purchase order not found")
 
     # Determine GST direction from the PO's stored place_of_supply (supplier state code).
-    # We compare it against the vendor's own GSTIN to decide intra vs inter-state.
     # Reading from the PO rather than recomputing from the supplier's current GSTIN ensures
     # the return uses the same tax treatment as the original purchase.
     from app.models.vendor import Vendor as VendorModel
@@ -288,11 +287,8 @@ async def create_purchase_return(
     vendor_gstin: str | None = getattr(vendor_row, "gstin", None)
     vendor_state: str | None = getattr(vendor_row, "state", None)
     supplier_state_code: str | None = getattr(po, "place_of_supply", None)
-    intra_state = is_intra_state(
-        supplier_gstin=f"{supplier_state_code}AAAAA0000A1Z5" if supplier_state_code else None,
-        recipient_gstin=vendor_gstin,
-        recipient_state_name=vendor_state if not vendor_gstin else None,
-    ) if supplier_state_code else False
+    vendor_state_code: str | None = gstin_state_code(vendor_gstin) if vendor_gstin else None
+    intra_state = bool(supplier_state_code and vendor_state_code and supplier_state_code == vendor_state_code)
 
     tax_master = await _load_tax_codes(db, vendor_id)
 
@@ -440,13 +436,9 @@ async def update_purchase_return(
         from app.models.vendor import Vendor as VendorModel
         vendor_row = await db.get(VendorModel, vendor_id)
         vendor_gstin: str | None = getattr(vendor_row, "gstin", None)
-        vendor_state: str | None = getattr(vendor_row, "state", None)
         supplier_state_code: str | None = getattr(po, "place_of_supply", None) if po else None
-        intra_state = is_intra_state(
-            supplier_gstin=f"{supplier_state_code}AAAAA0000A1Z5" if supplier_state_code else None,
-            recipient_gstin=vendor_gstin,
-            recipient_state_name=vendor_state if not vendor_gstin else None,
-        ) if supplier_state_code else False
+        vendor_state_code: str | None = gstin_state_code(vendor_gstin) if vendor_gstin else None
+        intra_state = bool(supplier_state_code and vendor_state_code and supplier_state_code == vendor_state_code)
         tax_master = await _load_tax_codes(db, vendor_id)
 
         for existing_line in list(ret.lines):

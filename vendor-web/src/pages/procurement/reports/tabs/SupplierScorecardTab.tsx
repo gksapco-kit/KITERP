@@ -54,7 +54,7 @@ interface ScorecardItem {
 
 export function SupplierScorecardTab({ filters, refreshKey = 0 }: { filters: ProcurementReportFilters; refreshKey?: number }) {
   const params = filtersToParams(filters, { limit: 500 })
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['vendor', 'proc-analytics-supplier-scorecard', params, refreshKey],
     queryFn: () => vendorApi.procurementAnalyticsSupplierScorecard(params),
   })
@@ -85,6 +85,12 @@ export function SupplierScorecardTab({ filters, refreshKey = 0 }: { filters: Pro
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-center justify-between">
+          <span>Failed to load supplier scorecard. Please try again.</span>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}><RefreshCw className="h-3.5 w-3.5 mr-1" />Retry</Button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{data?.total ?? 0} suppliers · composite score = avg of on-time, quality, match-rate</p>
         <div className="flex gap-2">

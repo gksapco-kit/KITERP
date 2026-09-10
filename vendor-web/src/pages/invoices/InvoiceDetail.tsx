@@ -17,7 +17,7 @@ import {
   ArrowLeft, Loader2, Download, FileText, Printer,
   IndianRupee, Calendar, User, Phone, Mail, Building2,
   Hash, MapPin, Pencil, Save, X, Plus, Trash2, CalendarDays, ShoppingBag, Settings2,
-  MessageCircle, MessageSquare, Share2, Eye,
+  MessageCircle, MessageSquare, Share2, Eye, CopyPlus,
   Minimize2, Maximize2, PanelLeft, PanelRight,
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
@@ -31,6 +31,7 @@ import {
   invoiceTypeBadge,
 } from '@/lib/invoiceBadges'
 import { fetchAsDataUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
+import { SALES_DOC_COPY_FROM_KEY } from '@/lib/copyDocument'
 import { QuotationExtraFieldsEditor, QuotationExtraFieldsDisplay } from '@/components/quotations/QuotationExtraFieldsEditor'
 import {
   normalizeQuotationExtraFields,
@@ -823,6 +824,17 @@ export default function InvoiceDetail() {
             disabled={settingsLoading}
             onClick={() => printWithTemplate(invRecord, docSettings)}>
             {settingsLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Printer className="w-3.5 h-3.5 mr-1.5" />} Print
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3" onClick={() => {
+            try {
+              sessionStorage.setItem(SALES_DOC_COPY_FROM_KEY, JSON.stringify({ id: inv.id, invoice_type: inv.invoice_type }))
+            } catch {
+              toast.error(`Could not prepare a copy of this ${docLabel.toLowerCase()}`)
+              return
+            }
+            navigate(listPath)
+          }}>
+            <CopyPlus className="w-3.5 h-3.5 mr-1.5" /> Copy document
           </Button>
           <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3"
             disabled={settingsLoading}

@@ -100,6 +100,7 @@ import PurchaseReturnsPage from '@/pages/procurement/PurchaseReturns'
 import SpendAnalyticsPage from '@/pages/procurement/SpendAnalytics'
 import ProcurementReportsPage from '@/pages/procurement/reports'
 import BudgetControlsPage from '@/pages/procurement/BudgetControls'
+import ProcurementNumberRangesPage from '@/pages/procurement/NumberRanges'
 import CreditDebitMemos from '@/pages/finance/CreditDebitMemos'
 import ProductionOrdersPage from '@/pages/production/index'
 import ProductionOrderDetailPage from '@/pages/production/OrderDetail'
@@ -224,6 +225,7 @@ import FinanceApprovals from '@/pages/finance/Approvals'
 import FinanceAudit from '@/pages/finance/AuditLog'
 import FinancePeriodControl from '@/pages/finance/PeriodControl'
 import FinanceFieldRuleConfig from '@/pages/finance/FieldRuleConfig'
+import FinancePaymentTerms from '@/pages/finance/PaymentTerms'
 import COLayout from '@/layouts/COLayout'
 import ControllingDashboardPage from '@/pages/controlling/index'
 import ControllingProductCostsPage from '@/pages/controlling/ProductCosts'
@@ -416,6 +418,7 @@ export const router = createBrowserRouter([
       { path: 'procurement/analytics', element: <SpendAnalyticsPage /> },
       { path: 'procurement/reports', element: <ProcurementReportsPage /> },
       { path: 'procurement/budget-controls', element: <BudgetControlsPage /> },
+      { path: 'procurement/number-ranges', element: <ProcurementNumberRangesPage /> },
       { path: 'production', element: <ProductionOrdersPage /> },
       { path: 'production/orders/:orderId', element: <ProductionOrderDetailPage /> },
       { path: 'production/schedule', element: <ProductionSchedulePage /> },
@@ -641,6 +644,7 @@ export const router = createBrowserRouter([
       { path: 'finance/audit',                  element: <FinanceAudit /> },
       { path: 'finance/periods',                 element: <FinancePeriodControl /> },
       { path: 'finance/field-rules',            element: <FinanceFieldRuleConfig /> },
+      { path: 'finance/payment-terms',          element: <FinancePaymentTerms /> },
 
       // Controlling (CO) — nested under dedicated COLayout sub-sidebar
       {

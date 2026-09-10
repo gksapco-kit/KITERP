@@ -155,6 +155,10 @@ def _service_to_dict(s) -> dict:
         "discount_start_date": _dt(s.discount_start_date),
         "discount_end_date": _dt(s.discount_end_date),
         "offer_label": s.offer_label,
+        # Procurement purchase cost (effective + fixed), distinct from sell price
+        "purchase_price": _num(getattr(s, "purchase_price", None)),
+        "purchase_price_fixed": _num(getattr(s, "purchase_price_fixed", None)),
+        "valuation_method": getattr(s, "valuation_method", None) or "fixed",
         # Tax
         "is_taxable": s.is_taxable if s.is_taxable is not None else True,
         "tax_rate": _num(s.tax_rate),

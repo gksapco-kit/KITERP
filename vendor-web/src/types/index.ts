@@ -1257,6 +1257,7 @@ export interface PurchaseOrderItem {
   id: string
   purchase_order_id: string
   product_id: string
+  service_id?: string | null
   variant_id?: string | null
   product_name?: string
   product_sku?: string
@@ -1273,6 +1274,7 @@ export interface PurchaseOrderItem {
   tax_code?: string | null
   hsn_code?: string | null
   account_assignment?: string | null
+  account_assignment_value?: string | null
   total_cost: number
   plant_id?: string | null
   storage_location_id?: string | null
@@ -1430,6 +1432,7 @@ export interface PurchaseRequisitionItem {
   product_sku?: string
   service_name?: string
   variant_name?: string
+  tax_code?: string | null
 }
 
 export interface PurchaseRequisitionApproval {
@@ -1500,6 +1503,7 @@ export interface VendorInvoiceItem {
   total: number
   match_status: string
   product_name?: string
+  tax_code?: string | null
 }
 
 export interface VendorInvoice {

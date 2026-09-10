@@ -255,6 +255,20 @@ async def upload_quotation_signature(
 # ── Per-invoice routes ────────────────────────────────────────────────────────
 # These wildcard routes must come AFTER all fixed-path routes above.
 
+@router.get("/lookup")
+async def lookup_invoice(
+    number: str = Query(..., min_length=1),
+    invoice_type: str = None,
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = InvoiceService(db)
+    inv = await svc.get_by_number(vid, number, invoice_type=invoice_type or None)
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    return JSONResponse(content=_inv_dict(inv))
+
+
 @router.get("/by-order/{order_id}")
 async def get_invoice_by_order(order_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
     svc = InvoiceService(db)

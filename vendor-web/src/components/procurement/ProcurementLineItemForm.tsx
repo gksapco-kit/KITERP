@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
-import { Trash2, Loader2, Package, AlertTriangle, ChevronDown, ChevronRight, Info } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Trash2, Loader2, Package, AlertTriangle, Info, FileText, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -11,9 +11,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useStores, usePlants, useStorageLocationTree } from '@/hooks/useVendor'
+import { useTaxCodes } from '@/hooks/useFinance'
+import {
+  buildTaxCodeMap,
+  resolveLineTax,
+  taxSplitLabel,
+  type TaxCode,
+} from '@/lib/procurementTax'
+import { formatCurrency } from '@/lib/utils'
 import { vendorApi } from '@/api/vendor'
-import { ProcurementLineItemSelector } from '@/components/procurement/ProcurementLineItemSelector'
+import {
+  ProcurementLineItemSelector,
+  itemSelectorLabel,
+} from '@/components/procurement/ProcurementLineItemSelector'
 import {
   type RequisitionType,
   type ItemRow,
@@ -21,16 +31,38 @@ import {
   REQUISITION_TYPES,
   PRIORITIES,
   DEFAULT_UOM,
-  itemTypeLabel,
 } from '@/components/procurement/procurementLineItemTypes'
 import {
   type ProcurementProductContext,
   normalizeUom,
 } from '@/lib/procurementProductContext'
+import {
+  priceToInput,
+  resolveCatalogPurchasePrice,
+  resolveServicePurchasePrice,
+} from '@/lib/procurementPurchasePrice'
 import { uomLabel } from '@/lib/uomOptions'
 import { variantSelectOption, type VariantSelectSource } from '@/lib/productVariants'
+import { LineCollapsedGlimpse } from '@/components/procurement/LineCollapsedGlimpse'
+import {
+  buildProductMasterFacts,
+  buildServiceMasterFacts,
+  getMasterFactValue,
+  PRODUCT_MASTER_SLOTS,
+  SERVICE_MASTER_SLOTS,
+} from '@/components/procurement/LineMasterFacts'
 
-type ProductVariant = VariantSelectSource
+type ProductVariant = VariantSelectSource & { hsn_code?: string | null }
+
+interface ServiceMasterSnapshot {
+  sac_code?: string | null
+  material_code?: string | null
+  purchase_price?: number | null
+  gst_rate?: number | null
+  tax_rate?: number | null
+  is_taxable?: boolean
+  name?: string
+}
 
 interface CostCenterOption {
   id: string
@@ -42,55 +74,62 @@ interface Props {
   item: ItemRow
   lineNumber: number
   canRemove: boolean
-  expanded: boolean
-  onToggleExpand: () => void
+  /** Controlled expand state. Uncontrolled (starts expanded) when omitted. */
+  expanded?: boolean
+  onToggleExpand?: () => void
   costCenters: CostCenterOption[]
   costCentersLoading: boolean
   storeId?: string | null
+  /** Header destination plant — used for product stock context (PO-style). */
+  destinationPlantId?: string | null
   onChange: (field: keyof ItemRow, value: string | number) => void
   onPatch: (patch: Partial<ItemRow>) => void
   onRemove: () => void
+  /** Seed empty header destination from catalog defaults. */
+  onSuggestDestination?: (plantId: string, storageLocationId?: string) => void
+  /** Field that failed validation — expands the line and highlights the control. */
+  errorField?: keyof ItemRow | null
 }
 
-function flattenLocations(
-  nodes: { id: string; name: string; children?: { id: string; name: string; children?: unknown[] }[] }[],
-  prefix = '',
-): { value: string; label: string }[] {
-  const out: { value: string; label: string }[] = []
-  for (const node of nodes) {
-    const label = prefix ? `${prefix} / ${node.name}` : node.name
-    out.push({ value: node.id, label })
-    if (node.children?.length) {
-      out.push(...flattenLocations(node.children as typeof nodes, label))
-    }
-  }
-  return out
-}
-
-function FieldCell({
+function LineField({
   label,
+  required,
   children,
   className,
+  error,
 }: {
   label: string
+  required?: boolean
   children: ReactNode
   className?: string
+  error?: boolean
 }) {
   return (
-    <div className={className}>
-      <Label className="text-[10px] font-semibold uppercase tracking-wide leading-tight text-gray-400 select-none">{label}</Label>
-      <div className="mt-0.5">{children}</div>
+    <div className={`min-w-0 ${className ?? ''}`}>
+      <p className={`text-[10px] font-semibold uppercase tracking-wide leading-none select-none ${
+        error ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'
+      }`}>
+        {label}{required && <span className="ml-0.5 text-red-500">*</span>}
+      </p>
+      <div className="mt-1">{children}</div>
+      {error ? (
+        <p className="mt-0.5 text-[10px] font-medium text-red-600 dark:text-red-400">Required</p>
+      ) : null}
     </div>
   )
 }
 
-function ReadOnlyValue({ value, className }: { value: string; className?: string }) {
-  return (
-    <div className={`text-xs h-8 px-2.5 flex items-center rounded-md border bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 ${className ?? ''}`}>
-      {value || '—'}
-    </div>
-  )
-}
+const lineSelectTrigger =
+  'h-8 w-full min-w-0 text-xs border-gray-200 bg-white rounded-md shadow-none'
+const lineInputCls =
+  'h-8 w-full min-w-0 rounded-md border-gray-200 bg-white px-2 text-sm shadow-none focus:border-blue-400 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+/** Uniform row grid so field columns align across pricing / ops rows. */
+const LINE_ROW_GRID =
+  'grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6'
+const readonlyBoxCls =
+  'flex h-8 items-center rounded-md border border-gray-200 bg-gray-50 px-2.5 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-200'
+const dashedBoxCls =
+  'flex h-8 items-center rounded-md border border-dashed border-gray-200 px-2 text-xs text-gray-400 dark:border-gray-700'
 
 function ProductContextBody({ ctx, loading }: { ctx: ProcurementProductContext | null; loading: boolean }) {
   if (loading) {
@@ -127,6 +166,10 @@ function ProductContextBody({ ctx, loading }: { ctx: ProcurementProductContext |
         <div>
           <p className="text-xs text-gray-500 mb-0.5">HSN</p>
           <p className="font-medium font-mono">{ctx.hsn_code || '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-0.5">Barcode</p>
+          <p className="font-medium font-mono">{ctx.barcode || '—'}</p>
         </div>
         <div>
           <p className="text-xs text-gray-500 mb-0.5">GST Rate</p>
@@ -176,79 +219,56 @@ export function ProcurementLineItemForm({
   item,
   lineNumber,
   canRemove,
-  expanded,
+  expanded: expandedProp,
   onToggleExpand,
   costCenters,
   costCentersLoading,
   storeId: headerStoreId,
+  destinationPlantId,
   onChange,
   onPatch,
   onRemove,
+  onSuggestDestination,
+  errorField = null,
 }: Props) {
   const type = item.item_type
-  const { data: storesData } = useStores()
-  const stores = storesData?.stores ?? []
-  const activeStores = useMemo(
-    () => stores.filter(s => s.is_active !== false),
-    [stores],
-  )
-  const defaultStoreId = useMemo(
-    () => headerStoreId || stores.find(s => s.is_default)?.id || stores[0]?.id || null,
-    [headerStoreId, stores],
-  )
 
-  const { data: plantsData, isLoading: plantsLoading } = usePlants(
-    activeStores.length > 1 ? null : defaultStoreId,
+  const { data: taxCodesData, error: taxCodesError } = useTaxCodes()
+  const activeTaxCodes = useMemo(
+    () => ((taxCodesData as TaxCode[] | undefined) ?? []).filter(c => c.is_active !== false),
+    [taxCodesData],
   )
-  const plants = plantsData?.plants ?? []
-
-  const plantOptions = useMemo(
-    () => plants.map(p => {
-      const base = p.code ? `${p.name} (${p.code})` : p.name
-      if (activeStores.length <= 1) return { value: p.id, label: base }
-      const store = activeStores.find(s => s.id === p.store_id)
-      const storeLabel = store
-        ? (store.code ? `${store.name} (${store.code})` : store.name)
-        : null
-      return { value: p.id, label: storeLabel ? `${base} — ${storeLabel}` : base }
-    }),
-    [plants, activeStores],
-  )
-
-  const plantStoreId = useMemo(() => {
-    if (!item.plant_id) return defaultStoreId
-    return plants.find(p => p.id === item.plant_id)?.store_id ?? defaultStoreId
-  }, [item.plant_id, plants, defaultStoreId])
-
-  const { data: locationsData, isLoading: locationsLoading } = useStorageLocationTree(
-    plantStoreId,
-    item.plant_id || null,
-  )
-  const locationOptions = useMemo(
-    () => flattenLocations(locationsData?.locations ?? []),
-    [locationsData?.locations],
-  )
+  const taxCodeMap = useMemo(() => buildTaxCodeMap(taxCodesData as TaxCode[] | undefined), [taxCodesData])
+  const taxCodesUnavailable = !!taxCodesError
+  const defaultStoreId = headerStoreId || null
 
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [variantsLoading, setVariantsLoading] = useState(false)
   const [productContext, setProductContext] = useState<ProcurementProductContext | null>(null)
   const [contextLoading, setContextLoading] = useState(false)
   const [productDetailsOpen, setProductDetailsOpen] = useState(false)
+  const [serviceMasterLoading, setServiceMasterLoading] = useState(false)
+  const [serviceMaster, setServiceMaster] = useState<ServiceMasterSnapshot | null>(null)
+  const [uncontrolledExpanded, setUncontrolledExpanded] = useState(true)
+
+  useEffect(() => {
+    if (errorField) setUncontrolledExpanded(true)
+  }, [errorField])
+
+  const fieldErrorCls = 'border-red-400 bg-red-50 ring-1 ring-red-200 dark:border-red-500/60 dark:bg-red-950/30'
+  const hasError = (field: keyof ItemRow) => errorField === field
 
   const isCatalogLine = type === 'product' || type === 'consumption'
   const showVariantColumn = isCatalogLine
   const showPrice = type !== 'consumption'
-  const showPlant = ['product', 'consumption', 'asset'].includes(type)
-  const showStorage = ['product', 'consumption'].includes(type)
   const showServicePeriod = type === 'service'
   const showAssetTag = type === 'asset'
   const showAccountAssignment = type === 'other'
+  /** UoM is driven by product/service master when a catalog item is selected. */
+  const uomFromMaster = isCatalogLine || type === 'service'
 
   const lineTotal = (Number(item.quantity) || 0) * (Number(item.estimated_price) || 0)
-  const plantLabel = type === 'asset' ? 'Installation Plant' : 'Deliver to Plant'
-  const summaryLabel = productContext?.name
-    || (item.description.trim() ? item.description.trim() : null)
-    || (item.reference_id ? 'Item selected' : 'No item selected')
+  const lineTax = resolveLineTax(lineTotal, item.tax_code, taxCodeMap, false)
 
   const loadVariants = useCallback(async (productId: string) => {
     if (!productId) {
@@ -270,6 +290,7 @@ export function ProcurementLineItemForm({
         currency: v.currency,
         attributes: v.attributes,
         color: v.color,
+        hsn_code: (v as { hsn_code?: string | null }).hsn_code ?? null,
       })))
     } catch {
       setVariants([])
@@ -280,10 +301,17 @@ export function ProcurementLineItemForm({
 
   const onPatchRef = useRef(onPatch)
   onPatchRef.current = onPatch
+  const onSuggestDestinationRef = useRef(onSuggestDestination)
+  onSuggestDestinationRef.current = onSuggestDestination
   const itemRef = useRef(item)
   itemRef.current = item
 
-  const loadProductContext = useCallback(async (productId: string, variantId?: string, plantId?: string) => {
+  const loadProductContext = useCallback(async (
+    productId: string,
+    variantId?: string,
+    plantId?: string,
+    opts?: { applyPrice?: boolean },
+  ) => {
     if (!productId) {
       setProductContext(null)
       return
@@ -298,29 +326,66 @@ export function ProcurementLineItemForm({
 
       setProductContext(ctx)
 
-      const current = itemRef.current
       const patch: Partial<ItemRow> = {
         uom: normalizeUom(ctx.uom),
       }
-      if (current.item_type !== 'consumption') {
-    // Seed purchase price from catalog only when the line has none yet
-    if (!String(current.estimated_price ?? '').trim() && ctx.cost_price != null) {
-      patch.estimated_price = String(ctx.cost_price)
-    }
-  }
-      if (!current.plant_id && ctx.default_plant_id) {
-        patch.plant_id = ctx.default_plant_id
-      }
-      if (!current.storage_location_id && ctx.default_storage_location_id) {
-        patch.storage_location_id = ctx.default_storage_location_id
+      if (opts?.applyPrice !== false && itemRef.current.item_type !== 'consumption') {
+        // Re-seed from master on product/variant select so a stale prior price
+        // (or race with the clear-on-select patch) cannot block it.
+        const masterPrice = resolveCatalogPurchasePrice(
+          { cost_price: ctx.cost_price, price: null },
+          undefined,
+        )
+        if (masterPrice != null) {
+          patch.estimated_price = priceToInput(masterPrice)
+        }
       }
       onPatchRef.current(patch)
+
+      if (ctx.default_plant_id) {
+        onSuggestDestinationRef.current?.(
+          ctx.default_plant_id,
+          ctx.default_storage_location_id || undefined,
+        )
+      }
     } catch {
       setProductContext(null)
     } finally {
       setContextLoading(false)
     }
   }, [defaultStoreId])
+
+  const loadServiceMaster = useCallback(async (serviceId: string) => {
+    if (!serviceId) {
+      setServiceMaster(null)
+      return
+    }
+    setServiceMasterLoading(true)
+    try {
+      const detail = await vendorApi.getService(serviceId)
+      setServiceMaster({
+        sac_code: detail.sac_code,
+        material_code: detail.material_code,
+        purchase_price: detail.purchase_price,
+        gst_rate: detail.gst_rate,
+        tax_rate: detail.tax_rate,
+        is_taxable: detail.is_taxable,
+        name: detail.name,
+      })
+      const patch: Partial<ItemRow> = {
+        uom: detail.uom ? normalizeUom(detail.uom) : DEFAULT_UOM.service,
+      }
+      const masterPrice = resolveServicePurchasePrice(detail)
+      if (masterPrice != null) {
+        patch.estimated_price = priceToInput(masterPrice)
+      }
+      onPatchRef.current(patch)
+    } catch {
+      setServiceMaster(null)
+    } finally {
+      setServiceMasterLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (item.reference_id && isCatalogLine) loadVariants(item.reference_id)
@@ -329,11 +394,60 @@ export function ProcurementLineItemForm({
 
   useEffect(() => {
     if (isCatalogLine && item.reference_id) {
-      loadProductContext(item.reference_id, item.variant_id, item.plant_id)
+      loadProductContext(item.reference_id, item.variant_id, destinationPlantId || undefined, {
+        applyPrice: true,
+      })
     } else {
       setProductContext(null)
     }
-  }, [item.reference_id, item.variant_id, item.plant_id, isCatalogLine, loadProductContext])
+    // Plant changes refresh stock context only — price is applied on product/variant select.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.reference_id, item.variant_id, isCatalogLine, loadProductContext])
+
+  useEffect(() => {
+    if (!(isCatalogLine && item.reference_id && destinationPlantId)) return
+    loadProductContext(item.reference_id, item.variant_id, destinationPlantId, {
+      applyPrice: false,
+    })
+  }, [destinationPlantId, item.reference_id, item.variant_id, isCatalogLine, loadProductContext])
+
+  useEffect(() => {
+    if (type === 'service' && item.reference_id) {
+      loadServiceMaster(item.reference_id)
+    } else {
+      setServiceMaster(null)
+      setServiceMasterLoading(false)
+    }
+  }, [type, item.reference_id, loadServiceMaster])
+
+  // When variants arrive after product select and line price is still empty,
+  // seed from variant master costs (common when cost lives only on variants).
+  useEffect(() => {
+    if (!isCatalogLine || item.item_type === 'consumption') return
+    if (!item.reference_id || variantsLoading) return
+    if (String(item.estimated_price ?? '').trim()) return
+    if (!variants.length && productContext?.cost_price == null) return
+    const masterPrice = resolveCatalogPurchasePrice(
+      {
+        cost_price: productContext?.cost_price ?? null,
+        price: null,
+        variants,
+      },
+      item.variant_id || undefined,
+    )
+    if (masterPrice != null) {
+      onPatchRef.current({ estimated_price: priceToInput(masterPrice) })
+    }
+  }, [
+    isCatalogLine,
+    item.item_type,
+    item.reference_id,
+    item.variant_id,
+    item.estimated_price,
+    variants,
+    variantsLoading,
+    productContext?.cost_price,
+  ])
 
   const handleItemTypeChange = (newType: RequisitionType) => {
     onPatch({
@@ -356,110 +470,450 @@ export function ProcurementLineItemForm({
     onPatch({
       reference_id: id,
       variant_id: '',
-      plant_id: '',
-      storage_location_id: '',
-      uom: DEFAULT_UOM[type],
+      uom: id && uomFromMaster ? '' : DEFAULT_UOM[type],
       estimated_price: '',
     })
   }
 
-  const inputClass = 'text-xs h-8 py-0 px-2.5'
-  const selectorClass = 'min-w-0 [&_label]:text-[11px] [&_label]:leading-tight [&_label]:text-gray-500 [&_select]:h-8 [&_select]:text-xs [&_select]:py-0 [&_select]:px-2.5 [&_input]:h-8 [&_input]:text-xs [&_input]:py-0 [&_input]:px-2.5'
-  const rowGrid = 'grid grid-cols-4 gap-x-3 gap-y-2'
+  const handleVariantChange = (variantId: string) => {
+    const variant = variants.find(v => v.id === variantId)
+    const masterPrice = variant
+      ? resolveCatalogPurchasePrice(
+          { cost_price: null, price: null, variants },
+          variantId,
+        )
+      : null
+    onPatch({
+      variant_id: variantId,
+      ...(variant?.uom ? { uom: normalizeUom(variant.uom) } : {}),
+      ...(masterPrice != null ? { estimated_price: priceToInput(masterPrice) } : {}),
+    })
+  }
 
-  const variantField = (
-    <FieldCell label="Variant">
-      <div className="flex items-center gap-1">
-        <div className="flex-1 min-w-0">
-          {!item.reference_id ? (
-            <div className={`${inputClass} flex items-center text-gray-400 border rounded-md bg-gray-50 dark:bg-gray-900/50`}>
-              Select product first
-            </div>
-          ) : variantsLoading ? (
-            <div className="flex items-center gap-1 text-[11px] text-gray-400 h-8">
-              <Loader2 className="w-3 h-3 animate-spin" /> Loading…
-            </div>
-          ) : variants.length > 0 ? (
-            <Select
-              value={item.variant_id}
-              onChange={v => onChange('variant_id', v)}
-              options={selectOptionsWithBlank(
-                '— Product level —',
-                variants.map(variantSelectOption),
-              )}
-              placeholder="— Product level —"
-              className={inputClass}
-              triggerClassName="h-8 px-2.5 text-xs"
-              aria-label="Variant"
-            />
-          ) : (
-            <div className={`${inputClass} flex items-center text-gray-400 border rounded-md bg-gray-50 dark:bg-gray-900/50`}>
-              No variants
-            </div>
-          )}
-        </div>
-        {item.reference_id && (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            title="Product details"
-            aria-label="Product details"
-            onClick={() => setProductDetailsOpen(true)}
-            disabled={contextLoading && !productContext}
-          >
-            {contextLoading
-              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              : <Info className="w-3.5 h-3.5" />}
-          </Button>
-        )}
-      </div>
-    </FieldCell>
+  const selectorRequired = type !== 'asset'
+  const hasTypeExtras = showServicePeriod || showAssetTag || showAccountAssignment
+  const uomLoading =
+    ((isCatalogLine && contextLoading) || (type === 'service' && serviceMasterLoading)) && !item.uom
+
+  const isExpanded = expandedProp ?? uncontrolledExpanded
+  const toggleExpand = () => {
+    if (onToggleExpand) onToggleExpand()
+    else setUncontrolledExpanded(v => !v)
+  }
+  const typeLabel = REQUISITION_TYPES.find(t => t.value === type)?.label ?? type
+  const summaryLabel = productContext?.name
+    || serviceMaster?.name
+    || (item.description.trim() ? item.description.trim() : null)
+    || (item.reference_id ? 'Item selected' : 'No item selected')
+  const selectedVariant = item.variant_id
+    ? variants.find(v => v.id === item.variant_id)
+    : undefined
+  const variantName = selectedVariant?.name || null
+  const unitPrice = showPrice
+    ? (Number(item.estimated_price) > 0 ? Number(item.estimated_price) : null)
+    : null
+  const costCenter = item.cost_center_id
+    ? costCenters.find(cc => cc.id === item.cost_center_id)
+    : undefined
+  const costCenterLabel = costCenter ? costCenter.code : null
+  const priorityLabel = item.priority && item.priority !== 'medium'
+    ? item.priority.charAt(0).toUpperCase() + item.priority.slice(1)
+    : null
+  const masterFacts = type === 'service'
+    ? buildServiceMasterFacts(serviceMaster)
+    : buildProductMasterFacts({
+        hsn_code: selectedVariant?.hsn_code || productContext?.hsn_code,
+        barcode: selectedVariant?.barcode || productContext?.barcode,
+        sku: selectedVariant?.sku || productContext?.sku,
+        material_code: productContext?.material_code,
+        gst_rate: productContext?.gst_rate,
+        is_taxable: productContext?.is_taxable,
+      })
+
+  const lineToggle = (
+    <button
+      type="button"
+      onClick={toggleExpand}
+      aria-expanded={isExpanded}
+      aria-label={isExpanded ? `Collapse line ${lineNumber}` : `Expand line ${lineNumber}`}
+      title={isExpanded ? 'Collapse line' : 'Expand line'}
+      className="flex items-center gap-0.5 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+    >
+      {isExpanded
+        ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+        : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+        {lineNumber}
+      </span>
+    </button>
   )
 
-  return (
-    <div className="overflow-hidden">
-      <div className="flex items-center gap-1.5 px-4 py-2.5 bg-white dark:bg-gray-900/50">
+  if (!isExpanded) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 sm:px-4">
+        {lineToggle}
         <button
           type="button"
-          onClick={onToggleExpand}
-          className="flex flex-1 items-center gap-2 min-w-0 text-left hover:opacity-80"
+          onClick={toggleExpand}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-80"
         >
-          {expanded
-            ? <ChevronDown className="w-4 h-4 shrink-0 text-gray-400" />
-            : <ChevronRight className="w-4 h-4 shrink-0 text-gray-400" />}
-          <span className="text-xs font-semibold text-gray-600 shrink-0">Line {lineNumber}</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0">
-            {itemTypeLabel(type)}
-          </span>
-          <span className="text-xs text-gray-800 dark:text-gray-200 truncate flex-1">{summaryLabel}</span>
-          <span className="text-[11px] text-gray-500 shrink-0 hidden sm:inline">
-            {item.quantity} {uomLabel(item.uom)}
-            {showPrice && lineTotal > 0 && ` · ₹${lineTotal.toFixed(2)}`}
-          </span>
+          <LineCollapsedGlimpse
+            typeLabel={typeLabel}
+            title={summaryLabel}
+            quantity={item.quantity}
+            uom={item.uom}
+            unitPrice={unitPrice}
+            taxCode={item.tax_code}
+            taxAmount={lineTax.amount}
+            variantName={variantName}
+            masterFacts={masterFacts}
+            extras={[costCenterLabel, priorityLabel]}
+          />
         </button>
+        <div
+          className="min-w-[9.5rem] w-[9.5rem] shrink-0 rounded-md border border-blue-100 bg-blue-50/70 px-2 py-1.5 text-right dark:border-blue-900/40 dark:bg-blue-950/20 sm:min-w-[10.5rem] sm:w-[10.5rem]"
+          title={`${formatCurrency(lineTotal)}${lineTax.amount > 0 ? ` (+${formatCurrency(lineTax.amount)} tax)` : ''}`}
+        >
+          <p className="text-[9px] font-semibold uppercase tracking-wide text-blue-500/80 leading-none">Total</p>
+          <p className="mt-0.5 text-xs font-semibold tabular-nums leading-snug text-blue-800 dark:text-blue-200">
+            {formatCurrency(lineTotal)}
+          </p>
+          {lineTax.amount > 0 && (
+            <p className="text-[10px] tabular-nums leading-snug text-blue-600/70 dark:text-blue-300/70">
+              +{formatCurrency(lineTax.amount)} tax
+            </p>
+          )}
+        </div>
         {canRemove && (
-          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={onRemove}>
-            <Trash2 className="w-3 h-3 text-red-500" />
-          </Button>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Remove line"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-red-600" />
+          </button>
         )}
       </div>
+    )
+  }
 
-      {expanded && (
-        <div className="border-t border-gray-100 px-4 py-3 space-y-2.5 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/20">
-          {/* Row 1: line meta */}
-          <div className={rowGrid}>
-            <FieldCell label="Requisition Type">
-              <Select
-                value={type}
-                onChange={v => handleItemTypeChange(v as RequisitionType)}
-                options={REQUISITION_TYPES}
-                className={inputClass}
-                aria-label="Requisition type"
+  return (
+    <div className="flex items-start gap-2 px-3 py-3 sm:px-4">
+      <div className="shrink-0 pt-5">{lineToggle}</div>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        {/* Row 1 — type / catalog / variant / qty / price / tax */}
+        <div className={LINE_ROW_GRID}>
+          <LineField label="Item Type">
+            <Select
+              value={type}
+              onChange={v => handleItemTypeChange(v as RequisitionType)}
+              options={REQUISITION_TYPES}
+              className="w-full min-w-0"
+              triggerClassName={lineSelectTrigger}
+              aria-label="Item type"
+            />
+          </LineField>
+
+          {type === 'asset' ? (
+            <div className="min-w-0">
+              <ProcurementLineItemSelector
+                type={type}
+                referenceId={item.reference_id}
+                description={item.description}
+                onReferenceChange={handleReferenceChange}
+                onDescriptionChange={value => onChange('description', value)}
+                triggerClassName={`${lineSelectTrigger}${hasError('description') || hasError('reference_id') ? ` ${fieldErrorCls}` : ''}`}
               />
-            </FieldCell>
-            <FieldCell label="Department (Cost Center)">
+              {(hasError('description') || hasError('reference_id')) ? (
+                <p className="mt-0.5 text-[10px] font-medium text-red-600 dark:text-red-400">Required</p>
+              ) : null}
+            </div>
+          ) : (
+            <LineField
+              label={itemSelectorLabel(type)}
+              required={selectorRequired || type === 'other'}
+              error={hasError('reference_id') || hasError('description')}
+            >
+              <ProcurementLineItemSelector
+                type={type}
+                referenceId={item.reference_id}
+                description={item.description}
+                onReferenceChange={handleReferenceChange}
+                onDescriptionChange={value => onChange('description', value)}
+                hideLabel
+                triggerClassName={`${lineSelectTrigger}${hasError('reference_id') || hasError('description') ? ` ${fieldErrorCls}` : ''}`}
+              />
+            </LineField>
+          )}
+
+          <LineField label="Variant">
+            {showVariantColumn ? (
+              <div className="flex items-center gap-1">
+                <div className="min-w-0 flex-1">
+                  {!item.reference_id ? (
+                    <div className={dashedBoxCls}>Select product first</div>
+                  ) : variantsLoading ? (
+                    <div className="flex h-8 items-center gap-1.5 text-[11px] text-gray-400">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                    </div>
+                  ) : variants.length > 0 ? (
+                    <Select
+                      value={item.variant_id}
+                      onChange={handleVariantChange}
+                      options={selectOptionsWithBlank(
+                        '— Product level —',
+                        variants.map(variantSelectOption),
+                      )}
+                      placeholder="— Product level —"
+                      className="w-full min-w-0"
+                      showSelectedHint={false}
+                      triggerClassName={lineSelectTrigger}
+                      aria-label="Variant"
+                    />
+                  ) : (
+                    <div className={dashedBoxCls}>—</div>
+                  )}
+                </div>
+                {item.reference_id && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 border-gray-200 shadow-none"
+                    title="Product details"
+                    aria-label="Product details"
+                    onClick={() => setProductDetailsOpen(true)}
+                    disabled={contextLoading && !productContext}
+                  >
+                    {contextLoading
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Info className="w-3.5 h-3.5" />}
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className={dashedBoxCls}>—</div>
+            )}
+          </LineField>
+
+          <LineField label={QTY_LABELS[type]} required>
+            <Input
+              type="number"
+              min={0.001}
+              step={type === 'service' ? 0.5 : 0.001}
+              value={item.quantity}
+              onChange={e => onChange('quantity', e.target.value)}
+              onWheel={e => (e.target as HTMLInputElement).blur()}
+              className={`${lineInputCls} font-semibold`}
+            />
+          </LineField>
+
+          {showPrice ? (
+            <LineField label={type === 'product' ? 'Purchase Price' : 'Est. Unit Price'}>
+              <Input
+                type="number"
+                min={0}
+                step={0.01}
+                placeholder="0.00"
+                value={item.estimated_price}
+                onChange={e => onChange('estimated_price', e.target.value)}
+                onWheel={e => (e.target as HTMLInputElement).blur()}
+                className={`${lineInputCls} font-semibold`}
+              />
+            </LineField>
+          ) : (
+            <div className="hidden lg:block" />
+          )}
+
+          <LineField label="Tax Code">
+            <Select
+              value={item.tax_code}
+              onChange={v => onChange('tax_code', v)}
+              options={[
+                {
+                  value: '',
+                  label: taxCodesUnavailable ? '⚠ Unavailable' : activeTaxCodes.length ? '— No tax —' : 'No tax codes',
+                },
+                ...activeTaxCodes.map(c => ({
+                  value: c.code,
+                  label: `${c.code} · ${Number(c.rate) || 0}%`,
+                  hint: taxSplitLabel(c, false) || (c.tax_type || '').toUpperCase(),
+                })),
+                ...(item.tax_code && !taxCodeMap.has(item.tax_code.trim().toUpperCase())
+                  ? [{ value: item.tax_code, label: item.tax_code, hint: 'unknown' }]
+                  : []),
+              ]}
+              aria-label="Tax code"
+              className="w-full min-w-0"
+              showSelectedHint={false}
+              triggerClassName={`${lineSelectTrigger} ${
+                taxCodesUnavailable
+                  ? 'border-red-300 bg-red-50'
+                  : item.tax_code && !taxCodeMap.has(item.tax_code.trim().toUpperCase())
+                    ? 'border-amber-300 bg-amber-50'
+                    : ''
+              }`}
+            />
+          </LineField>
+        </div>
+
+        {/* Row 2 — UoM + master codes (or service period) — no empty gaps */}
+        <div className={LINE_ROW_GRID}>
+          <LineField label="UoM">
+            {uomFromMaster ? (
+              !item.reference_id ? (
+                <div className={dashedBoxCls}>—</div>
+              ) : (
+                <div className={readonlyBoxCls} title="From product / service master">
+                  {uomLoading ? 'Loading…' : (uomLabel(item.uom) || item.uom || '—')}
+                </div>
+              )
+            ) : (
+              <Input
+                value={item.uom}
+                onChange={e => onChange('uom', e.target.value)}
+                className={lineInputCls}
+              />
+            )}
+          </LineField>
+
+          {showServicePeriod ? (
+            <>
+              <LineField label="Service From">
+                <Input
+                  type="date"
+                  value={item.service_period_from}
+                  onChange={e => onChange('service_period_from', e.target.value)}
+                  className={lineInputCls}
+                />
+              </LineField>
+              <LineField label="Service To">
+                <Input
+                  type="date"
+                  value={item.service_period_to}
+                  onChange={e => onChange('service_period_to', e.target.value)}
+                  className={lineInputCls}
+                />
+              </LineField>
+              {SERVICE_MASTER_SLOTS.map(label => (
+                <LineField key={label} label={label}>
+                  <div className={`${readonlyBoxCls} font-mono tabular-nums`} title="From service master">
+                    {serviceMasterLoading && item.reference_id
+                      ? 'Loading…'
+                      : (getMasterFactValue(masterFacts, label) || '—')}
+                  </div>
+                </LineField>
+              ))}
+            </>
+          ) : isCatalogLine ? (
+            PRODUCT_MASTER_SLOTS.map(label => (
+              <LineField key={label} label={label}>
+                <div className={`${readonlyBoxCls} font-mono tabular-nums`} title="From product master">
+                  {(contextLoading || variantsLoading) && item.reference_id
+                    ? 'Loading…'
+                    : (getMasterFactValue(masterFacts, label) || '—')}
+                </div>
+              </LineField>
+            ))
+          ) : showAssetTag ? (
+            <>
+              <LineField label="Asset Tag">
+                <Input
+                  value={item.asset_tag}
+                  onChange={e => onChange('asset_tag', e.target.value)}
+                  placeholder="Optional"
+                  className={lineInputCls}
+                />
+              </LineField>
+              <LineField label="Department" required error={hasError('cost_center_id')}>
+                <Select
+                  value={item.cost_center_id}
+                  onChange={v => onChange('cost_center_id', v)}
+                  options={selectOptionsWithBlank(
+                    costCentersLoading ? 'Loading…' : 'Select cost center…',
+                    costCenters.map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
+                  )}
+                  placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
+                  disabled={costCentersLoading}
+                  className="w-full min-w-0"
+                  triggerClassName={`${lineSelectTrigger}${hasError('cost_center_id') ? ` ${fieldErrorCls}` : ''}`}
+                  aria-label="Cost center"
+                />
+              </LineField>
+              <LineField label="Priority">
+                <Select
+                  value={item.priority}
+                  onChange={v => onChange('priority', v)}
+                  options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+                  className="w-full min-w-0"
+                  triggerClassName={lineSelectTrigger}
+                  aria-label="Priority"
+                />
+              </LineField>
+              <LineField label="Required By">
+                <Input
+                  type="date"
+                  value={item.needed_by_date}
+                  onChange={e => onChange('needed_by_date', e.target.value)}
+                  className={lineInputCls}
+                />
+              </LineField>
+              <div className="hidden lg:block" aria-hidden />
+            </>
+          ) : showAccountAssignment ? (
+            <>
+              <LineField label="Account Assignment">
+                <Input
+                  value={item.account_assignment}
+                  onChange={e => onChange('account_assignment', e.target.value)}
+                  placeholder="GL, project…"
+                  className={lineInputCls}
+                />
+              </LineField>
+              <LineField label="Department" required error={hasError('cost_center_id')}>
+                <Select
+                  value={item.cost_center_id}
+                  onChange={v => onChange('cost_center_id', v)}
+                  options={selectOptionsWithBlank(
+                    costCentersLoading ? 'Loading…' : 'Select cost center…',
+                    costCenters.map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
+                  )}
+                  placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
+                  disabled={costCentersLoading}
+                  className="w-full min-w-0"
+                  triggerClassName={`${lineSelectTrigger}${hasError('cost_center_id') ? ` ${fieldErrorCls}` : ''}`}
+                  aria-label="Cost center"
+                />
+              </LineField>
+              <LineField label="Priority">
+                <Select
+                  value={item.priority}
+                  onChange={v => onChange('priority', v)}
+                  options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+                  className="w-full min-w-0"
+                  triggerClassName={lineSelectTrigger}
+                  aria-label="Priority"
+                />
+              </LineField>
+              <LineField label="Required By">
+                <Input
+                  type="date"
+                  value={item.needed_by_date}
+                  onChange={e => onChange('needed_by_date', e.target.value)}
+                  className={lineInputCls}
+                />
+              </LineField>
+              <div className="hidden lg:block" aria-hidden />
+            </>
+          ) : null}
+        </div>
+
+        {/* Row 3 — department / priority / date / note (product & service) */}
+        {(isCatalogLine || showServicePeriod) ? (
+          <div className={LINE_ROW_GRID}>
+            <LineField label="Department" required error={hasError('cost_center_id')}>
               <Select
                 value={item.cost_center_id}
                 onChange={v => onChange('cost_center_id', v)}
@@ -469,207 +923,98 @@ export function ProcurementLineItemForm({
                 )}
                 placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
                 disabled={costCentersLoading}
-                className={inputClass}
+                className="w-full min-w-0"
+                triggerClassName={`${lineSelectTrigger}${hasError('cost_center_id') ? ` ${fieldErrorCls}` : ''}`}
                 aria-label="Cost center"
               />
-            </FieldCell>
-            <FieldCell label="Priority">
+            </LineField>
+            <LineField label="Priority">
               <Select
                 value={item.priority}
                 onChange={v => onChange('priority', v)}
                 options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
-                className={inputClass}
+                className="w-full min-w-0"
+                triggerClassName={lineSelectTrigger}
                 aria-label="Priority"
               />
-            </FieldCell>
-            <FieldCell label="Required By">
+            </LineField>
+            <LineField label="Required By">
               <Input
                 type="date"
                 value={item.needed_by_date}
                 onChange={e => onChange('needed_by_date', e.target.value)}
-                className={inputClass}
+                className={lineInputCls}
               />
-            </FieldCell>
-          </div>
-
-          {/* Row 2: item selection */}
-          <div className={rowGrid}>
-            {showVariantColumn ? (
-              <>
-                <div className="col-span-2 min-w-0">
-                  <ProcurementLineItemSelector
-                    type={type}
-                    referenceId={item.reference_id}
-                    description={item.description}
-                    onReferenceChange={handleReferenceChange}
-                    onDescriptionChange={value => onChange('description', value)}
-                    className={selectorClass}
-                  />
-                </div>
-                <div className="col-span-2 min-w-0">{variantField}</div>
-              </>
-            ) : (
-              <div className="col-span-4 min-w-0">
-                <ProcurementLineItemSelector
-                  type={type}
-                  referenceId={item.reference_id}
-                  description={item.description}
-                  onReferenceChange={handleReferenceChange}
-                  onDescriptionChange={value => onChange('description', value)}
-                  className={selectorClass}
+            </LineField>
+            <LineField label="Note" className="col-span-2 sm:col-span-3 lg:col-span-3">
+              <div className="relative">
+                <FileText className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
+                <Textarea
+                  rows={1}
+                  className="min-h-8 h-8 w-full resize-y overflow-auto rounded-md border-gray-200 bg-white py-1.5 pl-7 pr-2 text-xs leading-snug shadow-none placeholder:text-gray-300"
+                  placeholder={hasTypeExtras ? 'Optional…' : 'Optional notes'}
+                  value={item.notes}
+                  onChange={e => onChange('notes', e.target.value)}
                 />
               </div>
-            )}
+            </LineField>
           </div>
-
-          {/* Row 3: quantity & pricing */}
-          <div className={rowGrid}>
-            <FieldCell label={QTY_LABELS[type]}>
-              <Input
-                type="number"
-                min={0.001}
-                step={type === 'service' ? 0.5 : 0.001}
-                value={item.quantity}
-                onChange={e => onChange('quantity', e.target.value)}
-                className={inputClass}
-              />
-            </FieldCell>
-            <FieldCell label="Unit of Measure">
-              {isCatalogLine && item.reference_id ? (
-                <ReadOnlyValue
-                  value={contextLoading && !item.uom ? 'Loading…' : (uomLabel(item.uom) || item.uom || '—')}
-                />
-              ) : (
-                <Input
-                  value={item.uom}
-                  onChange={e => onChange('uom', e.target.value)}
-                  className={inputClass}
-                />
-              )}
-            </FieldCell>
-            {showPrice ? (
-              <FieldCell label={type === 'product' ? 'Purchase Price' : 'Est. Unit Price'}>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  placeholder="0.00"
-                  value={item.estimated_price}
-                  onChange={e => onChange('estimated_price', e.target.value)}
-                  className={inputClass}
-                />
-              </FieldCell>
-            ) : (
-              <div aria-hidden="true" />
-            )}
-            {showServicePeriod ? (
-              <FieldCell label="Service From">
-                <Input
-                  type="date"
-                  value={item.service_period_from}
-                  onChange={e => onChange('service_period_from', e.target.value)}
-                  className={inputClass}
-                />
-              </FieldCell>
-            ) : showAccountAssignment ? (
-              <FieldCell label="Account Assignment">
-                <Input
-                  value={item.account_assignment}
-                  onChange={e => onChange('account_assignment', e.target.value)}
-                  placeholder="GL, project…"
-                  className={inputClass}
-                />
-              </FieldCell>
-            ) : showPlant ? (
-              <FieldCell label={plantLabel}>
-                <Select
-                  value={item.plant_id}
-                  onChange={v => onPatch({ plant_id: v, storage_location_id: '' })}
-                  options={selectOptionsWithBlank(
-                    plantsLoading ? 'Loading…' : 'Select plant…',
-                    plantOptions,
-                  )}
-                  placeholder={plantsLoading ? 'Loading…' : 'Select plant…'}
-                  disabled={plantsLoading || (activeStores.length <= 1 && !defaultStoreId)}
-                  className={inputClass}
-                  aria-label="Plant"
-                />
-              </FieldCell>
-            ) : (
-              <div aria-hidden="true" />
-            )}
-          </div>
-
-          {/* Row 4: logistics & notes */}
-          <div className={rowGrid}>
-            {showServicePeriod ? (
-              <FieldCell label="Service To">
-                <Input
-                  type="date"
-                  value={item.service_period_to}
-                  onChange={e => onChange('service_period_to', e.target.value)}
-                  className={inputClass}
-                />
-              </FieldCell>
-            ) : showStorage ? (
-              <FieldCell label="Storage Location">
-                <Select
-                  value={item.storage_location_id}
-                  onChange={v => onChange('storage_location_id', v)}
-                  options={selectOptionsWithBlank(
-                    locationsLoading ? 'Loading…' : 'Select location…',
-                    locationOptions,
-                  )}
-                  placeholder={
-                    !item.plant_id
-                      ? 'Select plant first…'
-                      : locationsLoading
-                        ? 'Loading…'
-                        : 'Select location…'
-                  }
-                  disabled={!item.plant_id || locationsLoading}
-                  className={inputClass}
-                  aria-label="Storage location"
-                />
-              </FieldCell>
-            ) : showAssetTag ? (
-              <FieldCell label="Asset Tag / Serial">
-                <Input
-                  value={item.asset_tag}
-                  onChange={e => onChange('asset_tag', e.target.value)}
-                  placeholder="Optional"
-                  className={inputClass}
-                />
-              </FieldCell>
-            ) : null}
-            <FieldCell
-              label="Line Notes"
-              className={showServicePeriod || showStorage || showAssetTag ? 'col-span-3' : 'col-span-4'}
-            >
-              <Input
+        ) : (
+          <LineField label="Note">
+            <div className="relative">
+              <FileText className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
+              <Textarea
+                rows={1}
+                className="min-h-8 h-8 w-full resize-y overflow-auto rounded-md border-gray-200 bg-white py-1.5 pl-7 pr-2 text-xs leading-snug shadow-none placeholder:text-gray-300"
                 placeholder="Optional notes"
                 value={item.notes}
                 onChange={e => onChange('notes', e.target.value)}
-                className={inputClass}
               />
-            </FieldCell>
-          </div>
+            </div>
+          </LineField>
+        )}
+      </div>
 
-          <Dialog open={productDetailsOpen} onOpenChange={setProductDetailsOpen}>
-            <DialogContent className="max-w-md sm:max-w-lg max-h-[85vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-base">
-                  <Package className="w-4 h-4" /> Product Details
-                </DialogTitle>
-                {productContext?.name && (
-                  <DialogDescription>{productContext.name}</DialogDescription>
-                )}
-              </DialogHeader>
-              <ProductContextBody ctx={productContext} loading={contextLoading} />
-            </DialogContent>
-          </Dialog>
+      <div className="flex w-[9.5rem] shrink-0 flex-col gap-2 pt-5 sm:w-[10.5rem]">
+        <div
+          className="rounded-md border border-blue-100 bg-blue-50/70 px-2 py-1.5 text-right dark:border-blue-900/40 dark:bg-blue-950/20"
+          title={`${formatCurrency(lineTotal)}${lineTax.amount > 0 ? ` (+${formatCurrency(lineTax.amount)} tax)` : ''}`}
+        >
+          <p className="text-[9px] font-semibold uppercase tracking-wide text-blue-500/80 leading-none">Total</p>
+          <p className="mt-0.5 text-xs font-semibold tabular-nums leading-snug text-blue-800 dark:text-blue-200">
+            {formatCurrency(lineTotal)}
+          </p>
+          {lineTax.amount > 0 && (
+            <p className="text-[10px] tabular-nums leading-snug text-blue-600/70 dark:text-blue-300/70">
+              +{formatCurrency(lineTax.amount)} tax
+            </p>
+          )}
         </div>
-      )}
+        {canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Remove line"
+            className="ml-auto flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-red-600" />
+          </button>
+        )}
+      </div>
+
+      <Dialog open={productDetailsOpen} onOpenChange={setProductDetailsOpen}>
+        <DialogContent className="max-w-md sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Package className="w-4 h-4" /> Product Details
+            </DialogTitle>
+            {productContext?.name && (
+              <DialogDescription>{productContext.name}</DialogDescription>
+            )}
+          </DialogHeader>
+          <ProductContextBody ctx={productContext} loading={contextLoading} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

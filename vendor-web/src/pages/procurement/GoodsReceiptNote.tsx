@@ -560,15 +560,6 @@ function GRNDetail({ grnId, onBack }: { grnId: string; onBack: () => void }) {
     queryFn: () => vendorApi.getGRN(grnId) as Promise<GoodsReceiptNote>,
   })
 
-  const postMut = useMutation({
-    mutationFn: () => vendorApi.postGRN(grnId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['grn', grnId] })
-      queryClient.invalidateQueries({ queryKey: ['grns'] })
-      toast.success('GRN posted')
-    },
-    onError: apiError('Could not post GRN'),
-  })
   const closeQCMut = useMutation({
     mutationFn: () => vendorApi.closeGRNQC(grnId),
     onSuccess: () => {
@@ -609,11 +600,6 @@ function GRNDetail({ grnId, onBack }: { grnId: string; onBack: () => void }) {
           </p>
         </div>
         <div className="flex gap-2">
-          {grn.status === 'draft' && (
-            <Button size="sm" onClick={() => postMut.mutate()} disabled={postMut.isPending}>
-              <ClipboardCheck className="w-3.5 h-3.5 mr-1.5" />{postMut.isPending ? 'Posting…' : 'Post GRN'}
-            </Button>
-          )}
           {grn.status === 'qc_pending' && allQCDone && (
             <Button size="sm" variant="outline" onClick={() => closeQCMut.mutate()} disabled={closeQCMut.isPending}>
               {closeQCMut.isPending ? 'Saving…' : 'Close QC'}

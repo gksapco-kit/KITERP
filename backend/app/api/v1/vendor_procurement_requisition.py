@@ -101,9 +101,33 @@ async def get_product_procurement_context(
             raise HTTPException(status_code=404, detail="Variant not found")
 
     uom = _normalize_uom(variant.uom if variant else product.uom)
-    cost_price = float(variant.cost_price if variant and variant.cost_price is not None
-                       else product.cost_price or product.price or 0)
+    # Prefer variant/product cost (purchase) price; fall back to sell price only
+    # when no positive cost is set. Return None when neither is available so the
+    # UI does not overwrite the line with a misleading 0.
+    raw_cost = (
+        variant.cost_price if variant and variant.cost_price is not None
+        else product.cost_price
+    )
+    raw_sell = (
+        variant.price if variant and variant.price is not None
+        else product.price
+    )
+    cost_candidates = [raw_cost, raw_sell]
+    cost_price = None
+    for candidate in cost_candidates:
+        if candidate is not None and float(candidate) > 0:
+            cost_price = float(candidate)
+            break
+    if cost_price is None:
+        for candidate in cost_candidates:
+            if candidate is not None:
+                cost_price = float(candidate)
+                break
     hsn = variant.hsn_code if variant and variant.hsn_code else product.hsn_code
+    barcode = (
+        variant.barcode if variant and getattr(variant, "barcode", None)
+        else getattr(product, "barcode", None)
+    )
     gst_rate = float(variant.gst_rate if variant and variant.gst_rate is not None
                      else product.gst_rate or product.tax_rate or 0)
     reorder_point = variant.reorder_point if variant and variant.reorder_point is not None else product.reorder_point
@@ -234,6 +258,7 @@ async def get_product_procurement_context(
         "uom": uom,
         "cost_price": cost_price,
         "hsn_code": hsn,
+        "barcode": barcode,
         "gst_rate": gst_rate,
         "is_taxable": bool(variant.is_taxable if variant else product.is_taxable),
         "store_scope": product.store_scope or "all",
@@ -286,6 +311,7 @@ def _item_to_dict(item: PurchaseRequisitionItem) -> dict:
         "quantity_ordered": float(item.quantity_ordered) if item.quantity_ordered else 0,
         "purchase_order_id": str(item.purchase_order_id) if item.purchase_order_id else None,
         "is_converted": item.is_converted,
+        "tax_code": item.tax_code,
         "notes": item.notes,
     }
 
@@ -357,6 +383,7 @@ def _append_pr_item(pr: PurchaseRequisition, item_data: PRItemCreate, default_ty
             storage_location_id=UUID(item_data.storage_location_id) if item_data.storage_location_id else None,
             estimated_price=item_data.estimated_price or 0,
             suggested_supplier_id=UUID(item_data.suggested_supplier_id) if item_data.suggested_supplier_id else None,
+            tax_code=item_data.tax_code or None,
             notes=item_data.notes,
         )
     )
@@ -426,6 +453,26 @@ async def list_requisitions(
         "size": size,
         "pages": math.ceil(total / size) if size else 1,
     })
+
+
+@router.get("/requisitions/lookup")
+async def lookup_requisition(
+    number: str = Query(..., min_length=1),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.utils.doc_lookup import lookup_id_by_number, lookup_http_error
+    from app.models.procurement_requisition import PurchaseRequisition
+    repo = PurchaseRequisitionRepository(db)
+    pr_id, status = await lookup_id_by_number(
+        db, PurchaseRequisition, PurchaseRequisition.pr_number, vendor_id, number,
+    )
+    if not pr_id:
+        raise lookup_http_error(status, "purchase requisition")
+    pr = await repo.get_by_vendor_and_id(vendor_id, pr_id)
+    if not pr:
+        raise HTTPException(status_code=404, detail="Purchase requisition not found")
+    return JSONResponse(content=_pr_to_dict(pr))
 
 
 @router.get("/requisitions/{pr_id}")
@@ -695,8 +742,14 @@ async def cancel_requisition(
     pr = await repo.get_by_vendor_and_id(vendor_id, pr_id)
     if not pr:
         raise HTTPException(status_code=404, detail="Purchase requisition not found")
-    if pr.status in ("converted", "cancelled"):
-        raise HTTPException(status_code=400, detail=f"Cannot cancel a {pr.status} requisition")
+    if pr.status in ("converted", "partially_converted", "cancelled"):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Cannot cancel a requisition that has already been converted to a Purchase Order. "
+                "Cancel the linked PO first — the requisition will then be released automatically."
+            ) if pr.status in ("converted", "partially_converted") else f"Cannot cancel a {pr.status} requisition",
+        )
 
     pr.status = "cancelled"
     pr.audit_log = (pr.audit_log or []) + [{
@@ -862,6 +915,7 @@ async def convert_pr_to_po(
             "unit_cost": float(item.estimated_price or 0),
             "unit_of_measure": item.unit_of_measure or "piece",
             "hsn_code": hsn,
+            "tax_code": item.tax_code or None,
             "plant_id": str(item.plant_id) if item.plant_id else None,
             "storage_location_id": (
                 str(item.storage_location_id) if item.storage_location_id else None

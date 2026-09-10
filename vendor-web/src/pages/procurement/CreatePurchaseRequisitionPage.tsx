@@ -3,10 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useCreateRequisition, useSubmitRequisition, useStores } from '@/hooks/useVendor'
-import { useCostCenters } from '@/hooks/useFinance'
+import { useCostCenters, useTaxCodes } from '@/hooks/useFinance'
 import type { CostCenter } from '@/types/finance'
 import { ProcurementLineItemForm } from '@/components/procurement/ProcurementLineItemForm'
 import { ProcurementApproverFields } from '@/components/procurement/ProcurementApproverFields'
+import {
+  PoDestinationFields,
+  emptyPoDestination,
+  poDestinationFromLine,
+  poDestinationToPayload,
+  type PoDestinationValue,
+} from '@/components/procurement/PoDestinationFields'
 import {
   ProcurementPRHeaderFields,
   type ProcurementSource,
@@ -16,16 +23,21 @@ import {
   emptyItem,
   isItemValid,
   buildItemNotes,
+  findFirstPrSubmitLineIssue,
   type ItemRow,
 } from '@/components/procurement/procurementLineItemTypes'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { useGuardedClose } from '@/hooks/useGuardedClose'
+import { formatCurrency } from '@/lib/utils'
+import { buildTaxCodeMap, resolveLineTax, type TaxCode } from '@/lib/procurementTax'
 import { PR_FROM_INVENTORY_KEY, type InventoryAlertPrefill } from '@/lib/prToPoPrefill'
+import { PR_COPY_FROM_ID_KEY, parsePrTitleNotes, prToCopyItemRows } from '@/lib/copyDocument'
+import { CopyFromDocumentField } from '@/components/procurement/CopyFromDocumentField'
+import { vendorApi } from '@/api/vendor'
+import { extractApiError } from '@/lib/errorMessages'
 import { toast } from 'sonner'
-import {
-  ArrowLeft, Loader2, Plus, ClipboardList, Send, AlertCircle,
-  Save, UserCheck,
-} from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, ClipboardList, Send, AlertCircle, Save, UserCheck } from 'lucide-react'
+import type { PurchaseRequisition } from '@/types'
 
 // ─── Fiori-style section wrapper ────────────────────────────────────────────────
 function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
@@ -58,6 +70,8 @@ export default function CreatePurchaseRequisitionPage() {
   const submitPR = useSubmitRequisition()
   const { data: costCenters = [], isLoading: costCentersLoading } = useCostCenters()
   const { data: storesData, isLoading: storesLoading } = useStores()
+  const { data: taxCodesData } = useTaxCodes()
+  const taxCodeMap = useMemo(() => buildTaxCodeMap(taxCodesData as TaxCode[] | undefined), [taxCodesData])
 
   const activeStores = useMemo(
     () => (storesData?.stores ?? []).filter((s: any) => s.is_active !== false),
@@ -94,19 +108,30 @@ export default function CreatePurchaseRequisitionPage() {
   const [secondaryApproverId, setSecondaryApproverId] = useState('')
   const [approverMessage, setApproverMessage] = useState('')
   const [items, setItems] = useState<ItemRow[]>([emptyItem()])
-  const [expandedItems, setExpandedItems] = useState<Set<number>>(() => new Set([0]))
+  const [dest, setDest] = useState<PoDestinationValue>(() => emptyPoDestination(''))
+  const [lineFieldError, setLineFieldError] = useState<{ lineIndex: number; field: keyof ItemRow } | null>(null)
+  const [copiedFromNumber, setCopiedFromNumber] = useState<string | null>(null)
+  const [copyLoading, setCopyLoading] = useState(false)
 
   useEffect(() => {
     if (!inventoryPrefill) return
     const sourceLabel = inventoryPrefill.source === 'reorder' ? 'Reorder alert' : 'Low stock alert'
     setTitle(`${sourceLabel}: ${inventoryPrefill.productName}`)
-    if (inventoryPrefill.storeId) { setStoreId(inventoryPrefill.storeId); setFromStoreId(inventoryPrefill.storeId) }
+    if (inventoryPrefill.storeId) {
+      setStoreId(inventoryPrefill.storeId)
+      setFromStoreId(inventoryPrefill.storeId)
+      setDest(d => ({ ...d, storeId: inventoryPrefill.storeId!, scope: { kind: '' }, storageLocationId: '' }))
+    }
     setItems([{ ...emptyItem('product'), reference_id: inventoryPrefill.productId, variant_id: inventoryPrefill.variantId || '', quantity: inventoryPrefill.quantity, description: inventoryPrefill.productName }])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inventoryPrefill])
 
   useEffect(() => {
-    if (defaultStoreId && !storeId) { setStoreId(defaultStoreId); setFromStoreId(defaultStoreId) }
+    if (defaultStoreId && !storeId) {
+      setStoreId(defaultStoreId)
+      setFromStoreId(defaultStoreId)
+      setDest(d => (d.storeId ? d : { ...emptyPoDestination(defaultStoreId) }))
+    }
   }, [defaultStoreId, storeId])
 
   const handleSourceChange = (source: ProcurementSource) => {
@@ -123,37 +148,103 @@ export default function CreatePurchaseRequisitionPage() {
 
   const handleStoreChange = (id: string) => {
     setStoreId(id)
+    setDest(d => ({ ...d, storeId: id, scope: { kind: '' }, storageLocationId: '' }))
     if (procurementSource === 'internal' && buScope === 'within_bu') { setFromStoreId(id); setToStoreId(id) }
     else if (procurementSource === 'internal' && buScope === 'cross_bu' && !fromStoreId) setFromStoreId(id)
   }
 
-  const toggleExpand = (i: number) => {
-    setExpandedItems(prev => { const next = new Set(prev); if (next.has(i)) next.delete(i); else next.add(i); return next })
+  const handleDestChange = (next: PoDestinationValue) => {
+    setDest(next)
+    if (next.storeId && next.storeId !== storeId) {
+      setStoreId(next.storeId)
+      if (procurementSource === 'internal' && buScope === 'within_bu') {
+        setFromStoreId(next.storeId)
+        setToStoreId(next.storeId)
+      }
+    }
   }
 
-  const addItem = () => {
-    setItems(prev => {
-      const nextIndex = prev.length
-      setExpandedItems(exp => new Set([...exp, nextIndex]))
-      return [...prev, emptyItem()]
+  const handleSuggestDestination = useCallback((plantId: string, storageLocationId?: string) => {
+    setDest(prev => {
+      if (prev.scope.kind === 'plant' && prev.scope.id) return prev
+      return poDestinationFromLine(
+        { plant_id: plantId, storage_location_id: storageLocationId },
+        prev.storeId || storeId || defaultStoreId,
+      )
     })
+  }, [storeId, defaultStoreId])
+
+  const applyCopiedPr = useCallback((pr: PurchaseRequisition) => {
+    const parsed = parsePrTitleNotes(pr.notes)
+    setTitle(parsed.title || pr.title || '')
+    setNotes(parsed.internalNotes)
+    if (pr.store_id) {
+      setStoreId(pr.store_id)
+      setFromStoreId(pr.from_store_id || pr.store_id)
+      setToStoreId(pr.to_store_id || pr.store_id)
+    }
+    setProcurementSource(pr.procurement_source || 'supplier')
+    setBuScope(pr.bu_scope || 'within_bu')
+    setHeaderSupplierId(pr.header_supplier_id || '')
+    setApproverMessage(pr.approver_message || '')
+    setItems(prToCopyItemRows(pr))
+    const first = pr.items?.[0]
+    setDest(poDestinationFromLine(
+      { plant_id: first?.plant_id, storage_location_id: first?.storage_location_id },
+      pr.store_id || storeId || defaultStoreId,
+    ))
+    setCopiedFromNumber(pr.pr_number)
+    toast.success(`Copied from ${pr.pr_number}. A new PR number is assigned when you save.`)
+  }, [storeId, defaultStoreId])
+
+  const handleCopyFromNumber = async (number: string) => {
+    setCopyLoading(true)
+    try {
+      const pr = await vendorApi.lookupRequisition(number) as PurchaseRequisition
+      applyCopiedPr(pr)
+    } catch (err) {
+      toast.error(extractApiError(err, 'No purchase requisition found with that number'))
+    } finally {
+      setCopyLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    const id = sessionStorage.getItem(PR_COPY_FROM_ID_KEY)
+    if (!id) return
+    sessionStorage.removeItem(PR_COPY_FROM_ID_KEY)
+    vendorApi.getRequisition(id)
+      .then(pr => applyCopiedPr(pr as PurchaseRequisition))
+      .catch(() => toast.error('Could not copy that purchase requisition'))
+  }, [applyCopiedPr])
+
+  const addItem = () => {
+    setItems(prev => [...prev, emptyItem()])
   }
 
   const removeItem = (i: number) => {
     setItems(prev => prev.filter((_, idx) => idx !== i))
-    setExpandedItems(prev => {
-      const next = new Set<number>()
-      prev.forEach(idx => { if (idx < i) next.add(idx); else if (idx > i) next.add(idx - 1) })
-      if (next.size === 0) next.add(0)
-      return next
-    })
   }
 
-  const updateItem = (i: number, field: keyof ItemRow, value: string | number) =>
+  const updateItem = (i: number, field: keyof ItemRow, value: string | number) => {
     setItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: value } : it))
+    setLineFieldError(prev => (prev?.lineIndex === i && prev.field === field ? null : prev))
+  }
 
-  const patchItem = useCallback((i: number, patch: Partial<ItemRow>) =>
-    setItems(prev => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it)), [])
+  const patchItem = useCallback((i: number, patch: Partial<ItemRow>) => {
+    setItems(prev => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it))
+    setLineFieldError(prev => {
+      if (!prev || prev.lineIndex !== i) return prev
+      return prev.field in patch ? null : prev
+    })
+  }, [])
+
+  const subtotal = items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.estimated_price) || 0), 0)
+  const taxTotal = items.reduce((s, i) => {
+    const lineTotal = (Number(i.quantity) || 0) * (Number(i.estimated_price) || 0)
+    return s + resolveLineTax(lineTotal, i.tax_code, taxCodeMap, false).amount
+  }, 0)
+  const grandTotal = subtotal + taxTotal
 
   const validateDraft = () => {
     if (!storeId) { toast.error('Select a business unit'); return false }
@@ -162,16 +253,20 @@ export default function CreatePurchaseRequisitionPage() {
   }
 
   const validateSubmit = () => {
-    const validItems = items.filter(it => isItemValid(it))
-    if (!validItems.length) { toast.error('Complete at least one line item (product, service, or description)'); return false }
-    if (items.some(it => !isItemValid(it))) { toast.error('Each line item must be completed'); return false }
-    if (items.some(it => !it.cost_center_id)) { toast.error('Select a cost center for each line item'); return false }
-    if (!storeId) { toast.error('Select a business unit'); return false }
+    if (!storeId) { toast.error('Select a business unit in Header Details'); return false }
+    if (!items.length) { toast.error('Add at least one line item'); return false }
+    const lineIssue = findFirstPrSubmitLineIssue(items)
+    if (lineIssue) {
+      toast.error(lineIssue.message, { duration: 7000 })
+      setLineFieldError({ lineIndex: lineIssue.lineIndex, field: lineIssue.field })
+      return false
+    }
     if (procurementSource === 'internal' && buScope === 'cross_bu') {
       if (!fromStoreId || !toStoreId) { toast.error('Select both From BU and To BU for cross-BU requisitions'); return false }
       if (fromStoreId === toStoreId) { toast.error('From BU and To BU must be different'); return false }
     }
     if (secondaryApproverId && secondaryApproverId === primaryApproverId) { toast.error('Secondary approver must be different from primary approver'); return false }
+    setLineFieldError(null)
     return true
   }
 
@@ -181,6 +276,7 @@ export default function CreatePurchaseRequisitionPage() {
     const requiredDate = items.map(it => it.needed_by_date).filter(Boolean).sort()[0]
     const noteParts = [title.trim(), notes.trim()].filter(Boolean)
     const validItems = items.filter(it => isItemValid(it))
+    const destPayload = poDestinationToPayload(dest)
     const approvers = primaryApproverId
       ? [{ approver_id: primaryApproverId, level: 1 }, ...(secondaryApproverId ? [{ approver_id: secondaryApproverId, level: 2 }] : [])]
       : []
@@ -189,7 +285,7 @@ export default function CreatePurchaseRequisitionPage() {
       department: selectedCostCenter ? `${selectedCostCenter.code} · ${selectedCostCenter.name}` : undefined,
       priority: firstItem?.priority || 'medium',
       required_date: requiredDate || undefined,
-      store_id: storeId || undefined,
+      store_id: storeId || dest.storeId || undefined,
       procurement_source: procurementSource,
       bu_scope: procurementSource === 'internal' ? buScope : undefined,
       from_store_id: procurementSource === 'internal' && buScope === 'cross_bu' ? fromStoreId : storeId,
@@ -209,8 +305,9 @@ export default function CreatePurchaseRequisitionPage() {
         unit_of_measure: it.uom,
         estimated_price: it.item_type === 'consumption' ? undefined : (it.estimated_price ? Number(it.estimated_price) : undefined),
         needed_by_date: it.needed_by_date || undefined,
-        plant_id: it.plant_id || undefined,
-        storage_location_id: it.storage_location_id || undefined,
+        plant_id: destPayload.plant_id,
+        storage_location_id: destPayload.storage_location_id,
+        tax_code: it.tax_code || undefined,
         notes: buildItemNotes(it),
       })),
     }
@@ -263,10 +360,12 @@ export default function CreatePurchaseRequisitionPage() {
         <div className="min-w-0 flex-1 leading-tight">
           <h1 className="flex items-center gap-2 truncate text-base font-semibold text-gray-900 dark:text-gray-100">
             <ClipboardList className="h-4 w-4 shrink-0 text-blue-600" />
-            New Purchase Requisition
+            {copiedFromNumber ? `Copy of ${copiedFromNumber}` : 'New Purchase Requisition'}
           </h1>
           <p className="text-[11px] text-gray-400">
-            Fill in header details and line items, then save as draft or submit for approval
+            {copiedFromNumber
+              ? `Copied from ${copiedFromNumber} — a new PR number is assigned on save`
+              : 'Fill in header details and line items, then save as draft or submit for approval'}
           </p>
         </div>
 
@@ -295,6 +394,12 @@ export default function CreatePurchaseRequisitionPage() {
           {/* ══ HEADER DETAILS ═════════════════════════════════════════════ */}
           <Section title="Header Details">
             <div className="p-5 space-y-4">
+              <CopyFromDocumentField
+                placeholder="Enter PR number, e.g. PR-000042"
+                onCopy={handleCopyFromNumber}
+                loading={copyLoading}
+                copiedFrom={copiedFromNumber}
+              />
               {/* 12-col grid — child components emit col-span-* classes into this grid */}
               <div className="grid grid-cols-12 gap-x-4 gap-y-3">
                 <div className="col-span-12 sm:col-span-6 lg:col-span-4">
@@ -330,6 +435,13 @@ export default function CreatePurchaseRequisitionPage() {
             </div>
           </Section>
 
+          {/* ══ DESTINATION ════════════════════════════════════════════════ */}
+          <Section title="Destination / Plant">
+            <div className="p-5">
+              <PoDestinationFields value={dest} onChange={handleDestChange} />
+            </div>
+          </Section>
+
           {/* ══ LINE ITEMS ═════════════════════════════════════════════════ */}
           <Section
             title="Line Items *"
@@ -355,24 +467,39 @@ export default function CreatePurchaseRequisitionPage() {
                   item={item}
                   lineNumber={i + 1}
                   canRemove={items.length > 1}
-                  expanded={expandedItems.has(i)}
-                  onToggleExpand={() => toggleExpand(i)}
                   costCenters={activeCostCenters}
                   costCentersLoading={costCentersLoading}
                   storeId={storeId || defaultStoreId}
+                  destinationPlantId={dest.scope.kind === 'plant' ? dest.scope.id : null}
+                  onSuggestDestination={handleSuggestDestination}
                   onChange={(field, value) => updateItem(i, field, value)}
                   onPatch={patch => patchItem(i, patch)}
                   onRemove={() => removeItem(i)}
+                  errorField={lineFieldError?.lineIndex === i ? lineFieldError.field : null}
                 />
               ))}
             </div>
 
-            {/* Footer: add link */}
-            <div className="border-t border-gray-100 bg-gray-50/80 px-5 py-2.5 dark:border-gray-700 dark:bg-gray-800/40">
+            {/* Footer: add link + totals (same as PO) */}
+            <div className="flex items-center justify-between gap-4 border-t border-gray-100 bg-gray-50/80 px-5 py-2.5 dark:border-gray-700 dark:bg-gray-800/40">
               <button type="button" onClick={addItem}
                 className="flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-700">
                 <Plus className="h-3 w-3" /> Add another line
               </button>
+              <div className="flex flex-col items-end gap-0 text-sm leading-5">
+                <div className="flex items-center justify-end gap-3">
+                  <span className="text-xs font-medium text-gray-500">Subtotal</span>
+                  <span className="min-w-[6.5rem] text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(subtotal)}</span>
+                </div>
+                <div className="flex items-center justify-end gap-3">
+                  <span className="text-xs font-medium text-gray-500">Tax</span>
+                  <span className="min-w-[6.5rem] text-right tabular-nums text-gray-700 dark:text-gray-300">{formatCurrency(taxTotal)}</span>
+                </div>
+                <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-0.5 dark:border-gray-700">
+                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Total</span>
+                  <span className="min-w-[6.5rem] text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(grandTotal)}</span>
+                </div>
+              </div>
             </div>
           </Section>
 

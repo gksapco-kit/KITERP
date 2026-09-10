@@ -646,6 +646,91 @@ export const getLedgerTrialBalance = (ledgerId: string, fiscalYearId?: string) =
   axios.get(`${BASE}/ledger-trial-balance/${ledgerId}`, { params: fiscalYearId ? { fiscal_year_id: fiscalYearId } : {} })
     .then(r => r.data as LedgerTrialBalanceRow[])
 
+// ── Payment Terms ──────────────────────────────────────────────────────────────
+
+export interface PaymentTermStage {
+  id?: string
+  sort_order?: number
+  label: string | null
+  share_pct: string | number
+  due_days: number
+  due_on_day: number | null
+}
+
+export interface PaymentTermDiscount {
+  id?: string
+  within_days: number
+  discount_pct: string | number
+}
+
+export interface PaymentTerm {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  usage: 'both' | 'buying' | 'selling'
+  starts_from: string
+  start_offset_days: number
+  start_on_day: number | null
+  start_shift_months: number
+  round_to_month_end: boolean
+  grace_days: number
+  is_active: boolean
+  is_default: boolean
+  stages: PaymentTermStage[]
+  discounts: PaymentTermDiscount[]
+}
+
+export interface PaymentTermOption {
+  id: string
+  code: string
+  name: string
+  usage: string
+}
+
+export interface PaymentTermPreviewResult {
+  due_date: string
+  summary: string
+  stages: Array<{
+    label: string | null
+    sort_order: number
+    share_pct: string
+    amount: string
+    due_date: string
+  }>
+  discounts: Array<{
+    pay_by: string
+    discount_pct: string
+    saving: string
+    net_amount: string
+  }>
+}
+
+export const listPaymentTerms = (params?: { usage?: string; active_only?: boolean }) =>
+  axios.get(`${BASE}/payment-terms`, { params }).then(r => r.data as PaymentTerm[])
+
+export const listPaymentTermOptions = (usage?: string) =>
+  axios.get(`${BASE}/payment-terms/options`, { params: usage ? { usage } : {} })
+    .then(r => r.data as PaymentTermOption[])
+
+export const createPaymentTerm = (data: Omit<PaymentTerm, 'id' | 'is_active'>) =>
+  axios.post(`${BASE}/payment-terms`, data).then(r => r.data as PaymentTerm)
+
+export const updatePaymentTerm = (id: string, data: Partial<Omit<PaymentTerm, 'id'>>) =>
+  axios.put(`${BASE}/payment-terms/${id}`, data).then(r => r.data as PaymentTerm)
+
+export const togglePaymentTermActive = (id: string) =>
+  axios.patch(`${BASE}/payment-terms/${id}/toggle-active`).then(r => r.data as { id: string; is_active: boolean })
+
+export const deletePaymentTerm = (id: string) =>
+  axios.delete(`${BASE}/payment-terms/${id}`)
+
+export const previewPaymentTerm = (
+  id: string,
+  data: { amount: number; invoice_date: string; posting_date?: string; delivery_date?: string },
+) =>
+  axios.post(`${BASE}/payment-terms/${id}/preview`, data).then(r => r.data as PaymentTermPreviewResult)
+
 
 
 

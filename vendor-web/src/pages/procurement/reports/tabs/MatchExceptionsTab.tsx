@@ -52,7 +52,7 @@ export function MatchExceptionsTab({ filters, refreshKey = 0 }: { filters: Procu
     limit: 500,
   })
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['vendor', 'proc-analytics-match-exceptions', params, refreshKey],
     queryFn: () => vendorApi.procurementAnalyticsMatchExceptions(params),
   })
@@ -81,6 +81,12 @@ export function MatchExceptionsTab({ filters, refreshKey = 0 }: { filters: Procu
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-center justify-between">
+          <span>Failed to load match exceptions. Please try again.</span>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}><RefreshCw className="h-3.5 w-3.5 mr-1" />Retry</Button>
+        </div>
+      )}
       <div className="flex items-center gap-2 flex-wrap">
         <Select value={matchStatus} onChange={setMatchStatus} options={MATCH_OPTIONS} className="w-48" />
         <div className="ml-auto flex gap-2">

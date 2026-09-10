@@ -1563,3 +1563,99 @@ class FinBasicTransaction(Base):
     reference = Column(String(100))                              # invoice / receipt number
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PAYMENT TERMS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FinPaymentTerm(Base):
+    """
+    A reusable set of rules describing when an invoice becomes payable and
+    whether any early-payment reductions apply.
+
+    The header controls when the clock starts; child stages split the total
+    into scheduled portions; child discounts offer reductions for paying early.
+    """
+    __tablename__ = "fin_payment_term"
+
+    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id   = Column(UUID(as_uuid=True), ForeignKey("vendor.id",        ondelete="CASCADE"),  nullable=False, index=True)
+    company_id  = Column(UUID(as_uuid=True), ForeignKey("fin_company.id",   ondelete="CASCADE"),  nullable=True)   # NULL = all business units
+
+    code        = Column(String(20),  nullable=False)
+    name        = Column(String(120), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Which side of the business may use this term
+    # both | buying | selling
+    usage       = Column(String(10), nullable=False, server_default="both")
+
+    # When the payment clock starts
+    # invoice_date | posting_date | received_date | delivery_date | goods_receipt_date
+    starts_from        = Column(String(25), nullable=False, server_default="invoice_date")
+    start_offset_days  = Column(Integer, nullable=False, server_default="0")  # additional days after anchor
+    start_on_day       = Column(Integer, nullable=True)                        # fix to calendar day 1-31 (31 = month end)
+    start_shift_months = Column(Integer, nullable=False, server_default="0")  # roll forward N calendar months
+
+    round_to_month_end = Column(Boolean, nullable=False, server_default="false")
+    grace_days         = Column(Integer, nullable=False, server_default="0")
+
+    is_active   = Column(Boolean, nullable=False, server_default="true")
+    is_default  = Column(Boolean, nullable=False, server_default="false")   # default term for the vendor+usage
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
+
+    stages    = relationship("FinPaymentTermStage",    back_populates="term",
+                             cascade="all, delete-orphan", order_by="FinPaymentTermStage.sort_order")
+    discounts = relationship("FinPaymentTermDiscount", back_populates="term",
+                             cascade="all, delete-orphan", order_by="FinPaymentTermDiscount.within_days")
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "company_id", "code", name="uq_fin_payment_term_code"),
+    )
+
+
+class FinPaymentTermStage(Base):
+    """
+    One scheduled portion of the invoice amount.
+
+    A simple "due in 30 days" term has a single stage (100% at 30 days).
+    A 50/50 advance-plus-balance term has two stages.
+    All stages on a term must sum to exactly 100%.
+    """
+    __tablename__ = "fin_payment_term_stage"
+
+    id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    term_id    = Column(UUID(as_uuid=True), ForeignKey("fin_payment_term.id", ondelete="CASCADE"), nullable=False, index=True)
+    sort_order = Column(Integer, nullable=False, server_default="1")
+    label      = Column(String(80), nullable=True)          # e.g. "Advance", "On delivery", "Balance"
+    share_pct  = Column(Numeric(7, 4), nullable=False)      # portion of total invoice (all stages sum to 100)
+    due_days   = Column(Integer, nullable=False, server_default="0")   # days from the start date
+    due_on_day = Column(Integer, nullable=True)             # optional: fix due date to this calendar day
+
+    term = relationship("FinPaymentTerm", back_populates="stages")
+
+    __table_args__ = (
+        UniqueConstraint("term_id", "sort_order", name="uq_fin_pt_stage_order"),
+    )
+
+
+class FinPaymentTermDiscount(Base):
+    """
+    An early-payment reduction offered when payment arrives within `within_days`
+    of the start date.  Links to a specific stage (or NULL for the whole invoice).
+    """
+    __tablename__ = "fin_payment_term_discount"
+
+    id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    term_id      = Column(UUID(as_uuid=True), ForeignKey("fin_payment_term.id",       ondelete="CASCADE"), nullable=False, index=True)
+    stage_id     = Column(UUID(as_uuid=True), ForeignKey("fin_payment_term_stage.id", ondelete="CASCADE"), nullable=True)   # NULL = whole invoice
+    within_days  = Column(Integer, nullable=False)
+    discount_pct = Column(Numeric(7, 4), nullable=False)
+
+    term = relationship("FinPaymentTerm", back_populates="discounts")
+
+    __table_args__ = (
+        UniqueConstraint("term_id", "within_days", name="uq_fin_pt_discount_days"),
+    )

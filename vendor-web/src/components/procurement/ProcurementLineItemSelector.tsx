@@ -1,4 +1,3 @@
-import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useProducts, useServices } from '@/hooks/useVendor'
@@ -7,6 +6,11 @@ import type { RequisitionType } from '@/components/procurement/procurementLineIt
 
 export type { RequisitionType } from '@/components/procurement/procurementLineItemTypes'
 
+const lineSelectTrigger =
+  'h-8 w-full min-w-0 text-xs border-gray-200 bg-white rounded-md shadow-none'
+const lineInputCls =
+  'h-8 w-full min-w-0 rounded-md border-gray-200 bg-white px-2 text-xs shadow-none focus:border-blue-400'
+
 interface Props {
   type: RequisitionType
   referenceId: string
@@ -14,6 +18,19 @@ interface Props {
   onReferenceChange: (id: string) => void
   onDescriptionChange: (value: string) => void
   className?: string
+  /** When true, omit built-in labels (parent LineField owns the label). */
+  hideLabel?: boolean
+  triggerClassName?: string
+}
+
+export function itemSelectorLabel(type: RequisitionType): string {
+  switch (type) {
+    case 'product': return 'Product'
+    case 'consumption': return 'Consumable / Material'
+    case 'service': return 'Service'
+    case 'asset': return 'Asset'
+    default: return 'Description'
+  }
 }
 
 export function ProcurementLineItemSelector({
@@ -23,6 +40,8 @@ export function ProcurementLineItemSelector({
   onReferenceChange,
   onDescriptionChange,
   className,
+  hideLabel = false,
+  triggerClassName = lineSelectTrigger,
 }: Props) {
   const { data: productsData, isLoading: productsLoading } = useProducts({ size: 500, status: 'active' })
   const { data: servicesData, isLoading: servicesLoading } = useServices({ size: 500, status: 'active' })
@@ -34,17 +53,23 @@ export function ProcurementLineItemSelector({
   if (type === 'product') {
     return (
       <div className={className}>
-        <Label className="text-[11px] leading-tight text-gray-500">Product *</Label>
+        {!hideLabel && (
+          <p className="text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
+            Product <span className="ml-0.5 text-red-500">*</span>
+          </p>
+        )}
         <Select
           value={referenceId}
           onChange={onReferenceChange}
           options={selectOptionsWithBlank(
             'Select product…',
-            products.map(p => ({ value: p.id, label: p.name })),
+            products.map(p => ({ value: p.id, label: p.name, hint: p.sku || undefined })),
           )}
           placeholder={productsLoading ? 'Loading…' : 'Select product…'}
           disabled={productsLoading}
-          className="mt-0.5 text-xs h-8 py-0 px-2.5"
+          className={`w-full min-w-0 ${hideLabel ? '' : 'mt-1'}`}
+          showSelectedHint={false}
+          triggerClassName={triggerClassName}
           aria-label="Product"
         />
         {!productsLoading && products.length === 0 && (
@@ -57,17 +82,23 @@ export function ProcurementLineItemSelector({
   if (type === 'consumption') {
     return (
       <div className={className}>
-        <Label className="text-[11px] leading-tight text-gray-500">Consumable / Material *</Label>
+        {!hideLabel && (
+          <p className="text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
+            Consumable / Material <span className="ml-0.5 text-red-500">*</span>
+          </p>
+        )}
         <Select
           value={referenceId}
           onChange={onReferenceChange}
           options={selectOptionsWithBlank(
             'Select consumable…',
-            products.map(p => ({ value: p.id, label: p.name })),
+            products.map(p => ({ value: p.id, label: p.name, hint: p.sku || undefined })),
           )}
           placeholder={productsLoading ? 'Loading…' : 'Select consumable…'}
           disabled={productsLoading}
-          className="mt-0.5 text-xs h-8 py-0 px-2.5"
+          className={`w-full min-w-0 ${hideLabel ? '' : 'mt-1'}`}
+          showSelectedHint={false}
+          triggerClassName={triggerClassName}
           aria-label="Consumable"
         />
         {!productsLoading && products.length === 0 && (
@@ -80,7 +111,11 @@ export function ProcurementLineItemSelector({
   if (type === 'service') {
     return (
       <div className={className}>
-        <Label className="text-[11px] leading-tight text-gray-500">Service *</Label>
+        {!hideLabel && (
+          <p className="text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
+            Service <span className="ml-0.5 text-red-500">*</span>
+          </p>
+        )}
         <Select
           value={referenceId}
           onChange={onReferenceChange}
@@ -90,7 +125,9 @@ export function ProcurementLineItemSelector({
           )}
           placeholder={servicesLoading ? 'Loading…' : 'Select service…'}
           disabled={servicesLoading}
-          className="mt-0.5 text-xs h-8 py-0 px-2.5"
+          className={`w-full min-w-0 ${hideLabel ? '' : 'mt-1'}`}
+          showSelectedHint={false}
+          triggerClassName={triggerClassName}
           aria-label="Service"
         />
         {!servicesLoading && services.length === 0 && (
@@ -102,9 +139,13 @@ export function ProcurementLineItemSelector({
 
   if (type === 'asset') {
     return (
-      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-1.5 ${className ?? ''}`}>
-        <div>
-          <Label className="text-[11px] leading-tight text-gray-500">Asset Category</Label>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-1.5 ${className ?? ''}`}>
+        <div className="min-w-0">
+          {!hideLabel && (
+            <p className="text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
+              Asset Category
+            </p>
+          )}
           <Select
             value={referenceId}
             onChange={onReferenceChange}
@@ -114,17 +155,23 @@ export function ProcurementLineItemSelector({
             )}
             placeholder={categoriesLoading ? 'Loading…' : 'Select category (optional)…'}
             disabled={categoriesLoading}
-            className="mt-0.5 text-xs h-8 py-0 px-2.5"
+            className={`w-full min-w-0 ${hideLabel ? '' : 'mt-1'}`}
+            triggerClassName={triggerClassName}
             aria-label="Asset category"
           />
         </div>
-        <div>
-          <Label className="text-[11px] leading-tight text-gray-500">Asset Description *</Label>
+        <div className="min-w-0">
+          {!hideLabel && (
+            <p className="text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
+              Asset Description <span className="ml-0.5 text-red-500">*</span>
+            </p>
+          )}
           <Input
             value={description}
             onChange={e => onDescriptionChange(e.target.value)}
             placeholder="e.g. Dell laptop for finance team"
-            className="mt-0.5 text-xs h-8 py-0 px-2.5"
+            className={`${lineInputCls} ${hideLabel ? '' : 'mt-1'}`}
+            aria-label="Asset description"
           />
         </div>
       </div>
@@ -133,12 +180,17 @@ export function ProcurementLineItemSelector({
 
   return (
     <div className={className}>
-      <Label className="text-[11px] leading-tight text-gray-500">Description *</Label>
+      {!hideLabel && (
+        <p className="text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
+          Description <span className="ml-0.5 text-red-500">*</span>
+        </p>
+      )}
       <Input
         value={description}
         onChange={e => onDescriptionChange(e.target.value)}
         placeholder="Describe what is needed…"
-        className="mt-0.5 text-xs h-7 py-0 px-2"
+        className={`${lineInputCls} ${hideLabel ? '' : 'mt-1'}`}
+        aria-label="Description"
       />
     </div>
   )

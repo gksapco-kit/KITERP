@@ -37,7 +37,7 @@ interface AgingBucket { bucket: string; count: number }
 export function ApprovalTurnaroundTab({ filters, refreshKey = 0 }: { filters: ProcurementReportFilters; refreshKey?: number }) {
   const [docType, setDocType] = useState('')
   const params = filtersToParams(filters, { doc_type: docType || undefined })
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['vendor', 'proc-analytics-approval-turnaround', params, refreshKey],
     queryFn: () => vendorApi.procurementAnalyticsApprovalTurnaround(params),
   })
@@ -50,6 +50,12 @@ export function ApprovalTurnaroundTab({ filters, refreshKey = 0 }: { filters: Pr
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-center justify-between">
+          <span>Failed to load approval data. Please try again.</span>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}><RefreshCw className="h-3.5 w-3.5 mr-1" />Retry</Button>
+        </div>
+      )}
       <div className="flex items-center gap-2 flex-wrap">
         <Select value={docType} onChange={setDocType} options={DOC_OPTIONS} className="w-52" />
         <div className="ml-auto">

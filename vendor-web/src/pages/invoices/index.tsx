@@ -24,6 +24,8 @@ import {
   X, Eye, IndianRupee, ArrowRight, Download, Trash2, Share2,
   MessageCircle, Mail, Smartphone, Copy, Send, Settings2, CalendarDays, Printer, UserPlus,
 } from 'lucide-react'
+import { CopyFromDocumentField } from '@/components/procurement/CopyFromDocumentField'
+import { SALES_DOC_COPY_FROM_KEY, salesInvoiceToCopyPrefill } from '@/lib/copyDocument'
 import { QuickCreateCustomerModal } from '@/components/customers/QuickCreateCustomerModal'
 import { BusinessUnitSelect } from '@/components/common/BusinessUnitSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
@@ -169,6 +171,7 @@ export default function InvoicesPage() {
   const [branchFilter, setBranchFilter] = useState('')
   const [salesAreaFilter, setSalesAreaFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [copyPrefill, setCopyPrefill] = useState<ReturnType<typeof salesInvoiceToCopyPrefill> | undefined>()
   const [shareOpenId, setShareOpenId] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -183,6 +186,20 @@ export default function InvoicesPage() {
     }, 300)
     return () => clearTimeout(t)
   }, [searchInput])
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(SALES_DOC_COPY_FROM_KEY)
+    if (!raw) return
+    sessionStorage.removeItem(SALES_DOC_COPY_FROM_KEY)
+    try {
+      const parsed = JSON.parse(raw) as { id?: string }
+      if (!parsed?.id) return
+      vendorApi.getInvoice(parsed.id).then(inv => {
+        setCopyPrefill(salesInvoiceToCopyPrefill(inv as Record<string, unknown>))
+        setShowCreate(true)
+      }).catch(() => toast.error('Could not copy that invoice'))
+    } catch { /* ignore */ }
+  }, [])
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', page, pageSize, typeFilter, statusFilter, storeFilter, branchFilter, salesAreaFilter, search],
@@ -244,7 +261,7 @@ export default function InvoicesPage() {
         <h1 className="text-2xl font-bold text-foreground">Invoices & Billing</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate('/invoices/templates')} className="gap-2"><Settings2 className="w-4 h-4" />Templates</Button>
-          <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus className="w-4 h-4" />New Invoice</Button>
+          <Button onClick={() => { setCopyPrefill(undefined); setShowCreate(true) }} className="gap-2"><Plus className="w-4 h-4" />New Invoice</Button>
         </div>
       </div>
 
@@ -498,7 +515,13 @@ export default function InvoicesPage() {
         </CardContent>
       </Card>
 
-      {showCreate && <CreateInvoiceModal onClose={() => setShowCreate(false)} onCreated={() => { qc.invalidateQueries({ queryKey: ['invoices'] }); qc.invalidateQueries({ queryKey: ['reports'] }); setShowCreate(false) }} />}
+      {showCreate && (
+        <CreateInvoiceModal
+          prefill={copyPrefill}
+          onClose={() => { setShowCreate(false); setCopyPrefill(undefined) }}
+          onCreated={() => { qc.invalidateQueries({ queryKey: ['invoices'] }); qc.invalidateQueries({ queryKey: ['reports'] }); setShowCreate(false); setCopyPrefill(undefined) }}
+        />
+      )}
     </div>
   )
 }
@@ -899,11 +922,17 @@ export function CreateInvoiceModal({
   onCreated: (created?: Record<string, unknown>) => void
   defaultType?: 'invoice' | 'estimate' | 'credit_note'
   prefill?: {
+    customer_id?: string
     customer_name?: string
     customer_email?: string
     customer_phone?: string
     customer_gstin?: string
     notes?: string
+    terms_and_conditions?: string
+    place_of_supply?: string
+    is_inter_state?: boolean
+    sales_area_id?: string
+    store_id?: string
     order_id?: string
     items?: LineItemDraft[]
   }
@@ -914,19 +943,19 @@ export function CreateInvoiceModal({
   const [form, setForm] = useState({
     invoice_type: defaultType,
     order_id: prefill?.order_id || '',
-    customer_id: '',
-    sales_area_id: '',
+    customer_id: prefill?.customer_id || '',
+    sales_area_id: prefill?.sales_area_id || '',
     customer_name: prefill?.customer_name || '',
     customer_email: prefill?.customer_email || '',
     customer_phone: prefill?.customer_phone || '',
     customer_gstin: prefill?.customer_gstin || '',
-    place_of_supply: '',
-    is_inter_state: false,
+    place_of_supply: prefill?.place_of_supply || '',
+    is_inter_state: prefill?.is_inter_state || false,
     notes: prefill?.notes || '',
     due_date: '',
-    terms_and_conditions: defaultType === 'estimate'
+    terms_and_conditions: prefill?.terms_and_conditions || (defaultType === 'estimate'
       ? 'This quotation is valid until the date shown above. Prices are subject to change after expiry.'
-      : '',
+      : ''),
   })
   const [items, setItems] = useState<LineItemDraft[]>(
     prefill?.items?.length
@@ -934,11 +963,13 @@ export function CreateInvoiceModal({
       : [{ name: '', hsn_sac: '', qty: 1, rate: 0, discount: 0, tax_rate: 18 }],
   )
   const [loading, setLoading] = useState(false)
-  const [custSearch, setCustSearch] = useState('')
+  const [copyLoading, setCopyLoading] = useState(false)
+  const [copiedFromNumber, setCopiedFromNumber] = useState<string | null>(null)
+  const [custSearch, setCustSearch] = useState(prefill?.customer_name || '')
   const [custOpen, setCustOpen] = useState(false)
   const [showQuickCreate, setShowQuickCreate] = useState(false)
   const [extraFields, setExtraFields] = useState<QuotationExtraField[]>([])
-  const [storeId, setStoreId] = useState('')
+  const [storeId, setStoreId] = useState(prefill?.store_id || '')
   const [branchId, setBranchId] = useState('')
   const effectiveStoreId = branchId || storeId
   const isQuotation = defaultType === 'estimate'
@@ -1026,6 +1057,37 @@ export function CreateInvoiceModal({
     })
   }, [])
 
+  const handleCopyFromNumber = async (number: string) => {
+    setCopyLoading(true)
+    try {
+      const inv = await vendorApi.lookupSalesInvoice(number, defaultType) as Record<string, unknown>
+      const copied = salesInvoiceToCopyPrefill(inv)
+      setForm(f => ({
+        ...f,
+        order_id: '',
+        customer_id: copied.customer_id || '',
+        sales_area_id: copied.sales_area_id || f.sales_area_id,
+        customer_name: copied.customer_name,
+        customer_email: copied.customer_email,
+        customer_phone: copied.customer_phone,
+        customer_gstin: copied.customer_gstin,
+        place_of_supply: copied.place_of_supply,
+        is_inter_state: copied.is_inter_state,
+        notes: copied.notes,
+        terms_and_conditions: copied.terms_and_conditions || f.terms_and_conditions,
+      }))
+      setCustSearch(copied.customer_name)
+      if (copied.store_id) setStoreId(copied.store_id)
+      if (copied.items?.length) setItems(copied.items)
+      setCopiedFromNumber(String(inv.invoice_number || number))
+      toast.success(`Copied from ${String(inv.invoice_number || number)}. A new number is assigned when you save.`)
+    } catch (err) {
+      toast.error(extractApiError(err, 'No document found with that number'))
+    } finally {
+      setCopyLoading(false)
+    }
+  }
+
   const subtotal = items.reduce((s, i) => s + i.qty * i.rate, 0)
   const totalTax = items.reduce((s, i) => {
     const taxable = i.qty * i.rate - i.discount
@@ -1075,11 +1137,19 @@ export function CreateInvoiceModal({
       >
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-2.5">
           <h2 className="text-base font-semibold">
-            {defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
+            {copiedFromNumber
+              ? `Copy of ${copiedFromNumber}`
+              : defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
           </h2>
           <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="rounded-lg p-1 hover:bg-muted"><X className="h-5 w-5" /></button>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 space-y-2.5">
+          <CopyFromDocumentField
+            placeholder={isQuotation ? 'Enter quotation number' : 'Enter invoice number'}
+            onCopy={handleCopyFromNumber}
+            loading={copyLoading}
+            copiedFrom={copiedFromNumber}
+          />
           {/* Header: 3-column grid so labels and controls share one right edge */}
           <div className="relative">
             <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3">
