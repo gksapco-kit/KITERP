@@ -15,10 +15,10 @@ import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@
 import {
   ArrowRightLeft, Plus, ArrowLeft, Loader2, RefreshCw,
   ChevronRight, Send, Truck, PackageCheck, XCircle, CheckCircle2,
-  Minus, Search, Package,
+  Minus, Search, Package, Pencil, Check, X as XIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useStores, vendorKeys } from '@/hooks/useVendor'
+import { useStores, vendorKeys, useUpdateTransferOrder } from '@/hooks/useVendor'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -341,6 +341,23 @@ function TransferDetail({ orderId, onBack }: { orderId: string; onBack: () => vo
   })
 
   const [receiveQtys, setReceiveQtys] = useState<Record<string, number>>({})
+  const [editingHeader, setEditingHeader] = useState(false)
+  const [draftNotes, setDraftNotes] = useState('')
+  const [draftExpectedDate, setDraftExpectedDate] = useState('')
+  const updateOrder = useUpdateTransferOrder()
+
+  function startEdit() {
+    setDraftNotes(order?.notes ?? '')
+    setDraftExpectedDate(order?.expected_date?.slice(0, 10) ?? '')
+    setEditingHeader(true)
+  }
+
+  function saveEdit() {
+    if (!order) return
+    updateOrder.mutate({ id: order.id, data: { notes: draftNotes || null, expected_date: draftExpectedDate || null } }, {
+      onSuccess: () => setEditingHeader(false),
+    })
+  }
 
   const submit = useMutation({
     mutationFn: () => vendorApi.submitTransferOrder(orderId),
@@ -416,6 +433,11 @@ function TransferDetail({ orderId, onBack }: { orderId: string; onBack: () => vo
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          {['draft', 'submitted'].includes(order.status) && !editingHeader && (
+            <Button size="sm" variant="outline" onClick={startEdit}>
+              <Pencil className="mr-1 h-3.5 w-3.5" />Edit
+            </Button>
+          )}
           {order.status === 'draft' && (
             <Button size="sm" variant="outline" onClick={() => submit.mutate()} disabled={submit.isPending}>
               {submit.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1 h-3.5 w-3.5" />}
@@ -454,6 +476,34 @@ function TransferDetail({ orderId, onBack }: { orderId: string; onBack: () => vo
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           Received at destination on {fmtDate(order.received_at)}. Inventory has been updated.
         </div>
+      )}
+
+      {/* Inline edit form */}
+      {editingHeader && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Edit Transfer Order</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Expected Date</Label>
+                <Input type="date" value={draftExpectedDate} onChange={e => setDraftExpectedDate(e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label className="text-xs">Notes</Label>
+                <Textarea value={draftNotes} onChange={e => setDraftNotes(e.target.value)} rows={2} className="text-sm" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={() => setEditingHeader(false)}>
+                <XIcon className="mr-1 h-3.5 w-3.5" />Cancel
+              </Button>
+              <Button size="sm" onClick={saveEdit} disabled={updateOrder.isPending}>
+                {updateOrder.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1 h-3.5 w-3.5" />}
+                Save
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Info row */}

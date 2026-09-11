@@ -3298,6 +3298,11 @@ export const vendorApi = {
     return response.data
   },
 
+  updateTransferOrder: async (id: string, data: Record<string, unknown>) => {
+    const response = await apiClient.patch(`/vendors/me/inventory/transfer-orders/${id}`, data)
+    return response.data
+  },
+
   submitTransferOrder: async (id: string) => {
     const response = await apiClient.post(`/vendors/me/inventory/transfer-orders/${id}/submit`)
     return response.data

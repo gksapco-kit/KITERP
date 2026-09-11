@@ -3791,6 +3791,20 @@ export function useCreateTransferOrder() {
   })
 }
 
+export function useUpdateTransferOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      vendorApi.updateTransferOrder(id, data),
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrder(id) })
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrders() })
+      toast.success('Transfer order updated')
+    },
+    onError: apiError('Update transfer order'),
+  })
+}
+
 export function useSubmitTransferOrder() {
   const qc = useQueryClient()
   return useMutation({

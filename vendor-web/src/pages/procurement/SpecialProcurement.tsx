@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -356,8 +356,10 @@ const SC_BADGE: Record<string, { bg: string; text: string; label: string }> = {
 }
 
 // ─── Create SES Modal ─────────────────────────────────────────────
-function CreateSESModal({ onClose }: { onClose: () => void }) {
+function CreateSESModal({ onClose, editingSES }: { onClose: () => void; editingSES?: ServiceEntrySheet | null }) {
+  const isEditMode = Boolean(editingSES)
   const create = useCreateServiceEntrySheet()
+  const update = useUpdateServiceEntrySheet()
   const [supplierId, setSupplierId] = useState('')
   const [poId, setPoId] = useState('')
   const { pos, all, isLoading: posLoading, isError: posError } = useLinkablePurchaseOrders(supplierId, 'service')
@@ -370,10 +372,23 @@ function CreateSESModal({ onClose }: { onClose: () => void }) {
 
   useEscapeToClose(onClose, true)
 
+  useEffect(() => {
+    if (!editingSES) return
+    setSupplierId(editingSES.supplier_id || '')
+    setPoId(editingSES.purchase_order_id || '')
+    setDescription(editingSES.description || '')
+    setTotalAmount(String(editingSES.total_amount ?? ''))
+    setCurrency(editingSES.currency || 'INR')
+    setPeriodFrom(editingSES.service_period_from || '')
+    setPeriodTo(editingSES.service_period_to || '')
+    setNotes(editingSES.notes || '')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingSES?.id])
+
   const handleSave = () => {
     if (!supplierId) { toast.error('Select a supplier'); return }
     if (!totalAmount || Number(totalAmount) <= 0) { toast.error('Enter total amount'); return }
-    create.mutate({
+    const payload = {
       supplier_id: supplierId,
       purchase_order_id: poId || undefined,
       description: description || undefined,
@@ -382,7 +397,12 @@ function CreateSESModal({ onClose }: { onClose: () => void }) {
       service_period_from: periodFrom || undefined,
       service_period_to: periodTo || undefined,
       notes: notes || undefined,
-    }, { onSuccess: onClose })
+    }
+    if (isEditMode && editingSES) {
+      update.mutate({ id: editingSES.id, data: payload }, { onSuccess: onClose })
+    } else {
+      create.mutate(payload, { onSuccess: onClose })
+    }
   }
 
   return (
@@ -390,7 +410,7 @@ function CreateSESModal({ onClose }: { onClose: () => void }) {
       <Card className="w-full max-w-xl shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="font-semibold flex items-center gap-2">
-            <FileCheck className="w-4 h-4 text-green-600" /> New Service Entry Sheet
+            <FileCheck className="w-4 h-4 text-green-600" /> {isEditMode ? `Edit SES — ${editingSES!.ses_number}` : 'New Service Entry Sheet'}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
@@ -455,9 +475,9 @@ function CreateSESModal({ onClose }: { onClose: () => void }) {
           </div>
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={create.isPending} className="gap-2">
-              {create.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Create SES
+            <Button onClick={handleSave} disabled={isEditMode ? update.isPending : create.isPending} className="gap-2">
+              {(isEditMode ? update.isPending : create.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isEditMode ? 'Save Changes' : 'Create SES'}
             </Button>
           </div>
         </CardContent>
@@ -467,7 +487,7 @@ function CreateSESModal({ onClose }: { onClose: () => void }) {
 }
 
 // ─── SES Detail Panel ─────────────────────────────────────────────
-function SESDetailPanel({ ses, onClose }: { ses: ServiceEntrySheet; onClose: () => void }) {
+function SESDetailPanel({ ses, onClose, onEdit }: { ses: ServiceEntrySheet; onClose: () => void; onEdit?: () => void }) {
   const submit = useSubmitServiceEntrySheet()
   const approve = useApproveServiceEntrySheet()
   const [remarks, setRemarks] = useState('')
@@ -483,6 +503,11 @@ function SESDetailPanel({ ses, onClose }: { ses: ServiceEntrySheet; onClose: () 
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+            {onEdit && ses.status === 'draft' && (
+              <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onEdit}>
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
           </div>
         </div>
@@ -1052,6 +1077,7 @@ export default function SpecialProcurementPage() {
   const [tab, setTab] = useState<'ses' | 'subcontracting' | 'consignment'>('ses')
   const [search, setSearch] = useState('')
   const [showSESForm, setShowSESForm] = useState(false)
+  const [editingSES, setEditingSES] = useState<ServiceEntrySheet | null>(null)
   const [showSCForm, setShowSCForm] = useState(false)
   const [showCSForm, setShowCSForm] = useState(false)
   const [editingCS, setEditingCS] = useState<ConsignmentStock | undefined>()
@@ -1101,12 +1127,18 @@ export default function SpecialProcurementPage() {
 
   return (
     <div className="space-y-6">
-      {showSESForm && <CreateSESModal onClose={() => setShowSESForm(false)} />}
+      {showSESForm && <CreateSESModal editingSES={editingSES} onClose={() => { setShowSESForm(false); setEditingSES(null) }} />}
       {showSCForm && <CreateSubcontractingModal onClose={() => setShowSCForm(false)} />}
       {showCSForm && <CreateConsignmentModal onClose={() => setShowCSForm(false)} />}
       {editingCS && <EditConsignmentModal record={editingCS} onClose={() => setEditingCS(undefined)} />}
       {withdrawingCS && <WithdrawConsignmentModal record={withdrawingCS} onClose={() => setWithdrawingCS(undefined)} />}
-      {selectedSES && <SESDetailPanel ses={selectedSES} onClose={() => setSelectedSES(undefined)} />}
+      {selectedSES && (
+        <SESDetailPanel
+          ses={selectedSES}
+          onClose={() => setSelectedSES(undefined)}
+          onEdit={() => { setEditingSES(selectedSES); setSelectedSES(undefined); setShowSESForm(true) }}
+        />
+      )}
       {selectedSC && <SubcontractingDetailPanel sc={selectedSC} onClose={() => setSelectedSC(undefined)} />}
 
       <div className="flex items-center justify-between flex-wrap gap-3">
