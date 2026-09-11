@@ -57,17 +57,11 @@ import { vendorApi } from '@/api/vendor'
 import {
   Loader2, Plus, X, ClipboardList, CheckCircle, XCircle, Send, Pencil, Clock, ArrowRightLeft, FilePlus, CopyPlus,
 } from 'lucide-react'
-
-const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
-  draft:               { bg: 'bg-gray-100 dark:bg-gray-800',       text: 'text-gray-700 dark:text-gray-300',   label: 'Draft' },
-  submitted:           { bg: 'bg-blue-50 dark:bg-blue-950/50',     text: 'text-blue-700 dark:text-blue-300',   label: 'Submitted' },
-  open:                { bg: 'bg-sky-50 dark:bg-sky-950/50',       text: 'text-sky-700 dark:text-sky-300',     label: 'Open' },
-  approved:            { bg: 'bg-green-50 dark:bg-green-950/50',   text: 'text-green-700 dark:text-green-300', label: 'Approved' },
-  rejected:            { bg: 'bg-red-50 dark:bg-red-950/50',       text: 'text-red-700 dark:text-red-300',     label: 'Rejected' },
-  partially_converted: { bg: 'bg-amber-50 dark:bg-amber-950/50',   text: 'text-amber-700 dark:text-amber-300', label: 'Partial' },
-  converted:           { bg: 'bg-purple-50 dark:bg-purple-950/50', text: 'text-purple-700 dark:text-purple-300', label: 'Converted' },
-  cancelled:           { bg: 'bg-red-50 dark:bg-red-950/50',       text: 'text-red-700 dark:text-red-300',     label: 'Cancelled' },
-}
+import {
+  DocumentStatusBadge,
+  PR_STATUS_MAP,
+} from '@/components/document/DocumentStatusBadge'
+import { ApprovalChainPanel } from '@/components/document/ApprovalChainPanel'
 
 const PRIORITY_BADGE: Record<string, string> = {
   low:    'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -119,13 +113,6 @@ async function startCreateEditablePo(
     return
   }
   navigate('/purchase-orders/new')
-}
-
-const APPROVAL_STATUS_BADGE: Record<string, string> = {
-  pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  approved: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  rejected: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  skipped: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -267,7 +254,6 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
     cancelPR.mutate({ id: pr.id })
   }
 
-  const badge = STATUS_BADGE[pr.status] ?? STATUS_BADGE.draft
   const totalEstimate = pr.items.reduce((s: number, i: PurchaseRequisitionItem) => s + (i.quantity * (i.estimated_price ?? 0)), 0)
   const showApprovalFooter = pr.status === 'submitted' && pendingStep && !membershipLoading
   const canEdit = canEditPr(pr)
@@ -289,7 +275,7 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
               <p className="font-mono text-[11px] text-gray-500">{pr.pr_number}</p>
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+              <DocumentStatusBadge status={pr.status} map={PR_STATUS_MAP} />
               <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${PRIORITY_BADGE[pr.priority] || ''}`}>{pr.priority}</span>
             </div>
             <h2 className="mt-0.5 text-base font-semibold leading-snug">{displayTitle}</h2>
@@ -334,7 +320,7 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
             <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">General information</h3>
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border bg-gray-50/80 p-3 sm:grid-cols-3 dark:bg-gray-800/40">
               <DetailField label="PR Number" value={pr.pr_number} mono />
-              <DetailField label="Status" value={badge.label} />
+              <DetailField label="Status" value={<DocumentStatusBadge status={pr.status} map={PR_STATUS_MAP} />} />
               <DetailField label="Priority" value={<span className="capitalize">{pr.priority}</span>} />
               <DetailField label="Title" value={parsedTitle || pr.title} className="col-span-2 sm:col-span-3" />
               <DetailField label="Business Unit" value={pr.store_name} />
@@ -378,49 +364,11 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
             </section>
           )}
 
-          {(pr.approvals?.length ?? 0) > 0 && (
-            <section>
-              <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Approval chain</h3>
-              <div className="space-y-2">
-                {[...(pr.approvals ?? [])].sort((a, b) => a.level - b.level).map(step => {
-                  const isCurrentStep = step.status === 'pending' && step.level === pendingStep?.level
-                  return (
-                    <div
-                      key={step.id}
-                      className={`rounded-lg border px-3 py-2 ${
-                        isCurrentStep
-                          ? 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'
-                          : 'border-gray-200 dark:border-gray-700'
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="min-w-0 text-xs">
-                          <span className="font-semibold text-gray-500">Level {step.level}</span>
-                          <span className="mx-1.5 text-gray-300">·</span>
-                          <span className="font-medium">{step.approver_name || '—'}</span>
-                          {isCurrentStep && <span className="ml-1.5 text-amber-700 dark:text-amber-300">(current)</span>}
-                        </div>
-                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${APPROVAL_STATUS_BADGE[step.status] ?? ''}`}>
-                          {step.status}
-                        </span>
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        <DetailField label="Actioned At" value={step.actioned_at ? formatDate(step.actioned_at) : undefined} />
-                        <DetailField label="Assigned At" value={step.created_at ? formatDate(step.created_at) : undefined} />
-                        {(step.comments || step.remarks) && (
-                          <DetailField
-                            label="Comments"
-                            value={step.comments || step.remarks}
-                            className="col-span-2 sm:col-span-3"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
+          <ApprovalChainPanel
+            approvals={pr.approvals ?? []}
+            myMembershipId={myMembership?.id}
+            compact
+          />
 
           <section>
             <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
@@ -1456,7 +1404,7 @@ export default function PurchaseRequisitionsPage() {
                 onChange={setStatusFilter}
                 options={selectOptionsWithBlank(
                   'All Statuses',
-                  STATUSES.filter(Boolean).map(s => ({ value: s, label: STATUS_BADGE[s]?.label ?? s })),
+                  STATUSES.filter(Boolean).map(s => ({ value: s, label: PR_STATUS_MAP[s]?.label ?? s })),
                 )}
                 className="w-36 text-sm"
               />
@@ -1494,7 +1442,6 @@ export default function PurchaseRequisitionsPage() {
             </thead>
             <tbody>
               {displayItems.map(r => {
-                const badge = STATUS_BADGE[r.status] ?? STATUS_BADGE.draft
                 const totalEst = r.items.reduce((s, i) => s + (i.quantity * (i.estimated_price ?? 0)), 0)
                 return (
                   <tr
@@ -1511,7 +1458,7 @@ export default function PurchaseRequisitionsPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+                      <DocumentStatusBadge status={r.status} map={PR_STATUS_MAP} />
                     </td>
                     <td className="px-3 py-2 text-sm text-gray-600">{r.items.length}</td>
                     <td className="px-3 py-2 text-sm text-gray-600">{r.required_date ? formatDate(r.required_date) : '—'}</td>

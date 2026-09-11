@@ -113,6 +113,11 @@ export const vendorKeys = {
   grn: (id: string) => [...vendorKeys.all, 'grn', id] as const,
   purchaseReturns: (params?: Record<string, unknown>) => [...vendorKeys.all, 'purchase-returns', params] as const,
   purchaseReturn: (id: string) => [...vendorKeys.all, 'purchase-return', id] as const,
+  // Inventory workflow
+  transferOrders: (params?: Record<string, unknown>) => [...vendorKeys.all, 'transfer-orders', params] as const,
+  transferOrder: (id: string) => [...vendorKeys.all, 'transfer-order', id] as const,
+  stockCounts: (params?: Record<string, unknown>) => [...vendorKeys.all, 'stock-counts', params] as const,
+  stockCount: (id: string) => [...vendorKeys.all, 'stock-count', id] as const,
 }
 
 export function useMyVendor() {
@@ -3758,4 +3763,159 @@ export function useDeleteTicket() {
   return useMutation({ mutationFn: (id: string) => vendorApi.hrDeleteTicket(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['hr', 'tickets'] }); toast.success('Ticket removed') },
     onError: apiError('Could not delete') })
+}
+
+// ── Stock Transfer Orders ──────────────────────────────────────────────────
+
+export function useTransferOrders(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: vendorKeys.transferOrders(params),
+    queryFn: () => vendorApi.listTransferOrders(params),
+  })
+}
+
+export function useTransferOrder(id: string | null) {
+  return useQuery({
+    queryKey: vendorKeys.transferOrder(id ?? ''),
+    queryFn: () => vendorApi.getTransferOrder(id!),
+    enabled: !!id,
+  })
+}
+
+export function useCreateTransferOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createTransferOrder(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.transferOrders() }) },
+    onError: apiError('Create transfer order'),
+  })
+}
+
+export function useSubmitTransferOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.submitTransferOrder(id),
+    onSuccess: (_d, id) => { qc.invalidateQueries({ queryKey: vendorKeys.transferOrder(id) }) },
+    onError: apiError('Submit transfer order'),
+  })
+}
+
+export function useDispatchTransferOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.dispatchTransferOrder(id),
+    onSuccess: (_d, id) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrder(id) })
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'inventory-summary'] })
+    },
+    onError: apiError('Dispatch transfer order'),
+  })
+}
+
+export function useReceiveTransferOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      vendorApi.receiveTransferOrder(id, data),
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrder(id) })
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'inventory-summary'] })
+    },
+    onError: apiError('Receive transfer order'),
+  })
+}
+
+export function useCancelTransferOrder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.cancelTransferOrder(id),
+    onSuccess: (_d, id) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrder(id) })
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrders() })
+    },
+    onError: apiError('Cancel transfer order'),
+  })
+}
+
+// ── Stock Counts ──────────────────────────────────────────────────────────
+
+export function useStockCounts(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: vendorKeys.stockCounts(params),
+    queryFn: () => vendorApi.listStockCounts(params),
+  })
+}
+
+export function useStockCount(id: string | null) {
+  return useQuery({
+    queryKey: vendorKeys.stockCount(id ?? ''),
+    queryFn: () => vendorApi.getStockCount(id!),
+    enabled: !!id,
+  })
+}
+
+export function useCreateStockCount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.createStockCount(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.stockCounts() }) },
+    onError: apiError('Create stock count'),
+  })
+}
+
+export function useStartStockCount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.startStockCount(id),
+    onSuccess: (_d, id) => { qc.invalidateQueries({ queryKey: vendorKeys.stockCount(id) }) },
+    onError: apiError('Start stock count'),
+  })
+}
+
+export function useSubmitStockCountForReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.submitStockCountForReview(id),
+    onSuccess: (_d, id) => { qc.invalidateQueries({ queryKey: vendorKeys.stockCount(id) }) },
+    onError: apiError('Submit for review'),
+  })
+}
+
+export function usePostStockCount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.postStockCount(id),
+    onSuccess: (_d, id) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.stockCount(id) })
+      qc.invalidateQueries({ queryKey: vendorKeys.stockCounts() })
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'inventory-summary'] })
+    },
+    onError: apiError('Post stock count'),
+  })
+}
+
+export function useCancelStockCount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.cancelStockCount(id),
+    onSuccess: (_d, id) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.stockCount(id) })
+      qc.invalidateQueries({ queryKey: vendorKeys.stockCounts() })
+    },
+    onError: apiError('Cancel stock count'),
+  })
+}
+
+export function useUpdateStockCountLine() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      countId,
+      lineId,
+      data,
+    }: { countId: string; lineId: string; data: { counted_qty: number; notes?: string } }) =>
+      vendorApi.updateStockCountLine(countId, lineId, data),
+    onSuccess: (_d, { countId }) => { qc.invalidateQueries({ queryKey: vendorKeys.stockCount(countId) }) },
+    onError: apiError('Update count line'),
+  })
 }

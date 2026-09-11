@@ -31,14 +31,12 @@ import { CopyFromDocumentField } from '@/components/procurement/CopyFromDocument
 import { vendorApi } from '@/api/vendor'
 import { extractApiError } from '@/lib/errorMessages'
 
-const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
-  draft:         { bg: 'bg-gray-100 dark:bg-gray-800',      text: 'text-gray-700 dark:text-gray-300',    label: 'Draft' },
-  posted:        { bg: 'bg-blue-50 dark:bg-blue-950/50',    text: 'text-blue-700 dark:text-blue-300',    label: 'Posted' },
-  matched:       { bg: 'bg-green-50 dark:bg-green-950/50',  text: 'text-green-700 dark:text-green-300',  label: 'Matched' },
-  partial_match: { bg: 'bg-amber-50 dark:bg-amber-950/50',  text: 'text-amber-700 dark:text-amber-300',  label: 'Partial Match' },
-  blocked:       { bg: 'bg-red-50 dark:bg-red-950/50',      text: 'text-red-700 dark:text-red-300',      label: 'Blocked' },
-  paid:          { bg: 'bg-purple-50 dark:bg-purple-950/50',text: 'text-purple-700 dark:text-purple-300',label: 'Paid' },
-  cancelled:     { bg: 'bg-red-50 dark:bg-red-950/50',      text: 'text-red-700 dark:text-red-300',      label: 'Cancelled' },
+import { DocumentStatusBadge, VENDOR_INVOICE_STATUS_MAP, PROCUREMENT_APPROVAL_STATUS_MAP } from '@/components/document/DocumentStatusBadge'
+
+const INVOICE_STATUS_MAP_EXTENDED = {
+  ...VENDOR_INVOICE_STATUS_MAP,
+  partial_match: { label: 'Partial Match', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' },
+  blocked:       { label: 'Blocked',       cls: 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300' },
 }
 
 const MATCH_BADGE: Record<string, string> = {
@@ -51,11 +49,9 @@ const MATCH_BADGE: Record<string, string> = {
 
 const STATUSES = ['', 'draft', 'posted', 'matched', 'partial_match', 'blocked', 'paid', 'cancelled']
 
-const APPROVAL_BADGE: Record<string, { bg: string; text: string; label: string; icon?: string }> = {
-  not_required: { bg: 'bg-gray-100 dark:bg-gray-800',     text: 'text-gray-500',                   label: 'No Approval' },
-  pending:      { bg: 'bg-amber-50 dark:bg-amber-950/50', text: 'text-amber-700 dark:text-amber-400', label: 'Pending Approval' },
-  approved:     { bg: 'bg-green-50 dark:bg-green-950/50', text: 'text-green-700 dark:text-green-400', label: 'Approved' },
-  rejected:     { bg: 'bg-red-50 dark:bg-red-950/50',     text: 'text-red-700 dark:text-red-400',    label: 'Rejected' },
+const APPROVAL_STATUS_MAP_INVOICE = {
+  ...PROCUREMENT_APPROVAL_STATUS_MAP,
+  not_required: { label: 'No Approval', cls: 'bg-gray-100 text-gray-500 dark:bg-gray-800' },
 }
 
 interface LineRow { description: string; qty: number; uom: string; unit_price: number; tax_code: string }
@@ -92,9 +88,7 @@ function InvoiceDetailPanel({ invoice, onClose, onCopyDocument }: { invoice: Ven
   const [rejectComments, setRejectComments] = useState('')
   const [showRejectDialog, setShowRejectDialog] = useState(false)
 
-  const badge = STATUS_BADGE[invoice.status] ?? STATUS_BADGE.draft
   const matchBadge = MATCH_BADGE[invoice.match_status] || 'bg-gray-100 text-gray-500'
-  const approvalBadge = APPROVAL_BADGE[(invoice as unknown as Record<string, unknown>).approval_status as string ?? 'not_required'] ?? APPROVAL_BADGE.not_required
   const approvalStatus = (invoice as unknown as Record<string, unknown>).approval_status as string ?? 'not_required'
 
   return (
@@ -107,10 +101,10 @@ function InvoiceDetailPanel({ invoice, onClose, onCopyDocument }: { invoice: Ven
             <h2 className="text-lg font-semibold">{invoice.supplier_name || 'Vendor Invoice'}</h2>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+            <DocumentStatusBadge status={invoice.status} map={INVOICE_STATUS_MAP_EXTENDED} />
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${matchBadge}`}>{invoice.match_status.replace(/_/g, ' ')}</span>
             {approvalStatus !== 'not_required' && (
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${approvalBadge.bg} ${approvalBadge.text}`}>{approvalBadge.label}</span>
+              <DocumentStatusBadge status={approvalStatus} map={APPROVAL_STATUS_MAP_INVOICE} />
             )}
             {onCopyDocument && (
               <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onCopyDocument}>
@@ -814,7 +808,7 @@ export default function VendorInvoicesAPPage() {
                 <Select
                   value={statusFilter}
                   onChange={setStatusFilter}
-                  options={selectOptionsWithBlank('All Statuses', STATUSES.filter(Boolean).map(s => ({ value: s, label: STATUS_BADGE[s]?.label ?? s })))}
+                  options={selectOptionsWithBlank('All Statuses', STATUSES.filter(Boolean).map(s => ({ value: s, label: INVOICE_STATUS_MAP_EXTENDED[s]?.label ?? s })))}
                   className="w-36 text-sm"
                 />
               ) : undefined
@@ -842,7 +836,6 @@ export default function VendorInvoicesAPPage() {
             </thead>
             <tbody>
               {displayItems.map(inv => {
-                const badge = STATUS_BADGE[inv.status] ?? STATUS_BADGE.draft
                 const matchBadge = MATCH_BADGE[inv.match_status] || 'bg-gray-100 text-gray-500'
                 return (
                   <tr key={inv.id} className="border-t cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" onClick={onClickableTableRow(() => setSelected(inv))}>
@@ -853,7 +846,7 @@ export default function VendorInvoicesAPPage() {
                     <td className="px-3 py-2 text-sm text-gray-500">{inv.due_date ? formatDate(inv.due_date) : '—'}</td>
                     <td className="px-3 py-2 text-sm font-semibold">{formatCurrency(inv.total)}</td>
                     <td className="px-3 py-2">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+                      <DocumentStatusBadge status={inv.status} map={INVOICE_STATUS_MAP_EXTENDED} />
                     </td>
                     <td className="px-3 py-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${matchBadge}`}>{inv.match_status.replace(/_/g, ' ')}</span>

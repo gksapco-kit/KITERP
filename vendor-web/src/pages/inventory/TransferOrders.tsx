@@ -18,7 +18,7 @@ import {
   Minus, Search, Package,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useStores } from '@/hooks/useVendor'
+import { useStores, vendorKeys } from '@/hooks/useVendor'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,11 +75,6 @@ const STATUS_OPTIONS = [
   ...Object.entries(STATUS_CFG).map(([v, c]) => ({ value: v, label: c.label })),
 ]
 
-const KEYS = {
-  list: (p?: Record<string, unknown>) => ['vendor', 'transfer-orders', p] as const,
-  detail: (id: string) => ['vendor', 'transfer-order', id] as const,
-  inventory: (storeId: string) => ['vendor', 'inventory-summary', { storeId }] as const,
-}
 
 function fmtDate(d: string | null) {
   if (!d) return '—'
@@ -215,7 +210,7 @@ function CreateModal({ open, onClose, stores }: {
   const toStoreOptions = storeOptions.filter((s) => s.value !== fromStore)
 
   const { data: invData } = useQuery({
-    queryKey: KEYS.inventory(fromStore),
+    queryKey: vendorKeys.inventorySummary({ store_id: fromStore }),
     queryFn: () => vendorApi.inventorySummary({ store_id: fromStore }),
     enabled: !!fromStore,
     staleTime: 60_000,
@@ -242,7 +237,7 @@ function CreateModal({ open, onClose, stores }: {
         .map((l) => ({ product_id: l.product_id, requested_qty: l.qty })),
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vendor', 'transfer-orders'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrders() })
       toast.success('Transfer order created')
       onClose()
       setFromStore('')
@@ -341,7 +336,7 @@ function TransferDetail({ orderId, onBack }: { orderId: string; onBack: () => vo
   }, [storesData])
 
   const { data: order, isLoading } = useQuery<TransferOrder>({
-    queryKey: KEYS.detail(orderId),
+    queryKey: vendorKeys.transferOrder(orderId),
     queryFn: () => vendorApi.getTransferOrder(orderId),
   })
 
@@ -349,15 +344,15 @@ function TransferDetail({ orderId, onBack }: { orderId: string; onBack: () => vo
 
   const submit = useMutation({
     mutationFn: () => vendorApi.submitTransferOrder(orderId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.detail(orderId) }); toast.success('Order submitted') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.transferOrder(orderId) }); toast.success('Order submitted') },
     onError: apiError('Submit transfer order'),
   })
 
   const dispatch = useMutation({
     mutationFn: () => vendorApi.dispatchTransferOrder(orderId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.detail(orderId) })
-      qc.invalidateQueries({ queryKey: ['vendor', 'inventory-summary'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrder(orderId) })
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'inventory-summary'] })
       toast.success('Stock dispatched — in transit')
     },
     onError: apiError('Dispatch transfer order'),
@@ -371,8 +366,8 @@ function TransferDetail({ orderId, onBack }: { orderId: string; onBack: () => vo
       })),
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.detail(orderId) })
-      qc.invalidateQueries({ queryKey: ['vendor', 'inventory-summary'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrder(orderId) })
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'inventory-summary'] })
       toast.success('Stock received at destination')
     },
     onError: apiError('Receive transfer order'),
@@ -381,8 +376,8 @@ function TransferDetail({ orderId, onBack }: { orderId: string; onBack: () => vo
   const cancel = useMutation({
     mutationFn: () => vendorApi.cancelTransferOrder(orderId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.detail(orderId) })
-      qc.invalidateQueries({ queryKey: ['vendor', 'transfer-orders'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrder(orderId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.transferOrders() })
       onBack()
     },
     onError: apiError('Cancel transfer order'),
@@ -541,7 +536,7 @@ export default function TransferOrdersPage() {
   }, [stores])
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: KEYS.list(statusFilter ? { status: statusFilter } : undefined),
+    queryKey: vendorKeys.transferOrders(statusFilter ? { status: statusFilter } : undefined),
     queryFn: () => vendorApi.listTransferOrders(statusFilter ? { status: statusFilter } : undefined),
   })
   const orders: TransferOrder[] = data?.items ?? []

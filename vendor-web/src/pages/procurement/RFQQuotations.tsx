@@ -49,9 +49,9 @@ const SQ_STATUS: Record<string, { label: string; cls: string }> = {
   expired:      { label: 'Expired',      cls: 'bg-gray-100 text-gray-500' },
 }
 
-function StatusBadge({ status, map }: { status: string; map: Record<string, { label: string; cls: string }> }) {
-  const cfg = map[status] ?? { label: status, cls: 'bg-gray-100 text-gray-600' }
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>
+import { DocumentStatusBadge, type StatusMap } from '@/components/document/DocumentStatusBadge'
+function StatusBadge({ status, map }: { status: string; map: StatusMap }) {
+  return <DocumentStatusBadge status={status} map={map} />
 }
 
 // ─────────────────────────────────────────────────────────────────

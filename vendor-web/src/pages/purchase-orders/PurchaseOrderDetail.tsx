@@ -43,6 +43,8 @@ import {
   poDestinationToPayload,
   type PoDestinationValue,
 } from '@/components/procurement/PoDestinationFields'
+import { ApprovalChainPanel } from '@/components/document/ApprovalChainPanel'
+import { DocumentStatusBadge, PO_STATUS_MAP } from '@/components/document/DocumentStatusBadge'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 
@@ -326,7 +328,6 @@ export default function PurchaseOrderDetail() {
     )
   }
 
-  const badge = statusConfig[po.status] || statusConfig.draft
   const actionLoading = sendMut.isPending || closeMut.isPending || cancelMut.isPending || updateMut.isPending || requestApprovalMut.isPending || approveMut.isPending
   const isDraft = po.status === 'draft'
   const approvalPending = po.approval_status === 'pending'
@@ -458,7 +459,7 @@ export default function PurchaseOrderDetail() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{po.po_number}</h1>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+              <DocumentStatusBadge status={po.status} map={PO_STATUS_MAP} />
             </div>
             <p className="text-sm text-gray-500 mt-1">
               Supplier: <span className="font-medium text-gray-700">{po.supplier_name}</span>
@@ -683,55 +684,11 @@ export default function PurchaseOrderDetail() {
       )}
 
       {/* Approval chain */}
-      {sortedApprovals.length > 0 && (
-        <Card>
-          <CardHeader className="border-b px-4 py-2.5">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <ShieldCheck className="w-4 h-4" /> Approval Chain
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 py-3">
-            <div className="space-y-2">
-              {sortedApprovals.map((step) => {
-                const isCurrentStep = step.status === 'pending' && step.level === pendingStep?.level
-                const stepColor =
-                  step.status === 'approved' ? 'text-green-600' :
-                  step.status === 'rejected' ? 'text-red-600' :
-                  isCurrentStep ? 'text-amber-600' : 'text-gray-400'
-                const dotColor =
-                  step.status === 'approved' ? 'bg-green-500' :
-                  step.status === 'rejected' ? 'bg-red-500' :
-                  isCurrentStep ? 'bg-amber-400' : 'bg-gray-200'
-                return (
-                  <div key={step.id} className="flex items-start gap-3">
-                    <div className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${dotColor}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5 text-sm">
-                        <span className="font-medium text-gray-500">Level {step.level}</span>
-                        <span className="text-gray-300">·</span>
-                        <span className={`font-semibold ${stepColor}`}>{step.approver_name || '—'}</span>
-                        {isCurrentStep && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Current</span>}
-                        <span className={`ml-auto text-xs capitalize ${stepColor}`}>{step.status}</span>
-                      </div>
-                      {step.comments && (
-                        <p className="mt-0.5 text-xs text-gray-500 italic">"{step.comments}"</p>
-                      )}
-                      {step.actioned_at && (
-                        <p className="mt-0.5 text-[10px] text-gray-400">{formatDateTime(step.actioned_at)}</p>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            {approvalPending && !canActAsApprover && pendingStep && (
-              <p className="mt-3 text-xs text-amber-700">
-                Awaiting <span className="font-semibold">{pendingStep.approver_name || 'designated approver'}</span> (Level {pendingStep.level})
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <ApprovalChainPanel
+        approvals={po.approvals ?? []}
+        myMembershipId={myMembership?.id}
+        approverMessage={po.approver_message}
+      />
 
       {/* Items table */}
       <Card>
