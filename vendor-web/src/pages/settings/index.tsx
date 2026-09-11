@@ -58,6 +58,7 @@ import {
   buildSelfManagedDnsRecords,
   type ExternalDomainDnsMode,
 } from '@/lib/externalDomainDns'
+import { requireDomainDeactivationOtp } from '@/lib/domainDeactivationOtp'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
@@ -3138,7 +3139,30 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
 
   const handleToggleOff = async () => {
     if (accessStatus === 'active') {
-      // Require OTP to deactivate a live domain
+      const needOtp = requireDomainDeactivationOtp(
+        vendor?.settings as Record<string, unknown> | undefined,
+      )
+      if (!needOtp) {
+        savingRef.current = true
+        onSave.mutate(
+          {
+            external_domain_enabled: false,
+            external_domain_access_status: 'revoked',
+          } as any,
+          {
+            onSettled: () => {
+              savingRef.current = false
+            },
+            onSuccess: () => {
+              setEnabled(false)
+              setAccessStatus('revoked')
+              toast.success('External domain deactivated — your KIT ERP link is now primary')
+            },
+          },
+        )
+        return
+      }
+      // Require OTP when Business Front Display flag is enabled
       setShowOtpModal(true)
       setOtpSent(false)
       setOtpCode('')
