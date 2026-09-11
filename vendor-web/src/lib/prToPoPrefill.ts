@@ -39,6 +39,7 @@ export interface PrToPoPrefill {
     plantId?: string
     storageLocationId?: string
     neededByDate?: string
+    taxCode?: string
   }>
 }
 
@@ -63,6 +64,7 @@ type PrLike = {
     plant_id?: string | null
     storage_location_id?: string | null
     needed_by_date?: string | null
+    tax_code?: string | null
   }>
 }
 
@@ -104,6 +106,7 @@ export function buildPrToPoPrefill(pr: PrLike): PrToPoPrefill | null {
       plantId: it.plant_id || undefined,
       storageLocationId: it.storage_location_id || undefined,
       neededByDate: it.needed_by_date || undefined,
+      taxCode: it.tax_code || undefined,
     })),
   }
 }
@@ -129,6 +132,7 @@ export function buildPoCreatePayloadFromPr(pr: PrLike): Record<string, unknown> 
       description: i.note || undefined,
       plant_id: i.plantId || first.plantId || undefined,
       storage_location_id: i.storageLocationId || first.storageLocationId || undefined,
+      tax_code: i.taxCode || undefined,
     })),
   }
 }

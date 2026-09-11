@@ -33,6 +33,8 @@ import {
 } from '@/components/document/DocumentStatusBadge'
 import { ApprovalChainPanel } from '@/components/document/ApprovalChainPanel'
 import { PurchaseRequisitionForm } from '@/components/procurement/PurchaseRequisitionForm'
+import { LineCollapsedGlimpse } from '@/components/procurement/LineCollapsedGlimpse'
+import { LineItemExpandHeader, LineItemsExpandAllActions } from '@/components/procurement/LineItemExpandHeader'
 
 const PRIORITY_BADGE: Record<string, string> = {
   low:    'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -130,7 +132,17 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
   const convertMut = useConvertPRToPO()
   const { data: myMembership, isLoading: membershipLoading } = useMyMembership()
   const [approvalRemarks, setApprovalRemarks] = useState('')
+  const [collapsedLineIds, setCollapsedLineIds] = useState<Set<string>>(() => new Set())
   const converting = canConvertPrToPo(pr)
+
+  const toggleLineExpanded = (id: string) => {
+    setCollapsedLineIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const handleDirectConvert = async () => {
     const prefill = buildPrToPoPrefill(pr)
@@ -342,66 +354,104 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
           />
 
           <section>
-            <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-              Line items ({pr.items.length})
-            </h3>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                Line items ({pr.items.length})
+              </h3>
+              {pr.items.length > 0 && (
+                <LineItemsExpandAllActions
+                  onExpandAll={() => setCollapsedLineIds(new Set())}
+                  onCollapseAll={() => setCollapsedLineIds(new Set(pr.items.map(i => i.id)))}
+                />
+              )}
+            </div>
             <div className="space-y-3">
               {pr.items.map((item: PurchaseRequisitionItem, idx: number) => {
                 const lineTotal = item.quantity * (item.estimated_price ?? 0)
                 const uom = item.unit_of_measure || item.uom || 'piece'
+                const typeLabel = itemTypeLabel(item.item_type || pr.requisition_type)
+                const displayName = itemDisplayName(item)
+                const lineExpanded = !collapsedLineIds.has(item.id)
+                const toggleLine = () => toggleLineExpanded(item.id)
                 return (
                   <div key={item.id} className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-gray-800 dark:text-gray-100">
-                        Line {idx + 1}
-                        <span className="mx-1.5 font-normal text-gray-400">·</span>
-                        <span className="font-medium">{itemDisplayName(item)}</span>
-                      </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <LineItemExpandHeader
+                          lineNumber={idx + 1}
+                          typeLabel={displayName}
+                          expanded={lineExpanded}
+                          onToggle={toggleLine}
+                        />
+                      </div>
                       {item.is_converted ? (
                         <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
                           Converted
                         </span>
                       ) : null}
                     </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-4">
-                      <DetailField label="Item Type" value={itemTypeLabel(item.item_type || pr.requisition_type)} />
-                      <DetailField label="Description / Catalog Item" value={itemDisplayName(item)} className="col-span-2 sm:col-span-2" />
-                      <DetailField label="SKU" value={item.product_sku} mono />
-                      <DetailField label="Variant" value={item.variant_name} />
-                      <DetailField label="Quantity" value={`${item.quantity} ${uomLabel(uom)}`} />
-                      <DetailField label="Unit of Measure" value={uomLabel(uom)} />
-                      <DetailField label="Estimated Price" value={item.estimated_price != null ? formatCurrency(item.estimated_price) : undefined} />
-                      <DetailField label="Line Estimate" value={formatCurrency(lineTotal)} />
-                      <DetailField label="Need By Date" value={item.needed_by_date ? formatDate(item.needed_by_date) : undefined} />
-                      <DetailField label="Deliver to Plant" value={item.plant_name || item.plant_id} />
-                      <DetailField label="Storage Location" value={item.storage_location_name || item.storage_location_id} />
-                      <DetailField label="Suggested Supplier" value={item.suggested_supplier_name || item.suggested_supplier_id} />
-                      <DetailField label="Qty Ordered" value={item.quantity_ordered != null ? String(item.quantity_ordered) : '0'} />
-                      <DetailField label="Conversion Status" value={item.is_converted ? 'Converted to PO' : 'Not converted'} />
-                      <DetailField
-                        label="Linked PO"
-                        className="col-span-2"
-                        value={
-                          item.purchase_order_id ? (
-                            <button
-                              type="button"
-                              className="font-medium text-blue-600 hover:underline text-left"
-                              onClick={() => {
-                                onClose()
-                                const lineQs = item.po_line_number ? `?line=${item.po_line_number}` : ''
-                                navigate(`/purchase-orders/${item.purchase_order_id}${lineQs}`)
-                              }}
-                            >
-                              {item.po_number || 'Open purchase order'}
-                              {item.po_line_number != null ? ` · Line ${item.po_line_number}` : ''}
-                            </button>
-                          ) : undefined
-                        }
-                      />
-                      {item.notes && (
-                        <DetailField label="Line Notes" value={<span className="whitespace-pre-wrap">{item.notes}</span>} className="col-span-2 sm:col-span-3 lg:col-span-4" />
-                      )}
-                    </div>
+                    {lineExpanded ? (
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-4">
+                        <DetailField label="Item Type" value={typeLabel} />
+                        <DetailField label="Description / Catalog Item" value={displayName} className="col-span-2 sm:col-span-2" />
+                        <DetailField label="SKU" value={item.product_sku} mono />
+                        <DetailField label="Variant" value={item.variant_name} />
+                        <DetailField label="Quantity" value={`${item.quantity} ${uomLabel(uom)}`} />
+                        <DetailField label="Unit of Measure" value={uomLabel(uom)} />
+                        <DetailField label="Estimated Price" value={item.estimated_price != null ? formatCurrency(item.estimated_price) : undefined} />
+                        <DetailField label="Line Estimate" value={formatCurrency(lineTotal)} />
+                        <DetailField label="Need By Date" value={item.needed_by_date ? formatDate(item.needed_by_date) : undefined} />
+                        <DetailField label="Deliver to Plant" value={item.plant_name || item.plant_id} />
+                        <DetailField label="Storage Location" value={item.storage_location_name || item.storage_location_id} />
+                        <DetailField label="Suggested Supplier" value={item.suggested_supplier_name || item.suggested_supplier_id} />
+                        <DetailField label="Qty Ordered" value={item.quantity_ordered != null ? String(item.quantity_ordered) : '0'} />
+                        <DetailField label="Conversion Status" value={item.is_converted ? 'Converted to PO' : 'Not converted'} />
+                        <DetailField
+                          label="Linked PO"
+                          className="col-span-2"
+                          value={
+                            item.purchase_order_id ? (
+                              <button
+                                type="button"
+                                className="font-medium text-blue-600 hover:underline text-left"
+                                onClick={() => {
+                                  onClose()
+                                  const lineQs = item.po_line_number ? `?line=${item.po_line_number}` : ''
+                                  navigate(`/purchase-orders/${item.purchase_order_id}${lineQs}`)
+                                }}
+                              >
+                                {item.po_number || 'Open purchase order'}
+                                {item.po_line_number != null ? ` · Line ${item.po_line_number}` : ''}
+                              </button>
+                            ) : undefined
+                          }
+                        />
+                        {item.notes && (
+                          <DetailField label="Line Notes" value={<span className="whitespace-pre-wrap">{item.notes}</span>} className="col-span-2 sm:col-span-3 lg:col-span-4" />
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={toggleLine}
+                        className="mt-1.5 flex w-full min-w-0 items-center gap-2 text-left hover:opacity-80"
+                      >
+                        <LineCollapsedGlimpse
+                          typeLabel={typeLabel}
+                          title={displayName}
+                          quantity={item.quantity}
+                          uom={uom}
+                          unitPrice={item.estimated_price}
+                          variantName={item.variant_name}
+                          masterFacts={item.product_sku ? [{ label: 'SKU', value: item.product_sku }] : []}
+                          extras={[
+                            formatCurrency(lineTotal),
+                            item.is_converted ? 'Converted' : null,
+                            item.po_number || null,
+                          ]}
+                        />
+                      </button>
+                    )}
                   </div>
                 )
               })}

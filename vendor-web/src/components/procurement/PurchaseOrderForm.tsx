@@ -477,6 +477,7 @@ export function PurchaseOrderForm({ editingPO, onSuccess, onCancel }: PurchaseOr
         item_note: i.note || '',
         pr_item_id: i.prItemId,
         needed_by_date: i.neededByDate || '',
+        tax_code: i.taxCode || '',
       })))
       const first = prPrefill.items[0]
       setDest(poDestinationFromLine({ plant_id: first?.plantId, storage_location_id: first?.storageLocationId }, prPrefill.storeId || selectedStore?.id || ''))
@@ -631,7 +632,10 @@ export function PurchaseOrderForm({ editingPO, onSuccess, onCancel }: PurchaseOr
           variant_id: '',
           unit_of_measure: masterUom || defaultsForPoType(inferredType).unit_of_measure,
           item_category: masterCategory || defaultsForPoType(inferredType).item_category,
-          tax_code: '',
+          // Keep any tax code already on the line (e.g. carried from a PR); only
+          // clear it when the line switches between product and service, since the
+          // applicable tax codes differ.
+          tax_code: inferredType !== cur.item_type ? '' : cur.tax_code,
           account_assignment: inferredType === 'asset' ? (cur.account_assignment || 'asset') : (inferredType === 'service' ? '' : cur.account_assignment),
           account_assignment_value: inferredType === 'asset' ? cur.account_assignment_value : '',
         }
@@ -684,6 +688,7 @@ export function PurchaseOrderForm({ editingPO, onSuccess, onCancel }: PurchaseOr
       item_note: i.note || '',
       pr_item_id: i.prItemId,
       needed_by_date: i.neededByDate || '',
+      tax_code: i.taxCode || '',
     })))
     const first = prefill.items[0]; setDest(poDestinationFromLine({ plant_id: first?.plantId, storage_location_id: first?.storageLocationId }, prefill.storeId || selectedStore?.id || ''))
     toast.success(`Loaded lines from ${prefill.prNumber}`)

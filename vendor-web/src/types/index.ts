@@ -1282,6 +1282,12 @@ export interface PurchaseOrderItem {
   plant_id?: string | null
   storage_location_id?: string | null
   notes?: string
+  cgst_rate?: number
+  sgst_rate?: number
+  igst_rate?: number
+  cgst_amount?: number
+  sgst_amount?: number
+  igst_amount?: number
 }
 
 export interface PurchaseOrderReceipt {
