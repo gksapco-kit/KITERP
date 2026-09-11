@@ -13,6 +13,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { vendorApi } from '@/api/vendor'
 import { apiError } from '@/lib/errorMessages'
+import { actionDocMessage, createdDocMessage, pickDocNo } from '@/lib/documentToast'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils'
 import type { PurchaseOrder, PurchaseOrderItem, GoodsReceiptNote, GRNLine } from '@/types'
@@ -101,7 +102,7 @@ function CreateGRNDialog({ open, onClose }: { open: boolean; onClose: () => void
       return {
         po_item_id: item.id,
         product_id: item.product_id ?? '',
-        product_name: item.product_name ?? item.description ?? item.notes ?? 'Item',
+        product_name: item.product_name ?? item.service_name ?? item.description ?? item.notes ?? 'Item',
         ordered_qty: ordered,
         remaining_qty: Math.max(0, remaining),
         unit_of_measure: item.unit_of_measure ?? 'piece',
@@ -145,10 +146,12 @@ function CreateGRNDialog({ open, onClose }: { open: boolean; onClose: () => void
         lines,
       })
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['grns'] })
       queryClient.invalidateQueries({ queryKey: ['vendor', 'grns'] })
-      toast.success('GRN created')
+      toast.success(createdDocMessage('GRN', pickDocNo(data, 'grn_number'), {
+        extra: [{ label: 'PO', number: pickDocNo(data, 'po_number') || selectedPO?.po_number }],
+      }))
       handleClose()
     },
     onError: apiError('Could not create GRN'),
@@ -166,7 +169,7 @@ function CreateGRNDialog({ open, onClose }: { open: boolean; onClose: () => void
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[min(96vw,80rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Goods Receipt Note</DialogTitle>
         </DialogHeader>
@@ -474,11 +477,11 @@ function ReverseGRNDialog({
           reason: reason || undefined,
         })),
     }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['grn', grnId] })
       queryClient.invalidateQueries({ queryKey: ['grns'] })
       queryClient.invalidateQueries({ queryKey: ['vendor', 'grns'] })
-      toast.success('GRN reversed')
+      toast.success(actionDocMessage('GRN', pickDocNo(data, 'grn_number'), 'reversed'))
       onClose()
     },
     onError: apiError('Could not reverse GRN'),
@@ -562,19 +565,19 @@ function GRNDetail({ grnId, onBack }: { grnId: string; onBack: () => void }) {
 
   const closeQCMut = useMutation({
     mutationFn: () => vendorApi.closeGRNQC(grnId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['grn', grnId] })
       queryClient.invalidateQueries({ queryKey: ['grns'] })
-      toast.success('QC closed — accepted stock posted to inventory')
+      toast.success(actionDocMessage('GRN', pickDocNo(data, 'grn_number') || grn?.grn_number, 'QC closed — accepted stock posted to inventory'))
     },
     onError: apiError('Could not close QC'),
   })
   const closeMut = useMutation({
     mutationFn: () => vendorApi.closeGRN(grnId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['grn', grnId] })
       queryClient.invalidateQueries({ queryKey: ['grns'] })
-      toast.success('GRN closed')
+      toast.success(actionDocMessage('GRN', pickDocNo(data, 'grn_number') || grn?.grn_number, 'closed'))
     },
     onError: apiError('Could not close GRN'),
   })

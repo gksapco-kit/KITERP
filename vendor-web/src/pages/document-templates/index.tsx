@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
+import { injectPreviewFitCss } from '@/lib/documentPreview'
 
 // ─── Template Type Definitions ────────────────────────────────────────────────
 
@@ -971,14 +972,14 @@ export default function DocumentTemplatesPage() {
   useEffect(() => {
     if (!activeType) return
     const s = currentSettings()
-    setPreviewHtml(generateHtml(activeType, s))
+    setPreviewHtml(injectPreviewFitCss(generateHtml(activeType, s)))
   }, [activeType, allSettings, currentSettings])
 
   useLayoutEffect(() => {
     const el = previewRef.current
     if (!el) return
     const recalc = () => {
-      const { width } = el.getBoundingClientRect()
+      const width = el.clientWidth
       if (width > 0) setPreviewScale(width / 720)
     }
     recalc()
@@ -1113,25 +1114,34 @@ export default function DocumentTemplatesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
         {/* Left: Preview */}
-        <div className="sticky top-4 flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
+        <div className="sticky top-4 flex min-w-0 flex-col" style={{ height: 'calc(100vh - 120px)' }}>
           <div className="flex items-center gap-2 mb-3 shrink-0">
             <Eye className="w-4 h-4 text-gray-400" />
             <span className="text-sm font-medium text-gray-600">Live Preview</span>
             <span className="text-xs text-gray-400">(sample data)</span>
           </div>
-          <div ref={previewRef} className="flex-1 border rounded-xl overflow-y-auto bg-gray-50 shadow-inner">
+          <div
+            ref={previewRef}
+            className="flex-1 min-h-0 min-w-0 border rounded-xl overflow-y-auto bg-white shadow-inner"
+            style={{ scrollbarGutter: 'stable' }}
+          >
             {previewScale > 0 && (
-              <div style={{
-                width: `${720 / previewScale}px`,
-                height: `${1020 / previewScale}px`,
-                transform: `scale(${previewScale})`,
-                transformOrigin: 'top left',
-              }}>
-                <iframe srcDoc={previewHtml} title="Doc Preview" className="border-0 bg-white"
-                  style={{ width: '720px', height: '1020px', pointerEvents: 'none', display: 'block' }}
-                  scrolling="no" />
+              <div style={{ width: '100%', height: 1020 * previewScale, position: 'relative' }}>
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: 720,
+                  height: 1020,
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: 'top left',
+                }}>
+                  <iframe srcDoc={previewHtml} title="Doc Preview" className="border-0 bg-white"
+                    style={{ width: 720, height: 1020, pointerEvents: 'none', display: 'block' }}
+                    scrolling="no" />
+                </div>
               </div>
             )}
           </div>

@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ResizableTable } from '@/components/table/ResizableTable'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   usePurchaseOrder, useSendPO, useCreateGRN, useClosePO, useCancelPO,
-  useUpdatePurchaseOrder, useSuppliers, useProducts,
+  useUpdatePurchaseOrder, useSuppliers, useProducts, useServices,
   useRequestPOApproval, useApprovePO, useTeamMembers, useMyMembership,
 } from '@/hooks/useVendor'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
@@ -26,6 +26,7 @@ import {
   ShieldCheck, ThumbsUp, ThumbsDown, Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { actionDocMessage, pickDocNo } from '@/lib/documentToast'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
 import { TableToolbar } from '@/components/table/TableToolbar'
@@ -44,6 +45,7 @@ import {
 } from '@/components/procurement/PoDestinationFields'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
+
 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
   draft: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Draft' },
   sent: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Sent to Supplier' },
@@ -56,9 +58,71 @@ const statusConfig: Record<string, { bg: string; text: string; label: string }> 
 
 const selectClass = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
 
+type PoUpdateLine = {
+  product_id?: string
+  service_id?: string
+  variant_id?: string
+  quantity: number
+  unit_cost: number
+  notes?: string
+  unit_of_measure?: string
+  item_category?: string
+  tax_code?: string
+  hsn_code?: string
+  account_assignment?: string
+  account_assignment_value?: string
+  plant_id?: string
+  storage_location_id?: string
+}
+
+function poLineName(item: Pick<POItem, 'product_name' | 'service_name' | 'product_id' | 'service_id' | 'description' | 'notes'>): string {
+  return item.product_name || item.service_name || item.description || item.notes || item.product_id || item.service_id || 'Item'
+}
+
+function poLineSku(item: Pick<POItem, 'variant_sku' | 'product_sku' | 'service_sku'>): string {
+  return item.variant_sku || item.product_sku || item.service_sku || ''
+}
+
+function isPoServiceLine(item: Pick<POItem, 'service_id' | 'item_category' | 'product_id'>): boolean {
+  return Boolean(item.service_id) || item.item_category === 'service'
+}
+
+function toPoUpdateLine(item: POItem, overrides: Partial<PoUpdateLine> = {}): PoUpdateLine {
+  const productId = (overrides.product_id !== undefined ? overrides.product_id : item.product_id) || undefined
+  const serviceId = (overrides.service_id !== undefined ? overrides.service_id : item.service_id) || undefined
+  const isService = Boolean(serviceId) && !productId
+  const variantId = overrides.variant_id !== undefined ? overrides.variant_id : (item.variant_id || undefined)
+
+  return {
+    ...(isService ? { service_id: serviceId } : { product_id: productId }),
+    variant_id: isService ? undefined : (variantId || undefined),
+    quantity: overrides.quantity ?? item.quantity_ordered,
+    unit_cost: overrides.unit_cost ?? item.unit_cost,
+    notes: overrides.notes !== undefined ? overrides.notes : (item.notes || undefined),
+    unit_of_measure: overrides.unit_of_measure !== undefined ? overrides.unit_of_measure : (item.unit_of_measure || undefined),
+    item_category: overrides.item_category !== undefined
+      ? overrides.item_category
+      : (item.item_category || (isService ? 'service' : undefined)),
+    tax_code: overrides.tax_code !== undefined ? overrides.tax_code : (item.tax_code || undefined),
+    hsn_code: overrides.hsn_code !== undefined ? overrides.hsn_code : (item.hsn_code || undefined),
+    account_assignment: overrides.account_assignment !== undefined
+      ? overrides.account_assignment
+      : (item.account_assignment || undefined),
+    account_assignment_value: overrides.account_assignment_value !== undefined
+      ? overrides.account_assignment_value
+      : (item.account_assignment_value || undefined),
+    plant_id: overrides.plant_id !== undefined ? overrides.plant_id : (item.plant_id || undefined),
+    storage_location_id: overrides.storage_location_id !== undefined
+      ? overrides.storage_location_id
+      : (item.storage_location_id || undefined),
+  }
+}
+
 export default function PurchaseOrderDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const focusLine = Number(searchParams.get('line') || '') || null
   const { data: po, isLoading } = usePurchaseOrder(id || '')
 
   const sendMut = useSendPO()
@@ -98,13 +162,14 @@ export default function PurchaseOrderDetail() {
   const [scanLoading, setScanLoading] = useState(false)
   const [scanPrefill, setScanPrefill] = useState<{ productId: string; variantId?: string; unitCost?: number } | undefined>()
 
-  const [itemSortKey, setItemSortKey] = useState('name')
+  const [itemSortKey, setItemSortKey] = useState('line_number')
   const [itemSortDir, setItemSortDir] = useState<SortDir>('asc')
   const [receiptSortKey, setReceiptSortKey] = useState('date')
   const [receiptSortDir, setReceiptSortDir] = useState<SortDir>('desc')
 
   const itemSortOptions = useMemo(() => [
-    { value: 'name', label: 'Product' },
+    { value: 'line_number', label: 'Line' },
+    { value: 'name', label: 'Item' },
     { value: 'sku', label: 'SKU' },
     { value: 'ordered_qty', label: 'Ordered' },
     { value: 'received_qty', label: 'Received' },
@@ -112,8 +177,14 @@ export default function PurchaseOrderDetail() {
     { value: 'total', label: 'Total' },
   ], [])
 
+  const itemsWithLines = useMemo(
+    () => (po?.items ?? []).map((item, i) => ({ ...item, line_number: item.line_number ?? i + 1 })),
+    [po?.items],
+  )
+
   const itemAccessors = useMemo<Record<string, (r: POItem) => unknown>>(() => ({
-    name: (r) => r.product_name || r.product_id,
+    line_number: (r) => r.line_number ?? 0,
+    name: (r) => poLineName(r),
     sku: (r) => r.product_sku || '',
     ordered_qty: (r) => r.quantity_ordered,
     received_qty: (r) => r.quantity_received,
@@ -122,9 +193,20 @@ export default function PurchaseOrderDetail() {
   }), [])
 
   const sortedItems = useMemo(
-    () => processRows(po?.items, '', () => [], itemSortKey, itemSortDir, itemAccessors),
-    [po?.items, itemSortKey, itemSortDir, itemAccessors],
+    () => processRows(itemsWithLines, '', () => [], itemSortKey, itemSortDir, itemAccessors),
+    [itemsWithLines, itemSortKey, itemSortDir, itemAccessors],
   )
+
+  useEffect(() => {
+    if (!focusLine || !itemsWithLines.length) return
+    const match = itemsWithLines.find(item => item.line_number === focusLine)
+    if (!match) return
+    setExpandedItemId(match.id)
+    const timer = window.setTimeout(() => {
+      document.getElementById(`po-line-${focusLine}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 80)
+    return () => window.clearTimeout(timer)
+  }, [focusLine, itemsWithLines])
 
   const receiptSortOptions = useMemo(() => [
     { value: 'date', label: 'Date' },
@@ -161,21 +243,16 @@ export default function PurchaseOrderDetail() {
           supplier_id: headerDraft.supplier_id || undefined,
           expected_delivery_date: headerDraft.expected_delivery_date || undefined,
           notes: headerDraft.notes || undefined,
-          items: po.items.map(i => ({
-            product_id: i.product_id,
-            variant_id: i.variant_id || undefined,
-            quantity: i.quantity_ordered,
-            unit_cost: i.unit_cost,
-          })),
+          items: po.items.map(i => toPoUpdateLine(i)),
         },
       })
       setEditingHeader(false)
-      toast.success('Purchase order updated')
+      toast.success(actionDocMessage('Purchase order', po.po_number, 'updated'))
     } catch { /* handled by hook */ }
   }, [po, updateMut, headerDraft])
 
   // Save updated items list (for add/edit/delete item operations)
-  const saveItems = useCallback(async (newItems: { product_id: string; variant_id?: string; quantity: number; unit_cost: number }[]) => {
+  const saveItems = useCallback(async (newItems: PoUpdateLine[]) => {
     if (!po) return
     await updateMut.mutateAsync({
       id: po.id,
@@ -189,10 +266,10 @@ export default function PurchaseOrderDetail() {
   }, [po, updateMut])
 
   const deleteItem = useCallback (async (item: POItem) => {
-    if (!po || !await askConfirm(`Remove "${item.product_name || 'this item'}" from the PO?`)) return
+    if (!po || !await askConfirm(`Remove "${poLineName(item)}" from the PO?`)) return
     const remaining = po.items
       .filter(i => i.id !== item.id)
-      .map(i => ({ product_id: i.product_id, variant_id: i.variant_id || undefined, quantity: i.quantity_ordered, unit_cost: i.unit_cost }))
+      .map(i => toPoUpdateLine(i))
     try {
       await saveItems(remaining)
       toast.success('Item removed')
@@ -271,7 +348,7 @@ export default function PurchaseOrderDetail() {
     total: po.total,
     date: formatDate(po.order_date),
     status: po.status,
-    items: po.items.map(i => ({ name: i.product_name || 'Item', qty: i.quantity_ordered, amount: i.total_cost })),
+    items: po.items.map(i => ({ name: poLineName(i), qty: i.quantity_ordered, amount: i.total_cost })),
   })
 
   const handleCopy = () => { navigator.clipboard.writeText(poMessage()); toast.success('PO details copied!') }
@@ -498,14 +575,17 @@ export default function PurchaseOrderDetail() {
                       value: s.id,
                       label: s.name,
                       hint: [
+                        s.company_name && s.company_name !== s.name ? s.company_name : null,
                         s.gstin ? `GSTIN ${s.gstin}` : null,
-                        s.address?.city || s.address?.state || null,
+                        s.email || null,
                         s.phone || null,
                       ].filter(Boolean).join(' · ') || undefined,
                     })),
                   )}
                   className={selectClass}
                   showSelectedHint={false}
+                  searchable
+                  searchPlaceholder="Search name, email, GSTIN or phone…"
                 />
               </div>
               <div className="space-y-1">
@@ -702,7 +782,7 @@ export default function PurchaseOrderDetail() {
               prefillUnitCost={scanPrefill?.unitCost}
               onSave={async (newItem) => {
                 const updated = [
-                  ...po.items.map(i => ({ product_id: i.product_id, variant_id: i.variant_id || undefined, quantity: i.quantity_ordered, unit_cost: i.unit_cost })),
+                  ...po.items.map(i => toPoUpdateLine(i)),
                   newItem,
                 ]
                 try {
@@ -718,16 +798,17 @@ export default function PurchaseOrderDetail() {
           )}
 
           <ResizableTable
-            tableId="po-lines-v3"
+            tableId="po-lines-v4"
             defaultWidths={isDraft
-              ? [200, 110, 120, 56, 84, 92, 100, 108, 108, 44]
-              : [200, 110, 120, 56, 84, 92, 100, 108, 108]}
+              ? [48, 200, 110, 120, 56, 84, 92, 100, 108, 108, 44]
+              : [48, 200, 110, 120, 56, 84, 92, 100, 108, 108]}
           >
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Product</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Line</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Item</TableColumnLabel></th>
                 <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Variant</TableColumnLabel></th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Barcode / SKU</TableColumnLabel></th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Code / SKU</TableColumnLabel></th>
                 <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>UoM</TableColumnLabel></th>
                 <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Ordered</TableColumnLabel></th>
                 <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Received</TableColumnLabel></th>
@@ -741,20 +822,33 @@ export default function PurchaseOrderDetail() {
               {sortedItems.map((item) => {
                 const remaining = item.quantity_ordered - item.quantity_received
                 const isExpanded = expandedItemId === item.id
+                const lineNumber = item.line_number ?? 0
+                const isFocused = focusLine != null && lineNumber === focusLine
                 const displayBarcode = item.variant_barcode || ''
                 const displaySku = item.variant_sku || item.product_sku || ''
                 return (
                   <>
-                    <tr key={item.id}
-                      className="hover:bg-gray-50 cursor-pointer"
+                    <tr
+                      key={item.id}
+                      id={lineNumber ? `po-line-${lineNumber}` : undefined}
+                      className={cn(
+                        'cursor-pointer hover:bg-gray-50',
+                        isFocused && 'bg-blue-50 ring-1 ring-inset ring-blue-300',
+                      )}
                       onClick={onClickableTableRow(() => setExpandedItemId(isExpanded ? null : item.id))}
                     >
+                      <td className="px-3 py-2 text-xs font-semibold tabular-nums text-gray-500">
+                        {lineNumber || '—'}
+                      </td>
                       <td className="px-3 py-2 text-sm font-medium">
                         <div className="flex items-center gap-1.5">
                           {isExpanded
                             ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                             : <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
-                          <span className="leading-snug">{item.product_name || item.product_id}</span>
+                          <span className="leading-snug">{poLineName(item)}</span>
+                          {isPoServiceLine(item) && (
+                            <span className="shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">Service</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-3 py-2 text-sm">
@@ -805,7 +899,7 @@ export default function PurchaseOrderDetail() {
                     {/* Expanded panel */}
                     {isExpanded && (
                       <tr key={`${item.id}-expanded`}>
-                        <td colSpan={isDraft ? 10 : 9} className="border-b bg-blue-50/30 px-0 py-0">
+                        <td colSpan={isDraft ? 11 : 10} className="border-b bg-blue-50/30 px-0 py-0">
                           <ItemExpandPanel
                             item={item}
                             po={po}
@@ -813,9 +907,7 @@ export default function PurchaseOrderDetail() {
                             canReceive={canReceive}
                             onSaveEdit={async (updated) => {
                               const newItems = po.items.map(i =>
-                                i.id === item.id
-                                  ? { product_id: updated.product_id, variant_id: updated.variant_id, quantity: updated.quantity, unit_cost: updated.unit_cost }
-                                  : { product_id: i.product_id, variant_id: i.variant_id || undefined, quantity: i.quantity_ordered, unit_cost: i.unit_cost }
+                                i.id === item.id ? toPoUpdateLine(i, updated) : toPoUpdateLine(i),
                               )
                               await saveItems(newItems)
                               setExpandedItemId(null)
@@ -832,19 +924,19 @@ export default function PurchaseOrderDetail() {
             </tbody>
             <tfoot>
               <tr className="border-t bg-gray-50">
-                <td colSpan={8} className="px-3 py-2 text-right text-sm leading-5 text-gray-600">Subtotal</td>
+                <td colSpan={9} className="px-3 py-2 text-right text-sm leading-5 text-gray-600">Subtotal</td>
                 <td className="px-3 py-2 text-right text-sm leading-5 tabular-nums whitespace-nowrap">{formatCurrency(po.subtotal, po.currency || 'INR')}</td>
                 {isDraft && <td className="px-2 py-2" />}
               </tr>
               {Number(po.tax_amount) > 0 && (
                 <tr className="bg-gray-50">
-                  <td colSpan={8} className="px-3 py-2 text-right text-sm leading-5 text-gray-600">Tax</td>
+                  <td colSpan={9} className="px-3 py-2 text-right text-sm leading-5 text-gray-600">Tax</td>
                   <td className="px-3 py-2 text-right text-sm leading-5 tabular-nums whitespace-nowrap">{formatCurrency(po.tax_amount, po.currency || 'INR')}</td>
                   {isDraft && <td className="px-2 py-2" />}
                 </tr>
               )}
               <tr className="border-t bg-gray-50">
-                <td colSpan={8} className="px-3 py-2 text-right text-sm font-semibold leading-5 text-gray-700">Total</td>
+                <td colSpan={9} className="px-3 py-2 text-right text-sm font-semibold leading-5 text-gray-700">Total</td>
                 <td className="px-3 py-2 text-right text-sm font-bold leading-5 tabular-nums whitespace-nowrap">{formatCurrency(po.total, po.currency || 'INR')}</td>
                 {isDraft && <td className="px-2 py-2" />}
               </tr>
@@ -885,7 +977,7 @@ export default function PurchaseOrderDetail() {
                           const poItem = po.items.find(pi => pi.id === ri.item_id)
                           return (
                             <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
-                              {poItem?.product_name || ri.product_id}: +{ri.quantity_received}
+                              {poItem ? poLineName(poItem) : (ri.product_id || 'Item')}: +{ri.quantity_received}
                             </span>
                           )
                         })}
@@ -1034,7 +1126,7 @@ function InfoCard({ icon: Icon, label, value, className }: { icon: React.Element
 
 function AddItemPanel({ onSave, onCancel, saving, prefillProductId, prefillVariantId, prefillUnitCost }: {
   po: NonNullable<ReturnType<typeof usePurchaseOrder>['data']>
-  onSave: (item: { product_id: string; variant_id?: string; quantity: number; unit_cost: number }) => Promise<void>
+  onSave: (item: PoUpdateLine) => Promise<void>
   onCancel: () => void
   saving: boolean
   prefillProductId?: string
@@ -1042,17 +1134,21 @@ function AddItemPanel({ onSave, onCancel, saving, prefillProductId, prefillVaria
   prefillUnitCost?: number
 }) {
   const { data: productsData } = useProducts({ size: 500 })
+  const { data: servicesData } = useServices({ size: 500, status: 'active' })
   const products = productsData?.items ?? []
+  const services = servicesData?.items ?? []
 
-  const [productId, setProductId] = useState(prefillProductId || '')
+  const [itemType, setItemType] = useState<'product' | 'service'>('product')
+  const [catalogId, setCatalogId] = useState(prefillProductId || '')
   const [variantId, setVariantId] = useState(prefillVariantId || '')
   const [quantity, setQuantity] = useState('1')
   const [unitCost, setUnitCost] = useState(prefillUnitCost != null ? String(prefillUnitCost) : '')
+  const isService = itemType === 'service'
 
   const { data: fullProduct } = useQuery({
-    queryKey: ['product-full', productId],
-    queryFn: () => vendorApi.getProduct(productId),
-    enabled: !!productId,
+    queryKey: ['product-full', catalogId],
+    queryFn: () => vendorApi.getProduct(catalogId),
+    enabled: !!catalogId && !isService,
   })
   const variants = useMemo(
     () => ((fullProduct as any)?.variants ?? []).filter((v: any) => v.is_active !== false),
@@ -1066,9 +1162,15 @@ function AddItemPanel({ onSave, onCancel, saving, prefillProductId, prefillVaria
     }
   }, [prefillVariantId, variants])
 
-  // Auto-fill unit cost from variant or product price (unless already set from prefill)
   useEffect(() => {
-    if (prefillUnitCost != null) return  // prefill takes precedence
+    if (prefillUnitCost != null) return
+    if (isService) {
+      const svc = services.find(s => s.id === catalogId)
+      if (!svc) return
+      const cost = svc.purchase_price_fixed ?? svc.purchase_price ?? svc.price
+      if (cost != null) setUnitCost(String(cost))
+      return
+    }
     if (variantId) {
       const v = variants.find((v: any) => v.id === variantId)
       if (v?.cost_price) setUnitCost(String(v.cost_price))
@@ -1078,11 +1180,24 @@ function AddItemPanel({ onSave, onCancel, saving, prefillProductId, prefillVaria
       if (p.cost_price) setUnitCost(String(p.cost_price))
       else if (p.price) setUnitCost(String(p.price))
     }
-  }, [variantId, fullProduct, variants, prefillUnitCost, prefillProductId])
+  }, [variantId, fullProduct, variants, prefillUnitCost, prefillProductId, isService, catalogId, services])
 
   const handleSave = async () => {
-    if (!productId || !quantity || !unitCost) { toast.error('Fill all required fields'); return }
-    await onSave({ product_id: productId, variant_id: variantId || undefined, quantity: parseInt(quantity), unit_cost: parseFloat(unitCost) })
+    if (!catalogId || !quantity || !unitCost) { toast.error('Fill all required fields'); return }
+    if (isService) {
+      const svc = services.find(s => s.id === catalogId)
+      const uom = (svc?.uom && svc.uom !== 'fixed') ? svc.uom : 'hour'
+      await onSave({
+        service_id: catalogId,
+        quantity: parseInt(quantity),
+        unit_cost: parseFloat(unitCost),
+        item_category: 'service',
+        unit_of_measure: uom,
+        hsn_code: svc?.sac_code || undefined,
+      })
+      return
+    }
+    await onSave({ product_id: catalogId, variant_id: variantId || undefined, quantity: parseInt(quantity), unit_cost: parseFloat(unitCost) })
   }
 
   const isScanPrefill = !!prefillProductId
@@ -1099,23 +1214,45 @@ function AddItemPanel({ onSave, onCancel, saving, prefillProductId, prefillVaria
           </span>
         )}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-          <Label className="text-xs">Product <span className="text-red-500">*</span></Label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Type</Label>
           <Select
-            value={productId}
-            onChange={v => { setProductId(v); setVariantId(''); setUnitCost('') }}
+            value={itemType}
+            onChange={v => {
+              setItemType(v as 'product' | 'service')
+              setCatalogId('')
+              setVariantId('')
+              setUnitCost('')
+            }}
+            options={[
+              { value: 'product', label: 'Product' },
+              { value: 'service', label: 'Service' },
+            ]}
+            className={selectClass}
+          />
+        </div>
+        <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+          <Label className="text-xs">{isService ? 'Service' : 'Product'} <span className="text-red-500">*</span></Label>
+          <Select
+            value={catalogId}
+            onChange={v => { setCatalogId(v); setVariantId(''); if (!isService) setUnitCost('') }}
             options={selectOptionsWithBlank(
-              'Select product…',
-              products.map(p => ({
-                value: p.id,
-                label: `${p.name}${p.sku ? ` (${p.sku})` : ''}`,
-              })),
+              isService ? 'Select service…' : 'Select product…',
+              isService
+                ? services.map(s => ({
+                    value: s.id,
+                    label: `${s.name}${s.material_code ? ` (${s.material_code})` : ''}`,
+                  }))
+                : products.map(p => ({
+                    value: p.id,
+                    label: `${p.name}${p.sku ? ` (${p.sku})` : ''}`,
+                  })),
             )}
             className={selectClass}
           />
         </div>
-        {variants.length > 0 && (
+        {!isService && variants.length > 0 && (
           <div className="space-y-1">
             <Label className="text-xs">Variant</Label>
             <Select
@@ -1152,13 +1289,13 @@ function AddItemPanel({ onSave, onCancel, saving, prefillProductId, prefillVaria
           <Input type="number" min={0} step="0.01" value={unitCost} onChange={e => setUnitCost(e.target.value)} placeholder="₹0.00" />
         </div>
       </div>
-      {productId && quantity && unitCost && (
+      {catalogId && quantity && unitCost && (
         <p className="text-xs text-gray-500 mt-2">
           Line total: {formatCurrency(parseFloat(unitCost || '0') * parseInt(quantity || '0'))}
         </p>
       )}
       <div className="flex gap-2 mt-3">
-        <Button size="sm" onClick={handleSave} disabled={saving || !productId || !quantity || !unitCost} className="gap-1.5">
+        <Button size="sm" onClick={handleSave} disabled={saving || !catalogId || !quantity || !unitCost} className="gap-1.5">
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Add Item
         </Button>
         <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
@@ -1174,13 +1311,19 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
   po: NonNullable<ReturnType<typeof usePurchaseOrder>['data']>
   isDraft: boolean
   canReceive: boolean
-  onSaveEdit: (data: { product_id: string; variant_id?: string; quantity: number; unit_cost: number }) => Promise<void>
+  onSaveEdit: (data: Partial<PoUpdateLine>) => Promise<void>
   saving: boolean
 }) {
+  const isService = isPoServiceLine(item)
   const { data: fullProduct } = useQuery({
     queryKey: ['product-full', item.product_id],
-    queryFn: () => vendorApi.getProduct(item.product_id),
-    enabled: !!item.product_id,
+    queryFn: () => vendorApi.getProduct(item.product_id as string),
+    enabled: !!item.product_id && !isService,
+  })
+  const { data: fullService } = useQuery({
+    queryKey: ['service-full', item.service_id],
+    queryFn: () => vendorApi.getService(item.service_id as string),
+    enabled: !!item.service_id,
   })
   const variants = useMemo(
     () => ((fullProduct as any)?.variants ?? []).filter((v: any) => v.is_active !== false),
@@ -1235,13 +1378,13 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
     ].filter(Boolean).join(' · ') || undefined
 
     try {
-      await receiveMut.mutateAsync({
+      const grn = await receiveMut.mutateAsync({
         purchase_order_id: item.purchase_order_id,
         requires_qc: false,
         notes: receiveNotes || undefined,
         lines: [{
           po_item_id: item.id,
-          product_id: item.product_id,
+          product_id: item.product_id || undefined,
           variant_id: item.variant_id || undefined,
           received_qty: qty,
           unit_of_measure: item.unit_of_measure || 'piece',
@@ -1254,7 +1397,8 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
           ...dest,
         }],
       })
-      toast.success(`Received ${qty} units`)
+      const grnNo = pickDocNo(grn, 'grn_number')
+      toast.success(grnNo ? `Received ${qty} units on GRN ${grnNo}` : `Received ${qty} units`)
       setReceiveQty('')
       setReceiveBatch('')
       setReceiveExternalBatch('')
@@ -1270,18 +1414,39 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
       {/* Product / Variant info */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
         <div>
-          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Product</p>
-          <p className="font-medium">{item.product_name || item.product_id}</p>
-          {p?.category && <p className="text-xs text-gray-400">{p.category}</p>}
-        </div>
-        <div>
-          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">SKU / Barcode</p>
-          <p>{item.product_sku || p?.sku || '-'}</p>
-          {(selectedVariant?.barcode || p?.barcode) && (
-            <p className="text-xs text-gray-400 font-mono">{selectedVariant?.barcode || p?.barcode}</p>
+          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">{isService ? 'Service' : 'Product'}</p>
+          <p className="font-medium">{item.product_name || item.service_name || fullService?.name || p?.name || '—'}</p>
+          {(isService ? fullService?.category : p?.category) && (
+            <p className="text-xs text-gray-400">{isService ? fullService?.category : p?.category}</p>
+          )}
+          {isService && (fullService?.short_description || fullService?.description) && (
+            <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{fullService.short_description || fullService.description}</p>
           )}
         </div>
-        {selectedVariant ? (
+        <div>
+          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">{isService ? 'Code / SAC' : 'SKU / Barcode'}</p>
+          <p>{isService
+            ? (item.service_sku || fullService?.material_code || item.hsn_code || fullService?.sac_code || '—')
+            : (item.product_sku || p?.sku || '—')}</p>
+          {isService ? (
+            (item.hsn_code || fullService?.sac_code) && (item.service_sku || fullService?.material_code) ? (
+              <p className="text-xs text-gray-400">SAC: {item.hsn_code || fullService?.sac_code}</p>
+            ) : null
+          ) : (
+            (selectedVariant?.barcode || p?.barcode) && (
+              <p className="text-xs text-gray-400 font-mono">{selectedVariant?.barcode || p?.barcode}</p>
+            )
+          )}
+        </div>
+        {isService ? (
+          <div>
+            <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Service details</p>
+            <p>{fullService?.service_type ? fullService.service_type.replace(/_/g, ' ') : 'Service'}</p>
+            {fullService?.duration_minutes ? (
+              <p className="text-xs text-gray-400">{fullService.duration_minutes} min</p>
+            ) : null}
+          </div>
+        ) : selectedVariant ? (
           <div>
             <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Variant</p>
             <p className="font-medium text-blue-700">{selectedVariant.name}</p>
@@ -1294,10 +1459,19 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
           </div>
         ) : null}
         <div>
-          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Current Stock</p>
-          <p>{selectedVariant ? selectedVariant.quantity ?? '-' : p?.quantity ?? '-'} units</p>
-          {(selectedVariant?.cost_price ?? p?.cost_price) && (
-            <p className="text-xs text-gray-400">Cost: {formatCurrency(selectedVariant?.cost_price ?? p?.cost_price)}</p>
+          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">{isService ? 'Purchase price' : 'Current Stock'}</p>
+          {isService ? (
+            <>
+              <p>{formatCurrency(item.unit_cost)}</p>
+              {fullService?.uom && <p className="text-xs text-gray-400">UoM: {fullService.uom}</p>}
+            </>
+          ) : (
+            <>
+              <p>{selectedVariant ? selectedVariant.quantity ?? '-' : p?.quantity ?? '-'} units</p>
+              {(selectedVariant?.cost_price ?? p?.cost_price) && (
+                <p className="text-xs text-gray-400">Cost: {formatCurrency(selectedVariant?.cost_price ?? p?.cost_price)}</p>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -1371,7 +1545,7 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
           </div>
           <div className="flex gap-2 mt-3">
             <Button size="sm" disabled={saving} className="gap-1.5"
-              onClick={() => onSaveEdit({ product_id: item.product_id, variant_id: editVariantId || undefined, quantity: parseInt(editQty), unit_cost: parseFloat(editCost) })}>
+              onClick={() => onSaveEdit({ variant_id: editVariantId || undefined, quantity: parseInt(editQty), unit_cost: parseFloat(editCost) })}>
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save Changes
             </Button>
           </div>
@@ -1689,10 +1863,10 @@ function ReceiveModal({
                   <div key={item.id} className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">{item.product_name || item.product_id}</p>
+                        <p className="text-sm font-medium">{poLineName(item)}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          Product ID <span className="font-mono text-foreground/80">{item.product_id}</span>
-                          {item.product_sku ? <> · SKU <span className="font-mono">{item.product_sku}</span></> : null}
+                          {item.service_id ? 'Service' : 'Product'} ID <span className="font-mono text-foreground/80">{item.product_id || item.service_id}</span>
+                          {poLineSku(item) ? <> · {item.service_id ? 'Code' : 'SKU'} <span className="font-mono">{poLineSku(item)}</span></> : null}
                         </p>
                         <p className="text-xs text-gray-500">
                           Ordered: {item.quantity_ordered} · Received: {item.quantity_received} ·{' '}

@@ -73,7 +73,10 @@ class ProcurementApproverRule(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "(approver_id IS NOT NULL)::int + (approver_role_id IS NOT NULL)::int = 1",
+            # CASE form is portable across PostgreSQL and the SQLite test harness
+            # ((expr)::int is PG-only and breaks Base.metadata.create_all on SQLite).
+            "(CASE WHEN approver_id IS NOT NULL THEN 1 ELSE 0 END)"
+            " + (CASE WHEN approver_role_id IS NOT NULL THEN 1 ELSE 0 END) = 1",
             name="ck_approver_rule_one_target",
         ),
         Index("ix_apr_vendor_doctype", "vendor_id", "doc_type"),

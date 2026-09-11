@@ -1256,11 +1256,14 @@ export interface SupplierPerformance {
 export interface PurchaseOrderItem {
   id: string
   purchase_order_id: string
-  product_id: string
+  line_number?: number
+  product_id?: string | null
   service_id?: string | null
   variant_id?: string | null
   product_name?: string
   product_sku?: string
+  service_name?: string | null
+  service_sku?: string | null
   variant_name?: string
   variant_sku?: string
   variant_barcode?: string
@@ -1425,6 +1428,8 @@ export interface PurchaseRequisitionItem {
   converted_qty?: number
   quantity_ordered?: number
   purchase_order_id?: string | null
+  po_number?: string | null
+  po_line_number?: number | null
   is_converted?: boolean
   suggested_supplier_id?: string | null
   suggested_supplier_name?: string | null
@@ -1704,8 +1709,9 @@ export interface RFQItem {
   id: string
   rfq_id: string
   line_number: number
-  item_type: 'product' | 'service' | 'other'
+  item_type: 'product' | 'service' | 'asset' | 'consumption' | 'other'
   product_id?: string | null
+  service_id?: string | null
   variant_id?: string | null
   description?: string | null
   quantity: number
@@ -1716,6 +1722,7 @@ export interface RFQItem {
   notes?: string | null
   pr_item_id?: string | null
   product_name?: string
+  service_name?: string
 }
 
 export interface RFQSupplier {
@@ -1768,7 +1775,10 @@ export interface SupplierQuotationItem {
   sgst_rate: number
   igst_rate: number
   net_unit_price: number
-  line_total: number
+  subtotal?: number
+  tax_total?: number
+  total?: number
+  line_total?: number
   lead_time_days?: number | null
   notes?: string | null
   product_name?: string
@@ -1888,6 +1898,7 @@ export interface PurchaseReturn {
   return_number: string
   status: 'draft' | 'approved' | 'goods_dispatched' | 'supplier_confirmed' | 'closed' | 'cancelled'
   purchase_order_id: string
+  po_number?: string | null
   grn_id?: string | null
   supplier_id: string
   supplier_name?: string

@@ -186,6 +186,7 @@ def _return_to_dict(ret: PurchaseReturn) -> dict:
         "return_number": ret.return_number,
         "status": ret.status,
         "purchase_order_id": str(ret.purchase_order_id),
+        "po_number": ret.purchase_order.po_number if getattr(ret, "purchase_order", None) else None,
         "grn_id": str(ret.grn_id) if ret.grn_id else None,
         "supplier_id": str(ret.supplier_id),
         "supplier_name": supplier_name,

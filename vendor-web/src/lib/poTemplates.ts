@@ -112,9 +112,9 @@ function poItemRows(items: POData[], settings: POTemplateSettings): string {
       return `<tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
         <td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;font-size:11px;color:#6b7280">${i + 1}</td>
         <td style="padding:7px 8px;border-bottom:1px solid #e5e7eb">
-          <div style="font-weight:500;font-size:12px">${it.product_name || it.name || ''}</div>
+          <div style="font-weight:500;font-size:12px">${it.product_name || it.service_name || it.name || ''}</div>
           ${settings.show_description && it.description ? `<div style="font-size:10px;color:#6b7280;margin-top:2px">${it.description}</div>` : ''}
-          ${it.product_sku ? `<div style="font-size:10px;color:#9ca3af;margin-top:1px">SKU: ${it.product_sku}</div>` : ''}
+          ${it.product_sku || it.service_sku ? `<div style="font-size:10px;color:#9ca3af;margin-top:1px">${it.service_name ? 'Code' : 'SKU'}: ${it.product_sku || it.service_sku}</div>` : ''}
           ${it.hsn_code ? `<div style="font-size:10px;color:#9ca3af">HSN: ${it.hsn_code}</div>` : ''}
         </td>
         <td style="padding:7px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${qty}</td>

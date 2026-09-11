@@ -35,11 +35,12 @@ class DocumentSequence(Base):
     last_value = Column(Integer, nullable=False, default=0)
     width      = Column(Integer, nullable=False, default=6)
 
-    # Generated column: COALESCE(store_id::TEXT, '') — used in unique constraint.
+    # Generated column: COALESCE(CAST(store_id AS TEXT), '') — used in unique constraint.
+    # CAST form is portable across PostgreSQL and the SQLite test harness (::TEXT is PG-only).
     # SQLAlchemy reads it as a regular column; it is never written by application code.
     store_scope = Column(
         String,
-        Computed("COALESCE(store_id::TEXT, '')", persisted=True),
+        Computed("COALESCE(CAST(store_id AS TEXT), '')", persisted=True),
         nullable=False,
     )
 

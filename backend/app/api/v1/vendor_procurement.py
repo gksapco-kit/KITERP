@@ -39,8 +39,16 @@ def _po_item_to_dict(item) -> dict:
     if item.product:
         d["product_name"] = item.product.name
         d["product_sku"] = item.product.sku
-    if getattr(item, "service", None):
-        d["service_name"] = item.service.name
+    service = getattr(item, "service", None)
+    if service:
+        d["service_name"] = service.name
+        d["service_sku"] = getattr(service, "material_code", None)
+        if not d.get("product_name"):
+            d["product_name"] = service.name
+        if not d.get("product_sku"):
+            d["product_sku"] = d.get("service_sku")
+        if not d.get("hsn_code") and getattr(service, "sac_code", None):
+            d["hsn_code"] = service.sac_code
     if item.variant:
         d["variant_name"] = item.variant.name
         d["variant_sku"] = item.variant.sku
@@ -122,7 +130,10 @@ def _po_to_dict(po, include_receipts: bool = False) -> dict:
         "approved_at": po.approved_at.isoformat() if po.approved_at else None,
         "approver_message": po.approver_message,
         "approvals": [_approval_step_to_dict(a) for a in sorted(po.approvals or [], key=lambda x: x.level)],
-        "items": [_po_item_to_dict(i) for i in (po.items or [])],
+        "items": [
+            {**_po_item_to_dict(i), "line_number": idx}
+            for idx, i in enumerate(po.items or [], start=1)
+        ],
         # Linked Purchase Requisition (if any)
         "requisition_id": str(po.requisition_id) if po.requisition_id else None,
         "pr_number": po.requisition.pr_number if getattr(po, "requisition", None) else None,

@@ -266,6 +266,7 @@ export default function TaxReturns({ defaultTab = 'returns' }: Props) {
                   value={returnForm.return_type}
                   onChange={v => setReturnForm(f => ({ ...f, return_type: v }))}
                   options={['GSTR1', 'GSTR3B', 'TDS', 'Income'].map(t => ({ value: t, label: t }))}
+                  className="h-8"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -333,6 +334,7 @@ export default function TaxReturns({ defaultTab = 'returns' }: Props) {
                     value={codeForm.tax_type}
                     onChange={v => setCodeForm(f => ({ ...f, tax_type: v }))}
                     options={TAX_TYPE_OPTIONS}
+                    className="h-8"
                   />
                 </div>
               </div>

@@ -11,8 +11,15 @@ from app.models.procurement_requisition import (
     PurchaseRequisitionItem,
     PurchaseRequisitionApproval,
 )
+from app.models.procurement import PurchaseOrder
 from app.models.vendor_user import VendorUser
 from app.utils.procurement_utils import next_doc_number
+
+_PR_ITEM_PO_LOAD = (
+    selectinload(PurchaseRequisition.items)
+    .selectinload(PurchaseRequisitionItem.purchase_order)
+    .selectinload(PurchaseOrder.items)
+)
 
 
 class PurchaseRequisitionRepository(BaseRepository[PurchaseRequisition]):
@@ -25,7 +32,7 @@ class PurchaseRequisitionRepository(BaseRepository[PurchaseRequisition]):
         result = await self.db.execute(
             select(PurchaseRequisition)
             .options(
-                selectinload(PurchaseRequisition.items),
+                _PR_ITEM_PO_LOAD,
                 selectinload(PurchaseRequisition.requester).selectinload(VendorUser.user),
                 selectinload(PurchaseRequisition.approvals)
                 .selectinload(PurchaseRequisitionApproval.approver)

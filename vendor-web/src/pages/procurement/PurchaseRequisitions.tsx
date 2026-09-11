@@ -51,6 +51,7 @@ import { PO_FROM_PR_KEY, PR_FROM_INVENTORY_KEY, buildPrToPoPrefill, buildPoCreat
 import { PR_COPY_FROM_ID_KEY } from '@/lib/copyDocument'
 import { CopyFromDocumentField } from '@/components/procurement/CopyFromDocumentField'
 import { extractApiError } from '@/lib/errorMessages'
+import { actionDocMessage, createdDocMessage } from '@/lib/documentToast'
 import { uomLabel } from '@/lib/uomOptions'
 import { vendorApi } from '@/api/vendor'
 import {
@@ -152,9 +153,9 @@ function DetailField({
   return (
     <div className={className}>
       <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`mt-0.5 break-words text-xs text-gray-900 dark:text-gray-100 ${mono ? 'font-mono' : 'font-medium'} ${empty ? 'text-gray-400' : ''}`}>
+      <div className={`mt-0.5 break-words text-xs text-gray-900 dark:text-gray-100 ${mono ? 'font-mono' : 'font-medium'} ${empty ? 'text-gray-400' : ''}`}>
         {empty ? '—' : value}
-      </p>
+      </div>
     </div>
   )
 }
@@ -458,7 +459,26 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
                       <DetailField label="Suggested Supplier" value={item.suggested_supplier_name || item.suggested_supplier_id} />
                       <DetailField label="Qty Ordered" value={item.quantity_ordered != null ? String(item.quantity_ordered) : '0'} />
                       <DetailField label="Conversion Status" value={item.is_converted ? 'Converted to PO' : 'Not converted'} />
-                      <DetailField label="Linked PO" value={item.purchase_order_id} mono className="col-span-2" />
+                      <DetailField
+                        label="Linked PO"
+                        className="col-span-2"
+                        value={
+                          item.purchase_order_id ? (
+                            <button
+                              type="button"
+                              className="font-medium text-blue-600 hover:underline text-left"
+                              onClick={() => {
+                                onClose()
+                                const lineQs = item.po_line_number ? `?line=${item.po_line_number}` : ''
+                                navigate(`/purchase-orders/${item.purchase_order_id}${lineQs}`)
+                              }}
+                            >
+                              {item.po_number || 'Open purchase order'}
+                              {item.po_line_number != null ? ` · Line ${item.po_line_number}` : ''}
+                            </button>
+                          ) : undefined
+                        }
+                      />
                       {item.notes && (
                         <DetailField label="Line Notes" value={<span className="whitespace-pre-wrap">{item.notes}</span>} className="col-span-2 sm:col-span-3 lg:col-span-4" />
                       )}
@@ -527,8 +547,8 @@ function PRDetailPanel({ pr: initialPr, onClose, onEdit }: { pr: PurchaseRequisi
             <Button size="sm" onClick={() => submitPR.mutate(pr.id, {
               onSuccess: (updated) => toast.success(
                 (updated as PurchaseRequisition)?.status === 'open'
-                  ? 'Requisition opened (no approval required)'
-                  : 'Submitted for approval',
+                  ? actionDocMessage('Requisition', (updated as PurchaseRequisition)?.pr_number || pr.pr_number, 'opened (no approval required)')
+                  : actionDocMessage('Requisition', (updated as PurchaseRequisition)?.pr_number || pr.pr_number, 'submitted for approval'),
               ),
             })} disabled={submitPR.isPending} className="h-8 gap-1">
               {submitPR.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
@@ -662,6 +682,18 @@ function PRFormModal({ editingPR, inventoryPrefill, onClose }: { editingPR?: Pur
   const sourcePR = loadedPR ?? editingPR ?? null
   const { data: costCenters = [], isLoading: costCentersLoading } = useCostCenters()
   const { data: storesData, isLoading: storesLoading } = useStores()
+  const { data: copyDocs, isLoading: copyDocsLoading } = useRequisitions({ size: 100 })
+  const copySuggestions = useMemo(() => {
+    const items = (copyDocs?.items ?? []) as PurchaseRequisition[]
+    return items.map(r => {
+      const { title } = parsePRNotes(r.notes)
+      return {
+        number: r.pr_number,
+        title: title || undefined,
+        hint: [r.status?.replace(/_/g, ' '), r.department].filter(Boolean).join(' · ') || undefined,
+      }
+    })
+  }, [copyDocs])
   const { data: taxCodesData } = useTaxCodes()
   const taxCodeMap = useMemo(() => buildTaxCodeMap(taxCodesData as TaxCode[] | undefined), [taxCodesData])
   const activeStores = useMemo(
@@ -965,20 +997,25 @@ function PRFormModal({ editingPR, inventoryPrefill, onClose }: { editingPR?: Pur
     const alreadyOpenOrSubmitted = editingPR && ['open', 'submitted'].includes(editingPR.status)
     try {
       let prId = editingPR?.id
+      let prNumber = editingPR?.pr_number
       if (editingPR) {
-        await updatePR.mutateAsync({ id: editingPR.id, data: payload })
-        toast.success(submitAfter && !alreadyOpenOrSubmitted ? 'Requisition updated' : 'Changes saved')
+        const updated = await updatePR.mutateAsync({ id: editingPR.id, data: payload }) as PurchaseRequisition
+        prNumber = updated?.pr_number || editingPR.pr_number
+        toast.success(submitAfter && !alreadyOpenOrSubmitted
+          ? actionDocMessage('Requisition', prNumber, 'updated')
+          : actionDocMessage('Requisition', prNumber, 'changes saved'))
       } else {
         const created = await createPR.mutateAsync(payload) as PurchaseRequisition
         prId = created.id
-        toast.success(submitAfter ? 'Requisition created' : 'Draft saved')
+        prNumber = created.pr_number
+        toast.success(submitAfter ? createdDocMessage('Requisition', prNumber) : actionDocMessage('Requisition', prNumber, 'saved as draft'))
       }
       if (submitAfter && prId && !alreadyOpenOrSubmitted) {
         const result = await submitPR.mutateAsync(prId) as PurchaseRequisition
         toast.success(
           result?.status === 'open'
-            ? 'Requisition opened — no approval required'
-            : 'Submitted for approval',
+            ? actionDocMessage('Requisition', result?.pr_number || prNumber, 'opened — no approval required')
+            : actionDocMessage('Requisition', result?.pr_number || prNumber, 'submitted for approval'),
         )
       }
       onClose()
@@ -1015,6 +1052,7 @@ function PRFormModal({ editingPR, inventoryPrefill, onClose }: { editingPR?: Pur
       toast.success(`Copied from ${pr.pr_number}. A new PR number is assigned when you save.`)
     } catch (err) {
       toast.error(extractApiError(err, 'No purchase requisition found with that number'))
+      throw err
     } finally {
       setCopyLoading(false)
     }
@@ -1022,7 +1060,7 @@ function PRFormModal({ editingPR, inventoryPrefill, onClose }: { editingPR?: Pur
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <Card className="w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <Card className="flex max-h-[92vh] w-[min(96vw,100rem)] flex-col overflow-hidden shadow-2xl">
         <div className="flex items-center justify-between px-5 py-3.5 border-b shrink-0">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <ClipboardList className="w-5 h-5 text-blue-600" />
@@ -1031,14 +1069,6 @@ function PRFormModal({ editingPR, inventoryPrefill, onClose }: { editingPR?: Pur
           <Button variant="ghost" size="icon" onClick={handleClose}><X className="w-4 h-4" /></Button>
         </div>
         <CardContent className="flex flex-col flex-1 min-h-0 p-5 gap-3">
-          {!editingPR && (
-            <CopyFromDocumentField
-              placeholder="Enter PR number, e.g. PR-000042"
-              onCopy={handleCopyFromNumber}
-              loading={copyLoading}
-              copiedFrom={copiedFromNumber}
-            />
-          )}
           <div className="shrink-0 space-y-2.5">
             <div className="grid grid-cols-12 gap-x-3 gap-y-2.5">
               <div className="col-span-12 lg:col-span-4">
@@ -1158,6 +1188,16 @@ function PRFormModal({ editingPR, inventoryPrefill, onClose }: { editingPR?: Pur
           </div>
 
           <div className="flex justify-end gap-2.5 pt-3 border-t shrink-0">
+            {!editingPR && (
+              <CopyFromDocumentField
+                placeholder="Search PR number or title…"
+                onCopy={handleCopyFromNumber}
+                loading={copyLoading}
+                copiedFrom={copiedFromNumber}
+                suggestions={copySuggestions}
+                suggestionsLoading={copyDocsLoading}
+              />
+            )}
             <Button variant="outline" onClick={handleClose} disabled={saving}>Cancel</Button>
             <Button variant="secondary" onClick={handleSaveDraft} disabled={saving} className="gap-2">
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}

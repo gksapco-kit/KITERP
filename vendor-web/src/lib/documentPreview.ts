@@ -14,6 +14,19 @@ const EDITABLE_STYLES = `
   @media print{.page{page-break-after:always}.page:last-child{page-break-after:auto}}
 `
 
+/** Make the paper fill the live-preview iframe (no grey side gutters). */
+const PREVIEW_FIT_STYLES = `
+html,body{margin:0!important;padding:0!important;background:#fff!important;width:100%!important;overflow-x:hidden!important}
+.page{margin:0!important;max-width:100%!important;width:100%!important;border-radius:0!important;box-shadow:none!important}
+`
+
+export function injectPreviewFitCss(html: string): string {
+  if (!html || html.includes('data-kiterp-preview-fit')) return html
+  const tag = `<style data-kiterp-preview-fit>${PREVIEW_FIT_STYLES}</style>`
+  if (html.includes('</head>')) return html.replace('</head>', `${tag}</head>`)
+  return `${tag}${html}`
+}
+
 /** Inject editable attributes + styles into generated document HTML. */
 export function injectDocumentEditable(html: string): string {
   let out = html

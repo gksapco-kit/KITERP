@@ -229,8 +229,7 @@ function InvoiceDocumentPreview({
   createBlankPage: (nextPageNumber: number) => string
   emptyMessage?: string
 }) {
-  const isNarrow = paperSize === '2inch' || paperSize === '3inch' || paperSize === '4inch'
-  const previewScale = isNarrow ? 1 : 0.88
+  const previewScale = 1
   const containerWidth = paperSize === '2inch' ? '220px'
     : paperSize === '3inch' ? '302px'
     : paperSize === '4inch' ? '393px'
@@ -985,7 +984,7 @@ export default function InvoiceSettingsPage() {
 
       {/* â”€â”€ POS Receipt Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {!isQuotationMode && activeTab === 'pos' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
           <InvoiceDocumentPreview
             html={posPreviewHtml}
             title="POS Preview"
@@ -1463,7 +1462,7 @@ export default function InvoiceSettingsPage() {
 
       {/* â”€â”€ Customer Invoice Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {(isQuotationMode || activeTab === 'invoice') && (
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
         <InvoiceDocumentPreview
           html={previewHtml}
           title={isQuotationMode ? 'Quotation Preview' : 'Invoice Preview'}

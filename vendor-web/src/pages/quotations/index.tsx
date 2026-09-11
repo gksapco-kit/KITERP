@@ -22,6 +22,7 @@ import { printInvoice, DEFAULT_QUOTATION_SETTINGS } from '@/lib/invoiceTemplates
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 import type { Order } from '@/types'
 import { toast } from 'sonner'
+import { pickDocNo } from '@/lib/documentToast'
 import {
   Plus, Loader2, MessageSquare, FileText, Eye, Check, Settings2,
   ArrowRight, Printer, Send, Clock, CheckCircle2, Ban,
@@ -363,7 +364,8 @@ export default function QuotationsPage() {
     setActingId(estimateId)
     try {
       const invoice = await vendorApi.convertEstimate(estimateId)
-      toast.success('Quotation converted to invoice')
+      const invoiceNo = pickDocNo(invoice, 'invoice_number')
+      toast.success(invoiceNo ? `Quotation converted to invoice ${invoiceNo}` : 'Quotation converted to invoice')
       qc.invalidateQueries({ queryKey: ['quotations', 'estimates'] })
       qc.invalidateQueries({ queryKey: ['invoices'] })
       navigate(`/quotations/${(invoice as { id: string }).id}`)

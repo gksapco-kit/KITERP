@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useCreateRequisition, useSubmitRequisition, useStores } from '@/hooks/useVendor'
+import { useCreateRequisition, useSubmitRequisition, useStores, useRequisitions } from '@/hooks/useVendor'
 import { useCostCenters, useTaxCodes } from '@/hooks/useFinance'
 import type { CostCenter } from '@/types/finance'
 import { ProcurementLineItemForm } from '@/components/procurement/ProcurementLineItemForm'
@@ -35,7 +35,9 @@ import { PR_COPY_FROM_ID_KEY, parsePrTitleNotes, prToCopyItemRows } from '@/lib/
 import { CopyFromDocumentField } from '@/components/procurement/CopyFromDocumentField'
 import { vendorApi } from '@/api/vendor'
 import { extractApiError } from '@/lib/errorMessages'
+import { actionDocMessage } from '@/lib/documentToast'
 import { toast } from 'sonner'
+import { LineItemsExpandAllActions } from '@/components/procurement/LineItemExpandHeader'
 import { ArrowLeft, Loader2, Plus, ClipboardList, Send, AlertCircle, Save, UserCheck } from 'lucide-react'
 import type { PurchaseRequisition } from '@/types'
 
@@ -70,6 +72,18 @@ export default function CreatePurchaseRequisitionPage() {
   const submitPR = useSubmitRequisition()
   const { data: costCenters = [], isLoading: costCentersLoading } = useCostCenters()
   const { data: storesData, isLoading: storesLoading } = useStores()
+  const { data: copyDocs, isLoading: copyDocsLoading } = useRequisitions({ size: 100 })
+  const copySuggestions = useMemo(() => {
+    const items = (copyDocs?.items ?? []) as PurchaseRequisition[]
+    return items.map(r => {
+      const { title } = parsePrTitleNotes(r.notes)
+      return {
+        number: r.pr_number,
+        title: title || undefined,
+        hint: [r.status?.replace(/_/g, ' '), r.department].filter(Boolean).join(' · ') || undefined,
+      }
+    })
+  }, [copyDocs])
   const { data: taxCodesData } = useTaxCodes()
   const taxCodeMap = useMemo(() => buildTaxCodeMap(taxCodesData as TaxCode[] | undefined), [taxCodesData])
 
@@ -108,6 +122,7 @@ export default function CreatePurchaseRequisitionPage() {
   const [secondaryApproverId, setSecondaryApproverId] = useState('')
   const [approverMessage, setApproverMessage] = useState('')
   const [items, setItems] = useState<ItemRow[]>([emptyItem()])
+  const [collapsedLineIndexes, setCollapsedLineIndexes] = useState<Set<number>>(() => new Set())
   const [dest, setDest] = useState<PoDestinationValue>(() => emptyPoDestination(''))
   const [lineFieldError, setLineFieldError] = useState<{ lineIndex: number; field: keyof ItemRow } | null>(null)
   const [copiedFromNumber, setCopiedFromNumber] = useState<string | null>(null)
@@ -204,6 +219,7 @@ export default function CreatePurchaseRequisitionPage() {
       applyCopiedPr(pr)
     } catch (err) {
       toast.error(extractApiError(err, 'No purchase requisition found with that number'))
+      throw err
     } finally {
       setCopyLoading(false)
     }
@@ -224,6 +240,23 @@ export default function CreatePurchaseRequisitionPage() {
 
   const removeItem = (i: number) => {
     setItems(prev => prev.filter((_, idx) => idx !== i))
+    setCollapsedLineIndexes(prev => {
+      const next = new Set<number>()
+      for (const idx of prev) {
+        if (idx === i) continue
+        next.add(idx > i ? idx - 1 : idx)
+      }
+      return next
+    })
+  }
+
+  const toggleLineExpanded = (i: number) => {
+    setCollapsedLineIndexes(prev => {
+      const next = new Set(prev)
+      if (next.has(i)) next.delete(i)
+      else next.add(i)
+      return next
+    })
   }
 
   const updateItem = (i: number, field: keyof ItemRow, value: string | number) => {
@@ -259,6 +292,11 @@ export default function CreatePurchaseRequisitionPage() {
     if (lineIssue) {
       toast.error(lineIssue.message, { duration: 7000 })
       setLineFieldError({ lineIndex: lineIssue.lineIndex, field: lineIssue.field })
+      setCollapsedLineIndexes(prev => {
+        const next = new Set(prev)
+        next.delete(lineIssue.lineIndex)
+        return next
+      })
       return false
     }
     if (procurementSource === 'internal' && buScope === 'cross_bu') {
@@ -319,12 +357,18 @@ export default function CreatePurchaseRequisitionPage() {
     if (submitAfter ? !validateSubmit() : !validateDraft()) return
     const payload = buildPayload(submitAfter)
     try {
-      const created = await createPR.mutateAsync(payload) as { id?: string; status?: string }
+      const created = await createPR.mutateAsync(payload) as { id?: string; status?: string; pr_number?: string }
       const prId = created.id
-      if (!submitAfter) toast.success('Draft saved')
+      const prNumber = created.pr_number
+      if (!submitAfter) toast.success(actionDocMessage('Requisition', prNumber, 'saved as draft'))
       if (submitAfter && prId) {
-        const result = await submitPR.mutateAsync(prId) as { status?: string }
-        toast.success(result?.status === 'open' ? 'Requisition opened — no approval required' : 'Submitted for approval')
+        const result = await submitPR.mutateAsync(prId) as { status?: string; pr_number?: string }
+        const number = result?.pr_number || prNumber
+        toast.success(
+          result?.status === 'open'
+            ? actionDocMessage('Requisition', number, 'opened — no approval required')
+            : actionDocMessage('Requisition', number, 'submitted for approval'),
+        )
       }
       navigate('/procurement/requisitions')
     } catch { /* hook shows error toast */ }
@@ -370,6 +414,14 @@ export default function CreatePurchaseRequisitionPage() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <CopyFromDocumentField
+            placeholder="Search PR number or title…"
+            onCopy={handleCopyFromNumber}
+            loading={copyLoading}
+            copiedFrom={copiedFromNumber}
+            suggestions={copySuggestions}
+            suggestionsLoading={copyDocsLoading}
+          />
           <Button type="button" variant="outline" size="sm" onClick={handleClose} disabled={saving}
             className="h-8 rounded-full border-gray-300 px-4 text-xs font-medium text-gray-600">
             Cancel
@@ -388,18 +440,12 @@ export default function CreatePurchaseRequisitionPage() {
       </div>
 
       {/* ── Scrollable body ─────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto px-5 py-5 md:px-8 lg:px-10">
-        <div className="mx-auto max-w-6xl space-y-4">
+      <div className="flex-1 overflow-auto px-3 py-4 sm:px-4 lg:px-5">
+        <div className="w-full space-y-4">
 
           {/* ══ HEADER DETAILS ═════════════════════════════════════════════ */}
           <Section title="Header Details">
             <div className="p-5 space-y-4">
-              <CopyFromDocumentField
-                placeholder="Enter PR number, e.g. PR-000042"
-                onCopy={handleCopyFromNumber}
-                loading={copyLoading}
-                copiedFrom={copiedFromNumber}
-              />
               {/* 12-col grid — child components emit col-span-* classes into this grid */}
               <div className="grid grid-cols-12 gap-x-4 gap-y-3">
                 <div className="col-span-12 sm:col-span-6 lg:col-span-4">
@@ -446,10 +492,16 @@ export default function CreatePurchaseRequisitionPage() {
           <Section
             title="Line Items *"
             action={
-              <Button variant="outline" size="sm" onClick={addItem}
-                className="h-6 gap-1 rounded-full border-blue-200 px-3 text-[11px] text-blue-600 hover:bg-blue-50">
-                <Plus className="w-3 h-3" /> Add Item
-              </Button>
+              <div className="flex items-center gap-2">
+                <LineItemsExpandAllActions
+                  onExpandAll={() => setCollapsedLineIndexes(new Set())}
+                  onCollapseAll={() => setCollapsedLineIndexes(new Set(items.map((_, i) => i)))}
+                />
+                <Button variant="outline" size="sm" onClick={addItem}
+                  className="h-6 gap-1 rounded-full border-blue-200 px-3 text-[11px] text-blue-600 hover:bg-blue-50">
+                  <Plus className="w-3 h-3" /> Add Item
+                </Button>
+              </div>
             }
           >
             {/* No cost center warning */}
@@ -467,6 +519,8 @@ export default function CreatePurchaseRequisitionPage() {
                   item={item}
                   lineNumber={i + 1}
                   canRemove={items.length > 1}
+                  expanded={!collapsedLineIndexes.has(i)}
+                  onToggleExpand={() => toggleLineExpanded(i)}
                   costCenters={activeCostCenters}
                   costCentersLoading={costCentersLoading}
                   storeId={storeId || defaultStoreId}

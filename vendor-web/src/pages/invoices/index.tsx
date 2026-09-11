@@ -19,6 +19,7 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
+import { createdDocMessage, pickDocNo } from '@/lib/documentToast'
 import {
   Plus, Search, Loader2, FileText,
   X, Eye, IndianRupee, ArrowRight, Download, Trash2, Share2,
@@ -1009,6 +1010,19 @@ export function CreateInvoiceModal({
     enabled: custOpen,
     staleTime: 30_000,
   })
+  const { data: copyDocs, isLoading: copyDocsLoading } = useQuery({
+    queryKey: ['invoices-copy-suggestions', defaultType],
+    queryFn: () => vendorApi.listInvoices({ invoice_type: defaultType, size: 100 }),
+    staleTime: 30_000,
+  })
+  const copySuggestions = useMemo(() => {
+    const items = (copyDocs?.items ?? []) as Array<Record<string, unknown>>
+    return items.map(inv => ({
+      number: String(inv.invoice_number || ''),
+      title: String(inv.customer_name || '') || undefined,
+      hint: String(inv.status || '').replace(/_/g, ' ') || undefined,
+    })).filter(s => s.number)
+  }, [copyDocs])
   const customers: Array<{
     id: string
     full_name: string
@@ -1083,6 +1097,7 @@ export function CreateInvoiceModal({
       toast.success(`Copied from ${String(inv.invoice_number || number)}. A new number is assigned when you save.`)
     } catch (err) {
       toast.error(extractApiError(err, 'No document found with that number'))
+      throw err
     } finally {
       setCopyLoading(false)
     }
@@ -1109,7 +1124,8 @@ export function CreateInvoiceModal({
         ...(isQuotation ? { extra_fields: serializeQuotationExtraFields(extraFields) } : {}),
       }
       const created = await vendorApi.createInvoice(payload)
-      toast.success(defaultType === 'estimate' ? 'Quotation created!' : 'Invoice created!')
+      const kind = defaultType === 'estimate' ? 'Quotation' : 'Invoice'
+      toast.success(createdDocMessage(kind, pickDocNo(created, 'invoice_number')))
       onCreated(created as Record<string, unknown>)
     } catch (err) {
       toast.error(extractApiError(err, 'Could not create document — check customer and line item details'))
@@ -1131,7 +1147,7 @@ export function CreateInvoiceModal({
         role="dialog"
         aria-modal="true"
         aria-label={defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
-        className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full mx-4 max-w-4xl max-h-[calc(100dvh-1rem)] flex flex-col overflow-hidden"
+        className="flex max-h-[calc(100dvh-1rem)] w-[min(96vw,90rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
         onClick={e => e.stopPropagation()}
         onPointerDown={e => e.stopPropagation()}
       >
@@ -1144,12 +1160,6 @@ export function CreateInvoiceModal({
           <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="rounded-lg p-1 hover:bg-muted"><X className="h-5 w-5" /></button>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 space-y-2.5">
-          <CopyFromDocumentField
-            placeholder={isQuotation ? 'Enter quotation number' : 'Enter invoice number'}
-            onCopy={handleCopyFromNumber}
-            loading={copyLoading}
-            copiedFrom={copiedFromNumber}
-          />
           {/* Header: 3-column grid so labels and controls share one right edge */}
           <div className="relative">
             <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3">
@@ -1434,6 +1444,14 @@ export function CreateInvoiceModal({
             <span className="text-sm font-semibold text-foreground">Total: {formatCurrency(Math.round(subtotal + totalTax))}</span>
           </div>
           <div className="flex shrink-0 gap-2">
+            <CopyFromDocumentField
+              placeholder={isQuotation ? 'Search quotation number or customer…' : 'Search invoice number or customer…'}
+              onCopy={handleCopyFromNumber}
+              loading={copyLoading}
+              copiedFrom={copiedFromNumber}
+              suggestions={copySuggestions}
+              suggestionsLoading={copyDocsLoading}
+            />
             <Button variant="cancel" onClick={onClose} className="h-8 px-3 text-sm">Cancel</Button>
             <Button onClick={handleCreate} disabled={loading || !items.some(i => i.name && i.rate > 0)} className="h-8 gap-2 px-3 text-sm">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}Create

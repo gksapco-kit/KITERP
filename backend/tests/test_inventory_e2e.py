@@ -596,23 +596,26 @@ async def test_16_reports_endpoints(client: AsyncClient, owner: VendorUser, trac
     assert "items" in body or "groups" in body or "total_value" in body or isinstance(body, (dict, list))
 
 
-async def test_17_fifo_manual_layer_and_auto_gap(
+async def test_17_fifo_auto_layer_on_stock_in_and_consume(
     client: AsyncClient, owner: VendorUser, tracked_product: Product, db_session: AsyncSession,
 ):
-    # Stock-in should NOT auto-create FIFO layer (documented gap)
-    await client.post(f"{BASE}/stock-in", json={
+    # Stock-in auto-creates a FIFO cost layer
+    stock_in = await client.post(f"{BASE}/stock-in", json={
         "product_id": str(tracked_product.id),
         "quantity": 10,
         "cost_price": 40,
     })
-    layers_before = (
+    assert stock_in.status_code in (200, 201), stock_in.text
+    layers_after_in = (
         await db_session.execute(
             select(StockCostLayer).where(StockCostLayer.product_id == tracked_product.id)
         )
     ).scalars().all()
-    assert len(layers_before) == 0  # GAP: no auto layer on stock-in
+    assert len(layers_after_in) == 1
+    assert float(layers_after_in[0].received_qty) == 10
+    assert float(layers_after_in[0].unit_cost) == 40
 
-    # Endpoint takes query params (not JSON body)
+    # Manual create-layer still works (adds a second layer)
     create = await client.post(
         f"{BASE}/reports/fifo-valuation/create-layer",
         params={
@@ -633,7 +636,6 @@ async def test_17_fifo_manual_layer_and_auto_gap(
         or payload.get("total_products", 0) >= 1
     ), payload
 
-    # Consume via service (sale path does not call this — gap)
     svc = FifoCostService(db_session)
     consumed = await svc.consume_layers(
         vendor_id=tracked_product.vendor_id,

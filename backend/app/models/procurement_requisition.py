@@ -123,6 +123,7 @@ class PurchaseRequisitionItem(Base):
     notes = Column(Text, nullable=True)
 
     requisition = relationship("PurchaseRequisition", back_populates="items")
+    purchase_order = relationship("PurchaseOrder", foreign_keys=[purchase_order_id], lazy="noload")
     product = relationship("Product", lazy="selectin")
     service = relationship("Service", lazy="selectin")
     variant = relationship("ProductVariant", foreign_keys=[variant_id], lazy="selectin")

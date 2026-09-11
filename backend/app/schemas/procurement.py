@@ -195,6 +195,7 @@ class PurchaseOrderItemResponse(BaseModel):
     product_name: Optional[str] = None
     product_sku: Optional[str] = None
     service_name: Optional[str] = None
+    service_sku: Optional[str] = None
     variant_name: Optional[str] = None
     variant_sku: Optional[str] = None
     variant_barcode: Optional[str] = None

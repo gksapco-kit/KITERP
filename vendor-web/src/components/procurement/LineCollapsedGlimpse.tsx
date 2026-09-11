@@ -71,9 +71,11 @@ export function LineCollapsedGlimpse({
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
       <span className="flex min-w-0 items-center gap-2">
-        <span className="shrink-0 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-          {typeLabel}
-        </span>
+        {typeLabel ? (
+          <span className="shrink-0 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+            {typeLabel}
+          </span>
+        ) : null}
         <span className="min-w-0 truncate text-xs font-medium text-gray-800 dark:text-gray-200">
           {title}
         </span>

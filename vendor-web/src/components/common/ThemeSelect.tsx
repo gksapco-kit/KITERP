@@ -742,7 +742,7 @@ export function ThemeSelect({
               <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
               <input
                 ref={searchRef}
-                type="text"
+                type="search"
                 value={query}
                 onChange={(e) => {
                   if (suppressSearchInputRef.current) return
@@ -753,7 +753,11 @@ export function ThemeSelect({
                 aria-label={searchPlaceholder}
                 autoComplete="off"
                 autoCorrect="off"
+                autoCapitalize="none"
                 spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-form-type="other"
                 data-kiterp-no-field-focus
                 className={cn(
                   searchFieldInnerInputClassName,

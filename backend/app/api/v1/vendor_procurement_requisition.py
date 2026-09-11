@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, inspect as sa_inspect
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
@@ -278,6 +278,44 @@ async def get_product_procurement_context(
 
 # ── Serialiser ────────────────────────────────────────────────────
 
+def _catalog_key(obj) -> tuple[str, str, str]:
+    return (
+        str(getattr(obj, "product_id", None) or ""),
+        str(getattr(obj, "service_id", None) or ""),
+        str(getattr(obj, "variant_id", None) or ""),
+    )
+
+
+def _assign_po_line_numbers(pr_items: list, item_dicts: list[dict]) -> None:
+    """Match converted PR lines to PO lines (1-based) without double-assigning."""
+    slots_by_po: dict[str, list[dict]] = {}
+    seen_pos: set[str] = set()
+    for item in pr_items:
+        po = getattr(item, "purchase_order", None)
+        if not po or str(po.id) in seen_pos:
+            continue
+        seen_pos.add(str(po.id))
+        if "items" in sa_inspect(po).unloaded:
+            continue
+        slots_by_po[str(po.id)] = [
+            {"line": idx, "key": _catalog_key(poi), "used": False}
+            for idx, poi in enumerate(po.items or [], start=1)
+        ]
+
+    for item, d in zip(pr_items, item_dicts):
+        po_id = d.get("purchase_order_id")
+        if not po_id:
+            continue
+        slots = slots_by_po.get(po_id) or []
+        key = _catalog_key(item)
+        match = next((s for s in slots if not s["used"] and s["key"] == key), None)
+        if match is None:
+            match = next((s for s in slots if not s["used"]), None)
+        if match:
+            match["used"] = True
+            d["po_line_number"] = match["line"]
+
+
 def _item_to_dict(item: PurchaseRequisitionItem) -> dict:
     product = getattr(item, "product", None)
     service = getattr(item, "service", None)
@@ -285,6 +323,7 @@ def _item_to_dict(item: PurchaseRequisitionItem) -> dict:
     plant = getattr(item, "plant", None)
     storage_location = getattr(item, "storage_location", None)
     suggested_supplier = getattr(item, "suggested_supplier", None)
+    po = getattr(item, "purchase_order", None)
     return {
         "id": str(item.id),
         "requisition_id": str(item.requisition_id),
@@ -310,6 +349,8 @@ def _item_to_dict(item: PurchaseRequisitionItem) -> dict:
         "suggested_supplier_name": suggested_supplier.name if suggested_supplier else None,
         "quantity_ordered": float(item.quantity_ordered) if item.quantity_ordered else 0,
         "purchase_order_id": str(item.purchase_order_id) if item.purchase_order_id else None,
+        "po_number": po.po_number if po else None,
+        "po_line_number": None,
         "is_converted": item.is_converted,
         "tax_code": item.tax_code,
         "notes": item.notes,
@@ -335,6 +376,9 @@ def _approval_to_dict(a: PurchaseRequisitionApproval) -> dict:
 def _pr_to_dict(pr: PurchaseRequisition) -> dict:
     requester = getattr(pr, "requester", None)
     requester_user = getattr(requester, "user", None) if requester else None
+    pr_items = list(pr.items or [])
+    item_dicts = [_item_to_dict(i) for i in pr_items]
+    _assign_po_line_numbers(pr_items, item_dicts)
     return {
         "id": str(pr.id),
         "vendor_id": str(pr.vendor_id),
@@ -361,7 +405,7 @@ def _pr_to_dict(pr: PurchaseRequisition) -> dict:
         "approved_at": pr.approved_at.isoformat() if pr.approved_at else None,
         "created_at": pr.created_at.isoformat() if pr.created_at else None,
         "updated_at": pr.updated_at.isoformat() if pr.updated_at else None,
-        "items": [_item_to_dict(i) for i in (pr.items or [])],
+        "items": item_dicts,
         "approvals": [_approval_to_dict(a) for a in (pr.approvals or [])],
     }
 
@@ -931,7 +975,7 @@ async def convert_pr_to_po(
         "supplier_id": data.supplier_id,
         "items": po_items,
         "pr_item_ids": [str(i) for i in requested_item_ids],
-        "expected_delivery_date": str(data.expected_delivery_date) if data.expected_delivery_date else None,
+        "expected_delivery_date": data.expected_delivery_date,
         "notes": data.notes or f"Created from PR {pr.pr_number}",
         "requisition_id": str(pr.id),
         # Inherit the requisition's org dimensions so the PO routes through the

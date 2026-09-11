@@ -308,7 +308,7 @@ async def create_vendor_invoice(
 
     # Resolve place-of-supply so we can derive the correct CGST/SGST vs IGST split
     # using the same engine as the PO service.
-    from app.models.procurement_supplier import Supplier as SupplierModel
+    from app.models.procurement import Supplier as SupplierModel
     from app.models.vendor import Vendor as VendorModel
 
     supplier_row = await db.get(SupplierModel, UUID(data.supplier_id))

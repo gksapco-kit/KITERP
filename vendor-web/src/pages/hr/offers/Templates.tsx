@@ -419,7 +419,7 @@ export default function OfferTemplatesPage() {
       </div>
 
       {/* Main grid — preview left, settings right (matches invoice templates) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
         <OfferLivePreview
           html={previewHtml}
           layout={form.layout}

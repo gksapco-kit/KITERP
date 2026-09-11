@@ -4563,9 +4563,9 @@ export const vendorApi = {
   submitQuotation: async (sqId: string) =>
     (await apiClient.post(`/vendors/me/procurement/quotations/${sqId}/submit`)).data,
   acceptQuotation: async (sqId: string, data?: Record<string, unknown>) =>
-    (await apiClient.post(`/vendors/me/procurement/quotations/${sqId}/accept`, data ?? {})).data,
+    (await apiClient.post(`/vendors/me/procurement/quotations/${sqId}/accept`, { action: 'accept', ...data })).data,
   rejectQuotation: async (sqId: string, data?: Record<string, unknown>) =>
-    (await apiClient.post(`/vendors/me/procurement/quotations/${sqId}/reject`, data ?? {})).data,
+    (await apiClient.post(`/vendors/me/procurement/quotations/${sqId}/reject`, { action: 'reject', ...data })).data,
 
   // ════════════════════════════════════════════════════════════════
   // Procurement: Goods Receipt Note (GRN)

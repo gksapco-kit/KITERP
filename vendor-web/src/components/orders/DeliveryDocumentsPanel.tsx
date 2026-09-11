@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { actionDocMessage, createdDocMessage, pickDocNo } from '@/lib/documentToast'
 import {
   Truck, Plus, CheckCircle2, Clock, PackageCheck,
   ChevronDown, ChevronUp, Loader2, X,
@@ -72,8 +73,10 @@ function CreateDeliveryModal({ order, onClose, onCreated }: CreateDeliveryModalP
         notes: notes || undefined,
       })
     },
-    onSuccess: () => {
-      toast.success('Delivery created')
+    onSuccess: (data) => {
+      toast.success(createdDocMessage('Delivery', pickDocNo(data, 'delivery_number'), {
+        extra: [{ label: 'order', number: order.order_number }],
+      }))
       onCreated()
       onClose()
     },
@@ -159,7 +162,7 @@ function DeliveryRow({ delivery, orderId, isTerminal }: { delivery: OrderDeliver
   const { mutate: postGI, isPending: isPosting } = useMutation({
     mutationFn: () => vendorApi.postGoodsIssue(orderId, delivery.id),
     onSuccess: () => {
-      toast.success('Goods issue posted')
+      toast.success(actionDocMessage('Delivery', delivery.delivery_number, 'goods issue posted'))
       qc.invalidateQueries({ queryKey: ['order', orderId] })
     },
     onError: (err: unknown) => {
@@ -171,7 +174,7 @@ function DeliveryRow({ delivery, orderId, isTerminal }: { delivery: OrderDeliver
   const { mutate: cancel, isPending: isCancelling } = useMutation({
     mutationFn: () => vendorApi.cancelDelivery(orderId, delivery.id),
     onSuccess: () => {
-      toast.success('Delivery cancelled')
+      toast.success(actionDocMessage('Delivery', delivery.delivery_number, 'cancelled'))
       qc.invalidateQueries({ queryKey: ['order', orderId] })
     },
     onError: () => toast.error('Could not cancel delivery'),

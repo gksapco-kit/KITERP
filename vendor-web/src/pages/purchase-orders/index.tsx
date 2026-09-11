@@ -289,7 +289,7 @@ export default function PurchaseOrdersPage() {
                     const badge = statusBadge[po.status] || statusBadge.draft
                     const items = po.items || []
                     const itemSummary = items.slice(0, 3).map((i: any) => {
-                      const base = i.product_name || 'Product'
+                      const base = i.product_name || i.service_name || (i.service_id ? 'Service' : 'Product')
                       const variant = i.variant_name || (i.variant_id ? 'Variant' : null)
                       return variant ? `${base} — ${variant}` : base
                     })

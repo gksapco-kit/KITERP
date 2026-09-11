@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Trash2, Loader2, Package, AlertTriangle, Info, FileText, ChevronDown, ChevronRight } from 'lucide-react'
+import { Trash2, Loader2, Package, AlertTriangle, Info, FileText } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,7 @@ import { vendorApi } from '@/api/vendor'
 import {
   ProcurementLineItemSelector,
   itemSelectorLabel,
+  type CatalogPickSnapshot,
 } from '@/components/procurement/ProcurementLineItemSelector'
 import {
   type RequisitionType,
@@ -44,6 +45,7 @@ import {
 import { uomLabel } from '@/lib/uomOptions'
 import { variantSelectOption, type VariantSelectSource } from '@/lib/productVariants'
 import { LineCollapsedGlimpse } from '@/components/procurement/LineCollapsedGlimpse'
+import { LineItemExpandHeader } from '@/components/procurement/LineItemExpandHeader'
 import {
   buildProductMasterFacts,
   buildServiceMasterFacts,
@@ -55,6 +57,7 @@ import {
 type ProductVariant = VariantSelectSource & { hsn_code?: string | null }
 
 interface ServiceMasterSnapshot {
+  id?: string
   sac_code?: string | null
   material_code?: string | null
   purchase_price?: number | null
@@ -62,6 +65,42 @@ interface ServiceMasterSnapshot {
   tax_rate?: number | null
   is_taxable?: boolean
   name?: string
+}
+
+function snapshotToProductContext(listed: CatalogPickSnapshot): ProcurementProductContext {
+  return {
+    product_id: listed.id,
+    name: listed.name || '',
+    material_code: listed.material_code,
+    sku: listed.sku,
+    uom: normalizeUom(listed.uom),
+    cost_price: listed.cost_price ?? null,
+    hsn_code: listed.hsn_code,
+    barcode: listed.barcode,
+    gst_rate: listed.gst_rate ?? listed.tax_rate,
+    is_taxable: listed.is_taxable !== false,
+    store_scope: 'all',
+    entities: [],
+    available_stock: 0,
+    reserved_qty: 0,
+    open_requisition_qty: 0,
+    open_po_qty: 0,
+    on_demand_mrp: 0,
+    stock_by_location: [],
+  }
+}
+
+function snapshotToServiceMaster(listed: CatalogPickSnapshot): ServiceMasterSnapshot {
+  return {
+    id: listed.id,
+    sac_code: listed.sac_code,
+    material_code: listed.material_code,
+    purchase_price: listed.purchase_price ?? listed.purchase_price_fixed ?? listed.cost_price,
+    gst_rate: listed.gst_rate,
+    tax_rate: listed.tax_rate,
+    is_taxable: listed.is_taxable,
+    name: listed.name,
+  }
 }
 
 interface CostCenterOption {
@@ -106,10 +145,15 @@ function LineField({
 }) {
   return (
     <div className={`min-w-0 ${className ?? ''}`}>
-      <p className={`text-[10px] font-semibold uppercase tracking-wide leading-none select-none ${
-        error ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'
-      }`}>
-        {label}{required && <span className="ml-0.5 text-red-500">*</span>}
+      <p
+        title={label}
+        className={`flex h-4 items-center overflow-hidden text-[10px] font-semibold uppercase tracking-wide leading-none select-none ${
+          error ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'
+        }`}
+      >
+        <span className="truncate">
+          {label}{required && <span className="ml-0.5 text-red-500">*</span>}
+        </span>
       </p>
       <div className="mt-1">{children}</div>
       {error ? (
@@ -243,6 +287,7 @@ export function ProcurementLineItemForm({
   const defaultStoreId = headerStoreId || null
 
   const [variants, setVariants] = useState<ProductVariant[]>([])
+  const [variantsForId, setVariantsForId] = useState('')
   const [variantsLoading, setVariantsLoading] = useState(false)
   const [productContext, setProductContext] = useState<ProcurementProductContext | null>(null)
   const [contextLoading, setContextLoading] = useState(false)
@@ -250,6 +295,10 @@ export function ProcurementLineItemForm({
   const [serviceMasterLoading, setServiceMasterLoading] = useState(false)
   const [serviceMaster, setServiceMaster] = useState<ServiceMasterSnapshot | null>(null)
   const [uncontrolledExpanded, setUncontrolledExpanded] = useState(true)
+  const productFetchGen = useRef(0)
+  const serviceFetchGen = useRef(0)
+  const variantFetchGen = useRef(0)
+  const catalogKeyRef = useRef({ referenceId: '', variantId: '', plantId: destinationPlantId || '' })
 
   useEffect(() => {
     if (errorField) setUncontrolledExpanded(true)
@@ -273,11 +322,14 @@ export function ProcurementLineItemForm({
   const loadVariants = useCallback(async (productId: string) => {
     if (!productId) {
       setVariants([])
+      setVariantsForId('')
       return
     }
+    const gen = ++variantFetchGen.current
     setVariantsLoading(true)
     try {
       const full = await vendorApi.getProduct(productId)
+      if (gen !== variantFetchGen.current) return
       setVariants((full.variants ?? []).map(v => ({
         id: v.id,
         name: v.name,
@@ -292,10 +344,13 @@ export function ProcurementLineItemForm({
         color: v.color,
         hsn_code: (v as { hsn_code?: string | null }).hsn_code ?? null,
       })))
+      setVariantsForId(productId)
     } catch {
+      if (gen !== variantFetchGen.current) return
       setVariants([])
+      setVariantsForId(productId)
     } finally {
-      setVariantsLoading(false)
+      if (gen === variantFetchGen.current) setVariantsLoading(false)
     }
   }, [])
 
@@ -316,6 +371,7 @@ export function ProcurementLineItemForm({
       setProductContext(null)
       return
     }
+    const gen = ++productFetchGen.current
     setContextLoading(true)
     try {
       const ctx = await vendorApi.getProcurementProductContext(productId, {
@@ -324,21 +380,17 @@ export function ProcurementLineItemForm({
         plant_id: plantId || undefined,
       }) as ProcurementProductContext
 
+      if (gen !== productFetchGen.current) return
       setProductContext(ctx)
 
       const patch: Partial<ItemRow> = {
         uom: normalizeUom(ctx.uom),
       }
       if (opts?.applyPrice !== false && itemRef.current.item_type !== 'consumption') {
-        // Re-seed from master on product/variant select so a stale prior price
-        // (or race with the clear-on-select patch) cannot block it.
-        const masterPrice = resolveCatalogPurchasePrice(
+        patch.estimated_price = priceToInput(resolveCatalogPurchasePrice(
           { cost_price: ctx.cost_price, price: null },
           undefined,
-        )
-        if (masterPrice != null) {
-          patch.estimated_price = priceToInput(masterPrice)
-        }
+        ))
       }
       onPatchRef.current(patch)
 
@@ -349,9 +401,10 @@ export function ProcurementLineItemForm({
         )
       }
     } catch {
+      if (gen !== productFetchGen.current) return
       setProductContext(null)
     } finally {
-      setContextLoading(false)
+      if (gen === productFetchGen.current) setContextLoading(false)
     }
   }, [defaultStoreId])
 
@@ -360,10 +413,13 @@ export function ProcurementLineItemForm({
       setServiceMaster(null)
       return
     }
+    const gen = ++serviceFetchGen.current
     setServiceMasterLoading(true)
     try {
       const detail = await vendorApi.getService(serviceId)
+      if (gen !== serviceFetchGen.current) return
       setServiceMaster({
+        id: serviceId,
         sac_code: detail.sac_code,
         material_code: detail.material_code,
         purchase_price: detail.purchase_price,
@@ -374,42 +430,45 @@ export function ProcurementLineItemForm({
       })
       const patch: Partial<ItemRow> = {
         uom: detail.uom ? normalizeUom(detail.uom) : DEFAULT_UOM.service,
-      }
-      const masterPrice = resolveServicePurchasePrice(detail)
-      if (masterPrice != null) {
-        patch.estimated_price = priceToInput(masterPrice)
+        estimated_price: priceToInput(resolveServicePurchasePrice(detail)),
       }
       onPatchRef.current(patch)
     } catch {
+      if (gen !== serviceFetchGen.current) return
       setServiceMaster(null)
     } finally {
-      setServiceMasterLoading(false)
+      if (gen === serviceFetchGen.current) setServiceMasterLoading(false)
     }
   }, [])
 
   useEffect(() => {
     if (item.reference_id && isCatalogLine) loadVariants(item.reference_id)
-    else setVariants([])
+    else {
+      setVariants([])
+      setVariantsForId('')
+    }
   }, [item.reference_id, isCatalogLine, loadVariants])
 
   useEffect(() => {
-    if (isCatalogLine && item.reference_id) {
-      loadProductContext(item.reference_id, item.variant_id, destinationPlantId || undefined, {
-        applyPrice: true,
-      })
-    } else {
-      setProductContext(null)
+    const plantId = destinationPlantId || ''
+    const prev = catalogKeyRef.current
+    const productChanged = prev.referenceId !== item.reference_id || prev.variantId !== (item.variant_id || '')
+    const plantChanged = prev.plantId !== plantId
+    catalogKeyRef.current = {
+      referenceId: item.reference_id,
+      variantId: item.variant_id || '',
+      plantId,
     }
-    // Plant changes refresh stock context only — price is applied on product/variant select.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.reference_id, item.variant_id, isCatalogLine, loadProductContext])
 
-  useEffect(() => {
-    if (!(isCatalogLine && item.reference_id && destinationPlantId)) return
-    loadProductContext(item.reference_id, item.variant_id, destinationPlantId, {
-      applyPrice: false,
+    if (!isCatalogLine || !item.reference_id) {
+      setProductContext(null)
+      return
+    }
+    if (!productChanged && !plantChanged) return
+    loadProductContext(item.reference_id, item.variant_id, destinationPlantId || undefined, {
+      applyPrice: productChanged,
     })
-  }, [destinationPlantId, item.reference_id, item.variant_id, isCatalogLine, loadProductContext])
+  }, [item.reference_id, item.variant_id, destinationPlantId, isCatalogLine, loadProductContext])
 
   useEffect(() => {
     if (type === 'service' && item.reference_id) {
@@ -450,6 +509,11 @@ export function ProcurementLineItemForm({
   ])
 
   const handleItemTypeChange = (newType: RequisitionType) => {
+    productFetchGen.current += 1
+    serviceFetchGen.current += 1
+    variantFetchGen.current += 1
+    setProductContext(null)
+    setServiceMaster(null)
     onPatch({
       item_type: newType,
       reference_id: '',
@@ -466,13 +530,53 @@ export function ProcurementLineItemForm({
     })
   }
 
-  const handleReferenceChange = (id: string) => {
-    onPatch({
+  const handleReferenceChange = (id: string, listed?: CatalogPickSnapshot) => {
+    if (!id) {
+      productFetchGen.current += 1
+      serviceFetchGen.current += 1
+      variantFetchGen.current += 1
+      setProductContext(null)
+      setServiceMaster(null)
+      onPatch({
+        reference_id: '',
+        variant_id: '',
+        uom: DEFAULT_UOM[type],
+        estimated_price: '',
+      })
+      return
+    }
+
+    // Drop in-flight detail fetches so a slower previous product cannot overwrite this pick.
+    productFetchGen.current += 1
+    serviceFetchGen.current += 1
+    variantFetchGen.current += 1
+
+    const patch: Partial<ItemRow> = {
       reference_id: id,
       variant_id: '',
-      uom: id && uomFromMaster ? '' : DEFAULT_UOM[type],
-      estimated_price: '',
-    })
+    }
+    if (listed?.uom && uomFromMaster) {
+      patch.uom = normalizeUom(listed.uom)
+    } else if (!uomFromMaster) {
+      patch.uom = DEFAULT_UOM[type]
+    }
+
+    if (type !== 'consumption' && listed) {
+      const masterPrice = type === 'service'
+        ? resolveServicePurchasePrice(listed)
+        : resolveCatalogPurchasePrice(listed, undefined)
+      if (masterPrice != null) patch.estimated_price = priceToInput(masterPrice)
+    }
+
+    if (isCatalogLine) {
+      setProductContext(listed ? snapshotToProductContext(listed) : null)
+      setServiceMaster(null)
+    } else if (type === 'service') {
+      setServiceMaster(listed ? snapshotToServiceMaster(listed) : null)
+      setProductContext(null)
+    }
+
+    onPatch(patch)
   }
 
   const handleVariantChange = (variantId: string) => {
@@ -492,6 +596,14 @@ export function ProcurementLineItemForm({
 
   const selectorRequired = type !== 'asset'
   const hasTypeExtras = showServicePeriod || showAssetTag || showAccountAssignment
+  const variantsReady = variantsForId === item.reference_id
+  const masterFactsPending = Boolean(item.reference_id) && (
+    isCatalogLine
+      ? productContext?.product_id !== item.reference_id
+      : type === 'service'
+        ? serviceMaster?.id !== item.reference_id
+        : false
+  )
   const uomLoading =
     ((isCatalogLine && contextLoading) || (type === 'service' && serviceMasterLoading)) && !item.uom
 
@@ -530,78 +642,72 @@ export function ProcurementLineItemForm({
         is_taxable: productContext?.is_taxable,
       })
 
-  const lineToggle = (
-    <button
-      type="button"
-      onClick={toggleExpand}
-      aria-expanded={isExpanded}
-      aria-label={isExpanded ? `Collapse line ${lineNumber}` : `Expand line ${lineNumber}`}
-      title={isExpanded ? 'Collapse line' : 'Expand line'}
-      className="flex items-center gap-0.5 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-    >
-      {isExpanded
-        ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-        : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-        {lineNumber}
-      </span>
-    </button>
+  const lineHeader = (
+    <LineItemExpandHeader
+      lineNumber={lineNumber}
+      typeLabel={typeLabel}
+      expanded={isExpanded}
+      onToggle={toggleExpand}
+    />
   )
 
   if (!isExpanded) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 sm:px-4">
-        {lineToggle}
-        <button
-          type="button"
-          onClick={toggleExpand}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-80"
-        >
-          <LineCollapsedGlimpse
-            typeLabel={typeLabel}
-            title={summaryLabel}
-            quantity={item.quantity}
-            uom={item.uom}
-            unitPrice={unitPrice}
-            taxCode={item.tax_code}
-            taxAmount={lineTax.amount}
-            variantName={variantName}
-            masterFacts={masterFacts}
-            extras={[costCenterLabel, priorityLabel]}
-          />
-        </button>
-        <div
-          className="min-w-[9.5rem] w-[9.5rem] shrink-0 rounded-md border border-blue-100 bg-blue-50/70 px-2 py-1.5 text-right dark:border-blue-900/40 dark:bg-blue-950/20 sm:min-w-[10.5rem] sm:w-[10.5rem]"
-          title={`${formatCurrency(lineTotal)}${lineTax.amount > 0 ? ` (+${formatCurrency(lineTax.amount)} tax)` : ''}`}
-        >
-          <p className="text-[9px] font-semibold uppercase tracking-wide text-blue-500/80 leading-none">Total</p>
-          <p className="mt-0.5 text-xs font-semibold tabular-nums leading-snug text-blue-800 dark:text-blue-200">
-            {formatCurrency(lineTotal)}
-          </p>
-          {lineTax.amount > 0 && (
-            <p className="text-[10px] tabular-nums leading-snug text-blue-600/70 dark:text-blue-300/70">
-              +{formatCurrency(lineTax.amount)} tax
-            </p>
-          )}
-        </div>
-        {canRemove && (
+      <div className="flex flex-col gap-1.5 px-3 py-2 sm:px-4">
+        {lineHeader}
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={onRemove}
-            aria-label="Remove line"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+            onClick={toggleExpand}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-80"
           >
-            <Trash2 className="h-3.5 w-3.5 text-red-600" />
+            <LineCollapsedGlimpse
+              typeLabel=""
+              title={summaryLabel}
+              quantity={item.quantity}
+              uom={item.uom}
+              unitPrice={unitPrice}
+              taxCode={item.tax_code}
+              taxAmount={lineTax.amount}
+              variantName={variantName}
+              masterFacts={masterFacts}
+              extras={[costCenterLabel, priorityLabel]}
+            />
           </button>
-        )}
+          <div
+            className="min-w-[9.5rem] w-[9.5rem] shrink-0 rounded-md border border-blue-100 bg-blue-50/70 px-2 py-1.5 text-right dark:border-blue-900/40 dark:bg-blue-950/20 sm:min-w-[10.5rem] sm:w-[10.5rem]"
+            title={`${formatCurrency(lineTotal)}${lineTax.amount > 0 ? ` (+${formatCurrency(lineTax.amount)} tax)` : ''}`}
+          >
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-blue-500/80 leading-none">Total</p>
+            <p className="mt-0.5 text-xs font-semibold tabular-nums leading-snug text-blue-800 dark:text-blue-200">
+              {formatCurrency(lineTotal)}
+            </p>
+            {lineTax.amount > 0 && (
+              <p className="text-[10px] tabular-nums leading-snug text-blue-600/70 dark:text-blue-300/70">
+                +{formatCurrency(lineTax.amount)} tax
+              </p>
+            )}
+          </div>
+          {canRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label="Remove line"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-red-600" />
+            </button>
+          )}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex items-start gap-2 px-3 py-3 sm:px-4">
-      <div className="shrink-0 pt-5">{lineToggle}</div>
+    <div className="flex flex-col gap-2 px-3 py-3 sm:px-4">
+      {lineHeader}
 
+      <div className="flex items-start gap-2">
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {/* Row 1 — type / catalog / variant / qty / price / tax */}
         <div className={LINE_ROW_GRID}>
@@ -617,7 +723,7 @@ export function ProcurementLineItemForm({
           </LineField>
 
           {type === 'asset' ? (
-            <div className="min-w-0">
+            <div className="col-span-2 min-w-0">
               <ProcurementLineItemSelector
                 type={type}
                 referenceId={item.reference_id}
@@ -648,13 +754,14 @@ export function ProcurementLineItemForm({
             </LineField>
           )}
 
-          <LineField label="Variant">
+          {type !== 'asset' && (
+            <LineField label="Variant">
             {showVariantColumn ? (
               <div className="flex items-center gap-1">
                 <div className="min-w-0 flex-1">
                   {!item.reference_id ? (
                     <div className={dashedBoxCls}>Select product first</div>
-                  ) : variantsLoading ? (
+                  ) : !variantsReady ? (
                     <div className="flex h-8 items-center gap-1.5 text-[11px] text-gray-400">
                       <Loader2 className="h-3 w-3 animate-spin" /> Loading…
                     </div>
@@ -696,7 +803,8 @@ export function ProcurementLineItemForm({
             ) : (
               <div className={dashedBoxCls}>—</div>
             )}
-          </LineField>
+            </LineField>
+          )}
 
           <LineField label={QTY_LABELS[type]} required>
             <Input
@@ -800,7 +908,7 @@ export function ProcurementLineItemForm({
               {SERVICE_MASTER_SLOTS.map(label => (
                 <LineField key={label} label={label}>
                   <div className={`${readonlyBoxCls} font-mono tabular-nums`} title="From service master">
-                    {serviceMasterLoading && item.reference_id
+                    {serviceMasterLoading && masterFactsPending
                       ? 'Loading…'
                       : (getMasterFactValue(masterFacts, label) || '—')}
                   </div>
@@ -811,168 +919,81 @@ export function ProcurementLineItemForm({
             PRODUCT_MASTER_SLOTS.map(label => (
               <LineField key={label} label={label}>
                 <div className={`${readonlyBoxCls} font-mono tabular-nums`} title="From product master">
-                  {(contextLoading || variantsLoading) && item.reference_id
+                  {(contextLoading || variantsLoading) && masterFactsPending
                     ? 'Loading…'
                     : (getMasterFactValue(masterFacts, label) || '—')}
                 </div>
               </LineField>
             ))
           ) : showAssetTag ? (
-            <>
-              <LineField label="Asset Tag">
-                <Input
-                  value={item.asset_tag}
-                  onChange={e => onChange('asset_tag', e.target.value)}
-                  placeholder="Optional"
-                  className={lineInputCls}
-                />
-              </LineField>
-              <LineField label="Department" required error={hasError('cost_center_id')}>
-                <Select
-                  value={item.cost_center_id}
-                  onChange={v => onChange('cost_center_id', v)}
-                  options={selectOptionsWithBlank(
-                    costCentersLoading ? 'Loading…' : 'Select cost center…',
-                    costCenters.map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
-                  )}
-                  placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
-                  disabled={costCentersLoading}
-                  className="w-full min-w-0"
-                  triggerClassName={`${lineSelectTrigger}${hasError('cost_center_id') ? ` ${fieldErrorCls}` : ''}`}
-                  aria-label="Cost center"
-                />
-              </LineField>
-              <LineField label="Priority">
-                <Select
-                  value={item.priority}
-                  onChange={v => onChange('priority', v)}
-                  options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
-                  className="w-full min-w-0"
-                  triggerClassName={lineSelectTrigger}
-                  aria-label="Priority"
-                />
-              </LineField>
-              <LineField label="Required By">
-                <Input
-                  type="date"
-                  value={item.needed_by_date}
-                  onChange={e => onChange('needed_by_date', e.target.value)}
-                  className={lineInputCls}
-                />
-              </LineField>
-              <div className="hidden lg:block" aria-hidden />
-            </>
-          ) : showAccountAssignment ? (
-            <>
-              <LineField label="Account Assignment">
-                <Input
-                  value={item.account_assignment}
-                  onChange={e => onChange('account_assignment', e.target.value)}
-                  placeholder="GL, project…"
-                  className={lineInputCls}
-                />
-              </LineField>
-              <LineField label="Department" required error={hasError('cost_center_id')}>
-                <Select
-                  value={item.cost_center_id}
-                  onChange={v => onChange('cost_center_id', v)}
-                  options={selectOptionsWithBlank(
-                    costCentersLoading ? 'Loading…' : 'Select cost center…',
-                    costCenters.map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
-                  )}
-                  placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
-                  disabled={costCentersLoading}
-                  className="w-full min-w-0"
-                  triggerClassName={`${lineSelectTrigger}${hasError('cost_center_id') ? ` ${fieldErrorCls}` : ''}`}
-                  aria-label="Cost center"
-                />
-              </LineField>
-              <LineField label="Priority">
-                <Select
-                  value={item.priority}
-                  onChange={v => onChange('priority', v)}
-                  options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
-                  className="w-full min-w-0"
-                  triggerClassName={lineSelectTrigger}
-                  aria-label="Priority"
-                />
-              </LineField>
-              <LineField label="Required By">
-                <Input
-                  type="date"
-                  value={item.needed_by_date}
-                  onChange={e => onChange('needed_by_date', e.target.value)}
-                  className={lineInputCls}
-                />
-              </LineField>
-              <div className="hidden lg:block" aria-hidden />
-            </>
-          ) : null}
-        </div>
-
-        {/* Row 3 — department / priority / date / note (product & service) */}
-        {(isCatalogLine || showServicePeriod) ? (
-          <div className={LINE_ROW_GRID}>
-            <LineField label="Department" required error={hasError('cost_center_id')}>
-              <Select
-                value={item.cost_center_id}
-                onChange={v => onChange('cost_center_id', v)}
-                options={selectOptionsWithBlank(
-                  costCentersLoading ? 'Loading…' : 'Select cost center…',
-                  costCenters.map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
-                )}
-                placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
-                disabled={costCentersLoading}
-                className="w-full min-w-0"
-                triggerClassName={`${lineSelectTrigger}${hasError('cost_center_id') ? ` ${fieldErrorCls}` : ''}`}
-                aria-label="Cost center"
-              />
-            </LineField>
-            <LineField label="Priority">
-              <Select
-                value={item.priority}
-                onChange={v => onChange('priority', v)}
-                options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
-                className="w-full min-w-0"
-                triggerClassName={lineSelectTrigger}
-                aria-label="Priority"
-              />
-            </LineField>
-            <LineField label="Required By">
+            <LineField label="Asset Tag">
               <Input
-                type="date"
-                value={item.needed_by_date}
-                onChange={e => onChange('needed_by_date', e.target.value)}
+                value={item.asset_tag}
+                onChange={e => onChange('asset_tag', e.target.value)}
+                placeholder="Optional"
                 className={lineInputCls}
               />
             </LineField>
-            <LineField label="Note" className="col-span-2 sm:col-span-3 lg:col-span-3">
-              <div className="relative">
-                <FileText className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
-                <Textarea
-                  rows={1}
-                  className="min-h-8 h-8 w-full resize-y overflow-auto rounded-md border-gray-200 bg-white py-1.5 pl-7 pr-2 text-xs leading-snug shadow-none placeholder:text-gray-300"
-                  placeholder={hasTypeExtras ? 'Optional…' : 'Optional notes'}
-                  value={item.notes}
-                  onChange={e => onChange('notes', e.target.value)}
-                />
-              </div>
+          ) : showAccountAssignment ? (
+            <LineField label="Account Assignment">
+              <Input
+                value={item.account_assignment}
+                onChange={e => onChange('account_assignment', e.target.value)}
+                placeholder="GL, project…"
+                className={lineInputCls}
+              />
             </LineField>
-          </div>
-        ) : (
-          <LineField label="Note">
+          ) : null}
+        </div>
+
+        {/* Row 3 — department / priority / date / note — same columns for every type */}
+        <div className={LINE_ROW_GRID}>
+          <LineField label="Department" required error={hasError('cost_center_id')}>
+            <Select
+              value={item.cost_center_id}
+              onChange={v => onChange('cost_center_id', v)}
+              options={selectOptionsWithBlank(
+                costCentersLoading ? 'Loading…' : 'Select cost center…',
+                costCenters.map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
+              )}
+              placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
+              disabled={costCentersLoading}
+              className="w-full min-w-0"
+              triggerClassName={`${lineSelectTrigger}${hasError('cost_center_id') ? ` ${fieldErrorCls}` : ''}`}
+              aria-label="Cost center"
+            />
+          </LineField>
+          <LineField label="Priority">
+            <Select
+              value={item.priority}
+              onChange={v => onChange('priority', v)}
+              options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+              className="w-full min-w-0"
+              triggerClassName={lineSelectTrigger}
+              aria-label="Priority"
+            />
+          </LineField>
+          <LineField label="Required By">
+            <Input
+              type="date"
+              value={item.needed_by_date}
+              onChange={e => onChange('needed_by_date', e.target.value)}
+              className={lineInputCls}
+            />
+          </LineField>
+          <LineField label="Note" className="col-span-2 sm:col-span-3 lg:col-span-3">
             <div className="relative">
               <FileText className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
               <Textarea
                 rows={1}
                 className="min-h-8 h-8 w-full resize-y overflow-auto rounded-md border-gray-200 bg-white py-1.5 pl-7 pr-2 text-xs leading-snug shadow-none placeholder:text-gray-300"
-                placeholder="Optional notes"
+                placeholder={hasTypeExtras ? 'Optional…' : 'Optional notes'}
                 value={item.notes}
                 onChange={e => onChange('notes', e.target.value)}
               />
             </div>
           </LineField>
-        )}
+        </div>
       </div>
 
       <div className="flex w-[9.5rem] shrink-0 flex-col gap-2 pt-5 sm:w-[10.5rem]">
@@ -1000,6 +1021,7 @@ export function ProcurementLineItemForm({
             <Trash2 className="h-3.5 w-3.5 text-red-600" />
           </button>
         )}
+      </div>
       </div>
 
       <Dialog open={productDetailsOpen} onOpenChange={setProductDetailsOpen}>

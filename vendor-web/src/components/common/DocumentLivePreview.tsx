@@ -3,9 +3,9 @@ import { Eye, Loader2, Pencil, FilePlus, Trash2, ExternalLink, Layers } from 'lu
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { extractOfferTemplateFromDoc, addOfferPage, removeOfferPage } from '@/lib/offerPages'
-import { createDefaultContinuationPage } from '@/lib/documentPreview'
+import { createDefaultContinuationPage, injectPreviewFitCss } from '@/lib/documentPreview'
 
-const DEFAULT_SCALE = 0.88
+const DEFAULT_SCALE = 1
 const DEFAULT_WIDTH = 720
 
 export const DocumentLivePreview = memo(function DocumentLivePreview({
@@ -194,7 +194,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     const doc = iframe.contentDocument
     if (!doc) return
     doc.open()
-    doc.write(html)
+    doc.write(injectPreviewFitCss(html))
     doc.close()
     setupEditable(doc)
     const t = window.setTimeout(resizeFrame, 80)
@@ -241,12 +241,12 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     setSelectedPage(prev => Math.min(prev, Math.max(1, pageCount - 1)))
   }
 
-  const scaledWidth = containerWidth ?? (scale < 1 ? `${Math.round(documentWidth * scale)}px` : '100%')
-  const scaledHeight = scale < 1 ? Math.ceil(frameHeight * scale) : frameHeight
+  const scaledWidth = containerWidth ?? '100%'
+  const scaledHeight = scale < 1 && containerWidth ? Math.ceil(frameHeight * scale) : frameHeight
   const multiPage = pageCount > 1
 
   return (
-    <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+    <div className="min-w-0 space-y-3 lg:sticky lg:top-4 lg:self-start">
       {/* Title row */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -353,7 +353,9 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
 
       <div
         ref={scrollRef}
-        className="border rounded-xl overflow-auto bg-gray-100 min-h-[560px] max-h-[85vh] flex items-start justify-center py-2 px-2 sm:py-3 sm:px-3"
+        className={containerWidth
+          ? 'border rounded-xl overflow-auto bg-gray-100 min-h-[560px] max-h-[85vh] flex items-start justify-center py-3 px-2'
+          : 'border rounded-xl overflow-auto bg-white min-h-[560px] max-h-[85vh] w-full'}
       >
         {loading || !html ? (
           <div className="flex flex-col items-center justify-center gap-2 w-full min-h-[480px] text-gray-400">
@@ -362,10 +364,9 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
           </div>
         ) : (
           <div
-            className="mx-auto shrink-0 shadow-lg rounded-lg bg-white overflow-hidden"
+            className={containerWidth ? 'mx-auto shrink-0 shadow-lg rounded-lg bg-white overflow-hidden' : 'w-full bg-white overflow-hidden'}
             style={{
               width: scaledWidth,
-              maxWidth: containerWidth ? undefined : '760px',
               height: scaledHeight,
             }}
           >

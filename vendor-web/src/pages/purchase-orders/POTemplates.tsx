@@ -13,9 +13,13 @@ import {
   Palette, ToggleLeft, FileOutput,
 } from 'lucide-react'
 import { generatePOHtml, PO_TEMPLATE_COLORS, DEFAULT_PO_SETTINGS } from '@/lib/poTemplates'
+import { injectPreviewFitCss } from '@/lib/documentPreview'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { SingleImagePreview } from '@/components/common/CatalogMediaLightbox'
 import type { POTemplateSettings } from '@/lib/poTemplates'
+
+const PO_PAGE_W = 820
+const PO_PAGE_H = 1160
 
 function resolveOriginPath(url: string) {
   if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url
@@ -320,15 +324,13 @@ export default function POTemplatesPage() {
   const previewRef = useRef<HTMLDivElement>(null)
   const [previewScale, setPreviewScale] = useState(0)
 
-  // Dynamically compute scale so the A4 content (820×1160 px) fills the preview box
+  // Scale to the full preview-column width so the template uses the left pane
   useLayoutEffect(() => {
     const el = previewRef.current
     if (!el) return
     const recalc = () => {
-      const { width, height } = el.getBoundingClientRect()
-      if (width > 0 && height > 0) {
-        setPreviewScale(Math.min(width / 820, height / 1160))
-      }
+      const width = el.clientWidth
+      if (width > 0) setPreviewScale(width / PO_PAGE_W)
     }
     recalc()
     const ro = new ResizeObserver(recalc)
@@ -354,7 +356,7 @@ export default function POTemplatesPage() {
       payment_terms: settings.payment_terms || SAMPLE_PO.payment_terms,
     }
     const html = generatePOHtml(sampleData, { ...settings, logo_url: logoUrl || undefined }, window.location.origin)
-    setPreviewHtml(html)
+    setPreviewHtml(injectPreviewFitCss(html))
   }, [settings, vendor, logoUrl])
 
   const set = useCallback(<K extends keyof POTemplateSettings>(key: K, value: POTemplateSettings[K]) => {
@@ -420,10 +422,10 @@ export default function POTemplatesPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 items-start">
-        {/* Left: Live Preview — sticky, fills viewport height, no scrollbar */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start">
+        {/* Left: Live Preview — fills the column width */}
         <div
-          className="sticky top-4 flex flex-col"
+          className="sticky top-4 flex min-w-0 flex-col"
           style={{ height: 'calc(100vh - 120px)' }}
         >
           <div className="flex items-center gap-2 mb-3 shrink-0">
@@ -433,32 +435,35 @@ export default function POTemplatesPage() {
           </div>
           <div
             ref={previewRef}
-            className="flex-1 border rounded-xl overflow-hidden bg-gray-50 relative shadow-inner"
+            className="flex-1 min-h-0 min-w-0 border rounded-xl overflow-y-auto bg-white relative shadow-inner"
+            style={{ scrollbarGutter: 'stable' }}
           >
             {previewScale > 0 && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: `${820 / previewScale}px`,
-                  height: `${1160 / previewScale}px`,
-                  transform: `scale(${previewScale})`,
-                  transformOrigin: 'top left',
-                }}
-              >
-                <iframe
-                  srcDoc={previewHtml}
-                  title="PO Preview"
-                  className="border-0 bg-white"
+              <div style={{ width: '100%', height: PO_PAGE_H * previewScale, position: 'relative' }}>
+                <div
                   style={{
-                    width: '820px',
-                    height: '1160px',
-                    pointerEvents: 'none',
-                    display: 'block',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: PO_PAGE_W,
+                    height: PO_PAGE_H,
+                    transform: `scale(${previewScale})`,
+                    transformOrigin: 'top left',
                   }}
-                  scrolling="no"
-                />
+                >
+                  <iframe
+                    srcDoc={previewHtml}
+                    title="PO Preview"
+                    className="border-0 bg-white"
+                    style={{
+                      width: PO_PAGE_W,
+                      height: PO_PAGE_H,
+                      pointerEvents: 'none',
+                      display: 'block',
+                    }}
+                    scrolling="no"
+                  />
+                </div>
               </div>
             )}
           </div>

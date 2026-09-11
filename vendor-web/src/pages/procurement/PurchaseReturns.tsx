@@ -23,6 +23,7 @@ import {
 import { printReturn, downloadReturnPdf, printDebitNote, downloadDebitNotePdf } from '@/lib/procurementPrintUtils'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
+import { actionDocMessage, createdDocMessage, pickDocNo } from '@/lib/documentToast'
 
 // ─────────────────────────────────────────────────────────────────
 // Status config
@@ -109,7 +110,7 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
     const entries: ReturnLineEntry[] = (po.items ?? []).map((item: PurchaseOrderItem) => ({
       po_item_id: item.id,
       product_id: item.product_id ?? '',
-      product_name: item.product_name ?? item.description ?? item.notes ?? 'Item',
+      product_name: item.product_name ?? item.service_name ?? item.description ?? item.notes ?? 'Item',
       ordered_qty: item.quantity_ordered ?? 0,
       received_qty: item.quantity_received ?? 0,
       unit_of_measure: item.unit_of_measure ?? 'piece',
@@ -178,7 +179,9 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-returns'] })
       queryClient.invalidateQueries({ queryKey: ['vendor', 'purchase-returns'] })
-      toast.success(`Purchase return ${(data as PurchaseReturn).return_number ?? ''} created successfully.`)
+      toast.success(createdDocMessage('Purchase return', pickDocNo(data, 'return_number'), {
+        extra: [{ label: 'PO', number: selectedPO?.po_number }],
+      }))
       handleClose()
     },
     onError: (err) => {
@@ -248,7 +251,7 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose() }}>
-      <DialogContent className="w-[95vw] max-w-7xl flex flex-col max-h-[92vh] p-0 gap-0">
+      <DialogContent className="flex max-h-[92vh] w-[min(96vw,100rem)] flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <DialogTitle>Create Purchase Return</DialogTitle>
         </DialogHeader>
@@ -581,7 +584,7 @@ function ReturnDetail({ returnId, onBack }: { returnId: string; onBack: () => vo
 
   const approveMut = useMutation({
     mutationFn: () => vendorApi.approvePurchaseReturn(returnId),
-    onSuccess: () => { invalidate(); toast.success('Purchase return approved.') },
+    onSuccess: (data) => { invalidate(); toast.success(actionDocMessage('Purchase return', pickDocNo(data, 'return_number') || ret?.return_number, 'approved')) },
     onError: (err) => toast.error(extractApiError(err, 'Could not approve return')),
   })
   const dispatchMut = useMutation({
@@ -590,26 +593,26 @@ function ReturnDetail({ returnId, onBack }: { returnId: string; onBack: () => vo
       dispatch_date: dispatch.dispatch_date || undefined,
       tracking_number: dispatch.tracking_number || undefined,
     }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       invalidate()
       setShowDispatchDialog(false)
-      toast.success('Goods marked as dispatched to supplier.')
+      toast.success(actionDocMessage('Purchase return', pickDocNo(data, 'return_number') || ret?.return_number, 'goods dispatched to supplier'))
     },
     onError: (err) => toast.error(extractApiError(err, 'Could not mark goods dispatched')),
   })
   const confirmMut = useMutation({
     mutationFn: () => vendorApi.confirmPurchaseReturn(returnId),
-    onSuccess: () => { invalidate(); toast.success('Supplier confirmation recorded.') },
+    onSuccess: (data) => { invalidate(); toast.success(actionDocMessage('Purchase return', pickDocNo(data, 'return_number') || ret?.return_number, 'supplier confirmation recorded')) },
     onError: (err) => toast.error(extractApiError(err, 'Could not confirm return')),
   })
   const closeMut = useMutation({
     mutationFn: () => vendorApi.closePurchaseReturn(returnId),
-    onSuccess: () => { invalidate(); toast.success('Purchase return closed.') },
+    onSuccess: (data) => { invalidate(); toast.success(actionDocMessage('Purchase return', pickDocNo(data, 'return_number') || ret?.return_number, 'closed')) },
     onError: (err) => toast.error(extractApiError(err, 'Could not close return')),
   })
   const cancelMut = useMutation({
     mutationFn: () => vendorApi.cancelPurchaseReturn(returnId),
-    onSuccess: () => { invalidate(); toast.warning('Purchase return cancelled.') },
+    onSuccess: (data) => { invalidate(); toast.warning(actionDocMessage('Purchase return', pickDocNo(data, 'return_number') || ret?.return_number, 'cancelled')) },
     onError: (err) => toast.error(extractApiError(err, 'Could not cancel return')),
   })
 

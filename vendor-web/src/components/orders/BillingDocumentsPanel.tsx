@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { createdDocMessage } from '@/lib/documentToast'
 import {
   FileText, Plus, ExternalLink, Loader2, CheckCircle2,
   AlertCircle, Clock,
@@ -78,7 +79,12 @@ function BillModal({
         notes: notes || undefined,
       }),
     onSuccess: (inv) => {
-      toast.success(`Invoice ${inv.invoice_number} created`)
+      toast.success(createdDocMessage('Invoice', inv.invoice_number, {
+        extra: [
+          { label: 'delivery', number: delivery.delivery_number },
+          { label: 'order', number: order.order_number },
+        ],
+      }))
       onCreated(inv as unknown as BriefInvoice)
       onClose()
     },

@@ -3,8 +3,62 @@ import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useProducts, useServices } from '@/hooks/useVendor'
 import { useAssetCategories } from '@/hooks/useFinance'
 import type { RequisitionType } from '@/components/procurement/procurementLineItemTypes'
+import type { Product, Service } from '@/types'
 
 export type { RequisitionType } from '@/components/procurement/procurementLineItemTypes'
+
+/** List-cache snapshot so the line can seed price / UoM / codes without waiting on detail fetches. */
+export type CatalogPickSnapshot = {
+  id: string
+  name?: string
+  uom?: string | null
+  cost_price?: number | null
+  price?: number | null
+  purchase_price?: number | null
+  purchase_price_fixed?: number | null
+  hsn_code?: string | null
+  sac_code?: string | null
+  barcode?: string | null
+  sku?: string | null
+  material_code?: string | null
+  gst_rate?: number | null
+  tax_rate?: number | null
+  is_taxable?: boolean
+}
+
+export function productToCatalogSnapshot(p: Product): CatalogPickSnapshot {
+  return {
+    id: p.id,
+    name: p.name,
+    uom: p.uom,
+    cost_price: p.cost_price,
+    price: p.price,
+    hsn_code: p.hsn_code,
+    barcode: p.barcode,
+    sku: p.sku,
+    material_code: p.material_code,
+    gst_rate: p.gst_rate,
+    tax_rate: p.tax_rate,
+    is_taxable: p.is_taxable,
+  }
+}
+
+export function serviceToCatalogSnapshot(s: Service): CatalogPickSnapshot {
+  return {
+    id: s.id,
+    name: s.name,
+    uom: s.uom,
+    cost_price: (s as { cost_price?: number | null }).cost_price,
+    price: s.price,
+    purchase_price: s.purchase_price,
+    purchase_price_fixed: s.purchase_price_fixed,
+    sac_code: s.sac_code,
+    material_code: s.material_code,
+    gst_rate: s.gst_rate,
+    tax_rate: s.tax_rate,
+    is_taxable: s.is_taxable,
+  }
+}
 
 const lineSelectTrigger =
   'h-8 w-full min-w-0 text-xs border-gray-200 bg-white rounded-md shadow-none'
@@ -15,7 +69,7 @@ interface Props {
   type: RequisitionType
   referenceId: string
   description: string
-  onReferenceChange: (id: string) => void
+  onReferenceChange: (id: string, listed?: CatalogPickSnapshot) => void
   onDescriptionChange: (value: string) => void
   className?: string
   /** When true, omit built-in labels (parent LineField owns the label). */
@@ -60,7 +114,10 @@ export function ProcurementLineItemSelector({
         )}
         <Select
           value={referenceId}
-          onChange={onReferenceChange}
+          onChange={id => {
+            const p = products.find(x => x.id === id)
+            onReferenceChange(id, p ? productToCatalogSnapshot(p) : undefined)
+          }}
           options={selectOptionsWithBlank(
             'Select product…',
             products.map(p => ({ value: p.id, label: p.name, hint: p.sku || undefined })),
@@ -89,7 +146,10 @@ export function ProcurementLineItemSelector({
         )}
         <Select
           value={referenceId}
-          onChange={onReferenceChange}
+          onChange={id => {
+            const p = products.find(x => x.id === id)
+            onReferenceChange(id, p ? productToCatalogSnapshot(p) : undefined)
+          }}
           options={selectOptionsWithBlank(
             'Select consumable…',
             products.map(p => ({ value: p.id, label: p.name, hint: p.sku || undefined })),
@@ -118,7 +178,10 @@ export function ProcurementLineItemSelector({
         )}
         <Select
           value={referenceId}
-          onChange={onReferenceChange}
+          onChange={id => {
+            const s = services.find(x => x.id === id)
+            onReferenceChange(id, s ? serviceToCatalogSnapshot(s) : undefined)
+          }}
           options={selectOptionsWithBlank(
             'Select service…',
             services.map(s => ({ value: s.id, label: s.name })),
@@ -139,16 +202,19 @@ export function ProcurementLineItemSelector({
 
   if (type === 'asset') {
     return (
-      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-1.5 ${className ?? ''}`}>
+      <div className={`grid min-w-0 grid-cols-2 gap-x-2 gap-y-1.5 ${className ?? ''}`}>
         <div className="min-w-0">
           {!hideLabel && (
-            <p className="text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
-              Asset Category
+            <p
+              title="Asset Category"
+              className="flex h-4 items-center overflow-hidden text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none"
+            >
+              <span className="truncate">Asset Category</span>
             </p>
           )}
           <Select
             value={referenceId}
-            onChange={onReferenceChange}
+            onChange={id => onReferenceChange(id)}
             options={selectOptionsWithBlank(
               'Select category (optional)…',
               (categories as { id: string; name: string }[]).map(c => ({ value: c.id, label: c.name })),
@@ -162,8 +228,11 @@ export function ProcurementLineItemSelector({
         </div>
         <div className="min-w-0">
           {!hideLabel && (
-            <p className="text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
-              Asset Description <span className="ml-0.5 text-red-500">*</span>
+            <p
+              title="Asset Description"
+              className="flex h-4 items-center overflow-hidden text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none"
+            >
+              <span className="truncate">Asset Description <span className="ml-0.5 text-red-500">*</span></span>
             </p>
           )}
           <Input

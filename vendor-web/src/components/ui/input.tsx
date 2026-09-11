@@ -23,10 +23,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type,
       className={cn(
         `flex h-10 w-full rounded-md ${formFieldBorderClassName} bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50`,
         formFieldFocusClassName,
-        // Keep the native calendar/clock indicator fully visible inside the field
-        // (extra right padding + inset margin so the icon never clips the border).
-        isDateLike && 'cursor-pointer overflow-hidden pr-10 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:mr-1 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-datetime-edit]:min-w-0',
-        className
+        isDateLike && 'cursor-pointer [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-datetime-edit]:min-w-0',
+        className,
+        // Last so caller `px-*` / `overflow-hidden` cannot pull the native picker
+        // icon onto the rounded border (Chromium clips it against the outline).
+        isDateLike && 'appearance-auto overflow-visible pr-8 [&::-webkit-calendar-picker-indicator]:mr-2 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80',
       )}
       ref={ref}
       {...props}

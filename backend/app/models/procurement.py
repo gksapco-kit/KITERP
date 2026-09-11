@@ -117,7 +117,13 @@ class PurchaseOrder(Base):
     closed_at = Column(DateTime(timezone=True))
 
     supplier = relationship("Supplier", back_populates="purchase_orders", lazy="selectin")
-    items = relationship("PurchaseOrderItem", back_populates="purchase_order", lazy="selectin", cascade="all, delete-orphan")
+    items = relationship(
+        "PurchaseOrderItem",
+        back_populates="purchase_order",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        order_by="PurchaseOrderItem.id",
+    )
     receipts = relationship("PurchaseOrderReceipt", back_populates="purchase_order", lazy="noload", cascade="all, delete-orphan")
     requisition = relationship("PurchaseRequisition", foreign_keys=[requisition_id], lazy="selectin")
     approvals = relationship("PurchaseOrderApproval", back_populates="purchase_order",

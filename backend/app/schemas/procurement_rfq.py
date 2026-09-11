@@ -129,5 +129,6 @@ class SupplierQuotationUpdate(BaseModel):
 
 
 class AcceptRejectQuotationRequest(BaseModel):
-    action: str   # accept | reject
+    # Optional: the /accept and /reject routes already imply the action.
+    action: Optional[str] = None
     notes: Optional[str] = None

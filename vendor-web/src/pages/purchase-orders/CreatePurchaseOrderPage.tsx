@@ -15,7 +15,7 @@ import {
 import { ProcurementApproverFields } from '@/components/procurement/ProcurementApproverFields'
 import {
   useCreatePurchaseOrder, useSuppliers, useProducts, useServices,
-  useCreateSupplier, useRequisitions,
+  useCreateSupplier, useRequisitions, usePurchaseOrders,
 } from '@/hooks/useVendor'
 import { useTaxCodes, useCostCenters } from '@/hooks/useFinance'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -50,6 +50,7 @@ import {
 } from '@/components/procurement/procurementLineItemTypes'
 import { toast } from 'sonner'
 import { LineCollapsedGlimpse } from '@/components/procurement/LineCollapsedGlimpse'
+import { LineItemExpandHeader, LineItemsExpandAllActions } from '@/components/procurement/LineItemExpandHeader'
 import {
   buildProductMasterFacts,
   buildServiceMasterFacts,
@@ -61,7 +62,6 @@ import {
   ArrowLeft, Loader2, Plus, X, Trash2,
   UserPlus, Building2, ExternalLink,
   FileText, Phone, Mail, MapPin, Hash,
-  ChevronDown, ChevronRight,
 } from 'lucide-react'
 
 const PO_PENDING_SUPPLIER_KEY = 'po_pending_supplier'
@@ -159,8 +159,9 @@ function supplierAddressLine(s?: Supplier | null): string | null {
 
 function supplierOptionHint(s: Supplier): string | undefined {
   const parts = [
+    s.company_name && s.company_name !== s.name ? s.company_name : null,
     s.gstin ? `GSTIN ${s.gstin}` : null,
-    s.address?.city || s.address?.state || null,
+    s.email || null,
     s.phone || null,
   ].filter(Boolean) as string[]
   return parts.length ? parts.join(' · ') : undefined
@@ -216,7 +217,7 @@ interface InventoryAlertPrefill { productId: string; variantId?: string; product
 // ─── Fiori-style field label ───────────────────────────────────────────────────
 function FL({ children, required }: { children: ReactNode; required?: boolean }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
+    <p className="truncate text-[10px] font-semibold uppercase tracking-wide leading-none text-gray-400 dark:text-gray-500 select-none">
       {children}{required && <span className="ml-0.5 text-red-500">*</span>}
     </p>
   )
@@ -260,7 +261,9 @@ function LineField({
 }) {
   return (
     <div className={`min-w-0 ${className ?? ''}`}>
-      <FL required={required}>{label}</FL>
+      <div className="flex h-4 items-center" title={label}>
+        <FL required={required}>{label}</FL>
+      </div>
       <div className="mt-1">{children}</div>
     </div>
   )
@@ -297,10 +300,19 @@ export default function CreatePurchaseOrderPage() {
   const navigate = useNavigate()
   const createMut = useCreatePurchaseOrder()
   const createSupplierMut = useCreateSupplier()
-  const { data: suppliersData, refetch: refetchSuppliers } = useSuppliers({ is_active: true })
+  const { data: suppliersData, refetch: refetchSuppliers } = useSuppliers({ is_active: true, size: 500 })
   const { data: productsData } = useProducts({ size: 500, status: 'active' })
   const { data: servicesData } = useServices({ size: 500, status: 'active' })
   const { data: requisitionsData } = useRequisitions({ size: 100 })
+  const { data: copyDocs, isLoading: copyDocsLoading } = usePurchaseOrders({ size: 100 })
+  const copySuggestions = useMemo(() => {
+    const items = copyDocs?.items ?? []
+    return items.map(po => ({
+      number: po.po_number,
+      title: po.supplier_name || undefined,
+      hint: [po.status?.replace(/_/g, ' '), po.order_date].filter(Boolean).join(' · ') || undefined,
+    }))
+  }, [copyDocs])
   const selectedStore = useVendorStore(s => s.selectedStore)
   const selectedBranch = useVendorStore(s => s.selectedBranch)
   const vendorGstin = useVendorStore(s => s.vendor?.gstin)
@@ -668,6 +680,7 @@ export default function CreatePurchaseOrderPage() {
       applyCopiedPo(po)
     } catch (err) {
       toast.error(extractApiError(err, 'No purchase order found with that number'))
+      throw err
     } finally {
       setCopyLoading(false)
     }
@@ -856,6 +869,14 @@ export default function CreatePurchaseOrderPage() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <CopyFromDocumentField
+            placeholder="Search PO number or supplier…"
+            onCopy={handleCopyFromNumber}
+            loading={copyLoading}
+            copiedFrom={copiedFromNumber}
+            suggestions={copySuggestions}
+            suggestionsLoading={copyDocsLoading}
+          />
           <Button type="button" variant="outline" size="sm" onClick={handleClose} className="h-8 rounded-full border-gray-300 px-4 text-xs font-medium text-gray-600">
             Cancel
           </Button>
@@ -873,19 +894,13 @@ export default function CreatePurchaseOrderPage() {
       </div>
 
       {/* ── Scrollable form ─────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto px-5 py-5 md:px-8 lg:px-10">
+      <div className="flex-1 overflow-auto px-3 py-4 sm:px-4 lg:px-5">
         <form id="create-po-form" onSubmit={handleSubmit}>
-          <div className="mx-auto max-w-6xl space-y-4">
+          <div className="w-full space-y-4">
 
             {/* ══ ORDER DETAILS ══════════════════════════════════════════════ */}
             <Section title="Order Details">
               <div className="p-5 space-y-4">
-                <CopyFromDocumentField
-                  placeholder="Enter PO number, e.g. PO/2025-26/0042"
-                  onCopy={handleCopyFromNumber}
-                  loading={copyLoading}
-                  copiedFrom={copiedFromNumber}
-                />
                 {/* Row 1: PR Ref | Supplier | Expected Delivery | Currency */}
                 <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
                   <HeaderField
@@ -934,6 +949,8 @@ export default function CreatePurchaseOrderPage() {
                       className="w-full"
                       triggerClassName="h-8 w-full text-sm rounded-md border-gray-200"
                       showSelectedHint={false}
+                      searchable
+                      searchPlaceholder="Search name, email, GSTIN or phone…"
                     />
                   </HeaderField>
 
@@ -1046,9 +1063,15 @@ export default function CreatePurchaseOrderPage() {
             <Section
               title={`Line Items${req('material') || req('quantity') || req('net_price') ? ' *' : ''}`}
               action={
-                <Button type="button" variant="outline" size="sm" onClick={addItem} className="h-6 gap-1 rounded-full border-blue-200 px-3 text-[11px] text-blue-600 hover:bg-blue-50">
-                  <Plus className="h-3 w-3" /> Add Item
-                </Button>
+                <div className="flex items-center gap-2">
+                  <LineItemsExpandAllActions
+                    onExpandAll={() => setCollapsedLineUids(new Set())}
+                    onCollapseAll={() => setCollapsedLineUids(new Set(items.map(i => i.uid)))}
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={addItem} className="h-6 gap-1 rounded-full border-blue-200 px-3 text-[11px] text-blue-600 hover:bg-blue-50">
+                    <Plus className="h-3 w-3" /> Add Item
+                  </Button>
+                </div>
               }
             >
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -1094,35 +1117,27 @@ export default function CreatePurchaseOrderPage() {
                         gst_rate: pd?.gst_rate ?? catalog?.gst_rate,
                         is_taxable: pd?.is_taxable ?? catalog?.is_taxable,
                       })
-                  const lineToggle = (
-                    <button
-                      type="button"
-                      onClick={toggleLine}
-                      aria-expanded={lineExpanded}
-                      aria-label={lineExpanded ? `Collapse line ${idx + 1}` : `Expand line ${idx + 1}`}
-                      title={lineExpanded ? 'Collapse line' : 'Expand line'}
-                      className="flex items-center gap-0.5 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                    >
-                      {lineExpanded
-                        ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-                        : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                        {idx + 1}
-                      </span>
-                    </button>
+                  const lineHeader = (
+                    <LineItemExpandHeader
+                      lineNumber={idx + 1}
+                      typeLabel={typeLabel}
+                      expanded={lineExpanded}
+                      onToggle={toggleLine}
+                    />
                   )
 
                   if (!lineExpanded) {
                     return (
-                      <div key={item.uid} className="flex items-center gap-2 px-3 py-2 sm:px-4">
-                        {lineToggle}
+                      <div key={item.uid} className="flex flex-col gap-1.5 px-3 py-2 sm:px-4">
+                        {lineHeader}
+                        <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={toggleLine}
                           className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-80"
                         >
                           <LineCollapsedGlimpse
-                            typeLabel={typeLabel}
+                            typeLabel=""
                             title={summaryLabel}
                             quantity={item.quantity}
                             uom={item.unit_of_measure}
@@ -1162,14 +1177,16 @@ export default function CreatePurchaseOrderPage() {
                             <Trash2 className="h-3.5 w-3.5 text-red-600" />
                           </button>
                         )}
+                        </div>
                       </div>
                     )
                   }
 
                   return (
-                    <div key={item.uid} className="flex items-start gap-2 px-3 py-3 sm:px-4">
-                      <div className="shrink-0 pt-5">{lineToggle}</div>
+                    <div key={item.uid} className="flex flex-col gap-2 px-3 py-3 sm:px-4">
+                      {lineHeader}
 
+                      <div className="flex items-start gap-2">
                       <div className="flex min-w-0 flex-1 flex-col gap-2">
                         {/* Row 1 */}
                         <div className={LINE_ROW_GRID}>
@@ -1353,50 +1370,14 @@ export default function CreatePurchaseOrderPage() {
                               </LineField>
                             ))
                           ) : item.item_type === 'asset' ? (
-                            <>
-                              <LineField label="Asset Tag">
-                                <Input
-                                  value={item.asset_tag}
-                                  onChange={e => updateItem(idx, 'asset_tag', e.target.value)}
-                                  placeholder="Optional"
-                                  className={lineInputCls}
-                                />
-                              </LineField>
-                              <LineField label="Department">
-                                <Select
-                                  value={item.cost_center_id}
-                                  onChange={v => updateItem(idx, 'cost_center_id', v)}
-                                  options={selectOptionsWithBlank(
-                                    costCentersLoading ? 'Loading…' : 'Select cost center…',
-                                    activeCostCenters.map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
-                                  )}
-                                  placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
-                                  disabled={costCentersLoading}
-                                  className="w-full min-w-0"
-                                  triggerClassName={lineSelectTrigger}
-                                  aria-label="Cost center"
-                                />
-                              </LineField>
-                              <LineField label="Priority">
-                                <Select
-                                  value={item.priority}
-                                  onChange={v => updateItem(idx, 'priority', v)}
-                                  options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
-                                  className="w-full min-w-0"
-                                  triggerClassName={lineSelectTrigger}
-                                  aria-label="Priority"
-                                />
-                              </LineField>
-                              <LineField label="Required By">
-                                <Input
-                                  type="date"
-                                  value={item.needed_by_date}
-                                  onChange={e => updateItem(idx, 'needed_by_date', e.target.value)}
-                                  className={lineInputCls}
-                                />
-                              </LineField>
-                              <div className="hidden lg:block" aria-hidden />
-                            </>
+                            <LineField label="Asset Tag">
+                              <Input
+                                value={item.asset_tag}
+                                onChange={e => updateItem(idx, 'asset_tag', e.target.value)}
+                                placeholder="Optional"
+                                className={lineInputCls}
+                              />
+                            </LineField>
                           ) : showAcct ? (
                             <>
                               <LineField label="Acct Assign">
@@ -1425,115 +1406,64 @@ export default function CreatePurchaseOrderPage() {
                                     aria-label={ACCT_ASSIGN_META[item.account_assignment].label}
                                   />
                                 </LineField>
-                              ) : (
-                                <div className="hidden lg:block" aria-hidden />
-                              )}
-                              <LineField label="Department">
-                                <Select
-                                  value={item.cost_center_id}
-                                  onChange={v => updateItem(idx, 'cost_center_id', v)}
-                                  options={selectOptionsWithBlank(
-                                    costCentersLoading ? 'Loading…' : 'Select cost center…',
-                                    activeCostCenters.map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
-                                  )}
-                                  placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
-                                  disabled={costCentersLoading}
-                                  className="w-full min-w-0"
-                                  triggerClassName={lineSelectTrigger}
-                                  aria-label="Cost center"
-                                />
-                              </LineField>
-                              <LineField label="Priority">
-                                <Select
-                                  value={item.priority}
-                                  onChange={v => updateItem(idx, 'priority', v)}
-                                  options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
-                                  className="w-full min-w-0"
-                                  triggerClassName={lineSelectTrigger}
-                                  aria-label="Priority"
-                                />
-                              </LineField>
-                              <LineField label="Required By">
-                                <Input
-                                  type="date"
-                                  value={item.needed_by_date}
-                                  onChange={e => updateItem(idx, 'needed_by_date', e.target.value)}
-                                  className={lineInputCls}
-                                />
-                              </LineField>
+                              ) : null}
                             </>
                           ) : null}
                         </div>
 
-                        {/* Row 3 — ops + note for product/service */}
-                        {(item.item_type === 'product' || item.item_type === 'consumption' || item.item_type === 'service') ? (
-                          <div className={LINE_ROW_GRID}>
-                            <LineField label="Department">
-                              <Select
-                                value={item.cost_center_id}
-                                onChange={v => updateItem(idx, 'cost_center_id', v)}
-                                options={selectOptionsWithBlank(
-                                  costCentersLoading ? 'Loading…' : 'Select cost center…',
-                                  activeCostCenters.map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
-                                )}
-                                placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
-                                disabled={costCentersLoading}
-                                className="w-full min-w-0"
-                                triggerClassName={lineSelectTrigger}
-                                aria-label="Cost center"
-                              />
-                            </LineField>
-                            <LineField label="Priority">
-                              <Select
-                                value={item.priority}
-                                onChange={v => updateItem(idx, 'priority', v)}
-                                options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
-                                className="w-full min-w-0"
-                                triggerClassName={lineSelectTrigger}
-                                aria-label="Priority"
-                              />
-                            </LineField>
-                            <LineField label="Required By">
-                              <Input
-                                type="date"
-                                value={item.needed_by_date}
-                                onChange={e => updateItem(idx, 'needed_by_date', e.target.value)}
-                                className={lineInputCls}
-                              />
-                            </LineField>
-                            {showNote ? (
-                              <LineField label="Note" required={req('item_text')} className="col-span-2 sm:col-span-3 lg:col-span-3">
-                                <div className="relative">
-                                  <FileText className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
-                                  <Textarea
-                                    rows={1}
-                                    className="min-h-8 h-8 w-full resize-y overflow-auto rounded-md border-gray-200 bg-white py-1.5 pl-7 pr-2 text-xs leading-snug shadow-none placeholder:text-gray-300"
-                                    placeholder={req('item_text') ? 'Required note…' : 'Optional note…'}
-                                    value={item.item_note}
-                                    onChange={e => updateItem(idx, 'item_note', e.target.value)}
-                                    required={req('item_text')}
-                                  />
-                                </div>
-                              </LineField>
-                            ) : (
-                              <div className="col-span-2 sm:col-span-3 lg:col-span-3" aria-hidden />
-                            )}
-                          </div>
-                        ) : showNote ? (
-                          <LineField label="Note" required={req('item_text')}>
-                            <div className="relative">
-                              <FileText className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
-                              <Textarea
-                                rows={1}
-                                className="min-h-8 h-8 w-full resize-y overflow-auto rounded-md border-gray-200 bg-white py-1.5 pl-7 pr-2 text-xs leading-snug shadow-none placeholder:text-gray-300"
-                                placeholder={req('item_text') ? 'Required note…' : 'Optional note…'}
-                                value={item.item_note}
-                                onChange={e => updateItem(idx, 'item_note', e.target.value)}
-                                required={req('item_text')}
-                              />
-                            </div>
+                        {/* Row 3 — department / priority / date / note — same columns for every type */}
+                        <div className={LINE_ROW_GRID}>
+                          <LineField label="Department">
+                            <Select
+                              value={item.cost_center_id}
+                              onChange={v => updateItem(idx, 'cost_center_id', v)}
+                              options={selectOptionsWithBlank(
+                                costCentersLoading ? 'Loading…' : 'Select cost center…',
+                                activeCostCenters.map(cc => ({ value: cc.id, label: `${cc.code} · ${cc.name}` })),
+                              )}
+                              placeholder={costCentersLoading ? 'Loading…' : 'Select cost center…'}
+                              disabled={costCentersLoading}
+                              className="w-full min-w-0"
+                              triggerClassName={lineSelectTrigger}
+                              aria-label="Cost center"
+                            />
                           </LineField>
-                        ) : null}
+                          <LineField label="Priority">
+                            <Select
+                              value={item.priority}
+                              onChange={v => updateItem(idx, 'priority', v)}
+                              options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+                              className="w-full min-w-0"
+                              triggerClassName={lineSelectTrigger}
+                              aria-label="Priority"
+                            />
+                          </LineField>
+                          <LineField label="Required By">
+                            <Input
+                              type="date"
+                              value={item.needed_by_date}
+                              onChange={e => updateItem(idx, 'needed_by_date', e.target.value)}
+                              className={lineInputCls}
+                            />
+                          </LineField>
+                          {showNote ? (
+                            <LineField label="Note" required={req('item_text')} className="col-span-2 sm:col-span-3 lg:col-span-3">
+                              <div className="relative">
+                                <FileText className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-gray-400" />
+                                <Textarea
+                                  rows={1}
+                                  className="min-h-8 h-8 w-full resize-y overflow-auto rounded-md border-gray-200 bg-white py-1.5 pl-7 pr-2 text-xs leading-snug shadow-none placeholder:text-gray-300"
+                                  placeholder={req('item_text') ? 'Required note…' : 'Optional note…'}
+                                  value={item.item_note}
+                                  onChange={e => updateItem(idx, 'item_note', e.target.value)}
+                                  required={req('item_text')}
+                                />
+                              </div>
+                            </LineField>
+                          ) : (
+                            <div className="col-span-2 sm:col-span-3 lg:col-span-3" aria-hidden />
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex w-[9.5rem] shrink-0 flex-col gap-2 pt-5 sm:w-[10.5rem]">
@@ -1561,6 +1491,7 @@ export default function CreatePurchaseOrderPage() {
                             <Trash2 className="h-3.5 w-3.5 text-red-600" />
                           </button>
                         )}
+                      </div>
                       </div>
                     </div>
                   )

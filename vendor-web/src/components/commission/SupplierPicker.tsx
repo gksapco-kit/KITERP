@@ -31,12 +31,12 @@ export function SupplierPicker({ selected, onSelect, disabled }: Props) {
   })
 
   const handleSearch = async (q: string): Promise<PickerOption[]> => {
-    const data = await vendorApi.listSuppliers({ search: q, size: 20 })
+    const data = await vendorApi.listSuppliers({ search: q || undefined, size: 20, is_active: true })
     const items = data?.items || []
     return items.map(s => ({
       id: s.id,
       label: s.name,
-      sub: buildSub(s.phone, s.email),
+      sub: [s.gstin, s.email, s.phone].filter(Boolean).join(' · ') || undefined,
       phone: s.phone ?? undefined,
       email: s.email ?? undefined,
       meta: s,
@@ -66,7 +66,7 @@ export function SupplierPicker({ selected, onSelect, disabled }: Props) {
 
   return (
     <MasterDataPicker
-      placeholder="Search suppliers / contractors by name, email or phone…"
+      placeholder="Search name, email, GSTIN or phone…"
       selected={selected ? toOption(selected) : null}
       onSearch={handleSearch}
       onSelect={handleSelect}

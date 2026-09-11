@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { vendorApi } from '@/api/vendor'
 import { apiClient } from '@/api/client'
 import { apiError } from '@/lib/errorMessages'
+import { actionDocMessage, createdDocMessage, pickDocNo } from '@/lib/documentToast'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendorStore } from '@/stores/vendorStore'
 import type { PaginatedResponse, Product, Service, Order, Customer, OrderStats, Review, VendorRole, TeamMember, VendorCategory } from '@/types'
@@ -1392,11 +1393,13 @@ export function useCreatePurchaseOrder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createPurchaseOrder(data),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'requisition'] })
-      toast.success('Purchase order created!')
+      toast.success(createdDocMessage('Purchase order', pickDocNo(data, 'po_number'), {
+        from: pickDocNo(data, 'pr_number') ? { label: 'PR', number: pickDocNo(data, 'pr_number') } : undefined,
+      }))
     },
     onError: apiError('Could not create purchase order — verify supplier and line items'),
   })
@@ -1406,10 +1409,10 @@ export function useUpdatePurchaseOrder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updatePurchaseOrder(id, data),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-order'] })
-      toast.success('Purchase order updated!')
+      toast.success(actionDocMessage('Purchase order', pickDocNo(data, 'po_number'), 'updated'))
     },
     onError: apiError('Could not update purchase order — it may already be sent or closed'),
   })
@@ -1419,10 +1422,10 @@ export function useSendPO() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.sendPurchaseOrder(id),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-order'] })
-      toast.success('Purchase order sent!')
+      toast.success(actionDocMessage('Purchase order', pickDocNo(data, 'po_number'), 'sent'))
     },
     onError: apiError('Could not send purchase order — check supplier email and PO details'),
   })
@@ -1432,13 +1435,13 @@ export function useReceivePOItems() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.receivePurchaseOrderItems(id, data),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-order'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'inventory-summary'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'inventory-history'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'products'] })
-      toast.success('Items received and inventory updated!')
+      toast.success(actionDocMessage('Purchase order', pickDocNo(data, 'po_number'), 'items received — inventory updated'))
     },
     onError: apiError('Could not receive PO items — quantities may exceed the ordered amount'),
   })
@@ -1448,10 +1451,10 @@ export function useClosePO() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.closePurchaseOrder(id),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-order'] })
-      toast.success('Purchase order closed')
+      toast.success(actionDocMessage('Purchase order', pickDocNo(data, 'po_number'), 'closed'))
     },
     onError: apiError('Could not close purchase order — some items may still be pending receipt'),
   })
@@ -1461,10 +1464,10 @@ export function useCancelPO() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.cancelPurchaseOrder(id),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-order'] })
-      toast.success('Purchase order cancelled')
+      toast.success(actionDocMessage('Purchase order', pickDocNo(data, 'po_number'), 'cancelled'))
     },
     onError: apiError('Could not cancel purchase order — items may have already been received'),
   })
@@ -1475,10 +1478,10 @@ export function useRequestPOApproval() {
   return useMutation({
     mutationFn: ({ id, approverIds }: { id: string; approverIds?: string[] }) =>
       vendorApi.requestPOApproval(id, approverIds ?? []),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-order'] })
-      toast.success('PO submitted for approval')
+      toast.success(actionDocMessage('PO', pickDocNo(data, 'po_number'), 'submitted for approval'))
     },
     onError: apiError('Could not submit PO for approval'),
   })
@@ -1489,11 +1492,11 @@ export function useApprovePO() {
   return useMutation({
     mutationFn: ({ id, action, comments }: { id: string; action: 'approve' | 'reject'; comments?: string }) =>
       vendorApi.approvePO(id, action, comments),
-    onSuccess: (_data, vars) => {
+    onSuccess: (data, vars) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-order'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders', 'pending-my-approval-count'] })
-      toast.success(vars.action === 'approve' ? 'PO approved' : 'PO rejected')
+      toast.success(actionDocMessage('PO', pickDocNo(data, 'po_number'), vars.action === 'approve' ? 'approved' : 'rejected'))
     },
     onError: apiError('Could not process approval action'),
   })
@@ -1596,7 +1599,7 @@ export function useApproveRequisition() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.approveRequisition(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] }); toast.success('Requisition decision saved') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] }); toast.success(actionDocMessage('Requisition', pickDocNo(data, 'pr_number'), 'decision saved')) },
     onError: apiError('Could not process approval'),
   })
 }
@@ -1604,7 +1607,7 @@ export function useCancelRequisition() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) => vendorApi.cancelRequisition(id, reason),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] }); toast.success('Requisition cancelled') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] }); toast.success(actionDocMessage('Requisition', pickDocNo(data, 'pr_number'), 'cancelled')) },
     onError: apiError('Could not cancel requisition'),
   })
 }
@@ -1636,10 +1639,12 @@ export function useRoutePRToRFQ() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.routePRToRFQ(id),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'rfqs'] })
-      toast.success('RFQ created from PR')
+      toast.success(createdDocMessage('RFQ', pickDocNo(data, 'rfq_number'), {
+        from: { label: 'PR', number: pickDocNo(data, 'pr_number') },
+      }))
     },
     onError: apiError('Could not route PR to RFQ'),
   })
@@ -1655,10 +1660,12 @@ export function useConvertPRToPO() {
         expected_delivery_date: payload.expected_delivery_date,
         notes: payload.notes,
       }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'requisitions'] })
       qc.invalidateQueries({ queryKey: ['vendor', 'purchase-orders'] })
-      toast.success('Purchase Order created from PR')
+      toast.success(createdDocMessage('Purchase Order', pickDocNo(data, 'po_number'), {
+        from: { label: 'PR', number: pickDocNo(data, 'pr_number') },
+      }))
     },
     onError: apiError('Could not convert PR to PO'),
   })
@@ -1672,7 +1679,15 @@ export function useCreateVendorInvoice() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createVendorInvoice(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Vendor invoice created') },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] })
+      toast.success(createdDocMessage('Vendor invoice', pickDocNo(data, 'invoice_number'), {
+        extra: [
+          { label: 'PO', number: pickDocNo(data, 'po_number') },
+          { label: 'PR', number: pickDocNo(data, 'pr_number') },
+        ],
+      }))
+    },
     onError: apiError('Could not create vendor invoice'),
   })
 }
@@ -1680,7 +1695,7 @@ export function useUpdateVendorInvoice() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateVendorInvoice(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Invoice updated') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success(actionDocMessage('Invoice', pickDocNo(data, 'invoice_number'), 'updated')) },
     onError: apiError('Could not update invoice — it may already be posted'),
   })
 }
@@ -1688,7 +1703,7 @@ export function usePostVendorInvoice() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.postVendorInvoice(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Invoice posted') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success(actionDocMessage('Invoice', pickDocNo(data, 'invoice_number'), 'posted')) },
     onError: apiError('Could not post invoice'),
   })
 }
@@ -1696,7 +1711,7 @@ export function useMatchVendorInvoice() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.matchVendorInvoice(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('3-way match completed') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success(actionDocMessage('Invoice', pickDocNo(data, 'invoice_number'), '3-way match completed')) },
     onError: apiError('Could not run 3-way match'),
   })
 }
@@ -1704,7 +1719,7 @@ export function useCancelVendorInvoice() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.cancelVendorInvoice(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Invoice cancelled') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success(actionDocMessage('Invoice', pickDocNo(data, 'invoice_number'), 'cancelled')) },
     onError: apiError('Could not cancel invoice — paid invoices cannot be cancelled'),
   })
 }
@@ -1719,9 +1734,9 @@ export function useRecordInvoicePayment() {
         payment_reference: payload.payment_reference,
         payment_mode: payload.payment_mode,
       }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] })
-      toast.success('Payment recorded')
+      toast.success(actionDocMessage('Invoice', pickDocNo(data, 'invoice_number'), 'payment recorded'))
     },
     onError: apiError('Could not record payment'),
   })
@@ -1735,7 +1750,7 @@ export function useRequestInvoiceApproval() {
         approver_ids: payload.approver_ids,
         approver_message: payload.approver_message,
       }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success('Invoice submitted for approval') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] }); toast.success(actionDocMessage('Invoice', pickDocNo(data, 'invoice_number'), 'submitted for approval')) },
     onError: apiError('Could not submit invoice for approval'),
   })
 }
@@ -1748,9 +1763,9 @@ export function useApproveOrRejectInvoice() {
         action: payload.action,
         comments: payload.comments,
       }),
-    onSuccess: (_data, vars) => {
+    onSuccess: (data, vars) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'vendor-invoices'] })
-      toast.success(vars.action === 'approve' ? 'Invoice approved' : 'Invoice rejected')
+      toast.success(actionDocMessage('Invoice', pickDocNo(data, 'invoice_number'), vars.action === 'approve' ? 'approved' : 'rejected'))
     },
     onError: apiError('Could not process approval action'),
   })
@@ -1764,7 +1779,7 @@ export function useCreateGoodsBatch() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createGoodsBatch(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'goods-batches'] }); toast.success('Goods batch created') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'goods-batches'] }); toast.success(createdDocMessage('Goods batch', pickDocNo(data, 'batch_number'))) },
     onError: apiError('Could not create goods batch'),
   })
 }
@@ -1772,7 +1787,7 @@ export function useUpdateGoodsBatch() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateGoodsBatch(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'goods-batches'] }); toast.success('Batch updated') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'goods-batches'] }); toast.success(actionDocMessage('Batch', pickDocNo(data, 'batch_number'), 'updated')) },
     onError: apiError('Could not update batch'),
   })
 }
@@ -1816,7 +1831,9 @@ export function useCreateServiceEntrySheet() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createServiceEntrySheet(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success('Service entry sheet created') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success(createdDocMessage('Service entry sheet', pickDocNo(data, 'ses_number'), {
+      extra: [{ label: 'PO', number: pickDocNo(data, 'po_number') }],
+    })) },
     onError: apiError('Could not create service entry sheet'),
   })
 }
@@ -1824,7 +1841,7 @@ export function useUpdateServiceEntrySheet() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateServiceEntrySheet(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success('Service entry sheet updated') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success(actionDocMessage('Service entry sheet', pickDocNo(data, 'ses_number'), 'updated')) },
     onError: apiError('Could not update — approved sheets cannot be edited'),
   })
 }
@@ -1832,7 +1849,7 @@ export function useSubmitServiceEntrySheet() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.submitServiceEntrySheet(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success('Submitted for approval') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success(actionDocMessage('Service entry sheet', pickDocNo(data, 'ses_number'), 'submitted for approval')) },
     onError: apiError('Could not submit service entry sheet'),
   })
 }
@@ -1840,7 +1857,7 @@ export function useApproveServiceEntrySheet() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.approveServiceEntrySheet(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success('Decision saved') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'service-entry-sheets'] }); toast.success(actionDocMessage('Service entry sheet', pickDocNo(data, 'ses_number'), 'decision saved')) },
     onError: apiError('Could not process approval'),
   })
 }
@@ -1853,7 +1870,9 @@ export function useCreateSubcontractingOrder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createSubcontractingOrder(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor', 'subcontracting-orders'] }); toast.success('Subcontracting order created') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['vendor', 'subcontracting-orders'] }); toast.success(createdDocMessage('Subcontracting order', pickDocNo(data, 'ref'), {
+      extra: [{ label: 'PO', number: pickDocNo(data, 'po_number') }],
+    })) },
     onError: apiError('Could not create subcontracting order'),
   })
 }
@@ -1912,7 +1931,9 @@ export function useCreateRFQ() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createRFQ(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.rfqs() }); toast.success('RFQ created') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: vendorKeys.rfqs() }); toast.success(createdDocMessage('RFQ', pickDocNo(data, 'rfq_number'), {
+      from: pickDocNo(data, 'pr_number') ? { label: 'PR', number: pickDocNo(data, 'pr_number') } : undefined,
+    })) },
     onError: apiError('Could not create RFQ'),
   })
 }
@@ -1931,10 +1952,10 @@ export function useIssueRFQ(rfqId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => vendorApi.issueRFQ(rfqId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: vendorKeys.rfq(rfqId) })
       qc.invalidateQueries({ queryKey: vendorKeys.rfqs() })
-      toast.success('RFQ issued to suppliers')
+      toast.success(actionDocMessage('RFQ', pickDocNo(data, 'rfq_number'), 'issued to suppliers'))
     },
     onError: apiError('Could not issue RFQ'),
   })
@@ -1957,7 +1978,9 @@ export function useCreateQuotation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createQuotation(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.quotations() }); toast.success('Quotation created') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: vendorKeys.quotations() }); toast.success(createdDocMessage('Quotation', pickDocNo(data, 'quotation_number'), {
+      extra: [{ label: 'RFQ', number: pickDocNo(data, 'rfq_number') }],
+    })) },
     onError: apiError('Could not create quotation'),
   })
 }
@@ -1965,10 +1988,10 @@ export function useUpdateQuotation(sqId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.updateQuotation(sqId, data),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: vendorKeys.quotation(sqId) })
       qc.invalidateQueries({ queryKey: vendorKeys.quotations() })
-      toast.success('Quotation updated')
+      toast.success(actionDocMessage('Quotation', pickDocNo(data, 'quotation_number'), 'updated'))
     },
     onError: apiError('Could not update quotation'),
   })
@@ -1977,10 +2000,10 @@ export function useSubmitQuotation(sqId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => vendorApi.submitQuotation(sqId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: vendorKeys.quotation(sqId) })
       qc.invalidateQueries({ queryKey: vendorKeys.quotations() })
-      toast.success('Quotation submitted')
+      toast.success(actionDocMessage('Quotation', pickDocNo(data, 'quotation_number'), 'submitted'))
     },
     onError: apiError('Could not submit quotation'),
   })
@@ -1997,7 +2020,9 @@ export function useCreateGRN() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createGRN(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.grns() }); toast.success('GRN created') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: vendorKeys.grns() }); toast.success(createdDocMessage('GRN', pickDocNo(data, 'grn_number'), {
+      extra: [{ label: 'PO', number: pickDocNo(data, 'po_number') }],
+    })) },
     onError: apiError('Could not create GRN'),
   })
 }
@@ -2005,10 +2030,10 @@ export function usePostGRN(grnId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => vendorApi.postGRN(grnId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: vendorKeys.grn(grnId) })
       qc.invalidateQueries({ queryKey: vendorKeys.grns() })
-      toast.success('GRN posted — inventory updated')
+      toast.success(actionDocMessage('GRN', pickDocNo(data, 'grn_number'), 'posted — inventory updated'))
     },
     onError: apiError('Could not post GRN'),
   })
@@ -2017,10 +2042,10 @@ export function useCloseGRNQC(grnId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => vendorApi.closeGRNQC(grnId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: vendorKeys.grn(grnId) })
       qc.invalidateQueries({ queryKey: vendorKeys.grns() })
-      toast.success('QC closed')
+      toast.success(actionDocMessage('GRN', pickDocNo(data, 'grn_number'), 'QC closed'))
     },
     onError: apiError('Could not close QC'),
   })
@@ -2029,10 +2054,10 @@ export function useCloseGRN(grnId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => vendorApi.closeGRN(grnId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: vendorKeys.grn(grnId) })
       qc.invalidateQueries({ queryKey: vendorKeys.grns() })
-      toast.success('GRN closed')
+      toast.success(actionDocMessage('GRN', pickDocNo(data, 'grn_number'), 'closed'))
     },
     onError: apiError('Could not close GRN'),
   })
@@ -2041,10 +2066,10 @@ export function useReverseGRN(grnId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.reverseGRN(grnId, data),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: vendorKeys.grn(grnId) })
       qc.invalidateQueries({ queryKey: vendorKeys.grns() })
-      toast.success('GRN reversed — inventory adjusted')
+      toast.success(actionDocMessage('GRN', pickDocNo(data, 'grn_number'), 'reversed — inventory adjusted'))
     },
     onError: apiError('Could not reverse GRN'),
   })
@@ -2077,7 +2102,9 @@ export function useCreatePurchaseReturn() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.createPurchaseReturn(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() }); toast.success('Purchase return created') },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() }); toast.success(createdDocMessage('Purchase return', pickDocNo(data, 'return_number'), {
+      extra: [{ label: 'PO', number: pickDocNo(data, 'po_number') }],
+    })) },
     onError: apiError('Could not create purchase return'),
   })
 }
@@ -2085,9 +2112,9 @@ export function useUpdatePurchaseReturn(returnId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.updatePurchaseReturn(returnId, data),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturn(returnId) })
-      toast.success('Return updated')
+      toast.success(actionDocMessage('Purchase return', pickDocNo(result, 'return_number'), 'updated'))
     },
     onError: apiError('Could not update return'),
   })
@@ -2096,10 +2123,10 @@ export function useApprovePurchaseReturn(returnId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => vendorApi.approvePurchaseReturn(returnId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturn(returnId) })
       qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() })
-      toast.success('Return approved')
+      toast.success(actionDocMessage('Purchase return', pickDocNo(result, 'return_number'), 'approved'))
     },
     onError: apiError('Could not approve return'),
   })
@@ -2108,10 +2135,10 @@ export function useDispatchPurchaseReturn(returnId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data?: Record<string, unknown>) => vendorApi.dispatchPurchaseReturn(returnId, data),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturn(returnId) })
       qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() })
-      toast.success('Goods dispatched to supplier')
+      toast.success(actionDocMessage('Purchase return', pickDocNo(result, 'return_number'), 'goods dispatched to supplier'))
     },
     onError: apiError('Could not mark dispatch'),
   })
@@ -2120,10 +2147,10 @@ export function useClosePurchaseReturn(returnId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => vendorApi.closePurchaseReturn(returnId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturn(returnId) })
       qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() })
-      toast.success('Return closed')
+      toast.success(actionDocMessage('Purchase return', pickDocNo(result, 'return_number'), 'closed'))
     },
     onError: apiError('Could not close return'),
   })
@@ -2132,10 +2159,10 @@ export function useCancelPurchaseReturn(returnId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => vendorApi.cancelPurchaseReturn(returnId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturn(returnId) })
       qc.invalidateQueries({ queryKey: vendorKeys.purchaseReturns() })
-      toast.success('Return cancelled')
+      toast.success(actionDocMessage('Purchase return', pickDocNo(result, 'return_number'), 'cancelled'))
     },
     onError: apiError('Could not cancel return'),
   })
@@ -2216,11 +2243,11 @@ export function useUpdateInvoice() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
       vendorApi.updateInvoice(id, data),
-    onSuccess: (_, { id }) => {
+    onSuccess: (data, { id }) => {
       qc.invalidateQueries({ queryKey: ['vendor', 'invoices'] })
       qc.invalidateQueries({ queryKey: vendorKeys.invoice(id) })
       qc.invalidateQueries({ queryKey: ['invoice', id] })
-      toast.success('Invoice updated!')
+      toast.success(actionDocMessage('Invoice', pickDocNo(data, 'invoice_number'), 'updated'))
     },
     onError: apiError('Could not update invoice — check line items and amounts'),
   })

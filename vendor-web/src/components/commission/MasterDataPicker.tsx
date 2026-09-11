@@ -173,11 +173,18 @@ export function MasterDataPicker({
               <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <input
                 ref={inputRef}
+                type="search"
                 data-kiterp-no-field-focus
                 value={query}
                 onChange={handleQueryChange}
                 placeholder={placeholder}
                 disabled={disabled}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
               {loading ? (

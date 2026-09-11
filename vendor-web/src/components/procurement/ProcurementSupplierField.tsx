@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
-import { useSuppliers, useCreateSupplier } from '@/hooks/useVendor'
+import { vendorApi } from '@/api/vendor'
+import { useSuppliers, useCreateSupplier, vendorKeys } from '@/hooks/useVendor'
 import { PO_PENDING_SUPPLIER_KEY } from '@/pages/master-data/MasterDataNew'
 import { dedupeSuppliers, findExistingSupplier } from '@/lib/supplierUtils'
+import { SupplierTypeahead } from '@/components/procurement/SupplierTypeahead'
 import { toast } from 'sonner'
 import { Loader2, Plus, UserPlus, Building2, ExternalLink, X } from 'lucide-react'
+import type { Supplier } from '@/types'
 
 interface Props {
   value: string
@@ -33,13 +36,24 @@ export function ProcurementSupplierField({
   inline = false,
 }: Props) {
   const navigate = useNavigate()
-  const { data: suppliersData, refetch: refetchSuppliers, isLoading } = useSuppliers({ is_active: true })
+  const { data: suppliersData, refetch: refetchSuppliers } = useSuppliers({ is_active: true, size: 200 })
   const createSupplierMut = useCreateSupplier()
   const suppliers = useMemo(
     () => dedupeSuppliers(suppliersData?.items ?? []),
     [suppliersData?.items],
   )
+  const pickedRef = useRef<Supplier | null>(null)
   const pendingConsumed = useRef(false)
+  const knownSelected =
+    (value && suppliers.find(s => s.id === value))
+    || (pickedRef.current?.id === value ? pickedRef.current : null)
+    || null
+  const { data: fetchedSelected } = useQuery({
+    queryKey: vendorKeys.supplier(value),
+    queryFn: () => vendorApi.getSupplier(value),
+    enabled: Boolean(value) && !knownSelected,
+  })
+  const selectedSupplier = knownSelected ?? (fetchedSelected as Supplier | undefined) ?? null
 
   const [showQuickSupplier, setShowQuickSupplier] = useState(false)
   const [qsName, setQsName] = useState('')
@@ -68,6 +82,7 @@ export function ProcurementSupplierField({
     })
     if (existing) {
       onChange(existing.id)
+      pickedRef.current = existing
       setShowQuickSupplier(false)
       setQsName('')
       setQsPhone('')
@@ -83,6 +98,7 @@ export function ProcurementSupplierField({
         email: qsEmail || undefined,
       })
       await refetchSuppliers()
+      pickedRef.current = created
       onChange(created.id)
       setShowQuickSupplier(false)
       setQsName('')
@@ -93,11 +109,10 @@ export function ProcurementSupplierField({
 
   const returnPath = returnTo.startsWith('/') ? returnTo : `/${returnTo}`
   const labelClass = inline ? 'text-[11px] leading-tight text-gray-500' : 'text-xs'
-  const selectClass = inline ? 'mt-0.5 h-7 text-xs py-0 px-2' : 'mt-1'
 
   return (
     <div className={className}>
-      <div className={`flex items-center gap-2 ${inline ? 'min-h-[16px]' : 'justify-between'}`}>
+      <div className={`flex items-center gap-2 ${inline ? 'min-h-[16px] mb-0.5' : 'justify-between mb-1'}`}>
         <Label className={labelClass}>{label}{required ? ' *' : ''}</Label>
         <button
           type="button"
@@ -107,23 +122,15 @@ export function ProcurementSupplierField({
           <UserPlus className={inline ? 'w-2.5 h-2.5' : 'w-3 h-3'} /> New Supplier
         </button>
       </div>
-      <Select
-        value={value}
-        onChange={onChange}
-        options={selectOptionsWithBlank(
-          'Select supplier…',
-          suppliers.map(s => ({ value: s.id, label: s.name })),
-        )}
-        placeholder={isLoading ? 'Loading suppliers…' : 'Select supplier…'}
-        disabled={isLoading}
-        className={selectClass}
-        aria-label={label}
+      <SupplierTypeahead
+        mode="single"
+        selectedSupplier={selectedSupplier}
+        onChange={(s) => {
+          pickedRef.current = s
+          onChange(s?.id ?? '')
+        }}
+        placeholder="Search name, email, GSTIN or phone…"
       />
-      {!isLoading && suppliers.length === 0 && (
-        <p className="text-xs text-amber-600 mt-1">
-          No suppliers yet — use New Supplier or open Master Data to add one.
-        </p>
-      )}
 
       {showQuickSupplier && (
         <div className="border border-blue-200 rounded-lg bg-blue-50/60 dark:bg-blue-950/20 p-3 space-y-2 mt-2">

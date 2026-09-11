@@ -6,7 +6,7 @@ import re
 from uuid import UUID
 from datetime import datetime, timezone, date
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_, case
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
@@ -266,25 +266,49 @@ class SupplierService:
         conditions = [Supplier.vendor_id == vendor_id]
         if is_active is not None:
             conditions.append(Supplier.is_active == is_active)
-        if search:
-            conditions.append(
-                Supplier.name.ilike(f"%{search}%")
-                | Supplier.contact_name.ilike(f"%{search}%")
-                | Supplier.email.ilike(f"%{search}%")
-                | Supplier.gstin.ilike(f"%{search}%")
+
+        rank_expr = None
+        q = (search or "").strip()
+        tokens = [t for t in re.split(r"\s+", q) if t] if q else []
+        if tokens:
+            token_clauses = []
+            for token in tokens:
+                like = f"%{token}%"
+                compact = re.sub(r"[^A-Za-z0-9]", "", token)
+                fields = [
+                    Supplier.name.ilike(like),
+                    Supplier.company_name.ilike(like),
+                    Supplier.contact_name.ilike(like),
+                    Supplier.email.ilike(like),
+                    Supplier.gstin.ilike(like),
+                    Supplier.phone.ilike(like),
+                    Supplier.pan_number.ilike(like),
+                ]
+                if compact and compact.lower() != token.lower():
+                    fields.append(Supplier.gstin.ilike(f"%{compact}%"))
+                    fields.append(Supplier.phone.ilike(f"%{compact}%"))
+                token_clauses.append(or_(*fields))
+            conditions.append(and_(*token_clauses))
+            prefix = f"{tokens[0]}%"
+            rank_expr = case(
+                (Supplier.name.ilike(prefix), 0),
+                (Supplier.company_name.ilike(prefix), 1),
+                (Supplier.gstin.ilike(prefix), 2),
+                (Supplier.email.ilike(prefix), 3),
+                (Supplier.contact_name.ilike(prefix), 4),
+                else_=5,
             )
 
         count_stmt = select(func.count()).select_from(Supplier).where(and_(*conditions))
         total = (await self.db.execute(count_stmt)).scalar() or 0
 
         offset = (page - 1) * size
-        stmt = (
-            select(Supplier)
-            .where(and_(*conditions))
-            .order_by(Supplier.name.asc())
-            .offset(offset)
-            .limit(size)
-        )
+        stmt = select(Supplier).where(and_(*conditions))
+        if rank_expr is not None:
+            stmt = stmt.order_by(rank_expr, Supplier.name.asc())
+        else:
+            stmt = stmt.order_by(Supplier.name.asc())
+        stmt = stmt.offset(offset).limit(size)
         result = await self.db.execute(stmt)
         items = list(result.scalars().all())
         return items, total
@@ -1189,7 +1213,13 @@ class PurchaseOrderService:
         stmt = (
             select(PurchaseOrder)
             .options(selectinload(PurchaseOrder.supplier))
-            .options(selectinload(PurchaseOrder.items).selectinload(PurchaseOrderItem.product))
+            .options(
+                selectinload(PurchaseOrder.items).options(
+                    selectinload(PurchaseOrderItem.product),
+                    selectinload(PurchaseOrderItem.service),
+                    selectinload(PurchaseOrderItem.variant),
+                )
+            )
             .options(
                 selectinload(PurchaseOrder.approvals)
                 .selectinload(PurchaseOrderApproval.approver)
@@ -1242,7 +1272,13 @@ class PurchaseOrderService:
         result = await self.db.execute(
             base
             .options(selectinload(PurchaseOrder.supplier))
-            .options(selectinload(PurchaseOrder.items).selectinload(PurchaseOrderItem.product))
+            .options(
+                selectinload(PurchaseOrder.items).options(
+                    selectinload(PurchaseOrderItem.product),
+                    selectinload(PurchaseOrderItem.service),
+                    selectinload(PurchaseOrderItem.variant),
+                )
+            )
             .options(
                 selectinload(PurchaseOrder.approvals)
                 .selectinload(PurchaseOrderApproval.approver)
@@ -1274,7 +1310,13 @@ class PurchaseOrderService:
         stmt = (
             select(PurchaseOrder)
             .options(selectinload(PurchaseOrder.supplier))
-            .options(selectinload(PurchaseOrder.items).selectinload(PurchaseOrderItem.product))
+            .options(
+                selectinload(PurchaseOrder.items).options(
+                    selectinload(PurchaseOrderItem.product),
+                    selectinload(PurchaseOrderItem.service),
+                    selectinload(PurchaseOrderItem.variant),
+                )
+            )
             .options(
                 selectinload(PurchaseOrder.approvals)
                 .selectinload(PurchaseOrderApproval.approver)

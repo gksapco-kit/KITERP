@@ -2726,6 +2726,23 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     @apply border-input bg-background text-foreground placeholder:text-muted-foreground;
   }
 
+  /* Native picker icon sits on the far right in Chromium; inset it so it
+     does not sit on / clip through the rounded field border. */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="month"]::-webkit-calendar-picker-indicator,
+  input[type="week"]::-webkit-calendar-picker-indicator {
+    margin-right: 0.5rem;
+    margin-left: 0.25rem;
+    padding: 0;
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+    background-position: center;
+    background-size: 1rem 1rem;
+  }
+
   [data-kiterp-modal] input[type="date"],
   [data-kiterp-modal] input[type="datetime-local"],
   [data-kiterp-modal] input[type="time"],

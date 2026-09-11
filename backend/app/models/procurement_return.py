@@ -85,6 +85,7 @@ class PurchaseReturn(Base):
         cascade="all, delete-orphan",
     )
     supplier = relationship("Supplier", lazy="selectin")
+    purchase_order = relationship("PurchaseOrder", lazy="selectin")
 
     __table_args__ = (
         UniqueConstraint("vendor_id", "return_number", name="uq_pret_vendor_number"),

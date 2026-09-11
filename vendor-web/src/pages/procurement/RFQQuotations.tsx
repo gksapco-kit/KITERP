@@ -9,11 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   SelectRoot as Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select as ThemeSelect,
+  selectOptionsWithBlank,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { vendorApi } from '@/api/vendor'
 import { formatDate } from '@/lib/utils'
-import type { RFQ, SupplierQuotation, Supplier } from '@/types'
+import type { RFQ, RFQItem, SupplierQuotation, Supplier } from '@/types'
 import type { Company, CostCenter } from '@/types/finance'
 import {
   FileText, Plus, Send, CheckCircle2, XCircle, Clock,
@@ -340,7 +342,7 @@ function CreateRFQDialog({ open, onClose }: { open: boolean; onClose: () => void
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] max-w-6xl flex flex-col max-h-[95vh] p-0 gap-0">
+      <DialogContent className="flex max-h-[95vh] w-[min(96vw,100rem)] flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-4 pb-3 border-b shrink-0">
           <DialogTitle>Create Request for Quotation</DialogTitle>
         </DialogHeader>
@@ -574,12 +576,12 @@ function CreateRFQDialog({ open, onClose }: { open: boolean; onClose: () => void
                       />
                     )}
                     {/* Qty */}
-                    <div className="w-16 shrink-0">
+                    <div className="w-28 shrink-0">
                       <Label className="text-[11px] leading-tight text-gray-500">Qty *</Label>
                       <Input type="number" min={0} value={item.quantity} onChange={e => updateItem(i, { quantity: e.target.value })} className="h-8 text-xs mt-0.5" />
                     </div>
                     {/* UoM */}
-                    <div className="w-16 shrink-0">
+                    <div className="w-28 shrink-0">
                       <Label className="text-[11px] leading-tight text-gray-500">UoM</Label>
                       <Input
                         value={item.unit_of_measure}
@@ -589,12 +591,12 @@ function CreateRFQDialog({ open, onClose }: { open: boolean; onClose: () => void
                       />
                     </div>
                     {/* Target Price */}
-                    <div className="w-24 shrink-0">
+                    <div className="w-36 shrink-0">
                       <Label className="text-[11px] leading-tight text-gray-500">Target Price</Label>
                       <Input type="number" min={0} value={item.target_price} onChange={e => updateItem(i, { target_price: e.target.value })} placeholder="Optional" className="h-8 text-xs mt-0.5" />
                     </div>
                     {/* Needed By */}
-                    <div className="w-32 shrink-0">
+                    <div className="w-44 shrink-0">
                       <Label className="text-[11px] leading-tight text-gray-500">Needed By</Label>
                       <Input type="date" value={item.needed_by_date} onChange={e => updateItem(i, { needed_by_date: e.target.value })} className="h-8 text-xs mt-0.5" />
                     </div>
@@ -630,7 +632,7 @@ function CreateRFQDialog({ open, onClose }: { open: boolean; onClose: () => void
               selectedSuppliers={selectedSuppliers}
               onChange={setSelectedSuppliers}
               enabled={open}
-              placeholder="Type supplier name, email or GSTIN…"
+              placeholder="Search name, email, GSTIN or phone…"
             />
           </div>
 
@@ -676,6 +678,10 @@ function CreateRFQDialog({ open, onClose }: { open: boolean; onClose: () => void
 // ─────────────────────────────────────────────────────────────────
 
 interface SQItemRow {
+  rfq_item_id: string
+  product_id: string
+  variant_id: string
+  item_type: string
   description: string
   quantity: string
   unit_of_measure: string
@@ -688,8 +694,53 @@ interface SQItemRow {
 }
 
 function emptySQItem(): SQItemRow {
-  return { description: '', quantity: '1', unit_of_measure: 'piece', unit_price: '', discount_pct: '0', cgst_rate: '0', sgst_rate: '0', igst_rate: '0', lead_time_days: '' }
+  return {
+    rfq_item_id: '',
+    product_id: '',
+    variant_id: '',
+    item_type: 'product',
+    description: '',
+    quantity: '1',
+    unit_of_measure: 'piece',
+    unit_price: '',
+    discount_pct: '0',
+    cgst_rate: '0',
+    sgst_rate: '0',
+    igst_rate: '0',
+    lead_time_days: '',
+  }
 }
+
+function rfqMaterialLabel(item: Pick<RFQItem, 'line_number' | 'product_name' | 'service_name' | 'description'>): string {
+  return (
+    item.product_name?.trim()
+    || item.service_name?.trim()
+    || item.description?.trim()
+    || `Line ${item.line_number}`
+  )
+}
+
+function sqRowFromRfqItem(ri: RFQItem): SQItemRow {
+  return {
+    ...emptySQItem(),
+    rfq_item_id: ri.id,
+    product_id: ri.product_id ?? '',
+    variant_id: ri.variant_id ?? '',
+    item_type: ri.item_type || 'product',
+    description: rfqMaterialLabel(ri),
+    quantity: String(ri.quantity),
+    unit_of_measure: ri.unit_of_measure,
+  }
+}
+
+function sqItemsFromRfq(rfqItems?: RFQItem[]): SQItemRow[] {
+  return rfqItems && rfqItems.length > 0 ? rfqItems.map(sqRowFromRfqItem) : [emptySQItem()]
+}
+
+const SQ_LINE_GRID =
+  'grid min-w-0 gap-1.5 items-start [grid-template-columns:minmax(0,1.9fr)_minmax(4.75rem,0.9fr)_minmax(0,0.55fr)_minmax(6.5rem,1.25fr)_minmax(0,0.45fr)_minmax(0,0.45fr)_minmax(0,0.45fr)_minmax(0,0.55fr)_2rem]'
+const SQ_LINE_INPUT =
+  'h-8 min-w-0 w-full px-2 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 
 function CreateQuotationDialog({
   open, onClose, rfqId, rfqItems,
@@ -697,7 +748,7 @@ function CreateQuotationDialog({
   open: boolean
   onClose: () => void
   rfqId?: string
-  rfqItems?: Array<{ id: string; description?: string | null; quantity: number; unit_of_measure: string }>
+  rfqItems?: RFQItem[]
 }) {
   const queryClient = useQueryClient()
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
@@ -710,14 +761,33 @@ function CreateQuotationDialog({
     delivery_terms: '',
     notes: '',
   })
-  const [items, setItems] = useState<SQItemRow[]>(
-    rfqItems && rfqItems.length > 0
-      ? rfqItems.map(ri => ({ ...emptySQItem(), description: ri.description ?? '', quantity: String(ri.quantity), unit_of_measure: ri.unit_of_measure }))
-      : [emptySQItem()]
-  )
+  const [items, setItems] = useState<SQItemRow[]>(() => sqItemsFromRfq(rfqItems))
+  const linkedToRfq = Boolean(rfqId && rfqItems && rfqItems.length > 0)
 
   function updateItem(i: number, field: keyof SQItemRow, value: string) {
     setItems(prev => prev.map((row, idx) => idx === i ? { ...row, [field]: value } : row))
+  }
+
+  function patchItem(i: number, patch: Partial<SQItemRow>) {
+    setItems(prev => prev.map((row, idx) => idx === i ? { ...row, ...patch } : row))
+  }
+
+  function handleMaterialSelect(i: number, rfqItemId: string) {
+    if (!rfqItemId) {
+      patchItem(i, { rfq_item_id: '', product_id: '', variant_id: '' })
+      return
+    }
+    const ri = rfqItems?.find(item => item.id === rfqItemId)
+    if (!ri) return
+    patchItem(i, {
+      rfq_item_id: ri.id,
+      product_id: ri.product_id ?? '',
+      variant_id: ri.variant_id ?? '',
+      item_type: ri.item_type || 'product',
+      description: rfqMaterialLabel(ri),
+      quantity: String(ri.quantity),
+      unit_of_measure: ri.unit_of_measure,
+    })
   }
 
   const create = useMutation({
@@ -736,6 +806,10 @@ function CreateQuotationDialog({
       items: items
         .filter(it => it.description.trim() && parseFloat(it.unit_price) > 0)
         .map(it => ({
+          rfq_item_id: it.rfq_item_id || undefined,
+          item_type: it.item_type || 'product',
+          product_id: it.product_id || undefined,
+          variant_id: it.variant_id || undefined,
           description: it.description,
           quantity: parseFloat(it.quantity),
           unit_of_measure: it.unit_of_measure,
@@ -757,9 +831,7 @@ function CreateQuotationDialog({
 
   function handleClose() {
     setSelectedSupplier(null)
-    setItems(rfqItems && rfqItems.length > 0
-      ? rfqItems.map(ri => ({ ...emptySQItem(), description: ri.description ?? '', quantity: String(ri.quantity), unit_of_measure: ri.unit_of_measure }))
-      : [emptySQItem()])
+    setItems(sqItemsFromRfq(rfqItems))
     setForm({ quote_date: new Date().toISOString().slice(0, 10), valid_until: '', currency: 'INR', delivery_lead_time_days: '', payment_terms: '', delivery_terms: '', notes: '' })
     onClose()
   }
@@ -768,12 +840,12 @@ function CreateQuotationDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl flex flex-col max-h-[90vh] p-0 gap-0">
+      <DialogContent className="flex max-h-[90vh] w-[min(96vw,100rem)] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <DialogTitle>{rfqId ? 'Enter Supplier Quotation' : 'Create Spot Quotation'}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-6 py-5 space-y-5">
           {/* Supplier */}
           <div>
             <Label className="mb-1.5 block">Supplier *</Label>
@@ -782,7 +854,7 @@ function CreateQuotationDialog({
               selectedSupplier={selectedSupplier}
               onChange={setSelectedSupplier}
               enabled={open}
-              placeholder="Type supplier name, email or GSTIN…"
+              placeholder="Search name, email, GSTIN or phone…"
             />
           </div>
 
@@ -818,49 +890,62 @@ function CreateQuotationDialog({
                 <Plus className="w-3 h-3 mr-1" />Add Line
               </Button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0 overflow-x-hidden">
               {items.map((item, i) => (
-                <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100 min-w-0 overflow-hidden">
                   {/* Labels row — always visible */}
                   {i === 0 && (
-                    <div className="grid grid-cols-12 gap-2 mb-1">
-                      <Label className="col-span-3 text-xs text-gray-500">Description *</Label>
-                      <Label className="col-span-1 text-xs text-gray-500">Qty</Label>
-                      <Label className="col-span-1 text-xs text-gray-500">UoM</Label>
-                      <Label className="col-span-2 text-xs text-gray-500">Unit Price *</Label>
-                      <Label className="col-span-1 text-xs text-gray-500">CGST %</Label>
-                      <Label className="col-span-1 text-xs text-gray-500">SGST %</Label>
-                      <Label className="col-span-1 text-xs text-gray-500">IGST %</Label>
-                      <Label className="col-span-1 text-xs text-gray-500">Lead d.</Label>
+                    <div className={`${SQ_LINE_GRID} mb-1`}>
+                      <Label className="text-xs text-gray-500 truncate">{linkedToRfq ? 'Material *' : 'Description *'}</Label>
+                      <Label className="text-xs text-gray-500 truncate">Qty</Label>
+                      <Label className="text-xs text-gray-500 truncate">UoM</Label>
+                      <Label className="text-xs text-gray-500 truncate">Unit Price *</Label>
+                      <Label className="text-xs text-gray-500 truncate">CGST %</Label>
+                      <Label className="text-xs text-gray-500 truncate">SGST %</Label>
+                      <Label className="text-xs text-gray-500 truncate">IGST %</Label>
+                      <Label className="text-xs text-gray-500 truncate">Lead Days</Label>
                     </div>
                   )}
-                  <div className="grid grid-cols-12 gap-2 items-center">
-                    <div className="col-span-3">
-                      <Input value={item.description} onChange={e => updateItem(i, 'description', e.target.value)} placeholder="Item" className="h-8 text-sm" />
-                    </div>
-                    <div className="col-span-1">
-                      <Input type="number" value={item.quantity} onChange={e => updateItem(i, 'quantity', e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="col-span-1">
-                      <Input value={item.unit_of_measure} onChange={e => updateItem(i, 'unit_of_measure', e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="col-span-2">
-                      <Input type="number" value={item.unit_price} onChange={e => updateItem(i, 'unit_price', e.target.value)} placeholder="0.00" className="h-8 text-sm" />
-                    </div>
-                    <div className="col-span-1">
-                      <Input type="number" value={item.cgst_rate} onChange={e => updateItem(i, 'cgst_rate', e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="col-span-1">
-                      <Input type="number" value={item.sgst_rate} onChange={e => updateItem(i, 'sgst_rate', e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="col-span-1">
-                      <Input type="number" value={item.igst_rate} onChange={e => updateItem(i, 'igst_rate', e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="col-span-1">
-                      <Input type="number" value={item.lead_time_days} onChange={e => updateItem(i, 'lead_time_days', e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="col-span-1 flex justify-end">
-                      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-400 hover:text-red-600" onClick={() => setItems(p => p.filter((_, idx) => idx !== i))} disabled={items.length === 1}>
+                  <div className={SQ_LINE_GRID}>
+                    {linkedToRfq ? (
+                      <div className="space-y-1 min-w-0">
+                        <ThemeSelect
+                          value={item.rfq_item_id}
+                          onChange={v => handleMaterialSelect(i, v)}
+                          options={selectOptionsWithBlank(
+                            'Other — enter material',
+                            (rfqItems ?? []).map(ri => ({
+                              value: ri.id,
+                              label: rfqMaterialLabel(ri),
+                              hint: `${ri.quantity} ${ri.unit_of_measure}`,
+                            })),
+                          )}
+                          placeholder="Select RFQ material…"
+                          searchable
+                          searchPlaceholder="Search RFQ materials…"
+                          triggerClassName="h-8 text-sm min-w-0"
+                          showSelectedHint={false}
+                          aria-label="RFQ material"
+                        />
+                        <Input
+                          value={item.description}
+                          onChange={e => updateItem(i, 'description', e.target.value)}
+                          placeholder={item.rfq_item_id ? 'Material description' : 'Or enter material'}
+                          className={SQ_LINE_INPUT}
+                        />
+                      </div>
+                    ) : (
+                      <Input value={item.description} onChange={e => updateItem(i, 'description', e.target.value)} placeholder="Item" className={SQ_LINE_INPUT} />
+                    )}
+                    <Input type="number" value={item.quantity} onChange={e => updateItem(i, 'quantity', e.target.value)} className={SQ_LINE_INPUT} />
+                    <Input value={item.unit_of_measure} onChange={e => updateItem(i, 'unit_of_measure', e.target.value)} className={SQ_LINE_INPUT} />
+                    <Input type="number" value={item.unit_price} onChange={e => updateItem(i, 'unit_price', e.target.value)} placeholder="0.00" className={SQ_LINE_INPUT} />
+                    <Input type="number" value={item.cgst_rate} onChange={e => updateItem(i, 'cgst_rate', e.target.value)} className={SQ_LINE_INPUT} />
+                    <Input type="number" value={item.sgst_rate} onChange={e => updateItem(i, 'sgst_rate', e.target.value)} className={SQ_LINE_INPUT} />
+                    <Input type="number" value={item.igst_rate} onChange={e => updateItem(i, 'igst_rate', e.target.value)} className={SQ_LINE_INPUT} />
+                    <Input type="number" value={item.lead_time_days} onChange={e => updateItem(i, 'lead_time_days', e.target.value)} className={SQ_LINE_INPUT} placeholder="Days" />
+                    <div className="flex justify-end min-w-0">
+                      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0 text-red-400 hover:text-red-600" onClick={() => setItems(p => p.filter((_, idx) => idx !== i))} disabled={items.length === 1}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
@@ -1320,7 +1405,7 @@ function RFQDetail({ rfqId, onBack }: { rfqId: string; onBack: () => void }) {
               selectedSuppliers={inviteSuppliers}
               onChange={setInviteSuppliers}
               enabled={showInviteSupplier}
-              placeholder="Type supplier name, email or GSTIN…"
+              placeholder="Search name, email, GSTIN or phone…"
             />
           </div>
           <DialogFooter>
@@ -1400,7 +1485,7 @@ function QuotationDetail({ quotation, onClose }: { quotation: SupplierQuotation;
                   <TableCell className="text-sm text-right">{Number(item.quantity).toLocaleString()}</TableCell>
                   <TableCell className="text-sm text-right">{quotation.currency} {Number(item.unit_price).toLocaleString()}</TableCell>
                   <TableCell className="text-sm text-right text-gray-500">{Number(item.cgst_rate + item.sgst_rate + item.igst_rate).toFixed(1)}%</TableCell>
-                  <TableCell className="text-sm text-right font-medium">{quotation.currency} {Number(item.line_total).toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-right font-medium">{quotation.currency} {Number(item.total ?? item.line_total ?? item.subtotal ?? 0).toLocaleString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

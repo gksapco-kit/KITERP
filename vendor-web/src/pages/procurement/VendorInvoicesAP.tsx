@@ -401,6 +401,15 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
   const create = useCreateVendorInvoice()
   const { data: posData } = usePurchaseOrders({ status: 'sent,partial_received,received', size: 100 })
   const pos = posData?.items ?? []
+  const { data: copyDocs, isLoading: copyDocsLoading } = useVendorInvoices({ size: 100 })
+  const copySuggestions = useMemo(() => {
+    const items = (copyDocs?.items ?? []) as VendorInvoice[]
+    return items.map(inv => ({
+      number: inv.invoice_number,
+      title: inv.supplier_name || undefined,
+      hint: [inv.status?.replace(/_/g, ' '), inv.po_number].filter(Boolean).join(' · ') || undefined,
+    }))
+  }, [copyDocs])
   const { data: taxCodesData, error: taxCodesError } = useTaxCodes()
   const activeTaxCodes = useMemo(
     () => ((taxCodesData as TaxCode[] | undefined) ?? []).filter(c => c.is_active !== false),
@@ -443,6 +452,7 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
       applyCopiedInvoice(invoice)
     } catch (err) {
       toast.error(extractApiError(err, 'No vendor invoice found with that number'))
+      throw err
     } finally {
       setCopyLoading(false)
     }
@@ -491,7 +501,7 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+      <Card className="flex max-h-[90vh] w-[min(96vw,90rem)] flex-col overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white dark:bg-gray-900 z-10">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Banknote className="w-5 h-5 text-amber-600" /> {copiedFromNumber ? `Copy of ${copiedFromNumber}` : 'New Vendor Invoice (AP)'}
@@ -499,12 +509,6 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
         <CardContent className="p-6 space-y-5">
-          <CopyFromDocumentField
-            placeholder="Enter vendor invoice number"
-            onCopy={handleCopyFromNumber}
-            loading={copyLoading}
-            copiedFrom={copiedFromNumber}
-          />
           <div className="grid grid-cols-3 gap-4">
             <ProcurementSupplierField
               value={supplierId}
@@ -649,6 +653,14 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
+            <CopyFromDocumentField
+              placeholder="Search invoice number or supplier…"
+              onCopy={handleCopyFromNumber}
+              loading={copyLoading}
+              copiedFrom={copiedFromNumber}
+              suggestions={copySuggestions}
+              suggestionsLoading={copyDocsLoading}
+            />
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={create.isPending} className="gap-2">
               {create.isPending && <Loader2 className="w-4 h-4 animate-spin" />}

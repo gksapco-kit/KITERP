@@ -79,6 +79,8 @@ class PRItemResponse(BaseModel):
     suggested_supplier_name: Optional[str] = None
     quantity_ordered: float = 0
     purchase_order_id: Optional[str] = None
+    po_number: Optional[str] = None
+    po_line_number: Optional[int] = None
     is_converted: bool = False
     tax_code: Optional[str] = None
     notes: Optional[str] = None
