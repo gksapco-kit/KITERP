@@ -564,6 +564,46 @@ async def get_vendor_distance(
     })
 
 
+@router.get("/vendor/by-domain/{host}")
+async def get_vendor_by_domain(
+    host: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Public endpoint: resolve a vendor from a custom domain Host
+    (e.g. www.vedikaraksha.com → Vedika storefront vendor).
+    """
+    from app.utils.custom_domain import (
+        is_platform_hostname,
+        normalize_hostname,
+        sync_vendor_custom_domain_from_external,
+    )
+    from app.config import settings
+
+    normalized = normalize_hostname(host)
+    if not normalized or is_platform_hostname(normalized, settings.BASE_DOMAIN):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not a custom domain",
+        )
+
+    repo = VendorRepository(db)
+    vendor = await repo.find_by_custom_domain(normalized)
+
+    if not vendor or not vendor_live_on_storefront(vendor.status):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vendor not found for this domain",
+        )
+
+    # Keep routing columns warm for middleware / future lookups.
+    if sync_vendor_custom_domain_from_external(vendor):
+        await db.commit()
+        await db.refresh(vendor)
+
+    return await _catalog_vendor_payload(vendor, db)
+
+
 @router.get("/vendor/{vendor_slug}")
 async def get_vendor_by_slug(
     vendor_slug: str,
@@ -582,6 +622,10 @@ async def get_vendor_by_slug(
             detail="Vendor not found",
         )
 
+    return await _catalog_vendor_payload(vendor, db)
+
+
+async def _catalog_vendor_payload(vendor, db: AsyncSession) -> dict:
     raw_theme = vendor.theme_config or {}
     if theme_config_needs_migration(raw_theme):
         normalized_theme = normalize_theme_config(raw_theme)
@@ -602,6 +646,8 @@ async def get_vendor_by_slug(
         "business_name": vendor.business_name,
         "display_name": vendor.display_name,
         "slug": vendor.slug,
+        "subdomain": vendor.subdomain,
+        "custom_domain": vendor.custom_domain,
         "offering_type": vendor.offering_type or "both",
         "description": vendor.description,
         "logo_url": partner_addr.get("logo_url") or vendor.logo_url,

@@ -13,6 +13,7 @@ import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
 import { storefrontPath } from '@/lib/storefrontPaths'
 import { resolveAssignedStorefrontTemplateId } from '@/lib/storefrontTemplateAssignment'
 import { resolveTemplateDisplayFieldsFromSettings } from '@/lib/storefrontDisplayFields'
+import { useCustomHost } from '@/contexts/CustomHostContext'
 
 const API_URL = getStorefrontApiBaseUrl().replace(/\/$/, '')
 
@@ -57,6 +58,8 @@ export interface VendorContextType {
   previewShell?: boolean
   /** Switch builder page in /preview/draft without opening catalog iframe. */
   openBuilderForPage?: (pageSlug: string | null) => void
+  /** True when serving on a vendor custom domain (paths omit /{slug}). */
+  isCustomDomain?: boolean
 }
 
 export const VendorContext = createContext<VendorContextType>({
@@ -66,12 +69,21 @@ export const VendorContext = createContext<VendorContextType>({
   error: null,
   storePath: (p) => p,
   displayFields: resolveTemplateDisplayFieldsFromSettings(null, null),
+  isCustomDomain: false,
 })
 
-export function VendorProvider({ children }: { children: ReactNode }) {
+export function VendorProvider({
+  children,
+  slugOverride,
+}: {
+  children: ReactNode
+  /** Forced slug for custom-domain root routes (no :vendorSlug param). */
+  slugOverride?: string | null
+}) {
   const params = useParams<{ vendorSlug: string; previewToken?: string }>()
   const { pathname } = useLocation()
   const [searchParams] = useSearchParams()
+  const customHost = useCustomHost()
   const draftCatalogFromPath = parseDraftCatalogEmbedPath(pathname)
   const isDraftCatalogEmbed = Boolean(draftCatalogFromPath)
   const draftCatalogToken =
@@ -91,7 +103,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const slug = params?.vendorSlug || ''
+  const slug = (slugOverride?.trim() || params?.vendorSlug || customHost.vendorSlug || '').trim()
+  const omitSlug = Boolean(slugOverride) || (customHost.isCustomHost && Boolean(customHost.vendorSlug))
 
   // Pin this tab's URL slug immediately so catalog calls never use another live tab's vendor.
   useEffect(() => {
@@ -170,13 +183,12 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     if (isDraftCatalogEmbed && draftCatalogToken) {
       return buildDraftCatalogEmbedStorePath(slug, draftCatalogToken, clean.replace(/^\//, ''))
     }
-    let href = storefrontPath(slug, clean)
     if (draftEmbed && draftPreviewToken) {
       const routeQs = clean.includes('?') ? clean.slice(clean.indexOf('?') + 1) : ''
       const routePath = clean.split('?')[0].replace(/^\//, '')
       return buildDraftCatalogEmbedStorePath(slug, draftPreviewToken, routePath + (routeQs ? `?${routeQs}` : ''))
     }
-    return href
+    return storefrontPath(slug, clean, { omitSlug })
   }
 
   const displayFields = useMemo<DisplayFields>(() => {
@@ -185,7 +197,17 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   }, [vendor?.settings])
 
   return (
-    <VendorContext.Provider value={{ vendor, vendorSlug: slug, isLoading, error, storePath, displayFields }}>
+    <VendorContext.Provider
+      value={{
+        vendor,
+        vendorSlug: slug,
+        isLoading,
+        error,
+        storePath,
+        displayFields,
+        isCustomDomain: omitSlug,
+      }}
+    >
       {children}
     </VendorContext.Provider>
   )

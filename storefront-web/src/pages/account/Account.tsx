@@ -8,7 +8,7 @@ import { storefrontPath } from '@/lib/storefrontPaths'
 
 export default function Account() {
   const { customer } = useAuthStore()
-  const { storePath, vendor } = useVendor()
+  const { storePath, vendor, isCustomDomain } = useVendor()
   const { vendorSlug } = useParams<{ vendorSlug: string }>()
   const navigate = useNavigate()
   const logout = useCustomerLogout()
@@ -25,6 +25,7 @@ export default function Account() {
     const href = storePath(path)
     const slug = vendorSlug || vendor?.slug
     if (!slug) return href
+    if (isCustomDomain) return href
     const expected = storefrontPath(slug, path)
     if (href === expected || href.startsWith(`${expected}?`) || href.startsWith('/store/')) return href
     const clean = path.startsWith('/') ? path : `/${path}`

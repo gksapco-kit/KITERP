@@ -480,7 +480,10 @@ class VendorService:
             if field in ("settings", "theme_config", "store_holidays", "business_hours", "order_acceptance_hours"):
                 from sqlalchemy.orm.attributes import flag_modified
                 flag_modified(vendor, field)
-        
+
+        from app.utils.custom_domain import sync_vendor_custom_domain_from_external
+        sync_vendor_custom_domain_from_external(vendor)
+
         await self.db.commit()
         await self.db.refresh(vendor)
         

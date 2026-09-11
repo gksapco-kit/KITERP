@@ -89,16 +89,29 @@ function splitPathAndSearch(path: string): { pathname: string; extra: string } {
   }
 }
 
-/** Canonical public path for a vendor site, e.g. `/rainbow-nursery` or `/rainbow-nursery/products`. */
-export function storefrontPath(vendorSlug: string, path = '/'): string {
+/** Canonical public path for a vendor site, e.g. `/rainbow-nursery` or `/rainbow-nursery/products`.
+ * On a custom domain host, omit the slug so URLs are `/contact`, `/about`, etc.
+ */
+export function storefrontPath(
+  vendorSlug: string,
+  path = '/',
+  opts?: { omitSlug?: boolean },
+): string {
   const slug = vendorSlug.trim()
   const { pathname, extra } = splitPathAndSearch(path)
+  if (opts?.omitSlug) {
+    const body = pathname === '/' ? '/' : pathname
+    return `${body}${extra}`
+  }
   const base = slug ? `/${encodeURIComponent(slug)}` : ''
   const body = pathname === '/' ? (base || '/') : `${base}${pathname}`
   return `${body}${extra}`
 }
 
-export function vendorBasePaths(vendorSlug: string): string[] {
+export function vendorBasePaths(vendorSlug: string, opts?: { omitSlug?: boolean }): string[] {
+  if (opts?.omitSlug) {
+    return ['']
+  }
   const raw = vendorSlug.trim()
   if (!raw) return []
   const encoded = encodeURIComponent(raw)
@@ -111,8 +124,15 @@ export function vendorBasePaths(vendorSlug: string): string[] {
 }
 
 /** Relative path under a vendor site (`/` on home). Accepts both `/{slug}` and legacy `/store/{slug}`. */
-export function relativePathUnderVendor(pathname: string, vendorSlug: string): string | null {
+export function relativePathUnderVendor(
+  pathname: string,
+  vendorSlug: string,
+  opts?: { omitSlug?: boolean },
+): string | null {
   const path = splitPathAndSearch(pathname).pathname
+  if (opts?.omitSlug) {
+    return path === '/' ? '/' : path.replace(/\/+$/, '') || '/'
+  }
   const slug = vendorSlug.trim()
   if (!slug) return null
   for (const base of vendorBasePaths(slug)) {
@@ -125,8 +145,13 @@ export function relativePathUnderVendor(pathname: string, vendorSlug: string): s
   return null
 }
 
-export function isVendorSubpath(pathname: string, vendorSlug: string, subpath: string): boolean {
-  const rel = relativePathUnderVendor(pathname, vendorSlug)
+export function isVendorSubpath(
+  pathname: string,
+  vendorSlug: string,
+  subpath: string,
+  opts?: { omitSlug?: boolean },
+): boolean {
+  const rel = relativePathUnderVendor(pathname, vendorSlug, opts)
   if (rel == null) return false
   const want = subpath.startsWith('/') ? subpath : `/${subpath}`
   if (want === '/') return rel === '/'

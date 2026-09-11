@@ -46,11 +46,12 @@ function isOwnedDetailPath(relative: string): boolean {
 /** Default document SEO for catalog shell routes (detail/builder pages override with richer meta). */
 export default function StoreRouteSeo() {
   const { pathname } = useLocation()
-  const { vendorSlug = '' } = useParams<{ vendorSlug: string }>()
-  const { vendor } = useVendor()
+  const { vendorSlug: paramSlug = '' } = useParams<{ vendorSlug: string }>()
+  const { vendor, vendorSlug: ctxSlug, isCustomDomain } = useVendor()
   const { builderSite } = useBuilderSite()
+  const vendorSlug = (paramSlug || ctxSlug || '').trim()
   const vendorName = vendor?.display_name || vendor?.business_name || vendorSlug
-  const relative = relativePathUnderVendor(pathname, vendorSlug) || pathname
+  const relative = relativePathUnderVendor(pathname, vendorSlug, { omitSlug: Boolean(isCustomDomain) }) || pathname
   const homepageHasBuilderBlocks = Boolean(
     (builderSite?.pages?.find((page) => page.is_homepage) || builderSite?.pages?.[0])?.blocks?.length,
   )

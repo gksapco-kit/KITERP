@@ -98,24 +98,65 @@ class VendorRepository(BaseRepository[Vendor]):
         custom_domain: Optional[str]
     ) -> Optional[Vendor]:
         """Find vendor by subdomain or custom domain."""
+        if custom_domain and not subdomain:
+            return await self.find_by_custom_domain(custom_domain)
+
         conditions = []
         if subdomain:
             conditions.append(Vendor.subdomain == subdomain)
         if custom_domain:
-            conditions.append(
-                and_(
-                    Vendor.custom_domain == custom_domain,
-                    Vendor.domain_verified == True
+            from app.utils.custom_domain import host_lookup_candidates
+            candidates = host_lookup_candidates(custom_domain)
+            if candidates:
+                conditions.append(
+                    and_(
+                        Vendor.custom_domain.in_(candidates),
+                        Vendor.domain_verified == True,
+                    )
                 )
-            )
-        
+
         if not conditions:
             return None
-        
+
         result = await self.db.execute(
             select(Vendor).where(or_(*conditions))
         )
         return result.scalar_one_or_none()
+
+    async def find_by_custom_domain(self, host: str) -> Optional[Vendor]:
+        """Resolve vendor by custom / external domain Host (apex or www)."""
+        from app.utils.custom_domain import host_lookup_candidates
+
+        candidates = host_lookup_candidates(host)
+        if not candidates:
+            return None
+
+        result = await self.db.execute(
+            select(Vendor).where(
+                and_(
+                    Vendor.custom_domain.in_(candidates),
+                    Vendor.domain_verified == True,
+                )
+            )
+        )
+        vendor = result.scalars().first()
+        if vendor:
+            return vendor
+
+        # Also match apex/www variants stored on external_domain_name while active.
+        result = await self.db.execute(
+            select(Vendor).where(
+                Vendor.external_domain_access_status == "active",
+                Vendor.external_domain_enabled == True,
+                Vendor.external_domain_name.isnot(None),
+            )
+        )
+        candidate_set = set(candidates)
+        for row in result.scalars().all():
+            stored_variants = set(host_lookup_candidates(row.external_domain_name))
+            if stored_variants & candidate_set:
+                return row
+        return None
     
     async def get_by_user_id(
         self, user_id: UUID, preferred_vendor_id: Optional[UUID] = None

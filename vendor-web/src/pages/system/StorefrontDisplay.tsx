@@ -6,9 +6,13 @@ import { useStores } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
-import { Save, Loader2, Package, Wrench, LayoutTemplate } from 'lucide-react'
+import { Save, Loader2, Package, Wrench, LayoutTemplate, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Vendor } from '@/types'
+import {
+  REQUIRE_DOMAIN_DEACTIVATION_OTP_KEY,
+  requireDomainDeactivationOtp,
+} from '@/lib/domainDeactivationOtp'
 import {
   DISPLAY_FIELDS_BY_TEMPLATE_KEY,
   PRODUCT_DISPLAY_FIELD_DEFS,
@@ -97,6 +101,7 @@ export default function StorefrontDisplayPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState(GLOBAL_TEMPLATE_ID)
   const [productFields, setProductFields] = useState<Record<string, boolean>>({})
   const [serviceFields, setServiceFields] = useState<Record<string, boolean>>({})
+  const [requireDomainOtp, setRequireDomainOtp] = useState(false)
   const savingRef = useRef(false)
   const didAutoSelectTemplateRef = useRef(false)
 
@@ -149,6 +154,7 @@ export default function StorefrontDisplayPage() {
     )
     setProductFields(resolved.product)
     setServiceFields(resolved.service)
+    setRequireDomainOtp(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
   }, [vendor, selectedTemplateId])
 
   useEffect(() => {
@@ -181,6 +187,7 @@ export default function StorefrontDisplayPage() {
         [selectedTemplateId]: entry,
       }
     }
+    payload[REQUIRE_DOMAIN_DEACTIVATION_OTP_KEY] = requireDomainOtp
     delete payload.sign_in_mandatory
     if (payload.delivery_conditions && typeof payload.delivery_conditions === 'object') {
       const dc = { ...(payload.delivery_conditions as Record<string, unknown>) }
@@ -225,6 +232,40 @@ export default function StorefrontDisplayPage() {
           <SaveButton loading={updateVendor.isPending} />
         </div>
       </div>
+
+      <Card>
+        <CardHeader className="space-y-0 p-3 pb-2">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+              <ShieldCheck className="h-4 w-4" strokeWidth={2} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-sm">External domain security</CardTitle>
+              <p className="text-[11px] leading-snug text-muted-foreground">
+                Controls whether deactivating a live custom domain (Settings → External Domain) requires an email/SMS code.
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-3 pt-0">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-border bg-muted/20 px-3 py-2.5 hover:bg-muted/40">
+            <input
+              type="checkbox"
+              checked={requireDomainOtp}
+              onChange={e => setRequireDomainOtp(e.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-input text-primary"
+            />
+            <span className="min-w-0">
+              <span className="block text-xs font-medium text-foreground">
+                Require verification to deactivate domain
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                Off by default — deactivate in one click. Turn on to require a 6-digit code before turning off a live domain.
+              </span>
+            </span>
+          </label>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="space-y-0 p-3 pb-2">

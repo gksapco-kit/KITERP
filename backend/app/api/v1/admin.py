@@ -766,6 +766,9 @@ async def update_vendor(
     if VENDOR_ADDRESS_UPDATE_FIELDS & update_data.keys():
         await sync_vendor_address_to_default_store(db, vendor)
 
+    from app.utils.custom_domain import sync_vendor_custom_domain_from_external
+    sync_vendor_custom_domain_from_external(vendor)
+
     await db.commit()
     await db.refresh(vendor)
     vendor = await repo.get_by_id(vendor_id)

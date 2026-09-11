@@ -13,7 +13,7 @@ export function useProductCartDetailPath(): string {
     vendorSlug?: string
     previewToken?: string
   }>()
-  const { vendorSlug: ctxSlug } = useVendor()
+  const { vendorSlug: ctxSlug, isCustomDomain } = useVendor()
   const { pathname } = useLocation()
 
   const slug = (routeSlug || ctxSlug || '').trim()
@@ -26,6 +26,9 @@ export function useProductCartDetailPath(): string {
 
   const built = storePath(CART_DETAIL_PATH)
   const builtPath = built.split('?')[0]
+  if (isCustomDomain && builtPath.includes('/cart')) {
+    return built
+  }
   const expectedCart = slug ? storefrontPath(slug, CART_DETAIL_PATH) : ''
   if (builtPath.includes('/cart') && (builtPath === expectedCart || builtPath.includes('/store/'))) {
     return built
@@ -33,7 +36,7 @@ export function useProductCartDetailPath(): string {
 
   if (slug) {
     const branchQs = built.includes('?') ? built.slice(built.indexOf('?')) : ''
-    return `${storefrontPath(slug, CART_DETAIL_PATH)}${branchQs}`
+    return `${storefrontPath(slug, CART_DETAIL_PATH, { omitSlug: Boolean(isCustomDomain) })}${branchQs}`
   }
 
   return built

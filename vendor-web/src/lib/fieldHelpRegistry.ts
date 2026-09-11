@@ -147,7 +147,12 @@ export const FIELD_HELP_BY_LABEL: Record<string, FieldHelpCopy> = {
   'verification code': {
     hover: 'One-time code sent to confirm a sensitive change.',
     full:
-      'Enter the verification code sent to your registered email or phone to confirm this action — for example deactivating a live custom domain.',
+      'Enter the verification code sent to your registered email or phone to confirm this action — for example deactivating a live custom domain. OTP is only required when "Require verification to deactivate domain" is enabled under Business Front Display.',
+  },
+  'require verification to deactivate domain': {
+    hover: 'When on, deactivating a live custom domain asks for an email/SMS code.',
+    full:
+      'Leave this off to deactivate an external domain in one click. Turn it on if you want an email or SMS verification code before a live custom domain can be turned off (Settings → External Domain).',
   },
 
   // ── Auth & account ──

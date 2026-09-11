@@ -458,7 +458,7 @@ function DraftEmbedHomeBar({
 
 function StoreContent() {
   const { pathname } = useLocation()
-  const { vendorSlug } = useParams<{ vendorSlug: string }>()
+  const { vendorSlug: paramSlug } = useParams<{ vendorSlug: string }>()
   const [searchParams] = useSearchParams()
   const draftCatalogEmbed = searchParams.get('draft_embed') === '1'
 
@@ -477,7 +477,8 @@ function StoreContent() {
     }
   }, [pathname])
   const { builderSite } = useBuilderSite()
-  const { isLoading, error } = useVendor()
+  const { isLoading, error, vendorSlug: ctxSlug, isCustomDomain } = useVendor()
+  const vendorSlug = (paramSlug || ctxSlug || '').trim()
   const vendor = useEffectiveVendor()
   const { storePath } = useBranch()
   const assignedTemplateId = useAssignedStorefrontTemplateId()
@@ -525,16 +526,17 @@ function StoreContent() {
   useJourneyBeacon(vendor?.id, customer?.id)
   const { links: headerNavLinks, cta: headerCta } = useStorefrontHeaderNav()
 
+  const pathOpts = { omitSlug: Boolean(isCustomDomain) }
   const isHrAuthPage =
     !!vendorSlug &&
-    (isVendorSubpath(pathname, vendorSlug, '/hr/login') ||
-      isVendorSubpath(pathname, vendorSlug, '/hr/change-password'))
+    (isVendorSubpath(pathname, vendorSlug, '/hr/login', pathOpts) ||
+      isVendorSubpath(pathname, vendorSlug, '/hr/change-password', pathOpts))
 
   // Employee HR / ESS lives under /:slug/hr — resolve vendor via X-Vendor-Slug on the API.
   // Do not block on public catalog so /hr/login still opens when the business front vendor is missing or pending.
   const isEmployeeHrArea =
     !!vendorSlug &&
-    (isHrAuthPage || isVendorSubpath(pathname, vendorSlug, '/hr'))
+    (isHrAuthPage || isVendorSubpath(pathname, vendorSlug, '/hr', pathOpts))
 
   if (legacyDraftCatalogRedirect) {
     return <Navigate to={legacyDraftCatalogRedirect} replace />
@@ -592,7 +594,7 @@ function StoreContent() {
   }
 
   const isBuilderPreview =
-    !!vendorSlug && isVendorSubpath(pathname, vendorSlug, '/preview')
+    !!vendorSlug && isVendorSubpath(pathname, vendorSlug, '/preview', { omitSlug: Boolean(isCustomDomain) })
 
   const hideStoreChrome = shouldHideStoreLayoutChrome({
     pathname,
@@ -603,6 +605,7 @@ function StoreContent() {
     storeSpecificTemplateId,
     isBuilderPreview,
     draftCatalogEmbed,
+    omitSlug: Boolean(isCustomDomain),
   })
 
   const headerStyle = theme.header_style || 'classic'
@@ -697,7 +700,7 @@ function StoreContent() {
   if (hideStoreChrome) {
     const previewToken = searchParams.get('preview_token')?.trim() || recallDraftEmbedPreviewToken()
     const draftEmbedHomePath = vendorSlug && previewToken
-      ? `${storefrontPath(vendorSlug)}?preview_token=${encodeURIComponent(previewToken)}`
+      ? `${storefrontPath(vendorSlug, '/', { omitSlug: Boolean(isCustomDomain) })}?preview_token=${encodeURIComponent(previewToken)}`
       : storePath('/')
 
     const layoutOwnsShell = Boolean(
@@ -753,9 +756,9 @@ function StoreContent() {
   )
 }
 
-export default function StoreLayout() {
+export default function StoreLayout({ slugOverride }: { slugOverride?: string | null } = {}) {
   return (
-    <VendorProvider>
+    <VendorProvider slugOverride={slugOverride}>
       <BuilderSiteProvider>
         <BranchProvider>
           <StorefrontDisplayFieldsBridge>
