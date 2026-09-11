@@ -84,6 +84,7 @@ import PurchaseOrdersPage from '@/pages/purchase-orders/index'
 import PurchaseOrderDetail from '@/pages/purchase-orders/PurchaseOrderDetail'
 import POTemplatesPage from '@/pages/purchase-orders/POTemplates'
 import CreatePurchaseOrderPage from '@/pages/purchase-orders/CreatePurchaseOrderPage'
+import PurchaseOrderEditPage from '@/pages/purchase-orders/PurchaseOrderEditPage'
 import PurchaseRequisitionsPage from '@/pages/procurement/PurchaseRequisitions'
 import CreatePurchaseRequisitionPage from '@/pages/procurement/CreatePurchaseRequisitionPage'
 import SupplierManagementPage from '@/pages/procurement/SupplierManagement'
@@ -403,6 +404,7 @@ export const router = createBrowserRouter([
       { path: 'purchase-orders/new', element: <CreatePurchaseOrderPage /> },
       { path: 'purchase-orders/templates', element: <POTemplatesPage /> },
       { path: 'purchase-orders/:id', element: <PurchaseOrderDetail /> },
+      { path: 'purchase-orders/:id/edit', element: <PurchaseOrderEditPage /> },
       { path: 'procurement/requisitions', element: <PurchaseRequisitionsPage /> },
       { path: 'procurement/requisitions/new', element: <CreatePurchaseRequisitionPage /> },
       { path: 'procurement/sourcing', element: <SourcingSetupPage /> },

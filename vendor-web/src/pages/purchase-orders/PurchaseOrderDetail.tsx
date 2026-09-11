@@ -22,7 +22,7 @@ import {
   Loader2, ArrowLeft, Send, PackageCheck, CheckCircle2, XCircle,
   X, ClipboardList, Truck, Calendar, FileText, History,
   Download, Copy, CopyPlus, MessageCircle, Mail, Share2, Printer, Palette, MessageSquare,
-  ChevronDown, ChevronRight, Edit2, Trash2, Plus, Save, RotateCcw, ScanLine,
+  ChevronDown, ChevronRight, Edit2, Trash2, Plus, Save, ScanLine,
   ShieldCheck, ThumbsUp, ThumbsDown, Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -157,8 +157,6 @@ export default function PurchaseOrderDetail() {
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
-  const [editingHeader, setEditingHeader] = useState(false)
-  const [headerDraft, setHeaderDraft] = useState({ supplier_id: '', expected_delivery_date: '', notes: '' })
   const [addingItem, setAddingItem] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [scanLoading, setScanLoading] = useState(false)
@@ -224,34 +222,6 @@ export default function PurchaseOrderDetail() {
     () => processRows(po?.receipts, '', () => [], receiptSortKey, receiptSortDir, receiptAccessors),
     [po?.receipts, receiptSortKey, receiptSortDir, receiptAccessors],
   )
-
-  // Populate header draft when editing starts
-  const startEditHeader = useCallback(() => {
-    if (!po) return
-    setHeaderDraft({
-      supplier_id: po.supplier_id || '',
-      expected_delivery_date: po.expected_delivery_date ? po.expected_delivery_date.slice(0, 10) : '',
-      notes: po.notes || '',
-    })
-    setEditingHeader(true)
-  }, [po])
-
-  const saveHeader = useCallback(async () => {
-    if (!po) return
-    try {
-      await updateMut.mutateAsync({
-        id: po.id,
-        data: {
-          supplier_id: headerDraft.supplier_id || undefined,
-          expected_delivery_date: headerDraft.expected_delivery_date || undefined,
-          notes: headerDraft.notes || undefined,
-          items: po.items.map(i => toPoUpdateLine(i)),
-        },
-      })
-      setEditingHeader(false)
-      toast.success(actionDocMessage('Purchase order', po.po_number, 'updated'))
-    } catch { /* handled by hook */ }
-  }, [po, updateMut, headerDraft])
 
   // Save updated items list (for add/edit/delete item operations)
   const saveItems = useCallback(async (newItems: PoUpdateLine[]) => {
@@ -473,19 +443,10 @@ export default function PurchaseOrderDetail() {
         <div className="flex gap-2 flex-wrap">
           {isDraft && (
             <>
-              {!editingHeader ? (
-                <Button variant="outline" className="gap-2" onClick={startEditHeader}>
+              {(
+                <Button variant="outline" className="gap-2" onClick={() => navigate(`/purchase-orders/${po.id}/edit`)}>
                   <Edit2 className="w-4 h-4 text-green-600" /> Edit PO
                 </Button>
-              ) : (
-                <>
-                  <Button variant="outline" className="gap-2" onClick={() => setEditingHeader(false)} disabled={actionLoading}>
-                    <RotateCcw className="w-4 h-4" /> Discard
-                  </Button>
-                  <Button className="gap-2" onClick={saveHeader} disabled={actionLoading}>
-                    {updateMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save
-                  </Button>
-                </>
               )}
               {!approvalPending && !approvalApproved && (
                 <Button variant="outline" className="gap-2" disabled={actionLoading} onClick={() => setShowRequestApproval(true)}>
@@ -559,96 +520,44 @@ export default function PurchaseOrderDetail() {
         </Button>
       </div>
 
-      {/* Editable header form / Info cards */}
-      {editingHeader ? (
-        <Card className="border-blue-200 bg-blue-50/20">
-          <CardContent className="p-3 sm:p-4">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-blue-700">Editing Purchase Order</p>
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-1">
-                <Label className="text-[11px] text-gray-500">Supplier</Label>
-                <Select
-                  value={headerDraft.supplier_id}
-                  onChange={v => setHeaderDraft(d => ({ ...d, supplier_id: v }))}
-                  options={selectOptionsWithBlank(
-                    '— Select supplier —',
-                    suppliers.map(s => ({
-                      value: s.id,
-                      label: s.name,
-                      hint: [
-                        s.company_name && s.company_name !== s.name ? s.company_name : null,
-                        s.gstin ? `GSTIN ${s.gstin}` : null,
-                        s.email || null,
-                        s.phone || null,
-                      ].filter(Boolean).join(' · ') || undefined,
-                    })),
-                  )}
-                  className={selectClass}
-                  showSelectedHint={false}
-                  searchable
-                  searchPlaceholder="Search name, email, GSTIN or phone…"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] text-gray-500">Expected Delivery Date</Label>
-                <Input
-                  type="date"
-                  className="h-9"
-                  value={headerDraft.expected_delivery_date}
-                  onChange={e => setHeaderDraft(d => ({ ...d, expected_delivery_date: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-                <Label className="text-[11px] text-gray-500">Notes / Reference</Label>
-                <Input
-                  className="h-9"
-                  value={headerDraft.notes}
-                  placeholder="e.g., Invoice ref, delivery instructions…"
-                  onChange={e => setHeaderDraft(d => ({ ...d, notes: e.target.value }))}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg border bg-white px-3 py-2.5 sm:col-span-2">
-            <div className="mb-1 flex items-center gap-1.5 text-gray-500">
-              <Truck className="h-3.5 w-3.5" />
-              <span className="text-[11px] font-medium">Supplier</span>
-            </div>
-            <p className="text-sm font-semibold text-gray-900">{po.supplier_name || '-'}</p>
-            {(po.supplier_gstin || po.supplier_pan || po.supplier_contact_name || po.supplier_phone || po.supplier_email || po.supplier_address) && (
-              <div className="mt-1.5 space-y-0.5 border-t border-gray-100 pt-1.5">
-                {po.supplier_gstin && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">GSTIN:</span> {po.supplier_gstin}</p>
-                )}
-                {po.supplier_pan && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">PAN:</span> {po.supplier_pan}</p>
-                )}
-                {po.supplier_contact_name && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">Contact:</span> {po.supplier_contact_name}</p>
-                )}
-                {po.supplier_phone && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">Phone:</span> {po.supplier_phone}</p>
-                )}
-                {po.supplier_email && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">Email:</span> {po.supplier_email}</p>
-                )}
-                {po.supplier_address && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">Address:</span> {po.supplier_address}</p>
-                )}
-              </div>
-            )}
+      {/* Header info cards */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border bg-white px-3 py-2.5 sm:col-span-2">
+          <div className="mb-1 flex items-center gap-1.5 text-gray-500">
+            <Truck className="h-3.5 w-3.5" />
+            <span className="text-[11px] font-medium">Supplier</span>
           </div>
-          <InfoCard icon={Calendar} label="Order Date" value={formatDate(po.order_date)} />
-          <InfoCard icon={Calendar} label="Expected Delivery" value={formatDate(po.expected_delivery_date)} />
-          <InfoCard icon={FileText} label="Total" value={formatCurrency(po.total, po.currency || 'INR')} className="sm:col-span-2 lg:col-span-1" />
+          <p className="text-sm font-semibold text-gray-900">{po.supplier_name || '-'}</p>
+          {(po.supplier_gstin || po.supplier_pan || po.supplier_contact_name || po.supplier_phone || po.supplier_email || po.supplier_address) && (
+            <div className="mt-1.5 space-y-0.5 border-t border-gray-100 pt-1.5">
+              {po.supplier_gstin && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">GSTIN:</span> {po.supplier_gstin}</p>
+              )}
+              {po.supplier_pan && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">PAN:</span> {po.supplier_pan}</p>
+              )}
+              {po.supplier_contact_name && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">Contact:</span> {po.supplier_contact_name}</p>
+              )}
+              {po.supplier_phone && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">Phone:</span> {po.supplier_phone}</p>
+              )}
+              {po.supplier_email && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">Email:</span> {po.supplier_email}</p>
+              )}
+              {po.supplier_address && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">Address:</span> {po.supplier_address}</p>
+              )}
+            </div>
+          )}
         </div>
-      )}
+        <InfoCard icon={Calendar} label="Order Date" value={formatDate(po.order_date)} />
+        <InfoCard icon={Calendar} label="Expected Delivery" value={formatDate(po.expected_delivery_date)} />
+        <InfoCard icon={FileText} label="Total" value={formatCurrency(po.total, po.currency || 'INR')} className="sm:col-span-2 lg:col-span-1" />
+      </div>
 
       {/* Currency / payment terms pills — shown whenever data exists */}
-      {!editingHeader && (po.currency && po.currency !== 'INR' || po.payment_terms) && (
+      {(po.currency && po.currency !== 'INR' || po.payment_terms) && (
         <div className="flex flex-wrap gap-3">
           {po.currency && po.currency !== 'INR' && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
@@ -663,7 +572,7 @@ export default function PurchaseOrderDetail() {
         </div>
       )}
 
-      {po.notes && !editingHeader && (
+      {po.notes && (
         <Card>
           <CardContent className="px-4 py-2.5">
             <p className="text-sm text-gray-600"><span className="font-medium">Notes:</span> {po.notes}</p>
