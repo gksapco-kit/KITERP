@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,9 +16,10 @@ import { vendorApi } from '@/api/vendor'
 import { formatDate } from '@/lib/utils'
 import type { PurchaseOrder, PurchaseOrderItem, PurchaseReturn } from '@/types'
 import { useTaxCodes } from '@/hooks/useFinance'
+import { useUpdatePurchaseReturn } from '@/hooks/useVendor'
 import { buildTaxCodeMap, taxSplitLabel, type TaxCode } from '@/lib/procurementTax'
 import {
-  RotateCcw, Plus, ChevronRight, Clock, CheckCircle2, Truck, AlertCircle, Printer, Download,
+  RotateCcw, Plus, ChevronRight, Clock, CheckCircle2, Truck, AlertCircle, Printer, Download, Pencil,
 } from 'lucide-react'
 import { printReturn, downloadReturnPdf, printDebitNote, downloadDebitNotePdf } from '@/lib/procurementPrintUtils'
 import { toast } from 'sonner'
@@ -75,7 +76,8 @@ interface ReturnLineEntry {
 // Per-row validation errors keyed by po_item_id
 type LineErrors = Record<string, string>
 
-function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function CreateReturnDialog({ open, onClose, editingReturn }: { open: boolean; onClose: () => void; editingReturn?: PurchaseReturn | null }) {
+  const isEditMode = Boolean(editingReturn)
   const queryClient = useQueryClient()
   const [poSearch, setPoSearch] = useState('')
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null)
@@ -88,6 +90,7 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
   })
   const [lineEntries, setLineEntries] = useState<ReturnLineEntry[]>([])
   const [lineErrors, setLineErrors] = useState<LineErrors>({})
+  const updateHook = useUpdatePurchaseReturn(editingReturn?.id ?? '')
 
   const { data: taxCodesData, error: taxCodesError } = useTaxCodes()
   const activeTaxCodes = useMemo(
@@ -104,6 +107,32 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
     enabled: open && !selectedPO,
   })
   const eligiblePOs = (poData?.items ?? []) as PurchaseOrder[]
+
+  useEffect(() => {
+    if (!editingReturn || !open) return
+    setForm({
+      return_date: editingReturn.return_date || new Date().toISOString().slice(0, 10),
+      return_reason: editingReturn.return_reason || 'quality_rejection',
+      grn_id: editingReturn.grn_id || '',
+      currency: editingReturn.currency || 'INR',
+      notes: editingReturn.notes || '',
+    })
+    const prefill: ReturnLineEntry[] = (editingReturn.lines ?? []).map(line => ({
+      po_item_id: line.po_item_id || '',
+      product_id: line.product_id || '',
+      product_name: line.product_name || line.description || 'Item',
+      ordered_qty: 0,
+      received_qty: 0,
+      unit_of_measure: line.unit_of_measure || 'piece',
+      unit_price: line.unit_price || 0,
+      return_qty: String(line.return_qty ?? 0),
+      tax_code: line.tax_code || '',
+      reason: line.reason || '',
+      include: true,
+    }))
+    setLineEntries(prefill)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingReturn?.id, open])
 
   function selectPO(po: PurchaseOrder) {
     setSelectedPO(po)
@@ -214,8 +243,7 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
     }
 
     for (const entry of activeEntries) {
-      // Check product linkage first — this is a hard blocker regardless of qty
-      if (!entry.product_id) {
+      if (!isEditMode && !entry.product_id) {
         errors[entry.po_item_id] =
           `Not linked to a catalogue product — deselect this item. Contact support to fix the PO if needed.`
         continue
@@ -224,7 +252,7 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
       const qty = parseFloat(entry.return_qty || '0')
       if (isNaN(qty) || qty <= 0) {
         errors[entry.po_item_id] = `Enter a return quantity greater than 0.`
-      } else if (entry.received_qty > 0 && qty > entry.received_qty) {
+      } else if (!isEditMode && entry.received_qty > 0 && qty > entry.received_qty) {
         errors[entry.po_item_id] =
           `Return qty (${qty}) exceeds received qty (${entry.received_qty}). Reduce to ${entry.received_qty} or less.`
       }
@@ -238,13 +266,41 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
       toast.error(
         count === 1
           ? `Fix the highlighted row: ${first}`
-          : `${count} rows have errors — fix the highlighted items before creating the return.`,
+          : `${count} rows have errors — fix the highlighted items before saving.`,
         { duration: 6000 },
       )
       return
     }
 
-    create.mutate()
+    if (isEditMode && editingReturn) {
+      let lineNumber = 1
+      const lines = activeEntries
+        .filter(e => parseFloat(e.return_qty) > 0)
+        .map(e => ({
+          po_item_id: e.po_item_id || undefined,
+          product_id: e.product_id || undefined,
+          unit_of_measure: e.unit_of_measure,
+          return_qty: parseFloat(e.return_qty),
+          unit_price: e.unit_price,
+          tax_code: e.tax_code || undefined,
+          line_number: lineNumber++,
+          reason: e.reason || undefined,
+        }))
+      updateHook.mutate({
+        ...form,
+        grn_id: form.grn_id || undefined,
+        notes: form.notes || undefined,
+        lines,
+      }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['purchase-returns'] })
+          queryClient.invalidateQueries({ queryKey: ['vendor', 'purchase-returns'] })
+          handleClose()
+        },
+      })
+    } else {
+      create.mutate()
+    }
   }
 
   const activeLinesCount = lineEntries.filter(e => e.include && parseFloat(e.return_qty || '0') > 0).length
@@ -253,11 +309,11 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
     <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose() }}>
       <DialogContent className="flex max-h-[92vh] w-[min(96vw,100rem)] flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
-          <DialogTitle>Create Purchase Return</DialogTitle>
+          <DialogTitle>{isEditMode ? `Edit Return — ${editingReturn!.return_number}` : 'Create Purchase Return'}</DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto px-6 py-4">
 
-        {!selectedPO ? (
+        {!selectedPO && !isEditMode ? (
           // Step 1: PO selection
           <div className="space-y-3 py-2">
             <p className="text-sm text-gray-500">Select the Purchase Order you want to return goods against.</p>
@@ -311,19 +367,19 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
               <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1">
                 <div>
                   <p className="text-[10px] text-orange-400 uppercase tracking-wide font-semibold">PO Number</p>
-                  <p className="font-semibold text-orange-800">{selectedPO.po_number}</p>
+                  <p className="font-semibold text-orange-800">{selectedPO?.po_number ?? editingReturn?.po_number ?? '—'}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-orange-400 uppercase tracking-wide font-semibold">Supplier</p>
-                  <p className="font-medium text-orange-700">{selectedPO.supplier_name ?? '—'}</p>
+                  <p className="font-medium text-orange-700">{selectedPO?.supplier_name ?? editingReturn?.supplier_name ?? '—'}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-orange-400 uppercase tracking-wide font-semibold">Order Date</p>
-                  <p className="text-orange-700">{selectedPO.order_date ? formatDate(selectedPO.order_date) : '—'}</p>
+                  <p className="text-orange-700">{selectedPO?.order_date ? formatDate(selectedPO.order_date) : '—'}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-orange-400 uppercase tracking-wide font-semibold">PO Total</p>
-                  <p className="font-semibold text-orange-800">{selectedPO.currency ?? form.currency} {Number(selectedPO.total ?? 0).toLocaleString()}</p>
+                  <p className="font-semibold text-orange-800">{selectedPO?.currency ?? form.currency} {Number(selectedPO?.total ?? 0).toLocaleString()}</p>
                 </div>
                 {selectedPO.received_at && (
                   <div>
@@ -552,9 +608,11 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
         </div>
         <div className="px-6 py-4 border-t bg-white shrink-0 flex justify-end gap-2">
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          {selectedPO && (
-            <Button onClick={validateAndSubmit} disabled={create.isPending}>
-              {create.isPending ? 'Creating…' : `Create Return (${activeLinesCount} line${activeLinesCount !== 1 ? 's' : ''})`}
+          {(selectedPO || isEditMode) && (
+            <Button onClick={validateAndSubmit} disabled={isEditMode ? updateHook.isPending : create.isPending}>
+              {isEditMode
+                ? (updateHook.isPending ? 'Saving…' : `Save Changes (${activeLinesCount} line${activeLinesCount !== 1 ? 's' : ''})`)
+                : (create.isPending ? 'Creating…' : `Create Return (${activeLinesCount} line${activeLinesCount !== 1 ? 's' : ''})`)}
             </Button>
           )}
         </div>
@@ -567,7 +625,7 @@ function CreateReturnDialog({ open, onClose }: { open: boolean; onClose: () => v
 // Return Detail
 // ─────────────────────────────────────────────────────────────────
 
-function ReturnDetail({ returnId, onBack }: { returnId: string; onBack: () => void }) {
+function ReturnDetail({ returnId, onBack, onEdit }: { returnId: string; onBack: () => void; onEdit?: (ret: PurchaseReturn) => void }) {
   const queryClient = useQueryClient()
   const [showDispatchDialog, setShowDispatchDialog] = useState(false)
   const [dispatch, setDispatch] = useState({ dispatched_via: '', dispatch_date: new Date().toISOString().slice(0, 10), tracking_number: '' })
@@ -638,6 +696,11 @@ function ReturnDetail({ returnId, onBack }: { returnId: string; onBack: () => vo
         <div className="flex gap-2">
           {ret.status === 'draft' && (
             <>
+              {onEdit && (
+                <Button size="sm" variant="outline" onClick={() => onEdit(ret)}>
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" />Edit
+                </Button>
+              )}
               <Button size="sm" onClick={() => approveMut.mutate()} disabled={approveMut.isPending}>
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />{approveMut.isPending ? 'Approving…' : 'Approve'}
               </Button>
@@ -778,6 +841,7 @@ function ReturnDetail({ returnId, onBack }: { returnId: string; onBack: () => vo
 
 export default function PurchaseReturnsPage() {
   const [showCreate, setShowCreate] = useState(false)
+  const [editingReturn, setEditingReturn] = useState<PurchaseReturn | null>(null)
   const [selectedReturnId, setSelectedReturnId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -802,7 +866,16 @@ export default function PurchaseReturnsPage() {
   if (selectedReturnId) {
     return (
       <div className="flex h-[calc(100vh-64px)]">
-        <ReturnDetail returnId={selectedReturnId} onBack={() => setSelectedReturnId(null)} />
+        <CreateReturnDialog
+          open={showCreate}
+          editingReturn={editingReturn}
+          onClose={() => { setShowCreate(false); setEditingReturn(null) }}
+        />
+        <ReturnDetail
+          returnId={selectedReturnId}
+          onBack={() => setSelectedReturnId(null)}
+          onEdit={ret => { setEditingReturn(ret); setShowCreate(true) }}
+        />
       </div>
     )
   }
@@ -924,7 +997,7 @@ export default function PurchaseReturnsPage() {
         </div>
       )}
 
-      <CreateReturnDialog open={showCreate} onClose={() => setShowCreate(false)} />
+      <CreateReturnDialog open={showCreate} editingReturn={editingReturn} onClose={() => { setShowCreate(false); setEditingReturn(null) }} />
     </div>
   )
 }

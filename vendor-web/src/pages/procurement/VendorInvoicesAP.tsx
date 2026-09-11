@@ -13,7 +13,7 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
-  useVendorInvoices, useCreateVendorInvoice, usePostVendorInvoice,
+  useVendorInvoices, useCreateVendorInvoice, useUpdateVendorInvoice, usePostVendorInvoice,
   useMatchVendorInvoice, useCancelVendorInvoice, usePurchaseOrders, useRecordInvoicePayment,
   useRequestInvoiceApproval, useApproveOrRejectInvoice,
 } from '@/hooks/useVendor'
@@ -24,7 +24,7 @@ import { ProcurementSupplierField } from '@/components/procurement/ProcurementSu
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { VendorInvoice } from '@/types'
-import { Loader2, Plus, X, FileText, CheckCircle2, Ban, ArrowRight, Banknote, Printer, Download, CreditCard, Send, ThumbsUp, ThumbsDown, Clock, CopyPlus } from 'lucide-react'
+import { Loader2, Plus, X, FileText, CheckCircle2, Ban, ArrowRight, Banknote, Printer, Download, CreditCard, Send, ThumbsUp, ThumbsDown, Clock, CopyPlus, Pencil } from 'lucide-react'
 import { printInvoice, downloadInvoicePdf } from '@/lib/procurementPrintUtils'
 import { vendorInvoiceToCopyLines } from '@/lib/copyDocument'
 import { CopyFromDocumentField } from '@/components/procurement/CopyFromDocumentField'
@@ -63,7 +63,7 @@ function calcLineTotal(l: LineRow, taxRate: number) {
 }
 
 // ── Detail Panel ──────────────────────────────────────────────────
-function InvoiceDetailPanel({ invoice, onClose, onCopyDocument }: { invoice: VendorInvoice; onClose: () => void; onCopyDocument?: () => void }) {
+function InvoiceDetailPanel({ invoice, onClose, onCopyDocument, onEdit }: { invoice: VendorInvoice; onClose: () => void; onCopyDocument?: () => void; onEdit?: () => void }) {
   const navigate = useNavigate()
   const post = usePostVendorInvoice()
   const match = useMatchVendorInvoice()
@@ -105,6 +105,11 @@ function InvoiceDetailPanel({ invoice, onClose, onCopyDocument }: { invoice: Ven
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${matchBadge}`}>{invoice.match_status.replace(/_/g, ' ')}</span>
             {approvalStatus !== 'not_required' && (
               <DocumentStatusBadge status={approvalStatus} map={APPROVAL_STATUS_MAP_INVOICE} />
+            )}
+            {onEdit && invoice.status === 'draft' && (
+              <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onEdit}>
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </Button>
             )}
             {onCopyDocument && (
               <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onCopyDocument}>
@@ -390,9 +395,11 @@ function InvoiceDetailPanel({ invoice, onClose, onCopyDocument }: { invoice: Ven
 }
 
 // ── Create Invoice Modal ──────────────────────────────────────────
-function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFrom?: VendorInvoice | null }) {
+function CreateInvoiceModal({ onClose, copyFrom, editingInvoice }: { onClose: () => void; copyFrom?: VendorInvoice | null; editingInvoice?: VendorInvoice | null }) {
+  const isEditMode = Boolean(editingInvoice)
   const navigate = useNavigate()
   const create = useCreateVendorInvoice()
+  const update = useUpdateVendorInvoice()
   const { data: posData } = usePurchaseOrders({ status: 'sent,partial_received,received', size: 100 })
   const pos = posData?.items ?? []
   const { data: copyDocs, isLoading: copyDocsLoading } = useVendorInvoices({ size: 100 })
@@ -439,6 +446,25 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!editingInvoice) return
+    setSupplierId(editingInvoice.supplier_id || '')
+    setPoId(editingInvoice.purchase_order_id || '')
+    setInvoiceNumber(editingInvoice.invoice_number || '')
+    setInvoiceDate(editingInvoice.invoice_date || new Date().toISOString().slice(0, 10))
+    setDueDate(editingInvoice.due_date || '')
+    setCurrency(editingInvoice.currency || 'INR')
+    setNotes(editingInvoice.notes || '')
+    const prefill = (editingInvoice.items ?? []).map(it => ({
+      description: it.description,
+      qty: it.invoiced_qty,
+      uom: it.uom || '',
+      unit_price: it.unit_price,
+      tax_code: it.tax_code || '',
+    }))
+    setLines(prefill.length ? prefill : [emptyLine()])
+  }, [editingInvoice?.id])
+
   const handleCopyFromNumber = async (number: string) => {
     setCopyLoading(true)
     try {
@@ -474,7 +500,7 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
     if (!invoiceNumber.trim()) { toast.error('Enter invoice number'); return }
     const validLines = lines.filter(l => l.description.trim())
     if (!validLines.length) { toast.error('Add at least one line item'); return }
-    create.mutate({
+    const payload = {
       supplier_id: supplierId,
       purchase_order_id: poId || undefined,
       invoice_number: invoiceNumber,
@@ -490,7 +516,12 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
         unit_price: l.unit_price,
         tax_code: l.tax_code || undefined,
       })),
-    }, { onSuccess: onClose })
+    }
+    if (isEditMode && editingInvoice) {
+      update.mutate({ id: editingInvoice.id, data: payload }, { onSuccess: onClose })
+    } else {
+      create.mutate(payload, { onSuccess: onClose })
+    }
   }
 
   return (
@@ -498,7 +529,7 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
       <Card className="flex max-h-[90vh] w-[min(96vw,90rem)] flex-col overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white dark:bg-gray-900 z-10">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Banknote className="w-5 h-5 text-amber-600" /> {copiedFromNumber ? `Copy of ${copiedFromNumber}` : 'New Vendor Invoice (AP)'}
+            <Banknote className="w-5 h-5 text-amber-600" /> {isEditMode ? `Edit Invoice — ${editingInvoice!.invoice_number}` : copiedFromNumber ? `Copy of ${copiedFromNumber}` : 'New Vendor Invoice (AP)'}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
@@ -647,18 +678,20 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <CopyFromDocumentField
-              placeholder="Search invoice number or supplier…"
-              onCopy={handleCopyFromNumber}
-              loading={copyLoading}
-              copiedFrom={copiedFromNumber}
-              suggestions={copySuggestions}
-              suggestionsLoading={copyDocsLoading}
-            />
+            {!isEditMode && (
+              <CopyFromDocumentField
+                placeholder="Search invoice number or supplier…"
+                onCopy={handleCopyFromNumber}
+                loading={copyLoading}
+                copiedFrom={copiedFromNumber}
+                suggestions={copySuggestions}
+                suggestionsLoading={copyDocsLoading}
+              />
+            )}
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={create.isPending} className="gap-2">
-              {create.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Create Invoice
+            <Button onClick={handleSave} disabled={isEditMode ? update.isPending : create.isPending} className="gap-2">
+              {(isEditMode ? update.isPending : create.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isEditMode ? 'Save Changes' : 'Create Invoice'}
             </Button>
           </div>
         </CardContent>
@@ -676,6 +709,7 @@ export default function VendorInvoicesAPPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showCreate, setShowCreate] = useState(false)
   const [copyFromInvoice, setCopyFromInvoice] = useState<VendorInvoice | null>(null)
+  const [editingInvoice, setEditingInvoice] = useState<VendorInvoice | null>(null)
   const [selected, setSelected] = useState<VendorInvoice | null>(null)
 
   const params: Record<string, unknown> =
@@ -721,13 +755,19 @@ export default function VendorInvoicesAPPage() {
       {showCreate && (
         <CreateInvoiceModal
           copyFrom={copyFromInvoice}
-          onClose={() => { setShowCreate(false); setCopyFromInvoice(null) }}
+          editingInvoice={editingInvoice}
+          onClose={() => { setShowCreate(false); setCopyFromInvoice(null); setEditingInvoice(null) }}
         />
       )}
       {selected && (
         <InvoiceDetailPanel
           invoice={selected}
           onClose={() => setSelected(null)}
+          onEdit={() => {
+            setEditingInvoice(selected)
+            setSelected(null)
+            setShowCreate(true)
+          }}
           onCopyDocument={() => {
             setCopyFromInvoice(selected)
             setSelected(null)
