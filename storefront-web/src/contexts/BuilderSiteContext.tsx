@@ -63,7 +63,7 @@ export function BuilderSiteProvider({ children }: { children: ReactNode }) {
     if (!vendor && !vendorSlug) return
 
     // Derive subdomain: use the current hostname if it matches *.kiterp.com,
-    // otherwise fall back to the vendorSlug (useful for localhost dev).
+    // otherwise fall back to the vendorSlug (useful for localhost / custom domains).
     const host = window.location.hostname
     const BASE_DOMAIN = import.meta.env.VITE_BASE_DOMAIN || 'kiterp.com'
     let subdomain: string | null = null
@@ -72,7 +72,7 @@ export function BuilderSiteProvider({ children }: { children: ReactNode }) {
       subdomain = host.replace(`.${BASE_DOMAIN}`, '').split('.').pop() || null
     }
 
-    // In dev (localhost/127.0.0.1), fall back to URL slug / vendor catalog slug
+    // Custom domain or localhost: use vendor catalog slug / subdomain.
     if (!subdomain) {
       subdomain = vendor?.slug || vendorSlug || null
     }
@@ -81,12 +81,23 @@ export function BuilderSiteProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false
     setIsLoading(true)
-    // Pass the active business unit so each branch resolves to its own
-    // linked storefront site, not the vendor's latest published one.
-    // If the branch-scoped lookup 404s (legacy catalog override), fall back to
-    // the vendor default site so analytics / cookie consent still load.
-    publicSitesApi
-      .getBySubdomain(subdomain, branchCode)
+
+    const customHost =
+      !host.endsWith(`.${BASE_DOMAIN}`)
+      && host !== BASE_DOMAIN
+      && host !== `www.${BASE_DOMAIN}`
+      && host !== 'localhost'
+      && host !== '127.0.0.1'
+
+    const load = customHost
+      ? publicSitesApi.getByDomain(host, branchCode).then((res) => {
+          if (res.site) return res.site
+          // Catalog-only vendor: fall back to subdomain published site.
+          return publicSitesApi.getBySubdomain(res.subdomain || res.vendor_slug || subdomain!, branchCode)
+        })
+      : publicSitesApi.getBySubdomain(subdomain, branchCode)
+
+    load
       .then(site => {
         if (!cancelled) setBuilderSite(site)
       })
@@ -96,7 +107,7 @@ export function BuilderSiteProvider({ children }: { children: ReactNode }) {
           return
         }
         try {
-          const fallback = await publicSitesApi.getBySubdomain(subdomain, null)
+          const fallback = await publicSitesApi.getBySubdomain(subdomain!, null)
           if (!cancelled) setBuilderSite(fallback)
         } catch {
           if (!cancelled) setBuilderSite(null)

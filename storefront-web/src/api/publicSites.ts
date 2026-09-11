@@ -36,6 +36,26 @@ export const publicSitesApi = {
       })
       .then(r => r.data),
 
+  /**
+   * Resolve vendor + published site for a custom domain Host
+   * (e.g. www.vedikaraksha.com).
+   */
+  getByDomain: (
+    host: string,
+    branch?: string | null,
+  ): Promise<{
+    host: string
+    vendor_slug: string
+    vendor_id: string
+    subdomain?: string | null
+    site: PublicSite | null
+  }> =>
+    publicApi
+      .get(`/by-domain/${encodeURIComponent(host)}`, {
+        params: branch ? { branch } : undefined,
+      })
+      .then(r => r.data),
+
   /** Frozen builder snapshot (opaque token). Same JSON shape as getBySubdomain. */
   getPreviewByToken: (token: string, opts?: { siteId?: string | null }): Promise<PublicSite> =>
     publicApi

@@ -148,8 +148,9 @@ function isShellRelativePath(rel: string): boolean {
 export function resolveBuilderPageSlug(
   pathname: string,
   vendorSlug: string,
+  opts?: { omitSlug?: boolean },
 ): string | null {
-  const relative = relativePathUnderVendor(pathname, vendorSlug)
+  const relative = relativePathUnderVendor(pathname, vendorSlug, opts)
   if (relative == null) return null
   const rel = relative.replace(/^\/+/, '')
   if (!rel || isShellRelativePath(rel)) return null
@@ -170,6 +171,8 @@ export type StoreChromeHideInput = {
   storeSpecificTemplateId: string | null
   isBuilderPreview: boolean
   draftCatalogEmbed: boolean
+  /** Custom domain hosts omit /{slug} from paths. */
+  omitSlug?: boolean
 }
 
 /**
@@ -179,6 +182,7 @@ export type StoreChromeHideInput = {
 export function shouldHideStoreLayoutChrome(input: StoreChromeHideInput): boolean {
   if (input.isBuilderPreview || input.draftCatalogEmbed) return true
 
+  const pathOpts = { omitSlug: Boolean(input.omitSlug) }
   const isHome = isStoreHomePath(input.pathname, input.storePath)
   const site = input.builderSite
   const wbCatalogTemplateId = getWbCatalogTemplateId(
@@ -221,7 +225,7 @@ export function shouldHideStoreLayoutChrome(input: StoreChromeHideInput): boolea
   if (isHome && isWebsiteBuilderBlockTemplateId(resolvedCatalogId)) return true
 
   if (input.vendorSlug) {
-    const slug = resolveBuilderPageSlug(input.pathname, input.vendorSlug)
+    const slug = resolveBuilderPageSlug(input.pathname, input.vendorSlug, pathOpts)
     if (slug) {
       const page = findBuilderPageBySlug(site, slug)
       // The page owns the header when it has its own nav block, OR when it will
@@ -233,7 +237,7 @@ export function shouldHideStoreLayoutChrome(input: StoreChromeHideInput): boolea
   // Catalog/shell routes (/products, /services, …) must use the same builder nav
   // as builder pages — not the legacy UnifiedNav header.
   if (siteHasNavShell(site) && input.vendorSlug) {
-    if (relativePathUnderVendor(input.pathname, input.vendorSlug) != null) {
+    if (relativePathUnderVendor(input.pathname, input.vendorSlug, pathOpts) != null) {
       return true
     }
   }

@@ -807,6 +807,83 @@ async def get_site_by_subdomain(
     return data
 
 
+@router.get("/by-domain/{host}")
+async def get_site_by_domain(
+    host: str,
+    branch: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Resolve published storefront site for a custom domain Host.
+    Also returns vendor_slug so the storefront can mount routes without a path prefix.
+    """
+    from app.config import settings
+    from app.repositories.vendor_repo import VendorRepository
+    from app.utils.custom_domain import (
+        is_platform_hostname,
+        normalize_hostname,
+        sync_vendor_custom_domain_from_external,
+    )
+    from app.utils.vendor_storefront import vendor_live_on_storefront
+
+    normalized = normalize_hostname(host)
+    if not normalized or is_platform_hostname(normalized, settings.BASE_DOMAIN):
+        raise HTTPException(status_code=404, detail="Not a custom domain")
+
+    branch_key = (branch or "").strip()
+    cache_key = (
+        f"pub_site:domain:{normalized}:branch:{branch_key}"
+        if branch_key
+        else f"pub_site:domain:{normalized}"
+    )
+    cached = await _cached_get(cache_key)
+    if cached:
+        return cached
+
+    repo = VendorRepository(db)
+    vendor = await repo.find_by_custom_domain(normalized)
+    if not vendor or not vendor_live_on_storefront(vendor.status):
+        raise HTTPException(status_code=404, detail="No vendor found for this domain")
+
+    if sync_vendor_custom_domain_from_external(vendor):
+        await db.commit()
+        await db.refresh(vendor)
+
+    site = await _resolve_site_by_subdomain(
+        vendor.subdomain or vendor.slug,
+        db,
+        branch=branch_key or None,
+    )
+
+    # Prefer a verified wb_sites.custom_domain match when present.
+    if not site:
+        from app.utils.custom_domain import host_lookup_candidates
+        candidates = host_lookup_candidates(normalized)
+        site_res = await db.execute(
+            select(WebsiteSite)
+            .options(selectinload(WebsiteSite.pages).selectinload(WebsitePage.blocks))
+            .where(
+                WebsiteSite.vendor_id == vendor.id,
+                WebsiteSite.is_published == True,
+                WebsiteSite.deleted_at.is_(None),
+                WebsiteSite.domain_verified == True,
+                WebsiteSite.custom_domain.in_(candidates),
+            )
+            .order_by(WebsiteSite.published_at.desc())
+        )
+        site = site_res.scalars().first()
+
+    payload = {
+        "host": normalized,
+        "vendor_slug": vendor.slug,
+        "vendor_id": str(vendor.id),
+        "subdomain": vendor.subdomain,
+        "site": _site_out(site, pages=list(site.pages or [])) if site else None,
+    }
+    await _cached_set(cache_key, payload, ttl=60)
+    return payload
+
+
 @router.get("/{site_id}/pages/{slug}")
 async def get_page_by_slug(
     site_id: str,

@@ -13,6 +13,20 @@ type JsonLdObject = Record<string, unknown>
 
 /** Build a stable absolute base URL for the site (used by canonical + JSON-LD). */
 export function siteBaseUrl(site: PublicSite): string {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase()
+    const base = (import.meta.env.VITE_BASE_DOMAIN || 'kiterp.com').toLowerCase()
+    const isPlatform =
+      !host
+      || host === 'localhost'
+      || host === '127.0.0.1'
+      || host === base
+      || host === `www.${base}`
+      || host.endsWith(`.${base}`)
+    if (!isPlatform) {
+      return window.location.origin
+    }
+  }
   if (site.custom_domain) return `https://${site.custom_domain}`
   if (site.subdomain) return `https://${site.subdomain}.kiterp.com`
   return ''

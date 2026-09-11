@@ -159,6 +159,10 @@ function VendorStoreLayout() {
   return <StoreLayout />
 }
 
+function CustomDomainStoreLayout({ vendorSlug }: { vendorSlug: string }) {
+  return <StoreLayout slugOverride={vendorSlug} />
+}
+
 /** Singular `/rental` CMS slugs used to hit the builder catch-all without the live catalog. */
 function RedirectToRentalsCatalog() {
   const { storePath } = useVendor()
@@ -215,8 +219,108 @@ const draftCatalogShellChildren = [
   { path: '*', element: <DraftCatalogEmbedBlocked /> },
 ]
 
+/** Shared vendor storefront child routes (path-prefix or custom-domain root). */
+const vendorStoreChildren = [
+  { index: true, element: <HomeOrBuilder /> },
+  { path: 'login', element: <Login /> },
+  { path: 'register', element: <Register /> },
+  { path: 'forgot-password', element: <ForgotPassword /> },
+  { path: 'products', element: <ProductList /> },
+  { path: 'products/:slug', element: <ProductDetail /> },
+  { path: 'services', element: <ServiceList /> },
+  { path: 'services/:slug', element: <ServiceDetail /> },
+  { path: 'services/:slug/book', element: <ServiceBookingPage /> },
+  { path: 'cart', element: <CartPage /> },
+  { path: 'checkout', element: <Checkout /> },
+  { path: 'order/:orderId/confirmation', element: <OrderConfirmationPage /> },
+  { path: 'order/:orderId/payment', element: <UpiPaymentProofPage /> },
+  { path: 'order/:orderId/status', element: <OrderStatusPage /> },
+  { path: 'account', element: <ProtectedRoute><Account /></ProtectedRoute> },
+  { path: 'account/orders', element: <ProtectedRoute><MyOrders /></ProtectedRoute> },
+  { path: 'account/orders/:id', element: <ProtectedRoute><OrderDetail /></ProtectedRoute> },
+  { path: 'account/bookings', element: <ProtectedRoute><MyBookings /></ProtectedRoute> },
+  { path: 'account/profile', element: <ProtectedRoute><ProfileSettings /></ProtectedRoute> },
+  { path: 'account/addresses', element: <ProtectedRoute><AddressesPage /></ProtectedRoute> },
+  { path: 'account/wishlist', element: <ProtectedRoute><MyWishlist /></ProtectedRoute> },
+  { path: 'account/subscriptions', element: <ProtectedRoute><MySubscriptions /></ProtectedRoute> },
+  { path: 'account/marketplace', element: <ProtectedRoute><MyMarketplace /></ProtectedRoute> },
+  { path: 'account/rentals', element: <ProtectedRoute><MyRentals /></ProtectedRoute> },
+  { path: 'account/notifications', element: <ProtectedRoute><MyNotifications /></ProtectedRoute> },
+  { path: 'rentals', element: <RentalsBuilderPage /> },
+  { path: 'rentals/:slug', element: <RentalDetailPage /> },
+  { path: 'rental', element: <RedirectToRentalsCatalog /> },
+  { path: 'rental/*', element: <RedirectToRentalsCatalog /> },
+  { path: 'blog', element: <BlogList /> },
+  { path: 'blog/:slug', element: <BlogPost /> },
+  { path: 'policies', element: <Policies /> },
+  { path: 'contact', element: <ContactPage /> },
+  { path: 'table/:qrToken', element: <TableOrderPage /> },
+  { path: 'menu/:linkToken', element: <ZoneMenuPage /> },
+  { path: 'reserve', element: <ReservationPage /> },
+  {
+    path: 'preview/:previewToken',
+    element: <BuilderSitePreviewShell />,
+    children: [
+      { index: true, element: <BuilderPage /> },
+      { path: '*', element: <BuilderPage /> },
+    ],
+  },
+  { path: 'hr/login', element: <HrLogin /> },
+  { path: 'hr/change-password', element: <HrChangePassword /> },
+  {
+    path: 'hr',
+    element: <HrPortalLayout />,
+    children: [
+      { index: true, element: <ESSDashboard /> },
+      { path: 'profile', element: <ESSProfilePage /> },
+      { path: 'attendance', element: <ESSAttendance /> },
+      { path: 'leaves', element: <ESSLeaves /> },
+      { path: 'payslips', element: <ESSPayslips /> },
+      { path: 'policies', element: <ESSPolicies /> },
+      { path: 'training', element: <ESSTraining /> },
+      { path: 'training/:enrollmentId', element: <ESSCourseLearning /> },
+      { path: 'performance', element: <ESSPerformance /> },
+      { path: 'performance/reviews/:reviewId', element: <ESSReviewDetail /> },
+      { path: 'policies/:policyId', element: <ESSPolicyDetail /> },
+      { path: 'expenses', element: <ESSExpenses /> },
+      { path: 'helpdesk', element: <ESSHelpdesk /> },
+      { path: 'helpdesk/:ticketId', element: <ESSTicketDetail /> },
+      { path: 'announcements', element: <ESSAnnouncements /> },
+      { path: 'onboarding', element: <ESSOnboarding /> },
+    ],
+  },
+  { path: 'employee/*', element: <LegacyEmployeeToHrRedirect /> },
+  { path: '*', element: <BuilderPage /> },
+]
+
+const routerFuture = {
+  v7_relativeSplatPath: true,
+  v7_fetcherPersist: true,
+  v7_normalizeFormMethod: true,
+  v7_partialHydration: true,
+  v7_skipActionErrorRevalidation: true,
+} as const
+
+/** Custom domain: store at `/`, `/contact`, `/about` (no /{slug} prefix). */
+export function createCustomDomainRouter(vendorSlug: string) {
+  return createBrowserRouter(
+    [
+      {
+        path: '/',
+        element: <CustomDomainStoreLayout vendorSlug={vendorSlug} />,
+        children: vendorStoreChildren,
+      },
+      {
+        path: '*',
+        element: <Navigate to="/" replace />,
+      },
+    ],
+    { future: routerFuture },
+  )
+}
+
+/** Platform host (kiterp.com): marketing at `/`, stores at `/{slug}/…`. */
 export const router = createBrowserRouter([
-  // Landing page — vendor directory / entry point
   {
     path: '/',
     element: <Landing />,
@@ -247,7 +351,6 @@ export const router = createBrowserRouter([
     path: '/careers',
     element: <Careers />,
   },
-  // Vendor self-service signup (storefront-only; not under /vendor/* — see vendorSignupPaths.ts)
   {
     path: VENDOR_SIGNUP_PATH,
     element: <VendorSignup />,
@@ -256,12 +359,10 @@ export const router = createBrowserRouter([
     path: VENDOR_VERIFY_EMAIL_PATH,
     element: <VerifyEmail />,
   },
-  // Local dev: copy-paste Employee HR / ESS URLs (port 3002, default slug `test`)
   {
     path: '/local/employee-hr',
     element: <DevEmployeeHrLinks />,
   },
-  // Website template full preview — wrapped in shared StorefrontProvider for cart/checkout
   {
     path: '/template-browser/:templateId',
     element: <TemplateBrowserLayout />,
@@ -273,7 +374,6 @@ export const router = createBrowserRouter([
       { path: 'order/:orderId/payment', element: <UpiPaymentProofPage /> },
     ],
   },
-  // Legacy public URLs: /store/:vendorSlug/... → /:vendorSlug/...
   {
     path: '/store/:vendorSlug',
     element: <LegacyStorePrefixRedirect />,
@@ -282,7 +382,6 @@ export const router = createBrowserRouter([
     path: '/store/:vendorSlug/*',
     element: <LegacyStorePrefixRedirect />,
   },
-  // Vendor-specific business front: /:vendorSlug/...
   {
     path: '/:vendorSlug/draft-catalog/:previewToken',
     element: <VendorDraftCatalogShell />,
@@ -294,99 +393,12 @@ export const router = createBrowserRouter([
   {
     path: '/:vendorSlug',
     element: <VendorStoreLayout />,
-    children: [
-      // Home: uses builder if published, otherwise legacy Home
-      { index: true, element: <HomeOrBuilder /> },
-
-      // ── Shell routes (not owned by the builder) ─────────────────────────
-      { path: 'login', element: <Login /> },
-      { path: 'register', element: <Register /> },
-      { path: 'forgot-password', element: <ForgotPassword /> },
-      { path: 'products', element: <ProductList /> },
-      { path: 'products/:slug', element: <ProductDetail /> },
-      { path: 'services', element: <ServiceList /> },
-      { path: 'services/:slug', element: <ServiceDetail /> },
-      { path: 'services/:slug/book', element: <ServiceBookingPage /> },
-      { path: 'cart', element: <CartPage /> },
-      { path: 'checkout', element: <Checkout /> },
-      { path: 'order/:orderId/confirmation', element: <OrderConfirmationPage /> },
-      { path: 'order/:orderId/payment', element: <UpiPaymentProofPage /> },
-      { path: 'order/:orderId/status', element: <OrderStatusPage /> },
-      { path: 'account', element: <ProtectedRoute><Account /></ProtectedRoute> },
-      { path: 'account/orders', element: <ProtectedRoute><MyOrders /></ProtectedRoute> },
-      { path: 'account/orders/:id', element: <ProtectedRoute><OrderDetail /></ProtectedRoute> },
-      { path: 'account/bookings', element: <ProtectedRoute><MyBookings /></ProtectedRoute> },
-      { path: 'account/profile', element: <ProtectedRoute><ProfileSettings /></ProtectedRoute> },
-      { path: 'account/addresses', element: <ProtectedRoute><AddressesPage /></ProtectedRoute> },
-      { path: 'account/wishlist', element: <ProtectedRoute><MyWishlist /></ProtectedRoute> },
-      { path: 'account/subscriptions', element: <ProtectedRoute><MySubscriptions /></ProtectedRoute> },
-      { path: 'account/marketplace', element: <ProtectedRoute><MyMarketplace /></ProtectedRoute> },
-      { path: 'account/rentals', element: <ProtectedRoute><MyRentals /></ProtectedRoute> },
-      { path: 'account/notifications', element: <ProtectedRoute><MyNotifications /></ProtectedRoute> },
-      { path: 'rentals', element: <RentalsBuilderPage /> },
-      { path: 'rentals/:slug', element: <RentalDetailPage /> },
-      { path: 'rental', element: <RedirectToRentalsCatalog /> },
-      { path: 'rental/*', element: <RedirectToRentalsCatalog /> },
-      { path: 'blog', element: <BlogList /> },
-      { path: 'blog/:slug', element: <BlogPost /> },
-      { path: 'policies', element: <Policies /> },
-      { path: 'contact', element: <ContactPage /> },
-      { path: 'table/:qrToken', element: <TableOrderPage /> },
-      { path: 'menu/:linkToken', element: <ZoneMenuPage /> },
-      { path: 'reserve', element: <ReservationPage /> },
-
-      // Draft builder snapshot — full site in browser (token); inner provider overrides live site.
-      {
-        path: 'preview/:previewToken',
-        element: <BuilderSitePreviewShell />,
-        children: [
-          { index: true, element: <BuilderPage /> },
-          { path: '*', element: <BuilderPage /> },
-        ],
-      },
-
-      { path: 'hr/login', element: <HrLogin /> },
-      { path: 'hr/change-password', element: <HrChangePassword /> },
-      {
-        path: 'hr',
-        element: <HrPortalLayout />,
-        children: [
-          { index: true,               element: <ESSDashboard /> },
-          { path: 'profile',           element: <ESSProfilePage /> },
-          { path: 'attendance',        element: <ESSAttendance /> },
-          { path: 'leaves',            element: <ESSLeaves /> },
-          { path: 'payslips',          element: <ESSPayslips /> },
-          { path: 'policies',          element: <ESSPolicies /> },
-          { path: 'training',          element: <ESSTraining /> },
-          { path: 'training/:enrollmentId', element: <ESSCourseLearning /> },
-          { path: 'performance',       element: <ESSPerformance /> },
-          { path: 'performance/reviews/:reviewId', element: <ESSReviewDetail /> },
-          { path: 'policies/:policyId', element: <ESSPolicyDetail /> },
-          { path: 'expenses',          element: <ESSExpenses /> },
-          { path: 'helpdesk',          element: <ESSHelpdesk /> },
-          { path: 'helpdesk/:ticketId', element: <ESSTicketDetail /> },
-          { path: 'announcements',     element: <ESSAnnouncements /> },
-          { path: 'onboarding',        element: <ESSOnboarding /> },
-        ],
-      },
-      { path: 'employee/*', element: <LegacyEmployeeToHrRedirect /> },
-
-      // ── Builder catch-all: any other slug → BlockRenderer ─────────────────
-      // Must be last so shell routes take priority.
-      { path: '*', element: <BuilderPage /> },
-    ],
+    children: vendorStoreChildren,
   },
-  // Catch-all: redirect to landing
   {
     path: '*',
     element: <Navigate to="/" replace />,
   },
 ], {
-  future: {
-    v7_relativeSplatPath: true,
-    v7_fetcherPersist: true,
-    v7_normalizeFormMethod: true,
-    v7_partialHydration: true,
-    v7_skipActionErrorRevalidation: true,
-  },
+  future: routerFuture,
 })
