@@ -22,7 +22,7 @@ import {
   Loader2, ArrowLeft, Send, PackageCheck, CheckCircle2, XCircle,
   X, ClipboardList, Truck, Calendar, FileText, History,
   Download, Copy, CopyPlus, MessageCircle, Mail, Share2, Printer, Palette, MessageSquare,
-  ChevronDown, ChevronRight, Edit2, Trash2, Plus, Save, RotateCcw, ScanLine,
+  ChevronDown, ChevronRight, Edit2, Trash2, Plus, Save, ScanLine,
   ShieldCheck, ThumbsUp, ThumbsDown, Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -43,8 +43,12 @@ import {
   poDestinationToPayload,
   type PoDestinationValue,
 } from '@/components/procurement/PoDestinationFields'
+import { ApprovalChainPanel } from '@/components/document/ApprovalChainPanel'
+import { DocumentStatusBadge, PO_STATUS_MAP } from '@/components/document/DocumentStatusBadge'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
+import { useTaxCodes } from '@/hooks/useFinance'
+import { buildTaxCodeMap, taxSplitLabel, type TaxCode } from '@/lib/procurementTax'
 
 const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
   draft: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Draft' },
@@ -154,9 +158,7 @@ export default function PurchaseOrderDetail() {
   const [showPreview, setShowPreview] = useState(false)
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
-  const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
-  const [editingHeader, setEditingHeader] = useState(false)
-  const [headerDraft, setHeaderDraft] = useState({ supplier_id: '', expected_delivery_date: '', notes: '' })
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(() => new Set())
   const [addingItem, setAddingItem] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [scanLoading, setScanLoading] = useState(false)
@@ -201,7 +203,12 @@ export default function PurchaseOrderDetail() {
     if (!focusLine || !itemsWithLines.length) return
     const match = itemsWithLines.find(item => item.line_number === focusLine)
     if (!match) return
-    setExpandedItemId(match.id)
+    setExpandedItemIds(prev => {
+      if (prev.has(match.id)) return prev
+      const next = new Set(prev)
+      next.add(match.id)
+      return next
+    })
     const timer = window.setTimeout(() => {
       document.getElementById(`po-line-${focusLine}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 80)
@@ -222,34 +229,6 @@ export default function PurchaseOrderDetail() {
     () => processRows(po?.receipts, '', () => [], receiptSortKey, receiptSortDir, receiptAccessors),
     [po?.receipts, receiptSortKey, receiptSortDir, receiptAccessors],
   )
-
-  // Populate header draft when editing starts
-  const startEditHeader = useCallback(() => {
-    if (!po) return
-    setHeaderDraft({
-      supplier_id: po.supplier_id || '',
-      expected_delivery_date: po.expected_delivery_date ? po.expected_delivery_date.slice(0, 10) : '',
-      notes: po.notes || '',
-    })
-    setEditingHeader(true)
-  }, [po])
-
-  const saveHeader = useCallback(async () => {
-    if (!po) return
-    try {
-      await updateMut.mutateAsync({
-        id: po.id,
-        data: {
-          supplier_id: headerDraft.supplier_id || undefined,
-          expected_delivery_date: headerDraft.expected_delivery_date || undefined,
-          notes: headerDraft.notes || undefined,
-          items: po.items.map(i => toPoUpdateLine(i)),
-        },
-      })
-      setEditingHeader(false)
-      toast.success(actionDocMessage('Purchase order', po.po_number, 'updated'))
-    } catch { /* handled by hook */ }
-  }, [po, updateMut, headerDraft])
 
   // Save updated items list (for add/edit/delete item operations)
   const saveItems = useCallback(async (newItems: PoUpdateLine[]) => {
@@ -326,7 +305,6 @@ export default function PurchaseOrderDetail() {
     )
   }
 
-  const badge = statusConfig[po.status] || statusConfig.draft
   const actionLoading = sendMut.isPending || closeMut.isPending || cancelMut.isPending || updateMut.isPending || requestApprovalMut.isPending || approveMut.isPending
   const isDraft = po.status === 'draft'
   const approvalPending = po.approval_status === 'pending'
@@ -458,7 +436,7 @@ export default function PurchaseOrderDetail() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{po.po_number}</h1>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+              <DocumentStatusBadge status={po.status} map={PO_STATUS_MAP} />
             </div>
             <p className="text-sm text-gray-500 mt-1">
               Supplier: <span className="font-medium text-gray-700">{po.supplier_name}</span>
@@ -472,19 +450,10 @@ export default function PurchaseOrderDetail() {
         <div className="flex gap-2 flex-wrap">
           {isDraft && (
             <>
-              {!editingHeader ? (
-                <Button variant="outline" className="gap-2" onClick={startEditHeader}>
+              {(
+                <Button variant="outline" className="gap-2" onClick={() => navigate(`/purchase-orders/${po.id}/edit`)}>
                   <Edit2 className="w-4 h-4 text-green-600" /> Edit PO
                 </Button>
-              ) : (
-                <>
-                  <Button variant="outline" className="gap-2" onClick={() => setEditingHeader(false)} disabled={actionLoading}>
-                    <RotateCcw className="w-4 h-4" /> Discard
-                  </Button>
-                  <Button className="gap-2" onClick={saveHeader} disabled={actionLoading}>
-                    {updateMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save
-                  </Button>
-                </>
               )}
               {!approvalPending && !approvalApproved && (
                 <Button variant="outline" className="gap-2" disabled={actionLoading} onClick={() => setShowRequestApproval(true)}>
@@ -558,96 +527,44 @@ export default function PurchaseOrderDetail() {
         </Button>
       </div>
 
-      {/* Editable header form / Info cards */}
-      {editingHeader ? (
-        <Card className="border-blue-200 bg-blue-50/20">
-          <CardContent className="p-3 sm:p-4">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-blue-700">Editing Purchase Order</p>
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-1">
-                <Label className="text-[11px] text-gray-500">Supplier</Label>
-                <Select
-                  value={headerDraft.supplier_id}
-                  onChange={v => setHeaderDraft(d => ({ ...d, supplier_id: v }))}
-                  options={selectOptionsWithBlank(
-                    '— Select supplier —',
-                    suppliers.map(s => ({
-                      value: s.id,
-                      label: s.name,
-                      hint: [
-                        s.company_name && s.company_name !== s.name ? s.company_name : null,
-                        s.gstin ? `GSTIN ${s.gstin}` : null,
-                        s.email || null,
-                        s.phone || null,
-                      ].filter(Boolean).join(' · ') || undefined,
-                    })),
-                  )}
-                  className={selectClass}
-                  showSelectedHint={false}
-                  searchable
-                  searchPlaceholder="Search name, email, GSTIN or phone…"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] text-gray-500">Expected Delivery Date</Label>
-                <Input
-                  type="date"
-                  className="h-9"
-                  value={headerDraft.expected_delivery_date}
-                  onChange={e => setHeaderDraft(d => ({ ...d, expected_delivery_date: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-                <Label className="text-[11px] text-gray-500">Notes / Reference</Label>
-                <Input
-                  className="h-9"
-                  value={headerDraft.notes}
-                  placeholder="e.g., Invoice ref, delivery instructions…"
-                  onChange={e => setHeaderDraft(d => ({ ...d, notes: e.target.value }))}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg border bg-white px-3 py-2.5 sm:col-span-2">
-            <div className="mb-1 flex items-center gap-1.5 text-gray-500">
-              <Truck className="h-3.5 w-3.5" />
-              <span className="text-[11px] font-medium">Supplier</span>
-            </div>
-            <p className="text-sm font-semibold text-gray-900">{po.supplier_name || '-'}</p>
-            {(po.supplier_gstin || po.supplier_pan || po.supplier_contact_name || po.supplier_phone || po.supplier_email || po.supplier_address) && (
-              <div className="mt-1.5 space-y-0.5 border-t border-gray-100 pt-1.5">
-                {po.supplier_gstin && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">GSTIN:</span> {po.supplier_gstin}</p>
-                )}
-                {po.supplier_pan && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">PAN:</span> {po.supplier_pan}</p>
-                )}
-                {po.supplier_contact_name && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">Contact:</span> {po.supplier_contact_name}</p>
-                )}
-                {po.supplier_phone && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">Phone:</span> {po.supplier_phone}</p>
-                )}
-                {po.supplier_email && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">Email:</span> {po.supplier_email}</p>
-                )}
-                {po.supplier_address && (
-                  <p className="text-xs text-gray-600"><span className="text-gray-400">Address:</span> {po.supplier_address}</p>
-                )}
-              </div>
-            )}
+      {/* Header info cards */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="rounded-lg border bg-white px-3 py-2.5">
+          <div className="mb-1 flex items-center gap-1.5 text-gray-500">
+            <Truck className="h-3.5 w-3.5" />
+            <span className="text-[11px] font-medium">Supplier</span>
           </div>
-          <InfoCard icon={Calendar} label="Order Date" value={formatDate(po.order_date)} />
-          <InfoCard icon={Calendar} label="Expected Delivery" value={formatDate(po.expected_delivery_date)} />
-          <InfoCard icon={FileText} label="Total" value={formatCurrency(po.total, po.currency || 'INR')} className="sm:col-span-2 lg:col-span-1" />
+          <p className="text-sm font-semibold text-gray-900 truncate" title={po.supplier_name || undefined}>{po.supplier_name || '-'}</p>
+          {(po.supplier_gstin || po.supplier_pan || po.supplier_contact_name || po.supplier_phone || po.supplier_email || po.supplier_address) && (
+            <div className="mt-1.5 space-y-0.5 border-t border-gray-100 pt-1.5">
+              {po.supplier_gstin && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">GSTIN:</span> {po.supplier_gstin}</p>
+              )}
+              {po.supplier_pan && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">PAN:</span> {po.supplier_pan}</p>
+              )}
+              {po.supplier_contact_name && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">Contact:</span> {po.supplier_contact_name}</p>
+              )}
+              {po.supplier_phone && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">Phone:</span> {po.supplier_phone}</p>
+              )}
+              {po.supplier_email && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">Email:</span> {po.supplier_email}</p>
+              )}
+              {po.supplier_address && (
+                <p className="text-xs text-gray-600"><span className="text-gray-400">Address:</span> {po.supplier_address}</p>
+              )}
+            </div>
+          )}
         </div>
-      )}
+        <InfoCard icon={Calendar} label="Order Date" value={formatDate(po.order_date)} />
+        <InfoCard icon={Calendar} label="Expected Delivery" value={formatDate(po.expected_delivery_date)} />
+        <InfoCard icon={FileText} label="Total" value={formatCurrency(po.total, po.currency || 'INR')} />
+      </div>
 
       {/* Currency / payment terms pills — shown whenever data exists */}
-      {!editingHeader && (po.currency && po.currency !== 'INR' || po.payment_terms) && (
+      {(po.currency && po.currency !== 'INR' || po.payment_terms) && (
         <div className="flex flex-wrap gap-3">
           {po.currency && po.currency !== 'INR' && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
@@ -662,7 +579,7 @@ export default function PurchaseOrderDetail() {
         </div>
       )}
 
-      {po.notes && !editingHeader && (
+      {po.notes && (
         <Card>
           <CardContent className="px-4 py-2.5">
             <p className="text-sm text-gray-600"><span className="font-medium">Notes:</span> {po.notes}</p>
@@ -683,58 +600,14 @@ export default function PurchaseOrderDetail() {
       )}
 
       {/* Approval chain */}
-      {sortedApprovals.length > 0 && (
-        <Card>
-          <CardHeader className="border-b px-4 py-2.5">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <ShieldCheck className="w-4 h-4" /> Approval Chain
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 py-3">
-            <div className="space-y-2">
-              {sortedApprovals.map((step) => {
-                const isCurrentStep = step.status === 'pending' && step.level === pendingStep?.level
-                const stepColor =
-                  step.status === 'approved' ? 'text-green-600' :
-                  step.status === 'rejected' ? 'text-red-600' :
-                  isCurrentStep ? 'text-amber-600' : 'text-gray-400'
-                const dotColor =
-                  step.status === 'approved' ? 'bg-green-500' :
-                  step.status === 'rejected' ? 'bg-red-500' :
-                  isCurrentStep ? 'bg-amber-400' : 'bg-gray-200'
-                return (
-                  <div key={step.id} className="flex items-start gap-3">
-                    <div className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${dotColor}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5 text-sm">
-                        <span className="font-medium text-gray-500">Level {step.level}</span>
-                        <span className="text-gray-300">·</span>
-                        <span className={`font-semibold ${stepColor}`}>{step.approver_name || '—'}</span>
-                        {isCurrentStep && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Current</span>}
-                        <span className={`ml-auto text-xs capitalize ${stepColor}`}>{step.status}</span>
-                      </div>
-                      {step.comments && (
-                        <p className="mt-0.5 text-xs text-gray-500 italic">"{step.comments}"</p>
-                      )}
-                      {step.actioned_at && (
-                        <p className="mt-0.5 text-[10px] text-gray-400">{formatDateTime(step.actioned_at)}</p>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            {approvalPending && !canActAsApprover && pendingStep && (
-              <p className="mt-3 text-xs text-amber-700">
-                Awaiting <span className="font-semibold">{pendingStep.approver_name || 'designated approver'}</span> (Level {pendingStep.level})
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <ApprovalChainPanel
+        approvals={po.approvals ?? []}
+        myMembershipId={myMembership?.id}
+        approverMessage={po.approver_message}
+      />
 
       {/* Items table */}
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader className="flex flex-row flex-wrap items-center gap-2 space-y-0 border-b p-3 sm:px-4 sm:py-2.5">
           <CardTitle className="shrink-0 text-base">Items ({po.items.length})</CardTitle>
           <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
@@ -798,10 +671,11 @@ export default function PurchaseOrderDetail() {
           )}
 
           <ResizableTable
-            tableId="po-lines-v4"
+            tableId="po-lines-v5"
+            fitWidth
             defaultWidths={isDraft
-              ? [48, 200, 110, 120, 56, 84, 92, 100, 108, 108, 44]
-              : [48, 200, 110, 120, 56, 84, 92, 100, 108, 108]}
+              ? [48, 200, 110, 120, 56, 84, 92, 100, 108, 90, 108, 44]
+              : [48, 200, 110, 120, 56, 84, 92, 100, 108, 90, 108]}
           >
             <thead>
               <tr className="border-b bg-gray-50">
@@ -814,6 +688,7 @@ export default function PurchaseOrderDetail() {
                 <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Received</TableColumnLabel></th>
                 <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Remaining</TableColumnLabel></th>
                 <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Unit Cost</TableColumnLabel></th>
+                <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Tax</TableColumnLabel></th>
                 <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-500"><TableColumnLabel>Total</TableColumnLabel></th>
                 {isDraft && <th className="w-11 px-2 py-2" />}
               </tr>
@@ -821,7 +696,7 @@ export default function PurchaseOrderDetail() {
             <tbody className="divide-y">
               {sortedItems.map((item) => {
                 const remaining = item.quantity_ordered - item.quantity_received
-                const isExpanded = expandedItemId === item.id
+                const isExpanded = expandedItemIds.has(item.id)
                 const lineNumber = item.line_number ?? 0
                 const isFocused = focusLine != null && lineNumber === focusLine
                 const displayBarcode = item.variant_barcode || ''
@@ -835,7 +710,12 @@ export default function PurchaseOrderDetail() {
                         'cursor-pointer hover:bg-gray-50',
                         isFocused && 'bg-blue-50 ring-1 ring-inset ring-blue-300',
                       )}
-                      onClick={onClickableTableRow(() => setExpandedItemId(isExpanded ? null : item.id))}
+                      onClick={onClickableTableRow(() => setExpandedItemIds(prev => {
+                        const next = new Set(prev)
+                        if (next.has(item.id)) next.delete(item.id)
+                        else next.add(item.id)
+                        return next
+                      }))}
                     >
                       <td className="px-3 py-2 text-xs font-semibold tabular-nums text-gray-500">
                         {lineNumber || '—'}
@@ -882,6 +762,21 @@ export default function PurchaseOrderDetail() {
                         <span className={remaining > 0 ? 'text-amber-600 font-medium' : 'text-gray-400'}>{remaining}</span>
                       </td>
                       <td className="px-3 py-2 text-right text-sm tabular-nums whitespace-nowrap">{formatCurrency(item.unit_cost, po.currency || 'INR')}</td>
+                      <td className="px-3 py-2 text-right text-sm tabular-nums whitespace-nowrap">
+                        {item.tax_code ? (
+                          <span className="inline-flex flex-col items-end gap-0.5">
+                            <span className="text-[10px] font-medium text-amber-700 leading-none">{item.tax_code}</span>
+                            {(() => {
+                              const taxAmt = (Number(item.cgst_amount) || 0) + (Number(item.sgst_amount) || 0) + (Number(item.igst_amount) || 0)
+                              return taxAmt > 0
+                                ? <span className="text-xs text-gray-500 tabular-nums">{formatCurrency(taxAmt, po.currency || 'INR')}</span>
+                                : null
+                            })()}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300 text-xs">—</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right text-sm font-medium tabular-nums whitespace-nowrap">{formatCurrency(item.total_cost, po.currency || 'INR')}</td>
                       {isDraft && (
                         <td className="px-2 py-2 text-right">
@@ -899,7 +794,7 @@ export default function PurchaseOrderDetail() {
                     {/* Expanded panel */}
                     {isExpanded && (
                       <tr key={`${item.id}-expanded`}>
-                        <td colSpan={isDraft ? 11 : 10} className="border-b bg-blue-50/30 px-0 py-0">
+                        <td colSpan={isDraft ? 12 : 11} className="border-b bg-blue-50/30 px-0 py-0">
                           <ItemExpandPanel
                             item={item}
                             po={po}
@@ -910,7 +805,11 @@ export default function PurchaseOrderDetail() {
                                 i.id === item.id ? toPoUpdateLine(i, updated) : toPoUpdateLine(i),
                               )
                               await saveItems(newItems)
-                              setExpandedItemId(null)
+                              setExpandedItemIds(prev => {
+                                const next = new Set(prev)
+                                next.delete(item.id)
+                                return next
+                              })
                               toast.success('Item updated')
                             }}
                             saving={updateMut.isPending}
@@ -924,19 +823,19 @@ export default function PurchaseOrderDetail() {
             </tbody>
             <tfoot>
               <tr className="border-t bg-gray-50">
-                <td colSpan={9} className="px-3 py-2 text-right text-sm leading-5 text-gray-600">Subtotal</td>
+                <td colSpan={10} className="px-3 py-2 text-right text-sm leading-5 text-gray-600">Subtotal</td>
                 <td className="px-3 py-2 text-right text-sm leading-5 tabular-nums whitespace-nowrap">{formatCurrency(po.subtotal, po.currency || 'INR')}</td>
                 {isDraft && <td className="px-2 py-2" />}
               </tr>
               {Number(po.tax_amount) > 0 && (
                 <tr className="bg-gray-50">
-                  <td colSpan={9} className="px-3 py-2 text-right text-sm leading-5 text-gray-600">Tax</td>
+                  <td colSpan={10} className="px-3 py-2 text-right text-sm leading-5 text-gray-600">Tax</td>
                   <td className="px-3 py-2 text-right text-sm leading-5 tabular-nums whitespace-nowrap">{formatCurrency(po.tax_amount, po.currency || 'INR')}</td>
                   {isDraft && <td className="px-2 py-2" />}
                 </tr>
               )}
               <tr className="border-t bg-gray-50">
-                <td colSpan={9} className="px-3 py-2 text-right text-sm font-semibold leading-5 text-gray-700">Total</td>
+                <td colSpan={10} className="px-3 py-2 text-right text-sm font-semibold leading-5 text-gray-700">Total</td>
                 <td className="px-3 py-2 text-right text-sm font-bold leading-5 tabular-nums whitespace-nowrap">{formatCurrency(po.total, po.currency || 'INR')}</td>
                 {isDraft && <td className="px-2 py-2" />}
               </tr>
@@ -1334,10 +1233,27 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
     [variants, item.variant_id]
   )
 
-  // Edit state (draft mode)
+  // Edit state (draft only — expand stays display mode until Edit is clicked)
+  const [editing, setEditing] = useState(false)
   const [editVariantId, setEditVariantId] = useState(item.variant_id || '')
   const [editQty, setEditQty] = useState(String(item.quantity_ordered))
   const [editCost, setEditCost] = useState(String(item.unit_cost))
+  const [editTaxCode, setEditTaxCode] = useState(item.tax_code || '')
+
+  const startEdit = useCallback(() => {
+    setEditVariantId(item.variant_id || '')
+    setEditQty(String(item.quantity_ordered))
+    setEditCost(String(item.unit_cost))
+    setEditTaxCode(item.tax_code || '')
+    setEditing(true)
+  }, [item.variant_id, item.quantity_ordered, item.unit_cost, item.tax_code])
+
+  const { data: taxCodesData, error: taxCodesError } = useTaxCodes()
+  const activeTaxCodes = useMemo(
+    () => ((taxCodesData as TaxCode[] | undefined) ?? []).filter(c => c.is_active !== false),
+    [taxCodesData],
+  )
+  const taxCodeMap = useMemo(() => buildTaxCodeMap(taxCodesData as TaxCode[] | undefined), [taxCodesData])
 
   // Receive state
   const receiveMut = useCreateGRN()
@@ -1408,117 +1324,139 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
   }, [item, receiveMut, receiveQty, receiveNotes, receiveBatch, receiveExternalBatch, receiveTrackId, receiveReference, receiveDest, receiveCostPrice, receiveSellingPrice, receiveExpiry, receiveManufacture, receiveBestBefore])
 
   const p = fullProduct as any
+  const lineName = item.product_name || item.service_name || fullService?.name || p?.name || '—'
+  const lineCategory = isService ? fullService?.category : p?.category
+  const lineTotal = (Number(item.unit_cost) || 0) * (Number(item.quantity_ordered) || 0)
+  const variantLabel = selectedVariant
+    ? `${selectedVariant.name}${selectedVariant.sku ? ` · ${selectedVariant.sku}` : ''}`
+    : variants.length > 0
+      ? 'Product-level'
+      : null
 
   return (
-    <div className="px-6 py-4 space-y-4">
-      {/* Product / Variant info */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+    <div className="px-4 py-2.5 space-y-2">
+      {/* Display fields — same shape as New Line Item */}
+      {!editing && (
         <div>
-          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">{isService ? 'Service' : 'Product'}</p>
-          <p className="font-medium">{item.product_name || item.service_name || fullService?.name || p?.name || '—'}</p>
-          {(isService ? fullService?.category : p?.category) && (
-            <p className="text-xs text-gray-400">{isService ? fullService?.category : p?.category}</p>
-          )}
-          {isService && (fullService?.short_description || fullService?.description) && (
-            <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{fullService.short_description || fullService.description}</p>
-          )}
-        </div>
-        <div>
-          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">{isService ? 'Code / SAC' : 'SKU / Barcode'}</p>
-          <p>{isService
-            ? (item.service_sku || fullService?.material_code || item.hsn_code || fullService?.sac_code || '—')
-            : (item.product_sku || p?.sku || '—')}</p>
-          {isService ? (
-            (item.hsn_code || fullService?.sac_code) && (item.service_sku || fullService?.material_code) ? (
-              <p className="text-xs text-gray-400">SAC: {item.hsn_code || fullService?.sac_code}</p>
-            ) : null
-          ) : (
-            (selectedVariant?.barcode || p?.barcode) && (
-              <p className="text-xs text-gray-400 font-mono">{selectedVariant?.barcode || p?.barcode}</p>
-            )
-          )}
-        </div>
-        {isService ? (
-          <div>
-            <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Service details</p>
-            <p>{fullService?.service_type ? fullService.service_type.replace(/_/g, ' ') : 'Service'}</p>
-            {fullService?.duration_minutes ? (
-              <p className="text-xs text-gray-400">{fullService.duration_minutes} min</p>
-            ) : null}
-          </div>
-        ) : selectedVariant ? (
-          <div>
-            <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Variant</p>
-            <p className="font-medium text-blue-700">{selectedVariant.name}</p>
-            {selectedVariant.sku && <p className="text-xs text-gray-400">{selectedVariant.sku}</p>}
-          </div>
-        ) : variants.length > 0 ? (
-          <div>
-            <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">Variants</p>
-            <p className="text-xs text-gray-500">{variants.length} variant{variants.length !== 1 ? 's' : ''} available</p>
-          </div>
-        ) : null}
-        <div>
-          <p className="text-xs text-gray-400 uppercase font-medium mb-0.5">{isService ? 'Purchase price' : 'Current Stock'}</p>
-          {isService ? (
-            <>
-              <p>{formatCurrency(item.unit_cost)}</p>
-              {fullService?.uom && <p className="text-xs text-gray-400">UoM: {fullService.uom}</p>}
-            </>
-          ) : (
-            <>
-              <p>{selectedVariant ? selectedVariant.quantity ?? '-' : p?.quantity ?? '-'} units</p>
-              {(selectedVariant?.cost_price ?? p?.cost_price) && (
-                <p className="text-xs text-gray-400">Cost: {formatCurrency(selectedVariant?.cost_price ?? p?.cost_price)}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-3 gap-y-1.5">
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-gray-400 uppercase font-medium tracking-wide">Type</p>
+              <p className="text-sm font-medium leading-snug text-gray-900">{isService ? 'Service' : 'Product'}</p>
+            </div>
+            <div className="space-y-0.5 sm:col-span-2 lg:col-span-1">
+              <p className="text-[10px] text-gray-400 uppercase font-medium tracking-wide">{isService ? 'Service' : 'Product'}</p>
+              <p className="text-sm font-medium leading-snug text-gray-900">{lineName}</p>
+              {lineCategory && <p className="text-[11px] leading-snug text-gray-400">{lineCategory}</p>}
+              {isService && (fullService?.short_description || fullService?.description) && (
+                <p className="text-[11px] leading-snug text-gray-500 line-clamp-1">{fullService.short_description || fullService.description}</p>
               )}
-            </>
-          )}
-        </div>
-      </div>
+            </div>
+            {!isService && variantLabel && (
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-gray-400 uppercase font-medium tracking-wide">Variant</p>
+                <p className={cn('text-sm font-medium leading-snug', selectedVariant ? 'text-blue-700' : 'text-gray-500')}>
+                  {variantLabel}
+                </p>
+                {selectedVariant?.barcode && (
+                  <p className="text-[11px] font-mono leading-snug text-gray-400">{selectedVariant.barcode}</p>
+                )}
+              </div>
+            )}
+            {isService && (
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-gray-400 uppercase font-medium tracking-wide">Code / SAC</p>
+                <p className="text-sm font-medium leading-snug text-gray-900">
+                  {item.service_sku || fullService?.material_code || item.hsn_code || fullService?.sac_code || '—'}
+                </p>
+                {(item.hsn_code || fullService?.sac_code) && (item.service_sku || fullService?.material_code) && (
+                  <p className="text-[11px] leading-snug text-gray-400">SAC: {item.hsn_code || fullService?.sac_code}</p>
+                )}
+              </div>
+            )}
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-gray-400 uppercase font-medium tracking-wide">Quantity</p>
+              <p className="text-sm font-medium tabular-nums leading-snug text-gray-900">{item.quantity_ordered}</p>
+              {item.unit_of_measure && (
+                <p className="text-[11px] leading-snug text-gray-400">{item.unit_of_measure}</p>
+              )}
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-gray-400 uppercase font-medium tracking-wide">Unit Cost</p>
+              <p className="text-sm font-medium tabular-nums leading-snug text-gray-900">{formatCurrency(item.unit_cost)}</p>
+            </div>
+          </div>
 
-      {/* Line-level procurement metadata */}
-      {(item.unit_of_measure || item.item_category || item.tax_code || item.account_assignment || item.notes) && (
-        <div className="flex flex-wrap gap-2">
-          {item.unit_of_measure && item.unit_of_measure !== 'PCS' && (
-            <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-600">
-              UoM: {item.unit_of_measure}
-            </span>
-          )}
-          {item.item_category && item.item_category !== 'standard' && (
-            <span className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
-              {{
-                service: 'Service',
-                subcontract: 'Subcontract',
-                consignment: 'Consignment',
-                third_party: 'Third Party',
-              }[item.item_category] ?? item.item_category}
-            </span>
-          )}
-          {item.tax_code && (
-            <span className="inline-flex items-center rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
-              Tax: {item.tax_code}
-            </span>
-          )}
-          {item.account_assignment && item.account_assignment !== 'none' && (
-            <span className="inline-flex items-center rounded-full border border-violet-100 bg-violet-50 px-2 py-0.5 text-[11px] text-violet-700">
-              Acct: {item.account_assignment.replace('_', ' ')}
-            </span>
-          )}
-          {item.notes && (
-            <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-500 italic">
-              {item.notes}
-            </span>
-          )}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <p className="text-xs text-gray-500">
+              Line total: <span className="font-medium text-gray-700">{formatCurrency(lineTotal)}</span>
+            </p>
+            {!isService && (selectedVariant?.quantity != null || p?.quantity != null) && (
+              <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-600">
+                Stock: {selectedVariant ? selectedVariant.quantity ?? '—' : p?.quantity ?? '—'} units
+                {(selectedVariant?.cost_price ?? p?.cost_price) != null && (
+                  <span className="ml-1 text-gray-400">· Cost {formatCurrency(selectedVariant?.cost_price ?? p?.cost_price)}</span>
+                )}
+              </span>
+            )}
+            {item.item_category && item.item_category !== 'standard' && item.item_category !== 'service' && (
+              <span className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
+                {{
+                  subcontract: 'Subcontract',
+                  consignment: 'Consignment',
+                  third_party: 'Third Party',
+                }[item.item_category] ?? item.item_category}
+              </span>
+            )}
+            {item.tax_code && (() => {
+              const cgst = Number(item.cgst_amount) || 0
+              const sgst = Number(item.sgst_amount) || 0
+              const igst = Number(item.igst_amount) || 0
+              const cgstR = Number(item.cgst_rate) || 0
+              const sgstR = Number(item.sgst_rate) || 0
+              const igstR = Number(item.igst_rate) || 0
+              const totalTax = cgst + sgst + igst
+              const totalRate = cgstR + sgstR + igstR
+              return (
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-800">
+                  <span className="font-semibold">{item.tax_code}</span>
+                  {totalRate > 0 && <span className="text-amber-600">({totalRate}%)</span>}
+                  {totalTax > 0 && (
+                    <span className="flex items-center gap-1 text-amber-700">
+                      <span>·</span>
+                      {cgst > 0 && <span>CGST {cgstR}% {formatCurrency(cgst)}</span>}
+                      {sgst > 0 && <span>{cgst > 0 ? '+' : ''} SGST {sgstR}% {formatCurrency(sgst)}</span>}
+                      {igst > 0 && <span>IGST {igstR}% {formatCurrency(igst)}</span>}
+                      <span className="font-medium">= {formatCurrency(totalTax)}</span>
+                    </span>
+                  )}
+                </span>
+              )
+            })()}
+            {item.account_assignment && item.account_assignment !== 'none' && (
+              <span className="inline-flex items-center rounded-full border border-violet-100 bg-violet-50 px-2 py-0.5 text-[11px] text-violet-700">
+                Acct: {item.account_assignment.replace('_', ' ')}
+              </span>
+            )}
+            {item.notes && (
+              <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-500 italic">
+                {item.notes}
+              </span>
+            )}
+            {isDraft && (
+              <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={startEdit}>
+                <Edit2 className="w-3 h-3" /> Edit line
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Draft: Edit item */}
-      {isDraft && (
-        <div className="border-t pt-3">
-          <p className="text-xs font-medium text-gray-500 uppercase mb-3">Edit Line Item</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {isDraft && editing && (
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase text-gray-500">Edit Line Item</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
             {variants.length > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <Label className="text-xs">Variant</Label>
                 <Select
                   value={editVariantId}
@@ -1534,19 +1472,56 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
                 />
               </div>
             )}
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <Label className="text-xs">Quantity</Label>
               <Input type="number" min={1} value={editQty} onChange={e => setEditQty(e.target.value)} />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <Label className="text-xs">Unit Cost (₹)</Label>
               <Input type="number" min={0} step="0.01" value={editCost} onChange={e => setEditCost(e.target.value)} />
             </div>
+            <div className="space-y-0.5">
+              <Label className="text-xs">Tax Code</Label>
+              <Select
+                value={editTaxCode}
+                onChange={setEditTaxCode}
+                options={[
+                  { value: '', label: taxCodesError ? '⚠ Unavailable' : activeTaxCodes.length ? '— No tax —' : 'No tax codes' },
+                  ...activeTaxCodes.map(c => ({
+                    value: c.code,
+                    label: `${c.code} · ${Number(c.rate) || 0}%`,
+                    hint: taxSplitLabel(c, false) || (c.tax_type || '').toUpperCase(),
+                  })),
+                  ...(editTaxCode && !taxCodeMap.has(editTaxCode.trim().toUpperCase())
+                    ? [{ value: editTaxCode, label: editTaxCode, hint: 'unknown' }]
+                    : []),
+                ]}
+                aria-label="Tax code"
+                triggerClassName={
+                  taxCodesError
+                    ? 'border-red-300 bg-red-50'
+                    : editTaxCode && !taxCodeMap.has(editTaxCode.trim().toUpperCase())
+                      ? 'border-amber-300 bg-amber-50'
+                      : ''
+                }
+              />
+            </div>
           </div>
-          <div className="flex gap-2 mt-3">
-            <Button size="sm" disabled={saving} className="gap-1.5"
-              onClick={() => onSaveEdit({ variant_id: editVariantId || undefined, quantity: parseInt(editQty), unit_cost: parseFloat(editCost) })}>
+          <div className="mt-2 flex gap-2">
+            <Button size="sm" disabled={saving} className="h-7 gap-1.5"
+              onClick={async () => {
+                await onSaveEdit({
+                  variant_id: editVariantId || undefined,
+                  quantity: parseInt(editQty),
+                  unit_cost: parseFloat(editCost),
+                  tax_code: editTaxCode || undefined,
+                })
+                setEditing(false)
+              }}>
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save Changes
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7" disabled={saving} onClick={() => setEditing(false)}>
+              Cancel
             </Button>
           </div>
         </div>

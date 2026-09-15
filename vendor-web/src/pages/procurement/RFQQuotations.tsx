@@ -19,11 +19,11 @@ import type { RFQ, RFQItem, SupplierQuotation, Supplier } from '@/types'
 import type { Company, CostCenter } from '@/types/finance'
 import {
   FileText, Plus, Send, CheckCircle2, XCircle, Clock,
-  BarChart3, ChevronRight, Package, Users, Trophy, Trash2, AlertCircle,
+  BarChart3, ChevronRight, Package, Users, Trophy, Trash2, AlertCircle, Pencil,
 } from 'lucide-react'
 import { ProcurementLineItemSelector } from '@/components/procurement/ProcurementLineItemSelector'
 import { SupplierTypeahead } from '@/components/procurement/SupplierTypeahead'
-import { useProducts, useServices, useRequisitions, vendorKeys } from '@/hooks/useVendor'
+import { useProducts, useServices, useRequisitions, vendorKeys, useUpdateRFQ } from '@/hooks/useVendor'
 import { useCompanies, useCostCenters } from '@/hooks/useFinance'
 import type { RequisitionType } from '@/components/procurement/procurementLineItemTypes'
 import { DEFAULT_UOM } from '@/components/procurement/procurementLineItemTypes'
@@ -49,9 +49,9 @@ const SQ_STATUS: Record<string, { label: string; cls: string }> = {
   expired:      { label: 'Expired',      cls: 'bg-gray-100 text-gray-500' },
 }
 
-function StatusBadge({ status, map }: { status: string; map: Record<string, { label: string; cls: string }> }) {
-  const cfg = map[status] ?? { label: status, cls: 'bg-gray-100 text-gray-600' }
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>
+import { DocumentStatusBadge, type StatusMap } from '@/components/document/DocumentStatusBadge'
+function StatusBadge({ status, map }: { status: string; map: StatusMap }) {
+  return <DocumentStatusBadge status={status} map={map} />
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -137,7 +137,8 @@ function RFQVariantSelect({
 // Create RFQ dialog — header + line items + supplier invite
 // ─────────────────────────────────────────────────────────────────
 
-function CreateRFQDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose: () => void; editingRFQ?: RFQ | null }) {
+  const isEditMode = Boolean(editingRFQ)
   const queryClient = useQueryClient()
   const [form, setForm] = useState({
     title: '',
@@ -327,6 +328,59 @@ function CreateRFQDialog({ open, onClose }: { open: boolean; onClose: () => void
     },
   })
 
+  const updateHook = useUpdateRFQ(editingRFQ?.id ?? '')
+  const doUpdate = () => updateHook.mutate({
+    ...form,
+    bid_submission_deadline: form.bid_submission_deadline || undefined,
+    delivery_required_by: form.delivery_required_by || undefined,
+    items: items.filter(isRFQItemValid).map(buildItemPayload),
+  }, {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rfqs'] })
+      queryClient.invalidateQueries({ queryKey: ['rfq', editingRFQ?.id] })
+      handleClose()
+    },
+  })
+
+  useEffect(() => {
+    if (!editingRFQ || !open) return
+    setForm({
+      title: editingRFQ.title || '',
+      sourcing_type: editingRFQ.sourcing_type || 'rfq',
+      department: editingRFQ.department || '',
+      currency: editingRFQ.currency || 'INR',
+      payment_terms: editingRFQ.payment_terms || '',
+      delivery_terms: editingRFQ.delivery_terms || '',
+      bid_submission_deadline: editingRFQ.bid_submission_deadline || '',
+      delivery_required_by: editingRFQ.delivery_required_by || '',
+      instructions_to_suppliers: editingRFQ.instructions_to_suppliers || '',
+      internal_notes: editingRFQ.internal_notes || '',
+      requisition_id: editingRFQ.requisition_id || '',
+    })
+    const prefill: RFQItemRow[] = (editingRFQ.items ?? []).map(it => {
+      const type = (it.item_type as RequisitionType) || 'product'
+      return {
+        item_type: type,
+        reference_id: it.product_id || it.service_id || '',
+        variant_id: it.variant_id || '',
+        description: it.description || '',
+        quantity: String(it.quantity ?? 1),
+        unit_of_measure: it.unit_of_measure || DEFAULT_UOM[type],
+        target_price: it.target_price != null ? String(it.target_price) : '',
+        needed_by_date: it.needed_by_date || '',
+        pr_item_id: it.pr_item_id || '',
+      }
+    })
+    setItems(prefill.length ? prefill : [emptyRFQItem()])
+    setSelectedSuppliers((editingRFQ.suppliers ?? []).map(s => ({
+      id: s.supplier_id,
+      vendor_id: '',
+      name: s.supplier_name ?? s.supplier_id,
+      party_type: 'supplier' as const,
+    })))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingRFQ?.id, open])
+
   function handleClose() {
     setForm({ title: '', sourcing_type: 'rfq', department: '', currency: 'INR', payment_terms: '', delivery_terms: '', bid_submission_deadline: '', delivery_required_by: '', instructions_to_suppliers: '', internal_notes: '', requisition_id: '' })
     setCompanyId('')
@@ -344,7 +398,7 @@ function CreateRFQDialog({ open, onClose }: { open: boolean; onClose: () => void
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="flex max-h-[95vh] w-[min(96vw,100rem)] flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-4 pb-3 border-b shrink-0">
-          <DialogTitle>Create Request for Quotation</DialogTitle>
+          <DialogTitle>{isEditMode ? `Edit RFQ — ${editingRFQ!.rfq_number}` : 'Create Request for Quotation'}</DialogTitle>
         </DialogHeader>
 
         {/* Scrollable body */}
@@ -660,11 +714,15 @@ function CreateRFQDialog({ open, onClose }: { open: boolean; onClose: () => void
             <Button
               onClick={() => {
                 setSubmitAttempted(true)
-                if (canSubmit) create.mutate()
+                if (!canSubmit) return
+                if (isEditMode) doUpdate()
+                else create.mutate()
               }}
-              disabled={create.isPending}
+              disabled={isEditMode ? updateHook.isPending : create.isPending}
             >
-              {create.isPending ? 'Creating…' : 'Create RFQ'}
+              {isEditMode
+                ? (updateHook.isPending ? 'Saving…' : 'Save Changes')
+                : (create.isPending ? 'Creating…' : 'Create RFQ')}
             </Button>
           </div>
         </div>
@@ -975,7 +1033,7 @@ function CreateQuotationDialog({
 // RFQ Detail panel
 // ─────────────────────────────────────────────────────────────────
 
-function RFQDetail({ rfqId, onBack }: { rfqId: string; onBack: () => void }) {
+function RFQDetail({ rfqId, onBack, onEdit }: { rfqId: string; onBack: () => void; onEdit?: (rfq: RFQ) => void }) {
   const queryClient = useQueryClient()
   const [showCloseDialog, setShowCloseDialog] = useState(false)
   const [closeReason, setCloseReason] = useState('')
@@ -1039,6 +1097,11 @@ function RFQDetail({ rfqId, onBack }: { rfqId: string; onBack: () => void }) {
         <div className="flex gap-2">
           {rfq.status === 'draft' && (
             <>
+              {onEdit && (
+                <Button size="sm" variant="outline" onClick={() => onEdit(rfq)}>
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" />Edit
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={() => setShowAddQuote(true)}>
                 <Plus className="w-3.5 h-3.5 mr-1.5" />Add Quote
               </Button>
@@ -1526,6 +1589,7 @@ function QuotationDetail({ quotation, onClose }: { quotation: SupplierQuotation;
 export default function RFQQuotationsPage() {
   const [tab, setTab] = useState<'rfq' | 'quotations'>('rfq')
   const [showCreate, setShowCreate] = useState(false)
+  const [editingRFQ, setEditingRFQ] = useState<RFQ | null>(null)
   const [showCreateQuote, setShowCreateQuote] = useState(false)
   const [selectedRFQId, setSelectedRFQId] = useState<string | null>(null)
   const [selectedQuotation, setSelectedQuotation] = useState<SupplierQuotation | null>(null)
@@ -1558,7 +1622,16 @@ export default function RFQQuotationsPage() {
   if (selectedRFQId) {
     return (
       <div className="flex h-[calc(100vh-64px)]">
-        <RFQDetail rfqId={selectedRFQId} onBack={() => setSelectedRFQId(null)} />
+        <CreateRFQDialog
+          open={showCreate}
+          editingRFQ={editingRFQ}
+          onClose={() => { setShowCreate(false); setEditingRFQ(null) }}
+        />
+        <RFQDetail
+          rfqId={selectedRFQId}
+          onBack={() => setSelectedRFQId(null)}
+          onEdit={rfq => { setEditingRFQ(rfq); setShowCreate(true) }}
+        />
       </div>
     )
   }
@@ -1715,7 +1788,7 @@ export default function RFQQuotationsPage() {
         </TabsContent>
       </Tabs>
 
-      <CreateRFQDialog open={showCreate} onClose={() => setShowCreate(false)} />
+      <CreateRFQDialog open={showCreate} editingRFQ={editingRFQ} onClose={() => { setShowCreate(false); setEditingRFQ(null) }} />
       <CreateQuotationDialog open={showCreateQuote} onClose={() => setShowCreateQuote(false)} />
       {selectedQuotation && (
         <QuotationDetail quotation={selectedQuotation} onClose={() => setSelectedQuotation(null)} />

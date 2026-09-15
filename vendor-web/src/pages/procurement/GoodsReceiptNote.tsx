@@ -46,9 +46,9 @@ const QC_STATUS: Record<string, { label: string; cls: string }> = {
   hold:         { label: 'Hold',        cls: 'bg-orange-100 text-orange-700' },
 }
 
-function StatusBadge({ status, map }: { status: string; map: Record<string, { label: string; cls: string }> }) {
-  const cfg = map[status] ?? { label: status, cls: 'bg-gray-100 text-gray-600' }
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>
+import { DocumentStatusBadge, type StatusMap } from '@/components/document/DocumentStatusBadge'
+function StatusBadge({ status, map }: { status: string; map: StatusMap }) {
+  return <DocumentStatusBadge status={status} map={map} />
 }
 
 // ─────────────────────────────────────────────────────────────────

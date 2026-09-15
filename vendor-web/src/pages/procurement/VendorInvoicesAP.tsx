@@ -13,7 +13,7 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import {
-  useVendorInvoices, useCreateVendorInvoice, usePostVendorInvoice,
+  useVendorInvoices, useCreateVendorInvoice, useUpdateVendorInvoice, usePostVendorInvoice,
   useMatchVendorInvoice, useCancelVendorInvoice, usePurchaseOrders, useRecordInvoicePayment,
   useRequestInvoiceApproval, useApproveOrRejectInvoice,
 } from '@/hooks/useVendor'
@@ -24,21 +24,19 @@ import { ProcurementSupplierField } from '@/components/procurement/ProcurementSu
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { VendorInvoice } from '@/types'
-import { Loader2, Plus, X, FileText, CheckCircle2, Ban, ArrowRight, Banknote, Printer, Download, CreditCard, Send, ThumbsUp, ThumbsDown, Clock, CopyPlus } from 'lucide-react'
+import { Loader2, Plus, X, FileText, CheckCircle2, Ban, ArrowRight, Banknote, Printer, Download, CreditCard, Send, ThumbsUp, ThumbsDown, Clock, CopyPlus, Pencil } from 'lucide-react'
 import { printInvoice, downloadInvoicePdf } from '@/lib/procurementPrintUtils'
 import { vendorInvoiceToCopyLines } from '@/lib/copyDocument'
 import { CopyFromDocumentField } from '@/components/procurement/CopyFromDocumentField'
 import { vendorApi } from '@/api/vendor'
 import { extractApiError } from '@/lib/errorMessages'
 
-const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
-  draft:         { bg: 'bg-gray-100 dark:bg-gray-800',      text: 'text-gray-700 dark:text-gray-300',    label: 'Draft' },
-  posted:        { bg: 'bg-blue-50 dark:bg-blue-950/50',    text: 'text-blue-700 dark:text-blue-300',    label: 'Posted' },
-  matched:       { bg: 'bg-green-50 dark:bg-green-950/50',  text: 'text-green-700 dark:text-green-300',  label: 'Matched' },
-  partial_match: { bg: 'bg-amber-50 dark:bg-amber-950/50',  text: 'text-amber-700 dark:text-amber-300',  label: 'Partial Match' },
-  blocked:       { bg: 'bg-red-50 dark:bg-red-950/50',      text: 'text-red-700 dark:text-red-300',      label: 'Blocked' },
-  paid:          { bg: 'bg-purple-50 dark:bg-purple-950/50',text: 'text-purple-700 dark:text-purple-300',label: 'Paid' },
-  cancelled:     { bg: 'bg-red-50 dark:bg-red-950/50',      text: 'text-red-700 dark:text-red-300',      label: 'Cancelled' },
+import { DocumentStatusBadge, VENDOR_INVOICE_STATUS_MAP, PROCUREMENT_APPROVAL_STATUS_MAP } from '@/components/document/DocumentStatusBadge'
+
+const INVOICE_STATUS_MAP_EXTENDED = {
+  ...VENDOR_INVOICE_STATUS_MAP,
+  partial_match: { label: 'Partial Match', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' },
+  blocked:       { label: 'Blocked',       cls: 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300' },
 }
 
 const MATCH_BADGE: Record<string, string> = {
@@ -51,11 +49,9 @@ const MATCH_BADGE: Record<string, string> = {
 
 const STATUSES = ['', 'draft', 'posted', 'matched', 'partial_match', 'blocked', 'paid', 'cancelled']
 
-const APPROVAL_BADGE: Record<string, { bg: string; text: string; label: string; icon?: string }> = {
-  not_required: { bg: 'bg-gray-100 dark:bg-gray-800',     text: 'text-gray-500',                   label: 'No Approval' },
-  pending:      { bg: 'bg-amber-50 dark:bg-amber-950/50', text: 'text-amber-700 dark:text-amber-400', label: 'Pending Approval' },
-  approved:     { bg: 'bg-green-50 dark:bg-green-950/50', text: 'text-green-700 dark:text-green-400', label: 'Approved' },
-  rejected:     { bg: 'bg-red-50 dark:bg-red-950/50',     text: 'text-red-700 dark:text-red-400',    label: 'Rejected' },
+const APPROVAL_STATUS_MAP_INVOICE = {
+  ...PROCUREMENT_APPROVAL_STATUS_MAP,
+  not_required: { label: 'No Approval', cls: 'bg-gray-100 text-gray-500 dark:bg-gray-800' },
 }
 
 interface LineRow { description: string; qty: number; uom: string; unit_price: number; tax_code: string }
@@ -67,7 +63,7 @@ function calcLineTotal(l: LineRow, taxRate: number) {
 }
 
 // ── Detail Panel ──────────────────────────────────────────────────
-function InvoiceDetailPanel({ invoice, onClose, onCopyDocument }: { invoice: VendorInvoice; onClose: () => void; onCopyDocument?: () => void }) {
+function InvoiceDetailPanel({ invoice, onClose, onCopyDocument, onEdit }: { invoice: VendorInvoice; onClose: () => void; onCopyDocument?: () => void; onEdit?: () => void }) {
   const navigate = useNavigate()
   const post = usePostVendorInvoice()
   const match = useMatchVendorInvoice()
@@ -92,9 +88,7 @@ function InvoiceDetailPanel({ invoice, onClose, onCopyDocument }: { invoice: Ven
   const [rejectComments, setRejectComments] = useState('')
   const [showRejectDialog, setShowRejectDialog] = useState(false)
 
-  const badge = STATUS_BADGE[invoice.status] ?? STATUS_BADGE.draft
   const matchBadge = MATCH_BADGE[invoice.match_status] || 'bg-gray-100 text-gray-500'
-  const approvalBadge = APPROVAL_BADGE[(invoice as unknown as Record<string, unknown>).approval_status as string ?? 'not_required'] ?? APPROVAL_BADGE.not_required
   const approvalStatus = (invoice as unknown as Record<string, unknown>).approval_status as string ?? 'not_required'
 
   return (
@@ -107,10 +101,15 @@ function InvoiceDetailPanel({ invoice, onClose, onCopyDocument }: { invoice: Ven
             <h2 className="text-lg font-semibold">{invoice.supplier_name || 'Vendor Invoice'}</h2>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+            <DocumentStatusBadge status={invoice.status} map={INVOICE_STATUS_MAP_EXTENDED} />
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${matchBadge}`}>{invoice.match_status.replace(/_/g, ' ')}</span>
             {approvalStatus !== 'not_required' && (
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${approvalBadge.bg} ${approvalBadge.text}`}>{approvalBadge.label}</span>
+              <DocumentStatusBadge status={approvalStatus} map={APPROVAL_STATUS_MAP_INVOICE} />
+            )}
+            {onEdit && invoice.status === 'draft' && (
+              <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onEdit}>
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </Button>
             )}
             {onCopyDocument && (
               <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onCopyDocument}>
@@ -396,9 +395,11 @@ function InvoiceDetailPanel({ invoice, onClose, onCopyDocument }: { invoice: Ven
 }
 
 // ── Create Invoice Modal ──────────────────────────────────────────
-function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFrom?: VendorInvoice | null }) {
+function CreateInvoiceModal({ onClose, copyFrom, editingInvoice }: { onClose: () => void; copyFrom?: VendorInvoice | null; editingInvoice?: VendorInvoice | null }) {
+  const isEditMode = Boolean(editingInvoice)
   const navigate = useNavigate()
   const create = useCreateVendorInvoice()
+  const update = useUpdateVendorInvoice()
   const { data: posData } = usePurchaseOrders({ status: 'sent,partial_received,received', size: 100 })
   const pos = posData?.items ?? []
   const { data: copyDocs, isLoading: copyDocsLoading } = useVendorInvoices({ size: 100 })
@@ -445,6 +446,25 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!editingInvoice) return
+    setSupplierId(editingInvoice.supplier_id || '')
+    setPoId(editingInvoice.purchase_order_id || '')
+    setInvoiceNumber(editingInvoice.invoice_number || '')
+    setInvoiceDate(editingInvoice.invoice_date || new Date().toISOString().slice(0, 10))
+    setDueDate(editingInvoice.due_date || '')
+    setCurrency(editingInvoice.currency || 'INR')
+    setNotes(editingInvoice.notes || '')
+    const prefill = (editingInvoice.items ?? []).map(it => ({
+      description: it.description,
+      qty: it.invoiced_qty,
+      uom: it.uom || '',
+      unit_price: it.unit_price,
+      tax_code: it.tax_code || '',
+    }))
+    setLines(prefill.length ? prefill : [emptyLine()])
+  }, [editingInvoice?.id])
+
   const handleCopyFromNumber = async (number: string) => {
     setCopyLoading(true)
     try {
@@ -480,7 +500,7 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
     if (!invoiceNumber.trim()) { toast.error('Enter invoice number'); return }
     const validLines = lines.filter(l => l.description.trim())
     if (!validLines.length) { toast.error('Add at least one line item'); return }
-    create.mutate({
+    const payload = {
       supplier_id: supplierId,
       purchase_order_id: poId || undefined,
       invoice_number: invoiceNumber,
@@ -496,7 +516,12 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
         unit_price: l.unit_price,
         tax_code: l.tax_code || undefined,
       })),
-    }, { onSuccess: onClose })
+    }
+    if (isEditMode && editingInvoice) {
+      update.mutate({ id: editingInvoice.id, data: payload }, { onSuccess: onClose })
+    } else {
+      create.mutate(payload, { onSuccess: onClose })
+    }
   }
 
   return (
@@ -504,7 +529,7 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
       <Card className="flex max-h-[90vh] w-[min(96vw,90rem)] flex-col overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white dark:bg-gray-900 z-10">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Banknote className="w-5 h-5 text-amber-600" /> {copiedFromNumber ? `Copy of ${copiedFromNumber}` : 'New Vendor Invoice (AP)'}
+            <Banknote className="w-5 h-5 text-amber-600" /> {isEditMode ? `Edit Invoice — ${editingInvoice!.invoice_number}` : copiedFromNumber ? `Copy of ${copiedFromNumber}` : 'New Vendor Invoice (AP)'}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
@@ -653,18 +678,20 @@ function CreateInvoiceModal({ onClose, copyFrom }: { onClose: () => void; copyFr
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <CopyFromDocumentField
-              placeholder="Search invoice number or supplier…"
-              onCopy={handleCopyFromNumber}
-              loading={copyLoading}
-              copiedFrom={copiedFromNumber}
-              suggestions={copySuggestions}
-              suggestionsLoading={copyDocsLoading}
-            />
+            {!isEditMode && (
+              <CopyFromDocumentField
+                placeholder="Search invoice number or supplier…"
+                onCopy={handleCopyFromNumber}
+                loading={copyLoading}
+                copiedFrom={copiedFromNumber}
+                suggestions={copySuggestions}
+                suggestionsLoading={copyDocsLoading}
+              />
+            )}
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={create.isPending} className="gap-2">
-              {create.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Create Invoice
+            <Button onClick={handleSave} disabled={isEditMode ? update.isPending : create.isPending} className="gap-2">
+              {(isEditMode ? update.isPending : create.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isEditMode ? 'Save Changes' : 'Create Invoice'}
             </Button>
           </div>
         </CardContent>
@@ -682,6 +709,7 @@ export default function VendorInvoicesAPPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showCreate, setShowCreate] = useState(false)
   const [copyFromInvoice, setCopyFromInvoice] = useState<VendorInvoice | null>(null)
+  const [editingInvoice, setEditingInvoice] = useState<VendorInvoice | null>(null)
   const [selected, setSelected] = useState<VendorInvoice | null>(null)
 
   const params: Record<string, unknown> =
@@ -727,13 +755,19 @@ export default function VendorInvoicesAPPage() {
       {showCreate && (
         <CreateInvoiceModal
           copyFrom={copyFromInvoice}
-          onClose={() => { setShowCreate(false); setCopyFromInvoice(null) }}
+          editingInvoice={editingInvoice}
+          onClose={() => { setShowCreate(false); setCopyFromInvoice(null); setEditingInvoice(null) }}
         />
       )}
       {selected && (
         <InvoiceDetailPanel
           invoice={selected}
           onClose={() => setSelected(null)}
+          onEdit={() => {
+            setEditingInvoice(selected)
+            setSelected(null)
+            setShowCreate(true)
+          }}
           onCopyDocument={() => {
             setCopyFromInvoice(selected)
             setSelected(null)
@@ -814,7 +848,7 @@ export default function VendorInvoicesAPPage() {
                 <Select
                   value={statusFilter}
                   onChange={setStatusFilter}
-                  options={selectOptionsWithBlank('All Statuses', STATUSES.filter(Boolean).map(s => ({ value: s, label: STATUS_BADGE[s]?.label ?? s })))}
+                  options={selectOptionsWithBlank('All Statuses', STATUSES.filter(Boolean).map(s => ({ value: s, label: INVOICE_STATUS_MAP_EXTENDED[s]?.label ?? s })))}
                   className="w-36 text-sm"
                 />
               ) : undefined
@@ -842,7 +876,6 @@ export default function VendorInvoicesAPPage() {
             </thead>
             <tbody>
               {displayItems.map(inv => {
-                const badge = STATUS_BADGE[inv.status] ?? STATUS_BADGE.draft
                 const matchBadge = MATCH_BADGE[inv.match_status] || 'bg-gray-100 text-gray-500'
                 return (
                   <tr key={inv.id} className="border-t cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" onClick={onClickableTableRow(() => setSelected(inv))}>
@@ -853,7 +886,7 @@ export default function VendorInvoicesAPPage() {
                     <td className="px-3 py-2 text-sm text-gray-500">{inv.due_date ? formatDate(inv.due_date) : '—'}</td>
                     <td className="px-3 py-2 text-sm font-semibold">{formatCurrency(inv.total)}</td>
                     <td className="px-3 py-2">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.bg} ${badge.text}`}>{badge.label}</span>
+                      <DocumentStatusBadge status={inv.status} map={INVOICE_STATUS_MAP_EXTENDED} />
                     </td>
                     <td className="px-3 py-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${matchBadge}`}>{inv.match_status.replace(/_/g, ' ')}</span>

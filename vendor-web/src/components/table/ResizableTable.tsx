@@ -26,10 +26,13 @@ interface Props {
   defaultWidths: number[]
   children: React.ReactNode
   className?: string
+  /** Scale columns to the container so the table never grows a horizontal scrollbar. */
+  fitWidth?: boolean
 }
 
-export function ResizableTable({ tableId, defaultWidths, children, className }: Props) {
+export function ResizableTable({ tableId, defaultWidths, children, className, fitWidth }: Props) {
   const { widths, startResize } = useColumnResize(tableId, defaultWidths)
+  const totalWidth = widths.reduce((sum, w) => sum + w, 0) || 1
 
   // Inject drag handles into every <th> inside <thead>
   const patchedChildren = Children.map(children, child => {
@@ -53,8 +56,8 @@ export function ResizableTable({ tableId, defaultWidths, children, className }: 
           style: {
             ...(th.props.style || {}),
             position: 'relative',
-            width: widths[ci] ?? 'auto',
-            minWidth: colWidth,
+            width: fitWidth ? `${(colWidth / totalWidth) * 100}%` : (widths[ci] ?? 'auto'),
+            minWidth: fitWidth ? 0 : colWidth,
             overflow: isNarrow ? 'visible' : 'hidden',
             whiteSpace: isNarrow ? undefined : 'nowrap',
           },
@@ -95,22 +98,28 @@ export function ResizableTable({ tableId, defaultWidths, children, className }: 
   })
 
   return (
-    <div className="vendor-scroll-x">
+    <div className={fitWidth ? 'min-w-0 overflow-x-hidden' : 'vendor-scroll-x'}>
       <table
         className={cn(
           // Keep body cells inside resized column widths (headers already clip via style).
           '[&_tbody>tr>td]:overflow-hidden [&_tbody>tr>td]:align-middle [&_tfoot>tr>td]:align-middle',
+          fitWidth && '[&_tbody>tr>td]:min-w-0 [&_tfoot>tr>td]:min-w-0',
           className,
         )}
         style={{
           tableLayout: 'fixed',
           width: '100%',
-          minWidth: widths.reduce((sum, w) => sum + w, 0),
+          minWidth: fitWidth ? undefined : totalWidth,
         }}
       >
         <colgroup>
           {widths.map((w, i) => (
-            <col key={i} style={{ width: w, minWidth: w }} />
+            <col
+              key={i}
+              style={fitWidth
+                ? { width: `${(w / totalWidth) * 100}%` }
+                : { width: w, minWidth: w }}
+            />
           ))}
         </colgroup>
         {patchedChildren}

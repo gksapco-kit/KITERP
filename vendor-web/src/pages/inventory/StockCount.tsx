@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { vendorApi } from '@/api/vendor'
 import { apiError } from '@/lib/errorMessages'
@@ -17,10 +17,13 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import {
   ClipboardList, Plus, Play, Send, CheckCircle2, XCircle,
-  ArrowLeft, Download, Loader2, ChevronRight, AlertTriangle,
-  TrendingUp, TrendingDown, Minus, RefreshCw, Eye,
+  ArrowLeft, Loader2, ChevronRight, AlertTriangle,
+  TrendingUp, TrendingDown, Minus, RefreshCw,
 } from 'lucide-react'
-import { useStores } from '@/hooks/useVendor'
+import {
+  useStores, vendorKeys,
+  useStockCounts, useStockCount,
+} from '@/hooks/useVendor'
 import { cn } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -84,27 +87,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   cancelled: { label: 'Cancelled', variant: 'destructive', color: 'text-red-500' },
 }
 
-const VENDOR_KEYS_SC = {
-  list: (params?: Record<string, unknown>) => ['vendor', 'stock-counts', params] as const,
-  detail: (id: string) => ['vendor', 'stock-count', id] as const,
-}
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-
-function useStockCounts(params?: Record<string, unknown>) {
-  return useQuery({
-    queryKey: VENDOR_KEYS_SC.list(params),
-    queryFn: () => vendorApi.listStockCounts(params),
-  })
-}
-
-function useStockCountDetail(id: string | null) {
-  return useQuery({
-    queryKey: VENDOR_KEYS_SC.detail(id ?? ''),
-    queryFn: () => vendorApi.getStockCount(id!),
-    enabled: !!id,
-  })
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -167,13 +150,13 @@ function CreateCountModal({
         count_date: countDate || undefined,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vendor', 'stock-counts'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.stockCounts() })
       toast.success('Stock count session created')
       onClose()
       setDescription('')
       setStoreId('')
     },
-    onError: (e) => toast.error(apiError(e)),
+    onError: apiError('Create stock count'),
   })
 
   if (!open) return null
@@ -429,48 +412,48 @@ function CountDetail({
   onBack: () => void
 }) {
   const qc = useQueryClient()
-  const { data: sc, isLoading } = useStockCountDetail(countId) as { data: StockCountDetail | undefined; isLoading: boolean }
+  const { data: sc, isLoading } = useStockCount(countId) as { data: StockCountDetail | undefined; isLoading: boolean }
   const [lineFilter, setLineFilter] = useState<'all' | 'pending' | 'counted' | 'variance'>('all')
 
   const start = useMutation({
     mutationFn: () => vendorApi.startStockCount(countId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: VENDOR_KEYS_SC.detail(countId) }); toast.success('Count started') },
-    onError: (e) => toast.error(apiError(e)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.stockCount(countId) }); toast.success('Count started') },
+    onError: apiError('Start stock count'),
   })
 
   const submitReview = useMutation({
     mutationFn: () => vendorApi.submitStockCountForReview(countId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: VENDOR_KEYS_SC.detail(countId) }); toast.success('Submitted for review') },
-    onError: (e) => toast.error(apiError(e)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.stockCount(countId) }); toast.success('Submitted for review') },
+    onError: apiError('Submit for review'),
   })
 
   const post = useMutation({
     mutationFn: () => vendorApi.postStockCount(countId),
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: VENDOR_KEYS_SC.detail(countId) })
-      qc.invalidateQueries({ queryKey: ['vendor', 'stock-counts'] })
-      qc.invalidateQueries({ queryKey: ['vendor', 'inventory-summary'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.stockCount(countId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.stockCounts() })
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'inventory-summary'] })
       toast.success(`Count posted — ${res.adjustments_made} adjustments applied`)
     },
-    onError: (e) => toast.error(apiError(e)),
+    onError: apiError('Post stock count'),
   })
 
   const cancel = useMutation({
     mutationFn: () => vendorApi.cancelStockCount(countId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: VENDOR_KEYS_SC.detail(countId) })
-      qc.invalidateQueries({ queryKey: ['vendor', 'stock-counts'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.stockCount(countId) })
+      qc.invalidateQueries({ queryKey: vendorKeys.stockCounts() })
       toast.success('Count cancelled')
       onBack()
     },
-    onError: (e) => toast.error(apiError(e)),
+    onError: apiError('Cancel stock count'),
   })
 
   const updateLine = useMutation({
     mutationFn: ({ lineId, qty, notes }: { lineId: string; qty: number; notes: string }) =>
       vendorApi.updateStockCountLine(countId, lineId, { counted_qty: qty, notes }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: VENDOR_KEYS_SC.detail(countId) }),
-    onError: (e) => toast.error(apiError(e)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: vendorKeys.stockCount(countId) }),
+    onError: apiError('Update count line'),
   })
 
   if (isLoading || !sc) {
