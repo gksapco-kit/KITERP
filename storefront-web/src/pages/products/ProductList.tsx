@@ -705,7 +705,14 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
               )}
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-2.5">
+            <div
+              className={cn(
+                'grid gap-2.5 sm:gap-2.5',
+                defaultFilterType === 'services'
+                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                  : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4',
+              )}
+            >
               {combinedItems.map((item: any) => {
                 const isProduct = item.type === 'product'
                 const detailPath = isProduct ? `/products/${item.slug}` : `/services/${item.slug}`

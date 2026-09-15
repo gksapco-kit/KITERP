@@ -134,9 +134,9 @@ export function ProcessSteps({
         <div
           className={cn(
             "mx-auto max-w-5xl",
-            layout === "horizontal" && "grid gap-6 md:grid-cols-4",
+            layout === "horizontal" && "grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4",
             layout === "vertical" && "space-y-6",
-            layout === "cards" && "grid gap-5 sm:grid-cols-2 md:grid-cols-4",
+            layout === "cards" && "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4",
           )}
         >
           {items.map((s, i) => (
@@ -150,13 +150,14 @@ export function ProcessSteps({
             >
               <div
                 className={cn(
-                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground",
+                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground",
                   layout === "cards" && "mb-4 h-10 w-10 text-base",
+                  layout === "horizontal" && "mx-auto md:mx-0",
                 )}
               >
-                {i + 1}
+                {String(i + 1).padStart(2, "0")}
               </div>
-              <div className={cn(layout === "horizontal" ? "mt-4" : "")}>
+              <div className={cn("min-w-0", layout === "horizontal" ? "mt-4 text-center md:text-left" : "")}>
                 <h3 className="font-semibold">{s.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
               </div>

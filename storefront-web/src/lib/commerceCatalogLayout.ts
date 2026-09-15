@@ -1,5 +1,5 @@
 import {
-  CATALOG_GRID_COL_CLASS,
+  catalogGridResponsiveColClass,
   clampCatalogColumns,
   readCatalogCardLayout,
 } from '@/lib/catalogCardLayout'
@@ -67,7 +67,7 @@ export function extractCommerceCatalogLayout(
 
 export function catalogGridClassName(columns: number, blockType = 'product_grid'): string {
   const cols = clampCatalogColumns(columns, 4, blockType)
-  return CATALOG_GRID_COL_CLASS[cols] || CATALOG_GRID_COL_CLASS[4]
+  return catalogGridResponsiveColClass(cols, blockType)
 }
 
 export function carouselCardWidthClass(columns: number): string {

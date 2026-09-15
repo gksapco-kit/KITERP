@@ -55,8 +55,25 @@ export const CATALOG_GRID_EXACT_COL_CLASS: Record<number, string> = {
   12: 'grid-cols-12',
 }
 
-export function catalogGridResponsiveColClass(columns: number): string {
+function isCopyHeavyCatalogGrid(blockType: string): boolean {
+  return blockType === 'services_cards' || blockType === 'services'
+}
+
+/** Service cards need readable titles/descriptions — never 2-up on a phone. */
+const SERVICES_GRID_COL_CLASS: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-1 sm:grid-cols-2',
+  3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+  4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+  5: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
+  6: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6',
+}
+
+export function catalogGridResponsiveColClass(columns: number, blockType = 'product_grid'): string {
   if (columns <= 1) return 'grid-cols-1'
+  if (isCopyHeavyCatalogGrid(blockType)) {
+    return SERVICES_GRID_COL_CLASS[columns] || 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+  }
   if (columns <= 2) return CATALOG_GRID_COL_CLASS[2]
   return CATALOG_GRID_COL_CLASS[columns] || CATALOG_GRID_COL_CLASS[4]
 }
@@ -69,18 +86,22 @@ export function catalogGridResponsiveColClass(columns: number): string {
 export function catalogGridColClassForBreakpoint(
   columns: number,
   breakpoint: 'desktop' | 'tablet' | 'mobile' = 'desktop',
+  blockType = 'product_grid',
 ): string {
   const n = Math.min(Math.max(Math.round(columns) || 1, 1), MAX_CATALOG_GRID_COLUMNS)
   if (breakpoint === 'desktop') return CATALOG_GRID_EXACT_COL_CLASS[n] || CATALOG_GRID_EXACT_COL_CLASS[4]
 
+  const copyHeavy = isCopyHeavyCatalogGrid(blockType)
+
   // Match the base / sm–md band of CATALOG_GRID_COL_CLASS (no lg/xl).
   if (breakpoint === 'mobile') {
-    if (n <= 3) return 'grid-cols-1'
+    if (copyHeavy || n <= 3) return 'grid-cols-1'
     return 'grid-cols-2'
   }
 
   // Tablet ≈ sm/md applied, lg+ not.
   if (n <= 1) return 'grid-cols-1'
+  if (copyHeavy) return 'grid-cols-2'
   if (n === 2) return 'grid-cols-2'
   if (n === 3) return 'grid-cols-2'
   if (n <= 5) return 'grid-cols-3'

@@ -20,6 +20,7 @@ import {
 } from '@/lib/blockHiddenFields'
 import { cn, imgUrl } from '@/lib/utils'
 import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
+import { previewBelowMd } from '@/lib/previewBreakpoint'
 
 /** 1×1 transparent pixel — keeps an empty editable slot from rendering a broken-image box. */
 const TRANSPARENT_PIXEL =
@@ -47,7 +48,7 @@ function TimelineBlockTitle({
   props,
   textColor,
   fontHeading,
-  className = 'text-2xl sm:text-3xl lg:text-4xl font-semibold mb-8 sm:mb-12 lg:mb-16 text-center',
+  className = 'text-xl sm:text-3xl lg:text-4xl font-semibold mb-8 sm:mb-12 lg:mb-16 text-center text-balance px-1',
 }: {
   title: string | null | undefined
   showTitle: boolean
@@ -120,7 +121,7 @@ function TimelineTitleField({
   useReplacement,
   textColor,
   fontHeading,
-  className = 'font-semibold text-lg sm:text-xl mb-2',
+  className = 'font-semibold text-base sm:text-xl mb-2 break-words',
 }: {
   item: TimelineItem
   index: number
@@ -160,7 +161,7 @@ function TimelineDescField({
   props,
   useReplacement,
   textColor,
-  className = 'text-sm sm:text-base leading-relaxed opacity-75',
+  className = 'text-sm sm:text-base leading-relaxed opacity-75 break-words',
 }: {
   item: TimelineItem
   index: number
@@ -540,6 +541,7 @@ function HorizontalTimeline({
   fontHeading,
   primaryColor,
   compact,
+  forceStack,
 }: {
   visibleItems: VisibleTimelineItem[]
   blockId?: string
@@ -549,13 +551,24 @@ function HorizontalTimeline({
   fontHeading: string
   primaryColor: string
   compact: boolean
+  forceStack: boolean
 }) {
   return (
-    <div className={cn('flex flex-wrap justify-center', compact ? 'gap-6' : 'gap-10')}>
+    <div
+      className={cn(
+        'flex flex-col items-stretch gap-8 overflow-x-hidden',
+        !forceStack && (compact
+          ? 'md:flex-row md:flex-wrap md:justify-center md:gap-6'
+          : 'md:flex-row md:flex-wrap md:justify-center md:gap-10'),
+      )}
+    >
       {visibleItems.map(({ item, index: i }) => (
         <div
           key={i}
-          className={cn('flex flex-col items-center text-center', compact ? 'max-w-[140px]' : 'max-w-[180px]')}
+          className={cn(
+            'flex min-w-0 w-full max-w-sm mx-auto flex-col items-center text-center',
+            !forceStack && (compact ? 'md:max-w-[140px]' : 'md:max-w-[180px]'),
+          )}
         >
           <YearBadge
             item={item}
@@ -591,6 +604,7 @@ function AlternatingTimeline({
   textColor,
   fontHeading,
   primaryColor,
+  forceStack,
 }: {
   visibleItems: VisibleTimelineItem[]
   blockId?: string
@@ -599,22 +613,25 @@ function AlternatingTimeline({
   textColor: string
   fontHeading: string
   primaryColor: string
+  forceStack: boolean
 }) {
-  return (
-    <div className="relative max-w-4xl mx-auto">
-      <div className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 opacity-20" style={{ backgroundColor: textColor }} />
-      <div className="space-y-8 sm:space-y-10 md:space-y-12">
-        {visibleItems.map(({ item, index: i }) => {
-          const isRight = i % 2 === 1
-          return (
-            <div
-              key={i}
-              className={cn(
-                'grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 md:gap-10 items-center',
-                isRight && 'md:[direction:rtl]',
-              )}
-            >
-              <div className={cn('md:[direction:ltr]', isRight ? 'md:text-right' : 'md:text-left')}>
+  if (forceStack) {
+    return (
+      <div className="relative mx-auto max-w-sm overflow-x-hidden">
+        <div className="absolute left-8 top-2 bottom-2 w-px opacity-20" style={{ backgroundColor: textColor }} />
+        <div className="space-y-8">
+          {visibleItems.map(({ item, index: i }) => (
+            <div key={i} className="relative flex gap-4 items-start min-w-0">
+              <YearBadge
+                item={item}
+                index={i}
+                blockId={blockId}
+                props={props}
+                useReplacement={useReplacement}
+                primaryColor={primaryColor}
+                className="z-10"
+              />
+              <div className="min-w-0 flex-1 pt-2">
                 <TimelineItemBody
                   item={item}
                   index={i}
@@ -623,10 +640,43 @@ function AlternatingTimeline({
                   useReplacement={useReplacement}
                   textColor={textColor}
                   fontHeading={fontHeading}
-                  align={isRight ? 'right' : 'left'}
+                  align="left"
                 />
               </div>
-              <div className={cn('flex', isRight ? 'md:justify-start' : 'md:justify-end md:[direction:ltr]')}>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative max-w-4xl mx-auto overflow-x-hidden">
+      <div className="absolute left-8 top-0 bottom-0 w-px opacity-20 md:left-1/2 md:-translate-x-1/2" style={{ backgroundColor: textColor }} />
+      <div className="space-y-8 sm:space-y-10 md:space-y-12">
+        {visibleItems.map(({ item, index: i }) => {
+          const isRight = i % 2 === 1
+          return (
+            <div
+              key={i}
+              className={cn(
+                'relative grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 md:gap-10 items-center',
+                isRight && 'md:[direction:rtl]',
+              )}
+            >
+              <div className={cn('min-w-0 md:[direction:ltr]', isRight ? 'text-left md:text-right' : 'text-left')}>
+                <TimelineItemBody
+                  item={item}
+                  index={i}
+                  blockId={blockId}
+                  props={props}
+                  useReplacement={useReplacement}
+                  textColor={textColor}
+                  fontHeading={fontHeading}
+                  align="left"
+                />
+              </div>
+              <div className={cn('flex pl-0 md:pl-0', isRight ? 'md:justify-start' : 'md:justify-end md:[direction:ltr]')}>
                 <YearBadge
                   item={item}
                   index={i}
@@ -653,6 +703,7 @@ function ProgressTimeline({
   textColor,
   fontHeading,
   primaryColor,
+  forceStack,
 }: {
   visibleItems: VisibleTimelineItem[]
   blockId?: string
@@ -661,16 +712,33 @@ function ProgressTimeline({
   textColor: string
   fontHeading: string
   primaryColor: string
+  forceStack: boolean
 }) {
   return (
-    <div className="max-w-5xl mx-auto">
-      <div className="relative flex justify-between items-start gap-2 overflow-x-auto pb-2">
+    <div className="max-w-5xl mx-auto overflow-x-hidden">
+      <div
+        className={cn(
+          'relative flex flex-col items-center gap-8',
+          !forceStack && 'md:flex-row md:items-start md:justify-between md:gap-2',
+        )}
+      >
         <div
-          className="absolute left-0 right-0 top-8 sm:top-10 h-0.5 opacity-25"
+          className={cn(
+            'absolute opacity-25',
+            forceStack
+              ? 'left-1/2 top-8 bottom-8 w-px -translate-x-1/2'
+              : 'left-1/2 top-8 bottom-8 w-px -translate-x-1/2 md:left-0 md:right-0 md:top-8 md:bottom-auto md:h-0.5 md:w-auto md:translate-x-0',
+          )}
           style={{ backgroundColor: primaryColor }}
         />
         {visibleItems.map(({ item, index: i }) => (
-          <div key={i} className="relative flex flex-col items-center text-center min-w-[100px] flex-1 z-10">
+          <div
+            key={i}
+            className={cn(
+              'relative z-10 flex min-w-0 flex-col items-center text-center w-full max-w-sm',
+              !forceStack && 'md:min-w-[100px] md:flex-1 md:max-w-none',
+            )}
+          >
             <YearBadge
               item={item}
               index={i}
@@ -678,7 +746,7 @@ function ProgressTimeline({
               props={props}
               useReplacement={useReplacement}
               primaryColor={primaryColor}
-              compact
+              compact={!forceStack}
               className="mb-3"
             />
             <TimelineItemBody
@@ -765,9 +833,10 @@ function renderTimelineLayout(
     cardStyle: string
     isDark: boolean
     compact: boolean
+    forceStack: boolean
   },
 ): ReactNode {
-  const { visibleItems, blockId, props, useReplacement, textColor, fontHeading, primaryColor, showIcons, cardStyle, isDark, compact } = args
+  const { visibleItems, blockId, props, useReplacement, textColor, fontHeading, primaryColor, showIcons, cardStyle, isDark, compact, forceStack } = args
 
   switch (layout) {
     case 'list':
@@ -794,6 +863,7 @@ function renderTimelineLayout(
           fontHeading={fontHeading}
           primaryColor={primaryColor}
           compact={compact}
+          forceStack={forceStack}
         />
       )
     case 'alternating':
@@ -806,6 +876,7 @@ function renderTimelineLayout(
           textColor={textColor}
           fontHeading={fontHeading}
           primaryColor={primaryColor}
+          forceStack={forceStack}
         />
       )
     case 'progress':
@@ -818,6 +889,7 @@ function renderTimelineLayout(
           textColor={textColor}
           fontHeading={fontHeading}
           primaryColor={primaryColor}
+          forceStack={forceStack}
         />
       )
     case 'minimal':
@@ -873,6 +945,7 @@ export default function TimelineBlock({ site, style, props, blockId }: Props) {
   const cardStyle = String(props.card_style ?? '')
   const showIcons = props.show_icons === true
   const compact = props.compact === true
+  const forceStack = Boolean(isEditorCanvas && previewBelowMd(builderCanvas?.previewBreakpoint))
   const surface = resolveSectionSurface(props, style)
   const textColor = surface.color
   const primaryColor = style.primary_color || '#274832'
@@ -912,7 +985,7 @@ export default function TimelineBlock({ site, style, props, blockId }: Props) {
 
   return (
     <section
-      className={builderSectionContainerWithMax(sectionWidthClass)}
+      className={cn(builderSectionContainerWithMax(sectionWidthClass), 'overflow-x-hidden')}
       style={{ background: surface.background, color: textColor }}
     >
       <TimelineBlockTitle
@@ -935,6 +1008,7 @@ export default function TimelineBlock({ site, style, props, blockId }: Props) {
         cardStyle,
         isDark: surface.isDark,
         compact,
+        forceStack,
       })}
     </section>
   )

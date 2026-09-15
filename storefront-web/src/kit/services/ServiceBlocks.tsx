@@ -89,7 +89,7 @@ export function ServiceCard({
   );
 
   return (
-    <Card className={cn("overflow-hidden group flex h-full flex-col", row && "flex-row")}>
+    <Card className={cn("overflow-hidden group flex h-full min-w-0 flex-col", row && "flex-row")}>
       <div className={cn("relative shrink-0", row ? "w-44" : "w-full")}>
         <Link to={serviceHref} className="block" onClick={handleNavClick}>
           {imageBlock}
@@ -101,16 +101,16 @@ export function ServiceCard({
           </Badge>
         )}
       </div>
-      <CardContent className={cn("flex flex-1 flex-col gap-2 p-4", row && "p-4")}>
+      <CardContent className={cn("flex flex-1 flex-col gap-1.5 p-2.5 sm:gap-2 sm:p-4", row && "p-4")}>
         <Link
           to={serviceHref}
-          className="font-medium line-clamp-2 hover:underline"
+          className="text-sm sm:text-base font-medium leading-snug line-clamp-2 hover:underline"
           onClick={handleNavClick}
         >
           {service.name}
         </Link>
         {!row && service.shortDescription && (
-          <p className="text-sm text-muted-foreground line-clamp-2">{service.shortDescription}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{service.shortDescription}</p>
         )}
         {showFeatures && service.features && service.features.length > 0 && (
           <ul className="space-y-1">
@@ -122,35 +122,37 @@ export function ServiceCard({
             ))}
           </ul>
         )}
-        <div className="flex flex-wrap items-baseline gap-2">
-          {!isPriceNotApplicable(service.price_type) && (
-            <span className="font-semibold">
-              {service.price_type === 'free'
-                ? 'Free'
-                : isPricedAmount(displayPrice)
-                  ? formatPrice(displayPrice, service.currency)
-                  : (servicePriceFallbackLabel(displayPrice, service.price_type, 'Get a Quote') ?? '')}
-            </span>
+        <div className="mt-auto flex flex-col gap-2 pt-1">
+          <div className="flex flex-wrap items-baseline gap-2">
+            {!isPriceNotApplicable(service.price_type) && (
+              <span className="font-semibold">
+                {service.price_type === 'free'
+                  ? 'Free'
+                  : isPricedAmount(displayPrice)
+                    ? formatPrice(displayPrice, service.currency)
+                    : (servicePriceFallbackLabel(displayPrice, service.price_type, 'Get a Quote') ?? '')}
+              </span>
+            )}
+          </div>
+          {showBookCta && onBook && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className={cn(addBtn.className, !addBtn.iconOnly && "w-full", "hover:opacity-90")}
+                style={addBtn.style}
+                aria-label={addBtn.iconOnly ? serviceBookingListCtaLabel(service.bookingLabel) : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onBook(service);
+                }}
+              >
+                <CalendarDays className={addBtn.iconClassName} />
+                {addBtn.showLabel ? serviceBookingListCtaLabel(service.bookingLabel) : null}
+              </button>
+            </div>
           )}
         </div>
-        {showBookCta && onBook && (
-          <div className="mt-auto flex items-center gap-2 pt-2">
-            <button
-              type="button"
-              className={cn(addBtn.className, !addBtn.iconOnly && "w-full", "hover:opacity-90")}
-              style={addBtn.style}
-              aria-label={addBtn.iconOnly ? serviceBookingListCtaLabel(service.bookingLabel) : undefined}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onBook(service);
-              }}
-            >
-              <CalendarDays className={addBtn.iconClassName} />
-              {addBtn.showLabel ? serviceBookingListCtaLabel(service.bookingLabel) : null}
-            </button>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

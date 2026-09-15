@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
 import { imgUrl } from '@/lib/utils'
 import { apiClient } from '@/api/client'
@@ -54,8 +54,8 @@ const MOBILE_ROWS = 5
 const HL_STEP = 0.45
 const DESKTOP_GRID = makeGrid(0, DESKTOP_COLS * DESKTOP_ROWS)
 const MOBILE_GRID = makeGrid(2, MOBILE_COLS * MOBILE_ROWS)
-const DESKTOP_CELL_INDICES = DESKTOP_GRID.map((_, i) => i)
-const MOBILE_CELL_INDICES = MOBILE_GRID.map((_, i) => i)
+const DESKTOP_AVATAR_INDICES = DESKTOP_GRID.map((c, i) => (c.kind === 'avatar' ? i : -1)).filter((i) => i >= 0)
+const MOBILE_AVATAR_INDICES = MOBILE_GRID.map((c, i) => (c.kind === 'avatar' ? i : -1)).filter((i) => i >= 0)
 const DESKTOP_CYCLE_S = DESKTOP_GRID.length * HL_STEP
 const MOBILE_CYCLE_S = MOBILE_GRID.length * HL_STEP
 const DESKTOP_CYCLE = `${DESKTOP_CYCLE_S.toFixed(2)}s`
@@ -92,43 +92,132 @@ function vendorsWithLogosFirst(vendors: StorefrontVendor[]): StorefrontVendor[] 
   })
 }
 
+function vendorPoolKey(vendors: StorefrontVendor[]): string {
+  return vendors.map((v) => v.slug).join('|')
+}
+
+function permute(count: number, seed: number): number[] {
+  const arr = Array.from({ length: count }, (_, i) => i)
+  let s = seed
+  for (let i = count - 1; i > 0; i--) {
+    s = (s * 9301 + 49297) % 233280
+    const j = s % (i + 1)
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+
+function rankFromOrder(order: readonly number[], count: number): number[] {
+  const rank = new Array<number>(count)
+  order.forEach((slot, orderI) => {
+    if (slot >= 0 && slot < count) rank[slot] = orderI
+  })
+  return rank
+}
+
+const DESKTOP_AVATAR_SHUFFLE_ORDER = permute(DESKTOP_AVATAR_INDICES.length, 17)
+const MOBILE_AVATAR_SHUFFLE_ORDER = permute(MOBILE_AVATAR_INDICES.length, 29)
+const DESKTOP_AVATAR_SHUFFLE_RANK = rankFromOrder(DESKTOP_AVATAR_SHUFFLE_ORDER, DESKTOP_AVATAR_INDICES.length)
+const MOBILE_AVATAR_SHUFFLE_RANK = rankFromOrder(MOBILE_AVATAR_SHUFFLE_ORDER, MOBILE_AVATAR_INDICES.length)
+
+/** One avatar slot advances per step — vendors shuffle one bubble at a time. */
 function buildVendorMap(
-  vendors: StorefrontVendor[],
+  pool: StorefrontVendor[],
   avatarIndices: readonly number[],
-  rotateKey: number,
+  rank: readonly number[],
+  step: number,
 ): Map<number, StorefrontVendor> {
   const map = new Map<number, StorefrontVendor>()
-  if (vendors.length === 0 || avatarIndices.length === 0) return map
+  if (pool.length === 0 || avatarIndices.length === 0) return map
 
-  const pool = shuffle(vendorsWithLogosFirst(vendors))
-  const offset = rotateKey % pool.length
-  const rotated = [...pool.slice(offset), ...pool.slice(0, offset)]
+  const slotCount = avatarIndices.length
+  const lap = Math.floor(step / slotCount)
+  const wave = step % slotCount
 
   avatarIndices.forEach((cellIdx, i) => {
-    map.set(cellIdx, rotated[i % rotated.length])
+    const pos = rank[i] ?? i
+    const advances = lap + (pos < wave ? 1 : 0)
+    map.set(cellIdx, pool[(i + advances) % pool.length])
   })
   return map
 }
 
-function useRotatingVendorMap(
-  vendors: StorefrontVendor[],
-  avatarIndices: readonly number[],
-): Map<number, StorefrontVendor> {
-  const [rotateKey, setRotateKey] = useState(0)
+function useVendorPool(vendors: StorefrontVendor[]): StorefrontVendor[] {
+  const poolKey = vendorPoolKey(vendors)
+  const orderRef = useRef<string[]>([])
+  const prevKeyRef = useRef('')
+  if (poolKey !== prevKeyRef.current) {
+    prevKeyRef.current = poolKey
+    orderRef.current = shuffle(vendorsWithLogosFirst(vendors)).map((v) => v.slug)
+  }
+
+  return useMemo(() => {
+    const bySlug = new Map(vendors.map((v) => [v.slug, v]))
+    return orderRef.current
+      .map((slug) => bySlug.get(slug))
+      .filter((v): v is StorefrontVendor => Boolean(v))
+  }, [vendors, poolKey])
+}
+
+function useIsDesktopMosaic(): boolean {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : true,
+  )
 
   useEffect(() => {
-    if (vendors.length === 0) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const onChange = () => setIsDesktop(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  return isDesktop
+}
+
+function useSectionInView(ref: RefObject<HTMLElement | null>): boolean {
+  const [inView, setInView] = useState(true)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting),
+      { root: null, threshold: 0.12 },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [ref])
+
+  return inView
+}
+
+function useMosaicRotateKey(active: boolean, paused: boolean, inView: boolean): number {
+  const [rotateKey, setRotateKey] = useState(0)
+  const [tabVisible, setTabVisible] = useState(() =>
+    typeof document === 'undefined' ? true : document.visibilityState === 'visible',
+  )
+
+  useEffect(() => {
+    const onVisibility = () => setTabVisible(document.visibilityState === 'visible')
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
+
+  useEffect(() => {
+    if (!active || paused || !tabVisible || !inView) return
+    const first = window.setTimeout(() => {
+      setRotateKey((k) => k + 1)
+    }, 1_200)
     const id = window.setInterval(() => {
       setRotateKey((k) => k + 1)
     }, MOSAIC_VENDOR_ROTATE_MS)
-    return () => window.clearInterval(id)
-  }, [vendors.length])
+    return () => {
+      window.clearTimeout(first)
+      window.clearInterval(id)
+    }
+  }, [active, paused, tabVisible, inView])
 
-  return useMemo(
-    () => buildVendorMap(vendors, avatarIndices, rotateKey),
-    [vendors, avatarIndices, rotateKey],
-  )
+  return rotateKey
 }
 
 function mosaicCellGlow(cell: MosaicCell, isBrand: boolean, hasStore: boolean): string {
@@ -142,11 +231,7 @@ function mosaicCellGlow(cell: MosaicCell, isBrand: boolean, hasStore: boolean): 
   return paletteGlow
 }
 
-function StoreTilePhoto({
-  vendor,
-}: {
-  vendor: StorefrontVendor
-}) {
+function StoreTilePhoto({ vendor }: { vendor: StorefrontVendor }) {
   const [failed, setFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const name = vendorDisplayName(vendor)
@@ -176,24 +261,20 @@ function StoreTilePhoto({
 
 function MosaicCellView({
   cell,
-  morphVariant,
   isBrand,
   vendor,
+  onStoreHoverChange,
 }: {
   cell: MosaicCell
-  morphVariant: number
   isBrand: boolean
   vendor?: StorefrontVendor
+  onStoreHoverChange?: (hovered: boolean) => void
 }) {
   const shape = cell.shape ?? 'rounded'
   const color = isBrand ? MOSAIC_BRAND_SHAPE : MOSAIC_PALETTE[cell.colorIdx ?? 0]
-  const classes = [
-    'kiterp-mosaic-shape w-full h-full',
-    shape,
-    `kiterp-morph-v${morphVariant % 3}`,
-  ].join(' ')
+  const classes = ['kiterp-mosaic-shape w-full h-full', shape].join(' ')
 
-  if (cell.kind === 'shape' && !vendor) {
+  if (cell.kind === 'shape') {
     return (
       <div
         className={`${classes} kiterp-mosaic-shape--soft${isBrand ? ' kiterp-mosaic-shape--brand' : ''}`}
@@ -222,8 +303,19 @@ function MosaicCellView({
         }}
         title={`Visit ${name}`}
         aria-label={`Visit ${name} storefront`}
+        onMouseEnter={() => onStoreHoverChange?.(true)}
+        onMouseLeave={() => onStoreHoverChange?.(false)}
+        onFocus={() => onStoreHoverChange?.(true)}
+        onBlur={() => onStoreHoverChange?.(false)}
       >
-        {hasPhoto ? <StoreTilePhoto key={vendor.slug} vendor={vendor} /> : <span className="kiterp-mosaic-store-initials">{vendorInitials(name)}</span>}
+        <span key={vendor.slug} className="kiterp-mosaic-vendor-swap">
+          {hasPhoto ? (
+            <StoreTilePhoto vendor={vendor} />
+          ) : (
+            <span className="kiterp-mosaic-store-initials">{vendorInitials(name)}</span>
+          )}
+          <span className="kiterp-mosaic-store-name">{name}</span>
+        </span>
       </Link>
     )
   }
@@ -247,6 +339,7 @@ function MosaicGrid({
   brandIndices,
   vendorMap,
   className,
+  onStoreHoverChange,
 }: {
   cells: MosaicCell[]
   cycle: string
@@ -254,31 +347,35 @@ function MosaicGrid({
   brandIndices: readonly number[]
   vendorMap: Map<number, StorefrontVendor>
   className: string
+  onStoreHoverChange?: (hovered: boolean) => void
 }) {
   const brandSet = new Set(brandIndices)
   return (
     <div className={className}>
       {cells.map((cell, i) => {
         const isBrand = brandSet.has(i)
-        const vendor = vendorMap.get(i)
+        const vendor = cell.kind === 'avatar' ? vendorMap.get(i) : undefined
         return (
           <div
             key={i}
             className="kiterp-mosaic-cell aspect-square"
             style={{
-              ['--mosaic-delay' as string]: `${((i % DESKTOP_COLS) * 0.04).toFixed(2)}s`,
-              ['--mosaic-morph-delay' as string]: `${(delays[i] * 0.35).toFixed(2)}s`,
+              ['--mosaic-delay' as string]: `${(i * 0.05).toFixed(2)}s`,
+              ['--mosaic-float-delay' as string]: `${(delays[i] * 0.28).toFixed(2)}s`,
               ['--mosaic-hl' as string]: `${delays[i]}s`,
               ['--mosaic-cycle' as string]: cycle,
               ['--mosaic-hl-glow' as string]: mosaicCellGlow(cell, isBrand, Boolean(vendor)),
+              ['--mosaic-float-duration' as string]: `${(4.8 + (i % 5) * 0.55).toFixed(2)}s`,
             }}
           >
-            <MosaicCellView
-              cell={cell}
-              morphVariant={i % 3}
-              isBrand={isBrand}
-              vendor={vendor}
-            />
+            <div className="kiterp-mosaic-motion-wrap w-full h-full">
+              <MosaicCellView
+                cell={cell}
+                isBrand={isBrand}
+                vendor={vendor}
+                onStoreHoverChange={onStoreHoverChange}
+              />
+            </div>
           </div>
         )
       })}
@@ -330,12 +427,32 @@ export function CommunityMosaicSection({
   }, [vendorsProp.length])
 
   const vendors = vendorsProp.length > 0 ? vendorsProp : localVendors
-  const desktopVendorMap = useRotatingVendorMap(vendors, DESKTOP_CELL_INDICES)
-  const mobileVendorMap = useRotatingVendorMap(vendors, MOBILE_CELL_INDICES)
+  const sectionRef = useRef<HTMLElement>(null)
+  const sectionInView = useSectionInView(sectionRef)
+  const hoverCountRef = useRef(0)
+  const [mosaicPaused, setMosaicPaused] = useState(false)
+  const onStoreHoverChange = useCallback((hovered: boolean) => {
+    hoverCountRef.current = Math.max(0, hoverCountRef.current + (hovered ? 1 : -1))
+    setMosaicPaused(hoverCountRef.current > 0)
+  }, [])
+  const isDesktop = useIsDesktopMosaic()
+  const pool = useVendorPool(vendors)
+  const rotateKey = useMosaicRotateKey(pool.length > 0, mosaicPaused, sectionInView)
+  const vendorMap = useMemo(
+    () =>
+      isDesktop
+        ? buildVendorMap(pool, DESKTOP_AVATAR_INDICES, DESKTOP_AVATAR_SHUFFLE_RANK, rotateKey)
+        : buildVendorMap(pool, MOBILE_AVATAR_INDICES, MOBILE_AVATAR_SHUFFLE_RANK, rotateKey),
+    [isDesktop, pool, rotateKey],
+  )
   const storeCount = vendors.length
 
   return (
-    <section id="community" className="relative py-16 sm:py-24 overflow-hidden scroll-mt-24">
+    <section
+      ref={sectionRef}
+      id="community"
+      className={`relative py-16 sm:py-24 overflow-hidden scroll-mt-24 kiterp-mosaic-live${mosaicPaused ? ' kiterp-mosaic-paused' : ''}${sectionInView ? ' kiterp-mosaic-inview' : ''}`}
+    >
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="relative">
           <svg className="hidden sm:block absolute -top-6 left-2 w-16 h-16 opacity-50" viewBox="0 0 60 60" fill="none" aria-hidden>
@@ -347,22 +464,27 @@ export function CommunityMosaicSection({
             <path className="kiterp-scribble-arrow" d="M48 52 L38 46 M48 52 L52 40" />
           </svg>
 
-          <MosaicGrid
-            cells={DESKTOP_GRID}
-            cycle={DESKTOP_CYCLE}
-            delays={DESKTOP_DELAYS}
-            brandIndices={MOSAIC_BRAND_DESKTOP}
-            vendorMap={desktopVendorMap}
-            className="hidden lg:grid gap-3 kiterp-mosaic-fullmask"
-          />
-          <MosaicGrid
-            cells={MOBILE_GRID}
-            cycle={MOBILE_CYCLE}
-            delays={MOBILE_DELAYS}
-            brandIndices={MOSAIC_BRAND_MOBILE}
-            vendorMap={mobileVendorMap}
-            className="grid lg:hidden grid-cols-6 sm:grid-cols-8 gap-2.5 kiterp-mosaic-fullmask-sm"
-          />
+          {isDesktop ? (
+            <MosaicGrid
+              cells={DESKTOP_GRID}
+              cycle={DESKTOP_CYCLE}
+              delays={DESKTOP_DELAYS}
+              brandIndices={MOSAIC_BRAND_DESKTOP}
+              vendorMap={vendorMap}
+              onStoreHoverChange={onStoreHoverChange}
+              className="grid gap-3 kiterp-mosaic-fullmask"
+            />
+          ) : (
+            <MosaicGrid
+              cells={MOBILE_GRID}
+              cycle={MOBILE_CYCLE}
+              delays={MOBILE_DELAYS}
+              brandIndices={MOSAIC_BRAND_MOBILE}
+              vendorMap={vendorMap}
+              onStoreHoverChange={onStoreHoverChange}
+              className="grid grid-cols-6 sm:grid-cols-8 gap-2.5 kiterp-mosaic-fullmask-sm"
+            />
+          )}
 
           <div className="absolute inset-0 z-[2] pointer-events-none">
             <div className="kiterp-mosaic-center-shield" aria-hidden />

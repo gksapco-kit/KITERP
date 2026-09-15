@@ -54,8 +54,8 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
   const isList = layout === 'list'
   const columns = isList ? 1 : clampCatalogColumns(props.columns, 3, 'services_cards')
   const gridColClass = isEditorCanvas
-    ? catalogGridColClassForBreakpoint(columns, previewBp)
-    : catalogGridResponsiveColClass(columns)
+    ? catalogGridColClassForBreakpoint(columns, previewBp, 'services_cards')
+    : catalogGridResponsiveColClass(columns, 'services_cards')
   const cardLayout = readCatalogCardLayout(props, 'services_cards', { defaultColumns: 3 })
   const imageShape = imageShapeFromProps(props)
 
@@ -204,7 +204,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
       ) : (
         <div
           className={cn(
-            isList ? 'space-y-4 max-w-3xl mx-auto' : cn('grid', gridColClass),
+            isList ? 'space-y-4 max-w-3xl mx-auto' : cn('grid items-stretch', gridColClass, 'max-sm:!gap-3'),
           )}
           style={{ gap: cardLayout.itemGap }}
         >
@@ -214,12 +214,10 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
             const staticIcon = staticFeature?.icon || (item.meta as { icon?: string })?.icon
             const titleClass = cardLayout.isMinimalCard
               ? 'text-sm font-medium text-gray-900 mb-1 line-clamp-1'
-              : cardLayout.isCompactCard
-                ? 'text-base font-semibold text-gray-900 mb-1 line-clamp-2'
-                : 'text-lg font-semibold text-gray-900 mb-2'
+              : 'text-[15px] sm:text-lg font-semibold text-gray-900 mb-1 sm:mb-2 line-clamp-2 leading-snug'
             const descClass = cardLayout.isMinimalCard
-              ? 'text-gray-500 text-xs flex-1 mb-2 line-clamp-2'
-              : 'text-gray-500 text-sm flex-1 mb-4 line-clamp-3'
+              ? 'text-gray-500 text-xs mb-2 line-clamp-2'
+              : 'text-gray-500 text-sm mb-3 sm:mb-4 line-clamp-2 sm:line-clamp-3 leading-relaxed'
 
             const showItemTitle = useLive || staticIndex == null || !isNestedBlockFieldHidden(props, `features.${staticIndex}.title`)
             const showItemDesc = useLive || staticIndex == null || !isNestedBlockFieldHidden(props, `features.${staticIndex}.desc`)
@@ -308,7 +306,7 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
               <div
                 key={item.id}
                 className={cn(
-                  'builder-tile-card bg-white border border-gray-100 transition-all duration-200 flex flex-col overflow-hidden',
+                  'builder-tile-card bg-white border border-gray-100 transition-all duration-200 flex flex-col overflow-hidden min-w-0',
                   cardLayout.cardRadius,
                   cardLayout.isMinimalCard ? '' : 'hover:shadow-lg hover:-translate-y-1',
                   isList && 'flex-row items-start gap-4',
@@ -318,7 +316,9 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
               >
                 {linkedMediaNode}
                 <div
-                  className={cn(isList ? 'flex-1 min-w-0 flex flex-col' : 'flex flex-1 flex-col min-h-0')}
+                  className={cn(
+                    isList ? 'flex-1 min-w-0 flex flex-col' : 'flex flex-1 flex-col min-h-0 min-w-0 max-sm:!p-3',
+                  )}
                   style={{ padding: isList ? 0 : cardLayout.cardPadding }}
                 >
                   {showItemTitle && (
@@ -367,9 +367,9 @@ export default function ServicesCardsBlock({ style, props, liveItems, blockId }:
                       skipPositionWrapper
                     />
                   )}
-                  <div className="flex items-center justify-between mt-auto gap-2">
+                  <div className="flex items-center justify-between mt-auto gap-2 pt-1">
                     {item.price_formatted ? (
-                      <span className={cn('font-bold', cardLayout.isMinimalCard ? 'text-sm' : 'text-base')} style={{ color: style.primary_color }}>
+                      <span className={cn('font-bold', cardLayout.isMinimalCard ? 'text-sm' : 'text-[15px] sm:text-base')} style={{ color: style.primary_color }}>
                         {item.price_formatted}
                       </span>
                     ) : item.meta?.duration_minutes && !cardLayout.isMinimalCard ? (

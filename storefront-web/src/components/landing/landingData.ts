@@ -210,8 +210,8 @@ export function vendorDisplayName(v: StorefrontVendor): string {
 export const MOSAIC_STORE_TILE_BG =
   'linear-gradient(145deg, #ffffff 0%, #eef9f4 100%)'
 
-/** How often mosaic store tiles rotate (ms). */
-export const MOSAIC_VENDOR_ROTATE_MS = 2_000
+/** Delay between each single-tile vendor shuffle (ms). */
+export const MOSAIC_VENDOR_ROTATE_MS = 900
 
 /** Green + amber palette centered on brand #64C3A0 */
 const G = {
