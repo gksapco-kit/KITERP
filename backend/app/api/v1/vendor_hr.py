@@ -7,6 +7,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -2137,7 +2138,11 @@ async def create_offer_template(
 ):
     svc = HRService(db)
     tpl = await svc.create_offer_template(vu.vendor_id, body.model_dump(exclude_none=True))
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="A template with this name already exists")
     await db.refresh(tpl)
     return _d(tpl)
 
@@ -2164,7 +2169,11 @@ async def update_offer_template(
         template_id, vu.vendor_id,
         body.model_dump(exclude_unset=True),
     )
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="A template with this name already exists")
     await db.refresh(tpl)
     return _d(tpl)
 

@@ -243,9 +243,11 @@ function CreateOfferModal({
                     options={[
                       {
                         value: '',
-                        label: bestTemplate ? `Auto: ${tplLabel(bestTemplate)}` : '— System default —',
+                        label: bestTemplate ? tplLabel(bestTemplate) : '— System default —',
                       },
-                      ...templates.map((t: OfferLetterTemplate) => ({ value: t.id, label: tplLabel(t) })),
+                      ...templates
+                        .filter((t: OfferLetterTemplate) => t.id !== bestTemplate?.id)
+                        .map((t: OfferLetterTemplate) => ({ value: t.id, label: tplLabel(t) })),
                     ]}
                   />
                 </div>

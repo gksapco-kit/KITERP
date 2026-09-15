@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
-  FileText, Trash2, Star, Save, ArrowLeft, Copy,
+  Plus, Trash2, Star, ArrowLeft, Copy,
   Building2, Users, Store, Check, Loader2,
   ChevronUp, ChevronDown, Palette, PenLine, Target,
   RotateCcw,
@@ -45,9 +45,9 @@ const MERGE_VARS = MERGE_VAR_KEYS.map(key => ({
   label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
 }))
 
-function emptyForm() {
+function emptyForm(name = '') {
   return {
-    name: '', description: '', body_html: DEFAULT_OFFER_BODY, layout: 'standard' as OfferLayoutId,
+    name, description: '', body_html: DEFAULT_OFFER_BODY, layout: 'standard' as OfferLayoutId,
     designation_id: '', department_id: '', store_id: '', is_default: false,
     watermark_enabled: false,
     watermark_text: '',
@@ -77,7 +77,7 @@ function AccordionSection({ title, badge, children, defaultOpen = false }: {
         </div>
         {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </button>
-      {open && <div className="px-4 py-4 space-y-3 bg-white">{children}</div>}
+      <div className={open ? 'px-4 py-4 space-y-3 bg-white' : 'hidden'}>{children}</div>
     </div>
   )
 }
@@ -110,9 +110,25 @@ function resolveOriginPath(url: string) {
   return `${window.location.origin}${url.startsWith('/') ? url : `/${url}`}`
 }
 
+function nextUntitledName(templates: { name: string }[]) {
+  const base = 'Untitled offer letter'
+  const taken = new Set(templates.map(t => t.name.trim().toLowerCase()).filter(Boolean))
+  if (!taken.has(base.toLowerCase())) return base
+  let n = 2
+  while (taken.has(`${base} ${n}`.toLowerCase())) n += 1
+  return `${base} ${n}`
+}
+
+function optionalId(value: string) {
+  return value.trim() ? value : null
+}
+
 export default function OfferTemplatesPage() {
   const navigate = useNavigate()
   const editorRef = useRef<HtmlRichEditorHandle>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const baselineRef = useRef(JSON.stringify(emptyForm()))
+  const userOverrideRef = useRef(false)
 
   const vendorName = useVendorStore(s => s.vendor?.business_name) || 'Your Company'
   const vendorLogo = useVendorStore(s => s.vendor?.logo_url) || ''
@@ -136,6 +152,7 @@ export default function OfferTemplatesPage() {
   const [form, setForm] = useState(emptyForm())
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('design')
   const [isNew, setIsNew] = useState(false)
+  const [draftNonce, setDraftNonce] = useState(0)
   const [mergePick, setMergePick] = useState('')
   const [previewBody, setPreviewBody] = useState(form.body_html)
   const didHydrateRef = useRef(false)
@@ -153,7 +170,7 @@ export default function OfferTemplatesPage() {
 
   const applyTemplateToForm = useCallback((tpl: OfferLetterTemplate) => {
     const body = normalizeOfferBody(tpl.body_html)
-    setForm({
+    const next = {
       name: tpl.name,
       description: tpl.description ?? '',
       body_html: body,
@@ -170,16 +187,29 @@ export default function OfferTemplatesPage() {
       show_logo: tpl.show_logo ?? true,
       logo_shape: (tpl.logo_shape || 'rounded') as LogoShape,
       accent_color: tpl.accent_color || DEFAULT_OFFER_ACCENT,
-    })
+    }
+    baselineRef.current = JSON.stringify(next)
+    setForm(next)
     setPreviewBody(body)
     setIsNew(false)
   }, [normalizeOfferBody])
 
-  const applyEmptyForm = useCallback(() => {
-    const next = emptyForm()
+  const applyEmptyForm = useCallback((name = '') => {
+    const next = emptyForm(name)
+    baselineRef.current = JSON.stringify(next)
     setForm(next)
     setPreviewBody(next.body_html)
     setIsNew(true)
+  }, [])
+
+  const isDirty = JSON.stringify(form) !== baselineRef.current
+
+  const focusName = useCallback(() => {
+    setSettingsTab('design')
+    window.requestAnimationFrame(() => {
+      nameInputRef.current?.focus()
+      nameInputRef.current?.select()
+    })
   }, [])
 
   // Debounce preview updates so the iframe does not flash on every keystroke
@@ -192,14 +222,15 @@ export default function OfferTemplatesPage() {
   useEffect(() => {
     if (didHydrateRef.current || templatesData === undefined) return
     didHydrateRef.current = true
+    if (userOverrideRef.current) return
     if (templatesData.length === 0) {
-      setIsNew(true)
+      applyEmptyForm(nextUntitledName([]))
       return
     }
     const pick = templatesData.find(t => t.is_default) ?? templatesData[0]
     setSelected(pick)
     applyTemplateToForm(pick)
-  }, [templatesData, applyTemplateToForm])
+  }, [templatesData, applyTemplateToForm, applyEmptyForm])
 
   const logoPreviewClass = LOGO_SHAPE_PREVIEW_CLASS[form.logo_shape ?? 'rounded']
 
@@ -247,19 +278,27 @@ export default function OfferTemplatesPage() {
     }
   }
 
-  const startNew = useCallback(() => {
-    setSelected(null)
-    applyEmptyForm()
-    setSettingsTab('design')
-  }, [applyEmptyForm])
-
-  const selectTemplate = useCallback((id: string) => {
-    const tpl = templates.find(t => t.id === id)
-    if (tpl) {
-      setSelected(tpl)
-      applyTemplateToForm(tpl)
+  const startNew = useCallback(async () => {
+    if (isNew && !selected && !isDirty) {
+      toast.message('You are already on a new template — name it, then Save')
+      focusName()
+      return
     }
-  }, [templates, applyTemplateToForm])
+    if (isDirty && !(await askConfirm('Discard unsaved changes and start a new template?'))) return
+    userOverrideRef.current = true
+    setSelected(null)
+    setDraftNonce(n => n + 1)
+    applyEmptyForm(nextUntitledName(templates))
+    focusName()
+  }, [isNew, selected, isDirty, applyEmptyForm, focusName, templates])
+
+  const selectTemplate = useCallback(async (id: string) => {
+    const tpl = templates.find(t => t.id === id)
+    if (!tpl || tpl.id === selected?.id) return
+    if (isDirty && !(await askConfirm('Discard unsaved changes and open this template?'))) return
+    setSelected(tpl)
+    applyTemplateToForm(tpl)
+  }, [templates, applyTemplateToForm, selected, isDirty])
 
   function setField<K extends keyof ReturnType<typeof emptyForm>>(k: K, v: ReturnType<typeof emptyForm>[K]) {
     setForm(f => ({ ...f, [k]: v }))
@@ -296,51 +335,87 @@ export default function OfferTemplatesPage() {
     if (selected && !isNew) {
       applyTemplateToForm(selected)
     } else {
-      applyEmptyForm()
+      applyEmptyForm(form.name.trim() || nextUntitledName(templates))
     }
   }
 
   async function handleSave() {
+    const name = form.name.trim()
+    if (!name) {
+      toast.error('Enter a template name to save')
+      focusName()
+      return
+    }
+    if (!form.body_html.trim()) {
+      toast.error('Letter body cannot be empty')
+      setSettingsTab('content')
+      return
+    }
+    const duplicate = templates.some(
+      t => t.name.trim().toLowerCase() === name.toLowerCase() && (isNew || !selected || t.id !== selected.id),
+    )
+    if (duplicate) {
+      toast.error(`A template named "${name}" already exists`)
+      focusName()
+      return
+    }
     const payload: Record<string, unknown> = {
-      name: form.name,
-      description: form.description || undefined,
+      name,
+      description: form.description.trim() || null,
       body_html: form.body_html,
       layout: form.layout,
-      designation_id: form.designation_id || undefined,
-      department_id: form.department_id || undefined,
-      store_id: form.store_id || undefined,
+      designation_id: optionalId(form.designation_id),
+      department_id: optionalId(form.department_id),
+      store_id: optionalId(form.store_id),
       is_default: form.is_default,
       watermark_enabled: form.watermark_enabled,
-      watermark_text: form.watermark_text || undefined,
+      watermark_text: form.watermark_text.trim() || null,
       watermark_opacity: form.watermark_opacity,
       watermark_style: form.watermark_style,
-      logo_url: form.logo_url || undefined,
+      logo_url: form.logo_url.trim() || null,
       show_logo: form.show_logo,
       logo_shape: form.logo_shape,
       accent_color: form.accent_color || DEFAULT_OFFER_ACCENT,
     }
-    if (isNew) {
-      const tpl = await createTpl.mutateAsync(payload)
+    try {
+      let tpl: OfferLetterTemplate
+      if (isNew || !selected) {
+        tpl = await createTpl.mutateAsync(payload)
+      } else {
+        tpl = await updateTpl.mutateAsync({ id: selected.id, data: payload })
+      }
       setSelected(tpl)
-      setIsNew(false)
-    } else if (selected) {
-      const tpl = await updateTpl.mutateAsync({ id: selected.id, data: payload })
-      setSelected(tpl)
+      applyTemplateToForm(tpl)
+    } catch {
+      // Mutation onError already toasts the API error
     }
   }
 
   async function handleDelete() {
     if (!selected || !(await askConfirm(`Delete template "${selected.name}"?`))) return
     await deleteTpl.mutateAsync(selected.id)
+    userOverrideRef.current = true
     setSelected(null)
-    applyEmptyForm()
+    setDraftNonce(n => n + 1)
+    applyEmptyForm(nextUntitledName(templates.filter(t => t.id !== selected.id)))
+    focusName()
   }
 
   async function handleDuplicate() {
     if (!selected) return
+    userOverrideRef.current = true
+    const copyName = `${selected.name} (Copy)`
+    const taken = new Set(templates.map(t => t.name.trim().toLowerCase()))
+    let name = copyName
+    let copyN = 2
+    while (taken.has(name.toLowerCase())) {
+      name = `${selected.name} (Copy ${copyN})`
+      copyN += 1
+    }
     setSelected(null)
+    setDraftNonce(key => key + 1)
     setForm({
-      name: `${selected.name} (Copy)`,
+      name,
       description: selected.description ?? '',
       body_html: selected.body_html,
       layout: (selected.layout || 'standard') as OfferLayoutId,
@@ -359,7 +434,7 @@ export default function OfferTemplatesPage() {
     })
     setPreviewBody(selected.body_html)
     setIsNew(true)
-    setSettingsTab('design')
+    focusName()
   }
 
   async function handleSetDefault() {
@@ -370,48 +445,52 @@ export default function OfferTemplatesPage() {
   }
 
   const isBusy = createTpl.isPending || updateTpl.isPending
-  const canSave = !!form.name.trim() && !!form.body_html.trim()
 
   return (
     <form
       className="space-y-0"
-      onSubmit={e => e.preventDefault()}
-      onKeyDown={e => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') e.preventDefault() }}
+      onSubmit={e => { e.preventDefault(); void handleSave() }}
+      onKeyDown={e => {
+        const tag = (e.target as HTMLElement).tagName
+        if (e.key === 'Enter' && tag !== 'TEXTAREA' && tag !== 'INPUT' && !(e.target as HTMLElement).isContentEditable) {
+          e.preventDefault()
+        }
+      }}
     >
       {/* Top bar — same pattern as Invoice / Quotation Templates */}
-      <div className="flex items-center justify-between pb-4 border-b mb-4">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 pb-4 mb-4 border-b sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           <Button type="button" variant="ghost" size="sm" onClick={() => navigate('/hr/offers')}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-xl font-bold text-gray-900">Offer Letter Templates</h1>
             <p className="text-xs text-gray-500">
               Customise offer letter print and PDF templates — layout, content, and scope
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={startNew} className="h-9 gap-1.5 text-xs">
-            <FileText className="w-3.5 h-3.5" /> New
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => void startNew()} disabled={isBusy} className="h-9 gap-1.5 text-xs">
+            <Plus className="w-3.5 h-3.5" /> New
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={handleReset} className="h-9 min-w-[5.5rem] gap-1.5 text-xs text-gray-600">
+          <Button type="button" variant="outline" size="sm" onClick={handleReset} disabled={isBusy} className="h-9 min-w-[5.5rem] gap-1.5 text-xs text-gray-600">
             <RotateCcw className="w-3.5 h-3.5 shrink-0" /> Reset
           </Button>
           {!isNew && selected && (
             <>
-              <Button type="button" variant="outline" size="sm" onClick={handleDuplicate} className="h-9 gap-1.5 text-xs hidden sm:inline-flex">
+              <Button type="button" variant="outline" size="sm" onClick={() => void handleDuplicate()} disabled={isBusy} className="h-9 gap-1.5 text-xs hidden sm:inline-flex">
                 <Copy className="w-3.5 h-3.5" /> Duplicate
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={handleSetDefault} disabled={selected.is_default} className="h-9 gap-1.5 text-xs hidden sm:inline-flex">
+              <Button type="button" variant="outline" size="sm" onClick={handleSetDefault} disabled={selected.is_default || isBusy} className="h-9 gap-1.5 text-xs hidden sm:inline-flex">
                 <Star className="w-3.5 h-3.5" /> Default
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={handleDelete} className="h-9 gap-1.5 text-xs text-red-600 hidden sm:inline-flex">
+              <Button type="button" variant="outline" size="sm" onClick={() => void handleDelete()} disabled={isBusy} className="h-9 gap-1.5 text-xs text-red-600 hidden sm:inline-flex">
                 <Trash2 className="w-3.5 h-3.5 text-red-600" /> Delete
               </Button>
             </>
           )}
-          <Button type="button" onClick={handleSave} disabled={isBusy || !canSave} className="h-9 min-w-[9.5rem] gap-2 bg-primary hover:bg-primary/90">
+          <Button type="button" onClick={() => void handleSave()} disabled={isBusy} className="h-9 min-w-[9.5rem] gap-2 bg-primary hover:bg-primary/90">
             {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 shrink-0" />}
             Save Template
           </Button>
@@ -462,7 +541,7 @@ export default function OfferTemplatesPage() {
                       <Label className="text-xs text-gray-500 mb-1.5 block">Open template</Label>
                       <Select
                         value={isNew ? '' : (selected?.id ?? '')}
-                        onChange={v => { if (v) selectTemplate(v) }}
+                        onChange={v => { if (v) void selectTemplate(v) }}
                         className="w-full h-9 border rounded-md px-2 text-sm bg-white"
                         options={[
                           ...(isNew ? [{ value: '', label: '— New template —' }] : []),
@@ -477,6 +556,7 @@ export default function OfferTemplatesPage() {
                   <div>
                     <Label className="text-xs text-gray-500 mb-1.5 block">Template name</Label>
                     <input
+                      ref={nameInputRef}
                       value={form.name}
                       onChange={e => setField('name', e.target.value)}
                       placeholder="e.g. Engineering Offer Letter"
@@ -643,7 +723,7 @@ export default function OfferTemplatesPage() {
                 />
                 <HtmlRichEditor
                   ref={editorRef}
-                  editorKey={selected?.id ?? (isNew ? 'new' : '')}
+                  editorKey={selected?.id ?? `new-${draftNonce}`}
                   value={form.body_html}
                   onChange={setBodyHtml}
                   placeholder="Dear {{candidate_name}}, we are pleased to offer you…"

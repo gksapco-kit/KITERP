@@ -3249,7 +3249,11 @@ export function useCreateHROfferTemplate() {
     onSuccess: (tpl) => {
       qc.setQueriesData<import('../types').OfferLetterTemplate[]>(
         { queryKey: ['hr', 'offer-templates'] },
-        (old) => [...(old ?? []), tpl],
+        (old) => {
+          const list = old ?? []
+          if (list.some(t => t.id === tpl.id)) return list.map(t => (t.id === tpl.id ? tpl : t))
+          return [...list, tpl]
+        },
       )
       toast.success('Template created')
     },
