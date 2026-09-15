@@ -271,7 +271,7 @@ function TimelineItemBody({
 }) {
   const alignClass = align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
   return (
-    <div className={cn('min-w-0', alignClass)}>
+    <div className={cn('min-w-0 w-full max-w-full', alignClass)}>
       <TimelineImage
         item={item}
         index={index}
@@ -288,6 +288,10 @@ function TimelineItemBody({
         useReplacement={useReplacement}
         textColor={textColor}
         fontHeading={fontHeading}
+        className={cn(
+          'font-semibold text-base sm:text-xl mb-2 break-words',
+          align === 'center' && 'text-center',
+        )}
       />
       <TimelineDescField
         item={item}
@@ -296,6 +300,10 @@ function TimelineItemBody({
         props={props}
         useReplacement={useReplacement}
         textColor={textColor}
+        className={cn(
+          'text-sm sm:text-base leading-relaxed opacity-75 break-words',
+          align === 'center' && 'text-center',
+        )}
       />
     </div>
   )
@@ -556,7 +564,7 @@ function HorizontalTimeline({
   return (
     <div
       className={cn(
-        'flex flex-col items-stretch gap-8 overflow-x-hidden',
+        'builder-timeline-mobile-center flex flex-col items-stretch gap-8 overflow-x-hidden w-full',
         !forceStack && (compact
           ? 'md:flex-row md:flex-wrap md:justify-center md:gap-6'
           : 'md:flex-row md:flex-wrap md:justify-center md:gap-10'),
@@ -566,8 +574,8 @@ function HorizontalTimeline({
         <div
           key={i}
           className={cn(
-            'flex min-w-0 w-full max-w-sm mx-auto flex-col items-center text-center',
-            !forceStack && (compact ? 'md:max-w-[140px]' : 'md:max-w-[180px]'),
+            'builder-timeline-step flex min-w-0 w-full max-w-sm mx-auto flex-col items-center text-center px-2',
+            !forceStack && (compact ? 'md:max-w-[140px] md:px-0' : 'md:max-w-[180px] md:px-0'),
           )}
         >
           <YearBadge
@@ -715,7 +723,7 @@ function ProgressTimeline({
   forceStack: boolean
 }) {
   return (
-    <div className="max-w-5xl mx-auto overflow-x-hidden">
+    <div className="builder-timeline-mobile-center max-w-5xl mx-auto overflow-x-hidden w-full px-1">
       <div
         className={cn(
           'relative flex flex-col items-center gap-8',
@@ -735,8 +743,8 @@ function ProgressTimeline({
           <div
             key={i}
             className={cn(
-              'relative z-10 flex min-w-0 flex-col items-center text-center w-full max-w-sm',
-              !forceStack && 'md:min-w-[100px] md:flex-1 md:max-w-none',
+              'builder-timeline-step relative z-10 flex min-w-0 flex-col items-center text-center w-full max-w-sm px-2',
+              !forceStack && 'md:min-w-[100px] md:flex-1 md:max-w-none md:px-0',
             )}
           >
             <YearBadge
@@ -985,7 +993,10 @@ export default function TimelineBlock({ site, style, props, blockId }: Props) {
 
   return (
     <section
-      className={cn(builderSectionContainerWithMax(sectionWidthClass), 'overflow-x-hidden')}
+      className={cn(
+        builderSectionContainerWithMax(sectionWidthClass),
+        'overflow-x-hidden builder-timeline-section',
+      )}
       style={{ background: surface.background, color: textColor }}
     >
       <TimelineBlockTitle

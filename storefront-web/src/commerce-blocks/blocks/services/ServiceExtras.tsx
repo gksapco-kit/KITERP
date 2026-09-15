@@ -129,11 +129,11 @@ export function ProcessSteps({
 
   return (
     <section className="px-6 py-12">
-      {title && <h2 className="mb-10 text-center text-3xl font-semibold tracking-tight">{title}</h2>}
+      {title && <h2 className="mb-10 text-center text-3xl font-semibold tracking-tight text-balance px-1">{title}</h2>}
       {items.length > 0 && (
         <div
           className={cn(
-            "mx-auto max-w-5xl",
+            "builder-process-steps-mobile mx-auto max-w-5xl w-full",
             layout === "horizontal" && "grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4",
             layout === "vertical" && "space-y-6",
             layout === "cards" && "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4",
@@ -143,26 +143,27 @@ export function ProcessSteps({
             <div
               key={s.id ?? i}
               className={cn(
-                "relative",
+                "builder-process-step relative min-w-0",
                 layout === "vertical" && "flex gap-5",
                 layout === "cards" && "rounded-xl border border-border bg-card p-5 shadow-sm",
+                layout === "horizontal" && "px-2",
               )}
             >
               <div
                 className={cn(
-                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground",
+                  "builder-process-step-badge flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground",
                   layout === "cards" && "mb-4 h-10 w-10 text-base",
-                  layout === "horizontal" && "mx-auto md:mx-0",
+                  layout === "horizontal" && "mx-auto lg:mx-0",
                 )}
               >
                 {String(i + 1).padStart(2, "0")}
               </div>
-              <div className={cn("min-w-0", layout === "horizontal" ? "mt-4 text-center md:text-left" : "")}>
-                <h3 className="font-semibold">{s.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
+              <div className={cn("min-w-0 w-full", layout === "horizontal" ? "mt-4 text-center lg:text-left" : "")}>
+                <h3 className="font-semibold break-words">{s.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground break-words">{s.description}</p>
               </div>
               {layout === "horizontal" && i < items.length - 1 && (
-                <div className="absolute -right-3 top-6 hidden h-px w-6 bg-border md:block" />
+                <div className="absolute -right-3 top-6 hidden h-px w-6 bg-border lg:block" />
               )}
             </div>
           ))}
