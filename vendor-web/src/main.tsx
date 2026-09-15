@@ -1,5 +1,5 @@
 import './quietDevConsole'
-import React from 'react'
+import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
@@ -119,7 +119,15 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <ConfirmProvider>
           <ThemeSync />
-          <RouterProvider router={router} future={{ v7_startTransition: true }} />
+          <Suspense
+            fallback={
+              <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+                Loading…
+              </div>
+            }
+          >
+            <RouterProvider router={router} future={{ v7_startTransition: true }} />
+          </Suspense>
           <Toaster position="top-right" richColors closeButton />
         </ConfirmProvider>
       </QueryClientProvider>

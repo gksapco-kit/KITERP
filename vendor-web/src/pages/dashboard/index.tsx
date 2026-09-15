@@ -19,6 +19,8 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useBusinessUnitScopeLabel } from '@/hooks/useBusinessUnitScope'
+import { useSidebarAppInstalled } from '@/hooks/useSidebarAppInstalled'
+import { isPosNavVisible, isBookingsNavVisible } from '@/lib/vendorModuleSettings'
 import { DashboardWelcomeBanner } from '@/components/dashboard/DashboardWelcomeBanner'
 
 type TopProductRow = { id: string; name: string; price: number; stock: number }
@@ -32,6 +34,10 @@ export default function Dashboard() {
   const { heading: scopeHeading, mode: scopeMode } = useBusinessUnitScopeLabel()
   const { user } = useAuthStore()
   const isHRAdmin = ['owner', 'admin', 'manager'].includes(user?.vendor_role?.role ?? '')
+  const salesAppInstalled = useSidebarAppInstalled('sales')
+  const vendorSettings = vendor?.settings as Record<string, unknown> | undefined
+  const posVisible = salesAppInstalled && isPosNavVisible(vendorSettings, vendor?.offering_type)
+  const bookingsVisible = salesAppInstalled && isBookingsNavVisible(vendorSettings, vendor?.offering_type)
 
   const { data: hrEmpData } = useHREmployees({ limit: 1 })
   const { data: hrLeaveData } = useHRLeaveRequests({ status: 'pending', limit: 1 })
@@ -48,9 +54,17 @@ export default function Dashboard() {
   const { data: topCustomers } = useQuery({ queryKey: ['reports', 'top-customers', storeId], queryFn: () => vendorApi.getTopCustomers(10, storeId) })
   const { data: salesByDay } = useQuery({ queryKey: ['reports', 'sales-30', storeId], queryFn: () => vendorApi.getSalesByDay(30, storeId) })
   const { data: ordersByStatus } = useQuery({ queryKey: ['reports', 'orders-status', storeId], queryFn: () => vendorApi.getOrdersByStatus(storeId) })
-  const { data: posOrdersData }     = useQuery({ queryKey: ['reports', 'pos-orders', storeId],     queryFn: () => vendorApi.listOrders({ source: 'pos', size: 100, store_id: storeId || undefined }) })
+  const { data: posOrdersData }     = useQuery({
+    queryKey: ['reports', 'pos-orders', storeId],
+    queryFn: () => vendorApi.listOrders({ source: 'pos', size: 100, store_id: storeId || undefined }),
+    enabled: posVisible,
+  })
   const { data: onlineOrdersData }  = useQuery({ queryKey: ['reports', 'online-orders', storeId],  queryFn: () => vendorApi.listOrders({ size: 100, store_id: storeId || undefined }) })
-  const { data: bookingsData }      = useQuery({ queryKey: ['reports', 'bookings', storeId],        queryFn: () => vendorApi.listBookings({ size: 100 }) })
+  const { data: bookingsData }      = useQuery({
+    queryKey: ['reports', 'bookings', storeId],
+    queryFn: () => vendorApi.listBookings({ size: 100 }),
+    enabled: bookingsVisible,
+  })
   const { data: productData } = useProducts({ page: 1, size: 1 })
   const { data: serviceData } = useServices({ page: 1, size: 1 })
 
@@ -77,6 +91,26 @@ export default function Dashboard() {
   const [orderSortKey, setOrderSortKey] = useState('created_at')
   const [orderSortDir, setOrderSortDir] = useState<SortDir>('desc')
   const [orderPage, setOrderPage] = useState(0)
+
+  const orderTabs = useMemo(
+    () =>
+      (
+        [
+          { key: 'orders' as const, label: 'Orders', short: 'Orders', icon: ShoppingCart, nav: '/orders' },
+          ...(posVisible
+            ? [{ key: 'pos' as const, label: 'POS', short: 'POS', icon: Receipt, nav: '/pos' }]
+            : []),
+          ...(bookingsVisible
+            ? [{ key: 'bookings' as const, label: 'Bookings', short: 'Bookings', icon: Calendar, nav: '/bookings' }]
+            : []),
+        ] as { key: OrderTab; label: string; short: string; icon: React.ElementType; nav: string }[]
+      ),
+    [posVisible, bookingsVisible],
+  )
+
+  // Fall back if the active tab was hidden (Sales uninstalled / POS disabled).
+  const effectiveOrderTab: OrderTab =
+    orderTabs.some((t) => t.key === orderTab) ? orderTab : 'orders'
 
   const ordersStatusRows = useMemo(() => {
     const raw = ordersByStatus?.data as Record<string, number> | undefined
@@ -117,10 +151,10 @@ export default function Dashboard() {
   }, [topCustomers, tcSearch, tcSortKey, tcSortDir])
 
   const activeOrderRows = useMemo(() => {
-    if (orderTab === 'pos')      return (posOrdersData?.items    || []) as any[]
-    if (orderTab === 'orders')   return (onlineOrdersData?.items || []) as any[]
+    if (effectiveOrderTab === 'pos')      return (posOrdersData?.items    || []) as any[]
+    if (effectiveOrderTab === 'orders')   return (onlineOrdersData?.items || []) as any[]
     return (bookingsData?.items || bookingsData?.data || []) as any[]
-  }, [orderTab, posOrdersData, onlineOrdersData, bookingsData])
+  }, [effectiveOrderTab, posOrdersData, onlineOrdersData, bookingsData])
 
   const orderStats = useMemo(() => {
     const count   = activeOrderRows.length
@@ -128,7 +162,7 @@ export default function Dashboard() {
     return { count, revenue, avg: count > 0 ? revenue / count : 0 }
   }, [activeOrderRows])
 
-  const isBookingTab = orderTab === 'bookings'
+  const isBookingTab = effectiveOrderTab === 'bookings'
   const orderRows = useMemo(() => {
     const sortKeys = isBookingTab
       ? {
@@ -275,7 +309,7 @@ export default function Dashboard() {
     { label: 'Total Revenue',  value: formatCurrency(dashboard?.total_revenue ?? 0),  icon: IndianRupee,  chipBg: 'bg-success/10',           chipText: 'text-success',           link: '/orders',  tooltip: 'Revenue from paid orders (delivered / confirmed / shipped) — not from unpaid invoices' },
     { label: 'Today Revenue',  value: formatCurrency(dashboard?.today_revenue ?? 0),  icon: TrendingUp,   chipBg: 'bg-warning/15',           chipText: 'text-warning',           link: '/orders',  tooltip: 'Paid-order revenue created today' },
     { label: 'This Month',     value: formatCurrency(dashboard?.month_revenue ?? 0),  icon: IndianRupee,  chipBg: 'bg-success/15',           chipText: 'text-success',           link: '/orders',  tooltip: 'Revenue from paid orders this calendar month' },
-    { label: 'POS Today',      value: formatCurrency(dashboard?.pos_today ?? 0),      icon: BarChart3,    chipBg: 'bg-sidebar-foreground/10', chipText: 'text-sidebar-foreground', link: '/pos',    tooltip: 'Walk-in POS transactions today (includes customer POS; may overlap with Today Revenue for customer-linked sales)' },
+    ...(posVisible ? [{ label: 'POS Today',      value: formatCurrency(dashboard?.pos_today ?? 0),      icon: BarChart3,    chipBg: 'bg-sidebar-foreground/10', chipText: 'text-sidebar-foreground', link: '/pos',    tooltip: 'Walk-in POS transactions today (includes customer POS; may overlap with Today Revenue for customer-linked sales)' }] : []),
     { label: 'Customers',      value: dashboard?.total_customers ?? 0,                icon: Users,        chipBg: 'bg-accent',               chipText: 'text-accent-foreground', link: '/customers' },
     { label: 'Active Products',value: dashboard?.total_products ?? 0,                 icon: Package,      chipBg: 'bg-primary/10',           chipText: 'text-primary',           link: '/products' },
     { label: 'Invoiced Today', value: formatCurrency(dashboard?.invoiced_today ?? 0), icon: FileText,     chipBg: 'bg-info/15',              chipText: 'text-info',              link: '/invoices', tooltip: 'Invoice totals issued today (excludes drafts & estimates)' },
@@ -655,17 +689,13 @@ export default function Dashboard() {
 
             {/* Tab dropdown — scrollable on narrow screens */}
             <div className="-mx-1 flex max-w-full items-center gap-1 overflow-x-auto rounded-xl bg-muted p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {([
-                { key: 'orders',   label: 'Orders',    short: 'Orders', icon: ShoppingCart, nav: '/orders' },
-                { key: 'pos',      label: 'POS',       short: 'POS',    icon: Receipt,      nav: '/pos' },
-                { key: 'bookings', label: 'Bookings',  short: 'Bookings', icon: Calendar,  nav: '/bookings' },
-              ] as { key: OrderTab; label: string; short: string; icon: React.ElementType; nav: string }[]).map(tab => (
+              {orderTabs.map(tab => (
                 <button
                   key={tab.key}
                   type="button"
                   onClick={() => { setOrderTab(tab.key); setOrderSearch(''); setOrderSortKey(tab.key === 'bookings' ? 'booking_date' : 'created_at'); setOrderSortDir('desc'); setOrderPage(0) }}
                   className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150 sm:px-3 ${
-                    orderTab === tab.key
+                    effectiveOrderTab === tab.key
                       ? 'bg-card text-primary shadow-sm ring-1 ring-primary/15'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
@@ -679,7 +709,7 @@ export default function Dashboard() {
 
             <button
               type="button"
-              onClick={() => navigate(orderTab === 'pos' ? '/pos' : orderTab === 'orders' ? '/orders' : '/bookings')}
+              onClick={() => navigate(effectiveOrderTab === 'pos' ? '/pos' : effectiveOrderTab === 'orders' ? '/orders' : '/bookings')}
               className="hidden items-center gap-1 text-xs text-info hover:underline sm:ml-auto sm:flex"
             >
               View all <ExternalLink className="w-3 h-3" />
@@ -931,7 +961,7 @@ export default function Dashboard() {
 
                       <button
                         type="button"
-                        onClick={() => navigate(orderTab === 'pos' ? '/pos' : orderTab === 'orders' ? '/orders' : '/bookings')}
+                        onClick={() => navigate(effectiveOrderTab === 'pos' ? '/pos' : effectiveOrderTab === 'orders' ? '/orders' : '/bookings')}
                         className="ml-auto inline-flex items-center gap-1 text-xs text-info hover:underline"
                       >
                         View all <ExternalLink className="h-3 w-3" />

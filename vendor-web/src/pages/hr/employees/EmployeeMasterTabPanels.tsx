@@ -5,6 +5,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useHREmployees, useStores } from '@/hooks/useVendor'
 import { employeeDisplayName, sanitizeEmployeeUpdatePayload } from '@/lib/hrEmployeeDisplay'
 import type { EmployeeProfile, HRAddress, HRDepartment, HRDesignation } from '@/types'
+import { employeeRecordRevision } from './employeeMasterTabs'
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -116,12 +117,29 @@ export function IdentityTab({
     emp.employee_code_custom ? 'manual' : 'auto',
   )
   const manualInputRef = useRef<HTMLInputElement>(null)
+  const revision = employeeRecordRevision(emp)
 
   useEffect(() => {
-    setForm(initial)
+    setForm({
+      full_name: String(emp.full_name ?? linkedUser?.full_name ?? ''),
+      personal_email: String(emp.personal_email ?? ''),
+      personal_phone: String(emp.personal_phone ?? ''),
+      employee_code_custom: String(emp.employee_code_custom ?? ''),
+      store_id: String(emp.store_id ?? ''),
+      department_id: String(emp.department_id ?? ''),
+      designation_id: String(emp.designation_id ?? ''),
+      manager_id: String(emp.manager_id ?? ''),
+      employment_type: String(emp.employment_type ?? 'full_time'),
+      date_of_joining: String(emp.date_of_joining ?? ''),
+      probation_end_date: String(emp.probation_end_date ?? ''),
+      notice_period_days: Number(emp.notice_period_days ?? 30),
+      lwd: String(emp.lwd ?? ''),
+      status: String(emp.status ?? 'active'),
+    })
     setEmpIdMode(emp.employee_code_custom ? 'manual' : 'auto')
+    // Rehydrate from the saved record only — not from parent draft object identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emp])
+  }, [revision])
 
   function update<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     const next = { ...form, [field]: value }
@@ -153,13 +171,13 @@ export function IdentityTab({
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-      <FieldRow label="Full name" editing={editing} display={String(emp.full_name ?? linkedUser?.full_name ?? '')}>
+      <FieldRow label="Full name" editing={editing} display={form.full_name || String(emp.full_name ?? linkedUser?.full_name ?? '')}>
         <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.full_name} onChange={e => update('full_name', e.target.value)} />
       </FieldRow>
-      <FieldRow label="Personal email" editing={editing} display={String(emp.personal_email ?? '')}>
+      <FieldRow label="Personal email" editing={editing} display={form.personal_email || String(emp.personal_email ?? '')}>
         <input type="email" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.personal_email} onChange={e => update('personal_email', e.target.value)} />
       </FieldRow>
-      <FieldRow label="Personal phone" editing={editing} display={String(emp.personal_phone ?? '')}>
+      <FieldRow label="Personal phone" editing={editing} display={form.personal_phone || String(emp.personal_phone ?? '')}>
         <PhoneInput value={form.personal_phone} onChange={v => update('personal_phone', v)} defaultCountryIso="IN" />
       </FieldRow>
       {/* Employee ID — toggle between auto (system code) and manual (custom code) */}
@@ -194,7 +212,7 @@ export function IdentityTab({
 
         {!editing ? (
           <p className="text-sm font-mono text-gray-900">
-            {String(emp.employee_code_custom || emp.employee_code || '') || <span className="text-gray-400">—</span>}
+            {String(form.employee_code_custom || emp.employee_code_custom || emp.employee_code || '') || <span className="text-gray-400">—</span>}
           </p>
         ) : empIdMode === 'manual' ? (
           <input
@@ -258,7 +276,7 @@ export function IdentityTab({
           ]}
         />
       </FieldRow>
-      <FieldRow label="Employment type" editing={editing} display={String(emp.employment_type ?? '').replace('_', '-')}>
+      <FieldRow label="Employment type" editing={editing} display={String(form.employment_type || emp.employment_type || '').replace('_', '-')}>
         <Select
           className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           value={form.employment_type}
@@ -271,7 +289,7 @@ export function IdentityTab({
           ]}
         />
       </FieldRow>
-      <FieldRow label="Status" editing={editing} display={String(emp.status ?? '').replace('_', ' ')}>
+      <FieldRow label="Status" editing={editing} display={String(form.status || emp.status || '').replace('_', ' ')}>
         <Select
           className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           value={form.status}
@@ -284,16 +302,16 @@ export function IdentityTab({
           ]}
         />
       </FieldRow>
-      <FieldRow label="Date of joining" editing={editing} display={String(emp.date_of_joining ?? '')}>
+      <FieldRow label="Date of joining" editing={editing} display={form.date_of_joining || String(emp.date_of_joining ?? '')}>
         <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.date_of_joining} onChange={e => update('date_of_joining', e.target.value)} />
       </FieldRow>
-      <FieldRow label="Probation end" editing={editing} display={String(emp.probation_end_date ?? '')}>
+      <FieldRow label="Probation end" editing={editing} display={form.probation_end_date || String(emp.probation_end_date ?? '')}>
         <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.probation_end_date} onChange={e => update('probation_end_date', e.target.value)} />
       </FieldRow>
-      <FieldRow label="Last working day" editing={editing} display={String(emp.lwd ?? '')}>
+      <FieldRow label="Last working day" editing={editing} display={form.lwd || String(emp.lwd ?? '')}>
         <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.lwd} onChange={e => update('lwd', e.target.value)} />
       </FieldRow>
-      <FieldRow label="Notice period (days)" editing={editing} display={String(emp.notice_period_days ?? 30)}>
+      <FieldRow label="Notice period (days)" editing={editing} display={String(form.notice_period_days ?? emp.notice_period_days ?? 30)}>
         <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.notice_period_days} onChange={e => update('notice_period_days', Number(e.target.value))} />
       </FieldRow>
     </div>

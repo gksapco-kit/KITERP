@@ -10,9 +10,12 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useGenerateEmployeeOtp, useSetHREmployeePortalPassword } from '@/hooks/useVendor'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { useVendorStore } from '@/stores/vendorStore'
+import { useSidebarAppInstalled } from '@/hooks/useSidebarAppInstalled'
+import { isPosNavVisible } from '@/lib/vendorModuleSettings'
 import type { FamilyMember, HRAddress } from '@/types'
 import { toast } from 'sonner'
 import { EMPTY_ADDR, AddressFields } from './EmployeeMasterTabPanels'
+import { employeeRecordRevision } from './employeeMasterTabs'
 
 // ── tiny copy-to-clipboard hook ────────────────────────────────────────────
 
@@ -80,11 +83,16 @@ export function AddressesTab({
   const [sameAsCurrent, setSameAsCurrent] = useState(
     JSON.stringify(emp.current_address ?? {}) === JSON.stringify(emp.permanent_address ?? {}),
   )
+  const revision = employeeRecordRevision(emp)
 
   useEffect(() => {
-    setCurrent({ ...EMPTY_ADDR, ...((emp.current_address as HRAddress) ?? {}) })
-    setPermanent({ ...EMPTY_ADDR, ...((emp.permanent_address as HRAddress) ?? {}) })
-  }, [emp])
+    const nextCurrent = { ...EMPTY_ADDR, ...((emp.current_address as HRAddress) ?? {}) }
+    const nextPermanent = { ...EMPTY_ADDR, ...((emp.permanent_address as HRAddress) ?? {}) }
+    setCurrent(nextCurrent)
+    setPermanent(nextPermanent)
+    setSameAsCurrent(JSON.stringify(emp.current_address ?? {}) === JSON.stringify(emp.permanent_address ?? {}))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision])
 
   function emitCurrent(a: HRAddress) {
     setCurrent(a)
@@ -136,7 +144,17 @@ export function BankTab({
     ifsc_code: String(emp.ifsc_code ?? ''),
   }
   const [form, setForm] = useState<BankForm>(initial)
-  useEffect(() => { setForm(initial) }, [emp]) // eslint-disable-line react-hooks/exhaustive-deps
+  const revision = employeeRecordRevision(emp)
+  useEffect(() => {
+    setForm({
+      bank_name: String(emp.bank_name ?? ''),
+      account_holder_name: String(emp.account_holder_name ?? ''),
+      account_number: String(emp.account_number ?? ''),
+      account_type: String(emp.account_type ?? 'savings'),
+      ifsc_code: String(emp.ifsc_code ?? ''),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision])
 
   function update<K extends keyof BankForm>(k: K, v: BankForm[K]) {
     const next = { ...form, [k]: v }
@@ -193,7 +211,16 @@ export function KycTab({
     esi_number: String(emp.esi_number ?? ''),
   }
   const [form, setForm] = useState<KycForm>(initial)
-  useEffect(() => { setForm(initial) }, [emp]) // eslint-disable-line react-hooks/exhaustive-deps
+  const revision = employeeRecordRevision(emp)
+  useEffect(() => {
+    setForm({
+      pan_number: String(emp.pan_number ?? ''),
+      aadhaar_number: String(emp.aadhaar_number ?? ''),
+      uan_number: String(emp.uan_number ?? ''),
+      esi_number: String(emp.esi_number ?? ''),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision])
 
   function update<K extends keyof KycForm>(k: K, v: KycForm[K]) {
     const next = { ...form, [k]: v }
@@ -247,7 +274,20 @@ export function EmployeePersonalTab({
     emergency_contact_relation: String(emp.emergency_contact_relation ?? ''),
   }
   const [form, setForm] = useState<PersonalForm>(initial)
-  useEffect(() => { setForm(initial) }, [emp]) // eslint-disable-line react-hooks/exhaustive-deps
+  const revision = employeeRecordRevision(emp)
+  useEffect(() => {
+    setForm({
+      date_of_birth: String(emp.date_of_birth ?? ''),
+      gender: String(emp.gender ?? ''),
+      blood_group: String(emp.blood_group ?? ''),
+      marital_status: String(emp.marital_status ?? ''),
+      nationality: String(emp.nationality ?? 'Indian'),
+      emergency_contact_name: String(emp.emergency_contact_name ?? ''),
+      emergency_contact_phone: String(emp.emergency_contact_phone ?? ''),
+      emergency_contact_relation: String(emp.emergency_contact_relation ?? ''),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision])
 
   function update<K extends keyof PersonalForm>(k: K, v: PersonalForm[K]) {
     const next = { ...form, [k]: v }
@@ -334,10 +374,12 @@ export function FamilyTab({
   onChange: (data: Record<string, unknown>) => void
 }) {
   const [members, setMembers] = useState<FamilyMember[]>((emp.family_members as FamilyMember[]) ?? [])
+  const revision = employeeRecordRevision(emp)
 
   useEffect(() => {
     setMembers((emp.family_members as FamilyMember[]) ?? [])
-  }, [emp])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision])
 
   function setAndEmit(next: FamilyMember[]) {
     setMembers(next)
@@ -358,16 +400,83 @@ export function FamilyTab({
             )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {(['name', 'relation', 'phone'] as const).map(field => (
-              <div key={field}>
-                <p className="text-xs text-gray-500 mb-0.5 capitalize">{field}</p>
-                {editing ? (
-                  <input className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={m[field] ?? ''} onChange={e => setAndEmit(members.map((f, idx) => idx === i ? { ...f, [field]: e.target.value } : f))} />
-                ) : (
-                  <p className="text-sm text-gray-900">{m[field] || <span className="text-gray-400">—</span>}</p>
-                )}
-              </div>
-            ))}
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Name</p>
+              {editing ? (
+                <input className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={m.name ?? ''} onChange={e => setAndEmit(members.map((f, idx) => idx === i ? { ...f, name: e.target.value } : f))} />
+              ) : (
+                <p className="text-sm text-gray-900">{m.name || <span className="text-gray-400">—</span>}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Relation</p>
+              {editing ? (
+                <Select
+                  className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  value={m.relation ?? ''}
+                  onChange={v => setAndEmit(members.map((f, idx) => idx === i ? { ...f, relation: v } : f))}
+                  options={[
+                    { value: '', label: '— Select —' },
+                    ...['Spouse', 'Child', 'Parent', 'Sibling', 'Guardian', 'Other'].map(r => ({
+                      value: r.toLowerCase(),
+                      label: r,
+                    })),
+                  ]}
+                />
+              ) : (
+                <p className="text-sm text-gray-900 capitalize">{m.relation || <span className="text-gray-400">—</span>}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Date of birth</p>
+              {editing ? (
+                <input type="date" className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={m.dob ?? ''} onChange={e => setAndEmit(members.map((f, idx) => idx === i ? { ...f, dob: e.target.value } : f))} />
+              ) : (
+                <p className="text-sm text-gray-900">{m.dob || <span className="text-gray-400">—</span>}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Phone</p>
+              {editing ? (
+                <PhoneInput value={m.phone ?? ''} onChange={v => setAndEmit(members.map((f, idx) => idx === i ? { ...f, phone: v } : f))} defaultCountryIso="IN" />
+              ) : (
+                <p className="text-sm text-gray-900">{m.phone || <span className="text-gray-400">—</span>}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Gender</p>
+              {editing ? (
+                <Select
+                  className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  value={m.gender ?? ''}
+                  onChange={v => setAndEmit(members.map((f, idx) => idx === i ? { ...f, gender: v } : f))}
+                  options={[
+                    { value: '', label: '—' },
+                    { value: 'male', label: 'Male' },
+                    { value: 'female', label: 'Female' },
+                    { value: 'other', label: 'Other' },
+                  ]}
+                />
+              ) : (
+                <p className="text-sm text-gray-900 capitalize">{m.gender || <span className="text-gray-400">—</span>}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Blood group</p>
+              {editing ? (
+                <Select
+                  className="w-full border rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  value={m.blood_group ?? ''}
+                  onChange={v => setAndEmit(members.map((f, idx) => idx === i ? { ...f, blood_group: v } : f))}
+                  options={[
+                    { value: '', label: '—' },
+                    ...['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => ({ value: g, label: g })),
+                  ]}
+                />
+              ) : (
+                <p className="text-sm text-gray-900">{m.blood_group || <span className="text-gray-400">—</span>}</p>
+              )}
+            </div>
           </div>
         </div>
       ))}
@@ -392,7 +501,11 @@ export function NotesTab({
   onChange: (data: Record<string, unknown>) => void
 }) {
   const [notes, setNotes] = useState(String(emp.notes ?? ''))
-  useEffect(() => { setNotes(String(emp.notes ?? '')) }, [emp])
+  const revision = employeeRecordRevision(emp)
+  useEffect(() => {
+    setNotes(String(emp.notes ?? ''))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision])
 
   function handleChange(v: string) {
     setNotes(v)
@@ -571,7 +684,12 @@ export function EmployeeCredentialsTab({
   const loginAliases = [...new Set([codeCustom, codeAuto].filter(Boolean))]
   const hasPin = Boolean((emp as { pos_pin_hash?: string }).pos_pin_hash)
   const hasPortalAccess = Boolean(userObj)
-  const vendorSlug = useVendorStore(s => s.vendor?.slug ?? '')
+  const vendor = useVendorStore(s => s.vendor)
+  const vendorSlug = vendor?.slug ?? ''
+  const salesAppInstalled = useSidebarAppInstalled('sales')
+  const posVisible =
+    salesAppInstalled &&
+    isPosNavVisible(vendor?.settings as Record<string, unknown> | undefined, vendor?.offering_type)
 
   const hrPortalUrl = vendorSlug
     ? `${getStorefrontAppOrigin()}/${encodeURIComponent(vendorSlug)}/hr/login`
@@ -733,7 +851,8 @@ export function EmployeeCredentialsTab({
         )}
       </section>
 
-      {/* ── POS PIN ── */}
+      {/* ── POS PIN (only when Sales is installed and POS module is enabled) ── */}
+      {posVisible && (
       <section className="pt-6 border-t">
         <div className="flex items-center gap-2 mb-3">
           <KeyRound className="w-4 h-4 text-primary" />
@@ -767,6 +886,7 @@ export function EmployeeCredentialsTab({
         </div>
         <p className="text-xs text-gray-400 mt-1.5">Used for quick POS terminal login — stored securely.</p>
       </section>
+      )}
     </div>
   )
 }

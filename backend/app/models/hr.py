@@ -148,6 +148,10 @@ class EmployeeProfile(Base):
     last_lng = Column(Numeric(11, 8))
     last_seen_at = Column(DateTime(timezone=True))
 
+    # Holiday calendar assignment (NULL = use vendor default calendar)
+    holiday_calendar_id = Column(UUID(as_uuid=True), ForeignKey("hr_holiday_calendar.id", ondelete="SET NULL"), nullable=True)
+    holiday_calendar = relationship("HolidayCalendar", back_populates="employees", foreign_keys=[holiday_calendar_id])
+
     attendance_records = relationship("AttendanceRecord", back_populates="employee", cascade="all, delete-orphan")
     location_pings = relationship("EmployeeLocationPing", back_populates="employee", cascade="all, delete-orphan")
     leave_requests = relationship("LeaveRequest", back_populates="employee", cascade="all, delete-orphan")
@@ -222,11 +226,14 @@ class LeavePolicy(Base):
     max_carry_forward_days = Column(Numeric(5, 1), default=0)
     is_paid = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)
+    # NULL = applies to ALL departments; set to a dept to make it dept-specific
+    department_id = Column(UUID(as_uuid=True), ForeignKey("hr_department.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     leave_balances = relationship("LeaveBalance", back_populates="leave_policy", cascade="all, delete-orphan")
     leave_requests = relationship("LeaveRequest", back_populates="leave_policy")
+    department = relationship("Department", foreign_keys=[department_id])
 
 
 class LeaveBalance(Base):
@@ -276,6 +283,19 @@ class LeaveRequest(Base):
     )
 
 
+class HolidayCalendar(Base):
+    __tablename__ = "hr_holiday_calendar"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)          # e.g. "Head Office", "Factory – Chennai"
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    holidays = relationship("Holiday", back_populates="calendar", cascade="all, delete-orphan")
+    employees = relationship("EmployeeProfile", back_populates="holiday_calendar")
+
+
 class Holiday(Base):
     __tablename__ = "hr_holiday"
 
@@ -285,7 +305,11 @@ class Holiday(Base):
     date = Column(Date, nullable=False)
     is_optional = Column(Boolean, default=False)
     year = Column(Integer, nullable=False)
+    # NULL calendar_id → applies to ALL calendars (a "global" holiday)
+    calendar_id = Column(UUID(as_uuid=True), ForeignKey("hr_holiday_calendar.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    calendar = relationship("HolidayCalendar", back_populates="holidays")
 
 
 class SalaryStructure(Base):

@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.hr import (
     Department, Designation, EmployeeProfile, EmployeeDocument,
-    AttendanceRecord, LeavePolicy, LeaveBalance, LeaveRequest, Holiday,
+    AttendanceRecord, HolidayCalendar, LeavePolicy, LeaveBalance, LeaveRequest, Holiday,
     SalaryStructure, PayrollRun, PayrollEntry, OfferLetter, OfferLetterTemplate,
 )
 from app.models.store import Store
@@ -106,6 +106,7 @@ class EmployeeRepo:
         return [
             selectinload(EmployeeProfile.department),
             selectinload(EmployeeProfile.designation),
+            selectinload(EmployeeProfile.holiday_calendar),
             selectinload(EmployeeProfile.vendor_user).selectinload(VendorUser.user),
             selectinload(EmployeeProfile.manager).selectinload(EmployeeProfile.vendor_user).selectinload(
                 VendorUser.user
@@ -291,11 +292,32 @@ class LeaveRepo:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def list_policies(self, vendor_id: UUID) -> List[LeavePolicy]:
-        result = await self.db.execute(
+    async def list_policies(
+        self,
+        vendor_id: UUID,
+        department_id: Optional[UUID] = None,
+        include_global: bool = True,
+    ) -> List[LeavePolicy]:
+        """
+        department_id — if set, returns policies scoped to that dept plus global policies
+                        (department_id IS NULL). Pass department_id=None to return all.
+        include_global — when department_id is set, also include policies with no dept scope.
+        """
+        from sqlalchemy.orm import selectinload as _sil
+        q = (
             select(LeavePolicy)
+            .options(_sil(LeavePolicy.department))
             .where(LeavePolicy.vendor_id == vendor_id, LeavePolicy.is_active == True)
         )
+        if department_id is not None:
+            if include_global:
+                q = q.where(
+                    (LeavePolicy.department_id == department_id)
+                    | (LeavePolicy.department_id.is_(None))
+                )
+            else:
+                q = q.where(LeavePolicy.department_id == department_id)
+        result = await self.db.execute(q.order_by(LeavePolicy.name))
         return list(result.scalars().all())
 
     async def get_policy(self, policy_id: UUID, vendor_id: UUID) -> Optional[LeavePolicy]:
@@ -342,6 +364,36 @@ class LeaveRepo:
         await self.db.flush()
         await self.db.refresh(b)
         return b
+
+    async def upsert_balance(
+        self,
+        employee_id: UUID,
+        policy_id: UUID,
+        year: int,
+        allocated: float,
+        carried_forward: Optional[float] = None,
+    ) -> LeaveBalance:
+        b = await self.get_balance(employee_id, policy_id, year)
+        if b is None:
+            b = LeaveBalance(
+                employee_id=employee_id,
+                leave_policy_id=policy_id,
+                year=year,
+                allocated=allocated,
+                carried_forward=carried_forward if carried_forward is not None else 0,
+            )
+            self.db.add(b)
+        else:
+            b.allocated = allocated
+            if carried_forward is not None:
+                b.carried_forward = carried_forward
+        await self.db.flush()
+        result = await self.db.execute(
+            select(LeaveBalance)
+            .options(selectinload(LeaveBalance.leave_policy))
+            .where(LeaveBalance.employee_id == employee_id, LeaveBalance.leave_policy_id == policy_id, LeaveBalance.year == year)
+        )
+        return result.scalar_one()
 
     async def list_requests(
         self,
@@ -392,24 +444,106 @@ class LeaveRepo:
         await self.db.refresh(r)
         return r
 
-    async def list_holidays(self, vendor_id: UUID, year: int) -> List[Holiday]:
-        result = await self.db.execute(
-            select(Holiday).where(Holiday.vendor_id == vendor_id, Holiday.year == year).order_by(Holiday.date)
+    async def list_holidays(
+        self,
+        vendor_id: UUID,
+        year: int,
+        calendar_id: Optional[UUID] = None,
+    ) -> List[Holiday]:
+        """
+        If calendar_id is given, return holidays that belong to that specific calendar
+        OR have no calendar (calendar_id IS NULL → applies to all).
+        If calendar_id is None, return all holidays for the vendor/year.
+        """
+        q = (
+            select(Holiday)
+            .options(selectinload(Holiday.calendar))
+            .where(Holiday.vendor_id == vendor_id, Holiday.year == year)
         )
+        if calendar_id is not None:
+            q = q.where(
+                (Holiday.calendar_id == calendar_id) | (Holiday.calendar_id.is_(None))
+            )
+        result = await self.db.execute(q.order_by(Holiday.date))
         return list(result.scalars().all())
 
     async def create_holiday(self, vendor_id: UUID, data: dict) -> Holiday:
         h = Holiday(vendor_id=vendor_id, **data)
         self.db.add(h)
         await self.db.flush()
-        await self.db.refresh(h)
-        return h
+        result = await self.db.execute(
+            select(Holiday).options(selectinload(Holiday.calendar)).where(Holiday.id == h.id)
+        )
+        return result.scalar_one()
 
     async def get_holiday(self, holiday_id: UUID, vendor_id: UUID) -> Optional[Holiday]:
         result = await self.db.execute(
             select(Holiday).where(Holiday.id == holiday_id, Holiday.vendor_id == vendor_id)
         )
         return result.scalar_one_or_none()
+
+
+# ─────────────────────── Holiday Calendar ────────────────────────────────────
+
+class HolidayCalendarRepo:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def list(self, vendor_id: UUID) -> List[HolidayCalendar]:
+        result = await self.db.execute(
+            select(HolidayCalendar)
+            .where(HolidayCalendar.vendor_id == vendor_id)
+            .order_by(HolidayCalendar.is_default.desc(), HolidayCalendar.name)
+        )
+        return list(result.scalars().all())
+
+    async def get(self, cal_id: UUID, vendor_id: UUID) -> Optional[HolidayCalendar]:
+        result = await self.db.execute(
+            select(HolidayCalendar).where(
+                HolidayCalendar.id == cal_id, HolidayCalendar.vendor_id == vendor_id
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def create(self, vendor_id: UUID, name: str, is_default: bool = False) -> HolidayCalendar:
+        if is_default:
+            # unset previous default
+            await self.db.execute(
+                select(HolidayCalendar).where(
+                    HolidayCalendar.vendor_id == vendor_id, HolidayCalendar.is_default == True
+                )
+            )
+            await self.db.execute(
+                HolidayCalendar.__table__.update()
+                .where(HolidayCalendar.vendor_id == vendor_id)
+                .values(is_default=False)
+            )
+        cal = HolidayCalendar(vendor_id=vendor_id, name=name, is_default=is_default)
+        self.db.add(cal)
+        await self.db.flush()
+        await self.db.refresh(cal)
+        return cal
+
+    async def update(self, cal: HolidayCalendar, data: dict) -> HolidayCalendar:
+        if data.get("is_default"):
+            # unset other defaults first
+            await self.db.execute(
+                HolidayCalendar.__table__.update()
+                .where(
+                    HolidayCalendar.vendor_id == cal.vendor_id,
+                    HolidayCalendar.id != cal.id,
+                )
+                .values(is_default=False)
+            )
+        for k, v in data.items():
+            setattr(cal, k, v)
+        await self.db.flush()
+        await self.db.refresh(cal)
+        return cal
+
+    async def delete(self, cal: HolidayCalendar) -> None:
+        await self.db.delete(cal)
+        await self.db.flush()
 
 
 # ─────────────────────── Salary ──────────────────────────────────────────────

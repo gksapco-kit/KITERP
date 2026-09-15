@@ -9,14 +9,15 @@ import {
 import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { Plus, Pencil, Shield, X } from 'lucide-react'
-import { useHRLeavePolicies, useCreateHRLeavePolicy, useUpdateHRLeavePolicy } from '@/hooks/useVendor'
+import { Plus, Pencil, Shield, X, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { useHRLeavePolicies, useCreateHRLeavePolicy, useUpdateHRLeavePolicy, useDeleteHRLeavePolicy, useHRDepartments } from '@/hooks/useVendor'
 import type { LeavePolicy } from '@/types'
 
 function PolicyModal({
  policy, onClose }: { policy?: LeavePolicy | null; onClose: () => void }) {
   const create = useCreateHRLeavePolicy()
   const update = useUpdateHRLeavePolicy()
+  const { data: departments = [] } = useHRDepartments()
   const [form, setForm] = useState({
     name: policy?.name ?? '',
     code: policy?.code ?? '',
@@ -24,12 +25,15 @@ function PolicyModal({
     carry_forward: policy?.carry_forward ?? false,
     max_carry_forward_days: policy?.max_carry_forward_days ?? 0,
     is_paid: policy?.is_paid ?? true,
+    is_active: policy?.is_active ?? true,
+    department_id: policy?.department_id ?? '',
   })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (policy) { await update.mutateAsync({ id: policy.id, data: form }) }
-    else { await create.mutateAsync(form) }
+    const payload = { ...form, department_id: form.department_id || null }
+    if (policy) { await update.mutateAsync({ id: policy.id, data: payload }) }
+    else { await create.mutateAsync(payload) }
     onClose()
   }
 
@@ -71,7 +75,21 @@ function PolicyModal({
                 <input type="number" min={0} step={0.5} className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={form.max_carry_forward_days} onChange={e => setForm(f => ({ ...f, max_carry_forward_days: parseFloat(e.target.value) || 0 }))} />
               </div>
             </div>
-            <div className="flex gap-6">
+            <div>
+              <Label className="block text-xs font-medium text-gray-700 mb-1">Department Scope</Label>
+              <select
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                value={form.department_id}
+                onChange={e => setForm(f => ({ ...f, department_id: e.target.value }))}
+              >
+                <option value="">All departments</option>
+                {(departments as any[]).map((d: any) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Leave blank to apply this policy to all employees regardless of department.</p>
+            </div>
+            <div className="flex gap-6 flex-wrap">
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={form.carry_forward} onChange={e => setForm(f => ({ ...f, carry_forward: e.target.checked }))} className="rounded" />
                 Carry Forward
@@ -80,6 +98,12 @@ function PolicyModal({
                 <input type="checkbox" checked={form.is_paid} onChange={e => setForm(f => ({ ...f, is_paid: e.target.checked }))} className="rounded" />
                 Paid Leave
               </label>
+              {policy && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} className="rounded" />
+                  Active
+                </label>
+              )}
             </div>
           </div>
           <div className={cn(dialogFooterClass, 'gap-3')}>
@@ -97,6 +121,8 @@ function PolicyModal({
 export default function LeavePoliciesPage() {
   const { data: policies = [], isLoading } = useHRLeavePolicies()
   const [modal, setModal] = useState<{ open: boolean; policy?: LeavePolicy | null }>({ open: false })
+  const toggleActive = useUpdateHRLeavePolicy()
+  const remove = useDeleteHRLeavePolicy()
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -122,7 +148,7 @@ export default function LeavePoliciesPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                {['Name', 'Code', 'Days/Year', 'Carry Forward', 'Type', 'Status', ''].map(h => (
+                {['Name', 'Code', 'Days/Year', 'Carry Forward', 'Dept Scope', 'Type', 'Status', ''].map(h => (
                   <th key={h} className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">{h}</th>
                 ))}
               </tr>
@@ -134,10 +160,39 @@ export default function LeavePoliciesPage() {
                   <td className="py-3 px-4"><span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-mono">{p.code}</span></td>
                   <td className="py-3 px-4 text-sm text-gray-600">{Number(p.days_per_year).toFixed(1)}</td>
                   <td className="py-3 px-4 text-sm text-gray-600">{p.carry_forward ? `Yes (max ${Number(p.max_carry_forward_days).toFixed(0)})` : 'No'}</td>
+                  <td className="py-3 px-4">
+                    {p.department ? (
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{p.department.name}</span>
+                    ) : (
+                      <span className="text-xs text-gray-400">All</span>
+                    )}
+                  </td>
                   <td className="py-3 px-4"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.is_paid ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{p.is_paid ? 'Paid' : 'Unpaid'}</span></td>
                   <td className="py-3 px-4"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{p.is_active ? 'Active' : 'Inactive'}</span></td>
                   <td className="py-3 px-4 text-right">
-                    <button onClick={() => setModal({ open: true, policy: p })} className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg"><Pencil className="w-4 h-4" /></button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        title={p.is_active ? 'Deactivate' : 'Activate'}
+                        onClick={() => toggleActive.mutate({ id: p.id, data: { is_active: !p.is_active } })}
+                        className={`p-1.5 rounded-lg transition-colors ${p.is_active ? 'text-green-500 hover:text-green-700 hover:bg-green-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}
+                      >
+                        {p.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                      </button>
+                      <button
+                        title="Edit"
+                        onClick={() => setModal({ open: true, policy: p })}
+                        className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        title="Delete"
+                        onClick={() => { if (confirm(`Remove "${p.name}"? If it has leave balances it will be deactivated instead.`)) remove.mutate(p.id) }}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -11,7 +11,7 @@ const LS_SECTION_VERSION = 'kiterp.vendor.sidebar.section-order-version'
 export const SIDEBAR_SECTION_ORDER_VERSION = 4
 
 /** Bump when a pinned item must move inside a module (saved placements otherwise keep the old slot). */
-export const SIDEBAR_NAV_PLACEMENTS_VERSION = 1
+export const SIDEBAR_NAV_PLACEMENTS_VERSION = 2
 
 /** Canonical module order — must match `allSections` in DashboardLayout.tsx. */
 export const CANONICAL_SIDEBAR_SECTION_IDS = [
@@ -65,6 +65,8 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/roles': 'system',
   '/system/upi-checkout': 'system',
   '/crm/sales-area-dues': 'sales',
+  /** POS belongs only under Sales — hide it when Sales app is uninstalled. */
+  '/pos': 'sales',
 }
 
 /** When pinning, insert after this sibling route when it exists in that section. */
@@ -83,6 +85,7 @@ const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/system/assets/images': '/system/upi-checkout',
   '/procurement/goods': '/storage-locations',
   '/crm/sales-area-dues': '/sales/sales-area',
+  '/pos': '/projects',
 }
 
 /** When pinning, insert before this sibling route (wins over INSERT_AFTER when both resolve). */
@@ -462,8 +465,13 @@ export function reconcileNavPlacements(
     '/marketplace',
     '/sales/testimonials',
   ]
+  // Sales routes always live under Sales Management (so POS etc. disappear when Sales is uninstalled).
   const salesRoutes = [...validTos].filter((to) => home.get(to) === 'sales')
   if (salesRoutes.length && out.sales) {
+    for (const sid of Object.keys(out)) {
+      if (sid === 'sales') continue
+      out[sid] = out[sid].filter((to) => home.get(to) !== 'sales')
+    }
     const ordered = salesManagementOrder.filter((to) => salesRoutes.includes(to))
     const rest = salesRoutes.filter((to) => !ordered.includes(to))
     out.sales = [...ordered, ...rest]

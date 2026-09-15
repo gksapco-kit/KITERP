@@ -216,6 +216,7 @@ class LeavePolicyIn(BaseModel):
     carry_forward: bool = False
     max_carry_forward_days: float = 0
     is_paid: bool = True
+    department_id: Optional[UUID] = None
 
 class LeavePolicyUpdate(BaseModel):
     name: Optional[str] = None
@@ -225,6 +226,7 @@ class LeavePolicyUpdate(BaseModel):
     max_carry_forward_days: Optional[float] = None
     is_paid: Optional[bool] = None
     is_active: Optional[bool] = None
+    department_id: Optional[UUID] = None
 
 
 class LeaveRequestIn(BaseModel):
@@ -237,15 +239,31 @@ class LeaveRequestIn(BaseModel):
     half_day_type: Optional[str] = None
 
 
+class LeaveBalanceUpsert(BaseModel):
+    employee_id: UUID
+    leave_policy_id: UUID
+    year: int
+    allocated: float = Field(..., ge=0)
+    carried_forward: Optional[float] = None
+
 class LeaveApproval(BaseModel):
     rejection_reason: Optional[str] = None
 
+
+class HolidayCalendarIn(BaseModel):
+    name: str = Field(..., max_length=100)
+    is_default: bool = False
+
+class HolidayCalendarUpdate(BaseModel):
+    name: Optional[str] = None
+    is_default: Optional[bool] = None
 
 class HolidayIn(BaseModel):
     name: str = Field(..., max_length=100)
     date: date
     is_optional: bool = False
     year: int
+    calendar_id: Optional[UUID] = None
 
 
 class SalaryStructureIn(BaseModel):
@@ -347,6 +365,8 @@ def _d(obj: Any, depth: int = 0) -> Any:
         return str(obj)
     if isinstance(obj, (list, tuple)):
         return [_d(v, depth) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _d(v, depth + 1) for k, v in obj.items()}
     if hasattr(obj, "__dict__") and depth < 3:
         exclude = {"_sa_instance_state", "password_hash"}
         return {k: _d(v, depth + 1) for k, v in obj.__dict__.items() if k not in exclude and not k.startswith("_")}
@@ -508,16 +528,6 @@ async def list_employees(
     return {"items": [_d(e) for e in result["items"]], "total": result["total"]}
 
 
-@router.get("/employees/{emp_id}")
-async def get_employee(
-    emp_id: UUID,
-    vu: VendorUser = Depends(require_permission("hr.view")),
-    db: AsyncSession = Depends(get_db),
-):
-    svc = HRService(db)
-    return _d(await svc.get_employee(emp_id, vu.vendor_id))
-
-
 @router.get("/employees/next-code")
 async def preview_next_employee_code(
     store_id: Optional[str] = None,
@@ -544,6 +554,16 @@ async def preview_next_employee_code(
         )
     count = count_result.scalar_one()
     return {"next_code": f"{prefix}-{count + 1:03d}"}
+
+
+@router.get("/employees/{emp_id}")
+async def get_employee(
+    emp_id: UUID,
+    vu: VendorUser = Depends(require_permission("hr.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = HRService(db)
+    return _d(await svc.get_employee(emp_id, vu.vendor_id))
 
 
 @router.post("/employees", status_code=201)
@@ -970,8 +990,14 @@ async def update_attendance(
     from app.models.hr import AttendanceRecord
     import datetime as dt
 
-    stmt = select(AttendanceRecord).where(
-        AttendanceRecord.id == record_id
+    from app.models.hr import EmployeeProfile as _EmpProf
+    stmt = (
+        select(AttendanceRecord)
+        .join(_EmpProf, _EmpProf.id == AttendanceRecord.employee_id)
+        .where(
+            AttendanceRecord.id == record_id,
+            _EmpProf.vendor_id == vu.vendor_id,
+        )
     )
     result = await db.execute(stmt)
     record = result.scalar_one_or_none()
@@ -1257,11 +1283,13 @@ async def toggle_tracking(
 
 @router.get("/leaves/policies")
 async def list_leave_policies(
+    department_id: Optional[UUID] = Query(default=None),
     vu: VendorUser = Depends(require_permission("hr.view")),
     db: AsyncSession = Depends(get_db),
 ):
     svc = HRService(db)
-    return [_d(p) for p in await svc.leave_repo.list_policies(vu.vendor_id)]
+    policies = await svc.leave_repo.list_policies(vu.vendor_id, department_id=department_id)
+    return [_d(p) for p in policies]
 
 
 @router.post("/leaves/policies", status_code=201)
@@ -1292,6 +1320,34 @@ async def update_leave_policy(
     return _d(p)
 
 
+@router.delete("/leaves/policies/{policy_id}", status_code=204)
+async def delete_leave_policy(
+    policy_id: UUID,
+    vu: VendorUser = Depends(require_permission("hr.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft-delete a leave policy (sets is_active=False). Hard-deletes only if no balances are linked."""
+    svc = HRService(db)
+    p = await svc.leave_repo.get_policy(policy_id, vu.vendor_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Leave policy not found")
+    # Check for any leave balances referencing this policy
+    from sqlalchemy import select as _sel
+    from app.models.hr import LeaveBalance as _LB
+    has_balances = await db.execute(
+        _sel(_LB.id).where(_LB.leave_policy_id == policy_id).limit(1)
+    )
+    if has_balances.scalar_one_or_none():
+        # Soft-delete: keep the record for historical leave balances
+        p.is_active = False
+        await db.commit()
+        return Response(status_code=204)
+    # Hard-delete when no balances exist
+    await db.delete(p)
+    await db.commit()
+    return Response(status_code=204)
+
+
 @router.get("/leaves/balances")
 async def get_leave_balances(
     employee_id: UUID,
@@ -1308,6 +1364,31 @@ async def get_leave_balances(
         bd["available"] = float(b.allocated) + float(b.carried_forward) - float(b.used)
         result.append(bd)
     return result
+
+
+@router.put("/leaves/balances")
+async def upsert_leave_balance(
+    body: LeaveBalanceUpsert,
+    vu: VendorUser = Depends(require_permission("hr.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set (or override) the leave allocation for a specific employee, policy, and year."""
+    svc = HRService(db)
+    # Verify the employee belongs to this vendor
+    emp = await svc.emp_repo.get(body.employee_id, vu.vendor_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    # Verify the policy belongs to this vendor
+    policy = await svc.leave_repo.get_policy(body.leave_policy_id, vu.vendor_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="Leave policy not found")
+    b = await svc.leave_repo.upsert_balance(
+        body.employee_id, body.leave_policy_id, body.year, body.allocated, body.carried_forward
+    )
+    await db.commit()
+    bd = _d(b)
+    bd["available"] = float(b.allocated) + float(b.carried_forward) - float(b.used)
+    return bd
 
 
 @router.post("/leaves/request", status_code=201)
@@ -1405,15 +1486,72 @@ async def my_leaves(
     return {"requests": [_d(r) for r in requests], "balances": bal_data}
 
 
+# ── Holiday Calendars ─────────────────────────────────────────────────────────
+
+@router.get("/leaves/holiday-calendars")
+async def list_holiday_calendars(
+    vu: VendorUser = Depends(require_permission("hr.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = HRService(db)
+    return [_d(c) for c in await svc.holiday_calendar_repo.list(vu.vendor_id)]
+
+
+@router.post("/leaves/holiday-calendars", status_code=201)
+async def create_holiday_calendar(
+    body: HolidayCalendarIn,
+    vu: VendorUser = Depends(require_permission("hr.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = HRService(db)
+    cal = await svc.holiday_calendar_repo.create(vu.vendor_id, body.name, body.is_default)
+    await db.commit()
+    return _d(cal)
+
+
+@router.put("/leaves/holiday-calendars/{cal_id}")
+async def update_holiday_calendar(
+    cal_id: UUID,
+    body: HolidayCalendarUpdate,
+    vu: VendorUser = Depends(require_permission("hr.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = HRService(db)
+    cal = await svc.holiday_calendar_repo.get(cal_id, vu.vendor_id)
+    if not cal:
+        raise HTTPException(status_code=404, detail="Calendar not found")
+    cal = await svc.holiday_calendar_repo.update(cal, body.model_dump(exclude_none=True))
+    await db.commit()
+    return _d(cal)
+
+
+@router.delete("/leaves/holiday-calendars/{cal_id}", status_code=204)
+async def delete_holiday_calendar(
+    cal_id: UUID,
+    vu: VendorUser = Depends(require_permission("hr.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = HRService(db)
+    cal = await svc.holiday_calendar_repo.get(cal_id, vu.vendor_id)
+    if not cal:
+        raise HTTPException(status_code=404, detail="Calendar not found")
+    await svc.holiday_calendar_repo.delete(cal)
+    await db.commit()
+
+
+# ── Holidays ──────────────────────────────────────────────────────────────────
+
 @router.get("/leaves/holidays")
 async def list_holidays(
     year: int = Query(default=None),
+    calendar_id: Optional[UUID] = Query(default=None),
     vu: VendorUser = Depends(require_permission("hr.view")),
     db: AsyncSession = Depends(get_db),
 ):
     svc = HRService(db)
     yr = year or date.today().year
-    return [_d(h) for h in await svc.leave_repo.list_holidays(vu.vendor_id, yr)]
+    holidays = await svc.leave_repo.list_holidays(vu.vendor_id, yr, calendar_id=calendar_id)
+    return [_d(h) for h in holidays]
 
 
 @router.post("/leaves/holidays", status_code=201)
@@ -1650,6 +1788,27 @@ async def export_payroll_csv(
     )
 
 
+async def _get_payroll_entry_scoped(
+    db: AsyncSession, run_id: UUID, entry_id: UUID, vendor_id: UUID
+):
+    """Fetch a PayrollEntry only if both the entry and its run belong to vendor_id."""
+    from sqlalchemy import select as _sel
+    from app.models.hr import PayrollEntry as _PE, PayrollRun as _PR
+    from sqlalchemy.orm import selectinload as _sl
+    stmt = (
+        _sel(_PE)
+        .join(_PR, _PR.id == _PE.payroll_run_id)
+        .options(_sl(_PE.employee), _sl(_PE.payroll_run))
+        .where(
+            _PE.id == entry_id,
+            _PE.payroll_run_id == run_id,
+            _PR.vendor_id == vendor_id,
+        )
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
 @router.get("/payroll/{run_id}/entries/{entry_id}")
 async def get_payslip(
     run_id: UUID,
@@ -1657,9 +1816,8 @@ async def get_payslip(
     vu: VendorUser = Depends(require_permission("hr.payroll")),
     db: AsyncSession = Depends(get_db),
 ):
-    svc = HRService(db)
-    entry = await svc.payroll_repo.get_entry(entry_id)
-    if not entry or str(entry.payroll_run_id) != str(run_id):
+    entry = await _get_payroll_entry_scoped(db, run_id, entry_id, vu.vendor_id)
+    if not entry:
         raise HTTPException(status_code=404, detail="Payslip not found")
     return _d(entry)
 
@@ -1672,9 +1830,8 @@ async def get_payslip_html(
     db: AsyncSession = Depends(get_db),
 ):
     """Returns an HTML payslip ready for print/PDF."""
-    svc = HRService(db)
-    entry = await svc.payroll_repo.get_entry(entry_id)
-    if not entry or str(entry.payroll_run_id) != str(run_id):
+    entry = await _get_payroll_entry_scoped(db, run_id, entry_id, vu.vendor_id)
+    if not entry:
         raise HTTPException(status_code=404, detail="Payslip not found")
     run = entry.payroll_run
     emp = entry.employee

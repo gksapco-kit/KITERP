@@ -13,7 +13,7 @@ from fastapi import HTTPException, status
 from app.core.security import get_password_hash
 from app.repositories.hr_repo import (
     DepartmentRepo, DesignationRepo, EmployeeRepo,
-    AttendanceRepo, LeaveRepo, SalaryRepo, PayrollRepo,
+    AttendanceRepo, LeaveRepo, HolidayCalendarRepo, SalaryRepo, PayrollRepo,
     OfferLetterRepo, OfferLetterTemplateRepo,
 )
 from app.models.hr import (
@@ -32,6 +32,7 @@ class HRService:
         self.emp_repo = EmployeeRepo(db)
         self.att_repo = AttendanceRepo(db)
         self.leave_repo = LeaveRepo(db)
+        self.holiday_calendar_repo = HolidayCalendarRepo(db)
         self.salary_repo = SalaryRepo(db)
         self.payroll_repo = PayrollRepo(db)
         self.offer_repo = OfferLetterRepo(db)
@@ -381,19 +382,32 @@ class HRService:
             att_records, _ = await self.att_repo.list(
                 vendor_id, employee_id=emp.id, from_date=from_date, to_date=to_date
             )
-            days_present = sum(1 for a in att_records if a.status in ("present", "late", "half_day", "on_leave"))
+            # week_off and holiday are paid non-working days; treat them the same as
+            # present so a standard Mon–Fri employee earns full salary.
+            PAID_STATUSES = ("present", "late", "half_day", "on_leave", "week_off", "holiday")
+            days_present = sum(1 for a in att_records if a.status in PAID_STATUSES)
             days_absent = sum(1 for a in att_records if a.status == "absent")
             leave_days = sum(1 for a in att_records if a.status == "on_leave")
             overtime = sum(float(a.overtime_hours or 0) for a in att_records)
 
             if salary and (salary.earnings or salary.deductions):
-                # If no attendance records exist for the period, assume full attendance
+                # If no attendance records exist for the period, assume full attendance.
                 if not att_records:
                     days_present = days_in_month
                     days_absent = 0
+                    scheduled_days = days_in_month
+                else:
+                    # Denominator = days that were actually scheduled/tracked for this
+                    # employee.  Using calendar days would under-pay any employee whose
+                    # weekends are simply not recorded (the default for mark-range).
+                    scheduled_days = len(att_records)
+                    # Guard against a misconfigured schedule producing 0 records but
+                    # somehow bypassing the early-return above.
+                    if scheduled_days == 0:
+                        scheduled_days = days_in_month
 
-                # Pro-rate salary based on attendance ratio
-                ratio = Decimal(str(days_present)) / Decimal(str(days_in_month))
+                # Pro-rate salary: present days / scheduled days (not calendar days).
+                ratio = Decimal(str(days_present)) / Decimal(str(scheduled_days))
                 earnings_snap = {k: round(float(v) * float(ratio), 2) for k, v in (salary.earnings or {}).items()}
                 ded_snap = {k: float(v) for k, v in (salary.deductions or {}).items()}
 

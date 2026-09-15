@@ -4005,8 +4005,15 @@ export const vendorApi = {
     const r = await apiClient.put(`/vendors/me/hr/leaves/policies/${id}`, data)
     return r.data
   },
+  hrDeleteLeavePolicy: async (id: string) => {
+    await apiClient.delete(`/vendors/me/hr/leaves/policies/${id}`)
+  },
   hrGetLeaveBalances: async (employeeId: string, year?: number) => {
     const r = await apiClient.get('/vendors/me/hr/leaves/balances', { params: { employee_id: employeeId, year } })
+    return r.data
+  },
+  hrUpsertLeaveBalance: async (data: { employee_id: string; leave_policy_id: string; year: number; allocated: number; carried_forward?: number }) => {
+    const r = await apiClient.put('/vendors/me/hr/leaves/balances', data)
     return r.data
   },
   hrSubmitLeaveRequest: async (data: Record<string, unknown>) => {
@@ -4033,8 +4040,8 @@ export const vendorApi = {
     const r = await apiClient.get('/vendors/me/hr/leaves/my', { params: { year } })
     return r.data
   },
-  hrListHolidays: async (year?: number) => {
-    const r = await apiClient.get('/vendors/me/hr/leaves/holidays', { params: { year } })
+  hrListHolidays: async (year?: number, calendarId?: string) => {
+    const r = await apiClient.get('/vendors/me/hr/leaves/holidays', { params: { year, calendar_id: calendarId } })
     return r.data
   },
   hrCreateHoliday: async (data: Record<string, unknown>) => {
@@ -4043,6 +4050,23 @@ export const vendorApi = {
   },
   hrDeleteHoliday: async (id: string) => {
     await apiClient.delete(`/vendors/me/hr/leaves/holidays/${id}`)
+  },
+
+  // ── HR: Holiday Calendars ────────────────────────────────────────
+  hrListHolidayCalendars: async () => {
+    const r = await apiClient.get('/vendors/me/hr/leaves/holiday-calendars')
+    return r.data
+  },
+  hrCreateHolidayCalendar: async (data: Record<string, unknown>) => {
+    const r = await apiClient.post('/vendors/me/hr/leaves/holiday-calendars', data)
+    return r.data
+  },
+  hrUpdateHolidayCalendar: async (id: string, data: Record<string, unknown>) => {
+    const r = await apiClient.put(`/vendors/me/hr/leaves/holiday-calendars/${id}`, data)
+    return r.data
+  },
+  hrDeleteHolidayCalendar: async (id: string) => {
+    await apiClient.delete(`/vendors/me/hr/leaves/holiday-calendars/${id}`)
   },
 
   // ── HR: Salary ───────────────────────────────────────────────────

@@ -86,7 +86,8 @@ export const vendorKeys = {
   hrLeaveRequests: (params?: Record<string, unknown>) => [...vendorKeys.all, 'hr-leave-requests', params] as const,
   hrLeaveBalances: (empId: string, year?: number) => [...vendorKeys.all, 'hr-leave-balances', empId, year] as const,
   hrMyLeaves: (year?: number) => [...vendorKeys.all, 'hr-my-leaves', year] as const,
-  hrHolidays: (year?: number) => [...vendorKeys.all, 'hr-holidays', year] as const,
+  hrHolidays: (year?: number, calendarId?: string) => [...vendorKeys.all, 'hr-holidays', year, calendarId] as const,
+  hrHolidayCalendars: () => [...vendorKeys.all, 'hr-holiday-calendars'] as const,
   hrSalaryStructures: (params?: Record<string, unknown>) => [...vendorKeys.all, 'hr-salary', params] as const,
   hrPayrollRuns: (year?: number) => [...vendorKeys.all, 'hr-payroll-runs', year] as const,
   hrPayrollRun: (id: string) => [...vendorKeys.all, 'hr-payroll-run', id] as const,
@@ -2994,11 +2995,31 @@ export function useUpdateHRLeavePolicy() {
     onError: apiError('Could not update policy'),
   })
 }
+export function useDeleteHRLeavePolicy() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.hrDeleteLeavePolicy(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.hrLeavePolicies() }); toast.success('Leave policy removed') },
+    onError: apiError('Could not remove policy'),
+  })
+}
 export function useHRLeaveRequests(params?: Record<string, unknown>) {
   return useQuery({ queryKey: vendorKeys.hrLeaveRequests(params), queryFn: () => vendorApi.hrListLeaveRequests(params), staleTime: 30_000 })
 }
 export function useHRLeaveBalances(empId: string, year?: number) {
   return useQuery({ queryKey: vendorKeys.hrLeaveBalances(empId, year), queryFn: () => vendorApi.hrGetLeaveBalances(empId, year), enabled: !!empId, staleTime: 60_000 })
+}
+export function useUpsertHRLeaveBalance(empId: string, year?: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { employee_id: string; leave_policy_id: string; year: number; allocated: number; carried_forward?: number }) =>
+      vendorApi.hrUpsertLeaveBalance(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.hrLeaveBalances(empId, year) })
+      toast.success('Leave eligibility updated')
+    },
+    onError: apiError('Could not update leave eligibility'),
+  })
 }
 export function useHRMyLeaves(year?: number) {
   return useQuery({ queryKey: vendorKeys.hrMyLeaves(year), queryFn: () => vendorApi.hrMyLeaves(year), staleTime: 30_000 })
@@ -3043,14 +3064,18 @@ export function useCancelLeave() {
     onError: apiError('Could not cancel leave'),
   })
 }
-export function useHRHolidays(year?: number) {
-  return useQuery({ queryKey: vendorKeys.hrHolidays(year), queryFn: () => vendorApi.hrListHolidays(year), staleTime: 60_000 })
+export function useHRHolidays(year?: number, calendarId?: string) {
+  return useQuery({
+    queryKey: vendorKeys.hrHolidays(year, calendarId),
+    queryFn: () => vendorApi.hrListHolidays(year, calendarId),
+    staleTime: 60_000,
+  })
 }
 export function useCreateHoliday() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => vendorApi.hrCreateHoliday(data),
-    onSuccess: (_d, vars) => { qc.invalidateQueries({ queryKey: vendorKeys.hrHolidays(vars.year as number) }); toast.success('Holiday added') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'hr-holidays'] }); toast.success('Holiday added') },
     onError: apiError('Could not add holiday'),
   })
 }
@@ -3058,8 +3083,41 @@ export function useDeleteHoliday() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => vendorApi.hrDeleteHoliday(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.hrHolidays() }); toast.success('Holiday removed') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'hr-holidays'] }); toast.success('Holiday removed') },
     onError: apiError('Could not remove holiday'),
+  })
+}
+
+// Holiday Calendars
+export function useHRHolidayCalendars() {
+  return useQuery({ queryKey: vendorKeys.hrHolidayCalendars(), queryFn: vendorApi.hrListHolidayCalendars, staleTime: 60_000 })
+}
+export function useCreateHolidayCalendar() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => vendorApi.hrCreateHolidayCalendar(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.hrHolidayCalendars() }); toast.success('Calendar created') },
+    onError: apiError('Could not create calendar'),
+  })
+}
+export function useUpdateHolidayCalendar() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.hrUpdateHolidayCalendar(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: vendorKeys.hrHolidayCalendars() }); toast.success('Calendar updated') },
+    onError: apiError('Could not update calendar'),
+  })
+}
+export function useDeleteHolidayCalendar() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.hrDeleteHolidayCalendar(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: vendorKeys.hrHolidayCalendars() })
+      qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'hr-holidays'] })
+      toast.success('Calendar deleted')
+    },
+    onError: apiError('Could not delete calendar'),
   })
 }
 

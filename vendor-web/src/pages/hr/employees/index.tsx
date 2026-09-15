@@ -32,7 +32,10 @@ import { DeptModal } from '@/components/hr/DeptModal'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { DesigModal } from '@/components/hr/DesigModal'
 import type { EmployeeProfile, HRDepartment, HRDesignation, FamilyMember } from '@/types'
-import { EMPLOYEE_MASTER_TABS, type EmployeeMasterTabId } from './employeeMasterTabs'
+import { EMPLOYEE_MASTER_TABS, EmployeeTabPanel, type EmployeeMasterTabId } from './employeeMasterTabs'
+import { useVendorStore } from '@/stores/vendorStore'
+import { useSidebarAppInstalled } from '@/hooks/useSidebarAppInstalled'
+import { isPosNavVisible } from '@/lib/vendorModuleSettings'
 
 // ── Status / type helpers ────────────────────────────────────────
 
@@ -157,7 +160,6 @@ function FamilyMemberRow({
             value={member.name}
             onChange={e => onChange({ ...member, name: e.target.value })}
             placeholder="Full name"
-            required
           />
         </div>
         <div>
@@ -234,6 +236,11 @@ function AddEmployeeModal({
   const { data: designations = [] } = useHRDesignations()
   const { data: storesData } = useStores()
   const createEmployee = useCreateHREmployee()
+  const vendor = useVendorStore(s => s.vendor)
+  const salesAppInstalled = useSidebarAppInstalled('sales')
+  const posVisible =
+    salesAppInstalled &&
+    isPosNavVisible(vendor?.settings as Record<string, unknown> | undefined, vendor?.offering_type)
 
   const stores = storesData?.stores ?? []
 
@@ -382,7 +389,7 @@ function AddEmployeeModal({
     if (employmentType) payload.employment_type = employmentType
     if (dateOfJoining) payload.date_of_joining = dateOfJoining
     if (lwd) payload.lwd = lwd
-    if (posPin) payload.pos_pin = posPin
+    if (posVisible && posPin) payload.pos_pin = posPin
 
     // Employer
     if (employerStoreId) payload.store_id = employerStoreId
@@ -418,7 +425,10 @@ function AddEmployeeModal({
     if (emergencyPhone) payload.emergency_contact_phone = emergencyPhone
     if (emergencyRelation) payload.emergency_contact_relation = emergencyRelation
 
-    if (familyMembers.length > 0) payload.family_members = familyMembers
+    if (familyMembers.length > 0) {
+      payload.family_members = familyMembers.filter(m => m.name.trim() || m.relation.trim() || m.phone?.trim())
+      if ((payload.family_members as FamilyMember[]).length === 0) delete payload.family_members
+    }
     if (notes) payload.notes = notes
 
     if (documents.length > 0) {
@@ -475,7 +485,7 @@ function AddEmployeeModal({
             <ModalBody className="overflow-y-auto px-4 pb-1 pt-2">
 
             {/* Tab: Identity & Assignment */}
-            {activeTab === 'identity' && (
+            <EmployeeTabPanel active={activeTab === 'identity'}>
               <div className="space-y-2">
                 <div className="rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1.5 text-[11px] leading-snug text-foreground">
                   HR records payroll and employment data only. Grant portal login from
@@ -650,12 +660,13 @@ function AddEmployeeModal({
                   </div>
                 </div>
               </div>
-            )}
+            </EmployeeTabPanel>
 
             {/* Tab: Credentials */}
-            {activeTab === 'credentials' && (
+            <EmployeeTabPanel active={activeTab === 'credentials'}>
               <div className="space-y-6">
                 {/* POS PIN */}
+                {posVisible && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
                     <KeyRound className="w-4 h-4 text-primary" />
@@ -678,8 +689,9 @@ function AddEmployeeModal({
                   </div>
                   <p className="mt-1.5 text-xs text-muted-foreground">4–6 digits. Used at POS terminals for quick login.</p>
                 </section>
+                )}
                 {/* Portal note */}
-                <section className="pt-4 border-t">
+                <section className={posVisible ? 'pt-4 border-t' : undefined}>
                   <div className="flex items-center gap-2 mb-2">
                     <LogIn className="w-4 h-4 text-primary" />
                     <h3 className="font-semibold text-foreground">HR / ESS portal</h3>
@@ -689,10 +701,10 @@ function AddEmployeeModal({
                   </div>
                 </section>
               </div>
-            )}
+            </EmployeeTabPanel>
 
             {/* Tab: Addresses */}
-            {activeTab === 'addresses' && (
+            <EmployeeTabPanel active={activeTab === 'addresses'}>
               <div className="space-y-4">
                 <AddressFields label="Current Address" addr={currentAddr} onChange={setCurrentAddr} />
                 <div className="flex items-center gap-2">
@@ -701,10 +713,10 @@ function AddEmployeeModal({
                 </div>
                 {!sameAsCurrent && <AddressFields label="Permanent Address" addr={permanentAddr} onChange={setPermanentAddr} />}
               </div>
-            )}
+            </EmployeeTabPanel>
 
             {/* Tab: Bank Details */}
-            {activeTab === 'bank' && (
+            <EmployeeTabPanel active={activeTab === 'bank'}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="mb-1 block text-xs font-medium text-muted-foreground">Bank Name</Label>
@@ -735,10 +747,10 @@ function AddEmployeeModal({
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono uppercase focus:ring-2 focus:ring-blue-500 outline-none" placeholder="SBIN0001234" maxLength={11} value={ifscCode} onChange={e => setIfscCode(e.target.value.toUpperCase())} />
                 </div>
               </div>
-            )}
+            </EmployeeTabPanel>
 
             {/* Tab: KYC & Legal */}
-            {activeTab === 'kyc' && (
+            <EmployeeTabPanel active={activeTab === 'kyc'}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="mb-1 block text-xs font-medium text-muted-foreground">PAN Number</Label>
@@ -757,10 +769,10 @@ function AddEmployeeModal({
                   <input className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Employee State Insurance No." value={esiNumber} onChange={e => setEsiNumber(e.target.value)} />
                 </div>
               </div>
-            )}
+            </EmployeeTabPanel>
 
             {/* Tab: Personal Information */}
-            {activeTab === 'personal' && (
+            <EmployeeTabPanel active={activeTab === 'personal'}>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -832,10 +844,10 @@ function AddEmployeeModal({
                   </div>
                 </div>
               </div>
-            )}
+            </EmployeeTabPanel>
 
             {/* Tab: Family Members */}
-            {activeTab === 'family' && (
+            <EmployeeTabPanel active={activeTab === 'family'}>
               <div className="space-y-3">
                 {familyMembers.length === 0 && (
                   <p className="py-4 text-center text-sm text-muted-foreground">No family members added yet.</p>
@@ -857,10 +869,10 @@ function AddEmployeeModal({
                   <Plus className="w-4 h-4" /> Add Family Member
                 </button>
               </div>
-            )}
+            </EmployeeTabPanel>
 
             {/* Tab: Documents */}
-            {activeTab === 'documents' && (
+            <EmployeeTabPanel active={activeTab === 'documents'}>
               <div className="space-y-4">
                 {/* Uploaded documents list */}
                 {documents.length > 0 && (
@@ -988,10 +1000,10 @@ function AddEmployeeModal({
                   </p>
                 )}
               </div>
-            )}
+            </EmployeeTabPanel>
 
             {/* Tab: Notes */}
-            {activeTab === 'notes' && (
+            <EmployeeTabPanel active={activeTab === 'notes'}>
               <div>
                 <Label className={denseLabelClass}>Internal Notes</Label>
                 <textarea
@@ -1002,7 +1014,7 @@ function AddEmployeeModal({
                   onChange={e => setNotes(e.target.value)}
                 />
               </div>
-            )}
+            </EmployeeTabPanel>
 
             </ModalBody>
             <ModalFooter className="border-0 px-4 py-2.5">
@@ -1108,22 +1120,24 @@ export default function EmployeesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => seed.mutate(30)}
-            disabled={seed.isPending}
-            title="Insert 10 sample employees with 30 days of attendance data into this vendor"
-            className="border-dashed text-muted-foreground"
-          >
-            {seed.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Users className="h-4 w-4" />
-            )}
-            {seed.isPending ? 'Seeding…' : 'Seed Test Data'}
-          </Button>
+          {import.meta.env.DEV && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => seed.mutate(30)}
+              disabled={seed.isPending}
+              title="Insert 10 sample employees with 30 days of attendance data into this vendor"
+              className="border-dashed text-muted-foreground"
+            >
+              {seed.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Users className="h-4 w-4" />
+              )}
+              {seed.isPending ? 'Seeding…' : 'Seed Test Data'}
+            </Button>
+          )}
           <Button type="button" onClick={() => setShowModal(true)}>
             <Plus className="h-4 w-4" /> Add Employee
           </Button>

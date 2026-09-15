@@ -1,4 +1,4 @@
-import type { ElementType } from 'react'
+import type { ElementType, ReactNode } from 'react'
 import {
   Briefcase, Lock, MapPin, Landmark, ShieldCheck, Users, Heart, Paperclip, FileText,
   Plane, DollarSign, Receipt, LogOut,
@@ -52,4 +52,25 @@ export function resolveEmployeeTab(tab: string | null | undefined): EmployeeTabI
   const resolved = TAB_ALIASES[tab] ?? tab
   if (ALL_TAB_IDS.has(resolved)) return resolved as EmployeeTabId
   return 'identity'
+}
+
+/** Stable key for rehydrating tab forms only after a saved employee reload — not on every draft keystroke. */
+export function employeeRecordRevision(emp: { id?: unknown; updated_at?: unknown } | null | undefined): string {
+  if (!emp) return ''
+  return `${String(emp.id ?? '')}:${String(emp.updated_at ?? '')}`
+}
+
+/** Hide inactive tabs without unmounting so in-progress inputs survive tab switches. */
+export function EmployeeTabPanel({
+  active,
+  children,
+}: {
+  active: boolean
+  children: ReactNode
+}) {
+  return (
+    <div role="tabpanel" hidden={!active} className={active ? undefined : 'hidden'}>
+      {children}
+    </div>
+  )
 }

@@ -102,7 +102,7 @@ from app.models.plant import Plant
 from app.models.storage_location import StorageLocation
 from app.models.hr import (
     Department, Designation, EmployeeProfile, EmployeeDocument,
-    AttendanceRecord, LeavePolicy, LeaveBalance, LeaveRequest, Holiday,
+    AttendanceRecord, HolidayCalendar, LeavePolicy, LeaveBalance, LeaveRequest, Holiday,
     SalaryStructure, PayrollRun, PayrollEntry, OfferLetter, OfferLetterTemplate,
 )
 from app.models.hr_recruit import (
@@ -358,6 +358,7 @@ __all__ = [
     "EmployeeProfile",
     "EmployeeDocument",
     "AttendanceRecord",
+    "HolidayCalendar",
     "LeavePolicy",
     "LeaveBalance",
     "LeaveRequest",

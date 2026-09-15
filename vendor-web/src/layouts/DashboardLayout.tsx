@@ -921,6 +921,8 @@ const allSections: NavSection[] = [
       { to: '/hr/attendance', icon: Clock, label: 'Attendance', requiresPermission: 'hr.view' },
       { to: '/hr/tracking', icon: MapPin, label: 'Field Tracking', requiresPermission: 'hr.attendance' },
       { to: '/hr/leaves', icon: Plane, label: 'Leave Requests', requiresPermission: 'hr.view' },
+      { to: '/hr/leaves/policies', icon: ShieldAlert, label: 'Leave Policies', requiresPermission: 'hr.manage' },
+      { to: '/hr/leaves/holidays', icon: CalendarDays, label: 'Holidays', requiresPermission: 'hr.manage' },
       { to: '/hr/recruitment', icon: Briefcase, label: 'Recruitment', requiresPermission: 'hr.recruitment' },
       { to: '/hr/onboarding', icon: UserCheck, label: 'Onboarding', requiresPermission: 'hr.onboarding' },
       { to: '/hr/performance', icon: Target, label: 'Performance', requiresPermission: 'hr.performance' },

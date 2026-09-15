@@ -1,327 +1,310 @@
+import { lazy } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import AuthLayout from '@/layouts/AuthLayout'
 import DashboardLayout from '@/layouts/DashboardLayout'
 import ProtectedRoute from './ProtectedRoute'
 import PermissionRoute from './PermissionRoute'
-
-import Login from '@/pages/auth/Login'
-import VendorHandoff from '@/pages/auth/Handoff'
-import Register from '@/pages/auth/Register'
-import SignupWelcome from '@/pages/auth/SignupWelcome'
-import ForgotPassword from '@/pages/auth/ForgotPassword'
-import Dashboard from '@/pages/dashboard/index'
-import Orders from '@/pages/orders/index'
-import QuotationsPage from '@/pages/quotations/index'
-import OrderDetail from '@/pages/orders/OrderDetail'
-import OrderAuditReport from '@/pages/orders/OrderAuditReport'
-import Products from '@/pages/products/index'
-import ProductForm from '@/pages/products/ProductForm'
-import ProductAuditReport from '@/pages/products/ProductAuditReport'
-import ProductConfiguratorPage from '@/pages/products/ProductConfiguratorPage'
-import Services from '@/pages/services/index'
-import ServiceForm from '@/pages/services/ServiceForm'
-import ServiceAuditReport from '@/pages/services/ServiceAuditReport'
-import Customers from '@/pages/customers/index'
-import CustomerDetail from '@/pages/customers/CustomerDetail'
-import ReviewsPage from '@/pages/reviews/index'
-import TeamPage from '@/pages/team/index'
-import RolesPage from '@/pages/roles/index'
-import SettingsPage from '@/pages/settings/index'
-import SupportActivityPage from '@/pages/settings/SupportActivity'
-import AboutPage from '@/pages/about/index'
-import CategoriesPage from '@/pages/categories/index'
-import ProductGroupsPage from '@/pages/productGroups/index'
-import ProductGroupDetailPage from '@/pages/productGroups/ProductGroupDetail'
-import Inventory from '@/pages/inventory/index'
-import StockCountPage from '@/pages/inventory/StockCount'
-import ExpiryDashboardPage from '@/pages/inventory/ExpiryDashboard'
-import ReservationsPage from '@/pages/inventory/Reservations'
-import TransferOrdersPage from '@/pages/inventory/TransferOrders'
-import InventoryReportsPage from '@/pages/inventory/InventoryReports'
-import InventoryAnalyticsPage from '@/pages/inventory/analytics/index'
-import StorageLocationsPage from '@/pages/inventory/StorageLocations'
-import PlantsPage from '@/pages/inventory/Plants'
-import InventorySettingsPage from '@/pages/inventory/InventorySettings'
-import POS from '@/pages/pos/index'
-import RestaurantFloorPage from '@/pages/restaurant/Floor'
-import RestaurantKitchenPage from '@/pages/restaurant/Kitchen'
-import RestaurantSetupPage from '@/pages/restaurant/Setup'
-import RestaurantPOSPage from '@/pages/restaurant/RestaurantPOS'
-import RestaurantOrderPage from '@/pages/restaurant/Order'
-import RestaurantReservationsPage from '@/pages/restaurant/Reservations'
-import RestaurantReportsPage from '@/pages/restaurant/Reports'
-import RestaurantMenuPage from '@/pages/restaurant/Menu'
-import RestaurantsPage from '@/pages/restaurant/Restaurants'
-import SubscriptionsSalesPage from '@/pages/sales/Subscriptions'
-import MarketplaceLeadsPage from '@/pages/sales/MarketplaceLeads'
-import RentalDashboardPage from '@/pages/rental/RentalDashboardPage'
-import RentalAssetsPage from '@/pages/rental/RentalAssetsPage'
-import RentalAssetFormPage from '@/pages/rental/RentalAssetFormPage'
-import RentalBookingsPage from '@/pages/rental/RentalBookingsPage'
-import RentalBookingDetailPage from '@/pages/rental/RentalBookingDetailPage'
-import RentalCalendarPage from '@/pages/rental/RentalCalendarPage'
-import RentalReturnsPage from '@/pages/rental/RentalReturnsPage'
-import RentalReportsPage from '@/pages/rental/RentalReportsPage'
-import RentalSettingsPage from '@/pages/rental/RentalSettingsPage'
-import RentalRegistrationFormsPage from '@/pages/rental/RentalRegistrationFormsPage'
-import RentalFilledRegistrationsPage from '@/pages/rental/RentalFilledRegistrationsPage'
-import InvoicesPage from '@/pages/invoices/index'
-import InvoiceDetail from '@/pages/invoices/InvoiceDetail'
-import InvoiceTemplatesPage from '@/pages/invoices/InvoiceTemplates'
-import CouponsPage from '@/pages/coupons/index'
-import ReportsPage from '@/pages/reports/index'
-import PlansPage from '@/pages/plans/index'
-import BookingsPage from '@/pages/bookings/index'
-import BookingDetail from '@/pages/bookings/BookingDetail'
-import ProjectsPage from '@/pages/projects/index'
-import ProjectDetail from '@/pages/projects/ProjectDetail'
-import NotificationsPage from '@/pages/notifications/index'
-import NotificationSettingsPage from '@/pages/notifications/settings'
-import SuppliersPage from '@/pages/suppliers/index'
-import MasterDataReport from '@/pages/master-data/MasterDataReport'
-import MasterDataNew    from '@/pages/master-data/MasterDataNew'
-import PurchaseOrdersPage from '@/pages/purchase-orders/index'
-import PurchaseOrderDetail from '@/pages/purchase-orders/PurchaseOrderDetail'
-import POTemplatesPage from '@/pages/purchase-orders/POTemplates'
-import CreatePurchaseOrderPage from '@/pages/purchase-orders/CreatePurchaseOrderPage'
-import PurchaseOrderEditPage from '@/pages/purchase-orders/PurchaseOrderEditPage'
-import PurchaseRequisitionsPage from '@/pages/procurement/PurchaseRequisitions'
-import CreatePurchaseRequisitionPage from '@/pages/procurement/CreatePurchaseRequisitionPage'
-import SupplierManagementPage from '@/pages/procurement/SupplierManagement'
-import SourcingSetupPage from '@/pages/procurement/SourcingSetup'
-import VendorInvoicesAPPage from '@/pages/procurement/VendorInvoicesAP'
-import GoodsManagementPage from '@/pages/procurement/GoodsManagement'
-import MaterialValuationPage from '@/pages/inventory/MaterialValuation'
-import SpecialProcurementPage from '@/pages/procurement/SpecialProcurement'
-import ProcurementFieldConfigPage from '@/pages/procurement/FieldConfig'
-import ApprovalWorkflowPage from '@/pages/procurement/ApprovalWorkflow'
-import RFQQuotationsPage from '@/pages/procurement/RFQQuotations'
-import GoodsReceiptNotePage from '@/pages/procurement/GoodsReceiptNote'
-import PurchaseReturnsPage from '@/pages/procurement/PurchaseReturns'
-import SpendAnalyticsPage from '@/pages/procurement/SpendAnalytics'
-import ProcurementReportsPage from '@/pages/procurement/reports'
-import BudgetControlsPage from '@/pages/procurement/BudgetControls'
-import ProcurementNumberRangesPage from '@/pages/procurement/NumberRanges'
-import CreditDebitMemos from '@/pages/finance/CreditDebitMemos'
-import ProductionOrdersPage from '@/pages/production/index'
-import ProductionOrderDetailPage from '@/pages/production/OrderDetail'
-import ProductionSchedulePage from '@/pages/production/Schedule'
-import ProductionWorkCentersPage from '@/pages/production/WorkCenters'
-import ProductionMRPPage from '@/pages/production/MRP'
-import ProductionAnalyticsPage from '@/pages/production/Analytics'
-import PharmaOverviewPage from '@/pages/pharma/Overview'
-import PharmaSettingsPage from '@/pages/pharma/Settings'
-import PharmaSettingsBatchNumberingPage from '@/pages/pharma/SettingsBatchNumbering'
-import PharmaSettingsSequenceDetailPage from '@/pages/pharma/SettingsSequenceDetail'
-import PharmaSettingsEsignPage from '@/pages/pharma/SettingsEsign'
-import PharmaSettingsStoragePage from '@/pages/pharma/SettingsStorage'
-import PharmaSettingsRegulatoryPage from '@/pages/pharma/SettingsRegulatory'
-import PharmaSettingsProductsPage from '@/pages/pharma/SettingsProducts'
-import PharmaBatchDetailPage from '@/pages/pharma/BatchDetail'
-import {
-  PharmaBatchesPage,
-  PharmaMovementsPage,
-  PharmaFefoPage,
-  PharmaQuarantinePage,
-} from '@/pages/pharma/Batches'
-import {
-  PharmaMbrPage,
-  PharmaBprPage,
-  PharmaQcSpecsPage,
-  PharmaInspectionsPage,
-  PharmaReleasePage,
-} from '@/pages/pharma/Quality'
-import {
-  PharmaGenealogyPage,
-  PharmaRecallsPage,
-  PharmaComplaintsPage,
-  PharmaDeviationsPage,
-  PharmaCapasPage,
-  PharmaChangeControlPage,
-  PharmaAuditPage,
-  PharmaSerializationPage,
-} from '@/pages/pharma/TraceQms'
-import { PharmaGdpPage, PharmaTrackTracePage } from '@/pages/pharma/StageC'
-import PharmaWholesaleLicensePage from '@/pages/pharma/WholesaleLicense'
-import PharmaReportingManagerPage from '@/pages/pharma/ReportingManager'
-import StoresPage from '@/pages/stores/index'
-import ProfilePage from '@/pages/profile/index'
-import RelationshipManagerPage from '@/pages/relationship-manager/index'
-
-// HR pages
-import HRDepartmentsPage from '@/pages/hr/departments'
-import HRDesignationsPage from '@/pages/hr/designations'
-import HREmployeesPage from '@/pages/hr/employees/index'
-import HREmployeeDetailPage from '@/pages/hr/employees/EmployeeDetail'
-import HRAttendancePage from '@/pages/hr/attendance/index'
-import MyAttendancePage from '@/pages/hr/attendance/MyAttendance'
-import AttendanceReportPage from '@/pages/hr/attendance/AttendanceReport'
-import FieldTrackingPage from '@/pages/hr/tracking/index'
-import HRLeaveRequestsPage from '@/pages/hr/leaves/index'
-import LeavePoliciesPage from '@/pages/hr/leaves/Policies'
-import HolidaysPage from '@/pages/hr/leaves/Holidays'
-import MyLeavesPage from '@/pages/hr/leaves/MyLeaves'
-import HRSalaryPage from '@/pages/hr/salary/index'
-import HRPayrollPage from '@/pages/hr/payroll/index'
-import HRPayrollDetailPage from '@/pages/hr/payroll/PayrollDetail'
-import HROffersPage from '@/pages/hr/offers/index'
-import HROfferTemplatesPage from '@/pages/hr/offers/Templates'
-
-// HR Extended modules
-import HRRecruitmentPage from '@/pages/hr/recruitment/index'
-import HRJobDetailPage from '@/pages/hr/recruitment/JobDetail'
-import HROnboardingPage from '@/pages/hr/onboarding/index'
-import MyOnboardingPage from '@/pages/hr/onboarding/MyOnboarding'
-import HRPerformancePage from '@/pages/hr/performance/index'
-import HRCycleDetailPage from '@/pages/hr/performance/CycleDetail'
-import HRReviewDetailPage from '@/pages/hr/performance/ReviewDetail'
-import MyPerformancePage from '@/pages/hr/performance/MyPerformance'
-import HRCompliancePage from '@/pages/hr/compliance/index'
-import HRPolicyDetailPage from '@/pages/hr/compliance/PolicyDetail'
-import MyPoliciesPage from '@/pages/hr/compliance/MyPolicies'
-import HRTrainingPage from '@/pages/hr/training/index'
-import HRProgramDetailPage from '@/pages/hr/training/ProgramDetail'
-import MyTrainingPage from '@/pages/hr/training/MyTraining'
-import CourseLearningPage from '@/pages/hr/training/CourseLearning'
-import MyESSPage from '@/pages/hr/ess/MyESS'
-import HRAnnouncementsPage from '@/pages/hr/announcements/index'
-import MyAnnouncementsPage from '@/pages/hr/announcements/MyAnnouncements'
-import HRExpensesPage from '@/pages/hr/expenses/index'
-import MyExpensesPage from '@/pages/hr/expenses/MyExpenses'
-import HRHelpdeskPage from '@/pages/hr/helpdesk/index'
-import MyTicketsPage from '@/pages/hr/helpdesk/MyTickets'
-import HRTicketDetailPage from '@/pages/hr/helpdesk/TicketDetail'
-
-// Finance pages (lazy-imported as real files will be created)
-import FinanceDashboard from '@/pages/finance/index'
-import FinanceBasic from '@/pages/finance/BasicFinance'
-import FinanceCostCenters from '@/pages/finance/CostCenters'
-import FinanceCOA from '@/pages/finance/ChartOfAccounts'
-import FinanceJournal from '@/pages/finance/JournalEntries'
-import FinanceTrialBalance from '@/pages/finance/TrialBalance'
-import FinanceAR from '@/pages/finance/AccountsReceivable'
-import FinanceOpenItems from '@/pages/finance/OpenItems'
-import FinanceStatementVersions from '@/pages/finance/FinancialStatementVersions'
-import FinancePostingControls from '@/pages/finance/PostingControls'
-import FinanceProfitCenters from '@/pages/finance/ProfitCenters'
-import FinanceFxRevaluation from '@/pages/finance/FxRevaluation'
-import FinancePostingRules from '@/pages/finance/PostingRules'
-import FinanceDocumentSplitting from '@/pages/finance/DocumentSplitting'
-import FinanceParallelLedgers from '@/pages/finance/ParallelLedgers'
-import FinanceAP from '@/pages/finance/AccountsPayable'
-import FinanceBank from '@/pages/finance/BankCash'
-import FinanceBudgets from '@/pages/finance/BudgetsForecast'
-import FinanceAssets from '@/pages/finance/FixedAssets'
-import FinanceAssetReports from '@/pages/finance/AssetReports'
-import FinanceAssetDepreciationSchedule from '@/pages/finance/AssetDepreciationSchedule'
-import FinanceAssetGlReconciliation from '@/pages/finance/AssetGlReconciliation'
-import FinanceTax from '@/pages/finance/TaxReturns'
-import FinancePnL from '@/pages/finance/reports/ProfitLoss'
-import FinanceBalanceSheet from '@/pages/finance/reports/BalanceSheet'
-import FinanceCashFlow from '@/pages/finance/reports/CashFlow'
-import FinanceCostAnalysis from '@/pages/finance/reports/CostAnalysis'
-import FinanceGLReport from '@/pages/finance/reports/GLReport'
-import FinanceCapital from '@/pages/finance/Capital'
-import FinanceApprovals from '@/pages/finance/Approvals'
-import FinanceAudit from '@/pages/finance/AuditLog'
-import FinancePeriodControl from '@/pages/finance/PeriodControl'
-import FinanceFieldRuleConfig from '@/pages/finance/FieldRuleConfig'
-import FinancePaymentTerms from '@/pages/finance/PaymentTerms'
-import COLayout from '@/layouts/COLayout'
-import ControllingDashboardPage from '@/pages/controlling/index'
-import ControllingProductCostsPage from '@/pages/controlling/ProductCosts'
-import ControllingManufacturingOrdersPage from '@/pages/controlling/ManufacturingOrders'
-import ControllingSetupPage from '@/pages/controlling/Setup'
-import ControllingActivityTypesPage from '@/pages/controlling/ActivityTypes'
-import ControllingFinanceIntegrationPage from '@/pages/controlling/FinanceIntegration'
-import ControllingAreasPage from '@/pages/controlling/ControllingAreas'
-import ControllingManufacturingOrderDetail from '@/pages/controlling/ManufacturingOrderDetail'
-import ControllingWipReport from '@/pages/controlling/WipReport'
-import ControllingGoodsMovementsPage from '@/pages/controlling/GoodsMovements'
-import ControllingActivityConfirmationsPage from '@/pages/controlling/ActivityConfirmations'
-import ControllingCostAllocationsPage from '@/pages/controlling/CostAllocations'
-import ControllingPeriodEndPage from '@/pages/controlling/PeriodEnd'
-import ControllingInternalOrdersPage from '@/pages/controlling/InternalOrders'
-import ControllingCostBookingsPage from '@/pages/controlling/CostBookings'
-import ControllingVarianceAnalysisPage from '@/pages/controlling/VarianceAnalysis'
-import ControllingProductionProcessPage from '@/pages/controlling/ProductionProcess'
-import ControllingInternalCostPage from '@/pages/controlling/InternalCostManagement'
-import ControllingRoutingPage from '@/pages/controlling/Routing'
-
-// CRM pages
-import CrmDashboard from '@/pages/crm/index'
-import CrmContacts from '@/pages/crm/Contacts'
-import CrmAccounts from '@/pages/crm/Accounts'
-import CrmLeads from '@/pages/crm/Leads'
-import CrmNumberRanges from '@/pages/crm/NumberRanges'
-import CrmPipeline from '@/pages/crm/Pipeline'
-import CrmActivities from '@/pages/crm/Activities'
-import CrmInbox from '@/pages/crm/Inbox'
-import ContactQueries from '@/pages/queries/ContactQueries'
-import CrmTickets from '@/pages/crm/Tickets'
-import CrmTicketDetail from '@/pages/crm/TicketDetail'
-import CrmKnowledgeBase from '@/pages/crm/KnowledgeBase'
-import CrmSegments from '@/pages/crm/Segments'
-import CrmTemplates from '@/pages/crm/Templates'
-import DocumentTemplatesPage from '@/pages/document-templates/index'
-import SystemModulesPage from '@/pages/system/Modules'
-import SystemModelsPage from '@/pages/system/Models'
-import SystemTableDataPage from '@/pages/system/TableData'
-import SystemBrowseTablePage from '@/pages/system/BrowseTable'
 import VendorAdminRoute from './VendorAdminRoute'
-import SystemStorefrontDisplayPage from '@/pages/system/StorefrontDisplay'
-import SystemSocialLinksPage from '@/pages/system/SocialLinks'
-import CreateMessagesPage from '@/pages/system/CreateMessages'
-import SystemUpiCheckoutPage from '@/pages/system/UpiCheckout'
-import AssetsLayout from '@/pages/system/assets'
-import AssetImagesPage from '@/pages/system/assets/Images'
-import CrmCampaigns from '@/pages/crm/Campaigns'
-import CrmWorkflows from '@/pages/crm/Workflows'
-import CrmAIInsights from '@/pages/crm/AIInsights'
-import CrmIntegrations from '@/pages/crm/Integrations'
-import CrmReports from '@/pages/crm/Reports'
-import CrmAudit from '@/pages/crm/Audit'
-import CrmCareReminder from '@/pages/crm/CareReminder'
-import CrmPaymentFollowups from '@/pages/crm/PaymentFollowups'
-import CrmCreditControl from '@/pages/crm/CreditControl'
-import CrmSalesAreaDues from '@/pages/crm/SalesAreaDues'
-
-// Blog Manager
-import BlogManagerPage from '@/pages/blog/index'
-
-// Website Builder pages
-import WebsitesPage from '@/pages/websites/index'
-import WebsiteBuilder from '@/pages/websites/Builder'
-import SEOManagementPage from '@/pages/websites/SEOManagement'
-import WebsiteAnalyticsPage from '@/pages/websites/WebsiteAnalytics'
-import WebsiteSubmissions from '@/pages/websites/Submissions'
-import WebsiteTemplateGallery from '@/pages/websites/TemplateGallery'
-import StorefrontBrowserPreviewShell from '@/pages/websites/StorefrontBrowserPreviewShell'
 import LegacyBrowserPreviewRedirect from '@/pages/websites/LegacyBrowserPreviewRedirect'
 import PreviewDraftStorePathRedirect from '@/pages/websites/PreviewDraftStorePathRedirect'
 
-// Commission pages
-import CommissionLayout from '@/pages/commission/index'
-import CommissionPayees from '@/pages/commission/Payees'
-import CommissionPlans from '@/pages/commission/Plans'
-import CommissionAssignments from '@/pages/commission/Assignments'
-import CommissionAccruals from '@/pages/commission/Accruals'
-import CommissionPayouts from '@/pages/commission/Payouts'
-import CommissionReportPage from '@/pages/commission/reports/CommissionReport'
-import StoreCoveragePage from '@/pages/sales/StoreCoverage'
-import SalesManagerPage from '@/pages/sales/SalesManager'
-import SalesAreaSetupPage from '@/pages/sales/SalesAreaSetup'
-import SalesPlansPage from '@/pages/sales/Plans'
-import SalesPropertiesPage from '@/pages/sales/Properties'
-import SalesCoursesPage from '@/pages/sales/Courses'
-import SalesFitnessClassesPage from '@/pages/sales/FitnessClasses'
-import SalesVehiclesPage from '@/pages/sales/Vehicles'
-import SalesEventsPage from '@/pages/sales/Events'
-import SalesRecurringBookingsPage from '@/pages/sales/RecurringBookings'
-import SalesTestimonialsPage from '@/pages/sales/Testimonials'
-import SalesBookingWizardStepsPage from '@/pages/sales/BookingWizardSteps'
-import SalesBookingResourcesPage from '@/pages/sales/BookingResources'
-import DeliveryConditionsPage from '@/pages/sales/DeliveryConditions'
+// Lazy page modules — keeps /login from transforming the entire app in Vite
+const Login = lazy(() => import('@/pages/auth/Login'))
+const VendorHandoff = lazy(() => import('@/pages/auth/Handoff'))
+const Register = lazy(() => import('@/pages/auth/Register'))
+const SignupWelcome = lazy(() => import('@/pages/auth/SignupWelcome'))
+const ForgotPassword = lazy(() => import('@/pages/auth/ForgotPassword'))
+const Dashboard = lazy(() => import('@/pages/dashboard/index'))
+const Orders = lazy(() => import('@/pages/orders/index'))
+const QuotationsPage = lazy(() => import('@/pages/quotations/index'))
+const OrderDetail = lazy(() => import('@/pages/orders/OrderDetail'))
+const OrderAuditReport = lazy(() => import('@/pages/orders/OrderAuditReport'))
+const Products = lazy(() => import('@/pages/products/index'))
+const ProductForm = lazy(() => import('@/pages/products/ProductForm'))
+const ProductAuditReport = lazy(() => import('@/pages/products/ProductAuditReport'))
+const ProductConfiguratorPage = lazy(() => import('@/pages/products/ProductConfiguratorPage'))
+const Services = lazy(() => import('@/pages/services/index'))
+const ServiceForm = lazy(() => import('@/pages/services/ServiceForm'))
+const ServiceAuditReport = lazy(() => import('@/pages/services/ServiceAuditReport'))
+const Customers = lazy(() => import('@/pages/customers/index'))
+const CustomerDetail = lazy(() => import('@/pages/customers/CustomerDetail'))
+const ReviewsPage = lazy(() => import('@/pages/reviews/index'))
+const TeamPage = lazy(() => import('@/pages/team/index'))
+const RolesPage = lazy(() => import('@/pages/roles/index'))
+const SettingsPage = lazy(() => import('@/pages/settings/index'))
+const SupportActivityPage = lazy(() => import('@/pages/settings/SupportActivity'))
+const AboutPage = lazy(() => import('@/pages/about/index'))
+const CategoriesPage = lazy(() => import('@/pages/categories/index'))
+const ProductGroupsPage = lazy(() => import('@/pages/productGroups/index'))
+const ProductGroupDetailPage = lazy(() => import('@/pages/productGroups/ProductGroupDetail'))
+const Inventory = lazy(() => import('@/pages/inventory/index'))
+const StockCountPage = lazy(() => import('@/pages/inventory/StockCount'))
+const ExpiryDashboardPage = lazy(() => import('@/pages/inventory/ExpiryDashboard'))
+const ReservationsPage = lazy(() => import('@/pages/inventory/Reservations'))
+const TransferOrdersPage = lazy(() => import('@/pages/inventory/TransferOrders'))
+const InventoryReportsPage = lazy(() => import('@/pages/inventory/InventoryReports'))
+const InventoryAnalyticsPage = lazy(() => import('@/pages/inventory/analytics/index'))
+const StorageLocationsPage = lazy(() => import('@/pages/inventory/StorageLocations'))
+const PlantsPage = lazy(() => import('@/pages/inventory/Plants'))
+const InventorySettingsPage = lazy(() => import('@/pages/inventory/InventorySettings'))
+const POS = lazy(() => import('@/pages/pos/index'))
+const RestaurantFloorPage = lazy(() => import('@/pages/restaurant/Floor'))
+const RestaurantKitchenPage = lazy(() => import('@/pages/restaurant/Kitchen'))
+const RestaurantSetupPage = lazy(() => import('@/pages/restaurant/Setup'))
+const RestaurantPOSPage = lazy(() => import('@/pages/restaurant/RestaurantPOS'))
+const RestaurantOrderPage = lazy(() => import('@/pages/restaurant/Order'))
+const RestaurantReservationsPage = lazy(() => import('@/pages/restaurant/Reservations'))
+const RestaurantReportsPage = lazy(() => import('@/pages/restaurant/Reports'))
+const RestaurantMenuPage = lazy(() => import('@/pages/restaurant/Menu'))
+const RestaurantsPage = lazy(() => import('@/pages/restaurant/Restaurants'))
+const SubscriptionsSalesPage = lazy(() => import('@/pages/sales/Subscriptions'))
+const MarketplaceLeadsPage = lazy(() => import('@/pages/sales/MarketplaceLeads'))
+const RentalDashboardPage = lazy(() => import('@/pages/rental/RentalDashboardPage'))
+const RentalAssetsPage = lazy(() => import('@/pages/rental/RentalAssetsPage'))
+const RentalAssetFormPage = lazy(() => import('@/pages/rental/RentalAssetFormPage'))
+const RentalBookingsPage = lazy(() => import('@/pages/rental/RentalBookingsPage'))
+const RentalBookingDetailPage = lazy(() => import('@/pages/rental/RentalBookingDetailPage'))
+const RentalCalendarPage = lazy(() => import('@/pages/rental/RentalCalendarPage'))
+const RentalReturnsPage = lazy(() => import('@/pages/rental/RentalReturnsPage'))
+const RentalReportsPage = lazy(() => import('@/pages/rental/RentalReportsPage'))
+const RentalSettingsPage = lazy(() => import('@/pages/rental/RentalSettingsPage'))
+const RentalRegistrationFormsPage = lazy(() => import('@/pages/rental/RentalRegistrationFormsPage'))
+const RentalFilledRegistrationsPage = lazy(() => import('@/pages/rental/RentalFilledRegistrationsPage'))
+const InvoicesPage = lazy(() => import('@/pages/invoices/index'))
+const InvoiceDetail = lazy(() => import('@/pages/invoices/InvoiceDetail'))
+const InvoiceTemplatesPage = lazy(() => import('@/pages/invoices/InvoiceTemplates'))
+const CouponsPage = lazy(() => import('@/pages/coupons/index'))
+const ReportsPage = lazy(() => import('@/pages/reports/index'))
+const PlansPage = lazy(() => import('@/pages/plans/index'))
+const BookingsPage = lazy(() => import('@/pages/bookings/index'))
+const BookingDetail = lazy(() => import('@/pages/bookings/BookingDetail'))
+const ProjectsPage = lazy(() => import('@/pages/projects/index'))
+const ProjectDetail = lazy(() => import('@/pages/projects/ProjectDetail'))
+const NotificationsPage = lazy(() => import('@/pages/notifications/index'))
+const NotificationSettingsPage = lazy(() => import('@/pages/notifications/settings'))
+const SuppliersPage = lazy(() => import('@/pages/suppliers/index'))
+const MasterDataReport = lazy(() => import('@/pages/master-data/MasterDataReport'))
+const MasterDataNew = lazy(() => import('@/pages/master-data/MasterDataNew'))
+const PurchaseOrdersPage = lazy(() => import('@/pages/purchase-orders/index'))
+const PurchaseOrderDetail = lazy(() => import('@/pages/purchase-orders/PurchaseOrderDetail'))
+const POTemplatesPage = lazy(() => import('@/pages/purchase-orders/POTemplates'))
+const CreatePurchaseOrderPage = lazy(() => import('@/pages/purchase-orders/CreatePurchaseOrderPage'))
+const PurchaseOrderEditPage = lazy(() => import('@/pages/purchase-orders/PurchaseOrderEditPage'))
+const PurchaseRequisitionsPage = lazy(() => import('@/pages/procurement/PurchaseRequisitions'))
+const CreatePurchaseRequisitionPage = lazy(() => import('@/pages/procurement/CreatePurchaseRequisitionPage'))
+const SupplierManagementPage = lazy(() => import('@/pages/procurement/SupplierManagement'))
+const SourcingSetupPage = lazy(() => import('@/pages/procurement/SourcingSetup'))
+const VendorInvoicesAPPage = lazy(() => import('@/pages/procurement/VendorInvoicesAP'))
+const GoodsManagementPage = lazy(() => import('@/pages/procurement/GoodsManagement'))
+const MaterialValuationPage = lazy(() => import('@/pages/inventory/MaterialValuation'))
+const SpecialProcurementPage = lazy(() => import('@/pages/procurement/SpecialProcurement'))
+const ProcurementFieldConfigPage = lazy(() => import('@/pages/procurement/FieldConfig'))
+const ApprovalWorkflowPage = lazy(() => import('@/pages/procurement/ApprovalWorkflow'))
+const RFQQuotationsPage = lazy(() => import('@/pages/procurement/RFQQuotations'))
+const GoodsReceiptNotePage = lazy(() => import('@/pages/procurement/GoodsReceiptNote'))
+const PurchaseReturnsPage = lazy(() => import('@/pages/procurement/PurchaseReturns'))
+const SpendAnalyticsPage = lazy(() => import('@/pages/procurement/SpendAnalytics'))
+const ProcurementReportsPage = lazy(() => import('@/pages/procurement/reports'))
+const BudgetControlsPage = lazy(() => import('@/pages/procurement/BudgetControls'))
+const ProcurementNumberRangesPage = lazy(() => import('@/pages/procurement/NumberRanges'))
+const CreditDebitMemos = lazy(() => import('@/pages/finance/CreditDebitMemos'))
+const ProductionOrdersPage = lazy(() => import('@/pages/production/index'))
+const ProductionOrderDetailPage = lazy(() => import('@/pages/production/OrderDetail'))
+const ProductionSchedulePage = lazy(() => import('@/pages/production/Schedule'))
+const ProductionWorkCentersPage = lazy(() => import('@/pages/production/WorkCenters'))
+const ProductionMRPPage = lazy(() => import('@/pages/production/MRP'))
+const ProductionAnalyticsPage = lazy(() => import('@/pages/production/Analytics'))
+const PharmaOverviewPage = lazy(() => import('@/pages/pharma/Overview'))
+const PharmaSettingsPage = lazy(() => import('@/pages/pharma/Settings'))
+const PharmaSettingsBatchNumberingPage = lazy(() => import('@/pages/pharma/SettingsBatchNumbering'))
+const PharmaSettingsSequenceDetailPage = lazy(() => import('@/pages/pharma/SettingsSequenceDetail'))
+const PharmaSettingsEsignPage = lazy(() => import('@/pages/pharma/SettingsEsign'))
+const PharmaSettingsStoragePage = lazy(() => import('@/pages/pharma/SettingsStorage'))
+const PharmaSettingsRegulatoryPage = lazy(() => import('@/pages/pharma/SettingsRegulatory'))
+const PharmaSettingsProductsPage = lazy(() => import('@/pages/pharma/SettingsProducts'))
+const PharmaBatchDetailPage = lazy(() => import('@/pages/pharma/BatchDetail'))
+const PharmaBatchesPage = lazy(() => import('@/pages/pharma/Batches').then(m => ({ default: m.PharmaBatchesPage })))
+const PharmaMovementsPage = lazy(() => import('@/pages/pharma/Batches').then(m => ({ default: m.PharmaMovementsPage })))
+const PharmaFefoPage = lazy(() => import('@/pages/pharma/Batches').then(m => ({ default: m.PharmaFefoPage })))
+const PharmaQuarantinePage = lazy(() => import('@/pages/pharma/Batches').then(m => ({ default: m.PharmaQuarantinePage })))
+const PharmaMbrPage = lazy(() => import('@/pages/pharma/Quality').then(m => ({ default: m.PharmaMbrPage })))
+const PharmaBprPage = lazy(() => import('@/pages/pharma/Quality').then(m => ({ default: m.PharmaBprPage })))
+const PharmaQcSpecsPage = lazy(() => import('@/pages/pharma/Quality').then(m => ({ default: m.PharmaQcSpecsPage })))
+const PharmaInspectionsPage = lazy(() => import('@/pages/pharma/Quality').then(m => ({ default: m.PharmaInspectionsPage })))
+const PharmaReleasePage = lazy(() => import('@/pages/pharma/Quality').then(m => ({ default: m.PharmaReleasePage })))
+const PharmaGenealogyPage = lazy(() => import('@/pages/pharma/TraceQms').then(m => ({ default: m.PharmaGenealogyPage })))
+const PharmaRecallsPage = lazy(() => import('@/pages/pharma/TraceQms').then(m => ({ default: m.PharmaRecallsPage })))
+const PharmaComplaintsPage = lazy(() => import('@/pages/pharma/TraceQms').then(m => ({ default: m.PharmaComplaintsPage })))
+const PharmaDeviationsPage = lazy(() => import('@/pages/pharma/TraceQms').then(m => ({ default: m.PharmaDeviationsPage })))
+const PharmaCapasPage = lazy(() => import('@/pages/pharma/TraceQms').then(m => ({ default: m.PharmaCapasPage })))
+const PharmaChangeControlPage = lazy(() => import('@/pages/pharma/TraceQms').then(m => ({ default: m.PharmaChangeControlPage })))
+const PharmaAuditPage = lazy(() => import('@/pages/pharma/TraceQms').then(m => ({ default: m.PharmaAuditPage })))
+const PharmaSerializationPage = lazy(() => import('@/pages/pharma/TraceQms').then(m => ({ default: m.PharmaSerializationPage })))
+const PharmaGdpPage = lazy(() => import('@/pages/pharma/StageC').then(m => ({ default: m.PharmaGdpPage })))
+const PharmaTrackTracePage = lazy(() => import('@/pages/pharma/StageC').then(m => ({ default: m.PharmaTrackTracePage })))
+const PharmaWholesaleLicensePage = lazy(() => import('@/pages/pharma/WholesaleLicense'))
+const PharmaReportingManagerPage = lazy(() => import('@/pages/pharma/ReportingManager'))
+const StoresPage = lazy(() => import('@/pages/stores/index'))
+const ProfilePage = lazy(() => import('@/pages/profile/index'))
+const RelationshipManagerPage = lazy(() => import('@/pages/relationship-manager/index'))
+const HRDepartmentsPage = lazy(() => import('@/pages/hr/departments'))
+const HRDesignationsPage = lazy(() => import('@/pages/hr/designations'))
+const HREmployeesPage = lazy(() => import('@/pages/hr/employees/index'))
+const HREmployeeDetailPage = lazy(() => import('@/pages/hr/employees/EmployeeDetail'))
+const HRAttendancePage = lazy(() => import('@/pages/hr/attendance/index'))
+const MyAttendancePage = lazy(() => import('@/pages/hr/attendance/MyAttendance'))
+const AttendanceReportPage = lazy(() => import('@/pages/hr/attendance/AttendanceReport'))
+const FieldTrackingPage = lazy(() => import('@/pages/hr/tracking/index'))
+const HRLeaveRequestsPage = lazy(() => import('@/pages/hr/leaves/index'))
+const LeavePoliciesPage = lazy(() => import('@/pages/hr/leaves/Policies'))
+const HolidaysPage = lazy(() => import('@/pages/hr/leaves/Holidays'))
+const MyLeavesPage = lazy(() => import('@/pages/hr/leaves/MyLeaves'))
+const HRSalaryPage = lazy(() => import('@/pages/hr/salary/index'))
+const HRPayrollPage = lazy(() => import('@/pages/hr/payroll/index'))
+const HRPayrollDetailPage = lazy(() => import('@/pages/hr/payroll/PayrollDetail'))
+const HROffersPage = lazy(() => import('@/pages/hr/offers/index'))
+const HROfferTemplatesPage = lazy(() => import('@/pages/hr/offers/Templates'))
+const HRRecruitmentPage = lazy(() => import('@/pages/hr/recruitment/index'))
+const HRJobDetailPage = lazy(() => import('@/pages/hr/recruitment/JobDetail'))
+const HROnboardingPage = lazy(() => import('@/pages/hr/onboarding/index'))
+const MyOnboardingPage = lazy(() => import('@/pages/hr/onboarding/MyOnboarding'))
+const HRPerformancePage = lazy(() => import('@/pages/hr/performance/index'))
+const HRCycleDetailPage = lazy(() => import('@/pages/hr/performance/CycleDetail'))
+const HRReviewDetailPage = lazy(() => import('@/pages/hr/performance/ReviewDetail'))
+const MyPerformancePage = lazy(() => import('@/pages/hr/performance/MyPerformance'))
+const HRCompliancePage = lazy(() => import('@/pages/hr/compliance/index'))
+const HRPolicyDetailPage = lazy(() => import('@/pages/hr/compliance/PolicyDetail'))
+const MyPoliciesPage = lazy(() => import('@/pages/hr/compliance/MyPolicies'))
+const HRTrainingPage = lazy(() => import('@/pages/hr/training/index'))
+const HRProgramDetailPage = lazy(() => import('@/pages/hr/training/ProgramDetail'))
+const MyTrainingPage = lazy(() => import('@/pages/hr/training/MyTraining'))
+const CourseLearningPage = lazy(() => import('@/pages/hr/training/CourseLearning'))
+const MyESSPage = lazy(() => import('@/pages/hr/ess/MyESS'))
+const HRAnnouncementsPage = lazy(() => import('@/pages/hr/announcements/index'))
+const MyAnnouncementsPage = lazy(() => import('@/pages/hr/announcements/MyAnnouncements'))
+const HRExpensesPage = lazy(() => import('@/pages/hr/expenses/index'))
+const MyExpensesPage = lazy(() => import('@/pages/hr/expenses/MyExpenses'))
+const HRHelpdeskPage = lazy(() => import('@/pages/hr/helpdesk/index'))
+const MyTicketsPage = lazy(() => import('@/pages/hr/helpdesk/MyTickets'))
+const HRTicketDetailPage = lazy(() => import('@/pages/hr/helpdesk/TicketDetail'))
+const FinanceDashboard = lazy(() => import('@/pages/finance/index'))
+const FinanceBasic = lazy(() => import('@/pages/finance/BasicFinance'))
+const FinanceCostCenters = lazy(() => import('@/pages/finance/CostCenters'))
+const FinanceCOA = lazy(() => import('@/pages/finance/ChartOfAccounts'))
+const FinanceJournal = lazy(() => import('@/pages/finance/JournalEntries'))
+const FinanceTrialBalance = lazy(() => import('@/pages/finance/TrialBalance'))
+const FinanceAR = lazy(() => import('@/pages/finance/AccountsReceivable'))
+const FinanceOpenItems = lazy(() => import('@/pages/finance/OpenItems'))
+const FinanceStatementVersions = lazy(() => import('@/pages/finance/FinancialStatementVersions'))
+const FinancePostingControls = lazy(() => import('@/pages/finance/PostingControls'))
+const FinanceProfitCenters = lazy(() => import('@/pages/finance/ProfitCenters'))
+const FinanceFxRevaluation = lazy(() => import('@/pages/finance/FxRevaluation'))
+const FinancePostingRules = lazy(() => import('@/pages/finance/PostingRules'))
+const FinanceDocumentSplitting = lazy(() => import('@/pages/finance/DocumentSplitting'))
+const FinanceParallelLedgers = lazy(() => import('@/pages/finance/ParallelLedgers'))
+const FinanceAP = lazy(() => import('@/pages/finance/AccountsPayable'))
+const FinanceBank = lazy(() => import('@/pages/finance/BankCash'))
+const FinanceBudgets = lazy(() => import('@/pages/finance/BudgetsForecast'))
+const FinanceAssets = lazy(() => import('@/pages/finance/FixedAssets'))
+const FinanceAssetReports = lazy(() => import('@/pages/finance/AssetReports'))
+const FinanceAssetDepreciationSchedule = lazy(() => import('@/pages/finance/AssetDepreciationSchedule'))
+const FinanceAssetGlReconciliation = lazy(() => import('@/pages/finance/AssetGlReconciliation'))
+const FinanceTax = lazy(() => import('@/pages/finance/TaxReturns'))
+const FinancePnL = lazy(() => import('@/pages/finance/reports/ProfitLoss'))
+const FinanceBalanceSheet = lazy(() => import('@/pages/finance/reports/BalanceSheet'))
+const FinanceCashFlow = lazy(() => import('@/pages/finance/reports/CashFlow'))
+const FinanceCostAnalysis = lazy(() => import('@/pages/finance/reports/CostAnalysis'))
+const FinanceGLReport = lazy(() => import('@/pages/finance/reports/GLReport'))
+const FinanceCapital = lazy(() => import('@/pages/finance/Capital'))
+const FinanceApprovals = lazy(() => import('@/pages/finance/Approvals'))
+const FinanceAudit = lazy(() => import('@/pages/finance/AuditLog'))
+const FinancePeriodControl = lazy(() => import('@/pages/finance/PeriodControl'))
+const FinanceFieldRuleConfig = lazy(() => import('@/pages/finance/FieldRuleConfig'))
+const FinancePaymentTerms = lazy(() => import('@/pages/finance/PaymentTerms'))
+const COLayout = lazy(() => import('@/layouts/COLayout'))
+const ControllingDashboardPage = lazy(() => import('@/pages/controlling/index'))
+const ControllingProductCostsPage = lazy(() => import('@/pages/controlling/ProductCosts'))
+const ControllingManufacturingOrdersPage = lazy(() => import('@/pages/controlling/ManufacturingOrders'))
+const ControllingSetupPage = lazy(() => import('@/pages/controlling/Setup'))
+const ControllingActivityTypesPage = lazy(() => import('@/pages/controlling/ActivityTypes'))
+const ControllingFinanceIntegrationPage = lazy(() => import('@/pages/controlling/FinanceIntegration'))
+const ControllingAreasPage = lazy(() => import('@/pages/controlling/ControllingAreas'))
+const ControllingManufacturingOrderDetail = lazy(() => import('@/pages/controlling/ManufacturingOrderDetail'))
+const ControllingWipReport = lazy(() => import('@/pages/controlling/WipReport'))
+const ControllingGoodsMovementsPage = lazy(() => import('@/pages/controlling/GoodsMovements'))
+const ControllingActivityConfirmationsPage = lazy(() => import('@/pages/controlling/ActivityConfirmations'))
+const ControllingCostAllocationsPage = lazy(() => import('@/pages/controlling/CostAllocations'))
+const ControllingPeriodEndPage = lazy(() => import('@/pages/controlling/PeriodEnd'))
+const ControllingInternalOrdersPage = lazy(() => import('@/pages/controlling/InternalOrders'))
+const ControllingCostBookingsPage = lazy(() => import('@/pages/controlling/CostBookings'))
+const ControllingVarianceAnalysisPage = lazy(() => import('@/pages/controlling/VarianceAnalysis'))
+const ControllingProductionProcessPage = lazy(() => import('@/pages/controlling/ProductionProcess'))
+const ControllingInternalCostPage = lazy(() => import('@/pages/controlling/InternalCostManagement'))
+const ControllingRoutingPage = lazy(() => import('@/pages/controlling/Routing'))
+const CrmDashboard = lazy(() => import('@/pages/crm/index'))
+const CrmContacts = lazy(() => import('@/pages/crm/Contacts'))
+const CrmAccounts = lazy(() => import('@/pages/crm/Accounts'))
+const CrmLeads = lazy(() => import('@/pages/crm/Leads'))
+const CrmNumberRanges = lazy(() => import('@/pages/crm/NumberRanges'))
+const CrmPipeline = lazy(() => import('@/pages/crm/Pipeline'))
+const CrmActivities = lazy(() => import('@/pages/crm/Activities'))
+const CrmInbox = lazy(() => import('@/pages/crm/Inbox'))
+const ContactQueries = lazy(() => import('@/pages/queries/ContactQueries'))
+const CrmTickets = lazy(() => import('@/pages/crm/Tickets'))
+const CrmTicketDetail = lazy(() => import('@/pages/crm/TicketDetail'))
+const CrmKnowledgeBase = lazy(() => import('@/pages/crm/KnowledgeBase'))
+const CrmSegments = lazy(() => import('@/pages/crm/Segments'))
+const CrmTemplates = lazy(() => import('@/pages/crm/Templates'))
+const DocumentTemplatesPage = lazy(() => import('@/pages/document-templates/index'))
+const SystemModulesPage = lazy(() => import('@/pages/system/Modules'))
+const SystemModelsPage = lazy(() => import('@/pages/system/Models'))
+const SystemTableDataPage = lazy(() => import('@/pages/system/TableData'))
+const SystemBrowseTablePage = lazy(() => import('@/pages/system/BrowseTable'))
+const SystemStorefrontDisplayPage = lazy(() => import('@/pages/system/StorefrontDisplay'))
+const SystemSocialLinksPage = lazy(() => import('@/pages/system/SocialLinks'))
+const CreateMessagesPage = lazy(() => import('@/pages/system/CreateMessages'))
+const SystemUpiCheckoutPage = lazy(() => import('@/pages/system/UpiCheckout'))
+const AssetsLayout = lazy(() => import('@/pages/system/assets'))
+const AssetImagesPage = lazy(() => import('@/pages/system/assets/Images'))
+const CrmCampaigns = lazy(() => import('@/pages/crm/Campaigns'))
+const CrmWorkflows = lazy(() => import('@/pages/crm/Workflows'))
+const CrmAIInsights = lazy(() => import('@/pages/crm/AIInsights'))
+const CrmIntegrations = lazy(() => import('@/pages/crm/Integrations'))
+const CrmReports = lazy(() => import('@/pages/crm/Reports'))
+const CrmAudit = lazy(() => import('@/pages/crm/Audit'))
+const CrmCareReminder = lazy(() => import('@/pages/crm/CareReminder'))
+const CrmPaymentFollowups = lazy(() => import('@/pages/crm/PaymentFollowups'))
+const CrmCreditControl = lazy(() => import('@/pages/crm/CreditControl'))
+const CrmSalesAreaDues = lazy(() => import('@/pages/crm/SalesAreaDues'))
+const BlogManagerPage = lazy(() => import('@/pages/blog/index'))
+const WebsitesPage = lazy(() => import('@/pages/websites/index'))
+const WebsiteBuilder = lazy(() => import('@/pages/websites/Builder'))
+const SEOManagementPage = lazy(() => import('@/pages/websites/SEOManagement'))
+const WebsiteAnalyticsPage = lazy(() => import('@/pages/websites/WebsiteAnalytics'))
+const WebsiteSubmissions = lazy(() => import('@/pages/websites/Submissions'))
+const WebsiteTemplateGallery = lazy(() => import('@/pages/websites/TemplateGallery'))
+const StorefrontBrowserPreviewShell = lazy(() => import('@/pages/websites/StorefrontBrowserPreviewShell'))
+const CommissionLayout = lazy(() => import('@/pages/commission/index'))
+const CommissionPayees = lazy(() => import('@/pages/commission/Payees'))
+const CommissionPlans = lazy(() => import('@/pages/commission/Plans'))
+const CommissionAssignments = lazy(() => import('@/pages/commission/Assignments'))
+const CommissionAccruals = lazy(() => import('@/pages/commission/Accruals'))
+const CommissionPayouts = lazy(() => import('@/pages/commission/Payouts'))
+const CommissionReportPage = lazy(() => import('@/pages/commission/reports/CommissionReport'))
+const StoreCoveragePage = lazy(() => import('@/pages/sales/StoreCoverage'))
+const SalesManagerPage = lazy(() => import('@/pages/sales/SalesManager'))
+const SalesAreaSetupPage = lazy(() => import('@/pages/sales/SalesAreaSetup'))
+const SalesPlansPage = lazy(() => import('@/pages/sales/Plans'))
+const SalesPropertiesPage = lazy(() => import('@/pages/sales/Properties'))
+const SalesCoursesPage = lazy(() => import('@/pages/sales/Courses'))
+const SalesFitnessClassesPage = lazy(() => import('@/pages/sales/FitnessClasses'))
+const SalesVehiclesPage = lazy(() => import('@/pages/sales/Vehicles'))
+const SalesEventsPage = lazy(() => import('@/pages/sales/Events'))
+const SalesRecurringBookingsPage = lazy(() => import('@/pages/sales/RecurringBookings'))
+const SalesTestimonialsPage = lazy(() => import('@/pages/sales/Testimonials'))
+const SalesBookingWizardStepsPage = lazy(() => import('@/pages/sales/BookingWizardSteps'))
+const SalesBookingResourcesPage = lazy(() => import('@/pages/sales/BookingResources'))
+const DeliveryConditionsPage = lazy(() => import('@/pages/sales/DeliveryConditions'))
 
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 

@@ -22,6 +22,8 @@ import type { Order } from '@/types'
 import { Search, Eye, Loader2, Globe, Monitor, CalendarDays, Download, X, MessageSquare, BarChart3, Lock, Plus } from 'lucide-react'
 import { CreateBookingModal } from '@/pages/bookings/CreateBookingModal'
 import { CreateOrderModal } from './CreateOrderModal'
+import { useSidebarAppInstalled } from '@/hooks/useSidebarAppInstalled'
+import { isPosNavVisible } from '@/lib/vendorModuleSettings'
 const statusFilters = [
   { label: 'All', value: '' },
   { label: 'Quote Requests', value: 'quote_requested' },
@@ -121,7 +123,11 @@ const bulkStatusOptions = [
 
 export default function Orders() {
   const navigate = useNavigate()
-  const { selectedStore } = useVendorStore()
+  const { selectedStore, vendor } = useVendorStore()
+  const salesAppInstalled = useSidebarAppInstalled('sales')
+  const posVisible =
+    salesAppInstalled &&
+    isPosNavVisible(vendor?.settings as Record<string, unknown> | undefined, vendor?.offering_type)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [statusFilter, setStatusFilter] = useState('')
@@ -262,9 +268,11 @@ export default function Orders() {
           <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowCreateOrder(true)}>
             <Plus className="h-3.5 w-3.5" /> Create Order
           </Button>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => navigate('/pos')}>
-            <Monitor className="h-3.5 w-3.5" /> Open POS
-          </Button>
+          {posVisible && (
+            <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => navigate('/pos')}>
+              <Monitor className="h-3.5 w-3.5" /> Open POS
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setShowCreateBooking(true)}>
             <CalendarDays className="h-3.5 w-3.5" /> Bookings
           </Button>
@@ -305,7 +313,9 @@ export default function Orders() {
             </div>
             <div className="flex flex-wrap items-center gap-1">
               <span className="mr-0.5 shrink-0 text-[11px] font-medium text-muted-foreground">Source</span>
-              {sourceFilters.map((f) => (
+              {sourceFilters
+                .filter((f) => f.value !== 'pos' || posVisible)
+                .map((f) => (
                 <Button
                   key={f.value}
                   variant={sourceFilter === f.value ? 'default' : 'outline'}

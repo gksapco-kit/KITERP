@@ -14,6 +14,7 @@ import {
   useHREmployee, useUpdateHREmployee, useHRDepartments, useHRDesignations,
   useHRLeaveBalances, useHRSalaryStructures, useHRMyPayslips,
   useCreateHRSalaryStructure, useSubmitLeaveRequest, useHRLeavePolicies,
+  useUpsertHRLeaveBalance, useHRHolidayCalendars,
   useHREmployees, useSetHREmployeePortalPassword,
 } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
@@ -22,7 +23,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 import { EmployeeTabBar } from './EmployeeTabBar'
-import { resolveEmployeeTab, type EmployeeTabId } from './employeeMasterTabs'
+import { EmployeeTabPanel, resolveEmployeeTab, type EmployeeTabId } from './employeeMasterTabs'
 import { IdentityTab } from './EmployeeMasterTabPanels'
 import {
   AddressesTab,
@@ -295,6 +296,8 @@ function FamilyMembersSection({ emp, editing, onSave }: { emp: any; editing: boo
 
 function EmploymentTab({ emp, departments, designations, onSave }: { emp: any; departments: any[]; designations: any[]; onSave: (data: Record<string, unknown>) => void }) {
   const [editing, setEditing] = useState(false)
+  const { data: calendarsRaw = [] } = useHRHolidayCalendars()
+  const calendars = calendarsRaw as any[]
   const [form, setForm] = useState({
     department_id: emp.department_id ?? '',
     designation_id: emp.designation_id ?? '',
@@ -303,6 +306,7 @@ function EmploymentTab({ emp, departments, designations, onSave }: { emp: any; d
     probation_end_date: emp.probation_end_date ?? '',
     notice_period_days: emp.notice_period_days ?? 30,
     status: emp.status ?? 'active',
+    holiday_calendar_id: emp.holiday_calendar_id ?? '',
   })
 
   return (
@@ -312,7 +316,7 @@ function EmploymentTab({ emp, departments, designations, onSave }: { emp: any; d
         {editing ? (
           <div className="flex gap-2">
             <button onClick={() => setEditing(false)} className="btn-cancel px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
-            <button onClick={() => { onSave(form); setEditing(false) }} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Save</button>
+            <button onClick={() => { onSave({ ...form, holiday_calendar_id: form.holiday_calendar_id || null }); setEditing(false) }} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">Save</button>
           </div>
         ) : (
           <button onClick={() => setEditing(true)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Edit</button>
@@ -400,6 +404,24 @@ function EmploymentTab({ emp, departments, designations, onSave }: { emp: any; d
           <p className="text-xs font-medium text-gray-500 mb-1">Notice Period (days)</p>
           {editing ? <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.notice_period_days} onChange={e => setForm(f => ({ ...f, notice_period_days: parseInt(e.target.value) || 30 }))} />
             : <p className="text-sm text-gray-900">{emp.notice_period_days ?? 30} days</p>}
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-500 mb-1">Holiday Calendar</p>
+          {editing ? (
+            <Select
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              value={form.holiday_calendar_id}
+              onChange={v => setForm(f => ({ ...f, holiday_calendar_id: v }))}
+              options={[
+                { value: '', label: '— Use Default —' },
+                ...calendars.map((c: any) => ({ value: c.id, label: c.name + (c.is_default ? ' (default)' : '') })),
+              ]}
+            />
+          ) : (
+            <p className="text-sm text-gray-900">
+              {emp.holiday_calendar?.name ?? (calendars.find((c: any) => c.is_default)?.name ? `${calendars.find((c: any) => c.is_default)?.name} (default)` : '—')}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -830,38 +852,192 @@ function DocumentsTab({ empId }: { empId: string }) {
   )
 }
 
+function EligibilityForm({
+  empId,
+  year,
+  existing,
+  policies,
+  onClose,
+}: {
+  empId: string
+  year: number
+  existing?: any
+  policies: any[]
+  onClose: () => void
+}) {
+  const upsert = useUpsertHRLeaveBalance(empId, year)
+  const [form, setForm] = useState({
+    leave_policy_id: existing?.leave_policy_id ?? '',
+    allocated: existing ? Number(existing.allocated) : 0,
+    carried_forward: existing ? Number(existing.carried_forward) : 0,
+  })
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await upsert.mutateAsync({ employee_id: empId, year, ...form, allocated: Number(form.allocated), carried_forward: Number(form.carried_forward) })
+    onClose()
+  }
+
+  const availablePolicies = existing
+    ? policies
+    : policies.filter((p: any) => p.is_active)
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+      <h4 className="font-medium text-sm text-amber-900">{existing ? 'Edit Eligibility' : 'Add Leave Eligibility'}</h4>
+      <div className="grid grid-cols-2 gap-3">
+        {!existing && (
+          <div className="col-span-2">
+            <Label className="block text-xs font-medium text-gray-600 mb-1">Leave Type</Label>
+            <Select
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+              value={form.leave_policy_id}
+              onChange={v => setForm(f => ({ ...f, leave_policy_id: v }))}
+              options={[
+                { value: '', label: '— Select —' },
+                ...availablePolicies.map((p: any) => ({ value: p.id, label: p.name })),
+              ]}
+            />
+          </div>
+        )}
+        <div>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">Allocated Days</Label>
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            required
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 outline-none"
+            value={form.allocated}
+            onChange={e => setForm(f => ({ ...f, allocated: parseFloat(e.target.value) || 0 }))}
+          />
+        </div>
+        <div>
+          <Label className="block text-xs font-medium text-gray-600 mb-1">Carry Forward</Label>
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 outline-none"
+            value={form.carried_forward}
+            onChange={e => setForm(f => ({ ...f, carried_forward: parseFloat(e.target.value) || 0 }))}
+          />
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onClose} className="btn-cancel px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
+        <button type="submit" disabled={upsert.isPending || (!existing && !form.leave_policy_id)} className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50">
+          {upsert.isPending ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function LeavesTab({ empId }: { empId: string }) {
-  const { data: balances = [] } = useHRLeaveBalances(empId)
+  const currentYear = new Date().getFullYear()
+  const [year, setYear] = useState(currentYear)
+  const { data: balances = [] } = useHRLeaveBalances(empId, year)
   const { data: policies = [] } = useHRLeavePolicies()
   const submit = useSubmitLeaveRequest()
-  const [showForm, setShowForm] = useState(false)
+  const [showRequestForm, setShowRequestForm] = useState(false)
+  const [editingBalance, setEditingBalance] = useState<any | null>(null)
+  const [showAddEligibility, setShowAddEligibility] = useState(false)
   const [form, setForm] = useState({ leave_policy_id: '', from_date: '', to_date: '', days: 1, reason: '' })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     await submit.mutateAsync({ ...form, days: Number(form.days) })
-    setShowForm(false)
+    setShowRequestForm(false)
   }
+
+  const years = [currentYear - 1, currentYear, currentYear + 1]
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-gray-900">Leave Balances</h3>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
-          <Plus className="w-3.5 h-3.5" /> Apply Leave
-        </button>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-gray-900">Leave Balances</h3>
+          <select
+            className="border rounded-lg px-2 py-1 text-sm text-gray-600"
+            value={year}
+            onChange={e => setYear(Number(e.target.value))}
+          >
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setShowAddEligibility(v => !v); setEditingBalance(null); setShowRequestForm(false) }}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm border border-amber-400 text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100"
+          >
+            <Pencil className="w-3.5 h-3.5" /> Set Eligibility
+          </button>
+          <button
+            onClick={() => { setShowRequestForm(v => !v); setShowAddEligibility(false); setEditingBalance(null) }}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90"
+          >
+            <Plus className="w-3.5 h-3.5" /> Apply Leave
+          </button>
+        </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-        {balances.map((b: any) => (
-          <div key={b.id} className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-            <p className="text-xs font-medium text-blue-700">{b.leave_policy?.name ?? b.leave_policy_id}</p>
-            <p className="text-2xl font-bold text-blue-900 mt-1">{b.available?.toFixed(1)}</p>
-            <p className="text-xs text-blue-600">of {b.allocated} days available</p>
+
+      {/* Balance cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+        {(balances as any[]).map((b: any) => (
+          <div
+            key={b.id}
+            className={`relative rounded-xl p-3 border ${editingBalance?.id === b.id ? 'border-amber-400 bg-amber-50' : 'bg-blue-50 border-blue-100'}`}
+          >
+            <button
+              title="Edit eligibility"
+              onClick={() => { setEditingBalance(editingBalance?.id === b.id ? null : b); setShowAddEligibility(false); setShowRequestForm(false) }}
+              className="absolute top-2 right-2 p-1 text-gray-400 hover:text-amber-600 rounded"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+            <p className="text-xs font-medium text-blue-700 pr-5">{b.leave_policy?.name ?? b.leave_policy_id}</p>
+            <p className="text-2xl font-bold text-blue-900 mt-1">{Number(b.available ?? 0).toFixed(1)}</p>
+            <p className="text-xs text-blue-600">of {Number(b.allocated).toFixed(0)} allocated</p>
+            {Number(b.carried_forward) > 0 && (
+              <p className="text-xs text-blue-400">+{Number(b.carried_forward).toFixed(0)} carried</p>
+            )}
+            <p className="text-xs text-blue-400">{Number(b.used).toFixed(0)} used</p>
           </div>
         ))}
-        {balances.length === 0 && <p className="text-sm text-gray-400 col-span-3">No leave balances configured.</p>}
+        {balances.length === 0 && (
+          <p className="text-sm text-gray-400 col-span-3">No leave balances for {year}. Use "Set Eligibility" to configure.</p>
+        )}
       </div>
-      {showForm && (
+
+      {/* Edit existing balance inline */}
+      {editingBalance && (
+        <div className="mb-4">
+          <EligibilityForm
+            empId={empId}
+            year={year}
+            existing={editingBalance}
+            policies={policies as any[]}
+            onClose={() => setEditingBalance(null)}
+          />
+        </div>
+      )}
+
+      {/* Add new eligibility (for a policy not yet having a balance) */}
+      {showAddEligibility && (
+        <div className="mb-4">
+          <EligibilityForm
+            empId={empId}
+            year={year}
+            policies={policies as any[]}
+            onClose={() => setShowAddEligibility(false)}
+          />
+        </div>
+      )}
+
+      {/* Leave request form */}
+      {showRequestForm && (
         <form onSubmit={handleSubmit} className="bg-gray-50 rounded-xl border p-4 space-y-3">
           <h4 className="font-medium text-sm">New Leave Request</h4>
           <div className="grid grid-cols-2 gap-3">
@@ -873,7 +1049,7 @@ function LeavesTab({ empId }: { empId: string }) {
                 onChange={v => setForm(f => ({ ...f, leave_policy_id: v }))}
                 options={[
                   { value: '', label: '— Select —' },
-                  ...policies.map((p: any) => ({ value: p.id, label: p.name })),
+                  ...(policies as any[]).map((p: any) => ({ value: p.id, label: p.name })),
                 ]}
               />
             </div>
@@ -895,7 +1071,7 @@ function LeavesTab({ empId }: { empId: string }) {
             <textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setShowForm(false)} className="btn-cancel px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
+            <button type="button" onClick={() => setShowRequestForm(false)} className="btn-cancel px-3 py-1.5 text-sm border rounded-lg">Cancel</button>
             <button type="submit" disabled={submit.isPending} className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg disabled:opacity-50">Submit</button>
           </div>
         </form>
@@ -2023,23 +2199,55 @@ export default function EmployeeDetailPage() {
   const { data: designations = [] } = useHRDesignations()
   const updateEmployee = useUpdateHREmployee()
   const [activeTab, setActiveTab] = useState<EmployeeTabId>(() => resolveEmployeeTab(searchParams.get('tab')))
+  const [visitedTabs, setVisitedTabs] = useState<Set<EmployeeTabId>>(() => new Set([resolveEmployeeTab(searchParams.get('tab'))]))
   const [editing, setEditing] = useState(false)
   const [pendingChanges, setPendingChanges] = useState<Record<string, unknown>>({})
+  const [formEpoch, setFormEpoch] = useState(0)
   const isSaving = updateEmployee.isPending
 
+  const draftEmp = useMemo(
+    () => ({ ...(emp as Record<string, unknown> | undefined), ...pendingChanges }),
+    [emp, pendingChanges],
+  )
+
   useEffect(() => {
-    setActiveTab(resolveEmployeeTab(searchParams.get('tab')))
+    const tab = resolveEmployeeTab(searchParams.get('tab'))
+    setActiveTab(tab)
+    setVisitedTabs(prev => (prev.has(tab) ? prev : new Set(prev).add(tab)))
   }, [searchParams])
 
-  // Reset pending changes when emp reloads (after a save)
+  const lastEmpIdRef = useRef<string | undefined>(undefined)
+  const lastUpdatedAtRef = useRef<string | undefined>(undefined)
   useEffect(() => {
+    if (!emp?.id) return
+    const empId = String(emp.id)
+    const updatedAt = String(emp.updated_at ?? '')
+    const idChanged = lastEmpIdRef.current !== empId
+    const savedChanged = lastUpdatedAtRef.current !== updatedAt
+    if (lastEmpIdRef.current === undefined) {
+      lastEmpIdRef.current = empId
+      lastUpdatedAtRef.current = updatedAt
+      return
+    }
+    lastEmpIdRef.current = empId
+    lastUpdatedAtRef.current = updatedAt
+    if (!idChanged && !savedChanged) return
     setPendingChanges({})
     setEditing(false)
-  }, [emp?.updated_at])
+    setFormEpoch(n => n + 1)
+    if (idChanged) {
+      setVisitedTabs(new Set([resolveEmployeeTab(searchParams.get('tab'))]))
+    }
+  }, [emp?.id, emp?.updated_at, searchParams])
 
   function setTab(tab: EmployeeTabId) {
     setActiveTab(tab)
-    setSearchParams({ tab }, { replace: true })
+    setVisitedTabs(prev => (prev.has(tab) ? prev : new Set(prev).add(tab)))
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.set('tab', tab)
+      return next
+    }, { replace: true })
   }
 
   function collect(data: Record<string, unknown>) {
@@ -2067,6 +2275,7 @@ export default function EmployeeDetailPage() {
   function handleCancelEdit() {
     setEditing(false)
     setPendingChanges({})
+    setFormEpoch(n => n + 1)
   }
 
   // For credentials / ops tabs that still do their own save (passwords, leaves, etc.)
@@ -2088,6 +2297,8 @@ export default function EmployeeDetailPage() {
 
   // Master tabs support global edit; ops tabs handle their own editing
   const isMasterTab = ['identity', 'credentials', 'addresses', 'bank', 'kyc', 'personal', 'family', 'notes'].includes(activeTab)
+  const showPanel = (tab: EmployeeTabId) => activeTab === tab || visitedTabs.has(tab)
+  const tabSource = draftEmp as Record<string, unknown>
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -2193,47 +2404,83 @@ export default function EmployeeDetailPage() {
 
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <EmployeeTabBar activeTab={activeTab} onTabChange={setTab} />
-        <div className="p-6">
-          {activeTab === 'identity' && (
-            <IdentityTab
-              emp={emp as Record<string, unknown>}
-              editing={editing}
-              onChange={collect}
-              departments={departments}
-              designations={designations}
-            />
+        <div key={`${emp.id}:${formEpoch}`} className="p-6">
+          {showPanel('identity') && (
+            <EmployeeTabPanel active={activeTab === 'identity'}>
+              <IdentityTab
+                emp={tabSource}
+                editing={editing}
+                onChange={collect}
+                departments={departments}
+                designations={designations}
+              />
+            </EmployeeTabPanel>
           )}
-          {activeTab === 'credentials' && (
-            <EmployeeCredentialsTab
-              emp={emp as Record<string, unknown>}
-              editing={editing}
-              onSave={handleDirectSave}
-              empId={String(emp.id)}
-            />
+          {showPanel('credentials') && (
+            <EmployeeTabPanel active={activeTab === 'credentials'}>
+              <EmployeeCredentialsTab
+                emp={tabSource}
+                editing={editing}
+                onSave={handleDirectSave}
+                empId={String(emp.id)}
+              />
+            </EmployeeTabPanel>
           )}
-          {activeTab === 'addresses' && (
-            <AddressesTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          {showPanel('addresses') && (
+            <EmployeeTabPanel active={activeTab === 'addresses'}>
+              <AddressesTab emp={tabSource} editing={editing} onChange={collect} />
+            </EmployeeTabPanel>
           )}
-          {activeTab === 'bank' && (
-            <BankTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          {showPanel('bank') && (
+            <EmployeeTabPanel active={activeTab === 'bank'}>
+              <BankTab emp={tabSource} editing={editing} onChange={collect} />
+            </EmployeeTabPanel>
           )}
-          {activeTab === 'kyc' && (
-            <KycTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          {showPanel('kyc') && (
+            <EmployeeTabPanel active={activeTab === 'kyc'}>
+              <KycTab emp={tabSource} editing={editing} onChange={collect} />
+            </EmployeeTabPanel>
           )}
-          {activeTab === 'personal' && (
-            <EmployeePersonalTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          {showPanel('personal') && (
+            <EmployeeTabPanel active={activeTab === 'personal'}>
+              <EmployeePersonalTab emp={tabSource} editing={editing} onChange={collect} />
+            </EmployeeTabPanel>
           )}
-          {activeTab === 'family' && (
-            <FamilyTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          {showPanel('family') && (
+            <EmployeeTabPanel active={activeTab === 'family'}>
+              <FamilyTab emp={tabSource} editing={editing} onChange={collect} />
+            </EmployeeTabPanel>
           )}
-          {activeTab === 'notes' && (
-            <NotesTab emp={emp as Record<string, unknown>} editing={editing} onChange={collect} />
+          {showPanel('notes') && (
+            <EmployeeTabPanel active={activeTab === 'notes'}>
+              <NotesTab emp={tabSource} editing={editing} onChange={collect} />
+            </EmployeeTabPanel>
           )}
-          {activeTab === 'documents' && <DocumentsTab empId={emp.id} />}
-          {activeTab === 'leaves' && <LeavesTab empId={emp.id} />}
-          {activeTab === 'salary' && <SalaryTab empId={emp.id} />}
-          {activeTab === 'payslips' && <PayslipsTab empId={emp.id} />}
-          {activeTab === 'exit' && <ExitTab emp={emp} onSave={handleDirectSave} />}
+          {showPanel('documents') && (
+            <EmployeeTabPanel active={activeTab === 'documents'}>
+              <DocumentsTab empId={emp.id} />
+            </EmployeeTabPanel>
+          )}
+          {showPanel('leaves') && (
+            <EmployeeTabPanel active={activeTab === 'leaves'}>
+              <LeavesTab empId={emp.id} />
+            </EmployeeTabPanel>
+          )}
+          {showPanel('salary') && (
+            <EmployeeTabPanel active={activeTab === 'salary'}>
+              <SalaryTab empId={emp.id} />
+            </EmployeeTabPanel>
+          )}
+          {showPanel('payslips') && (
+            <EmployeeTabPanel active={activeTab === 'payslips'}>
+              <PayslipsTab empId={emp.id} />
+            </EmployeeTabPanel>
+          )}
+          {showPanel('exit') && (
+            <EmployeeTabPanel active={activeTab === 'exit'}>
+              <ExitTab emp={emp} onSave={handleDirectSave} />
+            </EmployeeTabPanel>
+          )}
         </div>
       </div>
     </div>

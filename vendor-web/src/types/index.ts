@@ -2156,6 +2156,14 @@ export interface AttendanceRecord {
   employee?: Partial<EmployeeProfile>
 }
 
+export interface HolidayCalendar {
+  id: string
+  vendor_id: string
+  name: string
+  is_default: boolean
+  created_at: string
+}
+
 export interface LeavePolicy {
   id: string
   vendor_id: string
@@ -2166,6 +2174,8 @@ export interface LeavePolicy {
   max_carry_forward_days: number
   is_paid: boolean
   is_active: boolean
+  department_id?: string | null
+  department?: { id: string; name: string } | null
   created_at: string
 }
 
@@ -2207,6 +2217,8 @@ export interface Holiday {
   date: string
   is_optional: boolean
   year: number
+  calendar_id?: string | null
+  calendar?: HolidayCalendar | null
   created_at: string
 }
 
