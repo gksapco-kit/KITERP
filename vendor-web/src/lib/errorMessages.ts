@@ -29,6 +29,22 @@ function _sanitiseDetail(detail: string): string {
   if (d.includes('deadlock')) {
     return 'A temporary conflict occurred — please try again'
   }
+  // Raw DB driver dumps (asyncpg UndefinedColumnError, missing table/column, etc.)
+  if (
+    d.includes('undefinedcolumn')
+    || d.includes('undefinedtable')
+    || d.includes('undefinedobject')
+    || d.includes('asyncpg.exceptions')
+    || d.includes('psycopg')
+    || d.includes('<class \'')
+    || d.includes('programmingerror')
+    || d.includes('operationalerror')
+    || d.includes('does not exist')
+    || d.includes('column') && d.includes('does not exist')
+    || d.includes('relation') && d.includes('does not exist')
+  ) {
+    return 'This action cannot be completed right now. Please try again, or contact support if it continues.'
+  }
   if (d.includes('multiple rows were found') || d.includes('multipleresultsfound')) {
     return (
       'Your account matched more than one vendor record for this business (often duplicate team membership). '

@@ -220,6 +220,29 @@ def _cors_headers(origin: str) -> dict:
     }
 
 
+def _public_db_error_detail(exc: SQLAlchemyError) -> str:
+    """Never send driver/SQL dumps (asyncpg class names, missing columns) to the UI."""
+    orig = getattr(exc, "orig", None)
+    raw = f"{orig if orig is not None else exc}".lower()
+    if (
+        "does not exist" in raw
+        or "undefinedcolumn" in raw
+        or "undefinedtable" in raw
+        or "undefinedobject" in raw
+    ):
+        return (
+            "This action cannot be completed right now. "
+            "Please try again, or contact support if it continues."
+        )
+    if "unique" in raw or "duplicate" in raw or "already exists" in raw:
+        return "A record with this information already exists."
+    if "foreign key" in raw or "foreignkeyviolation" in raw:
+        return "The linked record is missing or no longer available."
+    if "not-null" in raw or "notnullviolation" in raw or "null value" in raw:
+        return "A required value was missing. Please check the form and try again."
+    return "A database error occurred. Please try again, or contact support if it continues."
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.error("Validation error on %s %s: %s", request.method, request.url.path, exc.errors())
@@ -277,14 +300,13 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
         traceback.format_exc(),
     )
     origin = request.headers.get("origin", "") or "*"
-    orig = getattr(exc, "orig", None)
-    detail = str(orig).strip() if orig is not None else str(exc).strip()
+    detail = _public_db_error_detail(exc)
     return JSONResponse(
         status_code=503,
         content={
-            "detail": detail or "Database error",
+            "detail": detail,
             "type": type(exc).__name__,
-            "message": "Database/schema issue. Run: docker compose exec backend alembic upgrade heads",
+            "message": detail,
         },
         headers=_cors_headers(origin),
     )
@@ -297,9 +319,22 @@ async def global_exception_handler(request: Request, exc: Exception):
         return await http_exception_handler(request, exc)
     logger.error("Unhandled exception on %s %s: %s\n%s", request.method, request.url.path, exc, traceback.format_exc())
     origin = request.headers.get("origin", "") or "*"
+    raw = str(exc)
+    looks_like_dump = (
+        "<class '" in raw
+        or "Traceback" in raw
+        or "asyncpg" in raw.lower()
+        or "sqlalchemy" in raw.lower()
+        or "does not exist" in raw.lower()
+    )
+    detail = (
+        "Something went wrong. Please try again, or contact support if it continues."
+        if looks_like_dump
+        else (raw.strip()[:240] or "Server error")
+    )
     return JSONResponse(
         status_code=500,
-        content={"detail": str(exc), "type": type(exc).__name__, "message": "Server error. Check backend logs."},
+        content={"detail": detail, "type": type(exc).__name__, "message": detail},
         headers=_cors_headers(origin),
     )
 

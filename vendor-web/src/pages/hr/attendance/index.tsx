@@ -465,7 +465,7 @@ function RangeMarkModal({
                 <button key={value} type="button" onClick={() => setGlobalWF(value)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
                     globalWF === value
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      ? 'bg-primary text-white border-primary shadow-sm hover:bg-primary/90'
                       : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
                   }`}>
                   <Icon className="w-3 h-3 shrink-0" />{label}

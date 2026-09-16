@@ -9,7 +9,7 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
 import {
   Plus, Pencil, Trash2, X, GraduationCap, Send, BookOpen,
-  Users as UsersIcon, Award, ExternalLink,
+  Users as UsersIcon, Award, ExternalLink, Search, Loader2,
 } from 'lucide-react'
 import {
   useHRPrograms, useCreateHRProgram, useUpdateHRProgram, useDeleteHRProgram,
@@ -314,14 +314,34 @@ function EnrollmentsTab() {
 
 function EnrollModal({
  onClose }: { onClose: () => void }) {
-  const { data: programs = [] } = useHRPrograms('published')
-  const { data: empData } = useHREmployees({ size: 200 })
+  const { data: programs = [], isLoading: programsLoading } = useHRPrograms('published')
+  const { data: empData, isLoading: employeesLoading } = useHREmployees({ status: 'active', limit: 200 })
   const enroll = useEnrollEmployees()
   const [programId, setProgramId] = useState('')
   const [employeeIds, setEmployeeIds] = useState<string[]>([])
   const [dueDate, setDueDate] = useState('')
+  const [employeeSearch, setEmployeeSearch] = useState('')
 
   const employees = ((empData as { items?: EmployeeProfile[] } | undefined)?.items) ?? []
+  const normalizedSearch = employeeSearch.trim().toLowerCase()
+  const filteredEmployees = employees.filter(emp => {
+    if (!normalizedSearch) return true
+    const name = emp.vendor_user?.user?.full_name ?? emp.full_name ?? ''
+    return [name, emp.employee_code, emp.designation?.name, emp.department?.name]
+      .filter(Boolean)
+      .some(value => String(value).toLowerCase().includes(normalizedSearch))
+  })
+  const allVisibleSelected = filteredEmployees.length > 0
+    && filteredEmployees.every(emp => employeeIds.includes(emp.id))
+
+  const toggleVisibleEmployees = () => {
+    const visibleIds = filteredEmployees.map(emp => emp.id)
+    setEmployeeIds(current => (
+      allVisibleSelected
+        ? current.filter(id => !visibleIds.includes(id))
+        : [...new Set([...current, ...visibleIds])]
+    ))
+  }
 
   const submit = () => {
     if (!programId || employeeIds.length === 0) return
@@ -344,6 +364,7 @@ function EnrollModal({
             <Select
               value={programId}
               onChange={setProgramId}
+              disabled={programsLoading}
               options={selectOptionsWithBlank('— Select published program —', (programs as TrainingProgram[]).map(p => ({
                 value: p.id,
                 label: p.name,
@@ -358,24 +379,70 @@ function EnrollModal({
               value={dueDate} onChange={e => setDueDate(e.target.value)} />
           </Field>
           <Field label={`Employees * (${employeeIds.length} selected)`}>
-            <div className="max-h-64 overflow-auto rounded-lg border border-border">
-              {employees.map(emp => (
-                <label key={emp.id} className="flex cursor-pointer items-center gap-2 border-b border-border p-2 text-sm last:border-b-0 hover:bg-muted/30">
-                  <input type="checkbox" checked={employeeIds.includes(emp.id)}
-                    onChange={e => {
-                      if (e.target.checked) setEmployeeIds([...employeeIds, emp.id])
-                      else setEmployeeIds(employeeIds.filter(x => x !== emp.id))
-                    }} />
-                  <span>{emp.vendor_user?.user?.full_name ?? emp.employee_code ?? emp.id.slice(0, 8)}</span>
-                  {emp.designation && <span className="text-xs text-muted-foreground">— {emp.designation.name}</span>}
-                </label>
-              ))}
+            <div className="overflow-hidden rounded-lg border border-border">
+              <div className="flex items-center gap-2 border-b border-border p-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="search"
+                    value={employeeSearch}
+                    onChange={event => setEmployeeSearch(event.target.value)}
+                    placeholder="Search employees…"
+                    className={`${hrInputClass} h-8 pl-8`}
+                    aria-label="Search employees"
+                  />
+                </div>
+                {filteredEmployees.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={toggleVisibleEmployees}
+                    className="shrink-0 text-xs font-medium text-primary hover:underline"
+                  >
+                    {allVisibleSelected ? 'Deselect all' : 'Select all'}
+                  </button>
+                )}
+              </div>
+              <div className="max-h-52 overflow-auto">
+                {employeesLoading ? (
+                  <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading employees…
+                  </div>
+                ) : employees.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <UsersIcon className="mx-auto mb-2 h-7 w-7 text-muted-foreground/50" />
+                    <p className="text-sm font-medium text-foreground">No active employees found</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Add an employee before creating an enrollment.</p>
+                  </div>
+                ) : filteredEmployees.length === 0 ? (
+                  <p className="p-6 text-center text-sm text-muted-foreground">No employees match your search.</p>
+                ) : filteredEmployees.map(emp => (
+                  <label key={emp.id} className="flex cursor-pointer items-center gap-2 border-b border-border p-2.5 text-sm last:border-b-0 hover:bg-muted/30">
+                    <input
+                      type="checkbox"
+                      checked={employeeIds.includes(emp.id)}
+                      onChange={event => setEmployeeIds(current => (
+                        event.target.checked
+                          ? [...current, emp.id]
+                          : current.filter(id => id !== emp.id)
+                      ))}
+                      className="accent-primary"
+                    />
+                    <span className="min-w-0 flex-1 truncate font-medium">
+                      {emp.vendor_user?.user?.full_name ?? emp.full_name ?? emp.employee_code ?? emp.id.slice(0, 8)}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {[emp.employee_code, emp.designation?.name].filter(Boolean).join(' · ')}
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
           </Field>
         </div>
         <div className="shrink-0 flex justify-end gap-2 border-t border-border p-4">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           <Button type="button" onClick={submit} disabled={!programId || employeeIds.length === 0 || enroll.isPending}>
+            {enroll.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Enroll {employeeIds.length} {employeeIds.length === 1 ? 'employee' : 'employees'}
           </Button>
         </div>

@@ -3225,7 +3225,7 @@ export function useHRSeedTestData() {
       qc.invalidateQueries({ queryKey: vendorKeys.all })
       toast.success(data?.message ?? 'Test data seeded successfully')
     },
-    onError: apiError('Could not seed test data'),
+    onError: apiError('Could not add sample employees'),
   })
 }
 

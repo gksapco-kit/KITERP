@@ -333,11 +333,12 @@ function GoalsTab() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-3 mb-3">
         <Select
           value={employeeFilter}
           onChange={setEmployeeFilter}
           className="px-3 py-2 border rounded-lg text-sm"
+          wrapperClassName="min-w-0 flex-1"
           options={[
             { value: '', label: 'All employees' },
             ...(employees as EmployeeProfile[]).map(e => ({
@@ -347,7 +348,7 @@ function GoalsTab() {
           ]}
         />
         <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
+          className="flex shrink-0 items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium">
           <Plus className="w-4 h-4" /> New Goal
         </button>
       </div>
