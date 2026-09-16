@@ -26,6 +26,7 @@ import { uomLabel } from '@/lib/uomOptions'
 import { vendorApi } from '@/api/vendor'
 import {
   Loader2, Plus, X, CheckCircle, XCircle, Send, Pencil, Clock, ArrowRightLeft, FilePlus, CopyPlus,
+  ClipboardList,
 } from 'lucide-react'
 import {
   DocumentStatusBadge,

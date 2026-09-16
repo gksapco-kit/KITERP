@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Label } from '@/components/ui/label'
-import { Plus, Trash2, Star, CalendarDays, Pencil, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
+import { Plus, Trash2, Star, CalendarDays, Pencil } from 'lucide-react'
 import {
   useHRHolidays, useCreateHoliday, useDeleteHoliday,
   useHRHolidayCalendars, useCreateHolidayCalendar, useUpdateHolidayCalendar, useDeleteHolidayCalendar,
@@ -32,38 +34,54 @@ function CalendarModal({
   const busy = create.isPending || update.isPending
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4">
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <h2 className="text-lg font-semibold">{calendar ? 'Edit Calendar' : 'New Holiday Calendar'}</h2>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="px-5 pb-5 space-y-4">
+    <ModalOverlay onClose={onClose}>
+      <ModalPanel className="max-w-md">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <ModalHeader
+            title={calendar ? 'Edit Holiday Calendar' : 'New Holiday Calendar'}
+            subtitle={
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {calendar ? 'Update the calendar name and default setting.' : 'Create a holiday calendar for a location or department.'}
+              </p>
+            }
+            onClose={onClose}
+          />
+          <ModalBody className="space-y-4">
           <div>
-            <Label className="block text-xs font-medium text-gray-600 mb-1">Calendar Name *</Label>
+            <Label className="mb-1 block text-xs font-medium text-muted-foreground" required>Calendar Name</Label>
             <input
               required
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              autoFocus
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Head Office, Factory – Chennai"
             />
           </div>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={form.is_default} onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))} className="rounded" />
-            Default calendar (used for employees without a specific assignment)
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3 text-sm hover:bg-muted/30">
+            <input
+              type="checkbox"
+              checked={form.is_default}
+              onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))}
+              className="mt-0.5 rounded accent-primary"
+            />
+            <span>
+              <span className="block font-medium text-foreground">Set as default calendar</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Used for employees without a specific calendar assignment.
+              </span>
+            </span>
           </label>
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
-            <button type="submit" disabled={busy} className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+          </ModalBody>
+          <ModalFooter>
+            <Button type="button" variant="cancel" onClick={onClose} disabled={busy}>Cancel</Button>
+            <Button type="submit" disabled={busy || !form.name.trim()}>
               {busy ? 'Saving…' : calendar ? 'Update' : 'Create'}
-            </button>
-          </div>
+            </Button>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   )
 }
 

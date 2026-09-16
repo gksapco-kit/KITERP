@@ -201,18 +201,41 @@ function MasterSearch({
   }
 
   if (dim.id === 'contractor' || dim.id === 'freelancer') {
+    const partyType = dim.id === 'contractor' ? 'contractor' : 'freelancer'
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-        <AlertCircle className="h-4 w-4 shrink-0" />
-        Enter the party ID directly — contractor/freelancer records are posted manually via journal entries.
-        <input
-          placeholder="Paste party UUID…"
-          className={cn(filterControlClass, 'ml-2 min-w-0 flex-1')}
-          onChange={e => {
-            const v = e.target.value.trim()
-            if (v.length === 36) onSelect({ id: v, name: v })
-          }}
-        />
+      <div className="min-w-0 space-y-1.5">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={selected?.id ?? q}
+            placeholder={`Enter ${partyType} party ID (UUID)`}
+            aria-label={`${dim.label} party ID`}
+            className={cn(filterControlClass, 'w-full rounded-xl pl-9 pr-9 text-sm')}
+            onChange={e => {
+              const raw = e.target.value
+              const value = raw.trim()
+              setQ(raw)
+              if (selected) onSelect(null)
+              if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+                onSelect({ id: value, name: value })
+              }
+            }}
+          />
+          {(selected || q) && (
+            <button
+              type="button"
+              onClick={() => { onSelect(null); setQ('') }}
+              aria-label="Clear party ID"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <p className="flex items-center gap-1.5 text-[11px] leading-tight text-amber-700 dark:text-amber-300">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          Use the party UUID from a manually posted journal entry.
+        </p>
       </div>
     )
   }
@@ -640,7 +663,7 @@ export default function GLReport() {
             </span>
 
             {/* Master search */}
-            <div className="min-w-64 flex-1">
+            <div className="min-w-[18rem] flex-[1_1_24rem]">
               <MasterSearch dim={dim} selected={selectedRecord} onSelect={setSelectedRecord} />
             </div>
 
