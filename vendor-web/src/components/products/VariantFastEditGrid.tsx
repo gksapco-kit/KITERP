@@ -979,7 +979,7 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
                       type="checkbox"
                       checked={visibleCols.has(col)}
                       onChange={() => toggleColumn(col)}
-                      className="h-3.5 w-3.5 accent-primary"
+                      className="h-3.5 w-3.5"
                     />
                     {COLUMN_DEFS[col].label}
                   </label>

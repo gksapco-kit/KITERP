@@ -1114,7 +1114,7 @@ export function MediaStudioPanel({
                           type="checkbox"
                           checked={(adjustments as any)[key]}
                           onChange={e => updateAdjustments({ [key]: e.target.checked } as Partial<MediaAdjustmentsState>)}
-                          className="rounded accent-primary"
+                          className="rounded"
                         />
                         <span className="text-xs font-medium text-gray-600">{label}</span>
                       </label>

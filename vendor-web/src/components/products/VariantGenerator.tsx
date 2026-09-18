@@ -188,7 +188,7 @@ export function VariantGeneratorButton({ productId }: Props) {
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 bg-muted/60 text-left text-muted-foreground">
                     <tr>
-                      <th className="w-8 px-2 py-2"><input type="checkbox" className="accent-primary" checked={allChecked} onChange={toggleAll} /></th>
+                      <th className="w-8 px-2 py-2"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
                       <th className="px-2 py-2 font-medium">Combination</th>
                       <th className="px-2 py-2 font-medium">SKU</th>
                       <th className="px-2 py-2 font-medium">Barcode</th>
@@ -211,7 +211,6 @@ export function VariantGeneratorButton({ productId }: Props) {
                           <td className="px-2 py-1.5">
                             <input
                               type="checkbox"
-                              className="accent-primary"
                               checked={checkedRows.has(item.variant_hash)}
                               onChange={e => setCheckedRows(prev => {
                                 const next = new Set(prev)

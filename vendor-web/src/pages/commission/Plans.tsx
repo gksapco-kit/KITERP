@@ -343,7 +343,7 @@ export default function PlansPage() {
                   id="stackable"
                   checked={Boolean(form.stackable)}
                   onChange={e => setForm(p => ({ ...p, stackable: e.target.checked }))}
-                  className="rounded border-input accent-primary"
+                  className="rounded border-input"
                 />
                 <label htmlFor="stackable" className="text-sm text-muted-foreground">Stackable (multiple plans can fire on same sale)</label>
               </div>

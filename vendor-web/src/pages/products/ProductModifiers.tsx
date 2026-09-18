@@ -145,7 +145,6 @@ function ModifierGroupRow({ productId, group, onDelete }: { productId: string; g
             type="checkbox"
             checked={group.is_required}
             onChange={e => updateGroup.mutate({ is_required: e.target.checked })}
-            className="accent-primary"
           />
           Required
         </label>

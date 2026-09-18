@@ -6231,7 +6231,7 @@ function SubItemEditor({
                           checked={!!item[field.key]}
                           disabled={readOnly}
                           onChange={e => !readOnly && updateItem(idx, { [field.key]: e.target.checked })}
-                          className="rounded accent-primary w-4 h-4"
+                          className="rounded w-4 h-4"
                         />
                         <span className="text-xs font-medium text-gray-700">{field.label}</span>
                       </label>
@@ -6744,14 +6744,14 @@ function BranchVisibilitySelector({
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={allSelected}
               onChange={() => onChange(null)}
-              className="rounded accent-primary" />
+              className="rounded" />
             <span className="text-xs text-gray-600">All branches</span>
           </label>
           {branches.map(b => (
             <label key={b.code} className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={allSelected || selectedSet.has(b.code)}
                 onChange={() => toggle(b.code)}
-                className="rounded accent-primary" />
+                className="rounded" />
               <span className="text-xs text-gray-600">{b.name} ({b.code})</span>
             </label>
           ))}
@@ -8725,7 +8725,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any)[key] !== false}
                 onChange={e => onUpdate({ [key]: e.target.checked } as any)}
-                className="rounded accent-primary"
+                className="rounded"
               />
               <span className="text-xs text-gray-600">{label}</span>
             </label>
@@ -8803,7 +8803,7 @@ function PropsEditor({
                   }
                   onUpdate({ [key]: e.target.checked } as any)
                 }}
-                className="rounded accent-primary"
+                className="rounded"
               />
               <span className="text-xs text-gray-600">{label}</span>
             </label>
@@ -9198,7 +9198,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showSeating !== false}
                 onChange={e => onUpdate({ showSeating: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show seating chart</span>
             </label>
@@ -9218,7 +9218,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showTag !== false}
                 onChange={e => onUpdate({ showTag: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show event tag badge</span>
             </label>
@@ -9238,7 +9238,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showInstructor !== false}
                 onChange={e => onUpdate({ showInstructor: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show instructor name</span>
             </label>
@@ -9257,7 +9257,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showInstructor !== false}
                 onChange={e => onUpdate({ showInstructor: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show instructor name</span>
             </label>
@@ -9348,7 +9348,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showOutcomes !== false}
                 onChange={e => onUpdate({ showOutcomes: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show learning outcomes</span>
             </label>
@@ -9427,7 +9427,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showAgent !== false}
                 onChange={e => onUpdate({ showAgent: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show listing agent</span>
             </label>
@@ -9482,7 +9482,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showSecondary !== false}
                 onChange={e => onUpdate({ showSecondary: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show secondary button</span>
             </label>
@@ -9557,7 +9557,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showSecondary !== false}
                 onChange={e => onUpdate({ showSecondary: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show secondary button</span>
             </label>
@@ -9576,7 +9576,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showFilters !== false}
                 onChange={e => onUpdate({ showFilters: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show price filter slider</span>
             </label>
@@ -9712,7 +9712,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showUpcoming !== false}
                 onChange={e => onUpdate({ showUpcoming: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show upcoming sessions list</span>
             </label>
@@ -9816,7 +9816,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showFeatures !== false}
                 onChange={e => onUpdate({ showFeatures: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show feature tags</span>
             </label>
@@ -9825,7 +9825,7 @@ function PropsEditor({
                 type="checkbox"
                 checked={(p as any).showPrice !== false}
                 onChange={e => onUpdate({ showPrice: e.target.checked } as any)}
-                className="rounded accent-primary w-4 h-4"
+                className="rounded w-4 h-4"
               />
               <span className="text-xs font-medium text-gray-700">Show price per hour</span>
             </label>
@@ -9844,7 +9844,7 @@ function PropsEditor({
               type="checkbox"
               checked={(p as any).show_nav === true}
               onChange={e => onUpdate({ show_nav: e.target.checked } as any)}
-              className="rounded accent-primary"
+              className="rounded"
             />
             <span className="text-xs text-gray-600">Show Previous and Next on the gallery</span>
           </label>
@@ -10272,7 +10272,7 @@ function PropsEditor({
               type="checkbox"
               checked={(p as any).banner_carousel !== false}
               onChange={e => onUpdate({ banner_carousel: e.target.checked } as any)}
-              className="rounded accent-primary"
+              className="rounded"
             />
             <span className="text-xs text-gray-600">Rotate multiple banners</span>
           </label>
@@ -10305,7 +10305,7 @@ function PropsEditor({
               type="checkbox"
               checked={(block as any)[key] !== false}
               onChange={e => onUpdate({ [key]: e.target.checked } as any)}
-              className="rounded accent-primary"
+              className="rounded"
             />
             <span className="text-xs text-gray-600">{label}</span>
           </label>

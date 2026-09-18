@@ -63,7 +63,7 @@ function CalendarModal({
               type="checkbox"
               checked={form.is_default}
               onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))}
-              className="mt-0.5 rounded accent-primary"
+              className="mt-0.5 rounded"
             />
             <span>
               <span className="block font-medium text-foreground">Set as default calendar</span>

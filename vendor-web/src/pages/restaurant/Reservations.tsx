@@ -125,7 +125,6 @@ export default function RestaurantReservationsPage() {
               type="checkbox"
               checked={exactDateOnly}
               onChange={e => setExactDateOnly(e.target.checked)}
-              className="accent-primary"
             />
             This day only
           </label>

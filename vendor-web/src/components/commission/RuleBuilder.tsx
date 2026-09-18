@@ -189,7 +189,7 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
                     id={`active-${key}`}
                     checked={rule.is_active !== false}
                     onChange={e => updateRule(idx, { is_active: e.target.checked })}
-                    className="rounded border-input accent-primary"
+                    className="rounded border-input"
                   />
                   <label htmlFor={`active-${key}`} className="text-sm text-muted-foreground">Active</label>
                 </div>

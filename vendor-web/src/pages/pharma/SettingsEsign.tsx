@@ -486,7 +486,7 @@ function RuleDrawer({
                   </span>
                   <input
                     type="checkbox"
-                    className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                    className="mt-0.5 h-4 w-4 shrink-0"
                     checked={!!(form as any)[key]}
                     onChange={(e) => patch(key, e.target.checked)}
                   />
@@ -600,7 +600,7 @@ function RuleDrawer({
                         value={step.min_signatures} onChange={(e) => patchStep(i, 'min_signatures', Number(e.target.value))} />
                     </label>
                     <label className="col-span-2 flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs hover:bg-muted/50">
-                      <input type="checkbox" className="h-3.5 w-3.5 accent-primary"
+                      <input type="checkbox" className="h-3.5 w-3.5"
                         checked={step.is_mandatory} onChange={(e) => patchStep(i, 'is_mandatory', e.target.checked)} />
                       Mandatory step
                     </label>
@@ -1887,7 +1887,7 @@ export default function PharmaSettingsEsignPage() {
                     <label key={key} className="flex cursor-pointer items-center gap-1.5 text-xs">
                       <input
                         type="checkbox"
-                        className="h-3.5 w-3.5 accent-primary"
+                        className="h-3.5 w-3.5"
                         checked={!!(newRule as any)[key]}
                         onChange={(e) => patchNewRule(key, e.target.checked)}
                       />

@@ -180,7 +180,7 @@ function VendorCategoryTreeNode({
             type="checkbox"
             checked={checked}
             onChange={() => onToggle(node.id)}
-            className="rounded border-input accent-primary"
+            className="rounded border-input"
           />
           <FolderTree className="h-3 w-3 shrink-0 text-primary" />
           <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
@@ -438,7 +438,7 @@ function DropRow({
 }) {
   return (
     <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted/60">
-      <input type="checkbox" checked={checked} onChange={onChange} className="rounded border-input accent-primary" />
+      <input type="checkbox" checked={checked} onChange={onChange} className="rounded border-input" />
       <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
       <span className="min-w-0 flex-1 truncate font-medium text-foreground">{title}</span>
       {sub && <span className="shrink-0 text-[10px] text-muted-foreground">{sub}</span>}

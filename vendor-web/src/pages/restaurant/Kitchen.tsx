@@ -70,7 +70,6 @@ export default function RestaurantKitchenPage() {
               type="checkbox"
               checked={showDone}
               onChange={e => setShowDone(e.target.checked)}
-              className="accent-primary"
             />
             Show served
           </label>

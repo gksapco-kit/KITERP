@@ -403,7 +403,7 @@ export default function Orders() {
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleSelectAll}
-                    className="mx-auto block h-3.5 w-3.5 rounded border-input accent-primary"
+                    className="mx-auto block h-3.5 w-3.5 rounded border-input"
                   />
                 </th>
                 <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Order</TableColumnLabel></th>
@@ -438,7 +438,7 @@ export default function Orders() {
                       type="checkbox"
                       checked={selectedIds.has(order.id)}
                       onChange={() => toggleRow(order.id)}
-                      className="mx-auto block h-3.5 w-3.5 rounded border-input accent-primary"
+                      className="mx-auto block h-3.5 w-3.5 rounded border-input"
                     />
                   </td>
                   <td className="px-3 py-2.5">

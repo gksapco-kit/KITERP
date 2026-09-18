@@ -54,8 +54,8 @@ function DefaultBadge() {
   )
 }
 
-/** Native checkbox — brand accent instead of solid black fill; stays clickable. */
-const defaultCheckboxClass = 'h-4 w-4 shrink-0 cursor-pointer accent-primary'
+/** Native checkbox — app-wide blue accent; stays clickable. */
+const defaultCheckboxClass = 'h-4 w-4 shrink-0 cursor-pointer'
 
 export default function SalesAreaSetupPage() {
   const [tab, setTab] = useState<TabId>('divisions')

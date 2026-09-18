@@ -8,7 +8,7 @@ RadioGroup.displayName = 'RadioGroup'
 
 const RadioGroupItem = React.forwardRef<HTMLInputElement, Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'>>(
   ({ className, ...props }, ref) => (
-    <input ref={ref} type="radio" className={cn('h-4 w-4 accent-primary', className)} {...props} />
+    <input ref={ref} type="radio" className={cn('h-4 w-4', className)} {...props} />
   ),
 )
 RadioGroupItem.displayName = 'RadioGroupItem'

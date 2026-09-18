@@ -678,7 +678,7 @@ export default function AssignmentsPage() {
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="assign-active" checked={Boolean(form.is_active)}
                   onChange={e => set('is_active', e.target.checked)}
-                  className="rounded border-input accent-primary" />
+                  className="rounded border-input" />
                 <label htmlFor="assign-active" className="text-sm text-muted-foreground">Active</label>
               </div>
 

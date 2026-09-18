@@ -874,7 +874,7 @@ export default function CreditDebitMemos() {
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none whitespace-nowrap">
                   <input
                     type="checkbox"
-                    className="rounded border-input accent-primary"
+                    className="rounded border-input"
                     checked={includeVoided}
                     onChange={(e) => { setIncludeVoided(e.target.checked); setHistPage(1) }}
                   />

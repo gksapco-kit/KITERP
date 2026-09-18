@@ -388,7 +388,7 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
                   type="checkbox"
                   checked={values[field.name] === 'true'}
                   onChange={e => setValue(field.name, e.target.checked ? 'true' : 'false')}
-                  className="mt-0.5 rounded accent-primary"
+                  className="mt-0.5 rounded"
                 />
                 <span className={cn('text-sm', mutedTextClass)}>{field.placeholder || field.label}</span>
               </label>
@@ -458,7 +458,7 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
             checked={gdprConsent}
             onChange={e => setGdprConsent(e.target.checked)}
             required
-            className="mt-0.5 rounded accent-primary"
+            className="mt-0.5 rounded"
           />
           <span className={cn('text-xs', isDark ? 'text-white/50' : 'text-gray-500')}>
             I agree to the <a href="/privacy" className="underline" style={{ color: primary }}>Privacy Policy</a> and consent to being contacted.

@@ -5,6 +5,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Native checkboxes and radios use app blue (same as other form controls), not brand green. */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: hsl(var(--info));
+}
+
 @layer base {
   /**
    * Fluid root font size — scales with viewport width so default typography

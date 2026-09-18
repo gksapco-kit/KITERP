@@ -277,7 +277,7 @@ export default function RestaurantsPage() {
                   type="checkbox"
                   checked={form.is_active}
                   onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))}
-                  className="h-3.5 w-3.5 rounded accent-primary"
+                  className="h-3.5 w-3.5 rounded"
                 />
                 Active
               </label>

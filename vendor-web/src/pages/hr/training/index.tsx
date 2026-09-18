@@ -425,7 +425,6 @@ function EnrollModal({
                           ? [...current, emp.id]
                           : current.filter(id => id !== emp.id)
                       ))}
-                      className="accent-primary"
                     />
                     <span className="min-w-0 flex-1 truncate font-medium">
                       {emp.vendor_user?.user?.full_name ?? emp.full_name ?? emp.employee_code ?? emp.id.slice(0, 8)}

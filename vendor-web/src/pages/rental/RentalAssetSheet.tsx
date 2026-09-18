@@ -895,7 +895,7 @@ export default function RentalAssetSheet({
                     type="checkbox"
                     checked={form.delivery_enabled}
                     onChange={(e) => set('delivery_enabled', e.target.checked)}
-                    className="mt-0.5 accent-primary"
+                    className="mt-0.5"
                   />
                   <span>
                     <span className="block text-sm font-medium text-foreground">Offer delivery on storefront</span>

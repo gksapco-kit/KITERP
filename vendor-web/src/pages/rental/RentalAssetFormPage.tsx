@@ -1407,7 +1407,7 @@ export default function RentalAssetFormPage() {
                         setAssetLinkSearch('')
                       }
                     }}
-                    className="h-4 w-4 shrink-0 rounded accent-primary"
+                    className="h-4 w-4 shrink-0 rounded"
                   />
                   <span className="flex items-center gap-1 text-sm font-medium text-foreground">
                     <Link2 className="h-3.5 w-3.5" />
@@ -1641,7 +1641,7 @@ export default function RentalAssetFormPage() {
                     type="checkbox"
                     checked={form.delivery_enabled}
                     onChange={(e) => set('delivery_enabled', e.target.checked)}
-                    className="mt-0.5 accent-primary"
+                    className="mt-0.5"
                   />
                   <span>
                     <span className="block text-sm font-medium text-foreground">Offer delivery on storefront</span>

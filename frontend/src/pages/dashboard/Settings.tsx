@@ -306,7 +306,7 @@ export default function Settings() {
                     size="sm"
                     onClick={handleSaveApiKey}
                     disabled={savingKey}
-                    className="whitespace-nowrap bg-indigo-600 hover:bg-indigo-700"
+                    className="whitespace-nowrap"
                   >
                     {savingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (
                       <><Save className="w-3.5 h-3.5 mr-1" />Save</>

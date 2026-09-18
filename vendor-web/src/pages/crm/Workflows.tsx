@@ -144,7 +144,7 @@ function WorkflowForm({ wf, onClose }: { wf?: Workflow; onClose: () => void }) {
           <label className="mb-0.5 flex items-center gap-1.5 text-xs text-foreground">
             <input
               type="checkbox"
-              className="h-3.5 w-3.5 accent-primary"
+              className="h-3.5 w-3.5 rounded border-gray-300"
               checked={form.requires_approval}
               onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
             />

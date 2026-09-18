@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Native checkboxes and radios use app blue (same as other form controls), not brand green. */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: hsl(var(--info));
+}
+
 /* Leaflet map overrides - prevent Tailwind reset from breaking the map */
 .leaflet-container {
   width: 100%;

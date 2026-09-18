@@ -481,7 +481,6 @@ export default function RentalAssetUnitsPanel({
                   type="checkbox"
                   checked={bulkForm.autoContinue}
                   onChange={(e) => setBulkForm((f) => ({ ...f, autoContinue: e.target.checked }))}
-                  className="accent-primary"
                 />
                 Auto-continue from {bulkStart}
               </label>
